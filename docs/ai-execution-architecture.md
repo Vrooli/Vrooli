@@ -9,20 +9,23 @@ The architecture achieves this through three key innovations:
 2. **Evolutionary Execution**: Routines evolve from conversational to deterministic as patterns emerge
 3. **Compound Knowledge Effect**: Every routine becomes a building block for more sophisticated automation
 
-This creates a path to **top-down automation of knowledge work** - starting with strategic thinking and working down to operational tasks, eventually enabling AI systems to bootstrap their own infrastructure.
+This creates a path to **top-down/recursive automation of knowledge work** - starting with strategic thinking and working down to operational tasks, eventually enabling AI systems to bootstrap their own infrastructure.
 
 ## Core Terminology and Boundaries
 
 ### **Terminology Definitions**
 
+- **Team**: A persistent organizational unit at the strategic level, composed of humans and AI agents working together toward long-term goals. Teams define high-level objectives, allocate resources (credits, compute, personnel), and set overarching policies (e.g. security, compliance). Each Team maintains a shared context (members, roles, norms) that guides the swarms it spawns.  
 - **Routine**: A reusable, versioned workflow that combines AI reasoning, API calls, code execution, and human oversight to accomplish specific tasks. Routines are the atomic units of automation in Vrooli. 
 
     *Note: Routines are always private by default, and can only be shared with other swarms you create unless you explicitly share them with the public.*
     
-- **Run**: The execution instance of a routine - the actual running process with specific inputs, context, and state.
-- **Navigator**: A pluggable component that translates between Vrooli's universal execution model and platform-specific workflow formats (BPMN, Langchain, etc.).
-- **Strategy**: The execution approach applied to a routine step (Conversational, Reasoning, or Deterministic), selected based on routine characteristics and context.
-- **Context**: The execution environment containing variables, state, permissions, and shared knowledge available to agents during routine execution.
+- **Run**: The execution instance of a routine, managed by the `RunStateMachine`.  
+- **Navigator**: A pluggable component that translates between Vrooli's universal execution model and platform-specific workflow formats (BPMN, Langchain, etc.).  
+- **Strategy**: The execution approach applied to a routine step (Conversational, Reasoning, or Deterministic), selected based on routine characteristics and context.  
+- **Context**: The execution environment containing variables, state, permissions, and shared knowledge available to agents during routine execution.  
+- **Chat:** The conversation data (messages, history, and persisted swarm context), which is tied 1-to-1 with a swarm  
+- **Swarm:** The running swarm process managed by the `SwarmStateMachine`.
 
 ### **Hierarchical Boundaries**
 
@@ -31,24 +34,24 @@ graph TD
     subgraph "Strategic Boundary"
         Teams[Teams<br/>📈 Long-term goals, resource allocation<br/>🔄 Persistent organizational structures]
     end
-    
+
     subgraph "Tactical Boundary"
-        Swarms[Swarms<br/>🎯 Short-term objectives, dynamic coordination<br/>⏱️ Task-specific, disbanded when complete]
+        Swarms[Swarms<br/>🐝 Short-term objectives, dynamic coordination<br/>⏱️ Task-specific, disbanded when complete]
     end
-    
+
     subgraph "Operational Boundary"
-        Agents[Agents<br/>🤖 Specialized capabilities, role-based execution<br/>🔄 Persistent, recruited across swarms]
-        Routines[Routines<br/>⚙️ Reusable processes, versioned automation<br/>📈 Evolved through usage patterns]
+        Agents[Agents<br/>🤖 Persistent AI entities, specialized capabilities] 
+        Routines[Routines<br/>⚙️ Versioned workflows, atomic automation<br/>📈 Evolve through usage]
     end
-    
+
     Teams -.->|"Provides resources & strategic direction"| Swarms
     Swarms -.->|"Coordinates & assigns objectives"| Agents
     Agents -.->|"Execute & improve"| Routines
-    
+
     classDef strategic fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef tactical fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef operational fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    
+
     class Teams strategic
     class Swarms tactical
     class Agents,Routines operational
@@ -113,58 +116,6 @@ graph TD
 - **Composition**: Workflows combining AI reasoning, API calls, code, and human oversight
 - **Lifecycle**: Versioned, improved over time through use and feedback
 - **Examples**: "Market Research Report," "Customer Sentiment Analysis," "API Integration Template"
-
-### The Recursive Self-Improvement Cycle
-
-```mermaid
-graph LR
-    subgraph "Phase 1: Foundation"
-        A1[Humans create initial<br/>conversational routines]
-        A2[Agents execute routines<br/>with human guidance]
-        A3[Usage patterns emerge<br/>from execution data]
-    end
-    
-    subgraph "Phase 2: Pattern Recognition"
-        B1[Swarms analyze<br/>routine performance]
-        B2[Common patterns<br/>identified across routines]
-        B3[Best practices<br/>extracted and codified]
-    end
-    
-    subgraph "Phase 3: Infrastructure Building"
-        C1[Swarms create<br/>deterministic routines]
-        C2[API integrations<br/>and tools built]
-        C3[Knowledge base<br/>expands rapidly]
-    end
-    
-    subgraph "Phase 4: Bootstrap Moment"
-        D1[Swarms autonomously<br/>improve routines]
-        D2[Infrastructure<br/>self-extends]
-        D3[Exponential capability<br/>growth achieved]
-    end
-    
-    A1 --> A2 --> A3
-    A3 --> B1
-    B1 --> B2 --> B3
-    B3 --> C1
-    C1 --> C2 --> C3
-    C3 --> D1
-    D1 --> D2 --> D3
-    
-    %% Feedback loops
-    D3 -.->|"Enhanced capabilities"| A1
-    C3 -.->|"Better tools"| B1
-    B3 -.->|"Improved patterns"| A2
-    
-    classDef phase1 fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef phase2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef phase3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef phase4 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    
-    class A1,A2,A3 phase1
-    class B1,B2,B3 phase2
-    class C1,C2,C3 phase3
-    class D1,D2,D3 phase4
-```
 
 ### Execution Strategy Evolution
 
@@ -401,6 +352,8 @@ graph TB
         subgraph "Metacognitive Framework"
             PromptEngine[Prompt Engine<br/>🧠 Role-aware system prompts<br/>📊 Dynamic context injection<br/>🎯 Goal framing]
             
+            MoiseSerializer[MOISE+ Serializer<br/>📦 Inject roles / missions / norms<br/>⬇️ Into leader prompt]
+            
             MCPTools[MCP Tool Suite<br/>🔧 update_swarm_shared_state<br/>📋 manage_subtasks<br/>👥 delegate_roles<br/>📢 subscribe_to_events]
             
             SwarmContext[Swarm Context<br/>📊 Current state<br/>🎯 Goals & subtasks<br/>👥 Team structure<br/>📝 Execution history]
@@ -424,6 +377,7 @@ graph TB
     %% Connections
     SwarmStateMachine --> PromptEngine
     SwarmStateMachine --> SwarmContext
+    PromptEngine --> MoiseSerializer
     PromptEngine --> MCPTools
     MCPTools --> SwarmContext
     
@@ -438,11 +392,11 @@ graph TB
     
     classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef framework fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef dynamic fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5
+    classDef dynamic fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,stroke-dasharray:5 5
     classDef team fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class SwarmStateMachine orchestrator
-    class PromptEngine,MCPTools,SwarmContext framework
+    class PromptEngine,MoiseSerializer,MCPTools,SwarmContext framework
     class RecruitmentLogic,TaskDecomposition,ResourceAllocation,EventCoordination dynamic
     class TeamConfig team
 ```
@@ -467,14 +421,29 @@ if (role === "leader") {
 }
 ```
 
-**2. Flexible Coordination Patterns**
+**2. MOISE+ Organizational Modeling**  
+
+*MOISE+* gives us a formal grammar for describing who **may/must/must-not do** any piece of work.  Instead of relying on an LLM’s best guess, we feed the agents an explicit organization specification consisting of three linked dimensions:
+
+| Dimension | What it captures | In-doc symbols | Runtime effect |
+|-----------|------------------|---------------|----------------|
+| **Structural** | Roles, groups, inheritance, social links | `role`, `group`, `link` | Who *can* be assigned to a task |
+| **Functional** | Goals, missions, plans (decomposition) | `mission`, `plan`, `goal` | Which steps exist & in what order |
+| **Deontic** | Permissions, obligations, prohibitions | `permission`, `obligation`, `prohibition` | Who *must / may / must-not* act |
+
+In Vrooli we serialise the MOISE+ spec to JSON and inject it into the **SwarmContext**; every tier then enforces the relevant dimension deterministically:
+1. Tier 1 (Leader agent) — uses structural & deontic info to pick assignees.  
+2. Tier 2 (RunStateMachine) — validates each sub-routine call against deontic rules.  
+3. Tier 3 (Guard-Rails) — blocks or barriers high-risk steps based on norms.
+
+**3. Flexible Coordination Patterns**
 Agents can invent new coordination strategies on the fly:
 - **Hierarchical**: Leader delegates to specialists
 - **Peer-to-peer**: Agents collaborate directly via events
 - **Emergent**: Patterns evolve based on task success
 - **Hybrid**: Mix strategies as needed
 
-**3. Tool-Mediated Actions**
+**4. Tool-Mediated Actions**
 Instead of API calls to coordination services, agents use MCP tools that feel natural:
 ```typescript
 // Agent naturally expresses coordination intent
@@ -556,7 +525,7 @@ graph TB
 #### **Key Design Principles**
 
 **1. Prompt as Configuration**
-The system prompt IS the coordination logic. Changes to coordination behavior are as simple as updating prompts:
+The system prompt *is* the coordination logic. Changes to coordination behavior are as simple as updating prompts:
 ```typescript
 // Easy to experiment with new coordination strategies
 const promptVariants = {
@@ -1167,110 +1136,114 @@ The `RunStateMachine` is at the heart of Vrooli's ability to execute diverse aut
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
-    
-    %% Initialization States
-    Idle --> Initializing : initNewRun() / initExistingRun()
-    Initializing --> LoadingRoutine : Load routine definition
+
+    %% ───────────────────────────────────  Initialisation  ──────────────────────────────────
+    Idle --> Initializing            : initNewRun() / initExistingRun()
+    Initializing --> LoadingRoutine  : Load routine definition
     LoadingRoutine --> ValidatingConfiguration : Validate run config
     ValidatingConfiguration --> SelectingNavigator : Choose appropriate navigator
-    SelectingNavigator --> InitializingContext : Setup execution context
-    InitializingContext --> Initialized : All systems ready
-    
-    %% Core Execution States
-    Initialized --> Running : runUntilDone() / runOneIteration()
-    Running --> ExecutingBranches : Process active branches
-    ExecutingBranches --> EvaluatingConditions : Check branch conditions
-    EvaluatingConditions --> HandlingEvents : Process boundary events
-    HandlingEvents --> UpdatingProgress : Update state & metrics
-    UpdatingProgress --> CheckingLimits : Validate resource limits
-    
-    %% Decision Points and Loops
-    CheckingLimits --> LimitsExceeded : Limits reached
-    CheckingLimits --> BranchesCompleted : All branches done
-    CheckingLimits --> HasActiveBranches : Branches remain active
-    CheckingLimits --> AllBranchesWaiting : All branches waiting
-    
-    HasActiveBranches --> ExecutingBranches : Continue execution
-    AllBranchesWaiting --> WaitingForEvents : Enter waiting state
-    
-    %% Event Handling States
-    WaitingForEvents --> ProcessingTimeEvent : Timer triggers
-    WaitingForEvents --> ProcessingMessageEvent : Message received
-    WaitingForEvents --> ProcessingSignalEvent : Signal received
-    WaitingForEvents --> ProcessingErrorEvent : Error boundary triggered
-    
-    ProcessingTimeEvent --> ReactivatingBranches : Resume execution
-    ProcessingMessageEvent --> ReactivatingBranches : Resume execution  
-    ProcessingSignalEvent --> ReactivatingBranches : Resume execution
-    ProcessingErrorEvent --> ErrorRecovery : Handle error
-    
-    ReactivatingBranches --> ExecutingBranches : Continue with active branches
-    
-    %% Error and Recovery States
-    ErrorRecovery --> RetryingExecution : Retry strategy
-    ErrorRecovery --> FallbackStrategy : Use fallback
-    ErrorRecovery --> EscalatingError : Cannot recover
-    
-    RetryingExecution --> ExecutingBranches : Retry successful
-    RetryingExecution --> EscalatingError : Retry failed
-    FallbackStrategy --> ExecutingBranches : Fallback successful  
-    FallbackStrategy --> EscalatingError : Fallback failed
-    
-    %% Terminal States
-    BranchesCompleted --> Completed : Success
-    LimitsExceeded --> LimitsFailed : Resource exhaustion
-    EscalatingError --> Failed : Unrecoverable error
-    
-    %% Pause/Resume States
-    Running --> Pausing : stopRun(PAUSED)
-    ExecutingBranches --> Pausing : External pause request
-    WaitingForEvents --> Pausing : External pause request
-    Pausing --> Paused : Save state & suspend
-    Paused --> Resuming : Resume request
-    Resuming --> Running : Restore state & continue
-    
-    %% Cancellation States  
-    Running --> Cancelling : stopRun(CANCELLED)
-    ExecutingBranches --> Cancelling : External cancel request
-    WaitingForEvents --> Cancelling : External cancel request
-    Paused --> Cancelling : Cancel from pause
-    Cancelling --> Cancelled : Cleanup & terminate
-    
-    %% Navigator Integration States
-    SelectingNavigator --> BpmnNavigator : BPMN workflow
-    SelectingNavigator --> LangchainNavigator : Langchain workflow
-    SelectingNavigator --> TemporalNavigator : Temporal workflow
-    SelectingNavigator --> CustomNavigator : Custom workflow
-    
-    BpmnNavigator --> InitializingContext
+    SelectingNavigator --> InitializingContext    : Setup execution context
+    InitializingContext --> Initialized           : All systems ready
+
+    %% ───────────────────────────────────  Core execution  ──────────────────────────────────
+    Initialized --> Running           : runUntilDone() / runOneIteration()
+    Running --> ExecutingBranches     : Process active branches
+    ExecutingBranches --> EvaluatingConditions  : Check branch conditions
+    EvaluatingConditions --> HandlingEvents      : Process boundary events
+
+    %% NEW — deontic permission gate
+    HandlingEvents --> MoiseDeonticGate          : checkDeontic()
+    MoiseDeonticGate --> UpdatingProgress        : ✓ permitted
+    MoiseDeonticGate --> EscalatingError         : ✗ forbidden (PermissionError)
+
+    UpdatingProgress --> CheckingLimits          : Validate resource limits
+
+    %% ───────────────────────────────────  Decision points  ─────────────────────────────────
+    CheckingLimits --> LimitsExceeded            : Limits reached
+    CheckingLimits --> BranchesCompleted         : All branches done
+    CheckingLimits --> HasActiveBranches         : Branches still active
+    CheckingLimits --> AllBranchesWaiting        : All branches waiting
+
+    HasActiveBranches --> ExecutingBranches      : Continue execution
+    AllBranchesWaiting --> WaitingForEvents      : Enter waiting state
+
+    %% ───────────────────────────────  Event handling while waiting  ────────────────────────
+    WaitingForEvents --> ProcessingTimeEvent     : Timer triggers
+    WaitingForEvents --> ProcessingMessageEvent  : Message received
+    WaitingForEvents --> ProcessingSignalEvent   : Signal received
+    WaitingForEvents --> ProcessingErrorEvent    : Error boundary triggered
+
+    ProcessingTimeEvent --> ReactivatingBranches
+    ProcessingMessageEvent --> ReactivatingBranches
+    ProcessingSignalEvent --> ReactivatingBranches
+    ProcessingErrorEvent --> ErrorRecovery
+
+    ReactivatingBranches --> ExecutingBranches
+
+    %% ──────────────────────────────────  Error / recovery  ─────────────────────────────────
+    ErrorRecovery --> RetryingExecution          : Retry strategy
+    ErrorRecovery --> FallbackStrategy           : Use fallback
+    ErrorRecovery --> EscalatingError            : Cannot recover
+
+    RetryingExecution --> ExecutingBranches      : Retry ok
+    RetryingExecution --> EscalatingError        : Retry failed
+    FallbackStrategy  --> ExecutingBranches      : Fallback ok
+    FallbackStrategy  --> EscalatingError        : Fallback failed
+
+    %% ────────────────────────────────────  Terminals  ──────────────────────────────────────
+    BranchesCompleted --> Completed
+    LimitsExceeded    --> LimitsFailed
+    EscalatingError   --> Failed
+
+    %% ───────────────────────────────── Pause / resume  ─────────────────────────────────────
+    Running           --> Pausing    : stopRun(PAUSED)
+    ExecutingBranches --> Pausing
+    WaitingForEvents  --> Pausing
+    Pausing --> Paused
+    Paused --> Resuming
+    Resuming --> Running
+
+    %% ───────────────────────────────── Cancellation  ───────────────────────────────────────
+    Running           --> Cancelling : stopRun(CANCELLED)
+    ExecutingBranches --> Cancelling
+    WaitingForEvents  --> Cancelling
+    Paused            --> Cancelling
+    Cancelling --> Cancelled
+
+    %% ─────────────────────────────── Navigator selection  ─────────────────────────────────
+    SelectingNavigator --> BpmnNavigator
+    SelectingNavigator --> LangchainNavigator
+    SelectingNavigator --> TemporalNavigator
+    SelectingNavigator --> CustomNavigator
+    BpmnNavigator      --> InitializingContext
     LangchainNavigator --> InitializingContext
-    TemporalNavigator --> InitializingContext
-    CustomNavigator --> InitializingContext
-    
-    %% Final States
-    Completed --> [*]
-    Failed --> [*]
-    LimitsFailed --> [*]
-    Cancelled --> [*]
-    
-    %% State Annotations
+    TemporalNavigator  --> InitializingContext
+    CustomNavigator    --> InitializingContext
+
+    %% ───────────────────────────────────  Finals  ──────────────────────────────────────────
+    Completed   --> [*]
+    Failed      --> [*]
+    LimitsFailed--> [*]
+    Cancelled   --> [*]
+
+    %% ─────────────────────────────────  Sub-state blocks  ──────────────────────────────────
     state WaitingForEvents {
         [*] --> EventListener
-        EventListener --> TimerCheck : Check time-based events
-        EventListener --> MessageQueue : Check message events
-        EventListener --> SignalMonitor : Check signal events
-        TimerCheck --> EventListener
-        MessageQueue --> EventListener
-        SignalMonitor --> EventListener
+        EventListener --> TimerCheck       : Check timers
+        EventListener --> MessageQueue     : Check messages
+        EventListener --> SignalMonitor    : Check signals
+        TimerCheck     --> EventListener
+        MessageQueue   --> EventListener
+        SignalMonitor  --> EventListener
     }
-    
+
     state ExecutingBranches {
         [*] --> DeterminingConcurrency
-        DeterminingConcurrency --> SequentialExecution : Resource constraints
-        DeterminingConcurrency --> ParallelExecution : Resources available
+        DeterminingConcurrency --> SequentialExecution : Resource constrained
+        DeterminingConcurrency --> ParallelExecution   : Parallel allowed
         SequentialExecution --> BranchComplete
-        ParallelExecution --> BranchComplete
-        BranchComplete --> [*]
+        ParallelExecution   --> BranchComplete
+        BranchComplete      --> [*]
     }
 ```
 
@@ -1286,74 +1259,6 @@ The RunStateMachine represents Vrooli's core innovation: a **universal routine e
   - Future support for any graph-based automation standard
 
 This means swarms from different platforms can share and execute each other's routines, creating a **universal automation ecosystem** where the best automation workflows can be used anywhere, regardless of their original platform.
-
-```mermaid
-graph TB
-    subgraph "Process Intelligence - RunStateMachine"
-        RunStateMachine[RunStateMachine<br/>📊 Universal routine orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
-        
-        subgraph "Navigator Registry - Plug & Play"
-            NavigatorFactory[NavigatorFactory<br/>🏭 Navigator selection<br/>🔌 Pluggable architecture]
-            BpmnNavigator[BpmnNavigator<br/>📊 BPMN 2.0 support<br/>🏢 Enterprise workflows]
-            LangchainNavigator[LangchainNavigator<br/>🔗 AI agent chains<br/>🧠 LLM workflows]
-            TemporalNavigator[TemporalNavigator<br/>⏱️ Durable execution<br/>📈 Scalable workflows]
-            AirflowNavigator[AirflowNavigator<br/>🌊 Data pipelines<br/>📊 ETL workflows]
-            CustomNavigator[CustomNavigator<br/>🔧 Custom standards<br/>🎯 Domain-specific]
-        end
-        
-        subgraph "Execution Management"
-            BranchController[BranchController<br/>🌿 Concurrent execution<br/>🔀 Synchronization<br/>📊 Load balancing]
-            StateManager[StateManager<br/>💾 Persistence<br/>🔄 Recovery<br/>📄 Audit trails]
-            ProcessManager[ProcessManager<br/>🔄 Routine navigation<br/>📍 State tracking<br/>⚡ Parallel coordination]
-        end
-        
-        subgraph "Intelligence Layer"
-            PathSelectionHandler[PathSelectionHandler<br/>🤔 Path selection<br/>🎯 Decision optimization<br/>📊 A/B testing]
-            RunLimitsManager[RunLimitsManager<br/>⏱️ Resource limits<br/>💰 Credit tracking<br/>🔢 Step counting]
-        end
-        
-        subgraph "Context & Integration"
-            SubroutineContextManager[SubroutineContextManager<br/>📋 Context lifecycle<br/>🔗 Variable management<br/>📊 Data inheritance]
-            RunPersistence[RunPersistence<br/>💾 State persistence<br/>📄 Progress tracking<br/>🔄 Recovery support]
-            RunNotifier[RunNotifier<br/>📢 Progress notifications<br/>🔔 Event broadcasting<br/>🌐 Real-time updates]
-        end
-        
-        subgraph "Tier 3 Integration"
-            SubroutineExecutor[SubroutineExecutor<br/>🤖 UnifiedExecutor bridge<br/>🎯 Strategy-aware execution<br/>📊 Context-aware processing]
-        end
-    end
-    
-    RunStateMachine --> NavigatorFactory
-    NavigatorFactory --> BpmnNavigator
-    NavigatorFactory --> LangchainNavigator
-    NavigatorFactory --> TemporalNavigator
-    NavigatorFactory --> AirflowNavigator
-    NavigatorFactory --> CustomNavigator
-    
-    RunStateMachine --> BranchController
-    RunStateMachine --> StateManager
-    RunStateMachine --> ProcessManager
-    RunStateMachine --> PathSelectionHandler
-    RunStateMachine --> RunLimitsManager
-    RunStateMachine --> SubroutineContextManager
-    RunStateMachine --> RunPersistence
-    RunStateMachine --> RunNotifier
-    RunStateMachine --> SubroutineExecutor
-    
-    classDef runCore fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    classDef navigators fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef execution fill:#e1bee7,stroke:#8e24aa,stroke-width:2px
-    classDef intelligence fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef context fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef integration fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    
-    class RunStateMachine runCore
-    class NavigatorFactory,BpmnNavigator,LangchainNavigator,TemporalNavigator,AirflowNavigator,CustomNavigator navigators
-    class BranchController,StateManager,ProcessManager execution
-    class PathSelectionHandler,RunLimitsManager intelligence
-    class SubroutineContextManager,RunPersistence,RunNotifier context
-    class SubroutineExecutor integration
-```
 
 #### **Universal Navigator Interface**
 
@@ -1464,67 +1369,68 @@ This creates a **strategy evolution pipeline** where routines naturally progress
 
 ```mermaid
 graph TB
-    subgraph "Tier 3: Execution Intelligence – UnifiedExecutor"
-        UnifiedExecutor[UnifiedExecutor<br/>🎯 Central execution coordinator<br/>🤖 Strategy-aware processing]
+  subgraph "Tier 3: Execution Intelligence – UnifiedExecutor"
+    UnifiedExecutor[UnifiedExecutor<br/>🎯 Central execution coordinator<br/>🤖 Strategy-aware processing]
 
-        %% ─────────── Strategy framework ───────────
-        subgraph "Strategy Framework"
-            StrategySelector[StrategySelector<br/>🧠 Context-aware selection]
-            ConversationalStrategy[ConversationalStrategy<br/>💬 Natural-language tasks]
-            ReasoningStrategy[ReasoningStrategy<br/>🧠 Structured analysis]
-            DeterministicStrategy[DeterministicStrategy<br/>⚙️ Reliable automation]
-        end
-
-        %% ─────────── Execution infra ───────────
-        subgraph "Execution Infrastructure"
-            ToolOrchestrator[ToolOrchestrator<br/>🔧 MCP tool coordination]
-            IOProcessor[IOProcessor<br/>📋 I/O handling & validation]
-            ResourceManager[ResourceManager<br/>💰 Credit & time limits]
-            ValidationEngine[ValidationEngine<br/>✅ Output QA & security]
-        end
-
-        %% ─────────── Context & state ───────────
-        subgraph "Context & State Management"
-            ExecutionContext[ExecutionContext<br/>📋 Runtime environment]
-            StateSynchronizer[StateSynchronizer<br/>🔄 Cross-tier sync]
-            ContextInheritance[ContextInheritance<br/>⬇️ Hierarchical propagation]
-        end
-
-        %% ─────────── Telemetry only (no learning here) ───────────
-        subgraph "Telemetry Emitter (stateless)"
-            TelemetryShim[Telemetry Shim<br/>📊 Publishes perf.* / biz.* / safety.* events]
-        end
+    %% ─────────── Strategy framework ───────────
+    subgraph "Strategy Framework"
+      StrategySelector[StrategySelector<br/>🧠 Context-aware selection]
+      ConversationalStrategy[ConversationalStrategy<br/>💬 Natural-language tasks]
+      ReasoningStrategy[ReasoningStrategy<br/>🧠 Structured analysis]
+      DeterministicStrategy[DeterministicStrategy<br/>⚙️ Reliable automation]
     end
 
-    %% Core flow
-    UnifiedExecutor --> StrategySelector
-    StrategySelector --> ConversationalStrategy
-    StrategySelector --> ReasoningStrategy
-    StrategySelector --> DeterministicStrategy
+    %% ─────────── Context & state ───────────
+    subgraph "Context & State Management"
+      RunContext[RunContext<br/>📋 Runtime environment]
+      ContextExporter[ContextExporter<br/>🔄 Cross-tier sync]
+    end
 
-    UnifiedExecutor --> ToolOrchestrator
-    UnifiedExecutor --> IOProcessor
-    UnifiedExecutor --> ResourceManager
-    UnifiedExecutor --> ValidationEngine
+    %% ─────────── Execution infra ───────────
+    subgraph "Execution Infrastructure"
+      ToolOrchestrator[ToolOrchestrator<br/>🔧 MCP tool coordination]
+    MoiseBarrier[MOISE+ Norm Check<br/>🔒 Deontic enforcement]
+      IOProcessor[IOProcessor<br/>📋 I/O handling & validation]
+      ResourceManager[ResourceManager<br/>💰 Credit & time limits]
+      ValidationEngine[ValidationEngine<br/>✅ Output QA & security]
+    end
 
-    UnifiedExecutor --> ExecutionContext
-    UnifiedExecutor --> StateSynchronizer
-    UnifiedExecutor --> ContextInheritance
+    %% ─────────── Telemetry only (no learning here) ───────────
+    subgraph "Telemetry Emitter (stateless)"
+      TelemetryShim[Telemetry Shim<br/>📊 Publishes perf.* / biz.* / safety.* events]
+    end
+  end
 
-    %% Telemetry
-    UnifiedExecutor --> TelemetryShim
+  %% Core flow
+  UnifiedExecutor --> StrategySelector
+  StrategySelector --> ConversationalStrategy
+  StrategySelector --> ReasoningStrategy
+  StrategySelector --> DeterministicStrategy
 
-    classDef executor fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef strategy fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef infra fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef telem fill:#ffebee,stroke:#c62828,stroke-width:2px
+  UnifiedExecutor --> RunContext
+  UnifiedExecutor --> ContextExporter
 
-    class UnifiedExecutor executor
-    class StrategySelector,ConversationalStrategy,ReasoningStrategy,DeterministicStrategy strategy
-    class ToolOrchestrator,IOProcessor,ResourceManager,ValidationEngine infra
-    class ExecutionContext,StateSynchronizer,ContextInheritance context
-    class TelemetryShim telem
+  UnifiedExecutor --> ResourceManager
+  ResourceManager --> MoiseBarrier
+  MoiseBarrier --> IOProcessor
+  MoiseBarrier --> ToolOrchestrator
+
+  IOProcessor --> ToolOrchestrator
+  ToolOrchestrator --> ValidationEngine
+
+  UnifiedExecutor --> TelemetryShim
+
+  classDef executor fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+  classDef strategy fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+  classDef infra fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+  classDef context fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+  classDef telem fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+  class UnifiedExecutor executor
+  class StrategySelector,ConversationalStrategy,ReasoningStrategy,DeterministicStrategy strategy
+  class RunContext,ContextExporter context
+  class ResourceManager,MoiseBarrier,IOProcessor,ToolOrchestrator,ValidationEngine infra
+  class TelemetryShim telem
 ```
 
 **Here's how the UnifiedExecutor works in detail:**
@@ -1542,7 +1448,7 @@ sequenceDiagram
     participant TS as TelemetryShim
 
     %% ───────────── Invocation ─────────────
-    T2->>UE: StepExecutionRequest(step, ctx, limits)
+    T2->>UE: RunStepContext(step, ctx, limits)
 
     %% ───────────── Preparation ────────────
     UE->>SS: chooseStrategy(ctx.manifest, usageHints)
@@ -1587,7 +1493,7 @@ sequenceDiagram
             RM-->>UE: usageReport
 
             %% ───────────── Completion ─────────────
-            UE-->>T2: StepExecutionResult(validatedOutput, usageReport)
+            UE-->>T2: RunStepResult(validatedOutput, usageReport)
             TS-->>TS: emit perf.step_completed
         end
     end
@@ -2238,21 +2144,17 @@ const chatConfig = {
 
 This architecture provides a **unified tool execution layer** that serves both external AI agents (via MCP) and internal swarms, with comprehensive approval controls, resource management, and dynamic tool generation capabilities.
 
-#### **Execution Context Management**
+#### Run Context Management
 
-The **ExecutionContext** provides essential runtime environment for step execution, focusing on immediate operational needs rather than long-term optimization:
+The **RunContext** provides essential runtime environment for step execution:
 
 ```typescript
-interface ExecutionContext {
-    // Hierarchical Context
-    readonly systemContext: SystemContext;           // Global capabilities and constraints
-    readonly teamContext?: TeamContext;              // Team-specific knowledge and goals
-    readonly swarmContext?: SwarmContext;            // Current swarm state and objectives  
-    readonly agentContext?: AgentContext;            // Agent persona and capabilities
-    readonly routineContext: RoutineContext;         // Routine-specific variables and state
+interface RunContext {
+    /** static */
+    readonly runId: string;
+    readonly stepSchema: RoutineStepSchema;
+    readonly parent?: RunContext;variables and state
     
-    // Runtime Environment
-    readonly variables: ContextVariables;            // Available variables and their values
     readonly permissions: Permission[];              // Execution permissions and constraints
     readonly resourceLimits: ResourceLimits;         // Credit, time, and computational limits
     readonly qualityRequirements: QualityRequirements; // Output quality and validation rules
@@ -2263,26 +2165,26 @@ interface ExecutionContext {
     readonly integrationConfigs: IntegrationConfig[]; // Third-party service configurations
     
     // State Management
-    inheritFromParent(parentContext: ExecutionContext): ExecutionContext;
-    createChildContext(overrides: ContextOverrides): ExecutionContext;
-    updateVariable(key: string, value: unknown): ExecutionContext;
+    inheritFromParent(parentContext: RunContext): RunContext;
+    createChildContext(overrides: ContextOverrides): RunContext;
+    updateVariable(key: string, value: unknown): RunContext;
     validatePermissions(action: ExecutionAction): PermissionResult;
-}
 
-interface ContextVariables {
-    readonly inputData: Record<string, unknown>;     // Step input parameters
-    readonly intermediateResults: Record<string, unknown>; // Results from previous steps
-    readonly sharedState: Record<string, unknown>;   // State shared across routine execution
-    readonly temporaryCache: Record<string, unknown>; // Temporary data for current step
-    
-    get(key: string, defaultValue?: unknown): unknown;
-    set(key: string, value: unknown): void;
-    has(key: string): boolean;
-    merge(other: ContextVariables): ContextVariables;
+    /** dynamic */
+    vars: Record<string, unknown>;
+    intermediate: Record<string, unknown>;
+    exports: ExportDeclaration[];      // populated by manifest or tool call
+    sensitivity: Record<string, DataSensitivity>; // NONE | INSENSITIVE | SENSITIVE | CONFIDENTIAL
+
+    /* helpers */
+    createChild(overrides?: Partial<RunContextInit>): RunContext;
+    markForExport(key: string, toParent?: boolean, toBlackboard?: boolean): void;
 }
 ```
 
 **Context Inheritance**: The system maintains a clear hierarchical flow where each level inherits appropriate context from its parent while maintaining security boundaries. Performance tracking, learning, and optimization are handled by specialized agents that subscribe to execution events rather than being embedded in the execution context itself.
+
+> See the [Context and Memory Architecture](#context-and-memory-architecture) section for details on how context as a whole is managed and persisted.
 
 #### **Runtime Resource Accounting**
 
@@ -2351,7 +2253,7 @@ sequenceDiagram
     
     T1->>T2: SwarmExecutionRequest<br/>(goal, team, context)
     T2->>T2: Navigate routine<br/>& manage state
-    T2->>T3: StepExecutionRequest<br/>(step, strategy, context)
+    T2->>T3: RunStepContext<br/>(step, strategy, context)
     
     T3->>T3: Select optimal strategy<br/>based on context
     T3->>T3: Prepare execution environment<br/>& validate permissions
@@ -2369,7 +2271,7 @@ sequenceDiagram
     
     Tools-->>T3: Results & status
     T3->>T3: Validate output quality<br/>& emit performance events
-    T3-->>T2: StepExecutionResult<br/>(output, metrics, state)
+    T3-->>T2: RunStepResult<br/>(output, metrics, state)
     
     T2->>T2: Update routine state<br/>& plan next steps
     T2-->>T1: RoutineExecutionResult<br/>(status, outputs, metrics)
@@ -2414,8 +2316,6 @@ All tools, whether built-in or dynamic, follow consistent patterns:
 
 This MCP-based tool integration architecture provides the foundation for Vrooli's unified automation ecosystem, enabling seamless collaboration between AI agents, swarms, and external systems while maintaining strict resource control and user oversight.
 
-**Now please remind me to explain how the actual tool use like web search, calling APIs, etc. works, and I'll provide the details for the next update!**
-
 ## Data Flow and Interface Architecture
 
 ### **Inter-Tier Communication Model**
@@ -2429,7 +2329,7 @@ sequenceDiagram
 
     Note over T1,T3: Execution Request Flow
     T1->>T2: SwarmExecutionRequest
-    T2->>T3: RoutineStepExecutionRequest
+    T2->>T3: RoutineRunStepContext
     T3->>Ext: API/Tool Calls
     Ext-->>T3: Results
     T3-->>T2: ExecutionResult
@@ -2438,7 +2338,7 @@ sequenceDiagram
     Note over T1,T3: Context & State Synchronization
     T1->>T2: ContextUpdate
     T2->>T1: StateSnapshot
-    T2->>T3: ExecutionContext
+    T2->>T3: RunContext
     T3->>T2: StateUpdate
 
     Note over T1,T3: Resource Management
@@ -2505,17 +2405,17 @@ interface IRunStateMachine {
 interface RoutineExecutionRequest {
     routineId: string;
     stepId: string;
-    strategy: ExecutionStrategy;
-    context: ExecutionContext;
+    strategy: RunStrategy;
+    context: RunContext;
     navigatorType: NavigatorType;
     inputData: unknown;
 }
 
-interface ExecutionContext {
+interface RunContext {
     variables: Record<string, unknown>;
     permissions: Permission[];
     agentCapabilities: Capability[];
-    parentContext?: ExecutionContext;
+    parentContext?: RunContext;
     resourceLimits: ResourceLimits;
 }
 ```
@@ -2524,14 +2424,14 @@ interface ExecutionContext {
 
 ```typescript
 interface IUnifiedExecutor {
-    executeStep(request: StepExecutionRequest): Promise<StepExecutionResult>;
-    selectStrategy(context: ExecutionContext): ExecutionStrategy;
+    executeStep(request: RunStepContext): Promise<RunStepResult>;
+    selectStrategy(context: RunContext): RunStrategy;
     validateOutput(output: unknown, schema: ValidationSchema): ValidationResult;
 }
 
-interface StepExecutionRequest {
+interface RunStepContext {
     stepType: StepType;
-    strategy: ExecutionStrategy;
+    strategy: RunStrategy;
     tools: ToolDefinition[];
     context: ExecutionContext;
     inputData: unknown;
@@ -3459,65 +3359,44 @@ This architecture ensures that Vrooli can reliably access AI capabilities across
 
 ### **Context and Memory Architecture**
 
-#### **Hierarchical Context Management**
+Context is stored in three layers:
+| Layer (scope)                                          | Lifetime                        | Who can read/write?                                                           | What it’s for                                                                | Where it lives                                                                                    |
+| ------------------------------------------------------ | ------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **RunContext** <br/>*(formerly ExecutionContext)*      | “Until the sub-routine returns” | The RunStateMachine **and** Tier-3 executor that own this single run instance | Inputs, intermediate vars, step history, `exports[]` list (declared outputs) | In-memory object; flushed to Redis (L2) every state-save tick                                     |
+| **SwarmSharedState.blackboard\[]**                     | “As long as the swarm exists”   | Any agent in the chat via `update_swarm_shared_state`                         | Short-lived cross-task scratch: results, notes, ids, URLs, etc.              | Part of `ConversationState` (L1/L2); also streamed on the event-bus as `swarm/blackboard_updated` |
+| **Persistent Resource** *(Note, Routine, API record…)* | Permanent                       | Agents only (through `resource_manage add/update`)                            | Anything the team might reuse tomorrow                                       | PostgreSQL + pgvector                                                                             |
 
+**If data should outlive a run or swarm, somebody must push it up a layer:**
 ```mermaid
-graph TB
-    subgraph "Context Hierarchy"
-        SystemContext[System Context<br/>🌐 Global knowledge base<br/>🔧 System capabilities<br/>📋 Universal constraints]
-        
-        subgraph "Team Level"
-            TeamContext[Team Context<br/>🎯 Team objectives<br/>👥 Member capabilities<br/>📊 Shared knowledge]
-        end
-        
-        subgraph "Swarm Level"
-            SwarmContext[Swarm Context<br/>🎯 Current objective<br/>📊 Progress state<br/>🔗 Agent coordination]
-        end
-        
-        subgraph "Agent Level"
-            AgentContext[Agent Context<br/>🤖 Agent persona<br/>🧠 Specialized knowledge<br/>⚡ Current capabilities]
-        end
-        
-        subgraph "Execution Level"
-            ExecutionContext[Execution Context<br/>📋 Routine variables<br/>🔄 Step history<br/>💾 Temporary state]
-        end
-    end
-    
-    subgraph "Context Management Services"
-        ContextInheritance[Context Inheritance<br/>⬇️ Hierarchical propagation<br/>🔒 Access control<br/>📊 Scope management]
-        ContextMerging[Context Merging<br/>🔄 Multi-source integration<br/>⚖️ Conflict resolution<br/>🎯 Priority management]
-        ContextCompression[Context Compression<br/>📦 Token optimization<br/>🧠 Semantic summarization<br/>⚡ Performance tuning]
-    end
-    
-    SystemContext --> TeamContext
-    TeamContext --> SwarmContext
-    SwarmContext --> AgentContext
-    AgentContext --> ExecutionContext
-    
-    ContextInheritance -.->|"Manages"| SystemContext
-    ContextInheritance -.->|"Manages"| TeamContext
-    ContextInheritance -.->|"Manages"| SwarmContext
-    
-    ContextMerging -.->|"Coordinates"| SwarmContext
-    ContextMerging -.->|"Coordinates"| AgentContext
-    
-    ContextCompression -.->|"Optimizes"| ExecutionContext
-    ContextCompression -.->|"Optimizes"| AgentContext
-    
-    classDef system fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef team fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef swarm fill:#e1bee7,stroke:#8e24aa,stroke-width:2px
-    classDef agent fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef execution fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef services fill:#ffebee,stroke:#c62828,stroke-width:2px
-    
-    class SystemContext system
-    class TeamContext team
-    class SwarmContext swarm
-    class AgentContext agent
-    class ExecutionContext execution
-    class ContextInheritance,ContextMerging,ContextCompression services
+graph LR
+    RunContext[RunContext] -->|configurable export| blackboard[blackboard]
+    blackboard -->|agent decides| resource_store[resource_store]
 ```
+
+Here's a more detailed breakdown:
+```mermaid
+sequenceDiagram
+    participant T2 as RunStateMachine (parent)
+    participant T3 as UnifiedExecutor (child run)
+    participant CE as ContextExporter
+    participant BB as Swarm.blackboard
+    participant Agent
+
+    %% launch
+    T2->>T3: execute(subRoutine, parentRunContext.createChild())
+    T3-->>T2: result + childRunContext   (exports[] filled)
+
+    %% export
+    T2->>CE: flush(childRunContext)
+    alt child run had parent
+        CE-->>T2: vars copied into parentRunContext
+    else root run finished
+        CE-->>BB: addBlackboardItem(...)
+        BB-->>Agent: event swarm/blackboard_updated
+    end
+```
+
+> See the [Run Context Management](#run-context-management) section for details on how run context is handled.
 
 ### **Knowledge Base**
 
@@ -3884,9 +3763,9 @@ graph TB
 ```typescript
 interface ErrorHandlingFramework {
     // Model Error Recovery
-    handleModelUnavailable(context: ExecutionContext): RecoveryStrategy;
+    handleModelUnavailable(context: RunContext): RecoveryStrategy;
     handleQualityDegradation(qualityMetrics: QualityMetrics): QualityRecovery;
-    handleContextOverflow(context: ExecutionContext): ContextStrategy;
+    handleContextOverflow(context: RunContext): ContextStrategy;
     
     // Execution Error Recovery
     handleRoutineFailure(failure: RoutineFailure): RetryStrategy;
@@ -3917,7 +3796,7 @@ interface ModelFallbackStrategy extends RecoveryStrategy {
     readonly qualityThresholds: QualityThreshold[];
     readonly costConstraints: CostConstraint[];
     
-    selectOptimalFallback(context: ExecutionContext): ModelConfiguration;
+    selectOptimalFallback(context: RunContext): ModelConfiguration;
     assessQualityTrade-offs(model: ModelConfiguration): QualityAssessment;
 }
 
@@ -3926,9 +3805,9 @@ interface ContextCompressionStrategy extends RecoveryStrategy {
     readonly summarizationMethods: SummarizationMethod[];
     readonly prioritizationRules: PrioritizationRule[];
     
-    compressContext(context: ExecutionContext): CompressedContext;
-    maintainCriticalInformation(context: ExecutionContext): CriticalContext;
-    reconstructContext(compressed: CompressedContext): ExecutionContext;
+    compressContext(context: RunContext): CompressedContext;
+    maintainCriticalInformation(context: RunContext): CriticalContext;
+    reconstructContext(compressed: CompressedContext): RunContext;
 }
 ```
 
@@ -4226,7 +4105,7 @@ packages/
 │   │
 │   ├── context/
 │   │   ├── subroutineContextManager.ts   # Context lifecycle management
-│   │   ├── executionContextManager.ts    # Context integration utilities
+│   │   ├── RunContextManager.ts    # Context integration utilities
 │   │   └── contextTypes.ts               # Context type definitions
 │   │
 │   ├── persistence/
@@ -4255,9 +4134,9 @@ packages/
 │   │   └── adaptationService.ts          # Dynamic optimization
 │   │
 │   └── context/
-│       ├── executionContext.ts           # Base execution context
+│       ├── runContext.ts           # Base execution context
 │       ├── routineContext.ts             # Routine-specific context
-│       └── stateSynchronizer.ts          # Cross-tier state sync
+│       └── ContextExporter.ts          # Cross-tier state sync
 │
 └── api/                                   # External interfaces
     ├── rest/                              # REST API endpoints
