@@ -1,0 +1,140 @@
+{{- /* templates/spotahome-redis-failover.yaml */ -}}
+{{- /* This template defines a RedisFailover custom resource for the Spotahome Redis Operator. */ -}}
+{{- /* It manages a Redis master-replica setup with Sentinel for automatic failover. */ -}}
+{{- if .Values.spotahomeRedis.enabled }}
+apiVersion: databases.spotahome.com/v1
+kind: RedisFailover
+metadata:
+  name: {{ .Values.spotahomeRedis.name }}
+  namespace: {{ .Release.Namespace }} # Deploy RedisFailover in the same namespace as the app
+  labels:
+    {{- /* Standard labels for identifying and organizing resources. Includes common Vrooli labels. */ -}}
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis-failover
+spec:
+  {{- /* Configuration for the Redis server instances (master and replicas). */ -}}
+  {{- with .Values.spotahomeRedis.redis }}
+  redis:
+    image: {{ .image }} # Docker image for Redis.
+    replicas: {{ .replicas }} # Number of Redis server instances (1 master, N-1 replicas).
+    port: {{ .port | default 6379 }} # Port Redis listens on.
+    {{- /* Resource requests and limits for Redis pods. */ -}}
+    {{- with .resources }}
+    resources:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Custom Redis configuration options (e.g., maxmemory, timeout). */ -}}
+    {{- /* These are typically applied to redis.conf. */ -}}
+    {{- with .customConfig }}
+    customConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Storage configuration for Redis persistence. */ -}}
+    {{- with .storage }}
+    storage:
+      {{- if .emptyDir }} # Use an emptyDir volume (non-persistent, data lost on pod deletion).
+      emptyDir:
+        {{- toYaml .emptyDir | nindent 8}}
+      {{- else if .persistentVolumeClaim }} # Use a PersistentVolumeClaim for durable storage.
+      persistentVolumeClaim:
+        {{- with .persistentVolumeClaim.metadata }}
+        metadata:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        spec:
+          accessModes:
+            {{- toYaml .spec.accessModes | nindent 12 }} # e.g., ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: {{ .persistentVolumeClaim.spec.resources.requests.storage }}
+        {{- if .persistentVolumeClaim.storageClassName }}
+        storageClassName: {{ .persistentVolumeClaim.storageClassName | quote }}
+        {{- else if eq .persistentVolumeClaim.storageClassName "" }}
+        storageClassName: ""
+        {{- end }}
+      {{- end }}
+      {{- /* If true, the PVC will not be deleted when the RedisFailover resource is deleted. */ -}}
+      {{- if .keepAfterDeletion }}
+      keepAfterDeletion: {{ .keepAfterDeletion }}
+      {{- end }}
+    {{- end }}
+    {{- /* Configuration for the Redis exporter (for Prometheus metrics). */ -}}
+    {{- with .exporter }}
+    exporter:
+      enabled: {{ .enabled }} # Enable or disable the exporter.
+      image: {{ .image }} # Docker image for the Redis exporter.
+      {{- /* Resource requests and limits for the exporter pod. */ -}}
+      {{- with .resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- /* Affinity rules for Redis pod scheduling. */ -}}
+    {{- with .affinity }}
+    affinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Tolerations for Redis pod scheduling. */ -}}
+    {{- with .tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Node selector for Redis pod scheduling. */ -}}
+    {{- with .nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
+  {{- /* Configuration for the Sentinel instances, which monitor Redis and manage failover. */ -}}
+  {{- with .Values.spotahomeRedis.sentinel }}
+  sentinel:
+    image: {{ .image }} # Docker image for Redis Sentinel.
+    replicas: {{ .replicas }} # Number of Sentinel instances (minimum 3 recommended for quorum).
+    {{- /* Resource requests and limits for Sentinel pods. */ -}}
+    {{- with .resources }}
+    resources:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Custom Sentinel configuration options. */ -}}
+    {{- /* These are typically applied to sentinel.conf. */ -}}
+    {{- with .customConfig }}
+    customConfig:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Configuration for the Sentinel exporter (if available/needed for metrics). */ -}}
+    {{- /* Note: The Spotahome operator might not have a dedicated Sentinel exporter; metrics usually come from Redis exporter. */ -}}
+    {{- with .exporter }}
+    exporter:
+      enabled: {{ .enabled }}
+      {{- if .image }}image: {{ .image }}{{ end }}
+      {{- with .resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- /* Affinity rules for Sentinel pod scheduling. */ -}}
+    {{- with .affinity }}
+    affinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Tolerations for Sentinel pod scheduling. */ -}}
+    {{- with .tolerations }}
+    tolerations:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- /* Node selector for Sentinel pod scheduling. */ -}}
+    {{- with .nodeSelector }}
+    nodeSelector:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
+  {{- /* Configuration for Redis authentication. */ -}}
+  {{- with .Values.spotahomeRedis.auth }}
+  auth:
+    {{- /* Path to the Kubernetes Secret containing the Redis password. */ -}}
+    {{- /* The Secret should have a key named 'password'. */ -}}
+    secretPath: {{ .secretPath }}
+  {{- end }}
+{{- end }} 

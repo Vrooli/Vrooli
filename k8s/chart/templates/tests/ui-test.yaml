@@ -1,0 +1,56 @@
+# This manifest defines a Kubernetes Pod that serves as a Helm test.
+# Its purpose is to verify that the 'ui' (frontend) service is reachable
+# from within the Kubernetes cluster. This test is important for confirming that the user interface
+# is up and serving content after deployment.
+# It attempts to connect to the service's health check endpoint (or a default '/healthcheck' path).
+apiVersion: v1
+kind: Pod
+metadata:
+  # The name of the test Pod. It includes the full release name and service identifier for uniqueness.
+  name: "{{ include \"vrooli.fullname\" . }}-ui-test-connection"
+  labels:
+    # Standard labels for identifying the application and release.
+    app.kubernetes.io/name: "{{ include \"vrooli.name\" . }}-test"
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    helm.sh/chart: "{{ include \"vrooli.chart\" . }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    # Custom label to identify this as a UI (frontend) test component.
+    app.kubernetes.io/component: ui-test
+  annotations:
+    # This annotation designates the Pod as a Helm test hook.
+    # Helm will execute this Pod when 'helm test <release-name>' is run.
+    "helm.sh/hook": test
+    # Defines the deletion policy for the test Pod.
+    # 'before-hook-creation': Any existing Pod from a previous test run with the same name will be deleted before this one is created.
+    # 'hook-succeeded': The Pod will be deleted automatically if the test passes.
+    # If the test fails, the Pod will be kept for inspection.
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  containers:
+    # This section defines the container(s) that will run inside the Pod.
+    - name: wget
+      # Uses a minimal 'busybox' image, which contains common Unix utilities like 'wget'.
+      image: busybox # Using busybox for a lightweight wget
+      # The command to be executed in the container is 'wget'.
+      command: ['wget']
+      # Arguments passed to the 'wget' command.
+      # The goal is to attempt an HTTP GET request to the UI service's health/readiness endpoint.
+      # Note: This test assumes the UI service has a reachable HTTP endpoint for its health or main page.
+      # If the UI service is purely static or has a different health check mechanism, this might need adjustment.
+      args: [
+        '-qO-',  # '-q' (quiet): Suppresses wget's normal output.
+                  # '-O-' (output document to stdout): Sends the downloaded content to standard output.
+                  # No explicit timeout ('-T') is set. Consider adding one, e.g., '-T', '10',
+        # The URL to which wget will attempt to connect. This is constructed dynamically:
+        # 1. Service name: '{{ include "vrooli.fullname" . }}-ui' (e.g., 'myrelease-vrooli-ui')
+        # 2. Service port: '{{ (index .Values.services "ui").port }}' (e.g., '3000')
+        # 3. Health check path: '{{ (index .Values.services "ui").probes.readinessPath | default "/healthcheck" }}'
+        #    This uses the 'readinessPath' defined in the values for the UI service.
+        #    If 'readinessPath' is not defined, it defaults to '/healthcheck'.
+        # The resulting URL will look like: 'http://myrelease-vrooli-ui:3000/healthcheck'
+        '{{ include "vrooli.fullname" . }}-ui:{{ (index .Values.services "ui").port }}{{ (index .Values.services "ui").probes.readinessPath | default "/healthcheck" }}'
+      ]
+  # Defines the restart policy for all containers in the Pod.
+  # 'Never': If the container fails (e.g., wget cannot connect and exits with an error) or completes successfully,
+  # Kubernetes will not attempt to restart it. This is standard for test Pods.
+  restartPolicy: Never 

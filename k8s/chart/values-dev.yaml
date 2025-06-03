@@ -1,0 +1,85 @@
+# values-dev.yaml
+# This file contains configuration overrides specifically for the DEVELOPMENT environment,
+# aiming for a lighter setup compared to the HA-ready defaults in values.yaml.
+
+# General config (already in values.yaml, but can be reiterated if desired)
+# config:
+#   env: development
+
+# Reduce replicas for resource-intensive stateful sets in dev
+pgoPostgresql:
+  instances:
+    count: 1 # Single PostgreSQL instance for dev
+    storage:
+      size: "2Gi" # Smaller storage for dev Postgres
+  pgBouncer:
+    replicas: 1 # Single pgBouncer for dev
+  # Backups can use default PVC for dev (from values.yaml)
+
+spotahomeRedis:
+  redis:
+    replicas: 1 # Single Redis instance for dev
+    storage:
+      persistentVolumeClaim:
+        spec:
+          resources:
+            requests:
+              storage: "1Gi" # Smaller storage for dev Redis
+  sentinel:
+    replicas: 1 # Minimal Sentinels for dev (operator might require at least 1)
+  # keepAfterDeletion for Redis PVCs can remain false for dev (from values.yaml)
+
+# VSO Configuration for Development
+vso:
+  enabled: true # Ensure VSO is enabled for dev if it's the chosen secrets manager
+  # vaultAddr: "http://vault.vault.svc.cluster.local:8200" # Inherited from values.yaml, override if different for dev
+  k8sAuthRole: "vrooli-vso-sync-role" # Ensure this matches the role configured in Vault
+  # vaultAuthRef: "" # Inherited, or specify if different for dev
+
+  secrets:
+    # Non-sensitive configuration shared by UI, Server, and Jobs
+    sharedConfigAll:
+      enabled: true
+      vaultPath: "secret/data/vrooli/config/shared-all" 
+      k8sSecretName: "vrooli-config-shared-all"
+      # type and templates inherited from values.yaml if not specified
+
+    # Sensitive secrets shared between Server and Jobs (not UI)
+    sharedSecretsServerJobs:
+      enabled: true
+      vaultPath: "secret/data/vrooli/secrets/shared-server-jobs"
+      k8sSecretName: "vrooli-secrets-shared-server-jobs"
+
+    # PostgreSQL credentials
+    postgres:
+      enabled: true # Enable if VSO is to sync these for dev (even if PGO also creates one)
+      vaultPath: "secret/data/vrooli/secrets/postgres"
+      k8sSecretName: "vrooli-postgres-creds"
+
+    # Redis credentials
+    redis:
+      enabled: true # Enable if VSO is to sync these for dev
+      vaultPath: "secret/data/vrooli/secrets/redis"
+      k8sSecretName: "vrooli-redis-creds"
+      
+    # Docker Hub pull secret
+    dockerhubPullSecret:
+      enabled: true # Enable for dev to pull images
+      vaultPath: "secret/data/vrooli/dockerhub/pull-credentials" 
+      k8sSecretName: "vrooli-dockerhub-pull-secret"
+      type: kubernetes.io/dockerconfigjson # Important: specify type
+      templates: # Template for .dockerconfigjson structure
+        .dockerconfigjson: |
+          {
+            \"auths\": {
+              \"https://index.docker.io/v1/\": {
+                \"username\": \"{{ .Data.username }}\",
+                \"password\": \"{{ .Data.password }}\",
+                \"auth\": \"{{ printf \\\"%s:%s\\\" .Data.username .Data.password | b64enc }}\"
+              }
+            }
+          }
+
+# Adminer is enabled by default in values.yaml, which is fine for dev.
+# adminer:
+#   enabled: true

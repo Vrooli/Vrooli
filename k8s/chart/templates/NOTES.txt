@@ -1,0 +1,150 @@
+{{- if .Release.IsInstall }}
+Thank you for installing {{ include "vrooli.fullname" . }}!
+{{- end }}
+Your release is named {{ .Release.Name }}.
+
+To check the status of your release:
+  helm status {{ .Release.Name }}
+  helm get all {{ .Release.Name }}
+  kubectl get all -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+
+---
+Accessing Vrooli:
+
+{{- if .Values.ingress.enabled }}
+Ingress is ENABLED.
+
+{{- range .Values.ingress.hosts }}
+  Host: {{ .host }}
+  {{- range .paths }}
+    {{- $serviceName := .service -}}
+    {{- $servicePort := .port -}}
+    {{- $fullServiceName := printf "%s-%s" (include "vrooli.fullname" $) $serviceName -}}
+    Path: {{ .path }}  =>  {{ $fullServiceName }}:{{ $servicePort }}
+    {{- if eq $serviceName "ui" }}
+      Access the UI at: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ if ne .path "/" }}{{ .path }}{{ end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+  {{- if .Values.ingress.tls }}
+  TLS for Ingress is configured. Ensure your TLS secret(s) (e.g., '{{ (index .Values.ingress.tls 0).secretName }}') are correctly set up for the host(s).
+  {{- end }}
+
+{{- else }}
+Ingress is DISABLED.
+To expose Vrooli services externally with Ingress:
+1. Set `ingress.enabled` to `true` in your Helm values.
+2. Ensure you have an Ingress controller running in your cluster.
+3. Configure `ingress.hosts` and `ingress.paths` in your values.
+
+To access services using `kubectl port-forward`:
+
+  UI Access:
+  1. Run: kubectl port-forward svc/{{ include "vrooli.fullname" . }}-ui YOUR_LOCAL_PORT:{{ .Values.services.ui.port }} -n {{ .Release.Namespace }}
+  2. Open your browser to: http://localhost:YOUR_LOCAL_PORT
+
+  Other services (ClusterIP, use port-forward):
+  {{- range $name, $svc := .Values.services }}
+    {{- $displayService := true -}}
+    {{- if hasKey $svc "enabled" -}}
+      {{- if not $svc.enabled -}}
+        {{- $displayService = false -}}
+      {{- end -}}
+    {{- end -}}
+    {{- if $displayService }}
+      {{- $svcFullName := printf "%s-%s" (include "vrooli.fullname" $) $name }}
+      {{- printf "  %-20s (svc/%s) Port: %d" (upper $name) $svcFullName $svc.port }}
+    {{- end }}
+  {{- end }}
+  Example to forward another service (e.g., server):
+    kubectl port-forward svc/{{ include "vrooli.fullname" . }}-server YOUR_LOCAL_PORT:{{ .Values.services.server.port }} -n {{ .Release.Namespace }}
+{{- end }}
+
+---
+Data Services:
+
+{{- if .Values.pgoPostgresql.enabled }}
+PostgreSQL (managed by PGO - CrunchyData Postgres Operator):
+  PostgresCluster CR: {{ .Values.pgoPostgresql.clusterName }} in namespace {{ .Release.Namespace }}
+  Primary Service (for applications): {{ .Values.pgoPostgresql.clusterName }}-primary.{{ .Release.Namespace }}.svc.cluster.local:5432
+  Application User: '{{ (index .Values.pgoPostgresql.users 0).name }}' (credentials in Secret: '{{ printf "%s-pguser-%s" .Values.pgoPostgresql.clusterName (index .Values.pgoPostgresql.users 0).name }}')
+  Databases: {{ range $i, $db := .Values.pgoPostgresql.databases }}{{ if $i }}, {{ end }}{{ .name }}{{ end }}
+{{- else }}
+PostgreSQL (PGO) is DISABLED.
+{{- end }}
+
+{{- if .Values.spotahomeRedis.enabled }}
+Redis (managed by Spotahome Operator):
+  RedisFailover CR: {{ .Values.spotahomeRedis.name }} in namespace {{ .Release.Namespace }}
+  Sentinel Service: rfs-{{ .Values.spotahomeRedis.name }}.{{ .Release.Namespace }}.svc.cluster.local (port 26379)
+  Redis Master Name (for Sentinel clients): mymaster (default for Spotahome operator)
+  Auth Secret: {{ .Values.spotahomeRedis.auth.secretPath }} (must contain 'password' key)
+{{- else }}
+Redis (Spotahome Operator) is DISABLED.
+{{- end }}
+
+---
+Service Deployment Statuses:
+(Note: This information may be most accurate after a 'helm upgrade' or once services are fully ready.)
+{{- range $name, $svc := .Values.services }}
+  {{- $serviceEnabled := true -}}
+  {{- if hasKey $svc "enabled" -}}
+    {{- $serviceEnabled = $svc.enabled -}}
+  {{- end -}}
+  {{- if $serviceEnabled }}
+    {{- $deploymentName := printf "%s-%s" (include "vrooli.fullname" $) $name -}}
+    {{- $deployment := lookup "apps/v1" "Deployment" $.Release.Namespace $deploymentName -}}
+    {{- if $deployment -}}
+      {{- $readyReplicas := $deployment.status.readyReplicas | default 0 -}}
+      {{- $targetReplicas := $deployment.spec.replicas | default (index $.Values.replicaCount $name | default 1) -}}
+  {{ $name }}: {{ $readyReplicas }}/{{ $targetReplicas }} ready
+    {{- else -}}
+  {{ $name }}: Deployment status not yet available via lookup.
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+---
+Adminer (Database Management Tool):
+{{- if .Values.adminer.enabled }}
+Adminer is ENABLED.
+  {{- if .Values.ingress.enabled }}
+    {{- $adminerIngressConfigured := false -}}
+    {{- range .Values.ingress.hosts }}
+      {{- range .paths }}
+        {{- /* Assuming adminer service is named 'adminer' in ingress path config */ -}}
+        {{- if eq .service "adminer" }}
+          {{- $adminerIngressConfigured = true }}
+  Access Adminer via Ingress at: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ if ne .path "/" }}{{ .path }}{{ end }}
+          {{- break 2 }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if not $adminerIngressConfigured }}
+      {{- if .Values.adminer.ingress.enabled }}
+        {{- /* Check direct adminer ingress settings if global ingress didn't find it */}}
+        {{- $adminerHost := .Values.adminer.ingress.host | default (index .Values.ingress.hosts 0).host -}}
+        {{- $adminerPath := .Values.adminer.ingress.path | default "/adminer" -}}
+  Access Adminer via Ingress at: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $adminerHost }}{{ if ne $adminerPath "/" }}{{ $adminerPath }}{{ end }}
+  (Note: Path / Host for Adminer Ingress is based on adminer.ingress.path/host or defaults if not set)
+      {{- else }}
+  Adminer Ingress path not found in global Ingress rules, and adminer.ingress.enabled is false.
+  To access via Ingress, configure a path for the 'adminer' service in .Values.ingress.hosts or enable and configure .Values.adminer.ingress.
+      {{- end }}
+    {{- end }}
+  {{- else }}
+  Ingress is disabled. To access Adminer:
+  1. Run: kubectl port-forward svc/{{ include "vrooli.fullname" . }}-adminer YOUR_LOCAL_PORT:{{ .Values.adminer.port }} -n {{ .Release.Namespace }}
+  2. Open your browser to: http://localhost:YOUR_LOCAL_PORT
+  {{- end }}
+  Default Server for Adminer (env ADMINER_DEFAULT_SERVER): '{{ .Values.adminer.env.ADMINER_DEFAULT_SERVER }}'
+  {{- if .Values.pgoPostgresql.enabled }}
+  (This should point to PGO primary: '{{ .Values.pgoPostgresql.clusterName }}-primary')
+  {{- end }}
+{{- else }}
+Adminer is DISABLED.
+{{- end }}
+
+---
+Consider reviewing the `values.yaml` for all configuration options. 

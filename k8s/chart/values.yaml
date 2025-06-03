@@ -1,0 +1,623 @@
+# Default values for Vrooli chart.
+# This file provides the default configuration settings for the Vrooli Helm chart.
+# These values can be overridden by environment-specific files (e.g., values-dev.yaml, values-prod.yaml)
+# or by using the '--set' flag during Helm installation or upgrade.
+
+# --- Chart Naming ---
+# These values allow for customizing the names of resources created by the chart.
+# `nameOverride` replaces the chart name component in resource names.
+# `fullnameOverride` completely replaces the generated full name of resources.
+nameOverride: ""
+fullnameOverride: ""
+
+# --- Image Pull Secrets ---
+# Specifies one or more image pull secrets that should be used for pulling images.
+# This is globally applied to all deployments if not overridden.
+# The 'vrooli-dockerhub-pull-secret' is expected to be created by VSO.
+imagePullSecrets:
+  - name: "vrooli-dockerhub-pull-secret"
+
+# --- Docker Hub Configuration ---
+# Configuration related to pulling images from Docker Hub.
+# `dockerhubUsername` is used to construct the image registry URL.
+# A Kubernetes Secret (ImagePullSecret) named 'vrooli-dockerhub-pull-secret' is expected to be created
+# by the Vault Secrets Operator (VSO), containing credentials for this Docker Hub user.
+# This secret allows Kubernetes to pull private images from the specified user's Docker Hub repositories.
+dockerhubUsername: "matthalloran8"
+
+# --- Global Image Settings ---
+# These settings apply to all container images deployed by the chart, unless overridden at the service level.
+image:
+  # `registry` specifies the Docker registry host and path (e.g., "docker.io/matthalloran8").
+  # This is prepended to service-specific image names defined in `services.<name>.repository`
+  # UNLESS the `services.<name>.repository` value is a full image path (e.g., contains a '/').
+  registry: "docker.io/{{ .Values.dockerhubUsername }}"
+  # `pullPolicy` defines when Kubernetes should attempt to pull the image.
+  # - IfNotPresent: Pull only if the image is not already on the node.
+  # - Always: Always pull the image, even if present. Useful for 'latest' tags or frequent updates.
+  # - Never: Never pull the image; assume it's already on the node.
+  pullPolicy: IfNotPresent
+
+# --- Replica Counts ---
+# Defines the default number of replicas (pods) for each service.
+# These can be adjusted based on load and availability requirements for each environment.
+replicaCount:
+  ui: 1
+  server: 1
+  jobs: 1
+  nsfwDetector: 1
+
+# --- Service-Specific Configurations ---
+# This section defines configurations for each microservice component of the Vrooli application.
+# Each service has settings for its Docker image, port, health probes, and resource allocation.
+services:
+  # --- UI Service ---
+  ui:
+    # Name of the UI image repository.
+    # Can be a simple name (e.g., "ui"), which will be combined with the global `image.registry`.
+    # Or, it can be a full image path (e.g., "another-registry/ui-image"), which will be used as-is, ignoring `image.registry`.
+    repository: ui
+    tag: dev       # Default image tag (e.g., version or 'latest'). Often overridden per environment.
+    port: 3000     # The port the UI container listens on.
+    # Health probes (liveness and readiness) for the UI service.
+    # Kubernetes uses these probes to determine if the container is healthy and ready to receive traffic.
+    probes:
+      livenessPath: /healthcheck  # Path for the liveness probe (is the app running?).
+      readinessPath: /healthcheck # Path for the readiness probe (is the app ready to serve requests?).
+    # Resource requests and limits for the UI service.
+    # `requests` are guaranteed resources, while `limits` are the maximum allowed.
+    resources:
+      requests:
+        cpu: 100m    # 0.1 CPU core
+        memory: 128Mi # 128 Megabytes
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  # --- Server Service ---
+  server:
+    # Name of the Server image repository.
+    # Can be a simple name (e.g., "server"), which will be combined with the global `image.registry`.
+    # Or, it can be a full image path (e.g., "another-registry/server-image"), which will be used as-is, ignoring `image.registry`.
+    repository: server
+    tag: dev
+    port: 5329
+    probes:
+      livenessPath: /healthcheck
+      readinessPath: /healthcheck
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 400m
+        memory: 512Mi
+  # --- Jobs Service ---
+  jobs:
+    # Name of the Jobs image repository.
+    # Can be a simple name (e.g., "jobs"), which will be combined with the global `image.registry`.
+    # Or, it can be a full image path (e.g., "another-registry/jobs-image"), which will be used as-is, ignoring `image.registry`.
+    repository: jobs
+    tag: dev
+    port: 9230
+    probes:
+      livenessPath: /healthcheck
+      readinessPath: /healthcheck
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  # --- NSFW Detector Service ---
+  nsfwDetector:
+    # Image repository for the NSFW detector service.
+    # Can be a simple name, which will be combined with the global `image.registry`,
+    # or a full image path (as in this example: "steelcityamir/safe-content-ai"), which will be used as-is.
+    # For private images not on the global registry, use a full path or ensure `image.registry` is correctly set up if it's a simple name.
+    repository: steelcityamir/safe-content-ai
+    tag: "1.1.0" # Specific version tag for the NSFW detector image.
+    port: 8000   # Internal port the NSFW detector container listens on.
+    # Health probes for the NSFW detector.
+    # This example uses TCP socket probes, which are suitable if the application doesn't expose an HTTP health endpoint.
+    probes:
+      livenessPath: ""  # HTTP path not used for TCP probes.
+      readinessPath: "" # HTTP path not used for TCP probes.
+      useTcpSocket: true # Indicates to use TCP socket probe instead of HTTP.
+      initialDelaySeconds: 60 # Delay before the first probe.
+      periodSeconds: 30       # How often to probe.
+      timeoutSeconds: 10        # When the probe times out.
+      failureThreshold: 3     # Number of failures before marking as unhealthy/not ready.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    # GPU configuration for the NSFW detector (if it supports GPU acceleration).
+    gpu:
+      enabled: false # Set to true if GPUs are available and needed.
+      # User provides the full key-value pair(s) for node selection, e.g.:
+      # nodeSelector:
+      #   cloud.google.com/gke-accelerator: nvidia-tesla-t4
+      # Or for generic NVIDIA:
+      #   nvidia.com/gpu: "true"
+      nodeSelector: {}
+      count: 1                # Number of GPUs to request, used in container resource limits.
+      # The resource key used in container limits (e.g., "nvidia.com/gpu").
+      # This key must match the resource type exposed by the GPU device plugin on your Kubernetes nodes.
+      resourceKey: "nvidia.com/gpu"
+
+# --- General Application Configuration ---
+# Non-sensitive configuration parameters that can be passed to application containers,
+# typically as environment variables or mounted into a ConfigMap.
+config:
+  projectDir: /srv/app # Example: Base directory for the application within containers.
+  env: development     # Default environment identifier (e.g., development, staging, production).
+                       # This can be used by applications to load environment-specific settings.
+
+# --- Secrets Management (Legacy) ---
+# This section was previously used for defining native Kubernetes Secrets directly in values.yaml.
+# It is now DEPRECATED in favor of using the Vault Secrets Operator (VSO) for secure secret management.
+# See the `vso` section below for the current approach.
+# secrets: {}
+
+# --- PersistenctVolumeClaims (PVCs) Settings ---
+# Currently, all listed services here are configured with `enabled: false` as they are stateless, do not require direct chart-managed persistence
+# (e.g., NSFW Detector), or their state is managed by dedicated Kubernetes Operators (PostgreSQL by PGO, Redis by Spotahome Redis Operator),
+# which handle their own PVC creation based on configurations in their respective sections (`pgoPostgresql`, `spotahomeRedis`).
+persistence:
+  ui:
+    enabled: false
+  server:
+    enabled: false
+  jobs:
+    enabled: false
+  adminer:
+    enabled: false # Adminer is stateless, no PVC needed by default.
+  nsfwDetector:
+    enabled: false
+
+# --- CrunchyData PGO PostgreSQL Configuration ---
+# This section configures a PostgreSQL cluster managed by the PGO operator.
+# Ensure PGO operator is installed in your Kubernetes cluster.
+pgoPostgresql:
+  enabled: true # Set to false to disable deploying a PGO-managed PostgreSQL cluster
+
+  # Name for the PostgresCluster custom resource and related K8s objects created by PGO.
+  # This will also be part of the service names and secret names PGO creates.
+  clusterName: "vrooli-pg"
+
+  # --- PostgreSQL Settings ---
+  postgresVersion: 16 # Specify the major PostgreSQL version (e.g., 16, 15). PGO will use a compatible image.
+
+  # --- High Availability & Instances ---
+  instances:
+    # Number of PostgreSQL instances in the cluster (e.g., 1 primary, N replicas).
+    # For HA, set to 2 or more. PGO manages primary/replica roles.
+    count: 3
+    # Define resources for each PostgreSQL instance pod.
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+    # Define storage for each PostgreSQL instance.
+    storage:
+      size: "10Gi"
+      # storageClass: "" # Optional: Specify a StorageClass. If empty, uses default.
+                        # For production, override in values-prod.yaml with a suitable class.
+    # Affinity rules for PostgreSQL instances. Default to empty, override in env-specific files for HA.
+    affinity: {}
+
+  # --- Users ---
+  # PGO creates a default user (often matching clusterName or a 'postgres' superuser).
+  # This section defines additional users PGO should create for your application.
+  # The credentials for these users will be stored in Kubernetes Secrets by PGO.
+  # Format: <secretName>-pguser-<userName>
+  users:
+    - name: "vrooli_app_user" # Username
+      databases: ["vrooli_db"] # List of databases this user can access
+      # options: "SUPERUSER" # Optional: e.g., "SUPERUSER", "CREATEDB". Be cautious with superuser.
+      password:
+        # If type is "AlphaNumeric", PGO generates a password.
+        # If type is "Provided", specify 'value' from a K8s Secret (via valueFrom.secretKeyRef) or directly (not recommended for passwords).
+        # For simplicity and security, let PGO generate it. App will get it from PGO-created secret.
+        type: AlphaNumeric # PGO will generate a password
+
+  # --- Databases ---
+  # List of databases to be created by PGO.
+  databases:
+    - name: "vrooli_db"
+      owner: "vrooli_app_user" # Optional: specify owner if user is also defined above.
+
+  # --- Connection Pooling (pgBouncer) ---
+  pgBouncer:
+    enabled: true
+    # Number of pgBouncer replicas.
+    replicas: 2
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+
+  # --- Backups (pgBackRest) ---
+  # PGO integrates with pgBackRest for backups.
+  backups:
+    enabled: true
+    # pgBackRest repository configuration. Example for local Kubernetes storage (PVC).
+    # For cloud storage (S3, GCS, Azure), different configuration is needed here.
+    # See PGO documentation for pgBackRest repo types.
+    pgBackRest:
+      # Example for a PVC-based repo (simplest for local/dev).
+      # For production, S3 or GCS is highly recommended. See docs/setup-kubernetes-cluster.md for more details.
+      repos:
+        - name: "repo1" # Name of the backup repository
+          # --- PVC-based Repository (Default for Dev/Local) ---
+          # PGO will create a PVC for this repository if 'volume' is defined.
+          # Ensure you have a StorageClass available or rely on the default.
+          # volume:
+          #   volumeClaimSpec:
+          #     accessModes:
+          #     - "ReadWriteOnce"
+          #     resources:
+          #       requests:
+          #         storage: "5Gi" # Adjust size as needed for backups
+          #     # storageClassName: "your-pvc-storage-class" # Optional: specify if not using default
+
+          # --- S3-based Repository Example (For Production) ---
+          # Uncomment and configure for S3. Ensure the 'volume' section above is removed or commented out.
+          # For default values.yaml, PVC repo is often simpler to start with if any backup repo is defined by default.
+          # s3:
+          #   bucket: "your-pgbackrest-s3-bucket-name" # Your S3 bucket name
+          #   endpoint: "s3.amazonaws.com" # Or your S3-compatible endpoint
+          #   region: "your-s3-bucket-region" # e.g., us-east-1
+          #   # secretName: "pgo-s3-creds" # K8s Secret containing AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+          #   # key: "path/to/your/backups" # Optional: path within the bucket
+
+      # Retention policy (how long to keep backups). Example:
+      retentionFullType: "count" # or "time"
+      retentionFullCount: 3      # Keep last 3 full backups
+      # Scheduled backups:
+      # For PGO 5.x+, it is recommended to manage backup schedules by creating 'Pgtask' Custom Resources.
+      # Refer to Crunchy Data PGO documentation for details on configuring Pgtasks for backups.
+      # The 'schedules' field below is removed as it's not reliably mapped to modern PGO CRDs.
+      # schedules:
+      #   full: "0 1 * * *"
+      #   incremental: "0 * * * *"
+
+  # --- Monitoring ---
+  # PGO can expose metrics for Prometheus.
+  monitoring:
+    enabled: true # Enables pgMonitor setup and metrics exporter.
+    # pgMonitor:
+    #   exporter:
+    #     resources: ...
+
+  # --- Affinity, Tolerations, etc. for PostgreSQL pods ---
+  # Based on PGO CRD structure, these might be under 'instances' or a top-level 'affinity', 'tolerations'.
+  # Example (structure depends on PGO CRD version):
+  # affinity: {}
+  # tolerations: []
+  # nodeSelector: {}
+
+  # --- Patroni Customization (if needed, advanced) ---
+  # patroni:
+  #   dynamicConfiguration:
+  #     postgresql:
+  #       parameters:
+  #         max_connections: "200"
+
+# --- Ingress Configuration ---
+# Configures Kubernetes Ingress resources for exposing services externally (e.g., via HTTP/HTTPS).
+# An Ingress controller (like Nginx Ingress or Traefik) must be running in the cluster.
+ingress:
+  enabled: false # Set to true to create Ingress resources. Typically enabled for production/staging.
+  # annotations: {} # Additional annotations for the Ingress resource (e.g., for cert-manager, custom Nginx settings).
+  # className: "" # Specify IngressClass name if required by your Ingress controller (e.g., "nginx").
+  # hosts: # Define host rules for routing traffic to services.
+  #   - host: chart-example.local # Example hostname.
+  #     paths:
+  #       - path: /ui # Path for the UI service.
+  #         pathType: ImplementationSpecific # Or Prefix, Exact.
+  #         service: # Must match the service name generated by Helm.
+  #           name: ui # This will typically be {{ include "vrooli.fullname" . }}-ui
+  #           port:
+  #             number: 3000 # Matches services.ui.port
+  #       - path: /api # Path for the server (API) service.
+  #         pathType: ImplementationSpecific
+  #         service:
+  #           name: server # {{ include "vrooli.fullname" . }}-server
+  #           port:
+  #             number: 5329 # Matches services.server.port
+  # tls: [] # TLS configuration for Ingress (e.g., for HTTPS).
+  #   - hosts:
+  #       - chart-example.local
+  #     secretName: chart-example-tls # Name of the Kubernetes Secret containing the TLS certificate and key.
+
+# --- Vault Secrets Operator (VSO) Integration ---
+# Configuration for integrating with HashiCorp Vault via the Vault Secrets Operator.
+# VSO automates the synchronization of secrets from Vault to Kubernetes Secrets.
+vso:
+  enabled: true # Set to false to disable VSO integration.
+
+  # Vault instance address. This should be reachable from within the Kubernetes cluster.
+  # For Minikube with Vault installed via Helm in 'vault' namespace: \"http://vault.vault.svc.cluster.local:8200\"
+  vaultAddr: "http://vault.vault.svc.cluster.local:8200" # Address of your Vault instance
+  k8sAuthMount: "kubernetes"  # Path where K8s auth method is mounted in Vault
+  k8sAuthRole: "vrooli-vso-sync-role" # Vault role VSO assumes for K8s auth
+
+  # Global settings for VaultSecret resources created by VSO
+  # These can be overridden per secret entry if needed.
+  # defaultVaultConnectionRef: "vault-connection" # Name of the VaultConnection CRD
+  # defaultVaultAuthRef: "vault-auth" # Name of the VaultAuth CRD
+
+  # Destination namespace for the K8s secrets. If empty, defaults to Release.Namespace.
+  # destinationNamespace: ""
+
+  # Granular secret definitions for VSO to sync from Vault to Kubernetes Secrets.
+  # Each entry here will result in a separate VaultSecret CR and a corresponding K8s Secret.
+  secrets:
+    # Non-sensitive configuration shared across all services (UI, Server, Jobs).
+    sharedConfigAll:
+      enabled: true
+      vaultPath: "secret/data/vrooli/config/shared-all" # KVv2: Must include /data/
+      k8sSecretName: "vrooli-config-shared-all"
+      # type: Opaque # Default Kubernetes secret type
+      # templates: {} # Optional: Define specific data transformations
+
+    # Sensitive secrets shared between Server and Jobs services (e.g., third-party API keys).
+    sharedSecretsServerJobs:
+      enabled: true
+      vaultPath: "secret/data/vrooli/secrets/shared-server-jobs" # KVv2: Must include /data/
+      k8sSecretName: "vrooli-secrets-shared-server-jobs"
+
+    # PostgreSQL credentials, managed by PGO and synced via VSO for application use.
+    postgres:
+      enabled: true
+      # This path should contain the username and password keys for PGO-created user (e.g., vrooli_app_user).
+      # The actual secret content in Vault needs to be populated (e.g., by a script or manually after PGO creates it).
+      vaultPath: "secret/data/vrooli/secrets/postgres" # KVv2: Must include /data/
+      k8sSecretName: "vrooli-postgres-creds"
+
+    # Redis credentials, managed by Spotahome Redis Operator and synced via VSO.
+    redis:
+      enabled: true
+      # This path should contain the Redis password.
+      # The actual secret content in Vault needs to be populated.
+      vaultPath: "secret/data/vrooli/secrets/redis" # KVv2: Must include /data/
+      k8sSecretName: "vrooli-redis-creds"
+
+    # Docker Hub pull credentials for pulling private images.
+    dockerhubPullSecret:
+      enabled: true
+      # This path in Vault should contain 'username' and 'password' keys for Docker Hub.
+      vaultPath: "secret/data/vrooli/dockerhub/pull-credentials" # KVv2: Must include /data/
+      k8sSecretName: "vrooli-dockerhub-pull-secret"
+      type: kubernetes.io/dockerconfigjson # K8s secret type for Docker registry credentials
+      # Template to construct the .dockerconfigjson format from Vault username/password keys.
+      templates:
+        .dockerconfigjson: |
+          {
+            "auths": {
+              "https://index.docker.io/v1/": {
+                "username": "{{ .Data.username }}",
+                "password": "{{ .Data.password }}",
+                "auth": "{{ printf \"%s:%s\" .Data.username .Data.password | b64enc }}"
+              }
+            }
+          }
+
+# --- Service Account Configuration ---
+# Configures Kubernetes ServiceAccounts for pods.
+# ServiceAccounts provide an identity for processes running in a Pod.
+serviceAccount:
+  # Specifies whether a ServiceAccount should be created for each service.
+  create: true
+  # Annotations to add to the service account.
+  # Useful for tools like IAM Roles for Service Accounts (IRSA) on AWS EKS,
+  # or Workload Identity on GKE.
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  # If create is false, this specifies an existing ServiceAccount to use.
+  # name: "" # Example: "my-custom-service-account"
+
+# --- Pod Security Context ---
+# Defines security settings that apply to all pods deployed by this chart.
+# These can be overridden at the container level if needed.
+podSecurityContext: {}
+  # fsGroup: 2000 # Example: Set the group ID for the pod's file system.
+
+# --- Container Security Context ---
+# Defines security settings that apply to all containers within pods.
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000 # Example: Run containers as a non-root user.
+
+# --- Node Affinity and Tolerations ---
+# Global settings for node selection, pod affinity/anti-affinity, and tolerations.
+# These can be used to influence where pods are scheduled in the Kubernetes cluster.
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+# --- Resources (Global Defaults) ---
+# Default resource requests and limits for services if not specified at the service level.
+# It's generally better to define these per-service for more fine-grained control.
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi 
+
+# --- Spotahome Redis Operator Configuration ---
+# This section configures a Redis Failover setup (master-replica with Sentinel)
+# managed by the Spotahome Redis Operator.
+# Ensure the Spotahome Redis Operator is installed in your Kubernetes cluster.
+spotahomeRedis:
+  enabled: true # Set to false to disable deploying a Spotahome Redis Failover cluster
+
+  # Name for the RedisFailover custom resource.
+  # This will also be part of the K8s object names created by the operator (e.g., rfr-<name>, rfs-<name>).
+  # IMPORTANT: Max length for this name is often restricted (e.g., 48 chars by Spotahome operator).
+  name: "vrooli-rf"
+
+  # --- Redis Settings (Master and Replicas) ---
+  redis:
+    image: "redis:6.2-alpine" # Specify Redis image (e.g., redis:6.2-alpine, redis:7.0-alpine)
+                              # Check Spotahome operator docs for recommended/tested versions.
+    replicas: 3               # Total Redis instances (1 master, 2 replicas). For HA, min 2 (1 master, 1 replica).
+    port: 6379                # Redis port.
+    # Define resources for each Redis instance pod.
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    # Persistence configuration for Redis.
+    storage:
+      # emptyDir: {} # For no persistence (data lost on pod restart). Default if no persistentVolumeClaim.
+      persistentVolumeClaim:
+        # metadata: # Optional: annotations or labels for the PVC
+        #   annotations:
+        #     volume.beta.kubernetes.io/storage-class: "standard"
+        spec:
+          accessModes:
+            - "ReadWriteOnce"
+          resources:
+            requests:
+              storage: "5Gi" # Size of the PVC for each Redis instance.
+        # storageClassName: "" # Optional: Specify a StorageClass. If empty, uses default.
+        # To specify a StorageClass for the PVC created by RedisFailover, uncomment and set the value below.
+        # If commented out or left as an empty string, the default StorageClass will be used.
+        storageClassName: "" # Example: "standard", "gp2", "my-custom-sc"
+      # For development, keepAfterDeletion is false. For production (values-prod.yaml), this should be true.
+      keepAfterDeletion: false # If true, PVCs are not deleted when RedisFailover CR is deleted. SET TO TRUE IN PRODUCTION.
+    # Custom Redis configuration options (applied via 'CONFIG SET').
+    customConfig:
+      - "maxmemory 512mb"
+      - "maxmemory-policy allkeys-lru"
+      # - "requirepass YOUR_PASSWORD" # If using auth, operator handles this via spec.auth.secretPath
+    # Redis exporter for Prometheus metrics.
+    exporter:
+      enabled: true
+      image: "oliver006/redis_exporter:v1.44.0" # Check for current/compatible exporter version
+      # resources: {} # Resources for exporter sidecar
+    # Affinity rules for Redis server pods. Default to empty, override in env-specific files for HA.
+    affinity: {}
+
+  # --- Sentinel Settings ---
+  sentinel:
+    image: "redis:6.2-alpine" # Sentinel usually uses the same Redis image, run in sentinel mode.
+    replicas: 3               # Number of Sentinel instances. Recommended: 3 or 5 for quorum.
+    # Define resources for each Sentinel instance pod.
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+    # Custom Sentinel configuration options.
+    # Master name is typically 'mymaster' by default within the operator.
+    # Example: ["down-after-milliseconds 5000", "failover-timeout 10000"]
+    customConfig:
+      - "down-after-milliseconds 15000" # 15 seconds
+      - "failover-timeout 30000"      # 30 seconds
+    # Exporter for Sentinel (if available/supported by the operator's chosen exporter image)
+    # exporter:
+    #   enabled: false
+    # Affinity rules for Sentinel pods. Default to empty, override in env-specific files for HA.
+    affinity: {}
+
+  # --- Authentication ---
+  # Configures Redis password authentication.
+  auth:
+    # enabled: true # Implicitly enabled if secretPath is set.
+    # Name of the Kubernetes secret in the same namespace as RedisFailover CR.
+    # This secret must contain a key named 'password' with the desired Redis password.
+    # The Spotahome operator will use this secret to configure auth on Redis and Sentinel.
+    # If VSO is used to manage this secret, ensure VSO creates it *before* RedisFailover CR is applied,
+    # or that RedisFailover CR can tolerate a temporarily missing secret.
+    # For now, let's assume we'll create this secret manually or via VSO.
+    secretPath: "vrooli-redis-auth" # Name of the K8s secret holding the password
+
+  # --- Optional: Advanced Scheduling (Affinity, Tolerations, NodeSelector) ---
+  # redis:
+  #   affinity: {}
+  #   tolerations: []
+  #   nodeSelector: {}
+  # sentinel:
+  #   affinity: {}
+  #   tolerations: []
+  #   nodeSelector: {}
+
+# --- Adminer Configuration (Optional Database Management Tool) ---
+# Adminer is a full-featured database management tool written in PHP.
+# Official image: https://hub.docker.com/_/adminer
+# Useful for development and debugging to inspect database contents.
+adminer:
+  enabled: true   # Set to true to deploy Adminer. Typically for development/staging.
+  replicaCount: 1 # Typically 1 replica is sufficient.
+  image:
+    # repository field can be a simple name (e.g., "adminer"), which will be combined with the global `image.registry`,
+    # or it can be a full image path (e.g., "another-registry/adminer-image"), which will be used as-is.
+    repository: adminer # Official Docker Hub image.
+    tag: latest     # Or a specific version like "4.8.1"
+    # pullPolicy: IfNotPresent # Inherits global .Values.image.pullPolicy if not set
+  port: 8080      # Default Adminer port.
+
+  # Adminer doesn't have standard health check endpoints.
+  # A simple TCP check on its port can be used for basic liveness/readiness.
+  probes:
+    enabled: true # Enable/disable probes for Adminer
+    livenessPath: ""
+    readinessPath: ""
+    useTcpSocket: true # Use TCP socket probe.
+    initialDelaySeconds: 15
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  # Environment variables for Adminer.
+  # See Adminer documentation for available options: https://www.adminer.org/en/plugins/
+  env:
+    # Example: Set a default server for Adminer to connect to.
+    # This should ideally be the service name of your PGO PostgreSQL pgBouncer or primary.
+    ADMINER_DEFAULT_SERVER: "{{ .Values.pgoPostgresql.clusterName }}-pgbouncer" # Adjust if your pgBouncer/primary service name differs
+    ADMINER_DESIGN: "nette" # Example: Sets a specific design/theme.
+    # Add other Adminer environment variables as needed.
+
+  # Ingress configuration specific to Adminer.
+  ingress:
+    enabled: false # Set to true to expose Adminer via Ingress.
+    # className: "" # Optional: Specify IngressClass if needed.
+    # host: adminer.yourdomain.com # Hostname for Adminer.
+    # If host is not provided, it might use the first host from global ingress or a default.
+    path: "/adminer" # Path for Adminer. It's common to use a subpath.
+    # pathType: Prefix # Or ImplementationSpecific
+    # tls: [] # TLS configuration if exposing via HTTPS.
+    # annotations: {}
