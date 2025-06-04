@@ -1,6 +1,8 @@
-# AI-Specific Architecture Considerations
+# AI Services Architecture
 
 ## **AI Model Management**
+
+Vrooli's AI services architecture provides a comprehensive framework for managing multiple AI providers, handling service availability, and optimizing performance across different model types and capabilities.
 
 ## **Service Availability Architecture**
 
@@ -184,3 +186,53 @@ sequenceDiagram
     
     Router->>Registry: updateServiceState(serviceId, errorType)
 ```
+
+### **Key Design Principles**
+
+**1. Service Health as First-Class Concern**
+- Continuous monitoring of service availability
+- Automatic cooldown periods for rate-limited services
+- Permanent disabling for authentication failures
+
+**2. Cost-Aware Token Management**
+```typescript
+// Calculate maximum output tokens within budget
+const maxTokens = service.getMaxOutputTokensRestrained({
+    model: requestedModel,
+    maxCredits: userCredits,
+    inputTokens: estimatedInputTokens
+});
+```
+
+**3. Streaming-First Architecture**
+- All responses use async generators for real-time streaming
+- Supports text chunks, function calls, and reasoning traces
+- Cost tracking happens incrementally during streaming
+
+**4. Provider Abstraction**
+```typescript
+abstract class AIService<ModelType> {
+    // Standardized interface for all providers
+    abstract estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
+    abstract generateResponseStreaming(opts: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent>;
+    abstract getMaxOutputTokens(model?: string): number;
+    abstract getResponseCost(params: GetResponseCostParams): number;
+    abstract safeInputCheck(input: string): Promise<GetOutputTokenLimitResult>;
+}
+```
+
+**5. Graceful Degradation**
+- Retry failed requests up to 3 times
+- Fall back to alternative models when primary is unavailable
+- Maintain service quality while optimizing for availability
+
+This architecture ensures that Vrooli can reliably access AI capabilities across multiple providers while managing costs, handling failures gracefully, and providing a consistent interface for the rest of the system.
+
+## Related Documentation
+
+- **[Main Execution Architecture](../README.md)** - Complete three-tier execution architecture overview
+- **[Communication Patterns](../communication/communication-patterns.md)** - AI service integration with communication patterns
+- **[Error Handling](../resilience/error-propagation.md)** - AI service error handling and recovery
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - AI service performance optimization
+- **[Resource Management](../resource-management/resource-coordination.md)** - AI service resource allocation
+- **[Security Boundaries](../security/security-boundaries.md)** - AI service security and access control
