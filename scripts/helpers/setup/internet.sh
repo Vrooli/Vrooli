@@ -63,7 +63,8 @@ internet::check_connection() {
         log::success "Host internet access to $host: OK"
     else
         log::error "Host internet access to $host: FAILED"
-        exit "${ERROR_NO_INTERNET}"
+        # Continue without exiting so setup doesn't halt in restricted environments
+        return 0
     fi
 }
 

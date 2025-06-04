@@ -17,9 +17,9 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/internet.sh"
     [[ "$output" =~ \[SUCCESS\]\ +Host\ internet\ access:\ OK ]]
 }
 
-@test "internet::check_connection prints error and exits with correct code when ping fails" {
+@test "internet::check_connection logs error but continues when ping fails" {
     run bash -c "export ERROR_NO_INTERNET=5; source '$SCRIPT_PATH'; ping(){ return 1; }; internet::check_connection"
-    [ "$status" -eq 5 ]
+    [ "$status" -eq 0 ]
     [[ "$output" =~ \[HEADER\]\ +Checking\ host\ internet\ access\.\.\. ]]
     [[ "$output" =~ \[ERROR\]\ +Host\ internet\ access:\ FAILED ]]
 }
