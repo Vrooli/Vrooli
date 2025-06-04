@@ -39,7 +39,7 @@ All documentation files are Markdown files, structured clearly to maintain conte
 Tasks are clearly organized and managed through multiple Markdown files categorized by their status:
 
 - **[active.md](mdc:docs/tasks/active.md)** : Tasks currently underway
-- **[background.md](mdc:docs/docs/about/background.md)**: Unstructured, quick notes, and ideas awaiting research and clarification
+- **[backlog.md](mdc:docs/tasks/backlog.md)**: Unstructured, quick notes, and ideas awaiting research and clarification
 - **[staged.md](mdc:docs/tasks/staged.md)**: Tasks that have been clarified, researched, and structured but not yet started
 - **[completed.md](mdc:docs/tasks/completed.md)**: Finished tasks with clear documentation on outcomes
 - **[failed.md](mdc:docs/tasks/failed.md)**: Tasks that have been abandoned or blocked permanently, including reasons and lessons learned

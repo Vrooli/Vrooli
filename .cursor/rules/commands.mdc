@@ -10,7 +10,7 @@ Below are detailed commands you may receive. Users may trigger these workflows w
 **Keywords:**  
 _"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
 
-Process the **first unstructured task** in the [background.md](mdc:docs/docs/about/background.md):
+Process the **first unstructured task** in the [backlog.md](mdc:docs/tasks/backlog.md):
 
 1. **Explore the Codebase:**
    - Search relevant files and code patterns thoroughly.

@@ -30,7 +30,7 @@ The `RunContext` (defined by `RunContext` and `RunContextInit` interfaces in [ty
 
 ## Multi-Tier Caching Architecture
 
-To optimize performance, Vrooli employs a three-tier caching system for frequently accessed state, particularly `RunContext` and configurations. This is also visually represented in the main [Execution Architecture](../../README.md#state-management-and-consistency).
+To optimize performance, Vrooli employs a three-tier caching system for frequently accessed state, particularly `RunContext` and configurations. This is also visually represented in the main [Execution Architecture](../README.md#state-management-and-consistency).
 
 ```mermaid
 graph TB

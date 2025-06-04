@@ -54,7 +54,7 @@ graph TB
 
 ## Implementation Reading Order
 
-**Prerequisites**: Read [Main Execution Architecture](../../README.md) for complete architectural context.
+**Prerequisites**: Read [Main Execution Architecture](../README.md) for complete architectural context.
 
 ### **Phase 1: Foundation (Must Read First)**
 1. **[Centralized Type System](types/core-types.ts)** - Single source of truth for all interfaces
@@ -118,7 +118,7 @@ This documentation is structured to guide developers from foundational concepts 
 ## Usage Guidelines
 
 ### **For New Implementation**
-1. **Start with Prerequisites**: Read [Main Execution Architecture](../../README.md) for context.
+1. **Start with Prerequisites**: Read [Main Execution Architecture](../README.md) for context.
 2. **Follow Reading Order**: Use the systematic reading order above.
 3. **Apply Decision Support**: Use decision trees for systematic problem solving.
 4. **Validate Implementation**: Use [Integration Map](integration-map.md) for comprehensive validation.
@@ -135,7 +135,7 @@ This documentation is structured to guide developers from foundational concepts 
 
 ## Related Documentation
 
-- **[Main Execution Architecture](../../README.md)** - Complete three-tier execution architecture overview
+- **[Main Execution Architecture](../README.md)** - Complete three-tier execution architecture overview
 - **[Individual Tier Documents](../tier1-coordination-intelligence.md)** - Tier-specific implementation details
 
 This communication architecture ensures optimal operation across all tiers while providing comprehensive integration capabilities and robust error handling for systematic implementation from scratch.

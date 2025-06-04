@@ -37,7 +37,7 @@ graph TD
 
 All runtime calls—whether in Tier 1, Tier 2, or Tier 3—are enveloped by a global security boundary that enforces resource limits (credits, time, memory) defined via swarm- team- or user-level configuration. These guard rails ensure that swarms - including the routines they run and child swarms they spawn - never exceed the total allotted budget under any circumstances.
 
-Additional security measures such as threat monitoring, auditing, compliance checks, etc. are set up based on the team's configuration by assigning bots to listen to events. See the [Event-Driven Architecture](#event-driven-architecture) section for more details.
+> Additional security measures such as threat monitoring, auditing, compliance checks, etc. are set up based on the team's configuration by assigning bots to listen to events. See the [Event-Driven Architecture](#event-driven-architecture) section for more details.
 
 ### Additional resources:  
 - [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md)  
@@ -1048,115 +1048,6 @@ graph TB
     class BasicQuality basicQuality
     class EmergencyMode emergency
     class QualityMonitor,TradeoffOptimizer,ServiceSelector adaptation
-```
-
-## Performance and Scalability Architecture
-
-### **AI-Optimized Performance Framework**
-
-```mermaid
-graph TB
-    subgraph "Performance Optimization Framework"
-        PerformanceOrchestrator[Performance Orchestrator<br/>⚡ Central performance coordination<br/>📊 Optimization strategies<br/>🎯 Resource allocation]
-        
-        subgraph "AI Workload Optimization"
-            ModelPooling[Model Pooling<br/>🔄 Instance sharing<br/>💰 Cost reduction<br/>⚡ Faster startup]
-            BatchProcessing[Batch Processing<br/>📊 Request batching<br/>⚡ Throughput optimization<br/>💰 Efficiency gains]
-            ContextCaching[Context Caching<br/>💾 Smart caching<br/>⚡ Response acceleration<br/>🧠 Memory optimization]
-        end
-        
-        subgraph "Resource Management"
-            DynamicScaling[Dynamic Scaling<br/>📈 Auto-scaling<br/>📊 Load prediction<br/>⚖️ Resource optimization]
-            LoadBalancing[Load Balancing<br/>⚖️ Request distribution<br/>📊 Health-aware routing<br/>🎯 Performance optimization]
-            ResourcePooling[Resource Pooling<br/>🔄 Shared resources<br/>💰 Cost efficiency<br/>📊 Utilization optimization]
-        end
-        
-        subgraph "Latency Optimization"
-            PredictivePreloading[Predictive Preloading<br/>🔮 Usage prediction<br/>⚡ Proactive loading<br/>📊 Pattern analysis]
-            EdgeComputing[Edge Computing<br/>🌐 Geographical distribution<br/>⚡ Reduced latency<br/>📍 Local processing]
-            StreamingExecution[Streaming Execution<br/>🌊 Real-time processing<br/>⚡ Incremental results<br/>🔄 Progressive enhancement]
-        end
-        
-        subgraph "Quality-Performance Trade-offs"
-            AdaptiveQuality[Adaptive Quality<br/>⚖️ Dynamic quality adjustment<br/>⚡ Performance optimization<br/>💰 Cost management]
-            PriorityQueuing[Priority Queuing<br/>🎯 SLA-based prioritization<br/>⚡ Response time optimization<br/>📊 Fair scheduling]
-            CostOptimization[Cost Optimization<br/>💰 Budget management<br/>📊 Usage optimization<br/>⚡ Efficiency maximization]
-        end
-    end
-    
-    PerformanceOrchestrator --> ModelPooling
-    PerformanceOrchestrator --> BatchProcessing
-    PerformanceOrchestrator --> ContextCaching
-    PerformanceOrchestrator --> DynamicScaling
-    PerformanceOrchestrator --> LoadBalancing
-    PerformanceOrchestrator --> ResourcePooling
-    PerformanceOrchestrator --> PredictivePreloading
-    PerformanceOrchestrator --> EdgeComputing
-    PerformanceOrchestrator --> StreamingExecution
-    PerformanceOrchestrator --> AdaptiveQuality
-    PerformanceOrchestrator --> PriorityQueuing
-    PerformanceOrchestrator --> CostOptimization
-    
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef aiOptimization fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef resourceMgmt fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef latencyOpt fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef qualityTradeoffs fill:#ffebee,stroke:#c62828,stroke-width:2px
-    
-    class PerformanceOrchestrator orchestrator
-    class ModelPooling,BatchProcessing,ContextCaching aiOptimization
-    class DynamicScaling,LoadBalancing,ResourcePooling resourceMgmt
-    class PredictivePreloading,EdgeComputing,StreamingExecution latencyOpt
-    class AdaptiveQuality,PriorityQueuing,CostOptimization qualityTradeoffs
-```
-
-### **Horizontal Scaling Patterns**
-
-#### **Distributed Execution Architecture**
-
-```mermaid
-graph TB
-    subgraph "Distributed Scaling Framework"
-        ScalingController[Scaling Controller<br/>📈 Central scaling coordination<br/>📊 Capacity planning<br/>⚖️ Load distribution]
-        
-        subgraph "Tier 1 Scaling"
-            SwarmDistribution[Swarm Distribution<br/>🌐 Geographic distribution<br/>👥 Team load balancing<br/>🎯 Objective partitioning]
-            LeaderElection[Leader Election<br/>👑 Swarm coordination<br/>🤝 Consensus management<br/>🔄 Failover handling]
-            WorkloadPartitioning[Workload Partitioning<br/>📊 Task decomposition<br/>⚖️ Load distribution<br/>🎯 Optimization strategies]
-        end
-        
-        subgraph "Tier 2 Scaling"
-            ProcessSharding[Process Sharding<br/>🔀 Routine distribution<br/>📊 State partitioning<br/>⚡ Parallel execution]
-            StateReplication[State Replication<br/>💾 Multi-region state<br/>🔄 Consistency management<br/>📊 Conflict resolution]
-            NavigatorScaling[Navigator Scaling<br/>🔌 Platform distribution<br/>📊 Capability balancing<br/>⚡ Performance optimization]
-        end
-        
-        subgraph "Tier 3 Scaling"
-            ExecutorClusters[Executor Clusters<br/>⚡ Processing distribution<br/>📊 Strategy specialization<br/>🔄 Auto-scaling]
-            ModelFarming[Model Farming<br/>🧠 Model distribution<br/>💰 Cost optimization<br/>⚡ Performance balancing]
-            ToolOrchestration[Tool Orchestration<br/>🔧 API distribution<br/>📊 Rate limit management<br/>⚖️ Load balancing]
-        end
-    end
-    
-    ScalingController --> SwarmDistribution
-    ScalingController --> LeaderElection
-    ScalingController --> WorkloadPartitioning
-    ScalingController --> ProcessSharding
-    ScalingController --> StateReplication
-    ScalingController --> NavigatorScaling
-    ScalingController --> ExecutorClusters
-    ScalingController --> ModelFarming
-    ScalingController --> ToolOrchestration
-    
-    classDef controller fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef tier1 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef tier2 fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef tier3 fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class ScalingController controller
-    class SwarmDistribution,LeaderElection,WorkloadPartitioning tier1
-    class ProcessSharding,StateReplication,NavigatorScaling tier2
-    class ExecutorClusters,ModelFarming,ToolOrchestration tier3
 ```
 
 ## Implementation Roadmap

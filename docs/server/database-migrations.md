@@ -73,13 +73,3 @@ To import the dump into a different Docker container:
 2. Enter the new container using `docker exec -it postgres sh`.
 3. Import the database dump using `psql -U <DB_USER> -d postgres -f /tmp/dump.sql`.
 4. Once the process completes, you can exit the container using `exit`.
-
-
-
-
-
-
-
-
-
-
