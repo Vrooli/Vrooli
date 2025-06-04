@@ -4,7 +4,7 @@ This document serves as the **master implementation and validation guide** for V
 
 **Prerequisites**: 
 - Complete [README.md Reading Order](README.md#implementation-reading-order) systematically
-- Review [Centralized Type System](types/core-types.ts) for all interface definitions
+- Review [Centralized Type System](../types/core-types.ts) for all interface definitions
 - Apply [Communication Patterns](communication-patterns.md) for pattern selection guidance
 
 **This is the single source of truth for implementation validation and troubleshooting.**
@@ -65,7 +65,7 @@ sequenceDiagram
         Security->>T2: Step security result
         
         T2->>T3: executeStep(stepRequest)
-        Note right of T2: Pattern: Direct Service Interface<br/>Interface: [StepExecutionRequest](types/core-types.ts)
+        Note right of T2: Pattern: Direct Service Interface<br/>Interface: [StepExecutionRequest](../types/core-types.ts)
         
         T3->>Strategy: selectExecutionStrategy()
         Strategy->>T3: Selected strategy
@@ -83,7 +83,7 @@ sequenceDiagram
         Note right of T3: Pattern: Event-Driven Messaging
         
         T3->>T2: StepExecutionResult
-        Note right of T3: Interface: [StepExecutionResult](types/core-types.ts)
+        Note right of T3: Interface: [StepExecutionResult](../types/core-types.ts)
     end
     
     %% Cross-tier event coordination (Pattern 3)
@@ -103,7 +103,7 @@ sequenceDiagram
     BuiltInTools->>McpRunner: ToolResponse
     McpRunner->>ToolRunner: ToolCallResult
     ToolRunner->>Agent: Tool execution result
-    Note right of ToolRunner: Interface: [ToolCallResult](types/core-types.ts)
+    Note right of ToolRunner: Interface: [ToolCallResult](../types/core-types.ts)
 
     Note over Agent,State: Success Criteria:<br/>• Tool Routing: ~1-2s P95<br/>• Direct: ~100-200ms P95<br/>• Events: ~200-500ms P95<br/>• State: Variable
 ```
@@ -121,19 +121,19 @@ sequenceDiagram
 1. **Type System Validation**
    ```bash
    # Validate all types compile without errors
-   tsc --noEmit types/core-types.ts
+   tsc --noEmit ../types/core-types.ts
    
    # Validate no duplicate type definitions
-   grep -r "interface.*ExecutionError" . --exclude-dir=types/
+   grep -r "interface.*ExecutionError" . --exclude-dir=../types/
    # Should return only centralized definitions
    ```
 
 2. **Interface Contract Validation**
-   - [ ] All [RunRoutineMcpTool](types/core-types.ts) implementations use centralized types
-   - [ ] All [StepExecutionRequest/Result](types/core-types.ts) implementations match interface contracts
-   - [ ] All [Error Interfaces](types/core-types.ts) properly reference centralized error types
-   - [ ] All [Resource Interfaces](types/core-types.ts) coordinate with resource management
-   - [ ] All [Security Interfaces](types/core-types.ts) enforce proper security boundaries
+   - [ ] All [RunRoutineMcpTool](../types/core-types.ts) implementations use centralized types
+   - [ ] All [StepExecutionRequest/Result](../types/core-types.ts) implementations match interface contracts
+   - [ ] All [Error Interfaces](../types/core-types.ts) properly reference centralized error types
+   - [ ] All [Resource Interfaces](../types/core-types.ts) coordinate with resource management
+   - [ ] All [Security Interfaces](../types/core-types.ts) enforce proper security boundaries
 
 3. **Basic Communication Pattern Validation**
    - [ ] MCP tool calls successfully translate to service calls
@@ -166,15 +166,15 @@ sequenceDiagram
    ```
 
 2. **Error Handling Integration**
-   - [ ] Errors classified using [Error Classification Decision Tree](decision-trees/error-classification-severity.md)
-   - [ ] Recovery strategies selected using [Recovery Strategy Selection](decision-trees/recovery-strategy-selection.md)
+   - [ ] Errors classified using [Error Classification Decision Tree](../resilience/error-classification-severity.md)
+   - [ ] Recovery strategies selected using [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
    - [ ] Error propagation works across all communication patterns
    - [ ] Emergency stop procedures coordinate across all tiers
    - [ ] Error events properly trigger circuit breakers
 
 3. **Resource Management Integration**
-   - [ ] Resource allocation follows [Resource Allocation Flow](resource-coordination.md#resource-allocation-flow)
-   - [ ] Resource conflicts resolved using [Conflict Resolution Algorithm](decision-trees/resource-conflict-resolution.md)
+   - [ ] Resource allocation follows [Resource Allocation Flow](../resource-management/resource-coordination.md#resource-allocation-flow)
+   - [ ] Resource conflicts resolved using [Conflict Resolution Algorithm](../resource-management/resource-conflict-resolution.md)
    - [ ] Resource limits enforced at all tier boundaries
    - [ ] Emergency resource protocols activate correctly
 
@@ -251,17 +251,17 @@ sequenceDiagram
 ```bash
 # Check for duplicate type definitions
 find . -name "*.ts" -exec grep -l "interface ExecutionError" {} \;
-# Should only return types/core-types.ts
+# Should only return ../types/core-types.ts
 
 # Validate import consistency
-grep -r "import.*ExecutionError" . | grep -v "types/index.js"
+grep -r "import.*ExecutionError" . | grep -v "../types/index.js"
 # Should show proper imports from centralized system
 ```
 
 **Common Fixes**:
 - Remove duplicate interface definitions
 - Update imports to use centralized type system
-- Ensure all interfaces reference [types/core-types.ts](types/core-types.ts)
+- Ensure all interfaces reference [../types/core-types.ts](../types/core-types.ts)
 
 ### **Performance Degradation Troubleshooting**
 
@@ -308,9 +308,9 @@ const errorDiagnostic = {
 ```
 
 **Error Handling Requirements**:
-- All errors classified using [Error Classification Decision Tree](decision-trees/error-classification-severity.md)
-- All recovery strategies selected using [Recovery Strategy Selection](decision-trees/recovery-strategy-selection.md)
-- All error propagation uses [Error Interfaces](types/core-types.ts)
+- All errors classified using [Error Classification Decision Tree](../resilience/error-classification-severity.md)
+- All recovery strategies selected using [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
+- All error propagation uses [Error Interfaces](../types/core-types.ts)
 
 **Common Fixes**:
 - Implement missing error classification steps
@@ -334,9 +334,9 @@ const resourceDiagnostic = {
 ```
 
 **Resource Management Requirements**:
-- Resource allocation follows [Resource Allocation Flow](resource-coordination.md#resource-allocation-flow)
-- Conflicts resolved using [Resource Conflict Resolution](decision-trees/resource-conflict-resolution.md)
-- Emergency procedures use [Resource Emergency Protocols](resource-coordination.md#emergency-protocols)
+- Resource allocation follows [Resource Allocation Flow](../resource-management/resource-coordination.md#resource-allocation-flow)
+- Conflicts resolved using [Resource Conflict Resolution](../resource-management/resource-conflict-resolution.md)
+- Emergency procedures use [Resource Emergency Protocols](../resource-management/resource-coordination.md#emergency-protocols)
 
 **Common Fixes**:
 - Apply resource conflict resolution algorithms
@@ -360,8 +360,8 @@ const securityDiagnostic = {
 ```
 
 **Security Requirements**:
-- Security context propagates using [Security Interfaces](types/core-types.ts)
-- Permission validation follows [Security Context Propagation](security-boundaries.md#security-context-propagation-flow)
+- Security context propagates using [Security Interfaces](../types/core-types.ts)
+- Permission validation follows [Security Context Propagation](../security/security-boundaries.md#security-context-propagation-flow)
 - Audit events generated for all security operations
 
 **Common Fixes**:
@@ -374,7 +374,7 @@ const securityDiagnostic = {
 
 ### **Development Guidelines**
 
-1. **Always Start with Types**: Use [Centralized Type System](types/core-types.ts) as foundation
+1. **Always Start with Types**: Use [Centralized Type System](../types/core-types.ts) as foundation
 2. **Apply Decision Trees**: Use systematic algorithms for error classification and recovery
 3. **Validate Early**: Implement validation at every tier boundary
 4. **Monitor Performance**: Continuously validate against performance targets
@@ -402,11 +402,11 @@ const securityDiagnostic = {
 
 - **[README.md](README.md)** - Master navigation and implementation reading order
 - **[Communication Patterns](communication-patterns.md)** - Pattern selection and decision framework
-- **[Types System](types/core-types.ts)** - Single source of truth for all interfaces
-- **[Decision Trees](decision-trees/)** - Algorithmic decision support systems
-- **[Error Propagation](error-propagation.md)** - Error handling coordination framework
-- **[Resource Coordination](resource-coordination.md)** - Resource management coordination
-- **[Security Boundaries](security-boundaries.md)** - Security enforcement framework
-- **[Performance Characteristics](performance-characteristics.md)** - Performance requirements and optimization
+- **[Types System](../types/core-types.ts)** - Single source of truth for all interfaces
+- **[Cross-Cutting Architecture Domains](README.md#phase-3-cross-cutting-architecture)** - Links to specialized architecture domains
+- **[Error Handling](../resilience/error-propagation.md)** - Error handling coordination framework
+- **[Resource Management](../resource-management/resource-coordination.md)** - Resource management coordination
+- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement framework
+- **[Performance & Monitoring](../monitoring/performance-characteristics.md)** - Performance requirements and optimization
 
 This integration map provides the complete framework for implementing and validating Vrooli's communication architecture systematically, ensuring reliable operation through comprehensive testing and troubleshooting procedures. 

@@ -1,8 +1,28 @@
 /**
- * Core Types for Inter-Tier Communication
+ * Core Type Definitions for Vrooli's Three-Tier Execution Architecture
  * 
- * This file contains ALL fundamental types used across the Vrooli execution architecture.
- * This is the single source of truth - no interfaces should be defined in other documents.
+ * This is the **single source of truth** for all type definitions used across
+ * Vrooli's three-tier execution architecture. All other files reference types
+ * from this centralized system to ensure consistency and maintainability.
+ * 
+ * **File Organization**:
+ * - Communication patterns and interfaces
+ * - Error handling and recovery types
+ * - Resource management interfaces
+ * - Security and context types
+ * - Event system definitions
+ * - Performance monitoring types
+ * - State synchronization interfaces
+ * 
+ * **Related Documentation**:
+ * - [Communication Patterns](../communication/communication-patterns.md) - Usage of communication interfaces
+ * - [Error Propagation](../resilience/error-propagation.md) - Error handling type usage
+ * - [Resource Management](../resource-management/resource-coordination.md) - Resource type usage
+ * - [Security Boundaries](../security/security-boundaries.md) - Security type usage
+ * - [Event Bus Protocol](../event-driven/event-bus-protocol.md) - Event type usage
+ * - [Performance Characteristics](../monitoring/performance-characteristics.md) - Performance type usage
+ * - [State Synchronization](../context-memory/state-synchronization.md) - State type usage
+ * - [Integration Map](../communication/integration-map.md) - End-to-end type validation
  */
 
 // ================================

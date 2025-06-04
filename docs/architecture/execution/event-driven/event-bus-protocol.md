@@ -3,10 +3,10 @@
 This document defines the event-driven messaging protocol for Vrooli's three-tier execution architecture, enabling asynchronous coordination, monitoring, and real-time system intelligence.
 
 **Prerequisites**: 
-- Read [Communication Patterns](communication-patterns.md) to understand event-driven messaging in context
-- Review [Types System](types/core-types.ts) for complete event type definitions
+- Read [Communication Patterns](../communication/communication-patterns.md) to understand event-driven messaging in context
+- Review [Types System](../types/core-types.ts) for complete event type definitions
 
-**All event types are defined in the centralized type system** at `types/core-types.ts`. This document focuses on event protocols, ordering guarantees, and integration patterns.
+**All event types are defined in the centralized type system** at `../types/core-types.ts`. This document focuses on event protocols, ordering guarantees, and integration patterns.
 
 ```typescript
 import type {
@@ -17,7 +17,7 @@ import type {
     EventSubscription,
     EventDeliveryGuarantee,
     BarrierSynchronizationEvent
-} from "./types/index.js";
+} from "../types/index.js";
 ```
 
 ## Event Communication Protocol
@@ -26,12 +26,12 @@ import type {
 
 The event system implements a comprehensive taxonomy for system-wide coordination:
 
-**Event Categories**: All event types use [EventType Enum](types/core-types.ts) from the centralized type system.
+**Event Categories**: All event types use [EventType Enum](../types/core-types.ts) from the centralized type system.
 
 **Event Delivery Models**:
-- **Fire-and-Forget**: [Telemetry and monitoring events](types/core-types.ts) with at-most-once delivery
-- **Reliable Delivery**: [Business events](types/core-types.ts) with at-least-once delivery and retry mechanisms
-- **Barrier Synchronization**: [Safety-critical events](types/core-types.ts) with quorum-based handshakes
+- **Fire-and-Forget**: [Telemetry and monitoring events](../types/core-types.ts) with at-most-once delivery
+- **Reliable Delivery**: [Business events](../types/core-types.ts) with at-least-once delivery and retry mechanisms
+- **Barrier Synchronization**: [Safety-critical events](../types/core-types.ts) with quorum-based handshakes
 
 ### **Event Communication Architecture**
 
@@ -85,7 +85,7 @@ graph TB
     class MonitoringAgents,SecurityAgents,OptimizationAgents,BusinessAgents consumers
 ```
 
-**Event Infrastructure Integration**: Event bus coordinates with [Performance Requirements](performance-characteristics.md#performance-requirements-by-communication-pattern) and [Resource Allocation](resource-coordination.md#resource-allocation-flow).
+**Event Infrastructure Integration**: Event bus coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) and [Resource Allocation](../resource-management/resource-coordination.md#resource-allocation-flow).
 
 ## Event Ordering and Delivery
 
@@ -93,7 +93,7 @@ graph TB
 
 The event system provides different ordering guarantees based on event classification:
 
-**Ordering Models**: All ordering types use [EventOrderingGuarantee](types/core-types.ts) from the centralized type system.
+**Ordering Models**: All ordering types use [EventOrderingGuarantee](../types/core-types.ts) from the centralized type system.
 
 - **Total Ordering**: Critical system events require global ordering
 - **Partial Ordering**: Domain events require causal ordering within scope
@@ -113,7 +113,7 @@ sequenceDiagram
 
     %% Event publication
     Publisher->>Router: publishEvent(event)
-    Note right of Publisher: Interface: [EventPublisher](types/core-types.ts)
+    Note right of Publisher: Interface: [EventPublisher](../types/core-types.ts)
     
     Router->>Router: Determine event classification
     Router->>Router: Apply ordering constraints
@@ -122,15 +122,15 @@ sequenceDiagram
         Router->>Store: Write with global sequence
         Store->>Store: Assign global order number
         Store->>Filter: Forward with ordering constraint
-        Note right of Store: Implementation: [Total Order Protocol](types/core-types.ts)
+        Note right of Store: Implementation: [Total Order Protocol](../types/core-types.ts)
     else Partial Ordering Required  
         Router->>Store: Write with causal sequence
         Store->>Store: Assign causal order within scope
         Store->>Filter: Forward with causal constraint
-        Note right of Store: Implementation: [Partial Order Protocol](types/core-types.ts)
+        Note right of Store: Implementation: [Partial Order Protocol](../types/core-types.ts)
     else No Ordering Required
         Router->>Filter: Direct forward
-        Note right of Router: Implementation: [Fire-and-Forget Protocol](types/core-types.ts)
+        Note right of Router: Implementation: [Fire-and-Forget Protocol](../types/core-types.ts)
     end
     
     %% Event filtering and delivery
@@ -140,14 +140,14 @@ sequenceDiagram
     alt Reliable Delivery
         Filter->>Consumer: Deliver with ack required
         Consumer->>Filter: Acknowledge receipt
-        Note right of Consumer: Implementation: [Reliable Delivery Protocol](types/core-types.ts)
+        Note right of Consumer: Implementation: [Reliable Delivery Protocol](../types/core-types.ts)
     else Best-Effort Delivery
         Filter->>Consumer: Deliver without ack
-        Note right of Filter: Implementation: [Best-Effort Protocol](types/core-types.ts)
+        Note right of Filter: Implementation: [Best-Effort Protocol](../types/core-types.ts)
     end
 ```
 
-**Delivery Integration**: Event delivery coordinates with [Error Handling](error-propagation.md#error-handling-across-patterns) for failed deliveries.
+**Delivery Integration**: Event delivery coordinates with [Error Handling](../resilience/error-propagation.md#error-handling-across-patterns) for failed deliveries.
 
 ## Barrier Synchronization
 
@@ -155,9 +155,9 @@ sequenceDiagram
 
 Barrier synchronization provides synchronous coordination for safety-critical operations:
 
-**Barrier Events**: All barrier types use [BarrierSynchronizationEvent](types/core-types.ts) from the centralized type system.
+**Barrier Events**: All barrier types use [BarrierSynchronizationEvent](../types/core-types.ts) from the centralized type system.
 
-**Implementation**: Barrier synchronization integrates with [Emergency Stop Protocols](error-propagation.md#emergency-stop-protocols).
+**Implementation**: Barrier synchronization integrates with [Emergency Stop Protocols](../resilience/error-propagation.md#emergency-stop-protocols).
 
 ### **Barrier Synchronization Protocol**
 
@@ -173,7 +173,7 @@ sequenceDiagram
 
     %% Barrier initiation
     Publisher->>Barrier: publishBarrierEvent(safety/pre_action)
-    Note right of Publisher: Interface: [BarrierSynchronizationEvent](types/core-types.ts)
+    Note right of Publisher: Interface: [BarrierSynchronizationEvent](../types/core-types.ts)
     
     Barrier->>Barrier: Create barrier with timeout=2s
     Barrier->>Barrier: Set quorum requirement
@@ -192,7 +192,7 @@ sequenceDiagram
         
         Agent2->>Agent2: Analyze safety conditions
         Agent2->>Barrier: safety/response ALARM
-        Note right of Agent2: Implementation: [Safety Analysis](types/core-types.ts)
+        Note right of Agent2: Implementation: [Safety Analysis](../types/core-types.ts)
         
         Agent3->>Agent3: Analyze safety conditions
         Agent3->>Barrier: safety/response OK
@@ -200,11 +200,11 @@ sequenceDiagram
     
     %% Barrier resolution
     Barrier->>Barrier: Evaluate responses
-    Note right of Barrier: Implementation: [Barrier Resolution Algorithm](types/core-types.ts)
+    Note right of Barrier: Implementation: [Barrier Resolution Algorithm](../types/core-types.ts)
     
     alt Any ALARM Response
         Barrier->>Publisher: BARRIER_FAILED - Emergency stop
-        Note right of Barrier: Response: [Emergency Protocol](error-propagation.md#emergency-stop-protocols)
+        Note right of Barrier: Response: [Emergency Protocol](../resilience/error-propagation.md#emergency-stop-protocols)
     else All OK or Timeout with Quorum
         Barrier->>Publisher: BARRIER_PASSED - Proceed
     else Timeout without Quorum
@@ -212,7 +212,7 @@ sequenceDiagram
     end
 ```
 
-**Barrier Integration**: Barrier synchronization coordinates with [Circuit Breaker Protocol](implementation/circuit-breakers.md#circuit-breaker-protocol-and-integration).
+**Barrier Integration**: Barrier synchronization coordinates with [Circuit Breaker Protocol](../resilience/circuit-breakers.md#circuit-breaker-protocol-and-integration).
 
 ## Event Subscription and Routing
 
@@ -220,9 +220,9 @@ sequenceDiagram
 
 Event subscription follows pattern-based filtering for efficient event routing:
 
-**Subscription Types**: All subscription types use [EventSubscription Interface](types/core-types.ts) from the centralized type system.
+**Subscription Types**: All subscription types use [EventSubscription Interface](../types/core-types.ts) from the centralized type system.
 
-**Routing Implementation**: Event routing integrates with [Performance Optimization](performance-characteristics.md#adaptive-performance-management).
+**Routing Implementation**: Event routing integrates with [Performance Optimization](../monitoring/performance-characteristics.md#adaptive-performance-management).
 
 ### **Event Subscription Flow**
 
@@ -237,7 +237,7 @@ graph LR
     end
     
     subgraph "Subscription Types"
-        TopicSubscription[Topic Subscription<br/>📊 Wildcard patterns<br/>🎯 Exact matches<br/>⚡ Efficient filtering]
+        TopicSubscription[Topic Subscription<br/>📊 Wildcard patterns<br/>�� Exact matches<br/>⚡ Efficient filtering]
         
         ContentSubscription[Content Subscription<br/>🔍 Payload filtering<br/>📊 Complex queries<br/>🎯 Targeted delivery]
         
@@ -275,7 +275,7 @@ graph LR
     class ImmediateDelivery,BatchedDelivery,ScheduledDelivery delivery
 ```
 
-**Subscription Integration**: Subscription management coordinates with [Resource Allocation](resource-coordination.md#resource-allocation-flow) for efficient resource usage.
+**Subscription Integration**: Subscription management coordinates with [Resource Allocation](../resource-management/resource-coordination.md#resource-allocation-flow) for efficient resource usage.
 
 ## Event Storage and Replay
 
@@ -283,9 +283,9 @@ graph LR
 
 Event storage provides persistence, replay, and audit capabilities:
 
-**Storage Types**: All storage interfaces use [EventStorage Interface](types/core-types.ts) from the centralized type system.
+**Storage Types**: All storage interfaces use [EventStorage Interface](../types/core-types.ts) from the centralized type system.
 
-**Recovery Integration**: Event replay coordinates with [State Synchronization](state-synchronization.md#transaction-and-consistency-protocol) for consistency.
+**Recovery Integration**: Event replay coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
 
 ### **Event Storage Architecture**
 
@@ -306,16 +306,16 @@ interface EventStorageManager extends EventStorage {
 }
 ```
 
-**Storage Implementation**: Event storage uses [Event Persistence Types](types/core-types.ts) for systematic storage management.
+**Storage Implementation**: Event storage uses [Event Persistence Types](../types/core-types.ts) for systematic storage management.
 
 ## Event Handling Error Management
 
-Errors that occur during event publishing, routing, subscription processing, or consumer execution are managed by the central [Error Propagation and Recovery Framework](error-propagation.md). This includes:
-- Classification of event-related errors (e.g., `COMMUNICATION_FAILURE`, `VALIDATION_FAILED`, specific consumer logic errors) using the [Error Classification Decision Tree](decision-trees/error-classification-severity.md).
-- Selection of recovery strategies (e.g., retrying event delivery, moving to a dead-letter queue, triggering circuit breakers, escalating to human intervention) using the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md).
+Errors that occur during event publishing, routing, subscription processing, or consumer execution are managed by the central [Error Propagation and Recovery Framework](../resilience/error-propagation.md). This includes:
+- Classification of event-related errors (e.g., `COMMUNICATION_FAILURE`, `VALIDATION_FAILED`, specific consumer logic errors) using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
+- Selection of recovery strategies (e.g., retrying event delivery, moving to a dead-letter queue, triggering circuit breakers, escalating to human intervention) using the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
 - Specific protocols for handling NACKs, timeouts, poison pills, and consumer exceptions.
 
-Refer to [Error Propagation and Recovery Framework](error-propagation.md) for the comprehensive approach to handling all errors within the event bus system and its consumers.
+Refer to [Error Propagation and Recovery Framework](../resilience/error-propagation.md) for the comprehensive approach to handling all errors within the event bus system and its consumers.
 
 ## Implementation Guidelines
 
@@ -323,34 +323,34 @@ Refer to [Error Propagation and Recovery Framework](error-propagation.md) for th
 
 When implementing event bus functionality:
 
-1. **Use Centralized Types**: All event operations must use [Event Interfaces](types/core-types.ts)
-2. **Apply Ordering Guarantees**: Use [Event Ordering Types](types/core-types.ts) for systematic ordering
-3. **Implement Delivery Guarantees**: Support all [Delivery Models](types/core-types.ts)
-4. **Handle Barrier Synchronization**: Implement [Barrier Protocol](types/core-types.ts) for safety-critical events
-5. **Error Integration**: Handle event errors via [Event Error Handling](types/core-types.ts)
+1. **Use Centralized Types**: All event operations must use [Event Interfaces](../types/core-types.ts)
+2. **Apply Ordering Guarantees**: Use [Event Ordering Types](../types/core-types.ts) for systematic ordering
+3. **Implement Delivery Guarantees**: Support all [Delivery Models](../types/core-types.ts)
+4. **Handle Barrier Synchronization**: Implement [Barrier Protocol](../types/core-types.ts) for safety-critical events
+5. **Error Integration**: Handle event errors via [Event Error Handling](../types/core-types.ts)
 
 ### **Event Integration Implementation**
 
 When integrating with event bus:
 
-1. **Event Publishing**: Use [EventPublisher Interface](types/core-types.ts) for consistent publishing
-2. **Event Subscription**: Apply [EventSubscription Interface](types/core-types.ts) for systematic subscription
-3. **Event Processing**: Use [EventProcessor Interface](types/core-types.ts) for standardized processing
-4. **Error Handling**: Integrate with [Error Propagation System](error-propagation.md#error-handling-across-patterns)
-5. **Performance Optimization**: Meet [Event Performance Requirements](performance-characteristics.md#performance-requirements-by-communication-pattern)
+1. **Event Publishing**: Use [EventPublisher Interface](../types/core-types.ts) for consistent publishing
+2. **Event Subscription**: Apply [EventSubscription Interface](../types/core-types.ts) for systematic subscription
+3. **Event Processing**: Use [EventProcessor Interface](../types/core-types.ts) for standardized processing
+4. **Error Handling**: Integrate with [Error Propagation System](../resilience/error-propagation.md#error-handling-across-patterns)
+5. **Performance Optimization**: Meet [Event Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern)
 
 ## Related Documentation
 
-- **[Communication Patterns](communication-patterns.md)** - Event-driven messaging in communication context
-- **[Types System](types/core-types.ts)** - Complete event type definitions and interfaces
-- **[Integration Map](integration-map.md)** - End-to-end event flows and validation
-- **[Error Propagation](error-propagation.md)** - Event-driven error handling and emergency protocols
-- **[Resource Coordination](resource-coordination.md)** - Resource management event coordination
-- **[Security Boundaries](security-boundaries.md)** - Security aspects of event handling
-- **[Performance Characteristics](performance-characteristics.md)** - Performance requirements for event processing
-- **[Circuit Breakers](implementation/circuit-breakers.md)** - Circuit breaker integration with event system
-- **[Integration Map and Validation Document](integration-map.md)** - End-to-end event flows and validation procedures.
-- **[Error Propagation and Recovery Framework](error-propagation.md)** - Authoritative guide for handling all errors, including those originating from the event bus.
-- **[Resource Coordination](resource-coordination.md)** - Resource management for event processing resources.
+- **[Communication Patterns](../communication/communication-patterns.md)** - Event-driven messaging in communication context
+- **[Types System](../types/core-types.ts)** - Complete event type definitions and interfaces
+- **[Integration Map](../communication/integration-map.md)** - End-to-end event flows and validation
+- **[Error Propagation](../resilience/error-propagation.md)** - Event-driven error handling and emergency protocols
+- **[Resource Coordination](../resource-management/resource-coordination.md)** - Resource management event coordination
+- **[Security Boundaries](../security/security-boundaries.md)** - Security aspects of event handling
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Performance requirements for event processing
+- **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with event system
+- **[Integration Map and Validation Document](../communication/integration-map.md)** - End-to-end event flows and validation procedures.
+- **[Error Propagation and Recovery Framework](../resilience/error-propagation.md)** - Authoritative guide for handling all errors, including those originating from the event bus.
+- **[Resource Coordination](../resource-management/resource-coordination.md)** - Resource management for event processing resources.
 
 This document provides comprehensive event bus functionality for the communication architecture, ensuring reliable event-driven coordination through the centralized type system and integration with all architectural components. 

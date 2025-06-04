@@ -1,6 +1,13 @@
-# Circuit Breaker Implementation
+# Circuit Breaker Implementation and Integration
 
-This document details the circuit breaker pattern as applied within Vrooli's inter-tier communication and error handling strategy. Circuit breakers are essential for preventing cascading failures and improving system resilience when downstream services or components become unresponsive or consistently produce errors.
+This document is the **authoritative source** for circuit breaker patterns, implementation strategies, and integration protocols across Vrooli's three-tier execution architecture.
+
+**Prerequisites**: 
+- Read [Error Propagation](error-propagation.md) to understand circuit breaker integration with error handling
+- Review [Types System](../types/core-types.ts) for all circuit breaker interface definitions
+- Understand [Communication Patterns](../communication/communication-patterns.md) for circuit breaker integration within each pattern
+
+**All circuit breaker types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on circuit breaker protocols, state management, and integration strategies.
 
 ```typescript
 import type {
@@ -298,8 +305,35 @@ class TierCircuitBreaker implements CircuitBreakerProtocol {
 This circuit breaker mechanism is a key component in building resilient and fault-tolerant communication pathways between the Vrooli execution tiers.
 
 ## Related Documentation
-- **[Error Propagation and Recovery Framework](../error-propagation.md)**: Central authority for error handling, classification, and recovery strategies.
-- **[Event Bus Protocol](../event-bus-protocol.md)**: For publishing and subscribing to circuit breaker state change events.
-- **[Performance Characteristics](../performance-characteristics.md)**: Impact of circuit breakers on performance and latency.
-- **[Integration Map and Validation Document](../integration-map.md)**: For testing and validating circuit breaker functionality.
-- **[Centralized Type System](../types/core-types.ts)**: For `CircuitState`, `ExecutionErrorType.CIRCUIT_BREAKER_OPEN`, etc. 
+
+- **[Error Propagation](error-propagation.md)** - Circuit breaker integration with error handling
+- **[Types System](../types/core-types.ts)** - Complete circuit breaker type definitions
+- **[Error Classification](error-classification-severity.md)** - Error classification for circuit breaker triggers
+- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Recovery strategies for circuit breaker states
+- **[Communication Patterns](../communication/communication-patterns.md)** - Circuit breaker integration within communication patterns
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Circuit breaker impact on performance
+- **[Resource Management](../resource-management/resource-coordination.md)** - Circuit breaker integration with resource management
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven circuit breaker coordination
+- **[State Synchronization](../context-memory/state-synchronization.md)** - Circuit breaker state management
+- **[Security Boundaries](../security/security-boundaries.md)** - Security considerations in circuit breaker operation
+- **[Integration Map](../communication/integration-map.md)** - Circuit breaker validation procedures
+
+This document provides comprehensive circuit breaker functionality for the communication architecture, ensuring reliable operation through systematic failure detection, isolation, and recovery procedures.
+
+**Performance Integration**: Circuit breakers coordinate with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware circuit breaking.
+
+**Error Integration**: Circuit breakers integrate with [Error Handling](error-propagation.md#error-handling-across-patterns) for systematic failure management.
+
+**Resource Integration**: Circuit breakers coordinate with [Resource Management](../resource-management/resource-coordination.md#resource-allocation-flow) for resource-aware protection.
+
+**Event Integration**: Circuit breaker events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for state coordination.
+
+**State Integration**: Circuit breaker state coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
+
+**Security Integration**: Circuit breakers respect [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure operation.
+
+**Circuit Breaker Error Strategy**: Circuit breaker failures follow [Error Classification](error-classification-severity.md) for severity assessment.
+
+**Circuit Breaker Recovery Strategy**: Circuit breaker recovery uses [Recovery Strategy Selection](recovery-strategy-selection.md) for systematic recovery.
+
+**Circuit Breaker Emergency Strategy**: Circuit breaker emergencies trigger [Emergency Stop Protocols](error-propagation.md#emergency-stop-protocols) for system protection. 

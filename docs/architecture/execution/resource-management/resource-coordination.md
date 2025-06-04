@@ -1,12 +1,13 @@
 # Resource Coordination and Management
 
-This document is the **authoritative source** for defining hierarchical resource management, allocation strategies, conflict resolution, and emergency protocols for resource handling within Vrooli's three-tier execution architecture.
+This document is the **authoritative source** for resource allocation, coordination protocols, budget management, and emergency resource procedures across Vrooli's three-tier execution architecture.
 
 **Prerequisites**: 
-- Read [README.md](README.md) for architectural context and navigation.
-- Review the [Centralized Type System](types/core-types.ts) for all resource-related interface and type definitions (e.g., `ResourceLimits`, `ResourceUsage`, `ExecutionPriority`).
-- Understand the [Resource Conflict Resolution Decision Tree](decision-trees/resource-conflict-resolution.md) for resolving competing resource demands.
-- Understand the [Error Propagation and Recovery Framework](error-propagation.md) for handling resource-related errors (e.g., `RESOURCE_EXHAUSTED`, `QUOTA_EXCEEDED`).
+- Read [Communication Patterns](../communication/communication-patterns.md) to understand resource coordination within each communication pattern
+- Review [Types System](../types/core-types.ts) for all resource-related interface definitions
+- Understand [Error Propagation](../resilience/error-propagation.md) for resource-related error handling
+
+**All resource management types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on resource allocation protocols, coordination mechanisms, and emergency procedures.
 
 ## Hierarchical Resource Management
 
@@ -16,7 +17,7 @@ Vrooli employs a hierarchical model for resource management, where limits are de
 - **Tier 2 (Process)**: Manages resources for a single routine run, including distributing budgets to parallel branches and sub-routines. Tracks `RunContext` resource usage.
 - **Tier 3 (Execution)**: Manages resources at the step level. Monitors exact credit usage for tool calls, model interactions, and code execution. Enforces fine-grained limits.
 
-All relevant types like `ResourceLimits`, `ResourceUsage`, `ResourceRequirements`, and `ResourceLimitOverrides` are defined in [types/core-types.ts](types/core-types.ts).
+All relevant types like `ResourceLimits`, `ResourceUsage`, `ResourceRequirements`, and `ResourceLimitOverrides` are defined in [types/core-types.ts](../types/core-types.ts).
 
 ## Resource Allocation Flow
 
@@ -46,7 +47,7 @@ graph TD
 
 When multiple operations compete for limited resources (e.g., concurrent tool calls under a quota, multiple branches needing credits), conflicts are resolved using the strategies outlined in the [Resource Conflict Resolution Decision Tree](decision-trees/resource-conflict-resolution.md). Key strategies include:
 - `FIRST_COME_FIRST_SERVED`
-- `PRIORITY_BASED` (using `ExecutionPriority` from [types/core-types.ts](types/core-types.ts))
+- `PRIORITY_BASED` (using `ExecutionPriority` from [types/core-types.ts](../types/core-types.ts))
 - `PROPORTIONAL_SHARING`
 - `PREEMPTION_ALLOWED`
 - `QUEUE_AND_WAIT`
@@ -55,37 +56,42 @@ The `TierResourceManager` components at each tier are responsible for implementi
 
 ## Error Handling for Resource Issues
 
-Resource-related errors are critical for system stability and are handled by the [Error Propagation and Recovery Framework](error-propagation.md). Common resource errors include:
+Resource-related errors are critical for system stability and are handled by the [Error Propagation and Recovery Framework](../resilience/error-propagation.md). Common resource errors include:
 - **`RESOURCE_EXHAUSTED`**: A specific resource (credits, time, memory) has been depleted.
 - **`QUOTA_EXCEEDED`**: A rate limit or usage quota for a tool or service has been hit.
 - **`RESOURCE_ALLOCATION_FAILED`**: Tier 1 or Tier 2 failed to secure necessary resources for a child operation.
 
 **Severity and Recovery**:
 - These errors are typically classified as `ERROR` or `CRITICAL` depending on impact, using the [Error Classification Decision Tree](decision-trees/error-classification-severity.md).
-- Recovery strategies, selected via the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md), may include:
+- Recovery strategies, selected via the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md), may include:
     - `RETRY_MODIFIED` (e.g., with reduced scope or after a delay).
     - `GRACEFUL_DEGRADATION` (e.g., completing with partial results).
     - `ESCALATE_TO_PARENT` or `ESCALATE_TO_HUMAN` if the budget is truly exhausted or limits are too restrictive.
     - Modifying `ExecutionPriority` to influence future resource contention.
 
-Refer to the [Error Propagation and Recovery Framework](error-propagation.md) for the comprehensive approach to handling these errors.
+Refer to the [Error Propagation and Recovery Framework](../resilience/error-propagation.md) for the comprehensive approach to handling these errors.
 
-## Emergency Protocols for Resource Crises
+## Emergency Resource Protocols
 
-In severe resource exhaustion scenarios (e.g., a runaway routine rapidly consuming all available credits for a team), emergency protocols are triggered:
-1.  **Detection**: Monitoring systems (detailed in [Performance Characteristics](performance-characteristics.md)) detect anomalous resource consumption.
-2.  **Immediate Action**: The [Error Propagation and Recovery Framework](error-propagation.md) may trigger an `EMERGENCY_STOP` for the offending swarm/routine.
-3.  **Load Shedding**: The system may temporarily disallow new high-consumption tasks or reduce the quality/scope of ongoing non-critical operations.
-4.  **Alerting**: Administrators are alerted.
+Resource emergency protocols provide safeguards for resource exhaustion and system overload:
 
-These protocols are designed to protect the overall system stability and ensure fair resource access for other users/teams.
+**Emergency Types**: All emergency protocols use [EmergencyResourceProtocol Interface](../types/core-types.ts) from the centralized type system.
+
+**Emergency Integration**: Emergency protocols coordinate with [Emergency Stop Protocols](../resilience/error-propagation.md#emergency-stop-protocols) for system-wide protection.
+
+**Circuit Breaker Integration**: Emergency protocols trigger [Circuit Breaker Activation](../resilience/circuit-breakers.md#circuit-breaker-protocol-and-integration) for resource isolation.
 
 ## Related Documentation
-- **[README.md](README.md)**: Overall navigation for the communication architecture.
-- **[Centralized Type System](types/core-types.ts)**: Definitions for `ResourceLimits`, `ResourceUsage`, `ExecutionPriority`, etc.
-- **[Decision Trees Folder](decision-trees/)**: Specifically, the [Resource Conflict Resolution Decision Tree](decision-trees/resource-conflict-resolution.md).
-- **[Error Propagation and Recovery Framework](error-propagation.md)**: For handling errors like `RESOURCE_EXHAUSTED`.
-- **[Performance Characteristics](performance-characteristics.md)**: For monitoring resource usage and detecting anomalies.
-- **[Integration Map and Validation Document](integration-map.md)**: For testing and validating resource management features.
 
-This document provides the definitive guide to resource coordination, ensuring efficient, fair, and stable resource utilization across the Vrooli platform. 
+- **[Communication Patterns](../communication/communication-patterns.md)** - Resource coordination within each communication pattern
+- **[Types System](../types/core-types.ts)** - Complete resource management type definitions
+- **[Resource Conflict Resolution](resource-conflict-resolution.md)** - Algorithm for resolving resource conflicts
+- **[Error Propagation](../resilience/error-propagation.md)** - Resource-related error handling
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Resource impact on performance
+- **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with resource management
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven resource coordination
+- **[State Synchronization](../context-memory/state-synchronization.md)** - Resource state management
+- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement in resource access
+- **[Integration Map](../communication/integration-map.md)** - Resource management validation procedures
+
+This document provides comprehensive resource management for the communication architecture, ensuring optimal resource utilization through systematic allocation, coordination, and emergency procedures. 

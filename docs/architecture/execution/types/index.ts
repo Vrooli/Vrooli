@@ -1,11 +1,24 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 /**
- * Master Type Index for Inter-Tier Communication
+ * Central Type System Export Index
  * 
- * This file exports all types used across the Vrooli execution architecture
- * communication system, providing a single import point for type consistency.
+ * This file provides the main export interface for Vrooli's centralized type system.
+ * All types are defined in core-types.ts and re-exported here for easy importing.
  * 
- * All types are now consolidated in core-types.ts to eliminate redundancy.
+ * **Usage**:
+ * ```typescript
+ * import type { 
+ *   ExecutionError, 
+ *   RunContext, 
+ *   ResourceLimits,
+ *   SecurityContext 
+ * } from "../types/index.js";
+ * ```
+ * 
+ * **Related Documentation**:
+ * - [Core Types](./core-types.ts) - Complete type definitions
+ * - [Communication Patterns](../communication/communication-patterns.md) - Type usage patterns
+ * - [Integration Map](../communication/integration-map.md) - Type validation procedures
  */
 
 // All types consolidated in core-types.ts

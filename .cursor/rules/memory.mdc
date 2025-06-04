@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
-You have no persistent memory - your memory resets completely between sessions. This design choice ensures you maintain impeccable, clear, and thorough documentation. **After every memory reset, you rely solely on files in /docs.** This acts as your long-term memory back. Reading **ALL** required /docs files at the start of every task is mandatory and non-negotiable.
+You have no persistent memory - your memory resets completely between sessions. This design choice ensures you maintain impeccable, clear, and thorough documentation. **After every memory reset, you rely solely on files in the `/docs` folder.** This acts as your long-term memory back. Reading **ALL** relevant `/docs` files at the start of every task is mandatory and non-negotiable.
 
 ## Memory Bank (Documenation) Structure
 
@@ -49,30 +49,45 @@ Tasks are clearly organized and managed through multiple Markdown files categori
 - Temporary notes, research results, or drafts generated during the current task
 - Clear out or transfer important information after confirmation of task completion
 
-### Project Documentation (`docs/` folder):
+### Project Documentation (`docs/` folder and its subdirectories):
 
-Organized documentation covering technical details, integrations, testing, deployments, APIs, and guides.
+Organized documentation covering technical details, integrations, testing, deployments, APIs, architecture, and guides.
+Documentation can be found as:
+- Standalone guides directly within the `/docs` folder (e.g., `executor-migration-guide.md`, `run-state-machine-migration-guide.md`).
+- Grouped within subdirectories like `/docs/server/`, `/docs/architecture/`, `/docs/testing/`, `/docs/ui/`, `/docs/devops/`, `/docs/setup/`. Each subdirectory typically contains a `README.md` and other relevant files.
 
-Recommended organization:
+Current structure includes:
 
-- **Deployment:** Guides for Kubernetes, Docker, serverless deployments, etc.
-  - `deploy-kubernetes.md`
-  - `deploy-docker.md`
+- **Server Documentation (`/docs/server/`)**: Backend architecture, startup process, and database migrations
+  - `README.md` - Server overview and architecture
+  - `database-migrations.md` - Detailed migration procedures
 
-- **Testing:** Documentation for performance, mobile, unit, integration, and end-to-end testing strategies
-  - `testing-performance.md`
-  - `testing-mobile.md`
-  - `testing-strategies.md`
+- **Architecture (`/docs/architecture/`)**: System design and architectural decisions
+  - `README.md` - Architecture overview
+  - Subdirectories: `execution/`, `external-integrations/`, `data/`, `core-services/`, `api-gateway/`, `client/`
 
-- **API Reference:**
-  - Clearly structured API endpoint details, usage, and examples
-  - `api-reference.md`
+- **Testing (`/docs/testing/`)**: Comprehensive testing documentation
+  - `README.md` - Testing overview
+  - `test-strategy.md`, `test-plan.md`, `test-execution.md`, `writing-tests.md`, `defect-reporting.md`
 
-- **Integrations and Infrastructure:** Documentation for third-party integrations, cloud setup, and infrastructure specifics
-  - `integrations.md`
-  - `infrastructure.md`
+- **UI Documentation (`/docs/ui/`)**: Frontend and user interface documentation
+  - `README.md` - UI overview
+  - `ui-performance.md`, `logo.md`, `pwa-and-twa.md`, `fonts.md`
 
-- **Other:** Additional docs as necessary (e.g., architectural diagrams, security standards)
+- **DevOps (`/docs/devops/`)**: Deployment, infrastructure, and operational guides
+  - `README.md` - DevOps overview
+  - `server-deployment.md`, `kubernetes.md`, `ci-cd.md`, `build-system.md`, `development-environment.md`, `environment-management.md`, `logging.md`, `testing-infrastructure.md`, `troubleshooting.md`
+  - Subdirectory: `getting-started/`
+
+- **Setup (`/docs/setup/`)**: Installation and configuration instructions
+  - `README.md` - Setup overview
+  - `prerequisites.md`, `repo_setup.md`, `remote_setup.md`, `working_with_docker.md`, `oauth_setup.md`, `stripe_setup.md`, `s3_setup.md`, `cloudflare_caching.md`, `messenger_setup.md`
+
+- **Migration Guides**: Standalone technical migration documentation
+  - `executor-migration-guide.md`
+  - `run-state-machine-migration-guide.md`
+
+For new documentation, follow the existing pattern by placing content in appropriate subdirectories or as standalone files in `/docs/` for cross-cutting concerns.
 
 ---
 
@@ -127,7 +142,7 @@ flowchart TD
 ## Key Rules to Remember:
 
 - **Always** start by reading **every** required memory file.
-- Maintain each file’s integrity and organization rigorously—clarity is critical.
+- Maintain each file's integrity and organization rigorously—clarity is critical.
 - Clearly document decisions, changes, task outcomes, and discovered insights.
 - Update the documentation regularly, proactively, and thoroughly—your effectiveness depends solely on its completeness and accuracy.
 - Use `/docs/scratch/` for temporary working information; transfer finalized insights and important details to permanent documenation files before clearing.

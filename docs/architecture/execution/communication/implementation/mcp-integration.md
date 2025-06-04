@@ -5,9 +5,9 @@ This document provides comprehensive implementation guidance for integrating the
 **Prerequisites**:
 - Read [Communication Patterns](../communication-patterns.md#mcp-tool-communication) to understand MCP tool communication paradigm
 - Review [Tier Interfaces](../tier-interfaces.md#tier-1--tier-2-interface) for tier communication contracts
-- Study [Types System](../types/core-types.ts) for MCP-related interface definitions
+- Study [Types System](../../types/core-types.ts) for MCP-related interface definitions
 
-**All MCP integration types are defined in the centralized type system** at [types/core-types.ts](types/core-types.ts).
+**All MCP integration types are defined in the centralized type system** at [types/core-types.ts](../../types/core-types.ts).
 
 ## Tool Execution Architecture
 
@@ -588,10 +588,10 @@ this.logger.error("Error in resourceManage:", error);
 
 - **[Communication Patterns](../communication-patterns.md#mcp-tool-communication)** - MCP tool communication paradigm and usage patterns
 - **[Tier Interfaces](../tier-interfaces.md#tier-1--tier-2-interface)** - Complete Tier 1 → Tier 2 interface definition
-- **[Error Propagation](../error-propagation.md#error-handling-across-patterns)** - Error handling and recovery in MCP context
-- **[Security Boundaries](../security-boundaries.md#trust-model-and-privilege-hierarchy)** - Security validation and context propagation
-- **[State Synchronization](../state-synchronization.md#context-inheritance-and-conflict-resolution)** - Context inheritance and management
-- **[Performance Characteristics](../performance-characteristics.md#performance-requirements-by-communication-pattern)** - Performance requirements and optimization
-- **[Types System](../types/core-types.ts)** - Complete MCP integration type definitions
+- **[Error Propagation](../../resilience/error-propagation.md#error-handling-across-patterns)** - Error handling and recovery in MCP context
+- **[Security Boundaries](../../security/security-boundaries.md#trust-model-and-privilege-hierarchy)** - Security validation and context propagation
+- **[State Synchronization](../../context-memory/state-synchronization.md#context-inheritance-and-conflict-resolution)** - Context inheritance and management
+- **[Performance Characteristics](../../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern)** - Performance requirements and optimization
+- **[Types System](../../types/core-types.ts)** - Complete MCP integration type definitions
 
 This MCP integration provides a robust, type-safe bridge between Tier 1 agent reasoning and Tier 2 routine execution through a well-structured tool routing architecture that seamlessly handles both OpenAI built-in tools and Vrooli's internal MCP tools. 

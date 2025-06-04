@@ -4,11 +4,11 @@ This document is the authoritative source for defining the four primary communic
 
 **Prerequisites**: 
 - Read [README.md](README.md) for architectural context and navigation to other relevant documents.
-- Review the [Centralized Type System](types/core-types.ts) for all interface and type definitions used herein.
+- Review the [Centralized Type System](../types/core-types.ts) for all interface and type definitions used herein.
 
 ## Pattern Overview
 
-Communication in Vrooli follows four primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics](performance-characteristics.md).
+Communication in Vrooli follows four primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
 
 | Pattern                      | Use Case                             |
 |------------------------------|--------------------------------------|
@@ -23,22 +23,22 @@ Communication in Vrooli follows four primary patterns, each optimized for differ
 - **Protocol**: Tool execution via `CompositeToolRunner` → `McpToolRunner` → `BuiltInTools`/`SwarmTools`.
 - **Implementation**: Agent tool calls routed automatically based on tool type (OpenAI vs MCP). Details in [MCP Tool Integration](implementation/mcp-integration.md).
 - **Key Tools**: `run_routine`, `send_message`, `resource_manage`, `spawn_swarm`, `update_swarm_shared_state`.
-- **Error Handling**: Coordinated through the [Error Propagation Framework](error-propagation.md).
+- **Error Handling**: Coordinated through the [Error Propagation Framework](../resilience/error-propagation.md).
 
 ### 2. **Direct Service Interface (Tier 2 → Tier 3)**
 - **Purpose**: High-performance step execution with immediate feedback.
-- **Protocol**: Direct service method calls using [StepExecutionRequest/Result Interfaces](types/core-types.ts) defined in the centralized type system and outlined in [Tier Interface Contracts](tier-interfaces.md).
-- **Error Handling**: Managed via the [Error Propagation Framework](error-propagation.md), with errors typically resulting in immediate responses.
+- **Protocol**: Direct service method calls using [StepExecutionRequest/Result Interfaces](../types/core-types.ts) defined in the centralized type system and outlined in [Tier Interface Contracts](tier-interfaces.md).
+- **Error Handling**: Managed via the [Error Propagation Framework](../resilience/error-propagation.md), with errors typically resulting in immediate responses.
 
 ### 3. **Event-Driven Messaging (All Tiers)**
 - **Purpose**: Asynchronous coordination and monitoring.
-- **Protocol**: Distributed event bus with pub-sub messaging using [Event Types](types/core-types.ts). Detailed in the [Event Bus Protocol](event-bus-protocol.md).
-- **Error Handling**: Handled as per the [Event Bus Protocol](event-bus-protocol.md) and the overall [Error Propagation Framework](error-propagation.md).
+- **Protocol**: Distributed event bus with pub-sub messaging using [Event Types](../types/core-types.ts). Detailed in the [Event Bus Protocol](../event-driven/event-bus-protocol.md).
+- **Error Handling**: Handled as per the [Event Bus Protocol](../event-driven/event-bus-protocol.md) and the overall [Error Propagation Framework](../resilience/error-propagation.md).
 
 ### 4. **State Synchronization (All Tiers)**
 - **Purpose**: Consistent state management across distributed components.
-- **Protocol**: Multi-tier caching with eventual consistency using [RunContext and Context Management Interfaces](types/core-types.ts). Detailed in [State Synchronization](state-synchronization.md).
-- **Error Handling**: Coordinated by the [State Synchronization](state-synchronization.md) mechanisms and the [Error Propagation Framework](error-propagation.md).
+- **Protocol**: Multi-tier caching with eventual consistency using [RunContext and Context Management Interfaces](../types/core-types.ts). Detailed in [State Synchronization](../context-memory/state-synchronization.md).
+- **Error Handling**: Coordinated by the [State Synchronization](../context-memory/state-synchronization.md) mechanisms and the [Error Propagation Framework](../resilience/error-propagation.md).
 
 ## Communication Decision Matrix
 
@@ -103,8 +103,8 @@ flowchart TD
 
 **Decision Support Tools**:
 When making decisions based on this matrix, refer to the authoritative documents for:
-- **Resource Conflicts**: [Resource Conflict Resolution Algorithm](decision-trees/resource-conflict-resolution.md)
-- **Error Handling & Recovery**: [Error Classification Decision Tree](decision-trees/error-classification-severity.md) and [Recovery Strategy Selection](decision-trees/recovery-strategy-selection.md)
+- **Resource Conflicts**: [Resource Conflict Resolution Algorithm](../resource-management/resource-conflict-resolution.md)
+- **Error Handling & Recovery**: [Error Classification Decision Tree](../resilience/error-classification-severity.md) and [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
 - **Integration Validation**: [Integration Map and Validation Procedures](integration-map.md)
 
 ## Pattern Coordination Example
@@ -159,36 +159,36 @@ sequenceDiagram
     McpRunner-->>ToolRunner: ToolCallResult
     ToolRunner-->>Agent: Tool execution result
 
-    Note over Agent,State: Pattern Performance Targets Met:<br/>Refer to [Performance Characteristics](performance-characteristics.md) for specific targets.<br/>Tool Routing, Direct Interface, Event-Driven, and State Synchronization patterns work in concert.
+    Note over Agent,State: Pattern Performance Targets Met:<br/>Refer to [Performance Characteristics](../monitoring/performance-characteristics.md) for specific targets.<br/>Tool Routing, Direct Interface, Event-Driven, and State Synchronization patterns work in concert.
 ```
 
 ## Error Handling Across Patterns
 
-Error handling for all communication patterns is managed by the [Error Propagation Framework](error-propagation.md). This framework includes:
-- Systematic error classification using the [Error Classification Decision Tree](decision-trees/error-classification-severity.md).
-- Consistent recovery strategy selection via the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md).
+Error handling for all communication patterns is managed by the [Error Propagation Framework](../resilience/error-propagation.md). This framework includes:
+- Systematic error classification using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
+- Consistent recovery strategy selection via the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
 - Specific protocols for how errors are handled and propagated within each communication pattern (e.g., MCP error responses, direct interface error objects, event bus dead-lettering, state sync rollbacks).
 
-Refer to [Error Propagation Across Communication Patterns](error-propagation.md#error-handling-across-communication-patterns) for comprehensive cross-pattern error coordination details.
+Refer to [Error Propagation Across Communication Patterns](../resilience/error-propagation.md#error-handling-across-communication-patterns) for comprehensive cross-pattern error coordination details.
 
 ## Performance Optimization Strategies
 
-Global and pattern-specific performance optimization strategies, including caching, pooling, batching, and compression, are detailed in [Performance Characteristics](performance-characteristics.md).
+Global and pattern-specific performance optimization strategies, including caching, pooling, batching, and compression, are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
 
 ## Related Documentation
 
 - **[README.md](README.md)**: Overall navigation for the communication architecture.
-- **[Centralized Type System](types/core-types.ts)**: All interface and type definitions.
+- **[Centralized Type System](../types/core-types.ts)**: All interface and type definitions.
 - **[Tier Interface Contracts](tier-interfaces.md)**: Specific tier-to-tier interface contracts.
 - **Authoritative Documents for Cross-Cutting Concerns**:
-    - **[Error Propagation Framework](error-propagation.md)**
-    - **[Performance Characteristics](performance-characteristics.md)**
-    - **[State Synchronization](state-synchronization.md)**
-    - **[Resource Coordination](resource-coordination.md)**
-    - **[Security Boundaries](security-boundaries.md)**
+    - **[Error Propagation Framework](../resilience/error-propagation.md)**
+    - **[Performance Characteristics](../monitoring/performance-characteristics.md)**
+    - **[State Synchronization](../context-memory/state-synchronization.md)**
+    - **[Resource Coordination](../resource-management/resource-coordination.md)**
+    - **[Security Boundaries](../security/security-boundaries.md)**
 - **Implementation Details**:
     - **[MCP Tool Integration](implementation/mcp-integration.md)
-    - **[Event Bus Protocol](event-bus-protocol.md)
+    - **[Event Bus Protocol](../event-driven/event-bus-protocol.md)
 - **Validation**: **[Integration Map and Validation Document](integration-map.md)**
 
 This communication pattern framework ensures that each interaction type uses the most appropriate protocol while maintaining consistency through the centralized type system and providing complete implementation guidance for rebuilding from scratch. 

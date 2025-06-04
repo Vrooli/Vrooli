@@ -1,11 +1,13 @@
-# Security Boundaries and Context Propagation
+# Security Boundaries and Trust Model
 
-This document is the **authoritative source** for defining security boundaries, permission frameworks, and security context propagation across Vrooli's three-tier execution architecture. All security-related mechanisms and protocols are detailed herein.
+This document is the **authoritative source** for security boundaries, trust models, permission validation, and security context propagation across Vrooli's three-tier execution architecture.
 
 **Prerequisites**: 
-- Read [README.md](README.md) for architectural context and navigation.
-- Review the [Centralized Type System](types/core-types.ts) for all security-related interface and type definitions (e.g., `SecurityContext`, `Permission`, `SecurityClearance`).
-- Understand the overall [Error Propagation and Recovery Framework](error-propagation.md) for handling security violations and errors.
+- Read [Communication Patterns](../communication/communication-patterns.md) to understand security integration within each communication pattern
+- Review [Types System](../types/core-types.ts) for all security-related interface definitions
+- Understand [Error Propagation](../resilience/error-propagation.md) for security-related error handling
+
+**All security types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on security protocols, trust boundaries, and enforcement mechanisms.
 
 ## Security Model Overview
 

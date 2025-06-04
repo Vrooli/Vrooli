@@ -3,10 +3,10 @@
 This document is the **authoritative source** for defining state synchronization mechanisms, `RunContext` management, multi-tier caching, and data consistency protocols across Vrooli's three-tier execution architecture.
 
 **Prerequisites**: 
-- Read [README.md](README.md) for architectural context and navigation.
-- Understand the [Communication Patterns](communication-patterns.md), particularly how state synchronization supports other patterns.
-- Review the [Centralized Type System](types/core-types.ts) for all state and context-related interface and type definitions (e.g., `RunContext`, `ContextVariable`, `ResourceLimits`, `StateCacheConfig`).
-- Understand the [Error Propagation and Recovery Framework](error-propagation.md) for handling state-related errors (e.g., `CONTEXT_CORRUPTION`, `STATE_CORRUPTION`, cache failures).
+- Read [README.md](../communication/README.md) for architectural context and navigation.
+- Understand the [Communication Patterns](../communication/communication-patterns.md), particularly how state synchronization supports other patterns.
+- Review the [Centralized Type System](../types/core-types.ts) for all state and context-related interface and type definitions (e.g., `RunContext`, `ContextVariable`, `ResourceLimits`, `StateCacheConfig`).
+- Understand the [Error Propagation and Recovery Framework](../resilience/error-propagation.md) for handling state-related errors (e.g., `CONTEXT_CORRUPTION`, `STATE_CORRUPTION`, cache failures).
 
 ## State Management Overview
 
@@ -100,7 +100,7 @@ graph TB
 
 **Cache Coherence and Invalidation**: 
 - Achieved through a combination of Time-To-Live (TTL) policies and an event-driven invalidation mechanism. 
-- Changes in L3 (e.g., updated routine definition, team configuration change) trigger invalidation events via the [Event Bus Protocol](event-bus-protocol.md).
+- Changes in L3 (e.g., updated routine definition, team configuration change) trigger invalidation events via the [Event Bus Protocol](../event-driven/event-bus-protocol.md).
 - These events instruct L2 and subsequently L1 caches to evict stale entries.
 - A debounced write-behind strategy is used for updating L2/L3 from L1 to reduce database load.
 
@@ -154,23 +154,23 @@ sequenceDiagram
 ## Error Handling for State and Cache Issues
 
 Failures in state management or caching mechanisms can lead to errors like `CONTEXT_CORRUPTION`, `STATE_CORRUPTION`, `TRANSACTION_FAILED`, or `COMMUNICATION_FAILURE` (if a cache service is down).
-- These errors are handled by the [Error Propagation and Recovery Framework](error-propagation.md).
+- These errors are handled by the [Error Propagation and Recovery Framework](../resilience/error-propagation.md).
 - **Severity**: Can range from `ERROR` (e.g., transient cache miss that resolves by going to L3) to `CRITICAL` (e.g., persistent context corruption, L2 Redis failure).
 - **Recovery**: May involve:
     - Retrying operations.
     - Forcing a full reload from L3.
     - Invalidating broader sets of cached data.
     - Switching to a fallback cache or read-only mode for L3.
-    - For `CONTEXT_CORRUPTION`, potentially terminating the affected routine and escalating, as per strategies from the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md).
+    - For `CONTEXT_CORRUPTION`, potentially terminating the affected routine and escalating, as per strategies from the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
 
-Refer to the [Error Propagation and Recovery Framework](error-propagation.md) for detailed procedures.
+Refer to the [Error Propagation and Recovery Framework](../resilience/error-propagation.md) for detailed procedures.
 
 ## Related Documentation
-- **[README.md](README.md)**: Overall navigation for the communication architecture.
-- **[Centralized Type System](types/core-types.ts)**: Definitions for `RunContext`, `ContextVariable`, caching configurations, etc.
-- **[Event Bus Protocol](event-bus-protocol.md)**: Used for cache invalidation events.
-- **[Error Propagation and Recovery Framework](error-propagation.md)**: For handling state and cache-related errors.
-- **[Performance Characteristics](performance-characteristics.md)**: Performance impact and targets for caching and state operations.
-- **[Integration Map and Validation Document](integration-map.md)**: For testing and validating state management features.
+- **[README.md](../communication/README.md)**: Overall navigation for the communication architecture.
+- **[Centralized Type System](../types/core-types.ts)**: Definitions for `RunContext`, `ContextVariable`, caching configurations, etc.
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)**: Used for cache invalidation events.
+- **[Error Propagation and Recovery Framework](../resilience/error-propagation.md)**: For handling state and cache-related errors.
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)**: Performance impact and targets for caching and state operations.
+- **[Integration Map and Validation Document](../communication/integration-map.md)**: For testing and validating state management features.
 
 This document provides the definitive guide to state synchronization and context management, ensuring data integrity and performance across the Vrooli communication architecture. 

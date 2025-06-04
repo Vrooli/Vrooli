@@ -1,14 +1,13 @@
 # Error Propagation and Recovery Framework
 
-This document is the **authoritative source** for the comprehensive error handling framework within Vrooli's three-tier execution architecture. It details error propagation mechanisms, coordination protocols, recovery strategies, and emergency procedures. All system components must adhere to the principles and interfaces defined herein for consistent and robust error management.
+This document is the **single authoritative source** for error classification, recovery strategy selection, and systematic error handling across Vrooli's three-tier execution architecture. All other architectural components reference this framework for error management.
 
 **Prerequisites**: 
-- Read [README.md](README.md) for architectural context and navigation to other relevant documents.
-- Review the [Centralized Type System](types/core-types.ts) for all error handling interface and type definitions (e.g., `ExecutionError`, `ErrorSeverity`, `RecoveryStrategy`).
-- Understand the [Error Classification Decision Tree](decision-trees/error-classification-severity.md) for systematic error severity assessment.
-- Understand the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md) for choosing appropriate recovery actions.
+- Read [README.md](../communication/README.md) for overall architectural context and navigation.
+- Review the [Centralized Type System](../types/core-types.ts) for all error-related interface and type definitions (e.g., `ExecutionError`, `ErrorSeverity`, `RecoveryStrategy`, `ErrorContext`).
+- Understand the [Communication Patterns](../communication/communication-patterns.md) to see where error handling integrates with each pattern.
 
-**All error handling types are defined in the centralized type system** at [types/core-types.ts](types/core-types.ts). This document focuses on error propagation flows and coordination protocols.
+**All error handling types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on error protocols, decision algorithms, and recovery procedures.
 
 ```typescript
 import type {
@@ -295,28 +294,56 @@ sequenceDiagram
 
 ## Error Handling Across Communication Patterns
 
-This framework governs error handling across all defined [Communication Patterns](communication-patterns.md). Specific adaptations for each pattern include:
+Different communication patterns have specialized error handling approaches, all integrated with this central framework:
 
-- **MCP Tool Errors**: MCP tool responses indicate errors, which are then processed by this framework. See [MCP Integration](implementation/mcp-integration.md).
-- **Direct Interface Errors**: Direct method calls return `ExecutionError` objects, processed by this framework.
-- **Event Bus Errors**: Event delivery failures (e.g., NACKs, timeouts) or processing errors are managed. See [Event Bus Protocol](event-bus-protocol.md).
-- [State Sync Errors](state-synchronization.md): Errors during state operations (e.g., transaction failures, consistency violations) are managed.
+### **Tool Routing Communication**
 
-All such errors are subject to the classification and recovery selection algorithms defined herein.
+**Error Context**: Tool routing errors are classified using the [Error Classification Decision Tree](error-classification-severity.md), ranging from MINOR tool validation failures to CRITICAL infrastructure outages.
+
+**Recovery Strategy**: Recovery strategy selection follows the [Recovery Strategy Selection Algorithm](recovery-strategy-selection.md), with common strategies including:
+- Retry with exponential backoff for MINOR errors
+- Fallback to alternative tool implementations for ERROR level
+- Circuit breaker activation for MAJOR errors affecting multiple tools
+- Emergency stop for CRITICAL infrastructure failures
+
+**MCP Integration**: Error handling in MCP tool communication is detailed in [MCP Integration](../communication/implementation/mcp-integration.md#error-handling-and-validation).
+
+### **Direct Service Interface**
+
+**Error Context**: Direct service errors involve database failures, service unavailability, or integration issues, classified by severity and scope of impact.
+
+**Recovery Strategy**: Recovery strategies include automatic retries, service degradation modes, fallback to cached data, and coordinated service restarts.
+
+### **Event-Driven Messaging**
+
+**Error Context**: Event-driven errors include message delivery failures, consumer processing errors, and event ordering violations.
+
+**Recovery Strategy**: Recovery strategies include dead letter queues, replay mechanisms, consumer restart, and event store reconciliation.
+
+**Event Bus Integration**: Event bus error handling is detailed in [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-handling-error-management).
+
+### **State Synchronization**
+
+**Error Context**: State synchronization errors include cache corruption, database inconsistencies, and transaction failures.
+
+**Recovery Strategy**: Recovery strategies include cache invalidation, database repair, transaction rollback, and consistent state reconstruction.
+
+**State Sync Integration**: State synchronization error handling is detailed in [State Synchronization](../context-memory/state-synchronization.md#error-handling-for-state-and-cache-issues).
 
 ## Related Documentation
 
-- **[README.md](README.md)**: Overall navigation for the communication architecture.
-- **[Decision Trees Folder](decision-trees/)**: Authoritative algorithms for error classification and recovery selection.
-- **[Centralized Type System](types/core-types.ts)**: Complete error handling interface and type definitions.
-- **[Integration Map and Validation Document](integration-map.md)**: Comprehensive validation, integration flows, and test cases for error handling.
-- **Domain-Specific Documents Referencing This Framework**:
-    - [Communication Patterns](communication-patterns.md)
-    - [Resource Coordination](resource-coordination.md)
-    - [State Synchronization](state-synchronization.md)
-    - [Performance Characteristics](performance-characteristics.md)
-    - [Circuit Breakers](implementation/circuit-breakers.md)
-    - [Security Boundaries](security-boundaries.md)
-    - [Failure Scenarios and Recovery Procedures](failure-scenarios/README.md)
+- **[README.md](../communication/README.md)** - Overall navigation for the communication architecture
+- **[Types System](../types/core-types.ts)** - Complete error handling type definitions
+- **[Error Classification Decision Tree](error-classification-severity.md)** - Systematic error classification algorithm
+- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Algorithm for selecting recovery strategies
+- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker integration with error handling
+- **[Failure Scenarios](failure-scenarios/README.md)** - Specific failure scenario documentation
+- **[Communication Patterns](../communication/communication-patterns.md)** - Error handling within each communication pattern
+- **[Integration Map](../communication/integration-map.md)** - End-to-end error handling validation
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Performance impact of error handling
+- **[Resource Management](../resource-management/resource-coordination.md)** - Resource coordination during error recovery
+- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement during error situations
+- **[State Synchronization](../context-memory/state-synchronization.md)** - State consistency during error recovery
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven error coordination
 
-This document provides the comprehensive error handling and recovery coordination framework for the communication architecture, ensuring robust error propagation, systematic classification, and effective recovery through the centralized type system and algorithmic decision making. 
+This document provides the comprehensive framework for systematic error handling across the entire Vrooli execution architecture, ensuring reliable operation through centralized error management and coordinated recovery procedures. 

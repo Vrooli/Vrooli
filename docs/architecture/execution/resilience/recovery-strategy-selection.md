@@ -1,6 +1,13 @@
-# Recovery Strategy Selection Decision Tree
+# Recovery Strategy Selection Algorithm
 
-This document provides a decision tree to guide the selection of appropriate recovery strategies based on error classification (type, severity, category, recoverability) and current system context.
+This document provides the **systematic decision algorithm** for selecting appropriate recovery strategies based on error classification, system state, and operational context within Vrooli's three-tier execution architecture.
+
+**Prerequisites**: 
+- Read [Error Propagation](error-propagation.md) to understand recovery strategy integration with error handling
+- Review [Error Classification](error-classification-severity.md) to understand error severity assessment
+- Study [Types System](../types/core-types.ts) for all recovery strategy interface definitions
+
+**All recovery strategy types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on the decision algorithm and strategy selection.
 
 ## Recovery Strategy Selection Flowchart
 
@@ -94,3 +101,31 @@ The selection process also considers:
 ## Usage
 
 This decision tree, in conjunction with the error classification from `error-classification-severity.md`, provides a structured approach for the `ErrorPropagationProtocol` (defined in `error-propagation.md`) to select and execute the most appropriate `RecoveryStrategy` for any given runtime error, aiming to maximize system resilience and reliability. 
+
+**Performance Integration**: Recovery strategy selection coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware recovery.
+
+**Resource Integration**: Recovery strategy selection coordinates with [Resource Management](../resource-management/resource-coordination.md#resource-allocation-flow) for resource-aware recovery.
+
+**Security Integration**: Recovery strategy selection respects [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure recovery.
+
+**State Integration**: Recovery strategy selection coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
+
+**Event Integration**: Recovery strategy events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for recovery coordination.
+
+**Circuit Breaker Integration**: Recovery strategy selection triggers [Circuit Breaker Protocol](circuit-breakers.md#circuit-breaker-protocol-and-integration) for component protection.
+
+## Related Documentation
+
+- **[Error Propagation](error-propagation.md)** - Recovery strategy integration with error handling
+- **[Error Classification](error-classification-severity.md)** - Error severity assessment for strategy selection
+- **[Types System](../types/core-types.ts)** - Complete recovery strategy type definitions
+- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker integration with recovery strategies
+- **[Failure Scenarios](failure-scenarios/README.md)** - Specific failure scenario recovery strategies
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Recovery strategy impact on performance
+- **[Resource Management](../resource-management/resource-coordination.md)** - Resource coordination during recovery
+- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement during recovery
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven recovery coordination
+- **[State Synchronization](../context-memory/state-synchronization.md)** - State consistency during recovery
+- **[Integration Map](../communication/integration-map.md)** - Recovery strategy validation procedures
+
+This document provides systematic recovery strategy selection for the communication architecture, ensuring effective error recovery through algorithmic decision making and coordinated recovery procedures. 

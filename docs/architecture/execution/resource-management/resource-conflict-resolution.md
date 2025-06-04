@@ -1,6 +1,13 @@
-# Resource Conflict Resolution Decision Tree
+# Resource Conflict Resolution Algorithm
 
-This document provides a decision tree and framework for resolving resource conflicts that may arise during task execution across Vrooli's tiers. Effective conflict resolution is key to maintaining system stability and ensuring fair resource access.
+This document provides the **systematic decision algorithm** for resolving resource conflicts when multiple operations compete for limited resources within Vrooli's three-tier execution architecture.
+
+**Prerequisites**: 
+- Read [Resource Coordination](resource-coordination.md) to understand resource allocation context
+- Review [Types System](../types/core-types.ts) for all resource conflict interface definitions
+- Understand [Error Propagation](../resilience/error-propagation.md) for resource conflict error handling
+
+**All resource conflict types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on the decision algorithm and resolution strategies.
 
 ## Resource Conflict Resolution Mechanisms
 
@@ -120,3 +127,29 @@ interface ConflictResolutionResult {
 ## Usage
 
 This decision framework is used by the `TierResourceManager` at each tier (Swarm, Run, Step) when multiple requests contend for resources that are insufficient to satisfy all demands. The goal is to apply a resolution strategy that aligns with the system's operational priorities, fairness considerations, and overall efficiency. 
+
+**Error Integration**: Resource conflict resolution coordinates with [Error Handling](../resilience/error-propagation.md#error-handling-across-patterns) for systematic conflict error management.
+
+**Performance Integration**: Resource conflict resolution coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware resolution.
+
+**Security Integration**: Resource conflict resolution respects [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure resource access.
+
+**State Integration**: Resource conflict resolution coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
+
+**Event Integration**: Resource conflict events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for conflict coordination.
+
+**Circuit Breaker Integration**: Resource conflict resolution triggers [Circuit Breaker Protocol](../resilience/circuit-breakers.md#circuit-breaker-protocol-and-integration) for resource protection.
+
+## Related Documentation
+
+- **[Resource Coordination](resource-coordination.md)** - Resource allocation and management context
+- **[Types System](../types/core-types.ts)** - Complete resource conflict type definitions
+- **[Error Propagation](../resilience/error-propagation.md)** - Resource conflict error handling
+- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Resource conflict impact on performance
+- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement in resource conflicts
+- **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with resource conflicts
+- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven resource conflict coordination
+- **[State Synchronization](../context-memory/state-synchronization.md)** - Resource conflict state management
+- **[Integration Map](../communication/integration-map.md)** - Resource conflict validation procedures
+
+This document provides systematic resource conflict resolution for the communication architecture, ensuring fair and efficient resource allocation through algorithmic decision making and coordinated resolution procedures. 

@@ -9,84 +9,34 @@ Vrooli is built as a sophisticated AI execution platform that enables recursive 
 ### High-Level Architecture
 
 ```mermaid
-graph TD
-    subgraph "Client Layer"
-        PWA[Progressive Web App]
-        Mobile[Mobile Apps]
-        Extension[Browser Extension]
-        Electron[Electron Desktop App]
-    end
-    
-    subgraph "API Gateway Layer"
-        REST[REST API]
-        WebSocket[WebSocket API]
-        MCP[MCP Server]
-    end
-    
-    subgraph "AI Execution Layer"
-        T1[Tier 1: SwarmStateMachine<br/>Coordination Intelligence]
-        T2[Tier 2: RunStateMachine<br/>Process Intelligence]
-        T3[Tier 3: UnifiedExecutor<br/>Execution Intelligence]
-    end
-    
-    subgraph "Core Services"
-        Auth[Authentication Service]
-        Jobs[Background Jobs]
-        Events[Event Bus]
-        AIServices[AI Model Services]
-        Notifications[Notification Service<br/>Push/Email/SMS]
-        Sandbox[Sandbox Manager<br/>Code Execution Security]
-        Secrets[Secrets Management<br/>API Keys & Credentials]
-    end
-    
-    subgraph "Data Layer"
-        PostgreSQL[(PostgreSQL + pgvector)]
-        Redis[(Redis Cache)]
-        S3[File Storage<br/>S3 + Content Processing]
-    end
-    
-    subgraph "External Integrations"
-        OpenAI[OpenAI]
-        Anthropic[Anthropic]
-        Mistral[Mistral]
-        APIs[External APIs]
-        DataSources[External Data Sources<br/>Dropbox, GitHub, Google Docs]
-    end
-    
-    PWA --> REST
-    Mobile --> REST
-    Extension --> WebSocket
-    Electron --> REST
-    
-    REST --> T1
-    WebSocket --> Events
-    MCP --> T3
-    
-    T1 --> T2
-    T2 --> T3
-    T1 --> Events
-    T2 --> Events
-    T3 --> Events
-    
-    T3 --> AIServices
-    T3 --> Sandbox
-    AIServices --> OpenAI
-    AIServices --> Anthropic
-    AIServices --> Mistral
-    
-    Auth --> PostgreSQL
-    Jobs --> PostgreSQL
-    Events --> Redis
-    T1 --> Redis
-    T2 --> PostgreSQL
-    T3 --> APIs
-    T3 --> DataSources
-    
-    Notifications --> Events
-    Secrets --> PostgreSQL
-    Sandbox --> S3
-    
-    Jobs --> Events
+block-beta
+columns 3
+
+Client["Client Layer"]:3
+space:3
+Gateway["API Gateway Layer"]:3
+space:3
+Execution["AI Execution Layer"]:3
+space:3
+Services["Core Services"]:2
+Data["Data Layer"]:1
+space:3
+External["External Integrations"]:3
+
+Client --> Gateway
+Gateway --> Execution
+Execution --> Services
+Execution --> Data
+Services --> Data
+Services --> External
+Execution --> External
+
+style Client fill:#e1f5fe
+style Gateway fill:#f3e5f5
+style Execution fill:#fff3e0
+style Services fill:#e8f5e8
+style Data fill:#fce4ec
+style External fill:#f1f8e9
 ```
 
 ### Core Components
