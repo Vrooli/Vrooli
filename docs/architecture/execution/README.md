@@ -261,9 +261,9 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **[Success Metrics](success-metrics.md)** - How we measure architectural success
 
 ### ⚙️ **Tier-Specific Intelligence**
-- **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md)** - Metacognitive swarm coordination
-- **[Tier 2: Process Intelligence](tiers/tier2-process-intelligence.md)** - Universal routine orchestration  
-- **[Tier 3: Execution Intelligence](tiers/tier3-execution-intelligence.md)** - Context-aware strategy execution
+- **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md)** - Metacognitive swarm coordination
+- **[Tier 2: Process Intelligence](tiers/tier2-process-intelligence/README.md)** - Universal routine orchestration
+- **[Tier 3: Execution Intelligence](tiers/tier3-execution-intelligence/README.md)** - Context-aware strategy execution
 
 ### 🌊 **Event-Driven Intelligence**
 - **[Event-Driven Architecture](event-driven/README.md)** - Complete event system overview
