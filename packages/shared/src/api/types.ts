@@ -443,7 +443,7 @@ export type ChatMessageCreateInput = {
 export type ChatMessageCreateWithTaskInfoInput = {
     message: ChatMessageCreateInput;
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -496,7 +496,7 @@ export type ChatMessageUpdateInput = {
 export type ChatMessageUpdateWithTaskInfoInput = {
     message: ChatMessageUpdateInput;
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -825,6 +825,11 @@ export type EmailSignUpInput = {
     theme: Scalars["String"];
 };
 
+export type ExportCalendarResult = {
+    __typename: "ExportCalendarResult";
+    calendar: Scalars["String"];
+};
+
 export type FindByIdInput = {
     id: Scalars["ID"];
 };
@@ -1028,35 +1033,6 @@ export type IssueYou = {
     isBookmarked: Scalars["Boolean"];
     reaction?: Maybe<Scalars["String"]>;
 };
-
-export enum LlmTask {
-    BotAdd = "BotAdd",
-    BotDelete = "BotDelete",
-    BotFind = "BotFind",
-    BotUpdate = "BotUpdate",
-    MembersAdd = "MembersAdd",
-    MembersDelete = "MembersDelete",
-    MembersFind = "MembersFind",
-    MembersUpdate = "MembersUpdate",
-    ReminderAdd = "ReminderAdd",
-    ReminderDelete = "ReminderDelete",
-    ReminderFind = "ReminderFind",
-    ReminderUpdate = "ReminderUpdate",
-    ResourceAdd = "ResourceAdd",
-    ResourceDelete = "ResourceDelete",
-    ResourceFind = "ResourceFind",
-    ResourceUpdate = "ResourceUpdate",
-    RunStart = "RunStart",
-    ScheduleAdd = "ScheduleAdd",
-    ScheduleDelete = "ScheduleDelete",
-    ScheduleFind = "ScheduleFind",
-    ScheduleUpdate = "ScheduleUpdate",
-    Start = "Start",
-    TeamAdd = "TeamAdd",
-    TeamDelete = "TeamDelete",
-    TeamFind = "TeamFind",
-    TeamUpdate = "TeamUpdate"
-}
 
 export type Meeting = DbObject<"Meeting"> & {
     attendees: Array<User>;
@@ -1748,7 +1724,7 @@ export type ReadAssetsInput = {
 export type RegenerateResponseInput = {
     messageId: Scalars["ID"];
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -2291,6 +2267,7 @@ export type ResourceVersionSearchInput = BaseSearchInput<ResourceVersionSortBy> 
     ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
     reportId?: InputMaybe<Scalars["ID"]>;
     rootId?: InputMaybe<Scalars["ID"]>;
+    rootResourceType?: InputMaybe<ResourceType>;
     resourceSubType?: InputMaybe<ResourceSubType>;
     resourceSubTypes?: InputMaybe<Array<ResourceSubType>>;
     searchString?: InputMaybe<Scalars["String"]>;
@@ -2604,6 +2581,7 @@ export type Schedule = DbObject<"Schedule"> & {
     startTime: Scalars["Date"];
     timezone: Scalars["String"];
     updatedAt: Scalars["Date"];
+    user: User;
 };
 
 export type ScheduleCreateInput = {
@@ -2812,12 +2790,12 @@ export type SessionUserSession = {
     lastRefreshAt: Scalars["Date"];
 };
 
-export type StartLlmTaskInput = {
+export type StartSwarmTaskInput = {
     chatId: Scalars["ID"];
     model: string;
     parentId?: InputMaybe<Scalars["ID"]>;
     respondingBot: { id?: string, publicId?: string, handle?: string };
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 

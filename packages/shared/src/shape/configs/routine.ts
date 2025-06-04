@@ -2,7 +2,7 @@ import i18next from "i18next";
 import { ResourceSubType, type ResourceVersion, type StartSwarmTaskInput } from "../../api/types.js";
 import { type HttpMethod } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { type McpSwarmToolName, McpToolName } from "../../consts/mcp.js";
+import { McpToolName, type McpSwarmToolName } from "../../consts/mcp.js";
 import { InputType } from "../../consts/model.js";
 import { DEFAULT_LANGUAGE } from "../../consts/ui.js";
 import { type FormInputBase, type FormSchema } from "../../forms/types.js";
@@ -412,6 +412,12 @@ export type RoutineVersionConfigObject = BaseConfigObject & {
     formOutput?: FormOutputConfigObject;
     /** Config for running multi-step routines */
     graph?: GraphConfigObject;
+    /** NEW: Execution strategy configuration for the unified execution system */
+    executionStrategy?: "reasoning" | "deterministic" | "conversational" | "auto";
+    /** NEW: Whether subroutines can override the parent routine's execution strategy */
+    allowStrategyOverride?: boolean;
+    /** NEW: Execution strategy overrides for specific subroutines (nodeId -> strategy) */
+    subroutineStrategies?: Record<string, "reasoning" | "deterministic" | "conversational">;
 };
 
 function defaultConfigCallDataAction(): CallDataActionConfigObject {

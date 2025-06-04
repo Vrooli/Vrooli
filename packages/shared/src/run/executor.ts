@@ -1,4 +1,4 @@
-import { ResourceSubType, ResourceType, type ResourceVersion, RunStepStatus } from "../api/types.js";
+import { ResourceSubType, ResourceType, RunStepStatus, type ResourceVersion } from "../api/types.js";
 import { type PassableLogger } from "../consts/commonTypes.js";
 import { InputType } from "../consts/model.js";
 import { CodeLanguage } from "../consts/ui.js";
@@ -10,7 +10,125 @@ import { getTranslation } from "../translations/translationTools.js";
 import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink } from "../utils/relatedResource.js";
 import { BranchManager } from "./branch.js";
 import { SubroutineContextManager } from "./context.js";
-import { type BranchLocationDataMap, type BranchProgress, BranchStatus, type ExecuteStepResult, type IOMap, type InitializedRunState, InputGenerationStrategy, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, SubroutineExecutionStrategy, type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./types.js";
+import { BranchStatus, InputGenerationStrategy, SubroutineExecutionStrategy, type BranchLocationDataMap, type BranchProgress, type ExecuteStepResult, type IOMap, type InitializedRunState, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, type RunTriggeredBy, type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./types.js";
+
+// NEW: Enhanced execution context types for the unified execution architecture
+/**
+ * Execution context for the unified execution engine.
+ * This provides a standardized interface for all execution tiers.
+ */
+export interface ExecutionContext {
+    /** Unique identifier for this subroutine instance */
+    subroutineInstanceId: string;
+    /** The routine/subroutine to execute */
+    routine: ResourceVersion;
+    /** Input/output mapping for the subroutine */
+    ioMapping: SubroutineIOMapping;
+    /** Current location in the execution */
+    currentLocation: Location;
+    /** Parent swarm context if available */
+    parentSwarmContext?: SwarmContext;
+    /** Parent routine context if this is a nested subroutine */
+    parentRoutineContext?: RoutineContext;
+    /** User session data */
+    userData: RunTriggeredBy;
+    /** Run configuration */
+    config: RunConfig;
+    /** Execution limits */
+    limits: ExecutionLimits;
+    /** Current execution status */
+    status: ExecutionStatus;
+    /** When execution started */
+    startedAt: Date;
+    /** The bot executing this subroutine (if from a swarm) */
+    executingBotId?: string;
+}
+
+/**
+ * Swarm context that flows into routine execution.
+ */
+export interface SwarmContext {
+    conversationId: string;
+    goal: string;
+    subtasks: any[]; // SwarmSubTask from server types
+    blackboard: any[]; // BlackboardItem from server types
+    resources: any[]; // SwarmResource from server types
+    records: any[]; // ToolCallRecord from server types
+    teamConfig?: any; // TeamConfigObject from server types
+    chatConfig: any; // ChatConfigObject from server types
+    swarmLeader?: string;
+    subtaskLeaders?: Record<string, string>;
+}
+
+/**
+ * Routine context for nested execution.
+ */
+export interface RoutineContext {
+    runId: string;
+    routineId: string;
+    currentStep?: string;
+    contextData: Record<string, unknown>;
+    parentConfig: RunConfig;
+    creditsUsed: bigint;
+    timeElapsed: number;
+}
+
+/**
+ * Execution limits for subroutines.
+ */
+export interface ExecutionLimits {
+    maxCredits: bigint;
+    maxTimeMs: number;
+    maxToolCalls: number;
+    maxReasoningSteps: number;
+    strictLimits: boolean;
+}
+
+/**
+ * Execution status enum.
+ */
+export enum ExecutionStatus {
+    Pending = "pending",
+    Running = "running",
+    Completed = "completed",
+    Failed = "failed",
+    Cancelled = "cancelled",
+    TimedOut = "timed_out",
+    CreditLimitExceeded = "credit_limit_exceeded",
+}
+
+/**
+ * Enhanced execution result for the unified system.
+ */
+export interface ExecutionResult {
+    success: boolean;
+    ioMapping: SubroutineIOMapping;
+    creditsUsed: bigint;
+    timeElapsed: number;
+    toolCallsCount: number;
+    error?: {
+        code: string;
+        message: string;
+        details?: unknown;
+    };
+    metadata?: {
+        strategy: string;
+        warnings?: string[];
+        metrics?: Record<string, number>;
+    };
+}
+
+/**
+ * Dependencies for execution.
+ */
+export interface ExecutionDependencies {
+    logger: PassableLogger;
+    toolRunner?: any; // From server-side execution system
+    reasoningEngine?: any; // From server-side execution system
+    messageStore?: any; // From server-side execution system
+}
+
+// Re-export from types for convenience  
 
 /**
  * Internal representation of a routine's input configuration,
@@ -1023,4 +1141,37 @@ export abstract class SubroutineExecutor {
             }
         }
     }
+}
+
+/**
+ * Enhanced SubroutineExecutor interface for the unified execution system.
+ * This replaces the complex parameter-heavy interface with a simplified
+ * ExecutionContext-based approach.
+ */
+export interface EnhancedSubroutineExecutor {
+    /**
+     * Executes a subroutine step using the unified execution engine.
+     * 
+     * @param context The execution context containing all necessary data
+     * @param currentLocation The current location in the execution
+     * @param dependencies External dependencies for execution
+     * @returns Promise resolving to execution result
+     */
+    executeStep(
+        context: ExecutionContext,
+        currentLocation: Location,
+        dependencies: ExecutionDependencies
+    ): Promise<ExecutionResult>;
+
+    /**
+     * Estimates the cost of executing a subroutine.
+     * 
+     * @param context The execution context
+     * @param location The location where execution would occur
+     * @returns Promise resolving to estimated cost in credits
+     */
+    estimateCost(
+        context: ExecutionContext,
+        location: Location
+    ): Promise<bigint>;
 }

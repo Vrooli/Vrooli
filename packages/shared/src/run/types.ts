@@ -829,6 +829,10 @@ export type RunStateMachineServices = {
     pathSelectionHandler: PathSelectionHandler,
     persistence: RunPersistence,
     subroutineExecutor: SubroutineExecutor,
+    /** NEW: Unified execution engine for enhanced execution capabilities */
+    unifiedExecutionEngine?: any, // UnifiedExecutionEngine from server
+    /** NEW: State synchronizer for swarm-routine integration */
+    stateSynchronizer?: any, // StateSynchronizer from server
 }
 
 /**
