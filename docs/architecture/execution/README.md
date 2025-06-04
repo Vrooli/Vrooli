@@ -1,592 +1,614 @@
-# Execution Architecture: Enabling Recursive Self-Improvement at Scale
+# 🚀 Execution Architecture: The Engine of Recursive Intelligence
 
-## Executive Summary
+> **TL;DR**: Vrooli's execution architecture enables AI agents to build better AI agents. Through a three-tier hierarchy with event-driven intelligence, we create **compound knowledge effects** where every improvement amplifies the entire system's capabilities.
 
-Vrooli's execution architecture enables **recursive self-improvement** - where AI systems progressively enhance their own capabilities by building, improving, and sharing automated processes. Unlike traditional automation platforms that handle simple workflows, or AI chatbots that only converse, Vrooli creates **collaborative intelligence ecosystems** where teams of AI agents can both reason strategically and execute real-world actions reliably.
+---
 
-The architecture achieves this through three key innovations:
-1. **Hierarchical Intelligence**: Teams → Swarms → Agents → Routines, each level adding sophistication
-2. **Evolutionary Execution**: Routines evolve from conversational to deterministic as patterns emerge
-3. **Compound Knowledge Effect**: Every routine becomes a building block for more sophisticated automation
+## 🎯 The Vision: From Automation to Intelligence Evolution
 
-This creates a path to **top-down/recursive automation of knowledge work** - starting with strategic thinking and working down to operational tasks, eventually enabling AI systems to bootstrap their own infrastructure.
+Imagine a world where AI systems don't just execute tasks—they **evolve**. Where every routine becomes smarter, every process improves itself, and intelligence compounds exponentially. This isn't science fiction; it's the architectural reality we've built.
 
-> For more information, see the [Core Technologies](core-technologies.md) document.
-
-## Three-Tier Architecture
+**Traditional automation platforms** give you rigid workflows and brittle integrations. **Vrooli's execution architecture** gives you something unprecedented: **living intelligence** that grows more capable through use.
 
 ```mermaid
-graph TD
-    subgraph SecurityBoundary ["Security Guard-Rails"]
-        subgraph Tier1 [Tier 1: Coordination Intelligence]
-            T1[SwarmStateMachine<br/>🎯 Prompt-based metacognition<br/>👥 Dynamic team coordination<br/>📋 Natural language planning]
-        end
-        subgraph Tier2 [Tier 2: Process Intelligence]
-            T2[RunStateMachine<br/>📊 Universal routine orchestrator<br/>🔄 Platform-agnostic execution<br/>⚡ Parallel coordination]
-        end
-        subgraph Tier3 [Tier 3: Execution Intelligence]
-            T3[UnifiedExecutor<br/>🤖 Strategy-aware execution<br/>🔧 Tool integration<br/>💰 Resource management]
-        end
-        T1 --> T2 --> T3
+graph TB
+    subgraph "Traditional Automation"
+        T1[Fixed Workflows]
+        T2[Rigid Rules]  
+        T3[Manual Updates]
+        T4[Brittle Integration]
+        T1 --> T2 --> T3 --> T4
     end
-    style SecurityBoundary stroke:#c62828,stroke-width:3px,stroke-dasharray:5 5
-    style Tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    style Tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    style Tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    
+    subgraph "Vrooli's Compound Intelligence"
+        V1[🧠 Adaptive Reasoning]
+        V2[📈 Self-Improvement]
+        V3[🌱 Emergent Capabilities]
+        V4[🔄 Recursive Enhancement]
+        V1 --> V2 --> V3 --> V4
+        V4 -.->|"Feeds back into"| V1
+    end
+    
+    classDef traditional fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef vrooli fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    
+    class T1,T2,T3,T4 traditional
+    class V1,V2,V3,V4 vrooli
 ```
 
-All runtime calls—whether in Tier 1, Tier 2, or Tier 3—are enveloped by a global security boundary that enforces resource limits (credits, time, memory) defined via swarm- team- or user-level configuration. These guard rails ensure that swarms - including the routines they run and child swarms they spawn - never exceed the total allotted budget under any circumstances.
+---
 
-> Additional security measures such as threat monitoring, auditing, compliance checks, etc. are set up based on the team's configuration by assigning bots to listen to events. See the [Event-Driven Architecture](./event-driven/README.md) section for more details.
+## 🏗️ Architecture Overview: The Three Pillars of Intelligence
 
-### Additional resources:  
-- [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md)  
-- [Tier 2: Process Intelligence](tiers/tier2-process-intelligence.md)  
-- [Tier 3: Execution Intelligence](tiers/tier3-execution-intelligence.md)  
-- [Inter-Tier Communication](tiers/inter-tier-communication.md)
+Our execution architecture rests on three fundamental pillars, each enabling higher-order intelligence:
 
-## Event-Driven Intelligence Architecture
+### **The Hierarchy of Intelligence**
 
-See the [Event-Driven Intelligence Architecture](./event-driven/README.md) section for details on how event-driven agents are deployed and configured.
-
-## State Management and Consistency
-
-See the [Data Management](data/README.md) section for details on how data is managed and maintained.
-
-## AI Services
-
-See the [AI Services](ai-services/README.md) section for details on how AI services are managed and maintained.
-
-### **Key Design Principles**
-
-**1. Service Health as First-Class Concern**
-- Continuous monitoring of service availability
-- Automatic cooldown periods for rate-limited services
-- Permanent disabling for authentication failures
-
-**2. Cost-Aware Token Management**
-```typescript
-// Calculate maximum output tokens within budget
-const maxTokens = service.getMaxOutputTokensRestrained({
-    model: requestedModel,
-    maxCredits: userCredits,
-    inputTokens: estimatedInputTokens
-});
+```mermaid
+graph TB
+    subgraph "🎯 TIER 1: Coordination Intelligence"
+        T1[SwarmStateMachine<br/><br/>🧠 Metacognitive reasoning<br/>👥 Dynamic team formation<br/>📋 Strategic planning<br/>🔄 Goal decomposition]
+        T1_Desc["<b>Why it matters:</b><br/>• Agents reason about <i>thinking itself</i><br/>• Teams self-organize around objectives<br/>• Strategy emerges from AI reasoning<br/>• No hard-coded coordination logic"]
+    end
+    
+    subgraph "⚙️ TIER 2: Process Intelligence"  
+        T2[RunStateMachine<br/><br/>🔄 Universal routine orchestration<br/>📊 Cross-platform execution<br/>⚡ Parallel coordination<br/>🎯 Strategy evolution]
+        T2_Desc["<b>Why it matters:</b><br/>• Routines evolve from conversation to code<br/>• Patterns emerge and crystallize<br/>• Any workflow format supported<br/>• Continuous process optimization"]
+    end
+    
+    subgraph "🛠️ TIER 3: Execution Intelligence"
+        T3[UnifiedExecutor<br/><br/>🤖 Context-aware execution<br/>🔧 Tool integration<br/>💰 Resource optimization<br/>🛡️ Safety enforcement]
+        T3_Desc["<b>Why it matters:</b><br/>• Execution learns from outcomes<br/>• Tools become smarter through use<br/>• Resources auto-optimize<br/>• Safety evolves with threats"]
+    end
+    
+    T1 -.->|"Delegates to"| T2
+    T2 -.->|"Executes via"| T3
+    T3 -.->|"Learns from"| T1
+    
+    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px  
+    classDef tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef desc fill:#fffde7,stroke:#f57c00,stroke-width:1px,font-size:11px
+    
+    class T1 tier1
+    class T2 tier2
+    class T3 tier3
+    class T1_Desc,T2_Desc,T3_Desc desc
 ```
 
-**3. Streaming-First Architecture**
-- All responses use async generators for real-time streaming
-- Supports text chunks, function calls, and reasoning traces
-- Cost tracking happens incrementally during streaming
+---
 
-**4. Provider Abstraction**
-```typescript
-abstract class AIService<ModelType> {
-    // Standardized interface for all providers
-    abstract estimateTokens(params: EstimateTokensParams): EstimateTokensResult;
-    abstract generateResponseStreaming(opts: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent>;
-    abstract getMaxOutputTokens(model?: string): number;
-    abstract getResponseCost(params: GetResponseCostParams): number;
-    abstract safeInputCheck(input: string): Promise<GetOutputTokenLimitResult>;
-}
+## 🌊 The Event-Driven Nervous System
+
+What makes this architecture **truly revolutionary** is our event-driven intelligence layer. Instead of hard-coding capabilities, we enable **specialized AI agents** to provide security, monitoring, optimization, and quality assurance through reactive intelligence.
+
+```mermaid
+graph TB
+    subgraph "🌐 Distributed Event Bus"
+        EB[Event Stream<br/>📊 Real-time intelligence<br/>🔄 Asynchronous coordination<br/>📝 Complete auditability]
+    end
+    
+    subgraph "📡 Event Producers"
+        EP1[Coordination Events<br/>🎯 Goal changes<br/>👥 Team dynamics<br/>💰 Resource allocation]
+        EP2[Process Events<br/>🔄 State transitions<br/>📊 Performance metrics<br/>⚠️ Error conditions]
+        EP3[Execution Events<br/>✅ Task completion<br/>🔧 Tool usage<br/>📈 Learning outcomes]
+    end
+    
+    subgraph "🤖 Intelligent Event Consumers"
+        EC1[🔒 Security Agents<br/>Adaptive threat detection<br/>Domain-specific compliance<br/>Evolving defense strategies]
+        EC2[📊 Quality Agents<br/>Bias detection & mitigation<br/>Output validation<br/>Continuous improvement]
+        EC3[⚡ Optimization Agents<br/>Performance enhancement<br/>Cost reduction<br/>Pattern recognition]
+        EC4[🔍 Monitoring Agents<br/>Intelligent observability<br/>Predictive analytics<br/>Proactive intervention]
+    end
+    
+    EP1 --> EB
+    EP2 --> EB
+    EP3 --> EB
+    
+    EB --> EC1
+    EB --> EC2
+    EB --> EC3
+    EB --> EC4
+    
+    classDef eventbus fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    classDef producers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef consumers fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class EB eventbus
+    class EP1,EP2,EP3 producers
+    class EC1,EC2,EC3,EC4 consumers
 ```
 
-**5. Graceful Degradation**
-- Retry failed requests up to 3 times
-- Fall back to alternative models when primary is unavailable
-- Maintain service quality while optimizing for availability
+**The Revolutionary Insight**: Instead of building security, quality, and optimization into the system, we enable **teams to deploy specialized agents** that provide these capabilities through intelligent event processing.
 
-This architecture ensures that Vrooli can reliably access AI capabilities across multiple providers while managing costs, handling failures gracefully, and providing a consistent interface for the rest of the system.
+---
 
-### **Context and Memory Architecture**
+## 🎭 Strategy Evolution: From Conversation to Code
 
-Context is stored in three layers:
-| Layer (scope)                                          | Lifetime                        | Who can read/write?                                                           | What it's for                                                                | Where it lives                                                                                    |
-| ------------------------------------------------------ | ------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **RunContext** <br/>*(formerly ExecutionContext)*      | "Until the sub-routine returns" | The RunStateMachine **and** Tier-3 executor that own this single run instance | Inputs, intermediate vars, step history, `exports[]` list (declared outputs) | In-memory object; flushed to Redis (L2) every state-save tick                                     |
-| **SwarmSharedState.blackboard\[]**                     | "As long as the swarm exists"   | Any agent in the chat via `update_swarm_shared_state`                         | Short-lived cross-task scratch: results, notes, ids, URLs, etc.              | Part of `ConversationState` (L1/L2); also streamed on the event-bus as `swarm/blackboard_updated` |
-| **Persistent Resource** *(Note, Routine, API record…)* | Permanent                       | Agents only (through `resource_manage add/update`)                            | Anything the team might reuse tomorrow                                       | PostgreSQL + pgvector                                                                             |
+Watch how intelligence evolves in real-time. Routines begin as natural conversations and gradually crystallize into optimized automation as patterns emerge:
 
-**If data should outlive a run or swarm, somebody must push it up a layer:**
 ```mermaid
 graph LR
-    RunContext[RunContext] -->|configurable export| blackboard[blackboard]
-    blackboard -->|agent decides| resource_store[resource_store]
-```
-
-Here's a more detailed breakdown:
-```mermaid
-sequenceDiagram
-    participant T2 as RunStateMachine (parent)
-    participant T3 as UnifiedExecutor (child run)
-    participant CE as ContextExporter
-    participant BB as Swarm.blackboard
-    participant Agent
-
-    %% launch
-    T2->>T3: execute(subRoutine, parentRunContext.createChild())
-    T3-->>T2: result + childRunContext   (exports[] filled)
-
-    %% export
-    T2->>CE: flush(childRunContext)
-    alt child run had parent
-        CE-->>T2: vars copied into parentRunContext
-    else root run finished
-        CE-->>BB: addBlackboardItem(...)
-        BB-->>Agent: event swarm/blackboard_updated
+    subgraph "🗣️ CONVERSATIONAL"
+        C1[Human-like Reasoning<br><br>💭 Creative problem-solving<br>🤔 Adaptive responses<br>📝 Learning from context<br>💡 Novel solutions]
+        C1_Ex["<b>Example:</b><br>'Help me understand<br>this customer complaint<br>and suggest solutions'"]
     end
+
+    subgraph "🧠 REASONING"
+        R1[Structured Intelligence<br><br>📊 Data-driven decisions<br>🎯 Goal optimization<br>⚖️ Multi-factor analysis<br>🔍 Pattern recognition]
+        R1_Ex["<b>Example:</b><br>Systematic framework:<br>1. Categorize complaint<br>2. Analyze sentiment<br>3. Generate solutions<br>4. Prioritize actions"]
+    end
+
+    subgraph "⚙️ DETERMINISTIC"
+        D1[Optimized Automation<br><br>🚀 Lightning-fast execution<br>💰 Cost optimization<br>✅ Guaranteed reliability<br>🔄 Self-monitoring]
+        D1_Ex["<b>Example:</b><br>Automated pipeline:<br>API → NLP → Decision<br>Tree → Action Queue<br>→ Customer Response"]
+    end
+
+    C1 -->|"Patterns Emerge"| R1
+    R1 -->|"Best Practices Proven"| D1
+    D1 -.->|"Edge Cases Discovered"| C1
+
+    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:3px
+    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
+    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
+    classDef example fill:#f5f5f5,stroke:#9e9e9e,stroke-width:1px,font-size:11px
+
+    class C1 conv
+    class R1 reason
+    class D1 determ
+    class C1_Ex,R1_Ex,D1_Ex example
 ```
 
-> See the [Run Context Management](#run-context-management) section for details on how run context is handled.
+**The Magic**: This evolution happens **automatically** through use. Every execution teaches the system. Every pattern gets recognized. Every improvement becomes available to all routines.
 
-### **Knowledge Base**
+---
 
-See the [Knowledge Base](knowledge-base/README.md) document for details on Vrooli's unified knowledge management system.
+## 🔄 Recursive Self-Improvement: The Compound Effect
 
-### **Safety and Reliability**
-
-> **Safety Guard-Rails:**
-> The platform injects a thin, synchronous *Guard-Rail Layer* in front of every model call and tool invocation.
-> *Non-negotiable tasks (schema/size validation, hard resource limits, emergency kill)* run here in < 10 ms.
-> Anything that needs deeper reasoning (*prompt injection, hallucination, bias, policy drift*) is surfaced as a `safety.*` event and picked up by *Safety Agents* on the event bus. 
-> See the [Event-Driven Intelligence Architecture](#event-driven-intelligence-architecture) section for more details on how event-driven agents are deployed and configured.
+Here's where it gets **truly exciting**. Our architecture doesn't just execute tasks—it **builds better task executors**. Each improvement compounds, creating exponential capability growth:
 
 ```mermaid
 graph TB
-  subgraph "Inline Guard-Rail Layer"
-    Guard[Safety Guard-Rails<br/>⚡ Sync checks, <10 ms]:::guard
-    InputVal[Input Validation]:::infra
-    OutputVal[Output Validation]:::infra
-    Limits[Safety Limits]:::infra
-    EStop[Emergency Stop<br/>🛑 emits safety/emergency_stop]:::infra
-  end
-  subgraph "Event-Driven Safety"
-    SafetyEvents["safety.* events"]:::events
-    Agents[Safety Agents<br/>subscribe/analyse/respond]:::agents
-  end
-  Guard --> InputVal & OutputVal & Limits & EStop
-  Guard -- emits --> SafetyEvents
-  SafetyEvents --> Agents
-classDef guard fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-classDef infra fill:#f3e5f5,stroke:#7b1fa2
-classDef events fill:#ffebee,stroke:#c62828
-classDef agents fill:#e8f5e8,stroke:#2e7d32
+    subgraph "🔄 The Recursive Improvement Cycle"
+        A[Agents Execute Routines<br/>📊 Generate performance data<br/>🔍 Create improvement insights]
+        
+        B[Optimization Agents Analyze<br/>🎯 Identify bottlenecks<br/>💡 Discover patterns<br/>📈 Suggest improvements]
+        
+        C[Improvement Routines Created<br/>⚙️ Automate optimizations<br/>🔧 Refine existing processes<br/>🚀 Deploy enhancements]
+        
+        D[Enhanced Capabilities Available<br/>🌱 Better tools for all agents<br/>📚 Improved knowledge base<br/>🎯 Smarter strategies]
+        
+        A --> B --> C --> D
+        D -.->|"Enables better"| A
+    end
+    
+    subgraph "📈 Emergent Capabilities Examples"
+        E1[🤖 Self-Optimizing APIs<br/>Agents learn optimal call patterns<br/>Auto-adjust rate limits<br/>Predict and prevent failures]
+        
+        E2[🧠 Adaptive Reasoning<br/>Strategies evolve with domain<br/>Context-aware decision making<br/>Cross-domain knowledge transfer]
+        
+        E3[🛡️ Evolutionary Security<br/>Threats detected and mitigated<br/>Defense strategies auto-update<br/>Proactive vulnerability scanning]
+        
+        E4[📊 Predictive Quality Control<br/>Output quality improves over time<br/>Bias detection and correction<br/>Continuous accuracy enhancement]
+    end
+    
+    D -.->|"Enables"| E1
+    D -.->|"Enables"| E2  
+    D -.->|"Enables"| E3
+    D -.->|"Enables"| E4
+    
+    classDef cycle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef emergent fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class A,B,C,D cycle
+    class E1,E2,E3,E4 emergent
 ```
 
-| Safety task                                            | Concrete hook / class                                                                                                                                                                                                                                      | Responsibility                                                                                                | Verification path                                                                                                     |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Input validation** (schema/size/sensitivity)         | `guardrails.validateInput(payload, context)` <br>called: ① once in **RunStateMachine** right before it forwards a step to Tier-3, ② again inside **UnifiedExecutor** right before strategy execution.                                                      | ① stops malformed tool args early (cheap).<br>② catches step-level problems introduced by T2 transformations. | Unit tests on `guardrails` + integration test that malformed payload in a BPMN node aborts before hitting model call. |
-| **Output validation**                                  | `guardrails.validateOutput(result, schema)` in **UnifiedExecutor** *after* strategy returns but *before* response bubbles up to T2.                                                                                                                        | Enforces format contracts & redacts high-sensitivity fields that upper tiers should never receive.            | Golden-file tests on step outputs; failing output raises `SafetyError`.                                               |
-| **Hard resource limits** (credits, wall-clock, memory) | *Three layers* <br>• **ResourceManager** (Tier-3) – per-step metering, kills runaway code.<br>• **RunLimitsManager** (Tier-2) – aggregates per-run, enforces ChatConfig limits.<br>• **SwarmStateMachine** – tracks totals for whole swarm & child swarms. | Each layer *only reads* limits set in `ChatConfig.resourceLimits`; only T1 can shrink them.                   | Assertions in RM and RL fire `LimitExceededError` → triggers emergencyStop flow.                                      |
-| **Emergency stop**                                     | `guardrails.emergencyStop(reason)` – wrapper that<br>1) calls `SwarmStateMachine.stop(SafetyReason)` synchronously<br>2) publishes `safety/emergency_stop` event for Safety Agents.                                                                        | Guarantees single code path; nobody else is allowed to call `stop()` for safety reasons.                      | E2E test: inject huge payload ⇒ expect `STOPPED` state + event within one tick.                                       |
+**The Result**: A system that becomes **exponentially more capable** over time, not through manual updates, but through **intelligent self-reflection and improvement**.
 
+---
 
-## Cross-Cutting Architectural Concerns
+## 🏛️ Safety & Reliability: Built for the Real World
 
-### Security Architecture
-
-See the [Security Architecture](./security/README.md) section for details on how security is managed and maintained.
-
-#### **Security Threat Model**
+While innovation drives our architecture, **safety and reliability** form its foundation. Our multi-layered approach ensures responsible AI deployment:
 
 ```mermaid
 graph TB
-    subgraph "AI Threat Landscape"
-        subgraph "Input Threats"
-            PromptInjection[Prompt Injection<br/>🔓 Malicious instructions<br/>🎯 Context manipulation<br/>⚡ Bypass attempts]
-            DataPoisoning[Data Poisoning<br/>🧪 Training corruption<br/>📊 Bias introduction<br/>🎯 Model manipulation]
-            ContextContamination[Context Contamination<br/>📋 Memory pollution<br/>🔄 Cross-session leaks<br/>🎯 Information theft]
+    subgraph "🛡️ Multi-Layer Safety Architecture"
+        subgraph "⚡ Synchronous Guard Rails (< 10ms)"
+            S1[Input Validation<br/>Schema enforcement<br/>Size limits<br/>Sensitivity checks]
+            S2[Resource Limits<br/>Credit tracking<br/>Time constraints<br/>Memory bounds]
+            S3[Emergency Stop<br/>Immediate halt capability<br/>Safety event emission<br/>Graceful degradation]
         end
         
-        subgraph "Model Threats"
-            ModelTheft[Model Theft<br/>🔐 IP extraction<br/>📊 Parameter theft<br/>🎯 Competitive advantage]
-            ModelInversion[Model Inversion<br/>🔍 Data reconstruction<br/>👤 Privacy violation<br/>📊 Sensitive data exposure]
-            AdversarialAttacks[Adversarial Attacks<br/>⚔️ Input manipulation<br/>🎯 Misclassification<br/>📊 System exploitation]
+        subgraph "🤖 Asynchronous Safety Agents"
+            A1[Threat Detection<br/>Pattern analysis<br/>Behavioral monitoring<br/>Anomaly detection]
+            A2[Compliance Monitoring<br/>Regulatory adherence<br/>Policy enforcement<br/>Audit trail generation]
+            A3[Quality Assurance<br/>Output validation<br/>Bias detection<br/>Accuracy verification]
         end
         
-        subgraph "Output Threats"
-            HallucinationExploits[Hallucination Exploits<br/>🎭 False information<br/>🔍 Fact manipulation<br/>📊 Credibility attacks]
-            BiasAmplification[Bias Amplification<br/>⚖️ Unfair outcomes<br/>📊 Discrimination<br/>🎯 Social harm]
-            InformationLeakage[Information Leakage<br/>📋 Data exposure<br/>🔐 Privacy breach<br/>👤 Identity revelation]
-        end
-        
-        subgraph "System Threats"
-            ResourceExhaustion[Resource Exhaustion<br/>💰 Credit drain<br/>⏱️ DoS attacks<br/>📊 System overload]
-            PrivilegeEscalation[Privilege Escalation<br/>🔐 Permission bypass<br/>👑 Admin access<br/>🎯 System compromise]
-            LateralMovement[Lateral Movement<br/>🔄 Cross-swarm access<br/>🌐 Network traversal<br/>🎯 Infrastructure compromise]
+        subgraph "🎯 Team-Specific Intelligence"
+            T1[Domain Expertise<br/>Industry-specific rules<br/>Custom compliance checks<br/>Specialized monitoring]
+            T2[Adaptive Learning<br/>Threat evolution tracking<br/>Defense strategy updates<br/>Continuous improvement]
         end
     end
     
-    classDef inputThreats fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef modelThreats fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef outputThreats fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef systemThreats fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    S1 & S2 & S3 -.->|"Emit events"| A1 & A2 & A3
+    A1 & A2 & A3 -.->|"Configure"| T1 & T2
+    T1 & T2 -.->|"Enhance"| S1 & S2 & S3
     
-    class PromptInjection,DataPoisoning,ContextContamination inputThreats
-    class ModelTheft,ModelInversion,AdversarialAttacks modelThreats
-    class HallucinationExploits,BiasAmplification,InformationLeakage outputThreats
-    class ResourceExhaustion,PrivilegeEscalation,LateralMovement systemThreats
+    classDef sync fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef async fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef team fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    
+    class S1,S2,S3 sync
+    class A1,A2,A3 async
+    class T1,T2 team
 ```
 
-Understanding the AI-specific threat landscape is crucial for building a resilient system. Vrooli acknowledges these threats and employs a combination of built-in safeguards and an event-driven architecture for adaptive defense.
+**Key Insight**: Safety isn't an afterthought—it's **adaptive intelligence** that evolves with your needs and learns from every interaction.
 
-**Detailed Threat Explanations and Mitigation Approaches:**
+---
 
--   **Input Threats:** These threats involve manipulating the data or prompts fed into AI models.
-    -   **Prompt Injection**: Attackers craft inputs that trick the AI into ignoring its original instructions or performing unintended actions (e.g., revealing sensitive information, executing malicious code). Vrooli mitigates this through input sanitization, strict output parsing, and by encouraging routines that clearly define expected interaction patterns, making deviations easier to detect.
-    -   **Data Poisoning**: Malicious actors may attempt to corrupt the training data of models (if applicable to future fine-tuning efforts within Vrooli) or manipulate data sources used by routines, leading to biased or incorrect AI behavior. Mitigation involves careful data sourcing, anomaly detection in data inputs, and routines designed for cross-verification.
-    -   **Context Contamination**: If not handled carefully, information from one interaction or user could leak into another's context, leading to privacy breaches or incorrect AI responses. Vrooli enforces strict context isolation between swarms, agents, and routine executions.
+## 📚 Deep Dive Documentation
 
--   **Model Threats:** These target the AI models themselves.
-    -   **Model Theft**: Unauthorized extraction of the AI model's architecture or parameters (weights). While Vrooli primarily uses third-party models, any custom models or significant fine-tuning would require access controls and infrastructure security.
-    -   **Model Inversion**: Inferring sensitive training data by querying the model. This is more relevant for models trained on private data. For Vrooli, this means ensuring that routines handling sensitive data do not inadvertently create query patterns that could leak information.
-    -   **Adversarial Attacks**: Crafting subtle, often imperceptible, changes to input data that cause the model to misclassify or behave erratically. Defenses include input validation and the potential for specialized routines to detect and filter such inputs, though this is an ongoing research area.
+Ready to explore the details? Our documentation is organized for progressive learning:
 
--   **Output Threats:** These relate to the potential harm caused by the AI's generated content or actions.
-    -   **Hallucination Exploits**: AI models can generate convincing but false or nonsensical information. Routines can be designed to cross-reference information, use multiple sources, or involve human review for critical outputs.
-    -   **Bias Amplification**: AI models can inherit and even amplify biases present in their training data, leading to unfair or discriminatory outcomes. Mitigation involves selecting models with known bias mitigation efforts, careful prompt engineering, and event-driven agents that monitor outputs for biased patterns.
-    -   **Information Leakage**: AI might inadvertently reveal sensitive data from its context or training. This is addressed through context isolation, data minimization principles in routine design, and output filtering.
+### 🎯 **Core Architecture**
+- **[Core Technologies](core-technologies.md)** - Foundational concepts and terminology
+- **[Implementation Roadmap](implementation-roadmap.md)** - Detailed phased implementation approach
+- **[Future Expansion Roadmap](future-expansion-roadmap.md)** - Long-term vision and expansion plans
+- **[Success Metrics](success-metrics.md)** - How we measure architectural success
 
--   **System Threats:** These exploit the platform hosting the AI.
-    -   **Resource Exhaustion**: Malicious or poorly designed routines/agents could consume excessive computational resources (credits, CPU, memory), leading to denial of service. Vrooli implements strict resource quotas at user, team, and swarm levels, with monitoring and automated cutoffs.
-    -   **Privilege Escalation**: An attacker gaining unauthorized higher-level access by exploiting vulnerabilities in an agent or routine. This is mitigated by sandboxed execution, principle of least privilege for tools and routines, and regular security audits.
-    -   **Lateral Movement**: An attacker, having compromised one part of the system (e.g., a single agent), attempts to access other parts. Strong isolation between swarms and granular permissions for routines help prevent this.
+### ⚙️ **Tier-Specific Intelligence**
+- **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md)** - Metacognitive swarm coordination
+- **[Tier 2: Process Intelligence](tiers/tier2-process-intelligence.md)** - Universal routine orchestration  
+- **[Tier 3: Execution Intelligence](tiers/tier3-execution-intelligence.md)** - Context-aware strategy execution
 
-**The Role of Swarms in Evolving Defenses:**
+### 🌊 **Event-Driven Intelligence**
+- **[Event-Driven Architecture](event-driven/README.md)** - Complete event system overview
+- **[Event Bus Protocol](event-driven/event-bus-protocol.md)** - Technical communication specifications
+- **[Event-Driven Intelligence](event-driven/event-driven-intelligence.md)** - Intelligent event processing agents
 
-A significant challenge in AI security is that many threats are novel and constantly evolving. Fixed defenses can quickly become outdated. Vrooli's architecture is designed to address this through its recursive self-improvement capabilities:
+### 🧠 **Cross-Cutting Capabilities**
+- **[AI Services](ai-services/README.md)** - Multi-provider model management and optimization
+- **[Context & Memory Architecture](context-memory/README.md)** - Three-layer context management system
+- **[Security Architecture](security/README.md)** - Comprehensive security and threat model
+- **[Resilience Architecture](resilience/README.md)** - Fault tolerance and error handling
+- **[Resource Management](resource-management/README.md)** - Credit tracking and resource coordination
+- **[Monitoring Architecture](monitoring/README.md)** - Performance tracking and observability
 
--   **Learning Best Practices**: Swarms, through their interactions and by observing the outcomes of various security-related events, can learn which strategies and routine configurations are most effective at mitigating specific threats.
--   **Event-Driven Agents for Security**: Teams can deploy specialized security agents that subscribe to system events (e.g., `audit/tool_call_denied`, `security/anomalous_input_pattern`). These agents can analyze patterns, identify potential threats, and even propose or enact countermeasures.
--   **Sharing Security Routines**: As swarms develop effective security routines (e.g., an advanced prompt injection detection routine, a bias-checking routine for generated content), these can be shared across the Vrooli ecosystem. This allows the collective intelligence of all swarms to contribute to the platform's overall security posture.
--   **Unsolved Threats as Challenges**: Many AI security threats are active areas of research. Vrooli aims to be a platform where swarms can contribute to solving these challenges, for example, by developing routines that test for new vulnerabilities or create novel defense mechanisms.
+### 📊 **System Management**
+- **[Communication Architecture](communication/README.md)** - Inter-tier communication patterns
+- **[Data Architecture](data/README.md)** - Database management and consistency
+- **[Knowledge Base](knowledge-base/README.md)** - Unified knowledge management system
+- **[Types System](types/README.md)** - Shared interfaces and type definitions
 
-By combining foundational security measures with an adaptive, event-driven approach powered by collaborative swarm intelligence, Vrooli aims to create a security posture that can evolve and improve over time.
+### 🌱 **Emergent Capabilities**
+- **[Bootstrapping Patterns](bootstrapping/README.md)** - Emergent capability development and self-extension
+- **[API Bootstrapping](bootstrapping/api.md)** - Emergent creation of API integrations through routine composition
 
-## Resilience and Error Handling Architecture
+---
 
-### **Fault Tolerance Framework**
+## 🚀 Why This Architecture Changes Everything
 
-```mermaid
-graph TB
-    subgraph "Resilience Framework"
-        ResilienceOrchestrator[Resilience Orchestrator<br/>🛡️ Central resilience coordination<br/>🔄 Recovery orchestration<br/>📊 Health monitoring]
-        
-        subgraph "Failure Detection"
-            AnomalyDetector[Anomaly Detector<br/>📊 Pattern-based detection<br/>🚨 Real-time monitoring<br/>⚡ Early warning system]
-            HealthProbe[Health Probe<br/>💓 Component health checks<br/>🔍 Dependency monitoring<br/>📊 Performance tracking]
-            CircuitBreaker[Circuit Breaker<br/>⚡ Failure isolation<br/>🔄 Auto-recovery<br/>📊 Fallback strategies]
-        end
-        
-        subgraph "AI-Specific Recovery"
-            ModelFallback[Model Fallback<br/>🔄 Alternative models<br/>📊 Quality degradation<br/>⚡ Seamless switching]
-            ContextRecovery[Context Recovery<br/>📋 State reconstruction<br/>🔄 Checkpoint restoration<br/>💾 Data consistency]
-            StrategyAdaptation[Strategy Adaptation<br/>🧠 Dynamic strategy switching<br/>📊 Performance monitoring<br/>🎯 Optimization]
-        end
-        
-        subgraph "System Recovery"
-            StateRecovery[State Recovery<br/>🔄 Checkpoint restoration<br/>📊 Transaction rollback<br/>💾 Data consistency]
-            ServiceRecovery[ServiceRecovery<br/>🔄 Service restart<br/>📊 Load redistribution<br/>⚖️ Capacity management]
-            DataRecovery[DataRecovery<br/>💾 Backup restoration<br/>🔄 Replication sync<br/>📊 Integrity verification]
-        end
-        
-        subgraph "Event-Driven Failure Detection/Adaptation"
-            FailureEvents[Failure Events<br/>🚨 Error reports<br/>📉 Degradation signals<br/>💔 Anomaly detection]
-            ResilienceAgents[Resilience Agents<br/>🤖 Subscribe to events<br/>🔍 Analyze failures<br/>💡 Adapt & recover]
-        end
-    end
-    
-    ResilienceOrchestrator --> AnomalyDetector
-    ResilienceOrchestrator --> HealthProbe
-    ResilienceOrchestrator --> CircuitBreaker
-    ResilienceOrchestrator --> ModelFallback
-    ResilienceOrchestrator --> ContextRecovery
-    ResilienceOrchestrator --> StrategyAdaptation
-    ResilienceOrchestrator --> StateRecovery
-    ResilienceOrchestrator --> DataRecovery
-    ResilienceOrchestrator --> FailureEvents
-    ResilienceOrchestrator --> ResilienceAgents
-    
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef detection fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef aiRecovery fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef systemRecovery fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef learning fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class ResilienceOrchestrator orchestrator
-    class AnomalyDetector,HealthProbe,CircuitBreaker detection
-    class ModelFallback,ContextRecovery,StrategyAdaptation aiRecovery
-    class StateRecovery,ServiceRecovery,DataRecovery systemRecovery
-    class FailureEvents,ResilienceAgents learning
-```
+### **For Developers**
+- **No more brittle integrations** - Universal execution model adapts to any platform
+- **Built-in optimization** - Performance improves automatically through use  
+- **Composable intelligence** - Build complex capabilities from simple routines
+- **Future-proof design** - Architecture evolves with AI advancement
 
-### **Error Handling Patterns**
+### **For Teams**  
+- **Customizable intelligence** - Deploy agents that understand your domain
+- **Compound learning** - Every improvement benefits the entire organization
+- **Adaptive safety** - Security that learns and evolves with threats
+- **Scaling intelligence** - Capability growth without proportional complexity
 
-#### **AI-Specific Error Types and Handling**
+### **For the AI Ecosystem**
+- **Recursive self-improvement** - AI systems that enhance their own capabilities
+- **Emergent intelligence** - Capabilities that arise from agent collaboration  
+- **Knowledge compounding** - Insights that amplify across the entire system
+- **Sustainable AI** - Optimization that reduces costs while improving performance
 
-```mermaid
-graph TB
-    subgraph "AI Error Classification"
-        subgraph "Model Errors"
-            ModelUnavailable[Model Unavailable<br/>🚫 Service down<br/>⚡ Network issues<br/>💰 Rate limits]
-            QualityDegradation[Quality Degradation<br/>📉 Poor outputs<br/>🎯 Accuracy loss<br/>🔍 Inconsistency]
-            ContextOverflow[Context Overflow<br/>📋 Token limits<br/>💾 Memory constraints<br/>⚡ Processing limits]
-        end
-        
-        subgraph "Execution Errors"
-            RoutineFailure[Routine Failure<br/>🔧 Logic errors<br/>📊 Data issues<br/>🔄 State corruption]
-            ResourceExhaustion[Resource Exhaustion<br/>💰 Credit depletion<br/>⏱️ Timeout<br/>📊 Capacity limits]
-            DependencyFailure[Dependency Failure<br/>🔗 API failures<br/>🌐 Network issues<br/>🔧 Service outages]
-        end
-        
-        subgraph "Coordination Errors"
-            SwarmDisconnection[Swarm Disconnection<br/>📡 Communication loss<br/>👥 Agent unavailability<br/>🔄 Synchronization failure]
-            ConsensusFailure[Consensus Failure<br/>🤝 Agreement issues<br/>⚖️ Conflict resolution<br/>🔄 Deadlock scenarios]
-            StateInconsistency[State Inconsistency<br/>💾 Data corruption<br/>🔄 Sync failures<br/>📊 Version conflicts]
-        end
-    end
-    
-    classDef modelErrors fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef executionErrors fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef coordinationErrors fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    
-    class ModelUnavailable,QualityDegradation,ContextOverflow modelErrors
-    class RoutineFailure,ResourceExhaustion,DependencyFailure executionErrors
-    class SwarmDisconnection,ConsensusFailure,StateInconsistency coordinationErrors
-```
+---
 
-#### **Recovery Strategies by Error Type**
+## 🌟 The Path Forward
 
-```typescript
-interface ErrorHandlingFramework {
-    // Model Error Recovery
-    handleModelUnavailable(context: RunContext): RecoveryStrategy;
-    handleQualityDegradation(qualityMetrics: QualityMetrics): QualityRecovery;
-    handleContextOverflow(context: RunContext): ContextStrategy;
-    
-    // Execution Error Recovery
-    handleRoutineFailure(failure: RoutineFailure): RetryStrategy;
-    handleResourceExhaustion(usage: ResourceUsage): ResourceStrategy;
-    handleDependencyFailure(dependency: Dependency): FallbackStrategy;
-    
-    // Coordination Error Recovery
-    handleSwarmDisconnection(swarmId: string): ReconnectionStrategy;
-    handleConsensusFailure(participants: Agent[]): ConsensusStrategy;
-    handleStateInconsistency(state: SystemState): ConsistencyStrategy;
-}
+This architecture represents more than just a technical implementation—it's a **foundation for the future of AI**. Every routine executed, every pattern learned, every improvement made contributes to a growing ecosystem of intelligence that becomes more powerful over time.
 
-// Recovery Strategy Implementations
-interface RecoveryStrategy {
-    readonly strategyType: RecoveryType;
-    readonly maxRetries: number;
-    readonly backoffStrategy: BackoffStrategy;
-    readonly fallbackOptions: FallbackOption[];
-    
-    execute(context: RecoveryContext): Promise<RecoveryResult>;
-    shouldRetry(attempt: number, error: Error): boolean;
-    selectFallback(availableOptions: FallbackOption[]): FallbackOption;
-}
+**Traditional AI**: Build, deploy, maintain, rebuild.
+**Vrooli's Vision**: Build once, improve forever, compound intelligence.
 
-// Specific Recovery Strategies
-interface ModelFallbackStrategy extends RecoveryStrategy {
-    readonly fallbackModels: ModelConfiguration[];
-    readonly qualityThresholds: QualityThreshold[];
-    readonly costConstraints: CostConstraint[];
-    
-    selectOptimalFallback(context: RunContext): ModelConfiguration;
-    assessQualityTrade-offs(model: ModelConfiguration): QualityAssessment;
-}
+The question isn't whether AI will become more capable. The question is whether that capability will compound intelligently or remain fragmented. 
 
-interface ContextCompressionStrategy extends RecoveryStrategy {
-    readonly compressionTechniques: CompressionTechnique[];
-    readonly summarizationMethods: SummarizationMethod[];
-    readonly prioritizationRules: PrioritizationRule[];
-    
-    compressContext(context: RunContext): CompressedContext;
-    maintainCriticalInformation(context: RunContext): CriticalContext;
-    reconstructContext(compressed: CompressedContext): RunContext;
-}
-```
+**We're building the former.**
 
-### **Graceful Degradation Architecture**
+---
 
-```mermaid
-graph TB
-    subgraph "Degradation Framework"
-        DegradationController[Degradation Controller<br/>📉 Quality management<br/>⚖️ Trade-off optimization<br/>🎯 Service continuity]
-        
-        subgraph "Quality Levels"
-            HighQuality[High Quality<br/>🎯 Full capabilities<br/>💰 High cost<br/>⚡ Optimal performance]
-            MediumQuality[Medium Quality<br/>⚖️ Balanced trade-offs<br/>💰 Moderate cost<br/>📊 Good performance]
-            BasicQuality[Basic Quality<br/>⚡ Essential features<br/>💰 Low cost<br/>🔄 Fallback mode]
-            EmergencyMode[Emergency Mode<br/>🚨 Critical only<br/>💰 Minimal cost<br/>🛡️ Safety first]
-        end
-        
-        subgraph "Adaptation Mechanisms"
-            QualityMonitor[Quality Monitor<br/>📊 Real-time assessment<br/>🎯 Threshold monitoring<br/>📈 Trend analysis]
-            TradeoffOptimizer[Trade-off Optimizer<br/>⚖️ Cost-quality balance<br/>🎯 User preferences<br/>📊 Performance metrics]
-            ServiceSelector[Service Selector<br/>🎯 Capability matching<br/>📊 Performance prediction<br/>⚡ Dynamic switching]
-        end
-    end
-    
-    DegradationController --> HighQuality
-    DegradationController --> MediumQuality
-    DegradationController --> BasicQuality
-    DegradationController --> EmergencyMode
-    
-    DegradationController --> QualityMonitor
-    DegradationController --> TradeoffOptimizer
-    DegradationController --> ServiceSelector
-    
-    HighQuality -.->|"Degrades to"| MediumQuality
-    MediumQuality -.->|"Degrades to"| BasicQuality
-    BasicQuality -.->|"Degrades to"| EmergencyMode
-    
-    EmergencyMode -.->|"Recovers to"| BasicQuality
-    BasicQuality -.->|"Recovers to"| MediumQuality
-    MediumQuality -.->|"Recovers to"| HighQuality
-    
-    classDef controller fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef highQuality fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef mediumQuality fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef basicQuality fill:#ffccbc,stroke:#f4511e,stroke-width:2px
-    classDef emergency fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef adaptation fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class DegradationController controller
-    class HighQuality highQuality
-    class MediumQuality mediumQuality
-    class BasicQuality basicQuality
-    class EmergencyMode emergency
-    class QualityMonitor,TradeoffOptimizer,ServiceSelector adaptation
-```
+> 💡 **Ready to dive deeper?** Start with [Core Technologies](core-technologies.md) to understand the foundational concepts, then explore [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md) to see how AI agents coordinate through metacognition.
 
-## Implementation Roadmap
+---
 
-See the [Implementation Roadmap](implementation-roadmap.md) for a detailed phased approach.
+## 🗂️ Ideal File Structure
 
-## Ideal File Structure
+Based on our three-tier architecture and existing codebase patterns, here's how the execution architecture should be organized:
 
 ```
 packages/
-├── core/                                    # Core shared libraries
-│   ├── security/                           # Security framework
-│   │   ├── authentication.ts              # Identity verification
-│   │   ├── authorization.ts               # Permission control
-│   │   ├── sandbox.ts                     # Execution isolation
-│   │   └── encryption.ts                  # Data protection
-│   │
-│   ├── monitoring/                         # Observability framework
-│   │   ├── metrics.ts                     # Performance tracking
-│   │   ├── alerts.ts                      # Threshold monitoring
-│   │   ├── health.ts                      # Service health
-│   │   └── analytics.ts                   # Usage analysis
-│   │
-│   ├── improvement/                        # Continuous improvement
-│   │   ├── patterns.ts                    # Pattern recognition
-│   │   ├── optimization.ts               # Performance optimization
-│   │   ├── evolution.ts                  # Routine evolution
-│   │   └── knowledge.ts                  # Knowledge extraction
-│   │
-│   └── types/                             # Shared type definitions
-│       ├── hierarchy.ts                   # Teams/Swarms/Agents/Routines
-│       ├── execution.ts                   # Execution contexts
-│       └── strategies.ts                  # Strategy interfaces
+├── shared/                                             # Cross-package shared code
+│   ├── src/              
+│   │   ├── execution/                                  # Shared execution types & utilities
+│   │   │   ├── types/                                  # Core type definitions
+│   │   │   │   ├── index.ts                            # Re-exports all types
+│   │   │   │   ├── swarm.ts                            # Swarm, team, agent types
+│   │   │   │   ├── routine.ts                          # Routine, run, step types
+│   │   │   │   ├── context.ts                          # Context and memory types
+│   │   │   │   ├── events.ts                           # Event type definitions
+│   │   │   │   ├── strategies.ts                       # Strategy type definitions
+│   │   │   │   ├── security.ts                         # Security and safety types
+│   │   │   │   └── resources.ts                        # Resource management types
+│   │   │   ├── utils/                                  # Shared utilities
+│   │   │   │   ├── validation.ts                       # Cross-tier validation
+│   │   │   │   ├── serialization.ts                    # Data serialization helpers
+│   │   │   │   ├── errors.ts                           # Common error definitions
+│   │   │   │   └── constants.ts                        # Shared constants
+│   │   │   ├── events/                                 # Event system foundations
+│   │   │   │   ├── eventBus.ts                         # Core event bus interface
+│   │   │   │   ├── eventTypes.ts                       # Event type registry
+│   │   │   │   └── eventValidation.ts                  # Event schema validation
+│   │   │   └── security/                               # Shared security components
+│   │   │       ├── guardRails.ts                       # Guard-rail interfaces
+│   │   │       ├── barriers.ts                         # Barrier synchronization
+│   │   │       └── limits.ts                           # Resource limit definitions
+│   │   └── ...              
+│              
+├── server/                                             # Backend execution engine
+│   ├── src/              
+│   │   ├── services/              
+│   │   │   ├── execution/                              # 🚀 EXECUTION ARCHITECTURE CORE
+│   │   │   │   │              
+│   │   │   │   ├── tier1/                              # 🎯 TIER 1: Coordination Intelligence
+│   │   │   │   │   ├── coordination/                   # Core coordination services
+│   │   │   │   │   │   ├── swarmStateMachine.ts        # Main swarm orchestrator
+│   │   │   │   │   │   ├── completionService.ts        # AI response coordination
+│   │   │   │   │   │   ├── promptEngine.ts             # Dynamic prompt generation
+│   │   │   │   │   │   ├── teamManager.ts              # Team formation & management
+│   │   │   │   │   │   └── goalDecomposer.ts           # Strategic goal breakdown
+│   │   │   │   │   ├── intelligence/                   # Metacognitive reasoning
+│   │   │   │   │   │   ├── reasoningEngine.ts          # Core AI reasoning loop
+│   │   │   │   │   │   ├── strategySelector.ts         # Strategy selection logic
+│   │   │   │   │   │   ├── patternRecognizer.ts        # Pattern learning system
+│   │   │   │   │   │   └── improvementTracker.ts       # Continuous improvement
+│   │   │   │   │   ├── communication/                  # Multi-agent coordination
+│   │   │   │   │   │   ├── agentGraph.ts               # Agent relationship mapping
+│   │   │   │   │   │   ├── messageRouter.ts            # Inter-agent messaging
+│   │   │   │   │   │   ├── consensusBuilder.ts         # Group decision making
+│   │   │   │   │   │   └── conflictResolver.ts         # Conflict resolution
+│   │   │   │   │   ├── organization/                   # MOISE+ organizational modeling
+│   │   │   │   │   │   ├── moiseSerializer.ts          # MOISE+ spec handling
+│   │   │   │   │   │   ├── roleManager.ts              # Role definitions & assignment
+│   │   │   │   │   │   ├── hierarchyBuilder.ts         # Team hierarchy construction
+│   │   │   │   │   │   └── normEnforcer.ts             # Organizational norm enforcement
+│   │   │   │   │   └── tools/                          # MCP tool implementations
+│   │   │   │   │       ├── mcpToolRunner.ts            # MCP tool execution
+│   │   │   │   │       ├── swarmStateTools.ts          # Swarm state manipulation tools
+│   │   │   │   │       ├── resourceTools.ts            # Resource management tools
+│   │   │   │   │       └── eventTools.ts               # Event subscription tools
+│   │   │   │   │
+│   │   │   │   ├── tier2/                              # ⚙️ TIER 2: Process Intelligence
+│   │   │   │   │   ├── orchestration/                  # Core process orchestration
+│   │   │   │   │   │   ├── runStateMachine.ts          # Main routine orchestrator
+│   │   │   │   │   │   ├── stepCoordinator.ts          # Step execution coordination
+│   │   │   │   │   │   ├── branchManager.ts            # Parallel branch management
+│   │   │   │   │   │   ├── dependencyResolver.ts       # Step dependency resolution
+│   │   │   │   │   │   └── progressTracker.ts          # Execution progress monitoring
+│   │   │   │   │   ├── navigation/                     # Navigator registry & management
+│   │   │   │   │   │   ├── navigatorRegistry.ts        # Plugin navigator registry
+│   │   │   │   │   │   ├── bpmnNavigator.ts            # BPMN workflow navigator
+│   │   │   │   │   │   ├── langchainNavigator.ts       # Langchain navigator
+│   │   │   │   │   │   ├── customNavigator.ts          # Custom workflow navigator
+│   │   │   │   │   │   └── navigatorAdapter.ts         # Navigator interface adapter
+│   │   │   │   │   ├── intelligence/                   # Process optimization & learning
+│   │   │   │   │   │   ├── pathOptimizer.ts            # Execution path optimization
+│   │   │   │   │   │   ├── performanceAnalyzer.ts      # Process performance analysis
+│   │   │   │   │   │   ├── bottleneckDetector.ts       # Process bottleneck detection
+│   │   │   │   │   │   └── evolutionTracker.ts         # Strategy evolution tracking
+│   │   │   │   │   ├── context/                        # Context lifecycle management
+│   │   │   │   │   │   ├── contextManager.ts           # Run context lifecycle
+│   │   │   │   │   │   ├── blackboardManager.ts        # Shared memory management
+│   │   │   │   │   │   ├── variableResolver.ts         # Variable resolution
+│   │   │   │   │   │   └── scopeManager.ts             # Context scope management
+│   │   │   │   │   ├── persistence/                    # State persistence & recovery
+│   │   │   │   │   │   ├── statePersistor.ts           # State persistence service
+│   │   │   │   │   │   ├── checkpointManager.ts        # Execution checkpointing
+│   │   │   │   │   │   ├── recoveryManager.ts          # Failure recovery
+│   │   │   │   │   │   └── migrationHandler.ts         # State migration handling
+│   │   │   │   │   └── validation/                     # Input/output validation
+│   │   │   │   │       ├── stepValidator.ts            # Step input validation
+│   │   │   │   │       ├── flowValidator.ts            # Workflow validation
+│   │   │   │   │       ├── schemaValidator.ts          # Schema validation
+│   │   │   │   │       └── securityValidator.ts        # Security validation
+│   │   │   │   │
+│   │   │   │   ├── tier3/                              # 🛠️ TIER 3: Execution Intelligence
+│   │   │   │   │   ├── engine/                         # Core execution engine
+│   │   │   │   │   │   ├── unifiedExecutor.ts          # Main execution coordinator
+│   │   │   │   │   │   ├── stepExecutor.ts             # Individual step execution
+│   │   │   │   │   │   ├── toolIntegrator.ts           # Tool integration layer
+│   │   │   │   │   │   ├── resultProcessor.ts          # Execution result processing
+│   │   │   │   │   │   └── errorHandler.ts             # Execution error handling
+│   │   │   │   │   ├── strategies/                     # Execution strategies
+│   │   │   │   │   │   ├── strategyFactory.ts          # Strategy selection factory
+│   │   │   │   │   │   ├── conversationalStrategy.ts   # Conversational execution
+│   │   │   │   │   │   ├── reasoningStrategy.ts        # Reasoning-based execution
+│   │   │   │   │   │   ├── deterministicStrategy.ts    # Deterministic execution
+│   │   │   │   │   │   └── strategyEvolution.ts        # Strategy learning & evolution
+│   │   │   │   │   ├── intelligence/                   # Execution learning & adaptation
+│   │   │   │   │   │   ├── outcomeAnalyzer.ts          # Execution outcome analysis
+│   │   │   │   │   │   ├── adaptationEngine.ts         # Strategy adaptation
+│   │   │   │   │   │   ├── feedbackProcessor.ts        # Feedback processing
+│   │   │   │   │   │   └── learningTracker.ts          # Learning progress tracking
+│   │   │   │   │   ├── tools/                          # Tool execution & management
+│   │   │   │   │   │   ├── toolRunner.ts               # Tool execution service
+│   │   │   │   │   │   ├── toolRegistry.ts             # Available tools registry
+│   │   │   │   │   │   ├── sandboxManager.ts           # Sandboxed execution
+│   │   │   │   │   │   ├── apiIntegrator.ts            # API integration tools
+│   │   │   │   │   │   └── codeExecutor.ts             # Code execution tools
+│   │   │   │   │   └── context/                       # Execution context management
+│   │   │   │   │       ├── executionContext.ts         # Step execution context
+│   │   │   │   │       ├── resourceTracker.ts          # Resource usage tracking
+│   │   │   │   │       ├── creditsManager.ts           # Credits & billing
+│   │   │   │   │       └── environmentManager.ts       # Execution environment
+│   │   │   │   │
+│   │   │   │   ├── cross-cutting/                      # 🌐 Cross-Cutting Concerns
+│   │   │   │   │   ├── events/                         # Event-driven intelligence
+│   │   │   │   │   │   ├── eventBus.ts                 # Event bus implementation
+│   │   │   │   │   │   ├── eventRouter.ts              # Event routing service
+│   │   │   │   │   │   ├── eventStorage.ts             # Event persistence
+│   │   │   │   │   │   ├── eventAnalytics.ts           # Event stream analytics
+│   │   │   │   │   │   └── eventAgents/                # Intelligent event consumers
+│   │   │   │   │   │       ├── securityAgent.ts        # Security event processing
+│   │   │   │   │   │       ├── qualityAgent.ts         # Quality event processing
+│   │   │   │   │   │       ├── optimizationAgent.ts    # Optimization events
+│   │   │   │   │   │       └── monitoringAgent.ts      # Monitoring events
+│   │   │   │   │   ├── security/                       # Security & safety framework
+│   │   │   │   │   │   ├── guardRails.ts               # Synchronous guard rails
+│   │   │   │   │   │   ├── barrierSync.ts              # Barrier synchronization
+│   │   │   │   │   │   ├── threatDetector.ts           # Threat detection
+│   │   │   │   │   │   ├── complianceChecker.ts        # Compliance validation
+│   │   │   │   │   │   └── emergencyStop.ts            # Emergency stop system
+│   │   │   │   │   ├── resources/                      # Resource management
+│   │   │   │   │   │   ├── resourceManager.ts          # Resource allocation
+│   │   │   │   │   │   ├── creditTracker.ts            # Credit tracking
+│   │   │   │   │   │   ├── limitEnforcer.ts            # Limit enforcement
+│   │   │   │   │   │   ├── costOptimizer.ts            # Cost optimization
+│   │   │   │   │   │   └── usageAnalyzer.ts            # Usage analysis
+│   │   │   │   │   ├── monitoring/                     # Observability & analytics
+│   │   │   │   │   │   ├── metricsCollector.ts         # Metrics collection
+│   │   │   │   │   │   ├── healthMonitor.ts            # System health monitoring
+│   │   │   │   │   │   ├── performanceTracker.ts       # Performance tracking
+│   │   │   │   │   │   ├── alertManager.ts             # Alert management
+│   │   │   │   │   │   └── dashboardService.ts         # Monitoring dashboard
+│   │   │   │   │   ├── communication/                  # Inter-tier communication
+│   │   │   │   │   │   ├── messageQueue.ts             # Message queue system
+│   │   │   │   │   │   ├── protocolHandler.ts          # Communication protocols
+│   │   │   │   │   │   ├── serializer.ts               # Message serialization
+│   │   │   │   │   │   └── interfaceAdapter.ts         # Tier interface adaptation
+│   │   │   │   │   ├── ai-services/                    # AI model management
+│   │   │   │   │   │   ├── modelManager.ts             # Multi-provider model mgmt
+│   │   │   │   │   │   ├── fallbackChains.ts           # Model fallback handling
+│   │   │   │   │   │   ├── costOptimizer.ts            # Model cost optimization
+│   │   │   │   │   │   ├── qualityTracker.ts           # Model quality tracking
+│   │   │   │   │   │   └── providerAdapters/           # Provider-specific adapters
+│   │   │   │   │   │       ├── openaiAdapter.ts        # OpenAI integration
+│   │   │   │   │   │       ├── anthropicAdapter.ts     # Anthropic integration
+│   │   │   │   │   │       └── localAdapter.ts         # Local model integration
+│   │   │   │   │   ├── knowledge/                      # Knowledge management
+│   │   │   │   │   │   ├── knowledgeBase.ts            # Unified knowledge system
+│   │   │   │   │   │   ├── vectorStore.ts              # Vector storage & retrieval
+│   │   │   │   │   │   ├── semanticSearch.ts           # Semantic search
+│   │   │   │   │   │   ├── knowledgeGraph.ts           # Knowledge graph
+│   │   │   │   │   │   └── learningAggregator.ts       # Cross-system learning
+│   │   │   │   │   └── resilience/                     # Fault tolerance & recovery
+│   │   │   │   │       ├── circuitBreaker.ts           # Circuit breaker pattern
+│   │   │   │   │       ├── retryManager.ts             # Retry logic
+│   │   │   │   │       ├── errorClassifier.ts          # Error classification
+│   │   │   │   │       ├── recoveryStrategies.ts       # Recovery strategies
+│   │   │   │   │       └── gracefulDegradation.ts      # Graceful degradation
+│   │   │   │   │
+│   │   │   │   ├── integration/                       # 🔌 External Service Management & API Bootstrapping
+│   │   │   │   │   ├── api/                           # Core API Handlers (REST, GQL, WS, Webhooks)
+│   │   │   │   │   │   ├── rest/                      # REST API handlers
+│   │   │   │   │   │   ├── graphql/                   # GraphQL resolvers
+│   │   │   │   │   │   ├── websocket/                 # WebSocket handlers
+│   │   │   │   │   │   └── webhooks/                  # Webhook handlers
+│   │   │   │   │   ├── mcp/                           # Model Context Protocol
+│   │   │   │   │   │   ├── mcpServer.ts               # MCP server implementation
+│   │   │   │   │   │   ├── toolProviders/             # MCP tool providers
+│   │   │   │   │   │   └── clientAdapters/            # MCP client adapters
+│   │   │   │   │   └── externalServiceManager.ts      # Manages API keys & OAuth (see docs/architecture/external-integrations)
+│   │   │   │   │
+│   │   │   │   └── __test/                            # 🧪 Comprehensive Test Suite
+│   │   │   │       ├── unit/                          # Unit tests by tier
+│   │   │   │       │   ├── tier1/                     # Tier 1 unit tests
+│   │   │   │       │   ├── tier2/                     # Tier 2 unit tests
+│   │   │   │       │   └── tier3/                     # Tier 3 unit tests
+│   │   │   │       ├── integration/                   # Integration tests
+│   │   │   │       │   ├── tier-integration/          # Cross-tier integration
+│   │   │   │       │   ├── event-flow/                # Event system integration
+│   │   │   │       │   └── end-to-end/                # Full system integration
+│   │   │   │       ├── performance/                   # Performance & load tests
+│   │   │   │       │   ├── benchmark/                 # Benchmarking tests
+│   │   │   │       │   ├── stress/                    # Stress testing
+│   │   │   │       │   └── scalability/               # Scalability testing
+│   │   │   │       ├── fixtures/                      # Test data & fixtures
+│   │   │   │       │   ├── routines/                  # Sample routines
+│   │   │   │       │   ├── workflows/                 # Sample workflows
+│   │   │   │       │   └── contexts/                  # Sample contexts
+│   │   │   │       └── utils/                         # Test utilities
+│   │   │   │           ├── mocks/                     # Mock implementations
+│   │   │   │           ├── builders/                  # Test data builders
+│   │   │   │           └── helpers/                   # Test helper functions
+│   │   │   │
+│   │   │   └── ... (other services)
+│   │   └── ...
+│   └── ...
 │
-├── coordination/                           # Tier 1: Coordination Intelligence
-│   ├── orchestrator/
-│   │   ├── swarmOrchestrator.ts          # Central coordinator
-│   │   ├── teamManager.ts                # Team composition
-│   │   ├── goalDecomposer.ts             # Objective breakdown
-│   │   └── resourceAllocator.ts          # Resource management
-│   │
-│   ├── intelligence/
-│   │   ├── strategyEngine.ts             # Strategic planning
-│   │   ├── adaptationManager.ts          # Strategy adjustment
-│   │   └── contextManager.ts             # Shared knowledge
-│   │
-│   └── communication/
-│       ├── collaborationEngine.ts        # Multi-agent coordination
-│       └── messagingService.ts           # Information sharing
-│
-├── process/                               # Tier 2: Process Intelligence (RunStateMachine)
-│   ├── stateMachine/
-│   │   ├── runStateMachine.ts            # Universal routine orchestrator
-│   │   ├── branchController.ts           # Concurrent execution & synchronization
-│   │   ├── stateManager.ts               # State persistence & recovery
-│   │   └── processManager.ts             # Routine navigation & tracking
-│   │
-│   ├── navigation/                        # Navigator Registry - Plug & Play
-│   │   ├── navigatorFactory.ts           # Navigator selection & registry
-│   │   ├── interfaces.ts                 # IRoutineStepNavigator interface
-│   │   └── navigators/                   # Pluggable routine navigators
-│   │       ├── bpmnNavigator.ts          # BPMN 2.0 support
-│   │       ├── langchainNavigator.ts     # Langchain/LangGraph support
-│   │       ├── temporalNavigator.ts      # Temporal routine support
-│   │       ├── airflowNavigator.ts       # Apache Airflow DAG support
-│   │       └── n8nNavigator.ts           # n8n routine support
-│   │
-│   ├── intelligence/
-│   │   ├── pathSelectionHandler.ts       # Decision making & path optimization
-│   │   └── runLimitsManager.ts           # Resource limits & credit tracking
-│   │
-│   ├── context/
-│   │   ├── subroutineContextManager.ts   # Context lifecycle management
-│   │   ├── RunContextManager.ts    # Context integration utilities
-│   │   └── contextTypes.ts               # Context type definitions
-│   │
-│   ├── persistence/
-│   │   ├── runPersistence.ts             # State persistence & progress tracking
-│   │   ├── runLoader.ts                  # Routine & location loading
-│   │   └── runNotifier.ts                # Progress notifications & events
-│   │
-│   └── integration/
-│       └── subroutineExecutor.ts         # Bridge to Tier 3 (UnifiedExecutor)
-│
-├── execution/                             # Tier 3: Execution Intelligence
-│   ├── engine/
-│   │   ├── unifiedExecutor.ts            # Strategy coordinator
-│   │   ├── toolOrchestrator.ts           # Tool integration
-│   │   ├── resourceManager.ts            # Resource tracking
-│   │   └── validationEngine.ts           # Quality assurance
-│   │
-│   ├── strategies/
-│   │   ├── conversationalStrategy.ts     # Natural language processing
-│   │   ├── reasoningStrategy.ts          # Structured analysis
-│   │   ├── deterministicStrategy.ts      # Reliable automation
-│   │   └── strategyFactory.ts            # Strategy selection
-│   │
-│   ├── intelligence/
-│   │   ├── learningEngine.ts             # Performance analysis
-│   │   └── adaptationService.ts          # Dynamic optimization
-│   │
-│   └── context/
-│       ├── runContext.ts           # Base execution context
-│       ├── routineContext.ts             # Routine-specific context
-│       └── ContextExporter.ts          # Cross-tier state sync
-│
-└── api/                                   # External interfaces
-    ├── rest/                              # REST API endpoints
-    ├── graphql/                           # GraphQL schema and resolvers
-    ├── websocket/                         # Real-time communication
-    └── mcp/                               # Model Context Protocol tools
+└── ui/                                                # Frontend integration
+    ├── src/
+    │   ├── execution/                                 # Execution UI components
+    │   │   ├── components/                            # React components
+    │   │   │   ├── SwarmDashboard/                    # Swarm monitoring dashboard
+    │   │   │   ├── RoutineBuilder/                    # Visual routine builder
+    │   │   │   ├── ExecutionMonitor/                  # Real-time execution monitoring
+    │   │   │   └── EventViewer/                       # Event stream visualization
+    │   │   ├── hooks/                                 # React hooks for execution
+    │   │   │   ├── useSwarmState.ts                   # Swarm state management
+    │   │   │   ├── useExecution.ts                    # Execution monitoring
+    │   │   │   └── useEvents.ts                       # Event stream handling
+    │   │   ├── stores/                                # State management
+    │   │   │   ├── swarmStore.ts                      # Swarm state store
+    │   │   │   ├── executionStore.ts                  # Execution state store
+    │   │   │   └── eventStore.ts                      # Event state store
+    │   │   └── types/                                 # Frontend-specific types
+    │   │       ├── ui.ts                              # UI component types
+    │   │       └── store.ts                           # Store types
+    │   └── ...
+    └── ...
 ```
 
-See [Success Metrics and KPIs](success-metrics.md) for how Vrooli's success is measured.
+### 🎯 **Key Organizational Principles**
 
-Refer to the [Future Expansion Roadmap](future-expansion-roadmap.md) for the long-term vision.
+**1. Clear Tier Separation**
+- Each tier has its own directory with focused responsibilities
+- Cross-tier communication happens through well-defined interfaces
+- Shared concerns are isolated in the `cross-cutting` directory
 
-## Conclusion
+**2. Domain-Driven Structure**  
+- Components are grouped by domain (coordination, orchestration, execution)
+- Related functionality is co-located for easier maintenance
+- Clear separation of concerns within each domain
 
-This architecture creates a foundation for recursive self-improvement by:
+**3. Pluggable Architecture**
+- Navigators, strategies, and agents are pluggable components
+- Clear interfaces enable easy extension and customization
+- Provider adapters allow switching between different implementations
 
-1. **Establishing Clear Hierarchy**: Teams → Swarms → Agents → Routines provides structure for intelligence at every level
-2. **Enabling Evolution**: Routines naturally evolve from conversational to deterministic as patterns emerge
-3. **Facilitating Knowledge Sharing**: Every improvement benefits the entire ecosystem
-4. **Supporting Scaling**: Distributed architecture handles enterprise-scale workloads
-5. **Ensuring Quality**: Comprehensive monitoring and continuous improvement
+**4. Comprehensive Testing**
+- Tests are organized by scope (unit, integration, performance)
+- Test fixtures and utilities support reliable testing
+- Performance and scalability testing are first-class concerns
 
-The result is not just another automation platform, but a **compound intelligence system** where capabilities grow exponentially as agents and swarms learn from each other, build better tools, and create more sophisticated routines.
+**5. Frontend Integration**
+- UI components mirror backend architecture for consistency
+- Reactive state management for real-time execution monitoring
+- Event-driven updates for responsive user experience
 
-This architecture makes Vrooli's vision of "orchestrating AI agents for complex tasks" not just achievable, but inevitable - creating a path to truly autonomous, self-improving artificial intelligence that enhances human capabilities rather than replacing them. 
+This structure supports our vision of **recursive self-improvement** by making it easy to:
+- Add new strategies and agents
+- Extend cross-cutting capabilities  
+- Monitor and optimize performance
+- Integrate with external platforms
+- Test and validate improvements
+
+---
 

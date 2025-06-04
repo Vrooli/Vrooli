@@ -1,6 +1,6 @@
 # Communication Patterns
 
-This document is the authoritative source for defining the four primary communication patterns used across Vrooli's three-tier execution architecture. It also provides the decision framework for pattern selection and examples of their coordination.
+This document is the authoritative source for defining the primary communication patterns used across Vrooli's three-tier execution architecture. It also provides the decision framework for pattern selection and examples of their coordination.
 
 **Prerequisites**: 
 - Read [README.md](README.md) for architectural context and navigation to other relevant documents.
@@ -8,7 +8,7 @@ This document is the authoritative source for defining the four primary communic
 
 ## Pattern Overview
 
-Communication in Vrooli follows four primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
+Communication in Vrooli follows five primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
 
 | Pattern                      | Use Case                             |
 |------------------------------|--------------------------------------|
@@ -16,6 +16,7 @@ Communication in Vrooli follows four primary patterns, each optimized for differ
 | **Direct Service Interface** | T2→T3 high-performance execution     |
 | **Event-Driven Messaging**   | Cross-tier async coordination        |
 | **State Synchronization**    | Distributed state management         |
+| **Emergency Control Channel** | T1↔T3 emergency control and overrides |
 
 
 ### 1. **MCP Tool Communication (Tier 1 → Tier 2)**
@@ -40,25 +41,59 @@ Communication in Vrooli follows four primary patterns, each optimized for differ
 - **Protocol**: Multi-tier caching with eventual consistency using [RunContext and Context Management Interfaces](../types/core-types.ts). Detailed in [State Synchronization](../context-memory/state-synchronization.md).
 - **Error Handling**: Coordinated by the [State Synchronization](../context-memory/state-synchronization.md) mechanisms and the [Error Propagation Framework](../resilience/error-propagation.md).
 
+### 5. **Emergency Control Channel (Tier 1 ↔ Tier 3)**
+- **Purpose**: Direct emergency control and safety enforcement bypassing normal T1→T2→T3 flow.
+- **Protocol**: Direct communication for emergency stop, resource limit enforcement, and safety policy application.
+- **Use Cases**: Resource limit violations, safety violations, emergency stops, system overload conditions.
+- **Error Handling**: Immediate response required; handled via [Emergency Response Framework](../resilience/error-propagation.md#emergency-scenarios).
+
+#### **Emergency Control Channel Implementation**
+
+```mermaid
+sequenceDiagram
+    participant T1 as SwarmStateMachine
+    participant T3 as UnifiedExecutor
+    participant Safety as SafetyGuardRails
+
+    Note over T1,T3: Emergency Scenarios
+    
+    alt Resource limit exceeded
+        T3->>Safety: detectResourceViolation(usage)
+        Safety->>T1: emergencyStop(reason, runId)
+        T1->>T3: forceStop(runId)
+        T3-->>T1: stopped()
+    end
+    
+    alt Safety violation
+        T3->>Safety: detectSafetyViolation(content)
+        Safety->>T1: safetyAlert(severity, details)
+        T1->>T3: enforceSafetyPolicy(policy)
+        T3-->>T1: acknowledged()
+    end
+```
+
 ## Communication Decision Matrix
 
 **Use this matrix systematically to ensure appropriate pattern selection for optimal performance and reliability.**
 
-| Operation Type | T1→T2 | T2→T3 | Cross-Tier Events | State Management |
-|----------------|-------|-------|-------------------|------------------|
-| **Routine Execution** | Tool Routing | Direct Interface | Lifecycle Events | Context Inheritance |
-| **Step Execution** | N/A | Direct Interface | Progress Events | State Updates |
-| **Resource Management** | Tool Routing | Direct Interface | Notification Events | Budget Allocation |
-| **Error Handling** | Tool Routing + Events | Direct Interface + Events | Error Escalation | Recovery State |
-| **Monitoring** | Events | Events | Performance Events | Metrics Collection |
-| **Security Validation** | Security Interface | Security Interface | Audit Events | Permission Propagation |
-| **Emergency Stop** | Emergency Interface | Emergency Interface | Broadcast Events | Emergency Checkpoint |
+| Operation Type | T1→T2 | T2→T3 | Cross-Tier Events | State Management | Emergency Control |
+|----------------|-------|-------|-------------------|------------------|-------------------|
+| **Routine Execution** | Tool Routing | Direct Interface | Lifecycle Events | Context Inheritance | Emergency Stop |
+| **Step Execution** | N/A | Direct Interface | Progress Events | State Updates | Force Termination |
+| **Resource Management** | Tool Routing | Direct Interface | Notification Events | Budget Allocation | Limit Enforcement |
+| **Error Handling** | Tool Routing + Events | Direct Interface + Events | Error Escalation | Recovery State | Emergency Response |
+| **Monitoring** | Events | Events | Performance Events | Metrics Collection | Critical Alerts |
+| **Security Validation** | Security Interface | Security Interface | Audit Events | Permission Propagation | Safety Override |
+| **Emergency Stop** | Emergency Interface | Emergency Interface | Broadcast Events | Emergency Checkpoint | Immediate Control |
 
 ### **Pattern Selection Algorithm**
 
 ```mermaid
 flowchart TD
-    Start[Communication Required] --> SourceTier{Source Tier?}
+    Start[Communication Required] --> Emergency{Emergency<br/>Condition?}
+    Emergency -->|Yes| EmergencyPattern[Emergency Control Channel<br/>⚡ Immediate T1↔T3 control<br/>🛡️ Safety enforcement<br/>🚨 Resource violations]
+    
+    Emergency -->|No| SourceTier{Source Tier?}
     
     SourceTier -->|T1| TargetT1{Target Tier?}
     SourceTier -->|T2| TargetT2{Target Tier?}
@@ -82,23 +117,29 @@ flowchart TD
     DirectPattern --> PerformanceCheck
     EventPattern --> PerformanceCheck
     StatePattern --> PerformanceCheck
+    EmergencyPattern --> EmergencyValidation{Emergency<br/>Response Time?}
     
     PerformanceCheck -->|High Performance| ValidateLatency{Latency<br/>< 50ms?}
     PerformanceCheck -->|Standard| ValidateStandard{Standard<br/>Requirements?}
     
+    EmergencyValidation -->|<1ms Required| UseEmergency[Use Emergency Channel]
+    EmergencyValidation -->|>1ms Acceptable| OptimizePattern[Optimize or Use Alternative]
+    
     ValidateLatency -->|Yes| UseDirect[Use Direct Interface]
-    ValidateLatency -->|No| OptimizePattern[Optimize Pattern<br/>or Use Alternative]
+    ValidateLatency -->|No| OptimizePattern
     
     ValidateStandard -->|Met| UseSelected[Use Selected Pattern]
     ValidateStandard -->|Not Met| OptimizePattern
     
     classDef pattern fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef emergency fill:#ffebee,stroke:#c62828,stroke-width:3px
     classDef decision fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     classDef performance fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
     
     class ToolPattern,DirectPattern,EventPattern,StatePattern pattern
-    class SourceTier,TargetT1,TargetT2,TargetT3,StateNeeded decision
-    class PerformanceCheck,ValidateLatency,ValidateStandard performance
+    class EmergencyPattern emergency
+    class SourceTier,TargetT1,TargetT2,TargetT3,StateNeeded,Emergency decision
+    class PerformanceCheck,ValidateLatency,ValidateStandard,EmergencyValidation performance
 ```
 
 **Decision Support Tools**:
@@ -106,6 +147,27 @@ When making decisions based on this matrix, refer to the authoritative documents
 - **Resource Conflicts**: [Resource Conflict Resolution Algorithm](../resource-management/resource-conflict-resolution.md)
 - **Error Handling & Recovery**: [Error Classification Decision Tree](../resilience/error-classification-severity.md) and [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
 - **Integration Validation**: [Integration Map and Validation Procedures](integration-map.md)
+
+## Performance Characteristics
+
+### **Communication Latency Targets**
+
+| Communication Type | Expected Latency | Max Acceptable | Timeout |
+|-------------------|------------------|----------------|---------|
+| **T1 → T2 Tool Routing** | <10ms | 50ms | 5s |
+| **T2 → T3 Step Execution** | <5ms | 20ms | 30s |
+| **T1 ↔ T3 Emergency** | <1ms | 5ms | 1s |
+| **Event Propagation** | <2ms | 10ms | N/A |
+| **State Synchronization** | Variable | 1s | 30s |
+
+### **Throughput Characteristics**
+
+| Tier Communication | Messages/Second | Batch Size | Queue Depth |
+|--------------------|-----------------|------------|-------------|
+| **T1 → T2** | 1,000 | 10 | 100 |
+| **T2 → T3** | 10,000 | 5 | 50 |
+| **T1 ↔ T3 Emergency** | 100 | 1 | 10 |
+| **Events (All Tiers)** | 5,000 | 20 | 200 |
 
 ## Pattern Coordination Example
 
@@ -121,8 +183,9 @@ sequenceDiagram
     participant T2 as Tier 2 Service
     participant T3 as Tier 3 Executor
     participant State as State Store
+    participant Safety as Safety System
 
-    Note over Agent,State: All Communication Patterns Working Together
+    Note over Agent,Safety: All Communication Patterns Working Together
 
     %% 1. Tool Routing Communication (T1→T2)
     Agent->>ToolRunner: Tool call (run_routine)
@@ -141,6 +204,16 @@ sequenceDiagram
         T3->>State: Update step state
         T3->>EB: Publish step/completed event
         T3-->>T2: StepExecutionResult
+        
+        %% 5. Emergency Control Channel (if needed)
+        alt Emergency condition detected
+            T3->>Safety: detectEmergencyCondition()
+            Safety->>Agent: emergencyStop(runId, reason)
+            Note right of Safety: Pattern: Emergency Control Channel
+            Agent->>T3: forceStop(runId)
+            T3-->>Agent: stopped()
+            break Emergency stop executed
+        end
     end
 
     %% 3. Event-driven coordination
@@ -159,7 +232,7 @@ sequenceDiagram
     McpRunner-->>ToolRunner: ToolCallResult
     ToolRunner-->>Agent: Tool execution result
 
-    Note over Agent,State: Pattern Performance Targets Met:<br/>Refer to [Performance Characteristics](../monitoring/performance-characteristics.md) for specific targets.<br/>Tool Routing, Direct Interface, Event-Driven, and State Synchronization patterns work in concert.
+    Note over Agent,Safety: Pattern Performance Targets Met:<br/>Refer to [Performance Characteristics](../monitoring/performance-characteristics.md) for specific targets.<br/>All five communication patterns work in concert for robust operation.
 ```
 
 ## Error Handling Across Patterns
@@ -168,6 +241,7 @@ Error handling for all communication patterns is managed by the [Error Propagati
 - Systematic error classification using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
 - Consistent recovery strategy selection via the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
 - Specific protocols for how errors are handled and propagated within each communication pattern (e.g., MCP error responses, direct interface error objects, event bus dead-lettering, state sync rollbacks).
+- **Emergency response protocols** for critical failures requiring immediate T1↔T3 coordination.
 
 Refer to [Error Propagation Across Communication Patterns](../resilience/error-propagation.md#error-handling-across-communication-patterns) for comprehensive cross-pattern error coordination details.
 

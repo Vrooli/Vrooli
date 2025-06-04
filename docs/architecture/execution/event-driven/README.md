@@ -477,4 +477,4 @@ const deployedAgent = await deployAgentFromMarketplace({
 - **[Security Architecture](../security/README.md)** - Security event processing
 - **[Types System](../types/core-types.ts)** - Event interface definitions
 
-> This event-driven intelligence architecture ensures that Vrooli becomes more intelligent and capable over time, not through system updates, but through the **collective intelligence of specialized agents** that teams deploy, refine, and share with each other. 
+> ℹ️ This event-driven intelligence architecture ensures that Vrooli becomes more intelligent and capable over time, not through system updates, but through the **collective intelligence of specialized agents** that teams deploy, refine, and share with each other. 

@@ -829,7 +829,7 @@ interface RunContext {
 
 **Context Inheritance**: The system maintains a clear hierarchical flow where each level inherits appropriate context from its parent while maintaining security boundaries. Performance tracking, learning, and optimization are handled by specialized agents that subscribe to execution events rather than being embedded in the execution context itself.
 
-> See the [Context and Memory Architecture](#context-and-memory-architecture) section for details on how context as a whole is managed and persisted.
+> ℹ️ See the [Context and Memory Architecture](#context-and-memory-architecture) section for details on how context as a whole is managed and persisted.
 
 ## **Runtime Resource Accounting**
 

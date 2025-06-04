@@ -1289,11 +1289,36 @@ INSERT INTO external_service_provider (name, identifier, type, oauth_scopes, sup
 - **[Security Guidelines](../../security/)** - Security best practices and implementation
 - **[OAuth Setup Guide](../../setup/oauth_setup.md)** - OAuth provider configuration
 
+## **Dynamic Integration via Emergent API Bootstrapping**
+
+A key capability enabled by the External Integrations architecture is its support for **Emergent API Bootstrapping**. This pattern allows swarms to autonomously discover, create, and deploy new API integrations using routines, effectively extending Vrooli's reach to new external services and data sources without needing new adapter code or application restarts.
+
+The API keys and OAuth connections managed by this External Integrations layer provide the necessary credentials, while the routines define the interaction patterns. This synergistic approach allows for dynamic and flexible expansion of Vrooli's integration capabilities.
+
+For a detailed explanation of this process, see the [Emergent API Bootstrapping Through Routine Composition](../execution/bootstrapping/api.md) documentation.
+
 ## External References
 
-- [OAuth 2.0 Authorization Framework](https://tools.ietf.org/html/rfc6749) - Official OAuth specification
-- [OAuth 2.0 Security Best Practices](https://tools.ietf.org/html/draft-ietf-oauth-security-topics) - Security guidelines
-- [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html) - Identity layer on OAuth 2.0
-- [Best Practices for REST API Security](https://stackoverflow.blog/2021/10/06/best-practices-for-authentication-and-authorization-for-rest-apis/) - REST API authentication
-- [OWASP API Security Top 10](https://owasp.org/www-project-api-security/) - API security best practices
-- [IBM Integration Overview](https://www.ibm.com/docs/en/dbaoc?topic=services-overview-integrating-external) - Enterprise integration patterns 
+- [OAuth 2.0 Authorization Framework]
+(https://tools.ietf.org/html/rfc6749) - 
+Official OAuth specification
+- [OAuth 2.0 Security Best Practices]
+(https://tools.ietf.org/html/
+draft-ietf-oauth-security-topics) - 
+Security guidelines
+- [OpenID Connect Core 1.0](https://
+openid.net/specs/
+openid-connect-core-1_0.html) - 
+Identity layer on OAuth 2.0
+- [Best Practices for REST API Security]
+(https://stackoverflow.blog/2021/10/06/
+best-practices-for-authentication-and-au
+thorization-for-rest-apis/) - REST API 
+authentication
+- [OWASP API Security Top 10](https://
+owasp.org/www-project-api-security/) - 
+API security best practices
+- [IBM Integration Overview](https://
+www.ibm.com/docs/en/dbaoc?
+topic=services-overview-integrating-exte
+rnal) - Enterprise integration patterns
