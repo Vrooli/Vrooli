@@ -756,19 +756,19 @@ describe('Accessibility', () => {
 
 ```bash
 # Install dependencies
-yarn install
+pnpm install
 
 # Start development server
-yarn dev
+pnpm dev
 
 # Run tests
-yarn test
+pnpm test
 
 # Build for production
-yarn build
+pnpm build
 
 # Component development with Storybook
-yarn storybook
+pnpm storybook
 ```
 
 ### Development Tools
@@ -821,7 +821,7 @@ export function MyComponent({ title, onAction }: MyComponentProps) {
 
 ```bash
 # Production build
-yarn build
+pnpm build
 
 # Lighthouse audit
 lighthouse http://localhost:3000 --view
@@ -858,7 +858,7 @@ npm run package:linux
 ```bash
 # Extension build
 cd packages/extension
-yarn build
+pnpm build
 
 # Chrome Web Store package
 zip -r vrooli-extension.zip dist/

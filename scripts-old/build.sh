@@ -43,7 +43,7 @@ if is_yes "$API_GENERATE"; then
 fi
 
 # Build React app
-run_step "Building React app" "yarn build"
+run_step "Building React app" "pnpm build"
 
 # Normalize UI_URL to ensure it ends with exactly one "/"
 export UI_URL="${UI_URL%/}/"

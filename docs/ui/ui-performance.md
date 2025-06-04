@@ -9,7 +9,7 @@ Below are a few approaches to testing and improving performance.
 - [Lighthouse](https://developers.google.com/web/tools/lighthouse) is an open-source tool for testing any website's (even localhost) performance, accessibility, and Search Engine Optimization (SEO). This can be accessed in Chrome Dev Tools. The tool generates a report in less than a minute, which gives plenty of details and resources that you can look through. This website template is designed to maximize Lighthouse performance by default, but your specific needs may vary. Some places to look at are:  
 - Compress static images - The easiest way to reduce request payloads is by compressing static images. This can be done on many sites, such as [this one for PNGs](https://compresspng.com/) and [this one](https://jakearchibald.github.io/svgomg/) for SVGs.
 - Remove unused dependencies - The easiest way I've found to discover unused dependencies is with [depcheck](https://www.npmjs.com/package/depcheck):    
-    1. In project's root directory, enter `yarn global add depcheck`  
+    1. In project's root directory, enter `pnpm global add depcheck`  
     2. `depcheck` or `npx depcheck`  
     3. Repeat in each package (packages/server, packages/shared, packages/ui)  
 Before removing packages, please make sure that depcheck was correct. If you are only using the package in a Dockerfile, for example, it may not catch it!
@@ -17,15 +17,15 @@ Before removing packages, please make sure that depcheck was correct. If you are
 - Peek inside code bundles - Seeing what's inside the code bundles can help you determine what areas of the code should be lazy loaded, and what is taking the most space. To do this:  
     1. Make sure `sourcemap` is set to `true` in the `vite.config.ts` file.
     1. Navigate to the UI package: `cd packages/ui ` 
-    2. `yarn build`
-    3. `yarn analyze`
+    2. `pnpm build`
+    3. `pnpm analyze`
     4. Open the generated `source-tree.html` file in your browser. This will show you the size of each file in the bundle, and how they are related to each other.
 
 ```mermaid
 graph TD
     A[Set sourcemap = true in vite.config.ts] --> B{In packages/ui directory};
-    B --> C[Run *yarn build*];
-    C --> D[Run *yarn analyze*];
+    B --> C[Run *pnpm build*];
+    C --> D[Run *pnpm analyze*];
     D --> E[Open generated source-tree.html];
     E --> F[Analyze bundle contents];
 ```

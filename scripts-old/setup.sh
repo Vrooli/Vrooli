@@ -2,7 +2,7 @@
 
 setup_development_environment() {
     header "Installing global dependencies"
-    installedPackages=$(yarn global list)
+    installedPackages=$(pnpm global list)
     check_and_add_to_install_list() {
         package="$1"
         version="$2"
@@ -23,7 +23,7 @@ setup_development_environment() {
     check_and_add_to_install_list "vite" "5.2.13"
     # Install all at once if there are packages to install
     if [ ! -z "$toInstall" ]; then
-        yarn global add $toInstall
+        pnpm global add $toInstall
         if [ $? -ne 0 ]; then
             error "Failed to install global dependencies: $toInstall"
             info "Trying to install each package individually..."
@@ -32,7 +32,7 @@ setup_development_environment() {
             # Loop through each package and try to install it individually
             for pkg in "${individualPackages[@]}"; do
                 info "Attempting to install $pkg individually..."
-                yarn global add "$pkg"
+                pnpm global add "$pkg"
                 if [ $? -ne 0 ]; then
                     error "Failed to install $pkg"
                     cd "$ORIGINAL_DIR"

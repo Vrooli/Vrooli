@@ -32,17 +32,17 @@ jobs:
         uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
         with:
           node-version: "18"
-          cache: "yarn"
+          cache: "pnpm"
 
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile # Install dependencies for all workspaces
+        run: pnpm install --frozen-lockfile # Install dependencies for all workspaces
 
       - name: Build TypeScript
         run: |
-          yarn workspace @local/shared build && \
-          yarn workspace @local/server build && \
-          yarn workspace @local/jobs build && \
-          yarn workspace @local/ui build
+          pnpm workspace @local/shared build && \
+          pnpm workspace @local/server build && \
+          pnpm workspace @local/jobs build && \
+          pnpm workspace @local/ui build
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4262713b504983e61c7728f5452be240d3e2b99 # v3.23.0

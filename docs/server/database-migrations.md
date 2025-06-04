@@ -178,8 +178,8 @@ The database is automatically initialized during server startup, but for manual 
 
 ```bash
 cd packages/server
-yarn prisma generate    # Generate Prisma client
-yarn prisma db push     # Push schema to database (development)
+pnpm prisma generate    # Generate Prisma client
+pnpm prisma db push     # Push schema to database (development)
 ```
 
 ## Migration Operations
@@ -191,7 +191,7 @@ yarn prisma db push     # Push schema to database (development)
 2. **Generate Migration**:
    ```bash
    cd packages/server
-   yarn prisma migrate dev --name descriptive_migration_name
+   pnpm prisma migrate dev --name descriptive_migration_name
    ```
 
 3. **Review Generated SQL**: Check the migration file in `src/db/migrations/`
@@ -200,19 +200,19 @@ yarn prisma db push     # Push schema to database (development)
 
 ```bash
 # Check migration status
-yarn prisma migrate status
+pnpm prisma migrate status
 
 # Apply pending migrations
-yarn prisma migrate deploy
+pnpm prisma migrate deploy
 
 # Reset database (development only)
-yarn prisma migrate reset
+pnpm prisma migrate reset
 
 # Create migration without applying
-yarn prisma migrate dev --create-only --name migration_name
+pnpm prisma migrate dev --create-only --name migration_name
 
 # Generate Prisma client after schema changes
-yarn prisma generate
+pnpm prisma generate
 ```
 
 ### Migration File Structure
@@ -262,7 +262,7 @@ private static async seedDatabase(): Promise<void> {
 
 ```bash
 cd packages/server
-yarn prisma db seed
+pnpm prisma db seed
 ```
 
 ### Seed Script Structure
@@ -334,16 +334,16 @@ graph TD
 
 **Problem**: Migrations show as pending or failed
 ```bash
-yarn prisma migrate status
+pnpm prisma migrate status
 ```
 
 **Solution**: Check and resolve migration conflicts:
 ```bash
 # Reset to clean state (development only)
-yarn prisma migrate reset
+pnpm prisma migrate reset
 
 # Or mark specific migrations as applied
-yarn prisma migrate resolve --applied 20240101120000_migration_name
+pnpm prisma migrate resolve --applied 20240101120000_migration_name
 ```
 
 #### 2. Connection Issues
@@ -353,7 +353,7 @@ yarn prisma migrate resolve --applied 20240101120000_migration_name
 **Diagnosis**:
 ```bash
 # Test database connectivity
-yarn prisma db pull
+pnpm prisma db pull
 
 # Check database status in Docker
 docker logs postgres
@@ -370,17 +370,17 @@ docker logs postgres
 
 **Detection**:
 ```bash
-yarn prisma db pull  # Pull current database schema
-yarn prisma validate # Validate schema consistency
+pnpm prisma db pull  # Pull current database schema
+pnpm prisma validate # Validate schema consistency
 ```
 
 **Resolution**:
 ```bash
 # Option 1: Push schema to database (development)
-yarn prisma db push
+pnpm prisma db push
 
 # Option 2: Create migration for differences
-yarn prisma migrate dev --name fix_schema_drift
+pnpm prisma migrate dev --name fix_schema_drift
 ```
 
 #### 4. Seeding Failures
@@ -424,7 +424,7 @@ yarn prisma migrate dev --name fix_schema_drift
 
 1. **Identify Target Migration**:
    ```bash
-   yarn prisma migrate status
+   pnpm prisma migrate status
    ```
 
 2. **Rollback to Specific Migration**:
@@ -432,7 +432,7 @@ yarn prisma migrate dev --name fix_schema_drift
    # This requires manual intervention
    # 1. Restore database from backup taken before problematic migration
    # 2. Mark subsequent migrations as not applied
-   yarn prisma migrate resolve --rolled-back 20240102130000_problematic_migration
+   pnpm prisma migrate resolve --rolled-back 20240102130000_problematic_migration
    ```
 
 ## Best Practices

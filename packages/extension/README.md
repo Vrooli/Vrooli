@@ -38,17 +38,17 @@ extension/
 
 1. Install dependencies:
    ```bash
-   yarn install
+   pnpm install
    ```
 
 2. Start development:
    ```bash
-   yarn dev
+   pnpm dev
    ```
 
 3. Build extension:
    ```bash
-   yarn build
+   pnpm build
    ```
 
 4. Load extension in browser:
@@ -80,19 +80,19 @@ extension/
 ### Development Build
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 ### Production Build
 
 ```bash
-yarn build
+pnpm build
 ```
 
 ### Testing
 
 ```bash
-yarn test
+pnpm test
 ```
 
 ## Browser Support

@@ -71,9 +71,9 @@ before(async function setup() {
     // Apply Prisma migrations and generate client
     try {
         console.info("Applying Prisma migrations...");
-        execSync("yarn prisma migrate deploy", { stdio: "inherit" });
+        execSync("pnpm prisma migrate deploy", { stdio: "inherit" });
         console.info("Generating Prisma client...");
-        execSync("yarn prisma generate", { stdio: "inherit" });
+        execSync("pnpm prisma generate", { stdio: "inherit" });
         console.info("Database setup complete.");
     } catch (error) {
         console.error("Failed to set up database:", error);

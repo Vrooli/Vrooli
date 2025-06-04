@@ -6,7 +6,7 @@ ARG PROJECT_DIR
 WORKDIR ${PROJECT_DIR}
 
 # Copy main package.json, as well as packages this container will use.
-COPY --chown=node:node package.json yarn.lock ./
+COPY --chown=node:node package.json pnpm-lock.yaml ./
 COPY --chown=node:node packages/jobs/package.json packages/jobs/
 COPY --chown=node:node packages/server/package.json packages/server/
 COPY --chown=node:node packages/shared/package.json packages/shared/
@@ -17,15 +17,15 @@ COPY --chown=node:node packages/server/dist packages/server/dist
 COPY --chown=node:node packages/shared/dist packages/shared/dist
 
 # Fix for local dependencies in CI/CD environment
-RUN yarn config set enableLocalWorkspaces true && \
-    # Create .yarnrc file to configure yarn to use workspaces
-    echo "workspaces-experimental true" > .yarnrc && \
+RUN pnpm config set enableLocalWorkspaces true && \
+    # Create .pnpmrc file to configure pnpm to use workspaces
+    echo "workspaces-experimental true" > .pnpmrc && \
     # Install production dependencies
-    yarn install --production
+    pnpm install --production
 
 # Install modclean and clean node_modules.
 # Also install prisma for database migrations.
-RUN yarn global add modclean prisma@6.1.0 --network-timeout 600000
+RUN pnpm global add modclean prisma@6.1.0 --network-timeout 600000
 RUN modclean --run
 
 # Stage 1: Copy required files
@@ -41,5 +41,5 @@ COPY --from=stage0 --chown=node:node ${PROJECT_DIR} ./
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
 
-# Copy global yarn packages from stage 0
-COPY --from=stage0 /usr/local/share/.config/yarn/global /usr/local/share/.config/yarn/global
+# Copy global pnpm packages from stage 0
+COPY --from=stage0 /usr/local/share/.config/pnpm/global /usr/local/share/.config/pnpm/global

@@ -47,22 +47,22 @@ ui/
 
 1. Install dependencies:
    ```bash
-   yarn install
+   pnpm install
    ```
 
 2. Start development server:
    ```bash
-   yarn dev
+   pnpm dev
    ```
 
 3. Run tests:
    ```bash
-   yarn test
+   pnpm test
    ```
 
 4. Build for production:
    ```bash
-   yarn build
+   pnpm build
    ```
 
 ## Development
@@ -129,14 +129,14 @@ const MyComponent = () => {
 ### Development
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 ### Production
 
 ```bash
-yarn build
-yarn serve
+pnpm build
+pnpm serve
 ```
 
 ### Docker
@@ -155,23 +155,23 @@ docker-compose -f docker-compose-prod.yml up ui
 
 - **Unit Tests**: Component and utility testing
   ```bash
-  yarn test:unit
+  pnpm test:unit
   ```
 - **Integration Tests**: Feature testing
   ```bash
-  yarn test:integration
+  pnpm test:integration
   ```
 - **Visual Testing**: Storybook snapshots
   ```bash
-  yarn test:visual
+  pnpm test:visual
   ```
 - **Accessibility Testing**: Automated a11y checks
   ```bash
-  yarn test:a11y
+  pnpm test:a11y
   ```
 - **E2E Tests**: End-to-end testing with Playwright
   ```bash
-  yarn test:e2e
+  pnpm test:e2e
   ```
 
 ## Contributing

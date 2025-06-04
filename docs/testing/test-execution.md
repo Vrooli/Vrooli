@@ -9,7 +9,7 @@ Automated tests are crucial for verifying the functionality of individual compon
 ### 1.1. Prerequisites
 
 -   Ensure your development environment is set up correctly.
--   Ensure all dependencies are installed (`yarn install` in the root and relevant package directories).
+-   Ensure all dependencies are installed (`pnpm install` in the root and relevant package directories).
 -   Ensure environment variables are configured (e.g., `.env-test`).
 
 ### 1.2. Test Commands
@@ -22,7 +22,7 @@ Test commands are typically run from within the specific package directory (e.g.
     ```bash
     # Example for packages/server
     cd packages/server
-    yarn test
+    pnpm test
     ```
     This command usually builds the test files first and then runs all `*.test.js` files (transpiled from `.ts`) within the `dist` directory.
 
@@ -30,16 +30,16 @@ Test commands are typically run from within the specific package directory (e.g.
     ```bash
     # Example for packages/server
     cd packages/server
-    yarn test-watch
+    pnpm test-watch
     ```
     This will re-run tests automatically when source files change.
 
 -   **Run tests with coverage (example from `packages/shared`):**
     ```bash
     cd packages/shared
-    yarn test-coverage
+    pnpm test-coverage
     # View report (HTML and summary)
-    yarn coverage-report
+    pnpm coverage-report
     ```
     Coverage reports help identify areas of the code not covered by tests. `c8` is used for generating these reports.
 
@@ -48,7 +48,7 @@ Test commands are typically run from within the specific package directory (e.g.
     ```bash
     # Example for /packages/server/src/services/stripe.test.ts
     # (Ensure you are in the packages/server directory)
-    clear && yarn build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
+    clear && pnpm build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
     ```
     Adapt the path `dist/services/stripe.test.js` to target the specific compiled test file you want to run.
 

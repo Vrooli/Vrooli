@@ -170,7 +170,7 @@ SITE_EMAIL_*=<email-config>           # For email features
 
 Vrooli uses PNPM for:
 - **Efficient Storage**: Shared package store reduces disk usage
-- **Fast Installation**: Faster than npm/yarn for monorepos
+- **Fast Installation**: Faster than npm or pnpm for monorepos
 - **Strict Dependencies**: Better dependency management
 - **Workspace Support**: Excellent monorepo support
 

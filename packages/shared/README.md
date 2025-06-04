@@ -30,7 +30,7 @@ shared/
 ### Installation
 
 ```bash
-yarn install
+pnpm install
 ```
 
 ### Importing
@@ -44,13 +44,13 @@ import { UserType, TaskType, formatDate, validateEmail } from '@local/shared';
 ### Building
 
 ```bash
-yarn build
+pnpm build
 ```
 
 ### Testing
 
 ```bash
-yarn test
+pnpm test
 ```
 
 ## Contributing
