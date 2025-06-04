@@ -67,25 +67,25 @@ server/
 
 ```bash
 # Run all tests
-yarn test
+pnpm test
 
 # Run unit tests
-yarn test:unit
+pnpm test:unit
 
 # Run integration tests
-yarn test:integration
+pnpm test:integration
 
 # Run specific test file
-yarn test:file path/to/test
+pnpm test:file path/to/test
 
 # Run tests with coverage
-yarn test:coverage
+pnpm test:coverage
 
 # Run API endpoint tests
-yarn test:api
+pnpm test:api
 
 # Run database tests
-yarn test:postgres
+pnpm test:postgres
 ```
 
 ## Building and Deployment
@@ -93,14 +93,14 @@ yarn test:postgres
 ### Development
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 ### Production
 
 ```bash
-yarn build
-yarn start
+pnpm build
+pnpm start
 ```
 
 ### Docker

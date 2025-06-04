@@ -25,7 +25,7 @@ jobs/
 
 1. Install dependencies:
    ```bash
-   yarn install
+   pnpm install
    ```
 
 2. Set up environment variables:
@@ -35,12 +35,12 @@ jobs/
 
 3. Start development server:
    ```bash
-   yarn dev
+   pnpm dev
    ```
 
 4. Run tests:
    ```bash
-   yarn test
+   pnpm test
    ```
 
 ## Job Types
@@ -61,14 +61,14 @@ jobs/
 ### Development
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 ### Production
 
 ```bash
-yarn build
-yarn start
+pnpm build
+pnpm start
 ```
 
 ### Docker

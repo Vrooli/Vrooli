@@ -14,7 +14,7 @@ vim .env-dev
 ## Setup full project based on environment variables:
 ```bash
 chmod +x ./scripts/*
-yarn cache clean && ./scripts/setup.sh
+pnpm cache clean && ./scripts/setup.sh
 ```
 **Read /scripts/setup.sh for available flags**
 
@@ -51,22 +51,22 @@ yarn cache clean && ./scripts/setup.sh
 ## Package-level unit/integration tests:
 ```bash
 # Testing /packages/server
-cd packages/server && yarn build
+cd packages/server && pnpm build
 # Testing /packages/jobs
-cd packages/jobs && yarn build
+cd packages/jobs && pnpm build
 # Coverage tests on /packages/shared
-cd packages/shared && yarn test-coverage
+cd packages/shared && pnpm test-coverage
 ```
 
 ## File-level unit-integration tests:
 ```bash
 # Testing /packages/server/src/services/stripe.test.ts
-clear && yarn build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
+clear && pnpm build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
 ```
 
 ## Storybook:
 ```bash
-cd packages/ui && yarn storybook
+cd packages/ui && pnpm storybook
 ```
 
 

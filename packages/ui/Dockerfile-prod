@@ -6,17 +6,17 @@ ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
 # Install global packages
-RUN yarn global add serve --network-timeout 600000
+RUN pnpm global add serve --network-timeout 600000
 
 # Copy required files
-COPY --chown=node:node package.json yarn.lock ./
+COPY --chown=node:node package.json pnpm-lock.yaml ./
 COPY --chown=node:node packages/ui/package.json packages/ui/serve.json packages/ui/
 COPY --chown=node:node packages/ui/dist packages/ui/dist
 COPY --chown=node:node scripts/* scripts/
 
-# Configure yarn for workspaces
-RUN yarn config set enableLocalWorkspaces true && \
-    echo "workspaces-experimental true" > .yarnrc
+# Configure pnpm for workspaces
+RUN pnpm config set enableLocalWorkspaces true && \
+    echo "workspaces-experimental true" > .pnpmrc
 
 # Set port
 EXPOSE ${VIRTUAL_PORT}
