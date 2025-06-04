@@ -4,17 +4,17 @@
             "compress": true,
             "mangle": true
         },
-        "target": "es2017",
+        "target": "esnext",
         "parser": {
             "syntax": "typescript",
             "tsx": true,
             "decorators": false,
-            "dynamicImport": false
+            "dynamicImport": true
         }
     },
     "module": {
         // NOTE: If changing to or from "commonjs", make sure package.json and tsconfig.json are updated as well
-        "type": "es6",
+        "type": "nodenext",
         "strict": false,
         "strictMode": true,
         "lazy": false,
