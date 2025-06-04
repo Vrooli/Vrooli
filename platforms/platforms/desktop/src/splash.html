@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vrooli Loading...</title>
+  <style>
+    body {
+      background-color: #2e2c29; /* Match main window background */
+      color: #cccccc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden; /* Prevent scrollbars */
+    }
+    .container {
+      text-align: center;
+    }
+    /* Basic spinner */
+    .spinner {
+      border: 4px solid rgba(204, 204, 204, 0.3);
+      border-radius: 50%;
+      border-top: 4px solid #cccccc;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Loading Vrooli...</h1>
+    <div class="spinner"></div>
+    <p id="status">Initializing application...</p>
+  </div>
+</body>
+</html> 
