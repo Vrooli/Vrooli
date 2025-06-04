@@ -1,5 +1,5 @@
-import { Notification, NotificationSettings, NotificationSettingsCategory } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Notification, type NotificationSettings, type NotificationSettingsCategory } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const notification: ApiPartial<Notification> = {

@@ -1,5 +1,5 @@
 import { CodeBlockNode } from "../plugins/CodePlugin.js";
-import { DOMConversionCache, LexicalNodeClass, NodeType } from "../types.js";
+import { type DOMConversionCache, type LexicalNodeClass, type NodeType } from "../types.js";
 import { DecoratorNode } from "./DecoratorNode.js";
 import { ElementNode } from "./ElementNode.js";
 import { HashtagNode } from "./HashtagNode.js";

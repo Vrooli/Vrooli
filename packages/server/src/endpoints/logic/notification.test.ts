@@ -1,6 +1,6 @@
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { FindByIdInput, NotificationSearchInput, NotificationSettings, NotificationSettingsUpdateInput, uuid } from "@local/shared";
+import { type FindByIdInput, type NotificationSearchInput, type NotificationSettings, type NotificationSettingsUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

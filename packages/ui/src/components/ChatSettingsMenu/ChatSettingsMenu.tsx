@@ -1,21 +1,21 @@
 // Create a new ChatSettingsMenu component to consolidate chat/model settings
 
-import type { ChatInviteShape, ListObject, ResourceVersion } from '@local/shared';
-import { CanConnect, Chat, ChatParticipantShape, LlmModel, getAvailableModels } from '@local/shared';
-import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { Form, Formik } from 'formik';
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getExistingAIConfig } from '../../api/ai.js';
-import { SessionContext } from '../../contexts/session.js';
-import { IconCommon } from '../../icons/Icons.js';
-import { getDisplay } from '../../utils/display/listTools.js';
-import { getUserLanguages } from '../../utils/display/translationTools.js';
-import { PubSub } from '../../utils/pubsub.js';
-import { FindObjectDialog } from '../dialogs/FindObjectDialog/FindObjectDialog.js';
-import { TranslatedAdvancedInput } from '../inputs/AdvancedInput/AdvancedInput.js';
-import { detailsInputFeatures, nameInputFeatures } from '../inputs/AdvancedInput/styles.js';
-import { LanguageInput } from '../inputs/LanguageInput/LanguageInput.js';
+import type { ChatInviteShape, ListObject, ResourceVersion } from "@local/shared";
+import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } from "@local/shared";
+import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Form, Formik } from "formik";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";
+import { SessionContext } from "../../contexts/session.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { getDisplay } from "../../utils/display/listTools.js";
+import { getUserLanguages } from "../../utils/display/translationTools.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { FindObjectDialog } from "../dialogs/FindObjectDialog/FindObjectDialog.js";
+import { TranslatedAdvancedInput } from "../inputs/AdvancedInput/AdvancedInput.js";
+import { detailsInputFeatures, nameInputFeatures } from "../inputs/AdvancedInput/styles.js";
+import { LanguageInput } from "../inputs/LanguageInput/LanguageInput.js";
 
 /**
  * Model configuration interface.
@@ -36,7 +36,7 @@ export interface ShareSettings {
 }
 
 // Type for a connected integration (e.g., a Project)
-export type Integration = Pick<ResourceVersion, 'id' | '__typename' | 'translations'>; // Using ProjectVersion
+export type Integration = Pick<ResourceVersion, "id" | "__typename" | "translations">; // Using ProjectVersion
 
 // Type for the overall integration settings state
 export interface IntegrationSettings {
@@ -51,7 +51,7 @@ export interface ChatSettingsMenuProps {
     open: boolean;
     onClose: () => void;
     /** Minimal chat object, needs __typename */
-    chat: Pick<Chat, 'id' | 'publicId' | 'translations' | '__typename'>;
+    chat: Pick<Chat, "id" | "publicId" | "translations" | "__typename">;
     /** Current chat participants */
     participants: ChatParticipantShape[];
     /** Pending chat invites */
@@ -96,7 +96,7 @@ export function ChatSettingsMenu({
     onDeleteChat,
 }: ChatSettingsMenuProps) {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const session = useContext(SessionContext);
     const languages = getUserLanguages(session);
     const { t } = useTranslation();
@@ -129,19 +129,19 @@ export function ChatSettingsMenu({
                 sx: {
                     borderRadius: theme.spacing(3),
                     height: `calc(100% - ${theme.spacing(8)})`,
-                    maxHeight: '70vh',
-                }
+                    maxHeight: "70vh",
+                },
             }}
         >
             <Box display="flex" height="100%">
                 <Box
                     sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
+                        display: "flex",
+                        flexDirection: "column",
                         borderRight: 1,
-                        borderColor: 'divider',
+                        borderColor: "divider",
                         width: isMobile ? theme.spacing(8) : 200,
-                        height: '100%',
+                        height: "100%",
                     }}
                 >
                     <Tabs
@@ -149,15 +149,15 @@ export function ChatSettingsMenu({
                         value={currentTab}
                         onChange={handleTabChange}
                         sx={{
-                            width: '100%',
+                            width: "100%",
                             "& .MuiTabs-flexContainerVertical": {
-                                justifyContent: 'flex-start',
+                                justifyContent: "flex-start",
                             },
                             "& .MuiTab-root": {
-                                minHeight: '48px',
+                                minHeight: "48px",
                                 paddingTop: theme.spacing(1),
                                 paddingBottom: theme.spacing(1),
-                                justifyContent: 'flex-start',
+                                justifyContent: "flex-start",
                             },
                         }}
                     >
@@ -170,12 +170,12 @@ export function ChatSettingsMenu({
                             <ListItemButton
                                 onClick={handleDeleteClick}
                                 sx={{
-                                    color: 'error.main',
-                                    marginTop: 'auto',
+                                    color: "error.main",
+                                    marginTop: "auto",
                                     paddingTop: theme.spacing(1),
                                     paddingBottom: theme.spacing(1),
                                     paddingLeft: theme.spacing(2),
-                                    justifyContent: 'flex-start',
+                                    justifyContent: "flex-start",
                                     gap: isMobile ? 0 : theme.spacing(1.5),
                                 }}
                             >
@@ -254,7 +254,7 @@ const searchInputProps = {
 function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
     const { t } = useTranslation();
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [searchQuery, setSearchQuery] = useState("");
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -268,7 +268,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
 
     // State for selected model - initialize from props or default
     const [selectedModel, setSelectedModel] = useState<LlmModel | null>(
-        currentConfig?.model || (availableModels.length > 0 ? availableModels[0] : null)
+        currentConfig?.model || (availableModels.length > 0 ? availableModels[0] : null),
     );
 
     // Helper to safely initialize tool settings state
@@ -282,7 +282,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
 
     // State for requireConfirmation - initialize from props or default
     const [requireConfirmation, setRequireConfirmation] = useState<boolean>(
-        currentConfig?.requireConfirmation || false
+        currentConfig?.requireConfirmation || false,
     );
 
     // Update local state if props change (e.g., parent selects a different chat)
@@ -356,7 +356,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                 />
             </Box>
             <Box sx={{ display: "flex", mt: 1, flexGrow: 1 }}>
-                <Box sx={{ flex: 1, overflowY: "auto", borderRight: 1, borderColor: 'divider', pr: 1 }}>
+                <Box sx={{ flex: 1, overflowY: "auto", borderRight: 1, borderColor: "divider", pr: 1 }}>
                     {filteredModels.length === 0 ? (
                         <Box sx={noResultsStyle}>
                             <Typography variant="body2" color="textSecondary">
@@ -410,7 +410,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                             <Typography variant="caption" color="textSecondary">
                                 {t(
                                     "SiteActionsHelp",
-                                    { defaultValue: "Allow the model to perform site actions such as creating notes, running routines, etc." }
+                                    { defaultValue: "Allow the model to perform site actions such as creating notes, running routines, etc." },
                                 )}
                             </Typography>
                         </Box>
@@ -428,7 +428,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                             <Typography variant="caption" color="textSecondary">
                                 {t(
                                     "WebSearchHelp",
-                                    { defaultValue: "Allow the model to perform web searches to retrieve real-time information." }
+                                    { defaultValue: "Allow the model to perform web searches to retrieve real-time information." },
                                 )}
                             </Typography>
                         </Box>
@@ -446,7 +446,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                             <Typography variant="caption" color="textSecondary">
                                 {t(
                                     "FileRetrievalHelp",
-                                    { defaultValue: "Allow the model to fetch and read files from the system." }
+                                    { defaultValue: "Allow the model to fetch and read files from the system." },
                                 )}
                             </Typography>
                         </Box>
@@ -470,7 +470,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
                         <Typography variant="caption" color="textSecondary">
                             {t(
                                 "ToolUseConfirmationHelp",
-                                { defaultValue: "Toggle between manual and automatic tool usage, prompting the user when required." }
+                                { defaultValue: "Toggle between manual and automatic tool usage, prompting the user when required." },
                             )}
                         </Typography>
                     </Box>
@@ -505,38 +505,38 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
     const languages = getUserLanguages(session);
 
     // Search term state
-    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState<string>("");
     // Find dialog visibility
     const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
 
     // Filter invites by user ID
     const filteredInvites = useMemo(
         () => invites!.filter(inv => inv.user.id.toLowerCase().includes(searchTerm.toLowerCase())),
-        [invites, searchTerm]
+        [invites, searchTerm],
     );
 
     // Filter participants by name or ID
     const filteredParticipants = useMemo(
         () => participants.filter(p => {
-            const name = p.user.name ?? '';
+            const name = p.user.name ?? "";
             return (
                 name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 p.user.id.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }),
-        [participants, searchTerm]
+        [participants, searchTerm],
     );
 
     return (
         <Box>
             {/* Header with title and add button */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                 <Typography variant="h6">
-                    {t('Participants', { defaultValue: 'Participants' })} ({participants.length})
+                    {t("Participants", { defaultValue: "Participants" })} ({participants.length})
                 </Typography>
                 <IconButton
                     size="small"
-                    aria-label={t('AddParticipant', { defaultValue: 'Add Participant' })}
+                    aria-label={t("AddParticipant", { defaultValue: "Add Participant" })}
                     onClick={() => setIsDialogOpen(true)}
                 >
                     <IconCommon name="Add" />
@@ -548,7 +548,7 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
                 fullWidth
                 size="small"
                 variant="outlined"
-                placeholder={t('SearchParticipantsPlaceholder', { defaultValue: 'Search participants...' })}
+                placeholder={t("SearchParticipantsPlaceholder", { defaultValue: "Search participants..." })}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 sx={{ mb: 2 }}
@@ -558,14 +558,14 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
             {filteredInvites.length > 0 && (
                 <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle1" gutterBottom>
-                        {t('Invites', { defaultValue: 'Invites' })}
+                        {t("Invites", { defaultValue: "Invites" })}
                     </Typography>
                     {filteredInvites.map(inv => (
-                        <Box key={inv.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box key={inv.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
                             <Typography>{inv.user.id}</Typography>
                             <IconButton
                                 size="small"
-                                aria-label={t('CancelInvite', { defaultValue: 'Cancel Invite' })}
+                                aria-label={t("CancelInvite", { defaultValue: "Cancel Invite" })}
                                 onClick={() => onCancelInvite?.(inv.id)}
                             >
                                 <IconCommon name="Delete" />
@@ -578,13 +578,13 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
             {/* Participants list */}
             <Box>
                 <Typography variant="subtitle1" gutterBottom>
-                    {t('Members', { defaultValue: 'Members' })}
+                    {t("Members", { defaultValue: "Members" })}
                 </Typography>
                 {filteredParticipants.map(p => {
                     const { title, adornments } = getDisplay(p.user as unknown as ListObject, languages);
                     return (
-                        <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box key={p.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                 <Typography>{title}</Typography>
                                 {adornments.map(({ Adornment, key }) => (
                                     <Box key={key}>{Adornment}</Box>
@@ -592,7 +592,7 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
                             </Box>
                             <IconButton
                                 size="small"
-                                aria-label={t('RemoveParticipant', { defaultValue: 'Remove Participant' })}
+                                aria-label={t("RemoveParticipant", { defaultValue: "Remove Participant" })}
                                 onClick={() => onRemove(p.id)}
                             >
                                 <IconCommon name="Delete" />
@@ -605,7 +605,7 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
             {/* Dialog to find and add a participant */}
             {isDialogOpen && (
                 <FindObjectDialog
-                    find={'List' as const}
+                    find={"List" as const}
                     isOpen={isDialogOpen}
                     handleCancel={() => setIsDialogOpen(false)}
                     handleComplete={(data) => {
@@ -616,7 +616,7 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
                         }
                         setIsDialogOpen(false);
                     }}
-                    limitTo={['User'] as const}
+                    limitTo={["User"] as const}
                 />
             )}
         </Box>
@@ -628,7 +628,7 @@ function ParticipantsTab({ participants, invites = [], onAdd, onRemove, onCancel
  */
 export interface DetailsTabProps {
     /** The chat object holding translations */
-    chat: Pick<Chat, 'translations'>;
+    chat: Pick<Chat, "translations">;
     /** Called with updated name and description */
     onUpdate: (data: { name: string; description?: string }) => void;
 }
@@ -648,7 +648,7 @@ function DetailsTab({ chat, onUpdate }: DetailsTabProps) {
             onSubmit={(values) => {
                 const translation = values.translations.find(tr => tr.language === language);
                 if (translation) {
-                    onUpdate({ name: translation.name || '', description: translation.description ?? '' });
+                    onUpdate({ name: translation.name || "", description: translation.description ?? "" });
                 }
             }}
         >
@@ -656,25 +656,25 @@ function DetailsTab({ chat, onUpdate }: DetailsTabProps) {
                 <Form onBlur={handleSubmit}>
                     {/* Panel title */}
                     <Typography variant="h6" gutterBottom>
-                        {t('ChatDetails', { defaultValue: 'Chat Details' })}
+                        {t("ChatDetails", { defaultValue: "Chat Details" })}
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mb: 2 }}>
                         <TranslatedAdvancedInput
                             language={language}
                             name="name"
                             features={nameInputFeatures}
                             isRequired
-                            title={t('Name', { defaultValue: 'Name' })}
-                            placeholder={t('ChatNamePlaceholder', { defaultValue: 'Enter chat name...' })}
+                            title={t("Name", { defaultValue: "Name" })}
+                            placeholder={t("ChatNamePlaceholder", { defaultValue: "Enter chat name..." })}
                         />
                         <TranslatedAdvancedInput
                             language={language}
                             name="description"
                             features={detailsInputFeatures}
-                            title={t('Description', { defaultValue: 'Description' })}
-                            placeholder={t('ChatDescriptionPlaceholder', { defaultValue: 'Enter chat description...' })}
+                            title={t("Description", { defaultValue: "Description" })}
+                            placeholder={t("ChatDescriptionPlaceholder", { defaultValue: "Enter chat description..." })}
                         />
-                        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
                             <LanguageInput
                                 currentLanguage={language}
                                 languages={languages}
@@ -710,7 +710,7 @@ function ShareLinkTab({ enabled, onToggle, chatPublicId }: ShareLinkTabProps) {
     return (
         <Box>
             <Typography variant="h6" gutterBottom>
-                {t('ShareLink', { defaultValue: 'Share Link' })}
+                {t("ShareLink", { defaultValue: "Share Link" })}
             </Typography>
             <FormControlLabel
                 control={
@@ -720,7 +720,7 @@ function ShareLinkTab({ enabled, onToggle, chatPublicId }: ShareLinkTabProps) {
                         size="small"
                     />
                 }
-                label={t('EnableShareLink', { defaultValue: 'Enable share link' })}
+                label={t("EnableShareLink", { defaultValue: "Enable share link" })}
             />
             {enabled && (
                 <Box mt={2}>
@@ -763,7 +763,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
     const handleConnectProject = useCallback((projectId: string) => {
         const newSettings: IntegrationSettings = {
             ...settings,
-            projects: [...settings.projects, { __typename: 'ProjectVersion', id: projectId }],
+            projects: [...settings.projects, { __typename: "ProjectVersion", id: projectId }],
         };
         onChange(newSettings);
     }, [settings, onChange]);
@@ -779,29 +779,29 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
     return (
         <Box>
             <Typography variant="h6" gutterBottom>
-                {t('Integrations', { defaultValue: 'Integrations' })}
+                {t("Integrations", { defaultValue: "Integrations" })}
             </Typography>
 
             {/* Project Connections Section */}
             <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 1, mb: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 1, mb: 1 }}>
                     <Typography variant="subtitle1">
-                        {t('ConnectedProjects', { defaultValue: 'Connected Projects' })}
+                        {t("ConnectedProjects", { defaultValue: "Connected Projects" })}
                     </Typography>
                     <IconButton
                         size="small"
-                        aria-label={t('ConnectProject', { defaultValue: 'Connect Project' })}
+                        aria-label={t("ConnectProject", { defaultValue: "Connect Project" })}
                         onClick={() => setIsProjectDialogOpen(true)}
                     >
                         <IconCommon name="Add" />
                     </IconButton>
                 </Box>
-                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                    {t('ConnectProjectsHelp', { defaultValue: 'Connect projects to allow the chat model to retrieve and use files from them.' })}
+                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 2 }}>
+                    {t("ConnectProjectsHelp", { defaultValue: "Connect projects to allow the chat model to retrieve and use files from them." })}
                 </Typography>
                 {settings.projects.length === 0 && (
-                    <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                        {t('NoProjectsConnected', { defaultValue: 'No projects connected.' })}
+                    <Typography variant="body2" color="textSecondary" sx={{ fontStyle: "italic" }}>
+                        {t("NoProjectsConnected", { defaultValue: "No projects connected." })}
                     </Typography>
                 )}
                 {settings.projects.map(proj => {
@@ -809,11 +809,11 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                     // Using placeholder display for now
                     const displayTitle = proj.id; // Replace with actual display logic later
                     return (
-                        <Box key={proj.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box key={proj.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
                             <Typography>{displayTitle}</Typography>
                             <IconButton
                                 size="small"
-                                aria-label={t('DisconnectProject', { defaultValue: 'Disconnect Project' })}
+                                aria-label={t("DisconnectProject", { defaultValue: "Disconnect Project" })}
                                 onClick={() => handleDisconnectProject(proj.id!)}
                             >
                                 <IconCommon name="Delete" />
@@ -826,20 +826,20 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
             {/* Placeholder for other integrations */}
             <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1">
-                    {t('ExternalApps', { defaultValue: 'External Apps' })}
+                    {t("ExternalApps", { defaultValue: "External Apps" })}
                 </Typography>
-                <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
-                    {t('ExternalAppsHelp', { defaultValue: 'Connect external applications (e.g., calendar, email) to enhance capabilities.' })}
+                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 2 }}>
+                    {t("ExternalAppsHelp", { defaultValue: "Connect external applications (e.g., calendar, email) to enhance capabilities." })}
                 </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                    {t('ComingSoon', { defaultValue: 'Coming soon...' })}
+                <Typography variant="body2" color="textSecondary" sx={{ fontStyle: "italic" }}>
+                    {t("ComingSoon", { defaultValue: "Coming soon..." })}
                 </Typography>
             </Box>
 
             {/* Dialog for finding projects */}
             {isProjectDialogOpen && (
                 <FindObjectDialog
-                    find={'List' as const}
+                    find={"List" as const}
                     isOpen={isProjectDialogOpen}
                     handleCancel={() => setIsProjectDialogOpen(false)}
                     handleComplete={(data) => {
@@ -849,7 +849,7 @@ function IntegrationsTab({ settings, onChange }: IntegrationsTabProps) {
                         }
                         setIsProjectDialogOpen(false);
                     }}
-                    limitTo={['Project'] as const}
+                    limitTo={["Project"] as const}
                 />
             )}
         </Box>

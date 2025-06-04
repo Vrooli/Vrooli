@@ -1,6 +1,6 @@
 import { uuid } from "@local/shared";
-import Stripe from "stripe";
-import { RecursivePartial } from "../types.js";
+import type Stripe from "stripe";
+import { type RecursivePartial } from "../types.js";
 
 type StripeGlobalStore = {
     billingPortalSessions: Stripe.BillingPortal.Session[];

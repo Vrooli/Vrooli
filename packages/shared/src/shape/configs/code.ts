@@ -1,8 +1,7 @@
-import { ResourceVersion } from "../../api/types.js";
+import { type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { CodeLanguage } from "../../consts/ui.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { type CodeLanguage } from "../../consts/ui.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -190,37 +189,71 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         this.codeLanguage = codeLanguage;
     }
 
-    static deserialize(
-        version: Pick<ResourceVersion, "codeLanguage" | "config">,
+    static parse(
+        version: Pick<ResourceVersion, "config" | "codeLanguage">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): CodeVersionConfig {
-        return this.parseConfig<CodeVersionConfigObject, CodeVersionConfig>(
-            version.config,
+        let parsedConfigObject: CodeVersionConfigObject | null | undefined;
+        if (typeof version.config === "string") {
+            try {
+                parsedConfigObject = JSON.parse(version.config) as CodeVersionConfigObject;
+                if (parsedConfigObject && typeof parsedConfigObject.content !== "string") {
+                    logger.error("Parsed CodeVersionConfig string is missing or has invalid 'content'. Using empty string for content.", { data: version.config });
+                    parsedConfigObject.content = "";
+                }
+            } catch (e) {
+                logger.error("Failed to parse CodeVersionConfig string. Initializing with default content.", { error: e, data: version.config });
+                parsedConfigObject = null;
+            }
+        } else {
+            parsedConfigObject = version.config as CodeVersionConfigObject | null | undefined;
+            if (parsedConfigObject && typeof parsedConfigObject.content !== "string") {
+                logger.error("CodeVersionConfig object is missing or has invalid 'content'. Using empty string for content.", { data: version.config });
+                parsedConfigObject.content = "";
+            }
+        }
+
+        return super.parseBase<CodeVersionConfigObject, CodeVersionConfig>(
+            parsedConfigObject,
             logger,
             (cfg) => {
-                // ensure defaults for input/output/testcases
-                if (opts?.useFallbacks ?? true) {
-                    cfg.inputConfig ??= CodeVersionConfig.defaultInputConfig();
-                    cfg.outputConfig ??= CodeVersionConfig.defaultOutputConfig();
-                    cfg.testCases ??= CodeVersionConfig.defaultTestCases();
+                const finalConfig: CodeVersionConfigObject = {
+                    ...cfg,
+                    inputConfig: (opts?.useFallbacks ?? true)
+                        ? (cfg.inputConfig ?? CodeVersionConfig.defaultInputConfig())
+                        : cfg.inputConfig,
+                    outputConfig: (opts?.useFallbacks ?? true)
+                        ? (cfg.outputConfig ?? CodeVersionConfig.defaultOutputConfig())
+                        : cfg.outputConfig,
+                    testCases: (opts?.useFallbacks ?? true)
+                        ? (cfg.testCases ?? CodeVersionConfig.defaultTestCases())
+                        : cfg.testCases,
+                };
+
+                if (typeof finalConfig.content !== "string") {
+                    logger.error("Content was not available in parsed config; defaulting to empty string in final factory stage.");
+                    finalConfig.content = "";
                 }
-                return new CodeVersionConfig({ config: cfg, codeLanguage: version.codeLanguage });
+
+                return new CodeVersionConfig({ config: finalConfig, codeLanguage: version.codeLanguage });
             },
-            { mode: opts?.mode },
         );
     }
 
-    static default({ codeLanguage }: { codeLanguage: ResourceVersion["codeLanguage"] }): CodeVersionConfig {
-        const config: CodeVersionConfigObject = {
-            __version: LATEST_CONFIG_VERSION,
-            resources: [],
-            content: "",
-            inputConfig: CodeVersionConfig.defaultInputConfig(),
-            outputConfig: CodeVersionConfig.defaultOutputConfig(),
-            testCases: CodeVersionConfig.defaultTestCases(),
-        };
-        return new CodeVersionConfig({ config, codeLanguage });
+    static default({ codeLanguage, initialContent }: { codeLanguage: ResourceVersion["codeLanguage"], initialContent: string }): CodeVersionConfig {
+        return new CodeVersionConfig({
+            config: {
+                __version: LATEST_CONFIG_VERSION,
+                resources: [],
+                inputConfig: CodeVersionConfig.defaultInputConfig(),
+                outputConfig: CodeVersionConfig.defaultOutputConfig(),
+                testCases: CodeVersionConfig.defaultTestCases(),
+                content: initialContent,
+                contractDetails: undefined,
+            },
+            codeLanguage,
+        });
     }
 
     override export(): CodeVersionConfigObject {

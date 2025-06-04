@@ -1,8 +1,8 @@
-import { FindByPublicIdInput, Member, MemberSearchInput, MemberSearchResult, MemberUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Member, type MemberSearchInput, type MemberSearchResult, type MemberUpdateInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsMember = {
     findOne: ApiEndpoint<FindByPublicIdInput, Member>;

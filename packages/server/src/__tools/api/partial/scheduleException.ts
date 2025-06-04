@@ -1,5 +1,5 @@
-import { ScheduleException } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ScheduleException } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const scheduleException: ApiPartial<ScheduleException> = {

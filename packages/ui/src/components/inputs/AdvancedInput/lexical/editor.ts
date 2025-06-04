@@ -8,7 +8,7 @@ import { addRootElementEvents, removeRootElementEvents } from "./events.js";
 import { flushRootMutations, initMutationObserver } from "./mutations.js";
 import { type LexicalNode } from "./nodes/LexicalNode.js";
 import { LexicalNodes } from "./nodes/index.js";
-import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types.js";
+import { type BaseSelection, type CommandListener, type CommandListenerPriority, type CommandPayloadType, type CommandsMap, type CreateEditorArgs, type EditorConfig, type EditorFocusOptions, type EditorListener, type EditorListeners, type EditorSetOptions, type EditorUpdateOptions, type ErrorHandler, type IntentionallyMarkedAsDirtyElement, type LexicalCommand, type NodeKey, type NodeMap, type NodeType, type RegisteredNodes, type SerializedEditor, type SerializedEditorState, type SerializedElementNode, type SerializedLexicalNode, type Transform } from "./types.js";
 import { commitPendingUpdates, dispatchCommand, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates.js";
 import { $createNode, $getRoot, $getSelection, $isNode, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils.js";
 

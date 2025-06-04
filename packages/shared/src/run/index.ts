@@ -3,6 +3,7 @@ export * from "../shape/configs/index.js";
 export * from "./branch.js";
 export * from "./consts.js";
 export * from "./context.js";
+export * from "./eventBus.js";
 export * from "./executor.js";
 export * from "./io.js";
 export * from "./limits.js";

@@ -1,6 +1,6 @@
-import { ModelType } from "@local/shared";
-import { ApiKeyExternalModelInfo, ApiKeyModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CommentModelInfo, EmailModelInfo, IssueModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PremiumModelInfo, PullRequestModelInfo, PushDeviceModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceModelInfo, ResourceVersionModelInfo, RunIOModelInfo, RunModelInfo, RunStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StatsResourceModelInfo, StatsSiteModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
-import { Formatter } from "./types.js";
+import { type ModelType } from "@local/shared";
+import { type ApiKeyExternalModelInfo, type ApiKeyModelInfo, type AwardModelInfo, type BookmarkListModelInfo, type BookmarkModelInfo, type ChatInviteModelInfo, type ChatMessageModelInfo, type ChatModelInfo, type ChatParticipantModelInfo, type CommentModelInfo, type EmailModelInfo, type IssueModelInfo, type MeetingInviteModelInfo, type MeetingModelInfo, type MemberInviteModelInfo, type MemberModelInfo, type NotificationModelInfo, type NotificationSubscriptionModelInfo, type PaymentModelInfo, type PhoneModelInfo, type PremiumModelInfo, type PullRequestModelInfo, type PushDeviceModelInfo, type ReactionModelInfo, type ReactionSummaryModelInfo, type ReminderItemModelInfo, type ReminderListModelInfo, type ReminderModelInfo, type ReportModelInfo, type ReportResponseModelInfo, type ResourceModelInfo, type ResourceVersionModelInfo, type ResourceVersionRelationModelInfo, type RunIOModelInfo, type RunModelInfo, type RunStepModelInfo, type ScheduleExceptionModelInfo, type ScheduleModelInfo, type ScheduleRecurrenceModelInfo, type SessionModelInfo, type StatsResourceModelInfo, type StatsSiteModelInfo, type StatsTeamModelInfo, type StatsUserModelInfo, type TagModelInfo, type TeamModelInfo, type TransferModelInfo, type UserModelInfo, type ViewModelInfo, type WalletModelInfo } from "./base/types.js";
+import { type Formatter } from "./types.js";
 
 export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
     apiRelMap: {
@@ -652,7 +652,7 @@ export const ResourceVersionFormat: Formatter<ResourceVersionModelInfo> = {
         pullRequest: "PullRequest",
         reports: "Report",
         root: "Resource",
-        relatedVersions: "ResourceVersion",
+        relatedVersions: "ResourceVersionRelation",
     },
     prismaRelMap: {
         __typename: "ResourceVersion",
@@ -662,10 +662,7 @@ export const ResourceVersionFormat: Formatter<ResourceVersionModelInfo> = {
         forks: "Resource",
         pullRequest: "PullRequest",
         runs: "Run",
-        relatedVersions: "ResourceVersion",
-    },
-    joinMap: {
-        relatedVersions: "toVersionId",
+        relatedVersions: "ResourceVersionRelation",
     },
     countFields: {
         commentsCount: true,
@@ -673,6 +670,19 @@ export const ResourceVersionFormat: Formatter<ResourceVersionModelInfo> = {
         reportsCount: true,
         translationsCount: true,
     },
+};
+
+export const ResourceVersionRelationFormat: Formatter<ResourceVersionRelationModelInfo> = {
+    apiRelMap: {
+        __typename: "ResourceVersionRelation",
+        toVersion: "ResourceVersion",
+    },
+    prismaRelMap: {
+        __typename: "ResourceVersionRelation",
+        fromVersion: "ResourceVersion",
+        toVersion: "ResourceVersion",
+    },
+    countFields: {},
 };
 
 export const RunFormat: Formatter<RunModelInfo> = {
@@ -1000,6 +1010,7 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     ReportResponse: ReportResponseFormat,
     Resource: ResourceFormat,
     ResourceVersion: ResourceVersionFormat,
+    ResourceVersionRelation: ResourceVersionRelationFormat,
     Run: RunFormat,
     RunIO: RunIOFormat,
     RunStep: RunStepFormat,

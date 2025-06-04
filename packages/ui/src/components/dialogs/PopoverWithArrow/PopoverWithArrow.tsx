@@ -1,8 +1,8 @@
-import { Box, ClickAwayListener, Palette, Popper, PopperPlacementType, useTheme } from "@mui/material";
+import { Box, ClickAwayListener, type Palette, Popper, type PopperPlacementType, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { Z_INDEX } from "../../../utils/consts.js";
-import { PopoverWithArrowProps } from "../types.js";
+import { type PopoverWithArrowProps } from "../types.js";
 
 /** Size of arrow pointing to anchor */
 const ARROW_SIZE = 10;

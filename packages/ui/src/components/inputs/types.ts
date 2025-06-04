@@ -1,13 +1,13 @@
 /* c8 ignore start */
-import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
-import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
-import { FieldProps } from "formik";
-import { CSSProperties, RefObject } from "react";
+import { type CodeLanguage, type JSONVariable, type ResourceListFor, type ResourceVersion, type Tag, type TagShape, type TranslationFunc } from "@local/shared";
+import { type BoxProps, type CheckboxProps, type TextFieldProps } from "@mui/material";
+import { type FieldProps } from "formik";
+import { type CSSProperties, type RefObject } from "react";
 import { type UseChatTaskReturn } from "../../hooks/tasks.js";
-import { IconInfo } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
-import { FindObjectType } from "../dialogs/types.js";
-import { ResourceListProps } from "../lists/types.js";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SxType } from "../../types.js";
+import { type FindObjectType } from "../dialogs/types.js";
+import { type ResourceListProps } from "../lists/types.js";
 
 export type CheckboxInputProps = Omit<(CheckboxProps & FieldProps), "form"> & {
     label: string;
@@ -286,12 +286,7 @@ export interface SelectorBaseProps<T extends string | number | { [x: string]: an
 }
 
 export type ObjectVersionSelectPayloads = {
-    ApiVersion: ApiVersion,
-    CodeVersion: CodeVersion,
-    NoteVersion: NoteVersion,
-    ProjectVersion: ProjectVersion,
-    RoutineVersion: RoutineVersion,
-    StandardVersion: StandardVersion,
+    ResourceVersion: ResourceVersion,
 }
 export type ObjectVersionSelectSwitchProps<T extends keyof ObjectVersionSelectPayloads> = {
     canUpdate: boolean;

@@ -1,4 +1,4 @@
-import { DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, Team, TeamCreateInput, TeamShape, TeamUpdateInput, endpointsTeam, noopSubmit, orDefault, shapeTeam, teamTranslationValidation, teamValidation } from "@local/shared";
+import { DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, type Session, type Team, type TeamCreateInput, type TeamShape, type TeamUpdateInput, endpointsTeam, noopSubmit, orDefault, shapeTeam, teamTranslationValidation, teamValidation } from "@local/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
+import { type UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -27,7 +27,7 @@ import { FormContainer, FormSection } from "../../../styles.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { TeamFormProps, TeamUpsertProps } from "./types.js";
+import { type TeamFormProps, type TeamUpsertProps } from "./types.js";
 
 function teamInitialValues(
     session: Session | undefined,

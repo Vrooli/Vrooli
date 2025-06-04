@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask, LlmTaskInfo, TaskStatus, nanoid, noop } from "@local/shared";
+import { LlmTask, type LlmTaskInfo, TaskStatus, nanoid, noop } from "@local/shared";
 import { renderHook } from "@testing-library/react";
 import { expect } from "chai";
 import { act } from "react";
 import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
 import { PubSub } from "../utils/pubsub.js";
-import { DEFAULT_ACTIVE_TASK, DEFAULT_ACTIVE_TASK_ID, UseChatTaskReturn, createUpdatedTranslations, generateContextLabel, getAutoFillTranslationData, useChatTasks } from "./tasks.js";
+import { DEFAULT_ACTIVE_TASK, DEFAULT_ACTIVE_TASK_ID, type UseChatTaskReturn, createUpdatedTranslations, generateContextLabel, getAutoFillTranslationData, useChatTasks } from "./tasks.js";
 
 describe("getAutoFillTranslationData", () => {
     it("should return correct translation data omitting specific fields", () => {

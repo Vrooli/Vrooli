@@ -2,7 +2,7 @@
  * CommentContainer - A component that manages comments for various object types.
  * Displays a comment input and thread list with support for pagination, sorting and filtering.
  */
-import { Comment, CommentCreateInput, CommentThread as ThreadType, endpointsComment, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { type Comment, type CommentCreateInput, type CommentThread as ThreadType, endpointsComment, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Alert, Box, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,7 +15,7 @@ import { SearchButtons } from "../buttons/SearchButtons.js";
 import { AdvancedInputBase } from "../inputs/AdvancedInput/AdvancedInput.js";
 import { DEFAULT_FEATURES } from "../inputs/AdvancedInput/utils.js";
 import { CommentThread } from "../lists/CommentThread/CommentThread.js";
-import { CommentContainerProps } from "./types.js";
+import { type CommentContainerProps } from "./types.js";
 
 // Configure comment input features
 const COMMENT_INPUT_FEATURES = {
@@ -129,12 +129,12 @@ export function CommentContainer({
         <Box
             sx={{
                 py: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '120px',
-                color: palette.text.secondary
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "120px",
+                color: palette.text.secondary,
             }}
         >
             <IconCommon
@@ -142,7 +142,7 @@ export function CommentContainer({
                 name="Comment"
                 size={40}
                 fill={palette.divider}
-                style={{ marginBottom: '16px', opacity: 0.7 }}
+                style={{ marginBottom: "16px", opacity: 0.7 }}
             />
             <Typography variant="body1" fontWeight="medium">
                 {t("NoCommentsYet", { defaultValue: "No comments yet" })}

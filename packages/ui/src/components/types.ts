@@ -1,10 +1,10 @@
 /* c8 ignore start */
-import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
-import { LinearProgressProps } from "@mui/material";
-import { ReactNode } from "react";
-import { PageTab } from "../hooks/useTabs.js";
-import { SxType } from "../types.js";
-import { TabListType } from "../utils/search/objectToSearch.js";
+import { type ChatMessageShape, type Comment, type CommentThread, type NavigableObject, type StreamErrorPayload } from "@local/shared";
+import { type LinearProgressProps } from "@mui/material";
+import { type ReactNode } from "react";
+import { type PageTab } from "../hooks/useTabs.js";
+import { type SxType } from "../types.js";
+import { type TabListType } from "../utils/search/objectToSearch.js";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */
@@ -30,6 +30,8 @@ export interface ChatBubbleProps {
     onRegenerateResponse: (message: ChatMessageShape) => unknown;
     /** Try to send a failed message */
     onRetry: (message: ChatMessageShape) => unknown;
+    /** Error information from streaming responses that can contain retry info */
+    messageStreamError?: StreamErrorPayload;
 }
 
 export interface CommentConnectorProps {

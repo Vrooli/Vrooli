@@ -1,14 +1,36 @@
-import { DbProvider, FindManyArgs, batch, logger } from "@local/server";
-import { ModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
+import { DbProvider, batch, logger } from "@local/server";
+import { type ModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
+import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
 
 const { PrismaClient } = pkg;
+
+// Select shape for view count updates
+const viewsSelect = {
+    id: true,
+    views: true,
+    _count: {
+        select: { viewedBy: true },
+    },
+} as const;
+// Union of FindManyArgs types for viewable tables
+type ViewsFindManyArgs =
+    Prisma.issueFindManyArgs |
+    Prisma.resourceFindManyArgs |
+    Prisma.teamFindManyArgs |
+    Prisma.userFindManyArgs;
+// Union of payload types for viewable tables
+type ViewsPayload =
+    Prisma.issueGetPayload<{ select: typeof viewsSelect }> |
+    Prisma.resourceGetPayload<{ select: typeof viewsSelect }> |
+    Prisma.teamGetPayload<{ select: typeof viewsSelect }> |
+    Prisma.userGetPayload<{ select: typeof viewsSelect }>;
 
 async function processTableViewsInBatches(
     tableName: keyof InstanceType<typeof PrismaClient>,
 ): Promise<void> {
     try {
-        await batch<FindManyArgs>({
+        await batch<ViewsFindManyArgs, ViewsPayload>({
             // Convert the table name (e.g. "resource") into the proper model name (e.g. "Resource")
             objectType: uppercaseFirstLetter(camelCase(tableName as string)) as ModelType,
             processBatch: async (batch) => {
@@ -28,15 +50,7 @@ async function processTableViewsInBatches(
                     }
                 }
             },
-            select: {
-                id: true,
-                views: true,
-                _count: {
-                    select: {
-                        viewedBy: true,
-                    },
-                },
-            },
+            select: viewsSelect,
         });
     } catch (error) {
         logger.error("processTableViewsInBatches caught error", { error, trace: "views_002" });

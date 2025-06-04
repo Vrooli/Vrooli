@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { ApiVersion, CodeLanguage, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsApiVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { type ApiVersion, CodeLanguage, DUMMY_ID, type Resource, ResourceUsedFor, type Tag, type User, endpointsApiVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
-import { ViewDisplayType } from "../../../types.js";
+import { type ViewDisplayType } from "../../../types.js";
 import { ApiUpsert } from "./ApiUpsert.js";
 
 // Create simplified mock data for API responses
 const mockApiVersionData: ApiVersion = {
     __typename: "ApiVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "https://api.example.com/v1",
     documentationLink: "https://docs.example.com/v1",
@@ -18,15 +18,15 @@ const mockApiVersionData: ApiVersion = {
     isPrivate: false,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         listFor: {
             __typename: "ApiVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -34,7 +34,7 @@ const mockApiVersionData: ApiVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -61,12 +61,12 @@ paths:
     updatedAt: new Date().toISOString(),
     root: {
         __typename: "Api" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["Automation", "AI Agents", "Software Development", "API", "Cloud Computing", "Integration"][Math.floor(Math.random() * 6)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

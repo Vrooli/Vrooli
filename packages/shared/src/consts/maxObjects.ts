@@ -25,33 +25,10 @@ export type ObjectLimit = number | ObjectLimitPremium | ObjectLimitPrivacy | Obj
  * to switching to premium in the UI, and to validate crud operations in the server
  */
 export const MaxObjects = {
-    Api: {
-        User: {
-            private: {
-                noPremium: 1,
-                premium: 10,
-            },
-            public: {
-                noPremium: 3,
-                premium: 100,
-            },
-        },
-        Team: {
-            private: {
-                noPremium: 3,
-                premium: 25,
-            },
-            public: {
-                noPremium: 5,
-                premium: 100,
-            },
-        },
-    },
     ApiKey: {
         noPremium: 1,
         premium: 5,
     },
-    ApiVersion: 100000,
     Award: 1000,
     Bookmark: {
         User: {
@@ -131,17 +108,6 @@ export const MaxObjects = {
             },
         },
     },
-    Code: {
-        private: {
-            noPremium: 6,
-            premium: 50,
-        },
-        public: {
-            noPremium: 10,
-            premium: 200,
-        },
-    },
-    CodeVersion: 100000,
     Comment: {
         User: {
             private: 0,
@@ -194,37 +160,6 @@ export const MaxObjects = {
         User: 0,
         Team: 1000,
     },
-    Node: 100000,
-    NodeEnd: 100000,
-    NodeLink: 100000,
-    NodeLinkWhen: 100000,
-    NodeLoop: 100000,
-    NodeLoopWhile: 100000,
-    NodeRoutineList: 100000,
-    NodeRoutineListItem: 100000,
-    Note: {
-        User: {
-            private: {
-                noPremium: 25,
-                premium: 1000,
-            },
-            public: {
-                noPremium: 50,
-                premium: 2000,
-            },
-        },
-        Team: {
-            private: {
-                noPremium: 25,
-                premium: 1000,
-            },
-            public: {
-                noPremium: 50,
-                premium: 2000,
-            },
-        },
-    },
-    NoteVersion: 100000,
     Notification: 100000,
     NotificationSubscription: {
         User: 1000,
@@ -236,18 +171,6 @@ export const MaxObjects = {
         noPremium: 1,
         premium: 5,
     },
-    Project: {
-        private: {
-            noPremium: 3,
-            premium: 100,
-        },
-        public: {
-            noPremium: 25,
-            premium: 250,
-        },
-    },
-    ProjectVersion: 100000,
-    ProjectVersionDirectory: 1000000,
     PullRequest: 1000000,
     PushDevice: {
         User: 5,
@@ -280,22 +203,7 @@ export const MaxObjects = {
         },
         Team: 0,
     },
-    Resource: 50000,
-    ResourceList: 50000,
-    Role: {
-        User: 0,
-        Team: {
-            private: {
-                noPremium: 5,
-                premium: 50,
-            },
-            public: {
-                noPremium: 5,
-                premium: 50,
-            },
-        },
-    },
-    Routine: {
+    Resource: {
         private: {
             noPremium: 25,
             premium: 250,
@@ -305,20 +213,18 @@ export const MaxObjects = {
             premium: 2000,
         },
     },
-    RoutineVersion: 100000,
-    RoutineVersionInput: 100000,
-    RoutineVersionOutput: 100000,
+    ResourceVersion: 100000,
+    ResourceVersionRelation: 100000,
     RunProject: {
         User: 5000,
         Team: 50000,
     },
-    RunProjectStep: 100000,
-    RunRoutine: {
+    Run: {
         User: 5000,
         Team: 50000,
     },
-    RunRoutineIO: 100000,
-    RunRoutineStep: 100000,
+    RunIO: 100000,
+    RunStep: 100000,
     Schedule: {
         User: {
             noPremium: 25,
@@ -332,23 +238,8 @@ export const MaxObjects = {
     ScheduleException: 100000,
     ScheduleRecurrence: 100000,
     Session: 1000,
-    Standard: {
-        private: {
-            noPremium: 5,
-            premium: 100,
-        },
-        public: {
-            noPremium: 100,
-            premium: 1000,
-        },
-    },
-    StandardVersion: 100000,
-    StatsApi: 0,
-    StatsCode: 0,
-    StatsProject: 0,
-    StatsRoutine: 0,
+    StatsResource: 0,
     StatsSite: 10000000,
-    StatsStandard: 0,
     StatsTeam: 0,
     StatsUser: 0,
     Tag: {

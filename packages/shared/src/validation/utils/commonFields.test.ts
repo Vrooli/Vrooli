@@ -1,8 +1,7 @@
 import { expect } from "chai";
 import * as yup from "yup";
-import { uuid } from "../../id/uuid.js";
 import { opt, req } from "./builders/optionality.js";
-import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, bigIntString, bool, configCallData, configFormInput, configFormOutput, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, minVersionTest, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields.js";
+import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, bigIntString, bool, config, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, minVersionTest, newEndTime, newStartTime, originalStartTime, publicId, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields.js";
 
 type Case = string | number | bigint | boolean | Date | null | undefined | { [x: string]: Case } | Case[];
 type ValidatorSet = {
@@ -72,71 +71,59 @@ describe("Yup validation tests", () => {
         id: {
             schema: id,
             valid: [
-                uuid(),
-                uuid().toUpperCase(),
+                "1234567890123456789",
+                BigInt("9876543210987654321").toString(),
             ],
             invalid: [
-                uuid().slice(0, -1), // One less character
-                uuid() + "0", // One extra character
-                uuid().replace("-", ""), // No hyphens
-                uuid().replace("-", "_"), // Underscore instead of hyphen
-                uuid().slice(0, 14) + "g" + uuid().slice(15), // Random 'g' inserted in the middle
-                "123",
-                "not-an-id",
-                "a".repeat(257),
+                "123e4567-e89b-12d3-a456-426614174000",
+                "not-a-number",
+                "123.45",
+                "-100",
+                "0",
+                (2n ** 64n).toString(),
                 "",
                 " ",
             ],
             transforms: [
-                [" 123e4567-e89b-12d3-a456-426614174000  ", "123e4567-e89b-12d3-a456-426614174000"],
+                [" 1234567890123456789  ", "1234567890123456789"],
+                [9876543210987654321n, "9876543210987654321"],
+                [123, "123"],
             ],
         },
-        configCallData: {
-            schema: configCallData,
+        publicId: {
+            schema: publicId,
             valid: [
-                "{\"key\": \"value\"}",
-                "{\"another\": \"item\"}",
-                "{\"array\": [1, 2, 3]}",
+                "abcdef0123",
+                "abcdef0123xy",
             ],
             invalid: [
-                "a".repeat(8193),
+                "abc",
+                "abcdef0123xyz",
+                "ABCDEF0123",
+                "abcdef-012",
+                "abcdef!012",
+                "",
+                " ",
             ],
             transforms: [
-                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
-                ["", undefined],
-                [" ".repeat(100), undefined],
+                [" abcdef0123  ", "abcdef0123"],
+                [1234567890, "1234567890"],
             ],
         },
-        configFormInput: {
-            schema: configFormInput,
+        config: {
+            schema: config,
             valid: [
-                "{\"key\": \"value\"}",
-                "{\"another\": \"item\"}",
-                "{\"array\": [1, 2, 3]}",
+                {},
+                { key: "value" },
+                { nested: { a: 1, b: "test" } },
+                { arr: [1, "two", { c: true }] },
             ],
             invalid: [
-                "a".repeat(16385),
+                "not an object",
+                123,
+                null,
             ],
             transforms: [
-                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
-                ["", undefined],
-                [" ".repeat(100), undefined],
-            ],
-        },
-        configFormOutput: {
-            schema: configFormOutput,
-            valid: [
-                "{\"key\": \"value\"}",
-                "{\"another\": \"item\"}",
-                "{\"array\": [1, 2, 3]}",
-            ],
-            invalid: [
-                "a".repeat(16385),
-            ],
-            transforms: [
-                ["  {\"key\": \"value\"}  ", "{\"key\": \"value\"}"],
-                ["", undefined],
-                [" ".repeat(100), undefined],
             ],
         },
         email: {

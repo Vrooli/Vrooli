@@ -1,14 +1,14 @@
-import { AutocompleteOption, ListObject, SearchType, TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
+import { type AutocompleteOption, type ListObject, type SearchType, type TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { SearchQueryVariablesInput } from "../components/lists/types.js";
+import { type SearchQueryVariablesInput } from "../components/lists/types.js";
 import { SessionContext } from "../contexts/session.js";
 import { useLocation } from "../route/router.js";
 import { addSearchParams } from "../route/searchParams.js";
-import { SetLocation } from "../route/types.js";
+import { type SetLocation } from "../route/types.js";
 import { listToAutocomplete } from "../utils/display/listTools.js";
 import { getUserLanguages } from "../utils/display/translationTools.js";
 import { searchTypeToParams } from "../utils/search/objectToSearch.js";
-import { SearchParams } from "../utils/search/schemas/base.js";
+import { type SearchParams } from "../utils/search/schemas/base.js";
 import { useLazyFetch } from "./useFetch.js";
 import { useStableCallback } from "./useStableCallback.js";
 import { useStableObject } from "./useStableObject.js";

@@ -1,6 +1,6 @@
-import { HttpMethod, ListObject, OrArray, noop } from "@local/shared";
-import { LazyRequestWithResult } from "../api/types.js";
-import { UseLazyFetchProps, useLazyFetch } from "./useFetch.js";
+import { type HttpMethod, type ListObject, type OrArray, noop } from "@local/shared";
+import { type LazyRequestWithResult } from "../api/types.js";
+import { type UseLazyFetchProps, useLazyFetch } from "./useFetch.js";
 
 type CommonProps<IsMutate extends boolean> = {
     isCreate: boolean,

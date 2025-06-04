@@ -31,9 +31,9 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
             dayOfWeek: startTime.getDay(),
             dayOfMonth: null,
             month: null,
-            duration: duration, // Duration in minutes
+            duration, // Duration in minutes
             endDate: null,
-            schedule: { __typename: "Schedule", id: `schedule-${id}` }
+            schedule: { __typename: "Schedule", id: `schedule-${id}` },
         });
     }
 
@@ -58,8 +58,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                         id: `meeting-translation-${id}`,
                         language: "en",
                         title,
-                        description
-                    }
+                        description,
+                    },
                 ],
                 you: {
                     __typename: "MeetingYou",
@@ -69,7 +69,7 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     canUpdate: true,
                     canUseExisting: true,
                     isBookmarked: false,
-                }
+                },
             }] : [],
             runs: scheduleFor === "Run" ? [{
                 __typename: "Run",
@@ -80,8 +80,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                         id: `routine-translation-${id}`,
                         language: "en",
                         title,
-                        description
-                    }
+                        description,
+                    },
                 ],
                 you: {
                     __typename: "RunYou",
@@ -91,7 +91,7 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     canUpdate: true,
                     canUseExisting: true,
                     isBookmarked: false,
-                }
+                },
             }] : [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -101,8 +101,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                     id: `schedule-translation-${id}`,
                     language: "en",
                     title,
-                    description
-                }
+                    description,
+                },
             ],
             you: {
                 __typename: "ScheduleYou",
@@ -112,8 +112,8 @@ const createSchedule = (id, title, description, startTime, duration, scheduleFor
                 canUpdate: true,
                 canUseExisting: true,
                 isBookmarked: false,
-            }
-        }
+            },
+        },
     };
 };
 
@@ -131,7 +131,7 @@ const generateSchedules = () => {
             "Daily team standup meeting",
             generateDate(day, 9, 30),
             30,
-            "Meeting"
+            "Meeting",
         ));
 
         // Afternoon meeting
@@ -141,7 +141,7 @@ const generateSchedules = () => {
             "Product review with stakeholders",
             generateDate(day, 14, 0),
             60,
-            "Meeting"
+            "Meeting",
         ));
     }
 
@@ -154,7 +154,7 @@ const generateSchedules = () => {
             "Intensive work on project deliverables",
             generateDate(day, 11, 0),
             180,
-            "Run"
+            "Run",
         ));
     }
 
@@ -166,7 +166,7 @@ const generateSchedules = () => {
         generateDate(1, 8, 0),
         90,
         "Run",
-        true // Include recurrence
+        true, // Include recurrence
     ));
 
     edges.push(createSchedule(
@@ -176,7 +176,7 @@ const generateSchedules = () => {
         generateDate(5, 16, 0),
         60,
         "Run",
-        true // Include recurrence
+        true, // Include recurrence
     ));
 
     return edges;
@@ -190,9 +190,9 @@ const mockSchedules = {
         pageInfo: {
             __typename: "PageInfo",
             endCursor: "30",
-            hasNextPage: false
-        }
-    }
+            hasNextPage: false,
+        },
+    },
 };
 
 // Ensure proper Date objects instead of strings for the schedules
@@ -237,9 +237,9 @@ const emptySchedules = {
         pageInfo: {
             __typename: "PageInfo",
             endCursor: null,
-            hasNextPage: false
-        }
-    }
+            hasNextPage: false,
+        },
+    },
 };
 
 export default {
@@ -250,60 +250,60 @@ export default {
             handlers: [
                 // Mock the exact query we saw in the request
                 http.post(`${API_URL}/v2/schedules`, async ({ request }) => {
-                    console.log('Intercepted POST schedule request', request.url);
+                    console.log("Intercepted POST schedule request", request.url);
                     // Get the request body and examine it
                     let body;
                     try {
                         body = await request.json();
-                        console.log('POST Request body:', body);
+                        console.log("POST Request body:", body);
                     } catch (e) {
-                        console.error('Error parsing request body:', e);
+                        console.error("Error parsing request body:", e);
                     }
 
                     const processedData = processScheduleDate(mockSchedules);
-                    console.log('Returning processed mock schedule data for POST request:', processedData);
+                    console.log("Returning processed mock schedule data for POST request:", processedData);
 
                     // Debug the dates to ensure they're Date objects, not strings
-                    console.log('Debug - First schedule start time type:',
+                    console.log("Debug - First schedule start time type:",
                         typeof processedData.data.edges[0].node.startTime,
-                        'Value:', processedData.data.edges[0].node.startTime);
+                        "Value:", processedData.data.edges[0].node.startTime);
 
                     return HttpResponse.json(processedData);
                 }),
 
                 // Also handle GET requests with query parameters
                 http.get(`${API_URL}/v2/schedules*`, ({ request }) => {
-                    console.log('Intercepted GET schedule request', request.url);
+                    console.log("Intercepted GET schedule request", request.url);
                     const url = new URL(request.url);
-                    console.log('GET request parameters:',
+                    console.log("GET request parameters:",
                         Array.from(url.searchParams.entries())
                             .map(([k, v]) => `${k}: ${v}`)
-                            .join(', '));
+                            .join(", "));
 
                     // Parse the date ranges from the query parameters to check them
                     let startTimeFrame, endTimeFrame;
                     try {
-                        if (url.searchParams.has('startTimeFrame')) {
-                            startTimeFrame = JSON.parse(url.searchParams.get('startTimeFrame'));
-                            console.log('Parsed startTimeFrame:', startTimeFrame);
+                        if (url.searchParams.has("startTimeFrame")) {
+                            startTimeFrame = JSON.parse(url.searchParams.get("startTimeFrame"));
+                            console.log("Parsed startTimeFrame:", startTimeFrame);
                         }
-                        if (url.searchParams.has('endTimeFrame')) {
-                            endTimeFrame = JSON.parse(url.searchParams.get('endTimeFrame'));
-                            console.log('Parsed endTimeFrame:', endTimeFrame);
+                        if (url.searchParams.has("endTimeFrame")) {
+                            endTimeFrame = JSON.parse(url.searchParams.get("endTimeFrame"));
+                            console.log("Parsed endTimeFrame:", endTimeFrame);
                         }
                     } catch (e) {
-                        console.error('Error parsing time frames:', e);
+                        console.error("Error parsing time frames:", e);
                     }
 
                     // If this has the schedule parameters, return our mock data
-                    if (url.searchParams.has('scheduleForUserId')) {
+                    if (url.searchParams.has("scheduleForUserId")) {
                         const processedData = processScheduleDate(mockSchedules);
-                        console.log('Returning processed mock schedule data for GET request:', processedData);
+                        console.log("Returning processed mock schedule data for GET request:", processedData);
 
                         // Debug the dates to ensure they're Date objects, not strings
-                        console.log('Debug - First schedule start time type:',
+                        console.log("Debug - First schedule start time type:",
                             typeof processedData.data.edges[0].node.startTime,
-                            'Value:', processedData.data.edges[0].node.startTime);
+                            "Value:", processedData.data.edges[0].node.startTime);
 
                         return HttpResponse.json(processedData);
                     }
@@ -313,17 +313,17 @@ export default {
 
                 // Handle any GraphQL requests that might be happening
                 http.post(`${API_URL}/v2/graphql`, async ({ request }) => {
-                    console.log('Intercepted GraphQL request');
+                    console.log("Intercepted GraphQL request");
                     const body = await request.json();
 
                     // If this query mentions schedules, return our mock data
-                    if (body?.query?.includes('Schedule')) {
+                    if (body?.query?.includes("Schedule")) {
                         const processedData = processScheduleDate(mockSchedules);
-                        console.log('Returning processed mock schedule data in GraphQL format:', processedData);
+                        console.log("Returning processed mock schedule data in GraphQL format:", processedData);
                         return HttpResponse.json({
                             data: {
-                                scheduleSearch: processedData.data
-                            }
+                                scheduleSearch: processedData.data,
+                            },
                         });
                     }
 
@@ -335,16 +335,16 @@ export default {
     decorators: [
         (Story) => {
             // Add a debug helper to window object to monitor schedule processing
-            if (typeof window !== 'undefined') {
+            if (typeof window !== "undefined") {
                 window.debugCalendar = {
                     getMockData: () => processScheduleDate(mockSchedules),
-                    originalMockData: mockSchedules
+                    originalMockData: mockSchedules,
                 };
             }
 
             return <Story />;
-        }
-    ]
+        },
+    ],
 };
 
 export function SignedInNoPremiumNoCredits() {
@@ -386,25 +386,25 @@ SignedInPremiumWithCredits.parameters = {
 export function CalendarTabView() {
     // Create a debugging div with helpful instructions
     const debugStyles = {
-        position: 'fixed',
-        bottom: '10px',
-        left: '10px',
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '10px',
-        borderRadius: '5px',
-        fontSize: '12px',
+        position: "fixed",
+        bottom: "10px",
+        left: "10px",
+        background: "rgba(0,0,0,0.7)",
+        color: "white",
+        padding: "10px",
+        borderRadius: "5px",
+        fontSize: "12px",
         zIndex: 9999,
-        maxWidth: '350px',
+        maxWidth: "350px",
     };
 
     return (
         <>
             <div style={debugStyles}>
-                <h3 style={{ margin: '0 0 8px 0' }}>Calendar Debug Info</h3>
+                <h3 style={{ margin: "0 0 8px 0" }}>Calendar Debug Info</h3>
                 <div>Open browser console and type:</div>
                 <code>window.debugCalendar.getMockData()</code>
-                <div style={{ marginTop: '8px' }}>to see the processed mock data</div>
+                <div style={{ marginTop: "8px" }}>to see the processed mock data</div>
             </div>
             <CalendarView
                 display="Page"

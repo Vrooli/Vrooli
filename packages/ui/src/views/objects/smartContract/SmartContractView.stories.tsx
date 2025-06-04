@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Code, CodeLanguage, CodeType, CodeVersion, CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { type Code, CodeLanguage, CodeType, type CodeVersion, type CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SmartContractView } from "./SmartContractView.js";
@@ -10,7 +10,7 @@ import { SmartContractView } from "./SmartContractView.js";
 // Create simplified mock data for CodeVersion responses
 const mockCodeVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     calledByRoutineVersionsCount: 2,
@@ -34,12 +34,12 @@ contract SimpleStorage {
     isPrivate: false,
     root: {
         __typename: "Code" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         owner: {
             __typename: "User" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             handle: "blockchain-dev",
             name: "Blockchain Developer",
             profileImage: null,
@@ -48,37 +48,37 @@ contract SimpleStorage {
         isPrivate: false,
         versions: [{
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             versionLabel: "0.9.0",
         }, {
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             versionLabel: "1.0.0",
         }],
         tags: [{
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Ethereum",
         }, {
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Smart Contract",
         }, {
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Storage",
         }],
     } as Code,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         listFor: {} as any, // Circular reference
         resources: [
             {
                 __typename: "Resource" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -86,7 +86,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: generatePKString(),
+                    id: generatePK().toString(),
                     language: "en",
                     name: "Smart Contracts Documentation",
                     description: "Official Ethereum documentation on smart contracts",
@@ -94,7 +94,7 @@ contract SimpleStorage {
             },
             {
                 __typename: "Resource" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -102,7 +102,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: generatePKString(),
+                    id: generatePK().toString(),
                     language: "en",
                     name: "Solidity Documentation",
                     description: "Official documentation for the Solidity programming language",
@@ -114,7 +114,7 @@ contract SimpleStorage {
     translations: [
         {
             __typename: "CodeVersionTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name: "Simple Storage Contract",
             description: "A basic smart contract that demonstrates storage functionality on the Ethereum blockchain. This contract allows setting and retrieving a single integer value.",
@@ -136,7 +136,7 @@ contract SimpleStorage {
 // Create a second version with a different language for translation testing
 const mockCodeVersionWithHaskellData = {
     ...mockCodeVersionData,
-    id: generatePKString(),
+    id: generatePK().toString(),
     codeLanguage: CodeLanguage.Haskell,
     content: `data AuctionParams = AuctionParams
   { apSeller  :: PubKeyHash,
@@ -169,7 +169,7 @@ data AuctionRedeemer = NewBid Bid | Payout`,
     translations: [
         {
             __typename: "CodeVersionTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name: "Plutus Auction Contract",
             description: "A Plutus-based auction smart contract for the Cardano blockchain. This contract implements a simple auction mechanism where users can place bids and the highest bidder wins.",
@@ -177,7 +177,7 @@ data AuctionRedeemer = NewBid Bid | Payout`,
         } as CodeVersionTranslation,
         {
             __typename: "CodeVersionTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "es",
             name: "Contrato de Subasta Plutus",
             description: "Un contrato inteligente de subasta basado en Plutus para la blockchain de Cardano. Este contrato implementa un mecanismo de subasta simple donde los usuarios pueden hacer ofertas y el mejor postor gana.",

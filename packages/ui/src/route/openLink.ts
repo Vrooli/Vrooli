@@ -1,5 +1,5 @@
-import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { SetLocation } from "./types.js";
+import { type ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
+import { type SetLocation } from "./types.js";
 
 /**
  * Opens link using routing or a new tab, depending on the link

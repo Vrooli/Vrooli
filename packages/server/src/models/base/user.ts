@@ -1,9 +1,9 @@
-import { BotCreateInput, BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, generatePublicId, getTranslation, userValidation } from "@local/shared";
+import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { DbProvider } from "../../db/provider.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { handlesCheck } from "../../validators/handlesCheck.js";
@@ -11,7 +11,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { UserFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type UserModelInfo, type UserModelLogic, type ViewModelLogic } from "./types.js";
 
 
 type UserPre = PreShapeEmbeddableTranslatableResult;
@@ -34,10 +34,10 @@ export const UserModel: UserModelLogic = ({
             get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingNeedsUpdate: true } } }),
+            select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingExpiredAt: true } } }),
             get: ({ name, handle, translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     bio: trans.bio,
                     handle,
                     name,
@@ -93,7 +93,7 @@ export const UserModel: UserModelLogic = ({
                     isPrivateVotes: noNull(profileData.isPrivateVotes),
                     notificationSettings: profileData.notificationSettings ?? null,
                     // languages: TODO!!!
-                }
+                };
             },
             /** Update can be either a bot or your profile */
             update: async ({ data, ...rest }) => {
@@ -105,7 +105,7 @@ export const UserModel: UserModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     name: noNull(data.name),
                     profileImage: data.profileImage,
-                }
+                };
                 if (isBot) {
                     const botData = data as BotUpdateInput;
                     return {
@@ -113,7 +113,7 @@ export const UserModel: UserModelLogic = ({
                         botSettings: botData.botSettings,
                         isBotDepictingPerson: noNull(botData.isBotDepictingPerson),
                         translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                    }
+                    };
                 }
                 const profileData = data as ProfileUpdateInput;
                 return {
@@ -137,14 +137,9 @@ export const UserModel: UserModelLogic = ({
             afterMutations: async ({ deletedIds, updatedIds }) => {
                 // Remove all updated and deleted users from botSettings cache
                 if (deletedIds.length || updatedIds.length) {
-                    await withRedis({
-                        process: async (redisClient) => {
-                            if (!redisClient) return;
-                            const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
-                            await redisClient.del(...keys as never); // Redis' types are being weird
-                        },
-                        trace: "0236",
-                    });
+                    const cacheService = CacheService.get();
+                    const keys = [...deletedIds, ...updatedIds].map((id) => `bot:${id}`);
+                    await Promise.all(keys.map(key => cacheService.del(key)));
                 }
             },
         },

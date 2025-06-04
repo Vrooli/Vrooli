@@ -1,8 +1,8 @@
 /**
  * Navigate to various objects and object search pages
  */
-import { NavigableObject, getObjectSearchParams, getObjectSlug, getObjectUrl, getObjectUrlBase, handleRegex, isOfType, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
-import { SetLocation } from "../../route/types.js";
+import { type NavigableObject, getObjectSearchParams, getObjectSlug, getObjectUrl, getObjectUrlBase, handleRegex, isOfType, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
+import { type SetLocation } from "../../route/types.js";
 import { ResourceType } from "../consts.js";
 import { setCookiePartialData } from "../localStorage.js";
 

@@ -1,4 +1,4 @@
-import { TranslationKeyError } from "@local/shared";
+import { type TranslationKeyError } from "@local/shared";
 import { CustomError } from "../events/error.js";
 
 /**

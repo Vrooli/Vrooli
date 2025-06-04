@@ -7,7 +7,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ChatInviteFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ChatInviteModelInfo, ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { type ChatInviteModelInfo, type ChatInviteModelLogic, type ChatModelInfo, type ChatModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({

@@ -11,7 +11,6 @@ export const actions_copy = {
         "isLatest": true,
         "isPrivate": true,
         "resourceSubType": true,
-        "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
         "versionIndex": true,

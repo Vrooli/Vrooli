@@ -3,7 +3,7 @@ import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material"
 import { Component } from "react";
 import BunnyCrash from "../../assets/img/BunnyCrash.svg";
 import { IconCommon } from "../../icons/Icons.js";
-import { ErrorBoundaryProps } from "../../views/types.js";
+import { type ErrorBoundaryProps } from "../../views/types.js";
 
 interface ErrorBoundaryState {
     hasError: boolean;

@@ -1,6 +1,6 @@
 import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { logRoutineStats } from "./resource.js";
+import { logResourceStats } from "./resource.js";
 import { logSiteStats } from "./site.js";
 import { logTeamStats } from "./team.js";
 import { logUserStats } from "./user.js";
@@ -62,7 +62,7 @@ export function initStatsPeriod(cron: string) {
     Promise.all([
         logSiteStats(...params),
         logTeamStats(...params),
-        logRoutineStats(...params),
+        logResourceStats(...params),
         logUserStats(...params),
     ]);
 }

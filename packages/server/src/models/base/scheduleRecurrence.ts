@@ -6,7 +6,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ScheduleRecurrenceFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ScheduleModelInfo, ScheduleModelLogic, ScheduleRecurrenceModelInfo, ScheduleRecurrenceModelLogic } from "./types.js";
+import { type ScheduleModelInfo, type ScheduleModelLogic, type ScheduleRecurrenceModelInfo, type ScheduleRecurrenceModelLogic } from "./types.js";
 
 const __typename = "ScheduleRecurrence" as const;
 export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({

@@ -1,5 +1,5 @@
 import { IS_UNMERGEABLE } from "../consts.js";
-import { DOMConversionMap, NodeConstructorPayloads, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types.js";
+import { type DOMConversionMap, type NodeConstructorPayloads, type NodeType, type SerializedTabNode, type TextDetailType, type TextModeType } from "../types.js";
 import { $createNode } from "../utils.js";
 import { TextNode } from "./TextNode.js";
 

@@ -1,7 +1,30 @@
-import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByPublicIdInput, FindVersionInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
-import { RequestService } from "../auth/request.js";
-import { CountInputBase, PartialApiInfo } from "../builders/types.js";
-import { EmbeddableType } from "../utils/embeddings/types.js";
+import { type CopyInput, type DeleteManyInput, type DeleteOneInput, type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, type ModelType, type SessionUser, type VisibilityType } from "@local/shared";
+import { type RequestService } from "../auth/request.js";
+import { type CountInputBase, type PartialApiInfo } from "../builders/types.js";
+import { type EmbeddableType } from "../services/embedding.js";
+import { type CudInputData } from "../utils/types.js";
+
+export type CudHelperParams = {
+    /** Additional data that can be passed to ModelLogic functions */
+    additionalData?: CudAdditionalData,
+    /**
+     * If the user is an admin, flags to disable different checks
+     */
+    adminFlags?: {
+        disableAllChecks?: boolean,
+        disableInputValidationAndCasting?: boolean,
+        disableMaxObjectsCheck?: boolean,
+        disablePermissionsCheck?: boolean,
+        disableProfanityCheck?: boolean,
+        disableTriggerAfterMutations?: boolean,
+        isSeeding?: boolean,
+    }
+    info: PartialApiInfo,
+    inputData: CudInputData[],
+    userData: SessionUser,
+}
+
+export type CudHelperResult = Array<boolean | Record<string, any>>;
 
 export type CudAdditionalData = Record<string, any>;
 
@@ -14,6 +37,7 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
 }
 
 export type CreateOneHelperProps = {
+    adminFlags?: CudHelperParams["adminFlags"];
     additionalData?: CudAdditionalData;
     info: PartialApiInfo;
     input: any;
@@ -96,6 +120,7 @@ export type RelBuilderHelperProps<
 }
 
 export type UpdateOneHelperProps = {
+    adminFlags?: CudHelperParams["adminFlags"];
     additionalData?: CudAdditionalData;
     info: PartialApiInfo;
     input: any;

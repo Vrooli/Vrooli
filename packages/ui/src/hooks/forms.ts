@@ -1,11 +1,11 @@
-import { LINKS, ListObject, ModelType, NavigableObject, OrArray, TranslationKeyCommon, getObjectUrl } from "@local/shared";
+import { LINKS, type ListObject, ModelType, type NavigableObject, type OrArray, type TranslationKeyCommon, getObjectUrl } from "@local/shared";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
 import { ObjectDialogAction } from "../components/dialogs/types.js";
 import { useLocation } from "../route/router.js";
-import { SetLocation } from "../route/types.js";
-import { FormProps, ViewDisplayType } from "../types.js";
+import { type SetLocation } from "../route/types.js";
+import { type FormProps, type ViewDisplayType } from "../types.js";
 import { getCookieFormData, removeCookieFormData, removeCookiePartialData, setCookieFormData, setCookiePartialData } from "../utils/localStorage.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useDebounce } from "./useDebounce.js";
@@ -42,7 +42,18 @@ function shouldValuesBeSaved(values: object) {
     return Object.keys(values).length > 0;
 }
 
-/** Caches updates to the `values` prop in localStorage*/
+/**
+ * Custom hook to cache form data updates to localStorage.
+ *
+ * @template T - The type of the form values object.
+ * @param {object} props - The properties for the hook.
+ * @param {number} [props.debounceTime=200] - The debounce time in milliseconds for saving to cache.
+ * @param {boolean} [props.disabled=false] - If true, caching is disabled.
+ * @param {boolean} [props.isCacheOn] - Explicitly controls whether caching is active. Overrides global cache state if false.
+ * @param {boolean} props.isCreate - Indicates if the form is for creating a new entity. This can influence caching logic (e.g., not caching on create).
+ * @param {string} props.pathname - The current URL pathname, used as a key for storing/retrieving cached data.
+ * @param {T} props.values - The form values to be cached.
+ */
 export function useSaveToCache<T extends object>({
     debounceTime,
     disabled = false,
@@ -100,52 +111,27 @@ type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>,
 }
 
 /**
- * Navigates to the previous page, with recovery logic if the previous page 
- * is not this app (i.e. you loaded the current page directly).
- * @param setLocation Callback to set the location
- * @param targetUrl What the previous page should be. If the previous page does 
- * not match this, the user will be navigated to the targetUrl instead.
- */
-export function goBack(setLocation: SetLocation, targetUrl?: string) {
-    const lastPath = sessionStorage.getItem("lastPath");
-    // Check if last path is the same as the target URL, excluding query params
-    const lastPathWithoutQuery = lastPath?.split("?")[0];
-    const targetUrlWithoutQuery = targetUrl?.split("?")[0];
-    const lastPathMatchesTarget = lastPathWithoutQuery === targetUrlWithoutQuery;
-    // If the last path is what we expect or we have a last path but didn't specify a target URL, go back
-    if ((lastPath && lastPathMatchesTarget) || (lastPath && !targetUrl)) {
-        window.history.back();
-    }
-    // Otherwise, navigate to the target URL
-    else {
-        setLocation(targetUrl ?? LINKS.Home, { replace: true });
-    }
-}
-
-/**
- * Creates a simple object mock for functions that require it, such as `getObjectUrl`.
- * 
- * NOTE: Do not use this willy-nilly. Make sure the function you're using it with is okay with 
- * having this limited set of properties.
- * @param objectType The object type
- * @param objectId The object ID
- * @param rootObjectId The object's root ID, if it is an object version
- * @returns A simple object mock
- */
-export function asMockObject(objectType: ModelType | `${ModelType}`, objectId: string, rootObjectId?: string) {
-    return {
-        __typename: objectType,
-        id: objectId,
-        ...(rootObjectId ? { root: { __typename: objectType.replace("Version", ""), id: rootObjectId } } : {}),
-    };
-}
-
-/**
- * Creates logic for handling cancel, create, and update actions when 
- * creating a new object or updating an existing one. 
- * When done in a page, handles navigation. 
- * When done in a dialog, triggers the appropriate callback.
- * Also handles snack messages.
+ * Custom hook to manage common actions for upserting (create/update) entities.
+ * It handles navigation for page-level forms, triggers callbacks for dialog-based forms,
+ * and manages snackbar notifications.
+ *
+ * @template T - The type of the entity being upserted. Must extend `TType`.
+ * @param {object} props - The properties for the hook.
+ * @param {ViewDisplayType | string} props.display - The display context of the form (e.g., "Page", "Dialog").
+ * @param {boolean} props.isCreate - True if the form is for creating a new entity, false if updating.
+ * @param {ListObject["__typename"]} props.objectType - The type of the object being upserted (e.g., "User", "Task").
+ * @param {(action: ObjectDialogAction, item: T) => void} [props.onAction] - Optional callback triggered after any action.
+ * @param {() => void} [props.onCancel] - Optional callback for cancel actions, typically used in dialogs.
+ * @param {(item: T) => void} [props.onCompleted] - Optional callback for successful create/update, typically used in dialogs.
+ * @param {(item: T) => void} [props.onDeleted] - Optional callback for successful delete, typically used in dialogs.
+ * @param {string} props.pathname - The current URL pathname, used for cache clearing and navigation.
+ * @param {boolean} [props.suppressSnack] - If true, snackbar notifications will be suppressed.
+ * @returns {object} An object containing handler functions:
+ * @returns {() => void} handleCancel - Handles cancel action.
+ * @returns {(data: T) => void} handleCreated - Handles successful creation.
+ * @returns {(data: T) => void} handleDeleted - Handles successful deletion.
+ * @returns {(data: T) => void} handleUpdated - Handles successful update.
+ * @returns {(data: T) => void} handleCompleted - Handles successful creation or update based on `isCreate`.
  */
 export function useUpsertActions<T extends TType>({
     display,
@@ -215,7 +201,7 @@ export function useUpsertActions<T extends TType>({
                 disableCache();
             }
 
-            if (display === "Page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
+            if (display === "Page") setLocation(viewUrl ?? LINKS.Home, { replace: true });
 
             if ((isCreate && messageType === "Created") || (!isCreate && messageType === "Updated")) {
                 publishSnack(messageType, Array.isArray(item) ? item.length : 1, item);
@@ -279,5 +265,46 @@ export function useUpsertActions<T extends TType>({
         handleDeleted,
         handleUpdated,
         handleCompleted,
+    };
+}
+
+/**
+ * Navigates to the previous page, with recovery logic if the previous page 
+ * is not this app (i.e. you loaded the current page directly).
+ * @param setLocation Callback to set the location
+ * @param targetUrl What the previous page should be. If the previous page does 
+ * not match this, the user will be navigated to the targetUrl instead.
+ */
+export function goBack(setLocation: SetLocation, targetUrl?: string) {
+    const lastPath = sessionStorage.getItem("lastPath");
+    // Check if last path is the same as the target URL, excluding query params
+    const lastPathWithoutQuery = lastPath?.split("?")[0];
+    const targetUrlWithoutQuery = targetUrl?.split("?")[0];
+    const lastPathMatchesTarget = lastPathWithoutQuery === targetUrlWithoutQuery;
+    // If the last path is what we expect or we have a last path but didn't specify a target URL, go back
+    if ((lastPath && lastPathMatchesTarget) || (lastPath && !targetUrl)) {
+        window.history.back();
+    }
+    // Otherwise, navigate to the target URL
+    else {
+        setLocation(targetUrl ?? LINKS.Home, { replace: true });
+    }
+}
+
+/**
+ * Creates a simple object mock for functions that require it, such as `getObjectUrl`.
+ * 
+ * NOTE: Do not use this willy-nilly. Make sure the function you're using it with is okay with 
+ * having this limited set of properties.
+ * @param objectType The object type
+ * @param objectId The object ID
+ * @param rootObjectId The object's root ID, if it is an object version
+ * @returns A simple object mock
+ */
+export function asMockObject(objectType: ModelType | `${ModelType}`, objectId: string, rootObjectId?: string) {
+    return {
+        __typename: objectType,
+        id: objectId,
+        ...(rootObjectId ? { root: { __typename: objectType.replace("Version", ""), id: rootObjectId } } : {}),
     };
 }

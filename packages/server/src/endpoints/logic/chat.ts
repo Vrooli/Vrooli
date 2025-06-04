@@ -1,9 +1,9 @@
-import { Chat, ChatCreateInput, ChatSearchInput, ChatSearchResult, ChatUpdateInput, FindByPublicIdInput } from "@local/shared";
+import { type Chat, type ChatCreateInput, type ChatSearchInput, type ChatSearchResult, type ChatUpdateInput, type FindByPublicIdInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsChat = {
     findOne: ApiEndpoint<FindByPublicIdInput, Chat>;

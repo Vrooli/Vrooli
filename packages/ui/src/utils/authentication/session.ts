@@ -1,4 +1,4 @@
-import { Session, SessionUser, validatePK } from "@local/shared";
+import { type Session, type SessionUser, validatePK } from "@local/shared";
 import { SocketService } from "../../api/socket.js";
 import { getUserLanguages } from "../display/translationTools.js";
 import { getCookie, removeCookie } from "../localStorage.js";

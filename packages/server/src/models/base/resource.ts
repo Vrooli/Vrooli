@@ -1,10 +1,10 @@
-import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, ResourceVersion, Tag } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePublicId, getTranslation, MaxObjects, ResourceSortBy, resourceValidation, type ResourceVersion, type Tag } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { getLabels } from "../../getters/getLabels.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ownerFields } from "../../utils/shapes/ownerFields.js";
 import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
@@ -14,7 +14,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ResourceFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, ReactionModelLogic, ResourceModelInfo, ResourceModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type ReactionModelLogic, type ResourceModelInfo, type ResourceModelLogic, type ViewModelLogic } from "./types.js";
 
 type ResourcePre = PreShapeRootResult;
 
@@ -26,18 +26,9 @@ export const ResourceModel: ResourceModelLogic = ({
         label: {
             select: () => ({
                 id: true,
-                isDeleted: false,
-                OR: [
-                    {
-                        isPrivate: false,
-                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
-
-                    },
-                    {
-                        isPrivate: true,
-                        versions: { select: { id: true, isLatest: true, translations: { select: { language: true, name: true } } } },
-                    },
-                ],
+                isDeleted: true,
+                isPrivate: true,
+                versions: { select: { id: true, isLatestPublic: true, translations: { select: { language: true, name: true } } } },
             }),
             get: (select, languages) => {
                 const latestVersion = select.versions.find((version) => version.isLatestPublic || version.isLatest);
@@ -52,18 +43,18 @@ export const ResourceModel: ResourceModelLogic = ({
                 OR: [
                     {
                         isPrivate: false,
-                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                        versions: { select: { id: true, isLatestPublic: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } } },
                     },
                     {
                         isPrivate: true,
-                        versions: { select: { id: true, isLatest: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } } },
+                        versions: { select: { id: true, isLatest: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } } } },
                     },
                 ],
             }),
             get: ({ tags, versions }, languages) => {
                 const latestVersion = versions.find((version) => version.isLatestPublic || version.isLatest);
                 const trans = getTranslation(latestVersion as unknown as ResourceVersion, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     name: trans.name,
                     tags: (tags as unknown as Tag[]).map(({ tag }) => tag),
                     description: trans.description,
@@ -85,11 +76,12 @@ export const ResourceModel: ResourceModelLogic = ({
                 const preData = rest.preMap[__typename] as ResourcePre;
                 return {
                     id: BigInt(data.id),
-                    publicId: generatePublicId(),
+                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
                     isInternal: noNull(data.isInternal),
                     isPrivate: data.isPrivate,
                     permissions: noNull(data.permissions) ?? JSON.stringify({}),
-                    createdBy: rest.userData?.id ? { connect: { id: rest.userData.id } } : undefined,
+                    createdBy: rest.userData?.id ? { connect: { id: BigInt(rest.userData.id) } } : undefined,
+                    resourceType: data.resourceType,
                     ...preData.versionMap[data.id],
                     ...(await ownerFields({ relation: "ownedBy", relTypes: ["Connect"], parentRelationshipName: "resources", isCreate: true, objectType: __typename, data, ...rest })),
                     parent: await shapeHelper({ relation: "parent", relTypes: ["Connect"], isOneToOne: true, objectType: "ResourceVersion", parentRelationshipName: "forks", data, ...rest }),

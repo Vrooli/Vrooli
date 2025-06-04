@@ -1,5 +1,5 @@
-import { endpointsAuth, Session, ValidateSessionInput } from "@local/shared";
-import { Box, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
+import { endpointsAuth, type Session, type ValidateSessionInput } from "@local/shared";
+import { Box, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, type Theme, ThemeProvider } from "@mui/material";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";
 import { fetchAIConfig } from "./api/ai.js";
@@ -34,8 +34,8 @@ import { ELEMENT_IDS, Z_INDEX } from "./utils/consts.js";
 import { getDeviceInfo } from "./utils/display/device.js";
 import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "./utils/display/documentTools.js";
 import { BREAKPOINTS, DEFAULT_THEME, themes } from "./utils/display/theme.js";
-import { getCookie, getStorageItem, setCookie, ThemeType } from "./utils/localStorage.js";
-import { PopupImagePub, PopupVideoPub, PubSub } from "./utils/pubsub.js";
+import { getCookie, getStorageItem, setCookie, type ThemeType } from "./utils/localStorage.js";
+import { type PopupImagePub, type PopupVideoPub, PubSub } from "./utils/pubsub.js";
 import commonSpriteHref from "/sprites/common-sprite.svg";
 
 export function getGlobalStyles(theme: Theme) {

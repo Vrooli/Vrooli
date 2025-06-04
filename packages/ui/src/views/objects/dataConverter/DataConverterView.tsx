@@ -1,6 +1,6 @@
-import { BookmarkFor, CodeLanguage, CodeVersion, CodeVersionConfig, CommentFor, ResourceList as ResourceListType, Tag, endpointsCodeVersion, getTranslation } from "@local/shared";
+import { BookmarkFor, CodeLanguage, type CodeVersion, CodeVersionConfig, CommentFor, type ResourceList as ResourceListType, type Tag, endpointsCodeVersion, getTranslation } from "@local/shared";
 import { Box, Button, Collapse, Container, Grid, IconButton, LinearProgress, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
@@ -25,7 +25,7 @@ import { ScrollBox } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { DataConverterViewProps } from "./types.js";
+import { type DataConverterViewProps } from "./types.js";
 
 const RANDOM_PASS_THRESHOLD = 0.3;
 const RANDOM_ERROR_THRESHOLD = 0.7;
@@ -127,7 +127,7 @@ export function DataConverterView({
     const codeConfig = useMemo(() => {
         if (!codeVersion) return null;
 
-        return CodeVersionConfig.deserialize({
+        return CodeVersionConfig.parse({
             data: codeVersion.data,
             content: codeVersion.content,
             codeLanguage: codeVersion.codeLanguage,
@@ -314,7 +314,7 @@ export function DataConverterView({
                                 size={80}
                                 style={{
                                     margin: 10,
-                                    filter: `drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))`,
+                                    filter: "drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))",
                                 }}
                             />
 
@@ -521,9 +521,9 @@ export function DataConverterView({
                                                         alignItems: "center",
                                                         bgcolor: testResults[index]?.passed !== undefined
                                                             ? testResults[index]?.passed
-                                                                ? 'success.light'
-                                                                : 'error.light'
-                                                            : 'transparent',
+                                                                ? "success.light"
+                                                                : "error.light"
+                                                            : "transparent",
                                                         p: 1,
                                                         borderRadius: 1,
                                                     }}
@@ -539,7 +539,7 @@ export function DataConverterView({
                                                         <Typography
                                                             variant="body2"
                                                             color={testResults[index].passed ? "success.main" : "error.main"}
-                                                            sx={{ mr: 1, fontWeight: 'bold' }}
+                                                            sx={{ mr: 1, fontWeight: "bold" }}
                                                         >
                                                             {testResults[index].passed ? "PASSED" : "FAILED"}
                                                         </Typography>

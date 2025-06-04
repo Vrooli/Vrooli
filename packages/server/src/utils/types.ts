@@ -1,6 +1,6 @@
-import { ModelType } from "@local/shared";
-import { PrismaCreate, PrismaSelect, PrismaUpdate } from "../builders/types.js";
-import { InputNode } from "./inputNode.js";
+import { type ModelType } from "@local/shared";
+import { type PrismaCreate, type PrismaSelect, type PrismaUpdate } from "../builders/types.js";
+import { type InputNode } from "./inputNode.js";
 
 export type QueryAction = "Connect" | "Create" | "Delete" | "Disconnect" | "Read" | "Update";
 export type IdsByAction = { [action in QueryAction]?: string[] };

@@ -1,10 +1,10 @@
-import { apiKeyExternalValidation, MaxObjects } from "@local/shared";
+import { apiKeyExternalValidation, generatePK, MaxObjects } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ApiKeyExternalFormat } from "../formats.js";
-import { ApiKeyExternalModelLogic } from "./types.js";
+import { type ApiKeyExternalModelLogic } from "./types.js";
 
 const __typename = "ApiKeyExternal" as const;
 export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
@@ -22,6 +22,7 @@ export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({
+                id: generatePK(),
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
                 key: ApiKeyEncryptionService.get().encryptExternal(data.key),
                 name: data.name,

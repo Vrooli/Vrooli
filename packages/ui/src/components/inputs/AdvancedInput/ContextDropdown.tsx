@@ -1,7 +1,7 @@
 import { ResourceUsedFor, getObjectUrl } from "@local/shared";
 import { Box, IconButton, InputAdornment, List, ListItem, Popover, TextField, Typography } from "@mui/material";
-import { KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 

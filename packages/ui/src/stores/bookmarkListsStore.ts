@@ -1,5 +1,5 @@
 
-import { BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, endpointsBookmarkList } from "@local/shared";
+import { type BookmarkList, type BookmarkListSearchInput, type BookmarkListSearchResult, endpointsBookmarkList } from "@local/shared";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";

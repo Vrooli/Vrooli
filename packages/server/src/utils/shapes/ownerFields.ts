@@ -1,5 +1,5 @@
 import { lowercaseFirstLetter } from "@local/shared";
-import { shapeHelper, ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { shapeHelper, type ShapeHelperProps } from "../../builders/shapeHelper.js";
 
 type OwnerShapeHelperProps<
     Types extends readonly ("Connect" | "Disconnect")[],
@@ -32,7 +32,7 @@ export async function ownerFields<
     if (requiresTransfer) {
         // If create, set owner to current user
         if (isCreate) {
-            return { [`${relation}User`]: { connect: { id: rest.userData.id } } };
+            return { [`${relation}User`]: { connect: { id: BigInt(rest.userData.id) } } };
         }
         // Otherwise, return empty object
         return {};

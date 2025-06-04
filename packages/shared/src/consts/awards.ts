@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { AwardCategory } from "../api/types.js";
+import { type AwardCategory } from "../api/types.js";
 import { type TranslationKeyAward } from "../types.js";
 
 /**

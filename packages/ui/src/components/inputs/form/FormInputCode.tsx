@@ -1,7 +1,7 @@
-import { CodeFormInput } from "@local/shared";
+import { type CodeFormInput } from "@local/shared";
 import { useMemo } from "react";
 import { CodeInput } from "../../inputs/CodeInput/CodeInput.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 export function FormInputCode({
     disabled,

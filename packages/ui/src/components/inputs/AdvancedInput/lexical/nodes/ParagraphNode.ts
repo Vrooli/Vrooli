@@ -1,6 +1,6 @@
 import { TEXT_FLAGS } from "../consts.js";
-import { RangeSelection } from "../selection.js";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types.js";
+import { type RangeSelection } from "../selection.js";
+import { type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type EditorConfig, type ElementFormatType, type NodeConstructorPayloads, type NodeType, type SerializedParagraphNode, type TextFormatType } from "../types.js";
 import { $createNode, $isNode, getNextSibling, getPreviousSibling, isHTMLElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 

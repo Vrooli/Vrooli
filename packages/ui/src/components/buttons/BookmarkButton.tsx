@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkFor, validatePK } from "@local/shared";
+import { type Bookmark, type BookmarkFor, validatePK } from "@local/shared";
 import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,11 +6,11 @@ import { SessionContext } from "../../contexts/session.js";
 import { useBookmarker } from "../../hooks/objectActions.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useBookmarkListsStore } from "../../stores/bookmarkListsStore.js";
-import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
+import { type ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { SelectBookmarkListDialog } from "../dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog.js";
-import { BookmarkButtonProps } from "./types.js";
+import { type BookmarkButtonProps } from "./types.js";
 
 const BookmarksLabel = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
@@ -158,7 +158,7 @@ export function BookmarkButton({
                                 variant="body2"
                                 sx={{
                                     lineHeight: 1,
-                                    paddingTop: "2px"
+                                    paddingTop: "2px",
                                 }}
                             >
                                 {bookmarks}

@@ -1,17 +1,18 @@
-import { ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS, SessionUser } from "@local/shared";
+import type { SessionUser } from "@local/shared";
+import { type ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS } from "@local/shared";
 import cookie from "cookie";
-import { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
-import { Socket } from "socket.io";
+import { type Socket } from "socket.io";
 // eslint-disable-next-line import/extensions
-import { ExtendedError } from "socket.io/dist/namespace";
+import type { ExtendedError } from "socket.io/dist/namespace";
 // eslint-disable-next-line import/extensions
-import { DefaultEventsMap } from "socket.io/dist/typed-events";
+import type { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
-import { initializeRedis } from "../redisConn.js";
-import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types.js";
+import { CacheService } from "../redisConn.js";
+import type { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types.js";
 import { ResponseService } from "../utils/response.js";
 import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 import { RequestService } from "./request.js";
@@ -82,7 +83,7 @@ export class AuthTokensService {
         }
         // Fetch session from database
         const storedSession = await DbProvider.get().session.findUnique({
-            where: { id: sessionId },
+            where: { id: BigInt(sessionId) },
             select: {
                 expires_at: true,
                 last_refresh_at: true,
@@ -94,7 +95,7 @@ export class AuthTokensService {
             return false;
         }
         // Make sure session is not revoked
-        if (!!storedSession.revokedAt) {
+        if (storedSession.revokedAt) {
             return false;
         }
         // Make sure refresh times match
@@ -226,7 +227,8 @@ export class AuthTokensService {
         // Start with minimal token data
         let payload: SessionToken = {
             ...JsonWebToken.get().basicToken(),
-            accessExpiresAt: session.accessExpiresAt ?? 0,
+            // Ensure a fresh access expiration is created for initial tokens
+            ...JsonWebToken.createAccessExpiresAt(),
             isLoggedIn: session.isLoggedIn ?? false,
             timeZone: session.timeZone ?? undefined,
             users: [],
@@ -267,36 +269,49 @@ export class AuthService {
     static async verifyApiKey(
         apiKey: string,
     ): Promise<{ permissions: Record<ApiKeyPermission, boolean>; userId: string | null }> {
+        const cacheService = CacheService.get();
+        const cacheKey = `apiKeyPerm:${apiKey}`;
+
         // Try Redis cache
-        let client;
         try {
-            client = await initializeRedis();
-            const cacheKey = `apiKeyPerm:${apiKey}`;
-            const cached = await client.get(cacheKey);
-            if (cached) {
-                return JSON.parse(cached);
+            const cachedData = await cacheService.get<{ permissions: Record<ApiKeyPermission, boolean>; userId: string | null }>(cacheKey);
+            if (cachedData) {
+                return cachedData;
             }
         } catch (e) {
             logger.warn("Redis unavailable for API key cache", { error: e });
         }
+
         // Fetch from DB
         const record = await DbProvider.get().api_key.findUnique({
             where: { key: apiKey },
             select: { permissions: true, userId: true, disabledAt: true },
         });
+
         if (!record || record.disabledAt) {
             throw new CustomError("0900", "Unauthorized");
         }
-        const permissions = JSON.parse(record.permissions) as Record<ApiKeyPermission, boolean>;
-        const result = { permissions, userId: record.userId ?? null };
+
+        // Ensure permissions is a string before parsing
+        if (typeof record.permissions !== "string") {
+            logger.error("Permissions field is not a string", { apiKey, trace: "0901" });
+            throw new CustomError("0901", "Unauthorized");
+        }
+        let permissions: Record<ApiKeyPermission, boolean>;
+        try {
+            permissions = JSON.parse(record.permissions) as Record<ApiKeyPermission, boolean>;
+        } catch (e) {
+            logger.error("Failed to parse permissions JSON for API key", { apiKey, trace: "0902", error: e });
+            throw new CustomError("0902", "InternalError");
+        }
+
+        const result = { permissions, userId: record.userId?.toString() ?? null };
+
         // Cache in Redis
-        if (client) {
-            try {
-                const cacheKey = `apiKeyPerm:${apiKey}`;
-                await client.setEx(cacheKey, API_KEY_CACHE_TTL, JSON.stringify(result));
-            } catch (e) {
-                logger.warn("Failed to cache API key permissions", { error: e });
-            }
+        try {
+            await cacheService.set(cacheKey, result, API_KEY_CACHE_TTL);
+        } catch (e) {
+            logger.warn("Failed to cache API key permissions", { error: e });
         }
         return result;
     }
@@ -457,7 +472,13 @@ export function modifyPayloadToFitUsers(payload: SessionToken): SessionToken {
     let currPayloadSize = JsonWebToken.calculateBase64Length(newPayload);
     // If payload is too large, throw an error
     if (currPayloadSize > JsonWebToken.get().getMaxPayloadSize()) {
-        throw new CustomError("0545", "ErrorUnknown");
+        logger.error("Primary user data exceeds session token size limit", {
+            trace: "0545",
+            userId: users.length > 0 ? users[0].id : "N/A",
+            payloadSize: currPayloadSize,
+            maxSize: JsonWebToken.get().getMaxPayloadSize(),
+        });
+        throw new CustomError("0545", "EssentialUserDataTooLargeForToken");
     }
     // Add the rest of the users until we run out of users or reach the limit
     for (let i = 1; i < users.length; i++) {
@@ -502,7 +523,11 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
         const { token, maxAge } = await AuthTokensService.authenticateToken(tokenCookie, { modifyPayload });
         JsonWebToken.addToCookies(res, token, maxAge);
     } catch (error) {
-        logger.error("❗️ Session token is invalid", { trace: "0447" });
+        logger.error("❗️ Session token is invalid during update attempt", { trace: "0447", error });
+        // If the token is invalid, clear the cookie.
+        // The route handler calling this function will then proceed, potentially
+        // with a now-cleared session, and should handle accordingly.
+        res.clearCookie(COOKIE.Jwt);
     }
 }
 
@@ -513,9 +538,12 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
  */
 export function updateSessionWithTokenPayload(req: { session: SessionData }, payload: JwtPayload) {
     // Set token and role variables for other middleware to use
-    req.session.apiToken = payload.apiToken ?? false;
+    req.session.apiToken = payload.apiToken ?? null;
     req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
     req.session.timeZone = payload.timeZone ?? req.session.timeZone;
+    // Propagate access expiration time to session data
+    req.session.accessExpiresAt = (payload as SessionToken).accessExpiresAt ?? req.session.accessExpiresAt;
+
     // Set API token permissions if they exist
     if (payload.apiToken && payload.permissions) {
         req.session.permissions = payload.permissions;

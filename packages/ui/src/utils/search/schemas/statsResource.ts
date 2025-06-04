@@ -1,4 +1,4 @@
-import { endpointsStatsResource, FormSchema, StatsResourceSortBy } from "@local/shared";
+import { endpointsStatsResource, type FormSchema, StatsResourceSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

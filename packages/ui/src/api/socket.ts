@@ -1,4 +1,4 @@
-import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackPayloads, SocketEventPayloads } from "@local/shared";
+import { type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventCallbackPayloads, type SocketEventPayloads } from "@local/shared";
 import i18next from "i18next";
 import { io } from "socket.io-client";
 import { webSocketUrlBase } from "../utils/consts.js";

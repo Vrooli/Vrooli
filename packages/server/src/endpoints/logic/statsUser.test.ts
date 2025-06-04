@@ -1,4 +1,4 @@
-import { StatPeriodType, StatsUserSearchInput, StatsUserSearchResult, uuid } from "@local/shared";
+import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, uuid } from "@local/shared";
 import { PeriodType } from "@prisma/client";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
@@ -8,7 +8,7 @@ import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { initializeRedis } from "../../redisConn.js";
-import { RecursivePartial } from "../../types.ts";
+import { type RecursivePartial } from "../../types.ts";
 import { statsUser_findMany } from "../generated/statsUser_findMany.js"; // Assuming this generated type exists
 import { statsUser } from "./statsUser.js";
 

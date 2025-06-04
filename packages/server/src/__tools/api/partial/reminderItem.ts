@@ -1,5 +1,5 @@
-import { ReminderItem } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ReminderItem } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const reminderItem: ApiPartial<ReminderItem> = {

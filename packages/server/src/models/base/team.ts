@@ -1,9 +1,9 @@
-import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePublicId, getTranslation, teamValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePK, generatePublicId, getTranslation, teamValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { getLabels } from "../../getters/getLabels.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -13,7 +13,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { TeamFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types.js";
+import { type BookmarkModelLogic, type TeamModelInfo, type TeamModelLogic, type ViewModelLogic } from "./types.js";
 
 type TeamPre = PreShapeEmbeddableTranslatableResult;
 
@@ -28,10 +28,10 @@ export const TeamModel: TeamModelLogic = ({
             get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
+            select: () => ({ id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     bio: trans.bio,
                     name: trans.name,
                 }, languages?.[0]);
@@ -62,6 +62,7 @@ export const TeamModel: TeamModelLogic = ({
                     createdBy: { connect: { id: BigInt(rest.userData.id) } },
                     members: {
                         create: {
+                            id: generatePK(),
                             publicId: generatePublicId(),
                             isAdmin: true,
                             user: { connect: { id: BigInt(rest.userData.id) } },
@@ -157,7 +158,7 @@ export const TeamModel: TeamModelLogic = ({
             ...(userId ? {
                 members: {
                     where: {
-                        userId: BigInt(userId),
+                        user: { id: BigInt(userId) },
                     },
                     select: {
                         id: true,

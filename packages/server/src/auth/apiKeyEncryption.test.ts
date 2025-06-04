@@ -1,5 +1,5 @@
-import { expect } from 'chai';
-import { ApiKeyEncryptionService } from './apiKeyEncryption.js';
+import { expect } from "chai";
+import { ApiKeyEncryptionService } from "./apiKeyEncryption.js";
 import { randomString } from "./codes.js";
 
 // Define test cases
@@ -14,7 +14,7 @@ const testCases = [
     },
     {
         test: "should encrypt and decrypt emojis",
-        plaintext: '👍🏻👍🏼👍🏽👍🏾👍🏿👎🏻👎🏼👎🏽👎🏾👎🏿👨🏻‍🤝‍👩🏾👨🏼‍🤝‍👨🏽‍🤝‍👨🏾‍🤝‍👨🏿‍🤝‍👩🏻👩🏼👩🏽👩🏾👩🏿✅',
+        plaintext: "👍🏻👍🏼👍🏽👍🏾👍🏿👎🏻👎🏼👎🏽👎🏾👎🏿👨🏻‍🤝‍👩🏾👨🏼‍🤝‍👨🏽‍🤝‍👨🏾‍🤝‍👨🏿‍🤝‍👩🏻👩🏼👩🏽👩🏾👩🏿✅",
     },
     {
         test: "should encrypt and decrypt accented characters and other languages",
@@ -30,7 +30,7 @@ const testCases = [
     },
 ];
 
-describe('ApiKeyEncryptionService', () => {
+describe("ApiKeyEncryptionService", () => {
     const service = ApiKeyEncryptionService.get();
 
     for (const testCase of testCases) {
@@ -41,11 +41,11 @@ describe('ApiKeyEncryptionService', () => {
         });
     }
 
-    it('should correctly validate keys', () => {
-        expect(ApiKeyEncryptionService.isValidKey('valid')).to.be.true;
-        expect(ApiKeyEncryptionService.isValidKey('')).to.be.false;
-        expect(ApiKeyEncryptionService.isValidKey('a'.repeat(1))).to.be.true;
-        expect(ApiKeyEncryptionService.isValidKey('a'.repeat(2049))).to.be.false;
-        expect(ApiKeyEncryptionService.isValidKey('a'.repeat(2048))).to.be.true;
+    it("should correctly validate keys", () => {
+        expect(ApiKeyEncryptionService.isValidKey("valid")).to.be.true;
+        expect(ApiKeyEncryptionService.isValidKey("")).to.be.false;
+        expect(ApiKeyEncryptionService.isValidKey("a".repeat(1))).to.be.true;
+        expect(ApiKeyEncryptionService.isValidKey("a".repeat(2049))).to.be.false;
+        expect(ApiKeyEncryptionService.isValidKey("a".repeat(2048))).to.be.true;
     });
 });

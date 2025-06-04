@@ -1,4 +1,4 @@
-import { Session, SessionUser, uuid } from "@local/shared";
+import { type Session, type SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { checkIfLoggedIn, getCurrentUser } from "./session.js";
 

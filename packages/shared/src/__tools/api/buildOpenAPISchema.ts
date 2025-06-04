@@ -620,7 +620,7 @@ function buildJsonSchemaGenerator(tsFilePath: string) {
     };
 
     const compilerOptions: TJS.CompilerOptions = {
-        // e.g. "strictNullChecks": true, "esModuleInterop": true, etc. Adjust to match your project’s tsconfig
+        // e.g. "strictNullChecks": true, "esModuleInterop": true, etc. Adjust to match your project's tsconfig
         strictNullChecks: true,
     };
 
@@ -668,15 +668,15 @@ async function parseApiTypes(): Promise<Record<string, any>> {
 /**
  * Populates the OpenAPI schema "components" object with data parsed from the REST endpoint logic files.
  */
-function setSchemaComponents(
+async function setSchemaComponents(
     schema: OpenApiSchema,
     endpointsByType: EndpointsMap,
-): void {
+): Promise<void> {
     const result: SchemaComponents = { ...initialComponents };
 
     // Collect every inputType and outputType we encountered
     const allTypes = new Set<string>();
-    Object.entries(endpointsByType).forEach(([objectType, endpointsMap]) => {
+    Object.entries(endpointsByType).forEach(([_objectType, endpointsMap]) => {
         Object.values(endpointsMap).forEach((def) => {
             if (def.inputType) {
                 allTypes.add(def.inputType);
@@ -686,20 +686,19 @@ function setSchemaComponents(
     });
 
     // 2) Parse the main type file
-    // const shapedApiTypes = parseApiTypes();
-    // console.log("shapedApiTypes", shapedApiTypes);
+    const shapedApiTypes = await parseApiTypes();
 
-    //TODO
-    // Make sure each type is present in result.schemas
-    // Here we just stub out "type: object" to let docs reference them. 
-    // For an actual solution, you could do a TS -> OpenAPI conversion for each type, or a partial approach.
     for (const typeName of allTypes) {
         if (!result.schemas[typeName]) {
-            result.schemas[typeName] = {
-                type: "object",
-                properties: {},
-                required: [],
-            };
+            if (shapedApiTypes[typeName]) {
+                result.schemas[typeName] = shapedApiTypes[typeName];
+            } else {
+                result.schemas[typeName] = {
+                    type: "object",
+                    properties: {},
+                    required: [],
+                };
+            }
         }
     }
 
@@ -745,7 +744,7 @@ async function main() {
     // Add the REST endpoints as operations (paths)
     setSchemaPaths(openApiSchema, restPairs, endpointsByType);
     // Add responses and schemas to the components object
-    setSchemaComponents(openApiSchema, endpointsByType);
+    await setSchemaComponents(openApiSchema, endpointsByType);
 
     // Write the OpenAPI schema to a file
     // eslint-disable-next-line no-magic-numbers

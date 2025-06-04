@@ -1,8 +1,8 @@
 
 import { COMPOSITION_SUFFIX, DETAIL_TYPE_TO_DETAIL, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_DIRECTIONLESS, IS_FIREFOX, IS_SEGMENTED, IS_TOKEN, IS_UNMERGEABLE, TEXT_FLAGS, TEXT_MODE_TO_TYPE, TEXT_TYPE_TO_MODE } from "../consts.js";
-import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection.js";
+import { $updateElementSelectionOnCreateDeleteNode, type RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection.js";
 import { applyTextTransformers, findAppliedTextTransformers, hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers.js";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatTransformer, TextFormatType, TextModeType } from "../types.js";
+import { type BaseSelection, type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type NodeConstructorPayloads, type NodeType, type SerializedTextNode, type TextDetailType, type TextFormatTransformer, type TextFormatType, type TextModeType } from "../types.js";
 import { errorOnReadOnly } from "../updates.js";
 import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils.js";
 import { LexicalNode } from "./LexicalNode.js";

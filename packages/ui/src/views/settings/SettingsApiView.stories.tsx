@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { ApiKey, ApiKeyPermission, Session, SessionUser, User, generatePKString } from "@local/shared";
+import { ApiKeyPermission, generatePK, type ApiKey, type Session, type SessionUser, type User } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PERMISSION_PRESETS, SettingsApiView } from "./SettingsApiView.js";
@@ -14,7 +14,7 @@ const session: Partial<Session> = {
     users: [{
         credits: "12345678912",
         hasPremium: true,
-        id: generatePKString(),
+        id: generatePK().toString(),
     }] as SessionUser[],
 };
 const noKeysOrIntegrationData: Partial<User> = {
@@ -26,7 +26,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Fresh key with READ_ONLY permissions
         {
             __typename: "ApiKey" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             creditsUsed: BigInt(0).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -38,7 +38,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Used but still active key with STANDARD permissions
         {
             __typename: "ApiKey" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             creditsUsed: BigInt(1000000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -50,7 +50,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Inactive key with DEVELOPER permissions
         {
             __typename: "ApiKey" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             creditsUsed: BigInt(1000000).toString(),
             disabledAt: new Date().toISOString(),
             limitHard: BigInt(25000000000).toString(),
@@ -62,7 +62,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Key with FULL_ACCESS permissions
         {
             __typename: "ApiKey" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             creditsUsed: BigInt(2000000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -74,7 +74,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         // Key with custom permissions
         {
             __typename: "ApiKey" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             creditsUsed: BigInt(500000).toString(),
             disabledAt: null,
             limitHard: BigInt(25000000000).toString(),
@@ -91,21 +91,21 @@ const withKeysAndIntegrationsData: Partial<User> = {
     apiKeysExternal: [
         {
             __typename: "ApiKeyExternal" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             disabledAt: null,
             name: "External Key 1",
             service: "OpenAI",
         },
         {
             __typename: "ApiKeyExternal" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             disabledAt: new Date().toISOString(),
             name: "External Key 2",
             service: "OpenAI",
         },
         {
             __typename: "ApiKeyExternal" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             disabledAt: null,
             name: "External Key 3",
             service: "Microsoft",

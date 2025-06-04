@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { MemberInviteListItemProps } from "../types.js";
+import { type MemberInviteListItemProps } from "../types.js";
 
 export function MemberInviteListItem({
     data,

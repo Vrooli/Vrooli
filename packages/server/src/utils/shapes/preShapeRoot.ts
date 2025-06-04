@@ -1,4 +1,4 @@
-import { exists, ModelType, SessionUser } from "@local/shared";
+import { exists, type ModelType, type SessionUser } from "@local/shared";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";

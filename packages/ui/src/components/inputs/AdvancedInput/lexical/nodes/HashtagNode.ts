@@ -1,4 +1,4 @@
-import { NodeType, SerializedTextNode } from "../types.js";
+import { type NodeType, type SerializedTextNode } from "../types.js";
 import { $createNode } from "../utils.js";
 import { TextNode } from "./TextNode.js";
 

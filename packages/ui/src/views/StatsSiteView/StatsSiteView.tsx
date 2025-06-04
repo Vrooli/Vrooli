@@ -1,6 +1,6 @@
-import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
+import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, type StatPeriodType, type StatsSite, type StatsSiteSearchInput, type StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
@@ -10,12 +10,12 @@ import { Navbar } from "../../components/navigation/Navbar.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { useLazyFetch } from "../../hooks/useFetch.js";
-import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { type PageTab, useTabs } from "../../hooks/useTabs.js";
 import { ScrollBox } from "../../styles.js";
 import { statsDisplay } from "../../utils/display/statsDisplay.js";
 import { displayDate } from "../../utils/display/stringTools.js";
-import { TabParamBase } from "../../utils/search/objectToSearch.js";
-import { StatsSiteViewProps } from "../types.js";
+import { type TabParamBase } from "../../utils/search/objectToSearch.js";
+import { type StatsSiteViewProps } from "../types.js";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 

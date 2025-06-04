@@ -2,7 +2,7 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { endpointsAuth, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput } from "@local/shared";
+import { endpointsAuth, type WalletComplete, type WalletCompleteInput, type WalletInit, type WalletInitInput } from "@local/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
 import { PubSub } from "../../utils/pubsub.js";
 

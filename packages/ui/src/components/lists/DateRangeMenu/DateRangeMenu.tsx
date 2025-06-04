@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStableObject } from "../../../hooks/useStableObject.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { DateRangeMenuProps } from "../types.js";
+import { type DateRangeMenuProps } from "../types.js";
 
 // Default min date to 5 years ago
 const YEARS_5_MS = 5 * 365 * 24 * 60 * 60 * 1000;

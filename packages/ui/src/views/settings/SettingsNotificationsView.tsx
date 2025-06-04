@@ -1,4 +1,4 @@
-import { Email, endpointsNotification, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput, PushDevice } from "@local/shared";
+import { type Email, endpointsNotification, type NotificationSettings, type NotificationSettingsCategory, type NotificationSettingsUpdateInput, type PushDevice } from "@local/shared";
 import { Box, Button, Divider, Stack } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback } from "react";
@@ -19,7 +19,7 @@ import { useFetch, useLazyFetch } from "../../hooks/useFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { ScrollBox } from "../../styles.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "./types.js";
+import { type SettingsNotificationFormProps, type SettingsNotificationsViewProps } from "./types.js";
 
 const notificationsAllIconInfo = { name: "NotificationsAll", type: "Common" } as const;
 const phoneIconInfo = { name: "Phone", type: "Common" } as const;

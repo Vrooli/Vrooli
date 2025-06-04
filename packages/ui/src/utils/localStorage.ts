@@ -1,19 +1,19 @@
-import { AITaskInfo, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, getObjectSlug, isObject, mergeDeep } from "@local/shared";
+import { type AITaskInfo, type NavigableObject, type ProjectVersion, type RoutineVersion, type TaskContextInfo, getObjectSlug, isObject, mergeDeep } from "@local/shared";
 import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";
 
 // Helper to access window in both environments
-const windowObj = typeof global !== 'undefined' && global.window
+const windowObj = typeof global !== "undefined" && global.window
     ? global.window
-    : typeof window !== 'undefined'
+    : typeof window !== "undefined"
         ? window
         : null;
 
 // Helper to access localStorage in both environments  
-const localStorageObj = typeof global !== 'undefined' && global.localStorage
+const localStorageObj = typeof global !== "undefined" && global.localStorage
     ? global.localStorage
-    : typeof localStorage !== 'undefined'
+    : typeof localStorage !== "undefined"
         ? localStorage
         : null;
 

@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { ReportsLinkProps } from "./types.js";
+import { type ReportsLinkProps } from "./types.js";
 
 const CountLabel = styled(Typography)(({ theme }) => ({
     marginLeft: theme.spacing(0.5),

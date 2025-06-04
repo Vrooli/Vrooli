@@ -1,4 +1,4 @@
-import { FormBuilder, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, RoutineVersionConfig, Tag, TagShape, exists, getTranslation, noop, noopSubmit, uuidValidate } from "@local/shared";
+import { FormBuilder, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, RoutineType, type RoutineVersion, RoutineVersionConfig, type Tag, type TagShape, exists, getTranslation, noop, noopSubmit, uuidValidate } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -15,8 +15,8 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../utils/display/translationTools.js";
 import { routineSingleStepInitialValues } from "../objects/routine/RoutineSingleStepUpsert.js";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../objects/routine/RoutineTypeForms.js";
-import { SubroutineViewProps } from "./types.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, type RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../objects/routine/RoutineTypeForms.js";
+import { type SubroutineViewProps } from "./types.js";
 
 const EMPTY_OBJECT = {};
 
@@ -61,7 +61,7 @@ export function SubroutineView({
     const hasFormErrors = useMemo(() => Object.values(formikRef.current?.errors ?? {}).some((value) => exists(value)), []);
 
     const config = useMemo(function configMemo() {
-        return RoutineVersionConfig.deserialize({ config: routineVersion.config, routineType: routineVersion.routineType }, console);
+        return RoutineVersionConfig.parse({ config: routineVersion.config, routineType: routineVersion.routineType }, console);
     }, [routineVersion.config, routineVersion.routineType]);
 
     // Type-specific components

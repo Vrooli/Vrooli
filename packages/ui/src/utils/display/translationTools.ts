@@ -1,9 +1,9 @@
 /* eslint-disable import/extensions */
-import { Session, TranslationKeyCommon, TranslationKeyError, generatePKString } from "@local/shared";
-import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
+import { generatePK, type Session, type TranslationKeyCommon, type TranslationKeyError } from "@local/shared";
+import { type FieldHelperProps, type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { ObjectSchema, ValidationError } from "yup";
-import { FormErrors } from "../../types.js";
+import { type ObjectSchema, ValidationError } from "yup";
+import { type FormErrors } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 
 type NestedString = string | string[] | { [key: string]: NestedString };
@@ -500,7 +500,7 @@ export function updateTranslationFields<
     // If no translation was found, add a new one
     if (!translationFound) {
         translations.push({
-            id: generatePKString(),
+            id: generatePK().toString(),
             ...changes,
             language,
         } as Translation);
@@ -700,7 +700,7 @@ export function handleTranslationChange(
     const translationArray = Array.isArray(field.value) ? [...field.value] : [];
     // If the language does not exist, create a new entry
     if (index === -1) {
-        const newTranslation = { id: generatePKString(), language, [changedField]: changedValue };
+        const newTranslation = { id: generatePK().toString(), language, [changedField]: changedValue };
         helpers.setValue([...translationArray, newTranslation]);
     }
     // If the language exists, update the existing entry
@@ -792,11 +792,11 @@ export function addEmptyTranslation(
         return;
     }
     // Create new translation object with all fields empty
-    const newTranslation: TranslationObject = { id: generatePKString(), language };
+    const newTranslation: TranslationObject = { id: generatePK().toString(), language };
     for (const field of Object.keys(initialTranslations[0])) {
         if (!["id", "language"].includes(field)) newTranslation[field] = "";
     }
-    newTranslation.id = generatePKString();
+    newTranslation.id = generatePK().toString();
     newTranslation.language = language;
     // Add new translation object to translations
     translations.push(newTranslation);

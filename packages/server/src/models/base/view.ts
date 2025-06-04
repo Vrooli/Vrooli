@@ -1,5 +1,5 @@
-import { Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, ModelType, SessionUser, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { type Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, type ModelType, type SessionUser, ViewFor, ViewSortBy, generatePK, lowercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { type PrismaDelegate } from "../../builders/types.js";
@@ -7,11 +7,11 @@ import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBui
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { getLabels } from "../../getters/getLabels.js";
-import { withRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ViewFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ViewModelLogic } from "./types.js";
+import { type ViewModelLogic } from "./types.js";
 
 function toWhere(key: string, nestedKey: string | null, id: string) {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
@@ -156,13 +156,13 @@ export const ViewModel: ViewModelLogic = ({
             const isViewedArray = await DbProvider.get().view.findMany({
                 where: {
                     byId: BigInt(userId),
-                    [fieldName]: { in: idsFiltered.map(id => BigInt(id)) }
-                }
+                    [fieldName]: { in: idsFiltered.map(id => BigInt(id)) },
+                },
             });
             // Replace the nulls in the result array with true if viewed
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the isViewed array
-                result[i] = Boolean(isViewedArray.find((view: any) => view[fieldName] === ids[i]));
+                result[i] = Boolean(isViewedArray.find((view) => view[fieldName].toString() === ids[i]));
             }
             return result;
         },
@@ -244,9 +244,10 @@ export const ViewModel: ViewModelLogic = ({
         }
         // If view did not exist, create it
         else {
-            const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, userData.languages, "view");
+            const labels = await getLabels([input.forId], input.viewFor, userData.languages, "view");
             view = await DbProvider.get().view.create({
                 data: {
+                    id: generatePK(),
                     by: { connect: { id: BigInt(userData.id) } },
                     name: labels[0],
                     ...createMapper[input.viewFor](objectToView),
@@ -293,28 +294,18 @@ export const ViewModel: ViewModelLogic = ({
         }
         // If user is owner, don't do anything else
         if (isOwn) return true;
-        // Update view count
-        await withRedis({
-            process: async (redisClient) => {
-                // Don't update view count when redis is unavailable
-                if (!redisClient) return;
-                // Check the last time the user viewed this object
-                const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
-                const lastViewed = await redisClient.get(redisKey);
-                // If object viewed more than 1 hour ago, update view count
-                if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - HOURS_1_MS) {
-                    // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-                    const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 3");
-                    await (DbProvider.get()[rootDbTable] as PrismaDelegate).update({
-                        where: { id: BigInt(input.forId) },
-                        data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
-                    });
-                }
-                // Update last viewed time
-                await redisClient.set(redisKey, new Date().toISOString());
-            },
-            trace: "0513",
-        });
+        // Update view count and cache last viewed time using CacheService
+        const cacheService = CacheService.get();
+        const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
+        const lastViewed = await cacheService.get<string>(redisKey);
+        if (!lastViewed || new Date(lastViewed).getTime() < Date.now() - HOURS_1_MS) {
+            const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 3");
+            await (DbProvider.get()[rootDbTable] as PrismaDelegate).update({
+                where: { id: BigInt(input.forId) },
+                data: { views: dataMapper[input.viewFor](objectToView).views + 1 },
+            });
+        }
+        await cacheService.set(redisKey, new Date().toISOString());
         return true;
     },
     deleteViews,

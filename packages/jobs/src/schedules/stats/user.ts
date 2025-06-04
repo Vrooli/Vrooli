@@ -1,5 +1,11 @@
 import { batch, batchGroup, DbProvider, logger } from "@local/server";
-import { PeriodType, Prisma } from "@prisma/client";
+import { generatePK } from "@local/shared";
+import { type PeriodType, type Prisma } from "@prisma/client";
+
+// Select shape for user stats batching
+const userStatsSelect = { id: true } as const;
+// Payload type for user stats batching
+type UserPayload = Prisma.userGetPayload<{ select: typeof userStatsSelect }>;
 
 type BatchTeamsResult = Record<string, {
     teamsCreated: number;
@@ -26,11 +32,11 @@ type BatchRunsResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of user IDs to team stats
  */
-const batchTeams = async (
+async function batchTeams(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchTeamsResult> => {
+): Promise<BatchTeamsResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         teamsCreated: 0,
     }]));
@@ -42,7 +48,7 @@ const batchTeams = async (
                 batch.forEach(team => {
                     const userId = team.createdById;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     currResult.teamsCreated += 1;
                 });
@@ -61,7 +67,7 @@ const batchTeams = async (
         logger.error("batchTeams caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Batch collects resource stats for a list of users
@@ -70,11 +76,11 @@ const batchTeams = async (
  * @param periodEnd When the period ended
  * @returns A map of user IDs to resource stats
  */
-const batchResources = async (
+async function batchResources(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchResourcesResult> => {
+): Promise<BatchResourcesResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         resourcesCreated: 0,
         resourcesCompleted: 0,
@@ -88,7 +94,7 @@ const batchResources = async (
                 batch.forEach(resource => {
                     const userId = resource.createdById;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     currResult.resourcesCreated += 1;
                     if (resource.hasCompleteVersion) {
@@ -129,7 +135,7 @@ const batchResources = async (
         logger.error("batchResources caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Batch collects run stats for a list of users
@@ -138,11 +144,11 @@ const batchResources = async (
  * @param periodEnd When the period ended
  * @returns A map of user IDs to run stats
  */
-const batchRuns = async (
+async function batchRuns(
     userIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunsResult> => {
+): Promise<BatchRunsResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
@@ -157,7 +163,7 @@ const batchRuns = async (
                 batch.forEach(run => {
                     const userId = run.user?.id;
                     if (!userId) return;
-                    const currResult = result[userId];
+                    const currResult = result[userId.toString()];
                     if (!currResult) return;
                     // If runStarted within period, increment runsStarted
                     if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
@@ -207,7 +213,7 @@ const batchRuns = async (
         logger.error("batchRuns caught error", { error });
     }
     return initialResult;
-};
+}
 
 /**
  * Creates periodic stats for all users
@@ -219,13 +225,13 @@ export async function logUserStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) {
+): Promise<void> {
     try {
-        await batch<Prisma.userFindManyArgs>({
+        await batch<Prisma.userFindManyArgs, UserPayload>({
             objectType: "User",
             processBatch: async (batch) => {
                 // Get user ids, so we can query various tables for stats
-                const userIds = batch.map(user => user.id);
+                const userIds = batch.map(user => user.id.toString());
                 // Batch collect stats
                 const resourceStats = await batchResources(userIds, periodStart, periodEnd);
                 const runStats = await batchRuns(userIds, periodStart, periodEnd);
@@ -233,19 +239,18 @@ export async function logUserStats(
                 // Create stats for each user
                 await DbProvider.get().stats_user.createMany({
                     data: batch.map(user => ({
+                        id: generatePK(),
                         userId: user.id,
                         periodStart,
                         periodEnd,
                         periodType,
-                        ...(resourceStats[user.id] || { resourceCompletionTimeAverage: 0, resourcesCompleted: 0, resourcesCreated: 0 }),
-                        ...(runStats[user.id] || { runCompletionTimeAverage: 0, runContextSwitchesAverage: 0, runsCompleted: 0, runsStarted: 0 }),
-                        ...(teamStats[user.id] || { teamsCreated: 0 }),
+                        ...(resourceStats[user.id.toString()] || { resourceCompletionTimeAverage: 0, resourcesCompleted: 0, resourcesCreated: 0 }),
+                        ...(runStats[user.id.toString()] || { runCompletionTimeAverage: 0, runContextSwitchesAverage: 0, runsCompleted: 0, runsStarted: 0 }),
+                        ...(teamStats[user.id.toString()] || { teamsCreated: 0 }),
                     })),
                 });
             },
-            select: {
-                id: true,
-            },
+            select: userStatsSelect,
             where: {
                 updatedAt: {
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
@@ -255,4 +260,4 @@ export async function logUserStats(
     } catch (error) {
         logger.error("logUserStats caught error", { error, trace: "0426", periodType, periodStart, periodEnd });
     }
-};
+}

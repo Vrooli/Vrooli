@@ -1,5 +1,5 @@
-import { VersionYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type VersionYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const versionYou: ApiPartial<VersionYou> = {
     full: {

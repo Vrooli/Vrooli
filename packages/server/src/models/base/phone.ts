@@ -5,7 +5,7 @@ import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PhoneFormat } from "../formats.js";
-import { PhoneModelLogic } from "./types.js";
+import { type PhoneModelLogic } from "./types.js";
 
 const __typename = "Phone" as const;
 export const PhoneModel: PhoneModelLogic = ({

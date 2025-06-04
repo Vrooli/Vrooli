@@ -11,15 +11,15 @@
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
  */
-import { ModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from "@local/shared";
-import { PrismaDelegate } from "../builders/types.js";
+import { type ModelType, type ObjectLimit, type ObjectLimitOwner, type ObjectLimitPremium, type ObjectLimitPrivacy, type SessionUser } from "@local/shared";
+import { type PrismaDelegate } from "../builders/types.js";
 import { getVisibilityFunc } from "../builders/visibilityBuilder.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { authDataWithInput } from "../utils/authDataWithInput.js";
-import { AuthDataById } from "../utils/getAuthenticatedData.js";
-import { InputsById, QueryAction } from "../utils/types.js";
+import { type AuthDataById } from "../utils/getAuthenticatedData.js";
+import { type InputsById, type QueryAction } from "../utils/types.js";
 import { getParentInfo } from "./permissions.js";
 
 /**
@@ -146,7 +146,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(combinedData, userData.id);
             // Increment count for owner. We can assume we're the owner if no owner was provided
-            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id ?? userData.id;
+            const ownerId: string | undefined = owners.Team?.id?.toString() ?? owners.User?.id?.toString() ?? userData.id;
             // Initialize shape of counts for this owner
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
@@ -167,7 +167,7 @@ export async function maxObjectsCheck(
             // Find owner and object type
             const owners = validator.owner(authData, userData.id);
             // Decrement count for owner
-            const ownerId: string | undefined = owners.Team?.id ?? owners.User?.id;
+            const ownerId: string | undefined = owners.Team?.id?.toString() ?? owners.User?.id?.toString();
             if (!ownerId) throw new CustomError("0311", "InternalError", userData.languages);
             // Initialize shape of counts for this owner
             counts[authData.__typename] = counts[authData.__typename] || {};
@@ -199,9 +199,9 @@ export async function maxObjectsCheck(
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
-            const maxObjects = validator.maxObjects;
+            const maxObjects = validator.maxObjects ?? 0;
             const ownerType = userData.id === ownerId ? "User" : "Team";
-            const hasPremium = userData.hasPremium;
+            const hasPremium = userData.hasPremium ?? false;
             checkObjectLimit({
                 count: currCountPrivate,
                 hasPremium,

@@ -5,7 +5,7 @@ import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ReminderListFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ReminderListModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
+import { type ReminderListModelLogic, type UserModelInfo, type UserModelLogic } from "./types.js";
 
 const __typename = "ReminderList" as const;
 export const ReminderListModel: ReminderListModelLogic = ({

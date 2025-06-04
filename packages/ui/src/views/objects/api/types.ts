@@ -1,5 +1,5 @@
-import { ApiVersion, ApiVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
+import { type ApiVersion, type ApiVersionShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type ApiUpsertPropsPage = CrudPropsPage;
 type ApiUpsertPropsDialog = CrudPropsDialog<ApiVersion>;

@@ -1,11 +1,12 @@
-import { MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
+import { LATEST_CONFIG_VERSION, MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
+import type { Prisma } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
-import { calculateWeightData, type SubroutineWeightData } from "../../utils/routineComplexity.js";
+import { calculateComplexity } from "../../utils/routineComplexity.js";
 import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
 import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -15,18 +16,18 @@ import { versionsCheck } from "../../validators/versionsCheck.js";
 import { ResourceVersionFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceModelLogic, ResourceVersionModelInfo, ResourceVersionModelLogic } from "./types.js";
+import { type ResourceModelInfo, type ResourceModelLogic, type ResourceVersionModelInfo, type ResourceVersionModelLogic } from "./types.js";
 
 type ResourceVersionPre = PreShapeVersionResult & {
-    /** Map of routine version ID to graph complexity metrics */
-    weightMap: Record<string, SubroutineWeightData & { id: string; }>;
+    /** Map of routine version ID to graph complexity */
+    complexityMap: Record<string, number>;
 };
 
 const __typename = "ResourceVersion" as const;
 export const ResourceVersionModel: ResourceVersionModelLogic = ({
     __typename,
     dbTable: "resource_version",
-    dbTranslationTable: "resource_version_translation",
+    dbTranslationTable: "resource_translation",
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -36,11 +37,11 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             select: () => ({
                 id: true,
                 root: { select: { tags: { select: { tag: true } } } },
-                translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
+                translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
                 const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
+                return EmbeddingService.getEmbeddableString({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
@@ -62,30 +63,22 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
                 combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
-                // Calculate simplicity and complexity of all versions. Since these calculations 
-                // can depend on other versions, we need to do them all at once. 
-                // We exclude deleting versions to ensure that they don't affect the calculations. 
-                // If a deleting version appears in the calculations, an error will be thrown.
-                const { dataWeights } = await calculateWeightData(
+                // Calculate complexity of all versions. Since these calculations 
+                // can depend on other versions, we need to do them all at once.
+                const complexityMap = await calculateComplexity(
                     combinedInputs,
                     Delete.map(d => d.input),
                 );
-                // Convert dataWeights to a map for easy lookup
-                const weightMap: ResourceVersionPre["weightMap"] = dataWeights.reduce((acc, curr) => {
-                    acc[curr.id] = curr;
-                    return acc;
-                }, {});
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
-                return { ...maps, weightMap };
+                return { ...maps, complexityMap };
             },
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
                     id: BigInt(data.id),
-                    publicId: generatePublicId(),
-                    simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
-                    complexity: preData.weightMap[data.id]?.complexity ?? 0,
-                    config: noNull(data.config),
+                    publicId: rest.isSeeding ? (data.publicId ?? generatePublicId()) : generatePublicId(),
+                    complexity: preData.complexityMap[data.id] ?? 0,
+                    config: (data.config ?? { __version: LATEST_CONFIG_VERSION }) as unknown as Prisma.InputJsonValue,
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
@@ -116,9 +109,8 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ResourceVersionPre;
                 return {
-                    simplicity: preData.weightMap[data.id]?.simplicity ?? 0,
-                    complexity: preData.weightMap[data.id]?.complexity ?? 0,
-                    config: noNull(data.config),
+                    complexity: preData.complexityMap[data.id] ?? 0,
+                    config: noNull(data.config) as unknown as (Prisma.InputJsonValue | undefined),
                     isAutomatable: noNull(data.isAutomatable),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
@@ -171,10 +163,8 @@ export const ResourceVersionModel: ResourceVersionModelLogic = ({
             isExternalWithRootExcludeOwnedByUserId: true,
             isLatest: true,
             maxComplexity: true,
-            maxSimplicity: true,
             maxTimesCompleted: true,
             minComplexity: true,
-            minSimplicity: true,
             minTimesCompleted: true,
             maxBookmarksRoot: true,
             maxScoreRoot: true,

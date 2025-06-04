@@ -1,6 +1,6 @@
 import { useTheme } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import { AdvancedInputMarkdownProps, AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
+import { type AdvancedInputMarkdownProps, type AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
 
 const LINE_HEIGHT = 1.5;
 const PIXELS_PER_EM = 16; // Standard conversion: 1em = 16px

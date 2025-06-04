@@ -106,7 +106,15 @@
                 "js": "always",
                 "jsx": "always"
             }
-        ]
+        ],
+        // Enforce type-only imports and auto-fix; requires @typescript-eslint v5.43+
+        "@typescript-eslint/consistent-type-imports": [
+            "error",
+            {
+                "prefer": "type-imports",
+                "fixStyle": "inline-type-imports"
+            }
+        ],
     },
     "settings": {
         // This setting is important so the eslint-plugin-import knows which file extensions to resolve.

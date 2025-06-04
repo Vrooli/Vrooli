@@ -1,7 +1,7 @@
 import * as yup from "yup";
-import { YupModelOptions } from "../../../validation/utils/types.js";
+import { type YupModelOptions } from "../../../validation/utils/types.js";
 import { id, language } from "../commonFields.js";
-import { YupModel, YupMutateParams } from "../types.js";
+import { type YupModel, type YupMutateParams } from "../types.js";
 import { opt, req, reqArr } from "./optionality.js";
 import { yupObj } from "./yupObj.js";
 

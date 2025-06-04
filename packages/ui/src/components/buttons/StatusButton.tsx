@@ -6,7 +6,7 @@ import { Icon } from "../../icons/Icons.js";
 import { noSelect } from "../../styles.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
-import { StatusButtonProps } from "./types.js";
+import { type StatusButtonProps } from "./types.js";
 
 /**
  * Status indicator and slider change color to represent routine's status

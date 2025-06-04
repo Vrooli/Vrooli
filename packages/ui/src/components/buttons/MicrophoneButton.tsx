@@ -1,4 +1,4 @@
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, IconButtonProps, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, type IconButtonProps, type Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -6,7 +6,7 @@ import { useSpeech } from "../../hooks/useSpeech.js";
 import { Icon } from "../../icons/Icons.js";
 import { Z_INDEX } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { MicrophoneButtonProps } from "./types.js";
+import { type MicrophoneButtonProps } from "./types.js";
 
 type MicrophoneStatus = "On" | "Off" | "Disabled";
 

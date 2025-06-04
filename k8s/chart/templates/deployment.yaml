@@ -1,0 +1,202 @@
+{{- /*
+This template generates Deployments for each service defined in .Values.services
+*/ -}}
+
+{{- range $name, $svc := .Values.services }}
+{{- $serviceEnabled := true -}}
+{{- if hasKey $svc "enabled" -}}
+  {{- $serviceEnabled = $svc.enabled -}}
+{{- end -}}
+
+{{- if $serviceEnabled -}}
+{{- if eq $name "nsfwDetector" }}{{/* Specific handling for nsfwDetector if enabled is explicitly checked for it elsewhere or default is false */}}
+{{- if not $svc.enabled }} # Skip nsfwDetector if its specific 'enabled' is false
+{{- continue }}
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vrooli.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "vrooli.labels" $ | nindent 4 }}
+    {{- include "vrooli.componentLabels" (dict "componentName" $name "root" $) | nindent 4 }}
+spec:
+  replicas: {{ index $.Values.replicaCount $name | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "vrooli.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $name }}
+  template:
+    metadata:
+      labels:
+        {{- include "vrooli.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $name }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "vrooli.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $name }}
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{- if and (ne $name "nsfwDetector") (hasPrefix "docker.io/" $.Values.image.registry) -}}
+                     {{ $.Values.image.registry }}/{{ $svc.repository }}:{{ $svc.tag | default $.Chart.AppVersion }}
+                   {{- else -}}
+                     {{ $svc.repository }}:{{ $svc.tag | default $.Chart.AppVersion }}
+                   {{- end -}}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - name: http # Assuming all services expose an HTTP port, adjust if not
+              containerPort: {{ $svc.port }}
+              protocol: TCP
+          env:
+            - name: ENV
+              value: {{ $.Values.config.env | quote }}
+            # Environment variables from VSO-managed secrets
+          envFrom:
+            # Shared non-sensitive config for ALL services
+            - secretRef:
+                name: {{ .Values.vso.secrets.sharedConfigAll.k8sSecretName | quote }}
+                optional: true # Make it optional in case the secret is not yet created or enabled
+
+            {{- if or (eq $name "server") (eq $name "jobs") }}
+            # Shared sensitive secrets ONLY for server and jobs
+            - secretRef:
+                name: {{ .Values.vso.secrets.sharedSecretsServerJobs.k8sSecretName | quote }}
+                optional: true 
+            # PostgreSQL credentials from VSO (if VSO syncs them) ONLY for server and jobs
+            # This assumes keys like POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB are in the secret
+            # If PGO direct secrets are used, those take precedence or this might be redundant
+            - secretRef:
+                name: {{ .Values.vso.secrets.postgres.k8sSecretName | quote }}
+                optional: true
+            # Redis credentials from VSO ONLY for server and jobs
+            - secretRef:
+                name: {{ .Values.vso.secrets.redis.k8sSecretName | quote }}
+                optional: true
+            {{- end }}
+
+            # --- Existing PGO PostgreSQL Connection Details ---
+            # These will be used if the corresponding VSO-synced K8s secret (vrooli-postgres-creds) for DB connection
+            # does not contain these specific keys, or if that VSO secret is marked optional and not found.
+            # This provides a fallback/alternative to direct PGO secret usage.
+            {{- if and (or (eq $name "server") (eq $name "jobs")) $.Values.pgoPostgresql.enabled $.Values.pgoPostgresql.users }}
+            {{- with index $.Values.pgoPostgresql.users 0 }}
+            {{- $pgoUserSecretName := printf "%s-pguser-%s" $.Values.pgoPostgresql.clusterName .name }}
+            - name: PGO_POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgoUserSecretName }}
+                  key: user
+                  optional: true # Make optional to prefer VSO secret if available and has same effective keys
+            - name: PGO_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgoUserSecretName }}
+                  key: password
+                  optional: true
+            - name: PGO_POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgoUserSecretName }}
+                  key: dbname 
+                  optional: true
+            {{- end }} {{/* End with user */}}
+            - name: PGO_POSTGRES_HOST # This uses PGO service names directly
+              value: {{ printf "%s-primary" $.Values.pgoPostgresql.clusterName }} 
+            - name: PGO_POSTGRES_PORT
+              value: "5432"
+            {{- end }} {{/* End PGO enabled and users exist */}}
+
+            # --- Existing Spotahome Redis (Sentinel) Connection Details ---
+            # Similar to PGO, these direct configurations can serve as a fallback or primary
+            # if the VSO-synced K8s secret (vrooli-redis-creds) is optional and not found, or lacks these keys.
+            {{- if and (or (eq $name "server") (eq $name "jobs")) $.Values.spotahomeRedis.enabled $.Values.spotahomeRedis.auth.secretPath }}
+            - name: DIRECT_REDIS_SENTINEL_HOSTS
+              value: "rfs-{{ $.Values.spotahomeRedis.name }}"
+            - name: DIRECT_REDIS_SENTINEL_PORT
+              value: "26379"
+            - name: DIRECT_REDIS_MASTER_NAME
+              value: "mymaster" 
+            - name: DIRECT_REDIS_PASSWORD # Password from the Spotahome operator's configured secret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.spotahomeRedis.auth.secretPath }}
+                  key: password
+                  optional: true # Make optional to prefer VSO secret if available
+            {{- end }} {{/* End Spotahome Redis enabled */}}
+
+            # Preserve existing service-specific env vars from values
+            {{- if $svc.env }}
+            {{- range $envKey, $envValue := $svc.env }}
+            - name: {{ $envKey }}
+              value: {{ $envValue | quote }}
+            {{- end }}
+            {{- end }}
+          {{- with $svc.probes }}
+          {{- if .useTcpSocket }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ $svc.port }}
+            initialDelaySeconds: {{ .initialDelaySeconds | default 15 }}
+            periodSeconds: {{ .periodSeconds | default 20 }}
+            timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+            failureThreshold: {{ .failureThreshold | default 3 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ $svc.port }}
+            initialDelaySeconds: {{ .initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .periodSeconds | default 10 }}
+            timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+            failureThreshold: {{ .failureThreshold | default 3 }}
+          {{- else }}
+          livenessProbe:
+            httpGet:
+              path: {{ .livenessPath | default "/healthz" }}
+              port: http
+            initialDelaySeconds: {{ .initialDelaySeconds | default 15 }}
+            periodSeconds: {{ .periodSeconds | default 20 }}
+            timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+            failureThreshold: {{ .failureThreshold | default 3 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .readinessPath | default "/readyz" }}
+              port: http
+            initialDelaySeconds: {{ .initialDelaySeconds | default 5 }}
+            periodSeconds: {{ .periodSeconds | default 10 }}
+            timeoutSeconds: {{ .timeoutSeconds | default 5 }}
+            failureThreshold: {{ .failureThreshold | default 3 }}
+          {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml $svc.resources | nindent 12 }}
+          {{- if and (eq $name "nsfwDetector") $svc.gpu.enabled }}
+          limits:
+            {{ $svc.gpu.resourceKey | default "nvidia.com/gpu" }}: {{ $svc.gpu.count | default 1 }}
+          {{- end }}
+          {{- if and (eq $name "nsfwDetector") $svc.gpu.enabled }}
+          volumeMounts:
+            - name: dshm # Required by some CUDA applications
+              mountPath: /dev/shm
+          {{- end }}
+      {{- if and (eq $name "nsfwDetector") $svc.gpu.enabled }}
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+      {{- with $svc.gpu }}
+      {{- if .enabled }}
+      {{- if .nodeSelector }}
+      nodeSelector:
+        {{- toYaml .nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+{{- end }}
+{{- end }} 

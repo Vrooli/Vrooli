@@ -1,4 +1,4 @@
-import { LinearProgress, LinearProgressProps, TypographyProps } from "@mui/material";
+import { LinearProgress, type LinearProgressProps, type TypographyProps } from "@mui/material";
 
 interface TextLoadingProps extends LinearProgressProps {
     /** Number of lines (progress bars) to be rendered */

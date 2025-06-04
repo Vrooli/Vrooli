@@ -1,6 +1,6 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, awardNames, endpointsAward } from "@local/shared";
+import { type Award, AwardCategory, type AwardSearchInput, type AwardSearchResult, type TranslationKeyAward, awardNames, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
-import { TFunction } from "i18next";
+import { type TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
@@ -12,7 +12,7 @@ import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { ScrollBox } from "../../styles.js";
-import { AwardDisplay, ViewProps } from "../../types.js";
+import { type AwardDisplay, type ViewProps } from "../../types.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 
 // Category array for sorting

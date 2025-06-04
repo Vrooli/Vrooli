@@ -112,7 +112,6 @@ export const resource_updateOne = {
         "isLatest": true,
         "isPrivate": true,
         "resourceSubType": true,
-        "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
         "versionIndex": true,
@@ -138,7 +137,7 @@ export const resource_updateOne = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "createdBy": {
@@ -201,5 +200,5 @@ export const resource_updateOne = {
             "name": true
         }
     },
-    "__cacheKey": "478920778"
+    "__cacheKey": "-512604887"
 };

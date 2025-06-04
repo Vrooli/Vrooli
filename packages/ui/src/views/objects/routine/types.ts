@@ -1,5 +1,5 @@
-import { RoutineVersion, RoutineVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps, ObjectViewProps } from "../../../types.js";
+import { type RoutineVersion, type RoutineVersionShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 export type RoutineMultiStepCrudProps = CrudPropsPage;
 

@@ -1,8 +1,8 @@
-import { AITaskInfo, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
-import { AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
-import { SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
-import { ELEMENT_IDS } from "./consts.js";
-import { ThemeType } from "./localStorage.js";
+import { type AITaskInfo, type LlmTask, type Session, type TaskContextInfo, type TranslationKeyCommon, type TranslationKeyError } from "@local/shared";
+import { type AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
+import { type SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
+import { type ELEMENT_IDS } from "./consts.js";
+import { type ThemeType } from "./localStorage.js";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
     messageKey: KeyList;

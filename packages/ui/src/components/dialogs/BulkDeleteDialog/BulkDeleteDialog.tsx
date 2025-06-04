@@ -9,7 +9,7 @@ import { BottomActionsGrid } from "../../buttons/BottomActionsGrid.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { BulkDeleteDialogProps } from "../types.js";
+import { type BulkDeleteDialogProps } from "../types.js";
 
 // Delete confirmation prompt is 2 random bunny words
 const BUNNY_WORDS = ["bunny", "rabbit", "boop", "binky", "zoom", "ears", "fluffy", "hop", "tail", "whiskers", "burrow", "nose", "grass", "meadow"];

@@ -1,6 +1,6 @@
-import { DUMMY_ID, endpointsUser, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, endpointsUser, type ProfileUpdateInput, profileValidation, shapeProfile, type User, userTranslationValidation } from "@local/shared";
 import { InputAdornment } from "@mui/material";
-import { Field, Formik, FormikHelpers } from "formik";
+import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -22,7 +22,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { SettingsProfileFormProps, SettingsProfileViewProps } from "./types.js";
+import { type SettingsProfileFormProps, type SettingsProfileViewProps } from "./types.js";
 
 // Input adornments for form fields
 const nameInputProps = {

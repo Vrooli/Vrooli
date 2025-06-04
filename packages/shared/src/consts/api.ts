@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
-import { TranslationKeyError } from "../types.js";
-import { ValueOf } from "./commonTypes.js";
+import { type TranslationKeyError } from "../types.js";
+import { type ValueOf } from "./commonTypes.js";
 
 export const COOKIE = {
     Jwt: "XNVj2", // Random string

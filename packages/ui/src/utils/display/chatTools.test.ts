@@ -1,4 +1,4 @@
-import { LlmTaskInfo } from "@local/shared";
+import { type LlmTaskInfo } from "@local/shared";
 import { expect } from "chai";
 import { isTaskStale, STALE_TASK_THRESHOLD_MS } from "./chatTools.js";
 

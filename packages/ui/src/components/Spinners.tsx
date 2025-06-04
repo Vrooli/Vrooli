@@ -1,9 +1,9 @@
-import { Box, keyframes, styled, SxProps, Theme } from "@mui/material";
+import { Box, keyframes, styled, type SxProps, type Theme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMenu } from "../hooks/useMenu.js";
 import { ELEMENT_IDS } from "../utils/consts.js";
-import { MenuPayloads } from "../utils/pubsub.js";
-import { DiagonalWaveLoaderProps } from "./types.js";
+import { type MenuPayloads } from "../utils/pubsub.js";
+import { type DiagonalWaveLoaderProps } from "./types.js";
 
 const DEFAULT_LOADER_SIZE = 60;
 const BOX_WIDTH_IN_CIRCLES = 3;

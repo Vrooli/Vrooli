@@ -1,4 +1,4 @@
-import { DUMMY_ID, orDefault, RoutineVersionInput, RoutineVersionInputShape, routineVersionInputValidation, RoutineVersionOutput, RoutineVersionOutputShape, routineVersionOutputValidation, Session, shapeRoutineVersionInput, shapeRoutineVersionOutput, uuid } from "@local/shared";
+import { DUMMY_ID, orDefault, type RoutineVersionInput, type RoutineVersionInputShape, routineVersionInputValidation, type RoutineVersionOutput, type RoutineVersionOutputShape, routineVersionOutputValidation, type Session, shapeRoutineVersionInput, shapeRoutineVersionOutput, uuid } from "@local/shared";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { validateFormValues } from "../../utils/validateFormValues.js";
 

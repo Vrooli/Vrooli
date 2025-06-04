@@ -1,14 +1,5 @@
 /* c8 ignore start */
-import { LlmTask, TaskStatus } from "../api/types.js";
-
-export type MessageStream = {
-    /** The state of the stream */
-    __type: "stream" | "end" | "error";
-    /** The ID of the bot sending the message */
-    botId?: string;
-    /** The current text stream (not the accumulated text) */
-    message: string;
-};
+import { type LlmTask, type TaskStatus } from "../api/types.js";
 
 /**
  * Context is any JSON-serializable data that can be used to provide context to the LLM.
@@ -111,14 +102,6 @@ export type AITaskProperty = {
     properties?: Record<string, Omit<AITaskProperty, "name">>;
 };
 
-/**
- * The mode to generate the response in. Depending on the language model service, 
- * this may not be guaranteed to be adhered to.
- * 
- * Currently only supports JSON or text.
- */
-export type LanguageModelResponseMode = "json" | "text";
-
 /** 
  * Command information, which can be used to validate commands or 
  * converted into a structured command to provide to the LLM as context
@@ -137,58 +120,10 @@ type JSONValue = string | number | boolean | null | JSONObject | JSONArray;
 type JSONObject = { [key: string]: JSONValue };
 type JSONArray = JSONValue[];
 
-/**
- * Functions used to convert the LlmTaskConfig into a JSON object during build
- */
-export type AITaskConfigBuilder = {
-    /**
-     * Builds context object to add to the LLM's context, so that it 
-     * can start or execute commands in text mode
-     */
-    __construct_context_text: (data: AITaskUnstructuredConfig) => LlmTaskStructuredConfig;
-    /**
-     * Similar to __construct_context, but should force LLM to 
-     * respond with a text command - rather than making it optional
-     */
-    __construct_context_text_force: (data: AITaskUnstructuredConfig) => LlmTaskStructuredConfig;
-    /**
-     * Builds context object to add to the LLM's context, so that it is 
-     * forced to respond with valid JSON
-     */
-    __construct_context_json: (data: AITaskUnstructuredConfig) => LlmTaskStructuredConfig;
-    // Allow for additional properties, as long as they're prefixed with "__"
-    [Key: `__${string}`]: any;
-}
-
 export type TaskNameMap = {
     command: Record<string, string>,
     action: Record<string, string>,
 };
-
-/**
- * Information about all LLM tasks in a given language.
- * 
- * NOTE: This cannot contains any functions or non-serializable data. During build, it will 
- * be converted to a JSON object so that it can be safely imported by the UI.
- */
-export type AITaskConfig = Record<LlmTask, (() => AITaskUnstructuredConfig)> & {
-    /**
-     * Prefix for suggested commands. These are commands that are not run right away.
-     * Instead, they are suggested to the user, who can then choose to run them.
-     */
-    __suggested_prefix: string;
-    /**
-     * Converts commands and actions into strings, which can be combined to create valid LlmTask values. 
-     * 
-     * NOTE: This is only used for tasks which have multiple commands and actions (e.g. "Start"). Make sure 
-     * that the command and action names in these task configs are included in this object.
-     */
-    __task_name_map: TaskNameMap;
-    // The configuration for each task
-    [Key: `__${string}Properties`]: Record<string, Omit<AITaskProperty, "name">>;
-    // Allow for additional properties, as long as they're prefixed with "__"
-    [Key: `__${string}`]: JSONValue;
-}
 
 /**
  * Information about all LLM tasks in a given language, compiled into a single JSON object. 

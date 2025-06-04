@@ -1,5 +1,5 @@
 import { NO_DIRTY_NODES } from "../consts.js";
-import { NodeConstructorPayloads, NodeType, SerializedRootNode } from "../types.js";
+import { type NodeConstructorPayloads, type NodeType, type SerializedRootNode } from "../types.js";
 import { getActiveEditor, isCurrentlyReadOnlyMode } from "../updates.js";
 import { $createNode, $getRoot, $isNode } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";

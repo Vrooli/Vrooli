@@ -4,10 +4,10 @@ import { $insertDataTransferForRichText, copyToClipboard } from "../clipboard.js
 import { CLICK_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND, COPY_COMMAND, CUT_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, DRAGOVER_COMMAND, DRAGSTART_COMMAND, DRAG_DROP_PASTE, DROP_COMMAND, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, INDENT_CONTENT_COMMAND, INSERT_LINE_BREAK_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_TAB_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ENTER_COMMAND, KEY_ESCAPE_COMMAND, OUTDENT_CONTENT_COMMAND, PASTE_COMMAND, REMOVE_TEXT_COMMAND, SELECT_ALL_COMMAND } from "../commands.js";
 import { CAN_USE_BEFORE_INPUT, COMMAND_PRIORITY_EDITOR, IS_APPLE_WEBKIT, IS_IOS, IS_SAFARI } from "../consts.js";
 import { useLexicalComposerContext } from "../context.js";
-import { LexicalEditor } from "../editor.js";
-import { ElementNode } from "../nodes/ElementNode.js";
+import { type LexicalEditor } from "../editor.js";
+import { type ElementNode } from "../nodes/ElementNode.js";
 import { $createRangeSelection, $insertNodes, $moveCharacter, $shouldOverrideDefaultCharacterSelection, caretFromPoint } from "../selection.js";
-import { ElementFormatType, TextFormatType } from "../types.js";
+import { type ElementFormatType, type TextFormatType } from "../types.js";
 import { $createNode, $findMatchingParent, $getAdjacentNode, $getNearestBlockElementAncestorOrThrow, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionAtEndOfRoot, $isTargetWithinDecorator, $normalizeSelection, $selectAll, $setSelection, eventFiles, getIndexWithinParent, getParent, handleIndentAndOutdent, isSelectionCapturedInDecoratorInput, mergeRegister, objectKlassEquals, onCutForRichText, onPasteForRichText } from "../utils.js";
 
 //TODO this file is a good place to store markdown string and selection positions. Then we can edit this in real-time instead of exporting everything to markdown on every change

@@ -44,11 +44,18 @@ export class PostgresDriver implements DatabaseService {
                 console.info("skipping seed in test environment");
                 return true;
             }
+            logger.info("Starting PostgreSQL seeding");
             const { init } = await import("./seeds/init.js");
             await init(this.prisma);
+            logger.info("PostgreSQL seeding completed successfully");
             return true;
         } catch (error) {
-            logger.error("PostgreSQL seeding failed", { error });
+            logger.error("PostgreSQL seeding failed", {
+                trace: "POSTGRES-SEED",
+                name: error instanceof Error ? error.name : undefined,
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error && error.stack ? error.stack : undefined,
+            });
             return false;
         }
     }
@@ -61,7 +68,7 @@ export class PostgresDriver implements DatabaseService {
         if (!PostgresDriver.truncateStatement) {
             const result = await this.prisma.$queryRawUnsafe<Array<{ sql: string }>>(
                 `SELECT 'TRUNCATE TABLE ' || string_agg(format('%I.%I', schemaname, tablename), ', ') || ' RESTART IDENTITY CASCADE' AS sql
-                 FROM pg_catalog.pg_tables WHERE schemaname = 'public';`
+                 FROM pg_catalog.pg_tables WHERE schemaname = 'public';`,
             );
             const sql = result[0]?.sql;
             if (sql) {
@@ -73,6 +80,7 @@ export class PostgresDriver implements DatabaseService {
         }
         // Execute the cached TRUNCATE statement
         await this.prisma.$executeRawUnsafe(PostgresDriver.truncateStatement);
-        logger.info('Truncated all tables in PostgreSQL via cached statement');
+        logger.info("Truncated all tables in PostgreSQL via cached statement");
     }
 }
+

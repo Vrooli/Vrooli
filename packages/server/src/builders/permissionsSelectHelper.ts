@@ -1,7 +1,7 @@
 import { ModelType } from "@local/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { PermissionsMap } from "../models/types.js";
+import { type PermissionsMap } from "../models/types.js";
 import { isRelationshipObject } from "./isOfType.js";
 
 const MAX_RECURSION_DEPTH = 50;

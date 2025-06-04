@@ -1,17 +1,38 @@
-import { ChatInviteStatus, ChatSortBy, chatValidation, generatePublicId, getTranslation, MaxObjects } from "@local/shared";
+import { ChatInviteStatus, ChatSortBy, chatValidation, generatePublicId, getTranslation, MaxObjects, validatePK } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
-import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat.js";
+import { conversationStateStore } from "../../services/conversation/responseEngine.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { BranchInfoLoader, type ChatPreBranchInfo, MessageTree } from "../../utils/messageTree.js";
 import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ChatFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
-import { ChatModelInfo, ChatModelLogic } from "./types.js";
+import { type ChatModelInfo, type ChatModelLogic } from "./types.js";
+
+/**
+ * All pre-map data that should be collected for a chat transaction.
+ */
+type ChatPre = {
+    /** 
+     * Users whose invitations are allowed to be auto-approved
+     * (meaning the bot is public or you own it)
+     */
+    bots: { id: string }[];
+    /** 
+     * Information about the chat's branch structure, 
+     * including where to start adding new messages (if not specified by the client) 
+     * and how to patch up the tree after messages are deleted.
+     */
+    branchInfo: Record<string, ChatPreBranchInfo>;
+    /**
+     * Indicates which chat translations need their search embeddings updated.
+     */
+    embeddingNeedsUpdateMap: { [chatId: string]: { [language: string]: boolean } };
+};
 
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
@@ -23,64 +44,43 @@ export const ChatModel: ChatModelLogic = ({
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: ({ translations }, languages) => getTranslation({ translations }, languages).name ?? "",
         },
-        embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
-            get: ({ translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
-                }, languages?.[0]);
-            },
-        },
     }),
     format: ChatFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, userData, inputsById }): Promise<ChatPre> => {
-                // Find invited users. Any that are bots are automatically accepted.
-                const invitedUsers = Create.reduce((acc, createObject) => {
-                    const invites = createObject.input.invitesCreate ?? [];
-                    invites.forEach(invite => {
-                        if (typeof invite === "string") {
-                            // If invite is a string, find the corresponding object in `inputsById` and extract `userConnect`
-                            const inviteObject: { input?: { userConnect?: string } } = inputsById[invite] as object;
-                            if (inviteObject && inviteObject.input && inviteObject.input.userConnect) {
-                                acc.push(inviteObject.input.userConnect);
-                            }
-                        } else if (invite && typeof invite === "object" && invite.userConnect) {
-                            // If invite is an object, use `userConnect` directly
-                            acc.push(invite.userConnect);
-                        }
-                    });
-                    return acc;
-                }, [] as string[]);
-                // Find all bots
-                let bots: ChatPre["bots"] = [];
-                if (invitedUsers.length) {
-                    const botData = await DbProvider.get().user.findMany({
+            // inside ChatModel
+            pre: async ({ Create, Update, userData }): Promise<ChatPre> => {
+                /* 1️⃣  Which chats are we about to touch? */
+                const updateIds = Update.map(u => u.input.id);
+
+                /* 2️⃣  Deleted message ids (needed for BranchInfo healing). */
+                const deletedMsgIds = Update.flatMap(u => u.input.messagesDelete ?? []);
+
+                /* 3️⃣  Load branch info in one go. */
+                const branchInfo = await BranchInfoLoader.load(updateIds, deletedMsgIds);
+
+                /* 4️⃣  Which invites are bots the caller is allowed to auto-accept? */
+                const inviteUserIds = Create.flatMap(c => c.input.invitesCreate?.map(i => i.userConnect) ?? []);
+                const bots = inviteUserIds.length
+                    ? (await DbProvider.get().user.findMany({
                         where: {
-                            id: { in: invitedUsers.map(id => BigInt(id)) },
+                            id: { in: inviteUserIds.map(BigInt) },
                             isBot: true,
-                            OR: [
-                                { isPrivate: false }, // Public bots
-                                { invitedByUser: { id: BigInt(userData.id) } }, // Private bots you created
-                            ],
+                            OR: [{ isPrivate: false }, { invitedByUserId: BigInt(userData.id) }],
                         },
                         select: { id: true },
-                    });
-                    bots = botData.map(b => ({ id: b.id.toString() }));
-                }
-                const updateInputs = Update.map(u => u.input);
-                const { branchInfo } = await populatePreMapForChatUpdates({ updateInputs });
-                // Find translations that need text embeddings
-                const embeddingMaps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
-                return { ...embeddingMaps, bots, branchInfo };
+                    })).map(b => ({ id: b.id.toString() }))
+                    : [];
+
+                /* 5️⃣  Nothing else is needed for Chat pre-shape. */
+                const embeddingNeedsUpdateMap = preShapeEmbeddableTranslatable({ Create, Update, objectType: "Chat" }).embeddingNeedsUpdateMap;
+                return { bots, branchInfo, embeddingNeedsUpdateMap };
             },
             create: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ChatPre;
                 let messages = await shapeHelper({ relation: "messages", relTypes: ["Create"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
-                messages = prepareChatMessageOperations(messages, preData.branchInfo[data.id]).operations;
+                const treeInfo = MessageTree.buildOperations({ branchInfo: preData.branchInfo[data.id], ...messages });
+                messages = treeInfo.prismaOps;
 
                 return {
                     id: BigInt(data.id),
@@ -101,9 +101,11 @@ export const ChatModel: ChatModelLogic = ({
                         // Automatically accept bots, and add yourself
                         create: [
                             ...(preData.bots.map((u) => ({
+                                id: BigInt(u.id),
                                 user: { connect: { id: BigInt(u.id) } },
                             }))),
                             {
+                                id: BigInt(rest.userData.id),
                                 user: { connect: { id: BigInt(rest.userData.id) } },
                             },
                         ],
@@ -116,7 +118,8 @@ export const ChatModel: ChatModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as ChatPre;
                 let messages = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, ...rest });
-                messages = prepareChatMessageOperations(messages, preData.branchInfo[data.id] ?? {}).operations;
+                const treeInfo = MessageTree.buildOperations({ branchInfo: preData.branchInfo[data.id], ...messages });
+                messages = treeInfo.prismaOps;
 
                 return {
                     openToAnyoneWithInvite: noNull(data.openToAnyoneWithInvite),
@@ -141,6 +144,7 @@ export const ChatModel: ChatModelLogic = ({
                         // Automatically accept bots. You should already be a participant, so no need to add yourself
                         create: [
                             ...(preData.bots.map((u) => ({
+                                id: BigInt(u.id),
                                 user: { connect: { id: BigInt(u.id) } },
                             }))),
                         ],
@@ -152,9 +156,25 @@ export const ChatModel: ChatModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async ({ createdIds, userData }) => {
-                //TODO If starting a chat with a bot (not Valyxa, since we create an initial message in the 
-                // UI for speed), allow the bot to send a message to the chat
+            afterMutations: async ({ createdIds, updatedIds, deletedIds, userData: _userData }) => {
+                // Standard trigger logic (notifications, etc.) should remain here.
+
+                // Invalidate ConversationState cache for all affected chats
+                const allAffectedChatIds = [
+                    ...createdIds,
+                    ...updatedIds,
+                    ...deletedIds,
+                ];
+
+                for (const chatId of allAffectedChatIds) {
+                    if (chatId) {
+                        try {
+                            await conversationStateStore.invalidateDistributed(chatId.toString());
+                        } catch (error) {
+                            console.error(`Failed to invalidate ConversationState cache for chat ${chatId}`, { error });
+                        }
+                    }
+                }
             },
         },
         yup: chatValidation,
@@ -198,8 +218,8 @@ export const ChatModel: ChatModelLogic = ({
             User: data?.creator,
         }),
         permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }) => {
-            const isInvited = uuidValidate(userId) && data.invites?.some((i) => i.userId === userId && i.status === ChatInviteStatus.Pending);
-            const isParticipant = uuidValidate(userId) && data.participants?.some((p) => p.user?.id === userId);
+            const isInvited = validatePK(userId) && data.invites?.some((i) => i.userId.toString() === userId && i.status === ChatInviteStatus.Pending);
+            const isParticipant = validatePK(userId) && data.participants?.some((p) => (p.userId ?? (p as unknown as { user: { id: bigint } }).user?.id ?? "").toString() === userId);
             return {
                 ...defaultPermissions({ isAdmin, isDeleted, isLoggedIn, isPublic }),
                 canInvite: () => isLoggedIn && isAdmin,

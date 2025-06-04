@@ -5,7 +5,7 @@ export const transfer_findMany = {
             "id": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "status": true,
             "fromOwner": {
                 "id": true,
@@ -118,7 +118,6 @@ export const transfer_findMany = {
                         "isLatest": true,
                         "isPrivate": true,
                         "resourceSubType": true,
-                        "simplicity": true,
                         "timesStarted": true,
                         "timesCompleted": true,
                         "versionIndex": true,
@@ -147,5 +146,5 @@ export const transfer_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "1970329765"
+    "__cacheKey": "1712870950"
 };

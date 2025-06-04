@@ -2,7 +2,7 @@ export const transfer_requestReceiveOne = {
     "id": true,
     "createdAt": true,
     "updatedAt": true,
-    "mergedOrRejectedAt": true,
+    "closedAt": true,
     "status": true,
     "fromOwner": {
         "id": true,
@@ -115,7 +115,6 @@ export const transfer_requestReceiveOne = {
                 "isLatest": true,
                 "isPrivate": true,
                 "resourceSubType": true,
-                "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,
@@ -138,5 +137,5 @@ export const transfer_requestReceiveOne = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "503524389"
+    "__cacheKey": "-1695143996"
 };

@@ -1,4 +1,4 @@
-import { ChatParticipantShape } from "@local/shared";
+import { type ChatParticipantShape } from "@local/shared";
 import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { ParticipantManageView } from "../../../views/ParticipantManageView/ParticipantManageView.js";
-import { ParticipantManageViewProps } from "../../../views/types.js";
+import { type ParticipantManageViewProps } from "../../../views/types.js";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "./styles.js";
-import { ParticipantsButtonProps } from "./types.js";
+import { type ParticipantsButtonProps } from "./types.js";
 
 const MAX_LABEL_LENGTH = 20;
 const TARGET_IMAGE_SIZE = 100;

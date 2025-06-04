@@ -26,6 +26,7 @@
         "noEmit": true,
         "noImplicitAny": false,
         "removeComments": true,
+        "verbatimModuleSyntax": true,
         "jsx": "react-jsx",
         "types": [
             "mocha",

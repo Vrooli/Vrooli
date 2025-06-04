@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Schedule, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePKString, getObjectUrl } from "@local/shared";
+import { type Schedule, type ScheduleException, type ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleUpsert } from "./ScheduleUpsert.js";
@@ -9,7 +9,7 @@ import { ScheduleUpsert } from "./ScheduleUpsert.js";
 // Create simplified mock data for Schedule responses
 const mockScheduleData: any = {
     __typename: "Schedule" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     startTime: new Date().toISOString(),
@@ -19,7 +19,7 @@ const mockScheduleData: any = {
     recurrences: [
         {
             __typename: "ScheduleRecurrence" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 1,
             dayOfWeek: 2, // Tuesday
@@ -32,12 +32,12 @@ const mockScheduleData: any = {
     ],
     meetings: [{
         __typename: "Meeting" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         translations: [{
             __typename: "MeetingTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name: "Team Meeting",
             description: "Scheduled team meeting",

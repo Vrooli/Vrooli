@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, Theme } from "@mui/material";
+import { Avatar, type AvatarProps, Box, type BoxProps, IconButton, type Palette, Stack, type StackProps, styled, type Theme } from "@mui/material";
 import { forwardRef } from "react";
 import { ELEMENT_CLASSES } from "./utils/consts.js";
 

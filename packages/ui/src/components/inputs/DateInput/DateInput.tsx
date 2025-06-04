@@ -3,7 +3,7 @@ import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
-import { DateInputProps } from "../types.js";
+import { type DateInputProps } from "../types.js";
 
 const DATE_FORMAT_CHARACTERS = 2;
 

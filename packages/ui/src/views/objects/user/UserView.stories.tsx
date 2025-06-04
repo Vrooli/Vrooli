@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { User, UserTranslation, endpointsUser, generatePKString, getObjectUrl } from "@local/shared";
+import { type User, type UserTranslation, endpointsUser, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { UserView } from "./UserView.js";
@@ -10,18 +10,9 @@ const mockUserBase: Omit<User, "id" | "handle" | "name" | "isBot" | "translation
     profileImage: null,
     bannerImage: null,
     tags: [],
-    chatMessages: [],
-    chatInvites: [],
-    routines: [],
-    routineVersions: [],
+    resources: [],
     comments: [],
-    reactions: [],
     reportsReceived: [],
-    reportsSent: [],
-    teams: [],
-    teamMembers: [],
-    projects: [],
-    projectMembers: [],
     views: Math.floor(Math.random() * 100_000),
 };
 
@@ -40,8 +31,8 @@ const mockUserTranslationBase: Omit<UserTranslation, "id" | "language" | "name" 
     verbosity: Math.random(),
 };
 
-const createMockUser = (isBot: boolean, isOwner: boolean): User => {
-    const userId = generatePKString();
+function createMockUser(isBot: boolean, isOwner: boolean): User {
+    const userId = generatePK().toString();
     const handle = `user${Math.floor(Math.random() * 1000)}`;
     const name = `User ${Math.floor(Math.random() * 1000)}`;
     const createdAt = new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 365).toISOString(); // Random date in the last year
@@ -59,7 +50,7 @@ const createMockUser = (isBot: boolean, isOwner: boolean): User => {
         reportsReceivedCount: Math.floor(Math.random() * 10),
         translations: [{
             ...mockUserTranslationBase,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name,
             bio: `This is the bio for ${name}. Lorem ipsum dolor sit amet. ${isBot ? "I am a bot." : ""}`,
@@ -75,7 +66,7 @@ const createMockUser = (isBot: boolean, isOwner: boolean): User => {
         },
         // Add other necessary fields or simplify based on what UserView actually uses
     };
-};
+}
 
 const mockUserDataRegular = createMockUser(false, false);
 const mockUserDataBot = createMockUser(true, false);
@@ -107,7 +98,7 @@ NoResult.parameters = {
     },
     route: {
         // Use a non-existent user ID or handle
-        path: `/user/nonexistentuser-${generatePKString()}`,
+        path: `/user/nonexistentuser-${generatePK().toString()}`,
     },
 };
 

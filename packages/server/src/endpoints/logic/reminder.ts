@@ -1,9 +1,9 @@
-import { FindByIdInput, Reminder, ReminderCreateInput, ReminderSearchInput, ReminderSearchResult, ReminderUpdateInput, VisibilityType } from "@local/shared";
+import { type FindByIdInput, type Reminder, type ReminderCreateInput, type ReminderSearchInput, type ReminderSearchResult, type ReminderUpdateInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsReminder = {
     findOne: ApiEndpoint<FindByIdInput, Reminder>;

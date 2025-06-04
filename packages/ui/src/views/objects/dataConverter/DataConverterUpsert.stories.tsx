@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, CodeVersion, DUMMY_ID, Resource, ResourceUsedFor, Tag, User, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { CodeLanguage, CodeType, type CodeVersion, DUMMY_ID, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterUpsert } from "./DataConverterUpsert.js";
@@ -9,7 +9,7 @@ import { DataConverterUpsert } from "./DataConverterUpsert.js";
 // Create simplified mock data for DataConverter responses
 const mockDataConverterVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     codeLanguage: CodeLanguage.Javascript,
     codeType: CodeType.DataConvert,
@@ -40,15 +40,15 @@ function stringToNumberArray(input) {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         listFor: {
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -56,7 +56,7 @@ function stringToNumberArray(input) {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -69,12 +69,12 @@ function stringToNumberArray(input) {
     },
     root: {
         __typename: "Code" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["Data Processing", "ETL", "Transformation", "CSV", "JSON", "XML", "Integration"][Math.floor(Math.random() * 7)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),

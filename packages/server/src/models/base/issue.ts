@@ -1,8 +1,7 @@
-import { IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, MaxObjects, ModelType, generatePublicId, getTranslation, issueValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { generatePublicId, getTranslation, type IssueFor, type IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects, type ModelType } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
@@ -31,16 +30,6 @@ export const IssueModel: IssueModelLogic = ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
             get: (select, languages) => getTranslation(select, languages).name ?? "",
-        },
-        embed: {
-            select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
-            get: ({ translations }, languages) => {
-                const trans = getTranslation({ translations }, languages);
-                return getEmbeddableString({
-                    description: trans.description,
-                    name: trans.name,
-                }, languages?.[0]);
-            },
         },
     }),
     format: IssueFormat,

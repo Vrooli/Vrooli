@@ -1,11 +1,11 @@
 
-import { FindByIdInput, LINKS, Location, LocationData, ResourceVersion, Run, RunCreateInput, RunIdentifier, RunLoader, RunPersistence, RunUpdateInput, endpointsResource, endpointsRun } from "@local/shared";
+import { type FindByIdInput, LINKS, type Location, type LocationData, type ResourceVersion, type Run, type RunCreateInput, type RunIdentifier, RunLoader, RunPersistence, type RunUpdateInput, endpointsResource, endpointsRun } from "@local/shared";
 import { Box, Stack, styled } from "@mui/material";
 import { useCallback, useEffect, useRef } from "react";
 import { fetchData } from "../../api/fetchData.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { getCookie, setCookie } from "../../utils/localStorage.js";
-import { RunViewProps } from "./types.js";
+import { type RunViewProps } from "./types.js";
 
 type StepRunData = {
     contextSwitches?: number;

@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, validatePublicId } from "@local/shared";
+import { type ChatInvite, type ChatInviteShape, ChatInviteStatus, DUMMY_ID, type ListObject, noop, ParticipantManagePageTabOption, type User, validatePublicId } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,7 +15,7 @@ import { IconCommon } from "../../icons/Icons.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { participantTabParams } from "../../utils/search/objectToSearch.js";
 import { ChatInvitesUpsert } from "../../views/objects/chatInvite/ChatInvitesUpsert.js";
-import { ParticipantManageViewProps } from "../types.js";
+import { type ParticipantManageViewProps } from "../types.js";
 
 const scrollContainerId = "participant-search-scroll";
 const dialogStyle = {

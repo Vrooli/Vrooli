@@ -1,7 +1,7 @@
-import { ModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
-import { RelationshipType } from "../../builders/types.js";
-import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
+import { type ModelType } from "@local/shared";
+import { shapeHelper, type ShapeHelperOutput, type ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { type RelationshipType } from "../../builders/types.js";
+import { type EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
 
 type TranslationShapeHelperProps<
     Types extends readonly RelationshipType[],
@@ -24,13 +24,15 @@ export async function translationShapeHelper<
         data: {
             translationsCreate: data.translationsCreate?.map(({ language, ...rest }) => ({
                 ...rest,
+                id: BigInt(rest.id),
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
+                embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),
             translationsUpdate: data.translationsUpdate?.map(({ language, ...rest }) => ({
                 ...rest,
+                id: BigInt(rest.id),
                 language,
-                embeddingNeedsUpdate: embeddingNeedsUpdate[language] ?? undefined,
+                embeddingExpiredAt: embeddingNeedsUpdate[language] === true ? new Date() : undefined,
             })),
         },
         isOneToOne: false,

@@ -1,4 +1,4 @@
-import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, RoutineVersionTranslation, RunProject, RunRoutine, RunStatus, RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, noop } from "@local/shared";
+import { HistoryPageTabOption, LINKS, type ListObject, type ProjectVersionTranslation, type RoutineVersionTranslation, type RunProject, type RunRoutine, RunStatus, type RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, noop } from "@local/shared";
 import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,7 +8,7 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
-import { ArgsType } from "../../types.js";
+import { type ArgsType } from "../../types.js";
 import { getDummyListLength } from "../../utils/consts.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -17,8 +17,8 @@ import { ListContainer } from "../containers/ListContainer.js";
 import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ObjectList } from "../lists/ObjectList/ObjectList.js";
-import { ObjectListActions } from "../lists/types.js";
-import { RunButtonProps } from "./types.js";
+import { type ObjectListActions } from "../lists/types.js";
+import { type RunButtonProps } from "./types.js";
 
 const emptyArray = [];
 

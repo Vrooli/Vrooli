@@ -10,7 +10,6 @@ export const resourceVersion_findOne = {
     "isLatest": true,
     "isPrivate": true,
     "resourceSubType": true,
-    "simplicity": true,
     "timesStarted": true,
     "timesCompleted": true,
     "versionIndex": true,
@@ -36,7 +35,7 @@ export const resourceVersion_findOne = {
         "publicId": true,
         "createdAt": true,
         "updatedAt": true,
-        "mergedOrRejectedAt": true,
+        "closedAt": true,
         "commentsCount": true,
         "status": true,
         "createdBy": {
@@ -201,5 +200,5 @@ export const resourceVersion_findOne = {
         "instructions": true,
         "name": true
     },
-    "__cacheKey": "-818793465"
+    "__cacheKey": "-847120474"
 };

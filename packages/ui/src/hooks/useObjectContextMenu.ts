@@ -1,4 +1,4 @@
-import { ListObject } from "@local/shared";
+import { type ListObject } from "@local/shared";
 import { useCallback, useState } from "react";
 
 /** Hook for providing context menu logic for object lists */

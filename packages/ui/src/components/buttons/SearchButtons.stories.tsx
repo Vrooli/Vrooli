@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
-import { FormSchema, ResourceVersionSortBy, TimeFrame } from "@local/shared";
+import { type FormSchema, ResourceVersionSortBy, type TimeFrame } from "@local/shared";
 import { useCallback, useState } from "react";
 import { SearchButtons } from "./SearchButtons.js";
 

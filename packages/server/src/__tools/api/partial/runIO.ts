@@ -1,5 +1,5 @@
-import { RunIO } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type RunIO } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const runIO: ApiPartial<RunIO> = {
     common: {

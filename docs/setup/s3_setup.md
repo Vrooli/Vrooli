@@ -40,50 +40,59 @@ Currently, we use this for storing profile and banner images for users and teams
 1. Navigate to the bucket you created earlier.
 2. Click on the "Permissions" tab.
 3. Click on "Edit" in the "Bucket Policy" section.
-4. Click on [Policy Generator](https://awspolicygen.s3.amazonaws.com/policygen.html).
-5. Select "S3 Bucket Policy" for the "Select Type of Policy" option.
+4. You can use the [AWS Policy Generator](https://awspolicygen.s3.amazonaws.com/policygen.html) or manually craft the JSON policy. The policy should grant your IAM user permissions to manage objects within the bucket and to list the bucket itself. It should also grant public read access to the objects if desired.
+5. Select "S3 Bucket Policy" for the "Select Type of Policy" option if using the generator.
 6. Select "Allow" for the "Effect" option.
-7. For "Principal", we'll need to find the ARN of the IAM user we created earlier:  
-    a. Navigate to the IAM service from the AWS Management Console.  
-    b. Click on "Users" in the sidebar and then click on the role you created earlier.  
-    c. Copy the "Role ARN" at the top of the page (e.g. `arn:aws:iam::123456789012:role/your-role-name`).
-7. Enter your `AWS_ACCESS_KEY_ID` for the "Principal" option.
-8. Select "DeleteObject", "GetObject", "PutObject", and "PutObjectAcl" for the "Actions" option. This allows the role to delete, read, write, and replace objects in the bucket, respectively.
-9. Enter your bucket's ARN (Amazon Resource Name) for the "Amazon Resource Name (ARN)" option, followed by `/*`. For example, if your bucket name is `vrooli`, you would enter `arn:aws:s3:::vrooli/*`. You can find the ARN in the "Overview" tab of your bucket (from steps 3 and 4).
-10. Click "Add Statement", then "Generate Policy". It should look something like this:
+7. For "Principal", you'll use the ARN of the IAM user created in Step 3.
+    a. Navigate to the IAM service from the AWS Management Console.
+    b. Click on "Users" in the sidebar and then click on the user you created (e.g., `vrooli-user`).
+    c. Copy the "User ARN" at the top of the page (e.g., `arn:aws:iam::123456789012:user/your-user-name`).
+8. For "Actions", your IAM user will need:
+    *   `s3:DeleteObject`, `s3:GetObject`, `s3:PutObject`, `s3:PutObjectAcl` for object operations.
+    *   `s3:ListBucket` for bucket operations (like the health check).
+9. For "Amazon Resource Name (ARN)":
+    *   For object actions, use your bucket's ARN followed by `/*` (e.g., `arn:aws:s3:::vrooli-bucket/*`).
+    *   For the `s3:ListBucket` action, use your bucket's ARN without the `/*` (e.g., `arn:aws:s3:::vrooli-bucket`).
+10. Click "Add Statement" for each part of the policy if using the generator, then "Generate Policy". The combined policy should look something like this, replacing placeholders with your actual ARNs and bucket name:
+
 ```json
 {
-    "Id": "Policy1630481234567",
     "Version": "2012-10-17",
+    "Id": "VrooliBucketPolicy",
     "Statement": [
         {
-            "Sid": "Stmt1630481234567",
+            "Sid": "AllowUserObjectActions",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:user/YOUR_IAM_USER_NAME"
+            },
             "Action": [
                 "s3:DeleteObject",
                 "s3:GetObject",
                 "s3:PutObject",
                 "s3:PutObjectAcl"
             ],
+            "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+        },
+        {
+            "Sid": "AllowUserListBucket",
             "Effect": "Allow",
-            "Resource": "arn:aws:s3:::your-bucket-name/*",
             "Principal": {
-                "AWS": [
-                    "arn:aws:iam::123456789012:role/your-role-name"
-                ]
-            }
+                "AWS": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:user/YOUR_IAM_USER_NAME"
+            },
+            "Action": "s3:ListBucket",
+            "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME"
+        },
+        {
+            "Sid": "AddPublicReadAccess",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": "arn:aws:s3:::YOUR_BUCKET_NAME/*"
         }
     ]
 }
-```  
-11. Now add an additional statement to the `Statement` array to enable public read access. It should look like this:
-```json
-{
-    "Sid":"AddPublicReadAccess",
-    "Effect":"Allow",
-    "Principal": "*",
-    "Action":["s3:GetObject"],
-    "Resource":["arn:aws:s3:::vrooli-bucket/*"]
-}
 ```
+11. Paste the complete policy into the "Bucket policy" editor on the S3 console and click "Save changes".
 
 *Refer to the official Amazon S3 and AWS SDK documentation for more detailed information and assistance.*

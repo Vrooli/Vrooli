@@ -1,6 +1,6 @@
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 // Tests for the ChatParticipant endpoint (findOne, findMany, updateOne)
-import { ChatParticipantSearchInput, ChatParticipantUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { type ChatParticipantSearchInput, type ChatParticipantUpdateInput, type FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

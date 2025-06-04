@@ -1,18 +1,18 @@
 import { MaxObjects, RunSortBy, runValidation } from "@local/shared";
-import { RunStatus, RunStepStatus } from "@prisma/client";
+import { RunStatus, type RunStepStatus } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { Trigger } from "../../events/trigger.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { RunFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ResourceVersionModelLogic, RunModelInfo, RunModelLogic } from "./types.js";
+import { type ResourceVersionModelLogic, type RunModelInfo, type RunModelLogic } from "./types.js";
 
 const __typename = "Run" as const;
 export const RunModel: RunModelLogic = ({
@@ -45,12 +45,12 @@ export const RunModel: RunModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
-            get: (select) => select.name,
+            get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
+            select: () => ({ id: true, embeddingExpiredAt: true, name: true }),
             get: ({ name }, languages) => {
-                return getEmbeddableString({ name }, languages?.[0]);
+                return EmbeddingService.getEmbeddableString({ name }, languages?.[0]);
             },
         },
     }),
@@ -67,7 +67,7 @@ export const RunModel: RunModelLogic = ({
                     completedComplexity: noNull(data.completedComplexity),
                     contextSwitches,
                     data: noNull(data.data),
-                    embeddingNeedsUpdate: true,
+                    embeddingExpiredAt: new Date(),
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),

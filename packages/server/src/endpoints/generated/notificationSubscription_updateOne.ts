@@ -277,7 +277,7 @@ export const notificationSubscription_updateOne = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "from": {
@@ -293,7 +293,6 @@ export const notificationSubscription_updateOne = {
                     "isLatest": true,
                     "isPrivate": true,
                     "resourceSubType": true,
-                    "simplicity": true,
                     "timesStarted": true,
                     "timesCompleted": true,
                     "versionIndex": true,
@@ -488,7 +487,6 @@ export const notificationSubscription_updateOne = {
                         "isLatest": true,
                         "isPrivate": true,
                         "resourceSubType": true,
-                        "simplicity": true,
                         "timesStarted": true,
                         "timesCompleted": true,
                         "versionIndex": true,
@@ -646,7 +644,6 @@ export const notificationSubscription_updateOne = {
                 "isLatest": true,
                 "isPrivate": true,
                 "resourceSubType": true,
-                "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,
@@ -729,5 +726,5 @@ export const notificationSubscription_updateOne = {
             }
         }
     },
-    "__cacheKey": "-205171836"
+    "__cacheKey": "-139108987"
 };

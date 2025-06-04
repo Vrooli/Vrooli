@@ -1,4 +1,4 @@
-import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentShape, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointsComment, noopSubmit, orDefault, Session, shapeComment, uuidValidate } from "@local/shared";
+import { camelCase, type Comment, type CommentCreateInput, type CommentFor, type CommentSearchInput, type CommentSearchResult, type CommentShape, commentTranslationValidation, type CommentUpdateInput, commentValidation, DUMMY_ID, endpointsComment, noopSubmit, orDefault, type Session, shapeComment, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
@@ -19,7 +19,7 @@ import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { defaultYou, getDisplay, getYou } from "../../../utils/display/listTools.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { CommentFormProps, CommentUpsertProps } from "./types.js";
+import { type CommentFormProps, type CommentUpsertProps } from "./types.js";
 
 export function commentInitialValues(
     session: Session | undefined,

@@ -31,6 +31,7 @@ export const SuppFields = {
     ReportResponse: ["you"],
     Resource: ["you", "translatedName"],
     ResourceVersion: ["you"],
+    ResourceVersionRelation: [],
     Role: [],
     Run: ["lastStep", "you"],
     RunIO: [],

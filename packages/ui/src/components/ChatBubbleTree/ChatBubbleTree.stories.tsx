@@ -1,11 +1,11 @@
-import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, generatePK, MINUTES_10_MS } from "@local/shared";
+import { type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, generatePK, MINUTES_10_MS } from "@local/shared";
 import { Box } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { useCallback, useEffect, useState } from "react";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { BranchMap } from "../../utils/localStorage.js";
+import { type BranchMap } from "../../utils/localStorage.js";
 import { ChatBubbleTree } from "./ChatBubbleTree.js";
 
 const bot1Id = generatePK().toString();

@@ -1,4 +1,4 @@
-import { expect as chaiExpect } from "chai";
+import { type expect as chaiExpect } from "chai";
 
 /**
  * Represents the common structure of a findMany result with edges and nodes containing an ID.

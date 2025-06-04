@@ -1,4 +1,4 @@
-import { endpointsView, FormSchema, ViewSortBy } from "@local/shared";
+import { endpointsView, type FormSchema, ViewSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

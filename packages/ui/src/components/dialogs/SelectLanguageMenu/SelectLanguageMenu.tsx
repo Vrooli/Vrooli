@@ -1,5 +1,5 @@
 import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
 import { SessionContext } from "../../../contexts/session.js";
@@ -8,7 +8,7 @@ import { Z_INDEX } from "../../../utils/consts.js";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { MenuTitle } from "../MenuTitle/MenuTitle.js";
-import { SelectLanguageMenuProps } from "../types.js";
+import { type SelectLanguageMenuProps } from "../types.js";
 
 const titleId = "select-language-dialog-title";
 const anchorOrigin = {

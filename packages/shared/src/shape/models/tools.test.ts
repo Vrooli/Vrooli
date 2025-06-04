@@ -348,11 +348,32 @@ describe("updateOwner", () => {
     });
 
     it("owner present only in original item", () => {
-        const originalItem = { owner: { __typename: "User", id: "user123" } };
+        const originalItem = { owner: { __typename: "User" as const, id: "user123" } };
         const updatedItem = { owner: null };
-        // @ts-ignore: Testing runtime scenario
+        // @ts-ignore: Testing runtime scenario where updatedItem.owner might not conform to OType if it were strictly typed based on OriginalItem
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({});
+        expect(result).to.deep.equal({ userDisconnect: true });
+    });
+
+    it("owner present only in original item (Team)", () => {
+        const originalItem = { owner: { __typename: "Team" as const, id: "team456" } };
+        const updatedItem = { owner: null };
+        const result = updateOwner(originalItem, updatedItem);
+        expect(result).to.deep.equal({ teamDisconnect: true });
+    });
+
+    it("owner present only in original item (User with ownedBy prefix)", () => {
+        const originalItem = { owner: { __typename: "User" as const, id: "user123" } };
+        const updatedItem = { owner: null };
+        const result = updateOwner(originalItem, updatedItem, "ownedBy");
+        expect(result).to.deep.equal({ ownedByUserDisconnect: true });
+    });
+
+    it("owner present only in original item (Team with ownedBy prefix)", () => {
+        const originalItem = { owner: { __typename: "Team" as const, id: "team456" } };
+        const updatedItem = { owner: null };
+        const result = updateOwner(originalItem, updatedItem, "ownedBy");
+        expect(result).to.deep.equal({ ownedByTeamDisconnect: true });
     });
 
     it("different prefixes", () => {

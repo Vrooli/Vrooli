@@ -1,15 +1,15 @@
-import { FormTipType } from "@local/shared";
-import { Box, Button, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, TextField, Typography, styled, useTheme } from "@mui/material";
+import { type FormTipType } from "@local/shared";
+import { Box, Button, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, type Palette, Popover, TextField, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
 import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";
-import { FormTipProps } from "./types.js";
+import { type FormTipProps } from "./types.js";
 
 const TIP_ICON_OPTIONS = [
     { iconInfo: { name: "Error", type: "Common" }, label: "Error", value: "Error" },

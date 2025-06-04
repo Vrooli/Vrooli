@@ -1,6 +1,6 @@
-import { AITaskInfo, LlmTask, MINUTES_10_MS, nanoid } from "@local/shared";
+import { type AITaskInfo, type LlmTask, MINUTES_10_MS, nanoid } from "@local/shared";
 import { getExistingAIConfig } from "../../api/ai.js";
-import { SetLocation } from "../../route/types.js";
+import { type SetLocation } from "../../route/types.js";
 
 /** How long a task can be running until it is considered stale */
 export const STALE_TASK_THRESHOLD_MS = MINUTES_10_MS;

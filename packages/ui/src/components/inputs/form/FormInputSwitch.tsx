@@ -1,4 +1,4 @@
-import { SwitchFormInput, SwitchFormInputProps, getFormikFieldName } from "@local/shared";
+import { type SwitchFormInput, type SwitchFormInputProps, getFormikFieldName } from "@local/shared";
 import { Box, Button, FormControlLabel, Switch, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -6,7 +6,7 @@ import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 export function FormInputSwitch({
     disabled,

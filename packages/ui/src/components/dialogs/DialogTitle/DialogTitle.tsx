@@ -1,4 +1,4 @@
-import { Box, IconButtonProps, DialogTitle as MuiDialogTitle, DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
+import { Box, type IconButtonProps, DialogTitle as MuiDialogTitle, type DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
 import { forwardRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
@@ -7,7 +7,7 @@ import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { tryOnClose } from "../../../utils/navigation/urlTools.js";
 import { Title } from "../../text/Title.js";
-import { DialogTitleProps } from "../types.js";
+import { type DialogTitleProps } from "../types.js";
 
 interface StyledTitleContainerProps extends MuiDialogTitleProps {
     isLeftHanded: boolean;

@@ -1,10 +1,11 @@
-import { ModelType, SessionUser, lowercaseFirstLetter, validatePK } from "@local/shared";
+import { type ModelType, type SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@local/shared";
+import { type CudHelperParams } from "../actions/types.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { PreMap } from "../models/types.js";
-import { IdsCreateToConnect } from "../utils/types.js";
+import { type PreMap } from "../models/types.js";
+import { type IdsCreateToConnect } from "../utils/types.js";
 import { shapeRelationshipData } from "./shapeRelationshipData.js";
-import { RelationshipType } from "./types.js";
+import { type RelationshipType } from "./types.js";
 
 type OrMany<T, IsOneToOne extends boolean> = IsOneToOne extends true ? T : T[];
 type OrBoolean<T, IsOneToOne extends boolean> = IsOneToOne extends true ? boolean : T[];
@@ -32,6 +33,7 @@ export type ShapeHelperProps<
 > = {
     /** Additional data to pass to the shape functions */
     additionalData: Record<string, any>,
+    adminFlags?: CudHelperParams["adminFlags"],
     /** The data to convert */
     data: Record<string, any>,
     /** Ids which should result in a connect instead of a create */
@@ -90,6 +92,7 @@ export async function shapeHelper<
     SoftDelete extends boolean = false,
 >({
     additionalData,
+    adminFlags,
     data,
     idsCreateToConnect = {},
     isOneToOne,
@@ -103,6 +106,7 @@ export async function shapeHelper<
     userData,
 }: ShapeHelperProps<IsOneToOne, Types, SoftDelete>):
     Promise<ShapeHelperOutput<IsOneToOne, PrimaryKey>> {
+    const isSeeding = adminFlags?.isSeeding ?? false;
     // Initialize result
     let result: { [x: string]: any } = {};
     // Loop through relation types, and convert all to a Prisma-shaped array
@@ -118,14 +122,19 @@ export async function shapeHelper<
             [...result[lowercaseFirstLetter(t)], ...currShaped] :
             currShaped;
     }
-    const { idField } = (ModelMap.getLogic(["idField"], objectType, false) ?? { idField: "id" }) as unknown as { idField: PrimaryKey };
+    const logic = ModelMap.getLogic(["idField"], objectType, false);
+    const idField = logic?.idField ?? "id";
+    function shapeId(field: string, id: string) {
+        if (field === "id" && validatePK(id)) return BigInt(id);
+        return id;
+    }
     // Now we can further shape the result
     // Creates which show up in idsCreateToConnect should be converted to connects
     if (Array.isArray(result.create) && result.create.length > 0 && Object.keys(idsCreateToConnect).length > 0) {
         const connected = result.create.map((e: { [x: string]: any }) => {
             const id = idsCreateToConnect[e[idField]] ?? idsCreateToConnect[e.id];
-            const isValidPK = typeof id === "string" && validatePK(id);
-            return id ? { [isValidPK ? "id" : idField]: id } : null;
+            if (!id) return null;
+            return { [idField]: shapeId(idField, id) };
         }).filter((e) => e);
         if (connected.length) {
             result.connect = Array.isArray(result.connect) ? [...result.connect, ...connected] : connected;
@@ -136,32 +145,32 @@ export async function shapeHelper<
     if (Array.isArray(result.connect) && result.connect.length > 0) {
         // Fallback to "id" if idField is not found
         result.connect = result.connect.map((e: { [x: string]: any }) => {
-            if (e[idField]) return { [idField]: e[idField] };
-            return { id: e.id };
+            if (e[idField]) return { [idField]: shapeId(idField, e[idField]) };
+            return { id: shapeId("id", e.id) };
         });
     } else result.connect = undefined;
     if (Array.isArray(result.disconnect) && result.disconnect.length > 0) {
         // Fallback to "id" if idField is not found
         result.disconnect = result.disconnect.map((e: { [x: string]: any }) => {
-            if (e[idField]) return { [idField]: e[idField] };
-            return { id: e.id };
+            if (e[idField]) return { [idField]: shapeId(idField, e[idField]) };
+            return { id: shapeId("id", e.id) };
         });
     } else result.disconnect = undefined;
     if (Array.isArray(result.delete) && result.delete.length > 0) {
         // Fallback to "id" if idField is not found
         result.delete = result.delete.map((e: { [x: string]: any }) => {
-            if (e[idField]) return { [idField]: e[idField] };
-            return { id: e.id };
+            if (e[idField]) return { [idField]: shapeId(idField, e[idField]) };
+            return { id: shapeId("id", e.id) };
         });
     } else result.delete = undefined;
     // Updates must be shaped in the form of { where: { id: '123' }, data: {...}}
     if (Array.isArray(result.update) && result.update.length > 0) {
-        result.update = result.update.map((e: any) => ({ where: { id: e.id }, data: e }));
+        result.update = result.update.map((e: any) => ({ where: { id: shapeId("id", e.id) }, data: e }));
     }
     else result.update = undefined;
     // Convert deletes to updates if softDelete is true
     if (softDelete && Array.isArray(result.delete) && result.delete.length > 0) {
-        const softDeletes = result.delete.map((e: any) => ({ where: { id: e[idField] }, data: { isDeleted: true } }));
+        const softDeletes = result.delete.map((e: any) => ({ where: { id: shapeId("id", e[idField]) }, data: { isDeleted: true } }));
         result.update = Array.isArray(result.update) ? [...result.update, ...softDeletes] : softDeletes;
         delete result.delete;
     }
@@ -170,7 +179,7 @@ export async function shapeHelper<
     if (mutate?.shape.create && Array.isArray(result.create) && result.create.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const create of result.create) {
-            const created = await mutate.shape.create({ additionalData, data: create, idsCreateToConnect, preMap, userData });
+            const created = await mutate.shape.create({ additionalData, data: create, idsCreateToConnect, isSeeding, preMap, userData });
             // Exclude parent relationship to prevent circular references
             const { [parentRelationshipName]: _, ...rest } = created;
             shaped.push(rest);
@@ -193,7 +202,7 @@ export async function shapeHelper<
         if (result.connect) {
             // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
             for (const id of (result?.connect ?? [])) {
-                const curr = { [joinData.fieldName]: { connect: id } };
+                const curr = { id: generatePK(), [joinData.fieldName]: { connect: shapeId("id", id) } };
                 resultWithJoin.create.push(curr);
             }
         }
@@ -202,8 +211,8 @@ export async function shapeHelper<
             for (const id of (result?.disconnect ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
-                        [joinData.childIdFieldName]: id[idField],
-                        [joinData.parentIdFieldName]: joinData.parentId,
+                        [joinData.childIdFieldName]: shapeId(idField, id[idField]),
+                        [joinData.parentIdFieldName]: shapeId("id", joinData.parentId!),
                     },
                 };
                 resultWithJoin.delete.push(curr);
@@ -214,8 +223,8 @@ export async function shapeHelper<
             for (const id of (result?.delete ?? [])) {
                 const curr = {
                     [joinData.uniqueFieldName]: {
-                        [joinData.childIdFieldName]: id[idField],
-                        [joinData.parentIdFieldName]: joinData.parentId,
+                        [joinData.childIdFieldName]: shapeId(idField, id[idField]),
+                        [joinData.parentIdFieldName]: shapeId("id", joinData.parentId!),
                     },
                 };
                 resultWithJoin.delete.push(curr);
@@ -224,7 +233,7 @@ export async function shapeHelper<
         if (result.create) {
             // ex: create: [ { tag: { create: { id: 'asdf' } } } ]
             for (const id of (result?.create ?? [])) {
-                const curr = { [joinData.fieldName]: { create: id } };
+                const curr = { id: generatePK(), [joinData.fieldName]: { create: shapeId(idField, id) } };
                 resultWithJoin.create.push(curr);
             }
         }
@@ -235,7 +244,12 @@ export async function shapeHelper<
             //     }]
             for (const data of (result?.update ?? [])) {
                 const curr = {
-                    where: { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: data.where[idField], [joinData.parentIdFieldName]: joinData.parentId } },
+                    where: {
+                        [joinData.uniqueFieldName]: {
+                            [joinData.childIdFieldName]: shapeId(idField, data.where[idField]),
+                            [joinData.parentIdFieldName]: shapeId("id", joinData.parentId!),
+                        },
+                    },
                     data: { [joinData.fieldName]: { update: data.data } },
                 };
                 resultWithJoin.update.push(curr);

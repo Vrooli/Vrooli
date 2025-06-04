@@ -10,7 +10,7 @@ import { ELEMENT_IDS, Z_INDEX } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { ProfilePictureInputProps } from "../types.js";
+import { type ProfilePictureInputProps } from "../types.js";
 
 // What size image to display
 const BANNER_TARGET_SIZE = 1000;

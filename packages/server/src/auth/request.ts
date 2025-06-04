@@ -1,13 +1,15 @@
-import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
+import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, type SessionUser } from "@local/shared";
 import { type Request } from "express";
 import fs from "fs";
+import { type Cluster, type Redis } from "ioredis";
 import pkg from "lodash";
-import { RedisClientType } from "redis";
-import { Socket } from "socket.io";
+import path from "path";
+import { type Socket } from "socket.io";
+import { fileURLToPath } from "url";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
-import { initializeRedis } from "../redisConn.js";
-import { SessionData } from "../types.js";
+import { CacheService } from "../redisConn.js";
+import { type SessionData } from "../types.js";
 import { SessionService } from "./session.js";
 
 const { escapeRegExp } = pkg;
@@ -16,7 +18,9 @@ const DEFAULT_RATE_LIMIT = 250;
 const DEFAULT_RATE_LIMIT_WINDOW_S = DAYS_1_S;
 const MAX_DOMAIN_LENGTH = 253;
 
-const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${process.env.NODE_ENV === "development" ? "src" : "dist"}/utils/tokenBucketScript.lua`;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const tokenBucketScriptFile = path.join(__dirname, "../utils/tokenBucketScript.lua");
 
 // eslint-disable-next-line @typescript-eslint/no-magic-numbers
 const DEFAULT_API_MULTIPLIER = 1000;
@@ -58,7 +62,7 @@ export type RequestConditions = {
     hasWriteAuthPermissions?: boolean;
 }
 
-type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } | { hasReadPrivatePermissions: true } | { hasWritePrivatePermissions: true } | { hasReadAuthPermissions: true } | { hasWriteAuthPermissions: true } ? SessionUser : undefined;
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } | { hasReadPrivatePermissions: true } | { hasWritePrivatePermissions: true } | { hasReadAuthPermissions: true } | { hasWriteAuthPermissions: true } ? SessionUser : Record<string, never>;
 
 export interface RateLimitProps {
     /**
@@ -110,14 +114,15 @@ export class RequestService {
         (25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])           # 2001:db8:3:4::192.0.2.33  64:ff9b::192.0.2.33 (IPv4-Embedded IPv6 Address)
     )
     `.replace(/\s*#.*$/gm, "").replace(/\s+/g, "");
-    private static ipv6Regex = new RegExp(RequestService.ipv6Pattern);
+    private static ipv6Regex = new RegExp(`^${RequestService.ipv6Pattern}$`);
     private static domainRegex = /^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,63}$/i;
     private static localhostRegex = /^http:\/\/localhost(?::[0-9]+)?$/;
     private static localhostIpRegex = /^http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}(?::[0-9]+)?$/;
 
 
-    static tokenBucketScript = "";
-    private static tokenBucketScriptSha: string | null = null;
+    private static tokenBucketScript = "";
+    private static scriptSha: string | null = null;
+    private static scriptLoading: Promise<string> | null = null;
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -128,7 +133,8 @@ export class RequestService {
             try {
                 RequestService.tokenBucketScript = fs.readFileSync(tokenBucketScriptFile, "utf8");
             } catch (error) {
-                logger.error(`Could not find or read token bucket script file at ${tokenBucketScriptFile}`, { trace: "0369" });
+                logger.error(`Could not find or read token bucket script file at ${tokenBucketScriptFile}`, { trace: "0369", error });
+                throw new CustomError("0369", "InternalError", { error });
             }
         }
         return RequestService.instance;
@@ -159,7 +165,8 @@ export class RequestService {
      * @returns An array of strings and regular expressions
      */
     safeOrigins(): Array<string | RegExp> {
-        if (Array.isArray(this.cachedOrigins) && this.cachedOrigins.length > 0) {
+        // Return cached origins (including empty list) if already computed
+        if (this.cachedOrigins !== null) {
             return this.cachedOrigins;
         }
 
@@ -168,13 +175,16 @@ export class RequestService {
         if (process.env.VITE_SERVER_LOCATION === "local") {
             origins.push(RequestService.localhostRegex, RequestService.localhostIpRegex);
         }
-        const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
+        // Split VIRTUAL_HOST by comma, trim whitespace, and remove empty entries
+        const domains = (process.env.VIRTUAL_HOST ?? "").split(",").map(d => d.trim()).filter(d => d !== "");
         for (const domain of domains) {
             if (!RequestService.isValidDomain(domain)) continue;
-            origins.push(new RegExp(`^http(s)?://${escapeRegExp(domain)}$`));
+            // Hostnames are case-insensitive, so use 'i' flag
+            origins.push(new RegExp(`^https?://${escapeRegExp(domain)}$`, "i"));
         }
         if (siteIp && RequestService.isValidIP(siteIp)) {
-            origins.push(new RegExp(`^http(s)?://${escapeRegExp(siteIp)}(?::[0-9]+)?$`));
+            // Match HTTP/HTTPS for IP addresses, case-insensitive
+            origins.push(new RegExp(`^https?://${escapeRegExp(siteIp)}(?::[0-9]+)?$`, "i"));
         }
 
         this.cachedOrigins = origins;
@@ -190,17 +200,25 @@ export class RequestService {
         // Allow all on development. This ensures that dev tools work properly.
         if (process.env.NODE_ENV === "development") return true;
         const origins = this.safeOrigins();
-        let origin = req.headers.origin;
-        // Sometimes the origin is undefined. Luckily, we can parse it from the referer.
-        if (!origin) {
-            if (req.headers.referer) {
-                const refererUrl = new URL(req.headers.referer);
-                origin = refererUrl.origin;
+        // Use Origin header, or fallback to Referer header if Origin is missing
+        const headers = req.headers as Record<string, any>;
+        let originHeader = headers.origin;
+        if (typeof originHeader !== "string" || !originHeader) {
+            const refererHeader = headers.referer;
+            if (typeof refererHeader === "string" && refererHeader) {
+                // Extract only the origin from the referer URL (ignore path and query)
+                try {
+                    originHeader = new URL(refererHeader).origin;
+                } catch {
+                    originHeader = undefined;
+                }
             }
         }
-        if (origin === undefined) {
+        // Only trust Origin or Referer header for safe-origin checks
+        if (typeof originHeader !== "string" || !originHeader) {
             return false;
         }
+        const origin = originHeader;
         for (const o of origins) {
             if (o instanceof RegExp) {
                 if (o.test(origin)) {
@@ -251,10 +269,11 @@ export class RequestService {
         const acceptString = req.headers["accept-language"];
         // Default to english if not found or a wildcard
         if (!acceptString || typeof acceptString !== "string" || acceptString === "*") return [DEFAULT_LANGUAGE];
-        // Strip q values
-        let acceptValues = acceptString.split(",").map((lang: string) => lang.split(";")[0]);
-        // Remove subtags
-        acceptValues = acceptValues.map((lang: string) => lang.split("-")[0]);
+        // Strip q values and remove subtags without trimming or deduplication
+        const acceptValues = acceptString.split(",").map((lang: string) => {
+            const withoutQ = lang.split(";")[0];
+            return withoutQ.split("-")[0];
+        });
         return acceptValues;
     }
 
@@ -325,10 +344,17 @@ export class RequestService {
             userData,
         } = RequestService.getRequestPermissions(req);
 
-        // Check isUser condition
-        if (conditions.isUser === true && !isVerifiedUser) throw new CustomError("0267", "NotLoggedIn");
-        // Check isOfficialUser condition
-        if (conditions.isOfficialUser === true && hasApiToken) throw new CustomError("0269", "NotLoggedInOfficial");
+        // Check isUser condition: must be a verified user (safe-origin, logged-in) or using an API token
+        if (conditions.isUser === true && !(isVerifiedUser || hasApiToken)) throw new CustomError("0267", "NotLoggedIn");
+        // Check isOfficialUser condition: must not use API token and must be a verified (logged-in, safe-origin) user
+        if (conditions.isOfficialUser === true) {
+            if (hasApiToken) {
+                throw new CustomError("0269", "NotLoggedInOfficial");
+            }
+            if (!isVerifiedUser) {
+                throw new CustomError("0269", "NotLoggedInOfficial");
+            }
+        }
         // Check isApiToken condition
         if (conditions.isApiToken === true && !hasApiToken) throw new CustomError("0272", "MustUseApiToken");
         // Check permissions
@@ -346,6 +372,11 @@ export class RequestService {
         }
         if (conditions.hasWriteAuthPermissions === true && !permissions[ApiKeyPermission.WriteAuth]) {
             throw new CustomError("0278", "Unauthorized");
+        }
+
+        // Ensure API token is not used when explicitly disallowed
+        if (conditions.isApiToken === false && hasApiToken) {
+            throw new CustomError("0273", "Unauthorized");
         }
 
         return (userData ?? {}) as AssertRequestFromResult<Conditions>;
@@ -432,16 +463,43 @@ export class RequestService {
     }
 
     /**
-     * Applies a rate limit check to keys in redis. 
-     * Throws an error if the limit is exceeded.
-     * @param client The redis client
-     * @param keys The keys to check
-     * @param maxTokensList The maximum number of tokens allowed in the bucket 
-     * for each key, in order
-     * @param refillRates The rate at which the bucket refills for each key, in order
+     * Gets the SHA of the token bucket script, loading it if necessary.
+     * This method is safe to call concurrently - it will only load the script once.
      */
+    private async getScriptSha(client: Redis | Cluster, isReload = false): Promise<string> {
+        // Simplified, idempotent script-load caching
+        if (isReload) {
+            RequestService.scriptSha = null;
+            RequestService.scriptLoading = null;
+        }
+
+        if (RequestService.scriptSha) {
+            return RequestService.scriptSha;
+        }
+
+        if (RequestService.scriptLoading) {
+            return RequestService.scriptLoading;
+        }
+
+        // Kick off a single script-load and share its promise
+        const loadPromise = client.script("LOAD", RequestService.tokenBucketScript) as Promise<string>;
+        RequestService.scriptLoading = loadPromise
+            .then((sha: unknown) => {
+                const loadedSha = sha as string;
+                RequestService.scriptSha = loadedSha;
+                RequestService.scriptLoading = null;
+                return loadedSha;
+            })
+            .catch((err: Error) => {
+                RequestService.scriptLoading = null;
+                throw err;
+            });
+
+        return RequestService.scriptLoading;
+    }
+
     async checkRateLimit(
-        client: RedisClientType | null,
+        client: Redis | Cluster | null,
         keys: string[],
         maxTokensList: number[],
         refillRates: number[],
@@ -464,26 +522,21 @@ export class RequestService {
         args.push(nowMs.toString());
 
         // Result is an array of [allowed1, waitTimeMs1, allowed2, waitTimeMs2, ...]  
-        let result: number[] | undefined;
-        if (RequestService.tokenBucketScriptSha) {
-            try {
-                result = await client.evalSha(RequestService.tokenBucketScriptSha, {
-                    keys,
-                    arguments: args,
-                }) as number[];
-            } catch (error) {
-                if (!(error instanceof Error && error.message.startsWith("NOSCRIPT"))) {
-                    throw error;
-                }
-                // If NOSCRIPT, proceed to load the script
+        let result: number[] = [];
+
+        // Get or load the script SHA
+        const scriptSha = await this.getScriptSha(client);
+
+        try {
+            result = await client.evalsha(scriptSha, keys.length, ...keys, ...args) as number[];
+        } catch (error) {
+            if (error instanceof Error && error.message.startsWith("NOSCRIPT")) {
+                // If script is not found, get a new SHA through the reload mechanism
+                const newScriptSha = await this.getScriptSha(client, true);
+                result = await client.evalsha(newScriptSha, keys.length, ...keys, ...args) as number[];
+            } else {
+                throw error;
             }
-        }
-        if (result === undefined) {
-            RequestService.tokenBucketScriptSha = await client.scriptLoad(RequestService.tokenBucketScript);
-            result = await client.evalSha(RequestService.tokenBucketScriptSha, {
-                keys,
-                arguments: args,
-            }) as number[];
         }
 
         // Check if any of the rate limits are exceeded
@@ -518,9 +571,14 @@ export class RequestService {
         const userData = SessionService.getUser(req);
         const hasUserData = req.session?.isLoggedIn === true && userData !== null;
 
+        // Pre-authorization: ensure non-API requests are from a safe origin
+        if (!hasApiToken && req.session?.fromSafeOrigin !== true) {
+            throw new CustomError("0271", "MustUseApiToken", { keyBase: RequestService.buildKeyBase(req) });
+        }
+
         // Try connecting to redis
         try {
-            const client = await initializeRedis();
+            const client = await CacheService.get().raw();
 
             // Calculate refill rates
             const apiRefillRate = maxApi / window;
@@ -539,11 +597,6 @@ export class RequestService {
                 maxTokensList.push(maxApi);
                 refillRates.push(apiRefillRate);
             }
-            // Make sure that all non-API requests are from a safe origin
-            else if (req.session?.fromSafeOrigin !== true) {
-                throw new CustomError("0271", "MustUseApiToken", { keyBase: RequestService.buildKeyBase(req) });
-            }
-
             // Apply rate limit to IP address
             const ipKey = RequestService.buildIpKey(req);
             keys.push(ipKey);
@@ -561,7 +614,7 @@ export class RequestService {
             // Call checkRateLimit with arrays
             await this.checkRateLimit(client, keys, maxTokensList, refillRates);
         }
-        // If Redis fails, let the user through. It's not their fault. 
+        // If Redis fails, the error is re-thrown, and the request is blocked (fail-closed).
         catch (error) {
             logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
             throw error;
@@ -585,7 +638,7 @@ export class RequestService {
         maxIp = maxIp ?? maxUser;
         // Try connecting to redis
         try {
-            const client = await initializeRedis();
+            const client = await CacheService.get().raw();
 
             // Calculate refill rates
             const ipRefillRate = maxIp / window;
@@ -613,8 +666,15 @@ export class RequestService {
             // Call checkRateLimit with arrays
             await this.checkRateLimit(client, keys, maxTokensList, refillRates);
         } catch (error) {
-            console.error("Error occurred while connecting or accessing redis server", { trace: "0492", error });
-            return (error as Error)?.message ?? "Rate limit exceeded";
+            // Handle rate limit exceeded separately, log and return the code
+            if (error instanceof CustomError && error.code === "RateLimitExceeded") {
+                logger.error("Socket rate limit exceeded", { trace: error.trace });
+                return error.code;
+            } else {
+                // Unexpected error (e.g., Redis connection), log and allow socket
+                logger.error("Unexpected error in socket rate limiter", { trace: "0492", error });
+                return undefined;
+            }
         }
     }
 }

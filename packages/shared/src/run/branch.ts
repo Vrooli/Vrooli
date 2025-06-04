@@ -2,7 +2,7 @@ import { RunStepStatus } from "../api/types.js";
 import { nanoid } from "../id/publicId.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { SubroutineContextManager } from "./context.js";
-import { BranchLocationDataMap, BranchProgress, BranchStatus, IOMap, Id, Location, LocationStack, RunProgress, RunStateMachineServices } from "./types.js";
+import { type BranchLocationDataMap, type BranchProgress, BranchStatus, type IOMap, type Id, type Location, type LocationStack, type RunProgress, type RunStateMachineServices } from "./types.js";
 
 /**
  * Handles branch logic for the run.
@@ -39,12 +39,12 @@ export class BranchManager {
 
             // Get the appropriate graph config, io data, and navigator for the current object
             // TODO support projects and project directories
-            if (!object.resourceSubType.startsWith("Routine")) {
+            if (!object.resourceSubType || !object.resourceSubType.startsWith("Routine")) {
                 services.logger.error(`moveBranchesForward: Unsupported object type: ${object.resourceSubType}`);
                 branch.status = BranchStatus.Failed;
                 continue;
             }
-            const { graph: config } = RoutineVersionConfig.deserialize(object, services.logger, { useFallbacks: true });
+            const { graph: config } = RoutineVersionConfig.parse(object, services.logger, { useFallbacks: true });
             if (!config) {
                 throw new Error("Routine has no graph type");
             }
@@ -74,6 +74,8 @@ export class BranchManager {
                 config,
                 decisionKey,
                 location,
+                processId: branch.processId,
+                runProgress: run,
                 runConfig: run.config,
                 services,
                 subcontext,
@@ -167,7 +169,7 @@ export class BranchManager {
                     }
                     const parentRoutine = parentLocationData.object as RoutineVersion;
                     // Deserialize the parent's graph configuration.
-                    const { graph: parentGraph } = RoutineVersionConfig.deserialize(parentRoutine, services.logger, { useFallbacks: true });
+                    const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, services.logger, { useFallbacks: true });
                     if (!parentGraph) {
                         services.logger.error("advanceBranches: Invalid parent graph configuration.");
                         continue;

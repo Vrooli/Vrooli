@@ -1,4 +1,4 @@
-import { IntegerFormInput, IntegerFormInputProps, getFormikFieldName } from "@local/shared";
+import { type IntegerFormInput, type IntegerFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 export function FormInputInteger({
     disabled,

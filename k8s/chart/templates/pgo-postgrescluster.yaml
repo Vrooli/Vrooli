@@ -1,0 +1,156 @@
+{{- /* templates/pgo-postgrescluster.yaml */ -}}
+{{- /* This template defines a PostgresCluster custom resource for the CrunchyData PostgreSQL Operator (PGO). */ -}}
+{{- /* It allows for declarative management of PostgreSQL clusters within Kubernetes. */ -}}
+{{- if .Values.pgoPostgresql.enabled }}
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: {{ .Values.pgoPostgresql.clusterName }}
+  namespace: {{ .Release.Namespace }} # Deploy cluster in the same namespace as the app
+  labels:
+    {{- /* Standard labels for identifying and organizing resources. Includes common Vrooli labels. */ -}}
+    {{- include "vrooli.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql-cluster
+spec:
+  {{- /* Specifies the desired PostgreSQL major version. */ -}}
+  postgresVersion: {{ .Values.pgoPostgresql.postgresVersion }}
+  instances:
+    - name: instance1 # PGO default instance name, can be customized if needed.
+      {{- /* Number of PostgreSQL instances (pods) in this instance set. Forms a primary/replica group. */ -}}
+      replicas: {{ .Values.pgoPostgresql.instances.count }}
+      {{- /* Resource requests and limits for the PostgreSQL instances. */ -}}
+      {{- with .Values.pgoPostgresql.instances.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- /* Defines the PersistentVolumeClaim for data storage. */ -}}
+      dataVolumeClaimSpec:
+        accessModes:
+        - "ReadWriteOnce" # Standard access mode for a single pod writing to a volume.
+        resources:
+          requests:
+            {{- /* Requested storage size for the PostgreSQL data. */ -}}
+            storage: {{ .Values.pgoPostgresql.instances.storage.size }}
+        {{- /* Specifies the StorageClass to use for the PVC. */ -}}
+        {{- if .Values.pgoPostgresql.instances.storage.storageClass }}
+        storageClassName: {{ .Values.pgoPostgresql.instances.storage.storageClass }}
+        {{- else }}
+        # Let PGO or K8s default StorageClass be used if not specified
+        storageClassName: "" # Explicitly empty to use default if not set
+        {{- end }}
+      {{- /* Affinity settings for this PostgreSQL instance set. */}}
+      {{- /* Allows defining pod affinity/anti-affinity, node affinity, etc. */}}
+      {{- /* The structure of .Values.pgoPostgresql.instances.affinity should match Kubernetes core v1 Affinity spec. */}}
+      {{- with .Values.pgoPostgresql.instances.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # {{- with .Values.pgoPostgresql.tolerations }} # Tolerations can be similarly uncommented if needed
+      # tolerations:
+
+  {{- /* Configuration for PostgreSQL users to be created in the cluster. */ -}}
+  {{- with .Values.pgoPostgresql.users }}
+  users:
+    {{- range . }}
+    - name: {{ .name }}
+      databases:
+        {{- /* List of databases this user has permissions on. */ -}}
+        {{- toYaml .databases | nindent 8 }}
+      {{- if .options }}
+      options:
+        - {{ .options }} # SQL options like SUPERUSER, CREATEDB. Use with caution.
+      {{- end }}
+      {{- with .password }}
+      password:
+        {{- /* Type of password management. Can be AlphaNumeric (generated), Provided (from K8s Secret), etc. */ -}}
+        type: {{ .type | default "AlphaNumeric" }}
+        {{- if eq .type "Provided" }}
+        # Ensure 'valueFrom.secretKeyRef.name' and 'valueFrom.secretKeyRef.key' are set in values.yaml if using Provided
+        {{- /* If type is 'Provided', specifies a Kubernetes Secret to source the password from. */ -}}
+        {{- if .valueFrom }}
+        valueFrom:
+          secretKeyRef:
+            name: {{ .valueFrom.secretKeyRef.name }}
+            key: {{ .valueFrom.secretKeyRef.key }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- /* Configuration for databases to be created in the cluster. */ -}}
+  {{- with .Values.pgoPostgresql.databases }}
+  databases:
+    {{- range . }}
+    - name: {{ .name }}
+      {{- if .owner }}
+      {{- /* Specifies the owner of the database. */ -}}
+      owner: {{ .owner }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- /* Configuration for pgBouncer, a connection pooler for PostgreSQL. */ -}}
+  {{- if .Values.pgoPostgresql.pgBouncer.enabled }}
+  proxy:
+    pgBouncer:
+      {{- /* Number of pgBouncer replicas. */ -}}
+      replicas: {{ .Values.pgoPostgresql.pgBouncer.replicas }}
+      {{- /* Resource requests and limits for the pgBouncer instances. */ -}}
+      {{- with .Values.pgoPostgresql.pgBouncer.resources }}
+      resources:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Add other pgBouncer configurations here as needed, e.g., pool modes, server_reset_query.
+      # Example:
+      # config:
+      #   global:
+      #     pool_mode: session
+      #     server_reset_query: "DISCARD ALL;"
+  {{- end }}
+
+  {{- /* Configuration for pgBackRest, a backup and restore solution for PostgreSQL. */ -}}
+  {{- if .Values.pgoPostgresql.backups.enabled }}
+  backups:
+    pgBackRest:
+      # image: "registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.41-4" # PGO usually sets this. Override if needed.
+      {{- /* Configuration for pgBackRest repositories (e.g., S3, GCS, Azure Blob for storing backups). */ -}}
+      {{- with .Values.pgoPostgresql.backups.pgBackRest.repos }}
+      repos:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- /* Defines the retention policy for full backups. (e.g., "time", "count") */ -}}
+      {{- /* PGO 5.x uses 'retentionFullType' at the repo level for some repo types (e.g. S3). */ -}}
+      {{- /* Check PGO documentation for exact field placement based on repo type. */ -}}
+      {{- with .Values.pgoPostgresql.backups.pgBackRest.retentionFullType }}
+      retentionFullType: {{ . }}
+      {{- end }}
+      {{- /* Number of full backups to retain if retentionFullType is "count". */ -}}
+      {{- /* This might be set via `repoX-retention-full` in global config or directly on the repo. */ -}}
+      {{- with .Values.pgoPostgresql.backups.pgBackRest.retentionFullCount }}
+      retentionFullCount: {{ . | int }}
+      {{- end }}
+      # Backup schedules are managed by Pgtask CRDs. See PGO documentation.
+  {{- end }}
+
+  {{- /* Configuration for monitoring using pgMonitor. */ -}}
+  {{- if .Values.pgoPostgresql.monitoring.enabled }}
+  monitoring:
+    pgmonitor:
+      exporter:
+        enabled: true # Enables the Crunchy PostgreSQL Exporter for Prometheus.
+        # {{- with .Values.pgoPostgresql.monitoring.pgMonitor.exporter.resources }}
+        # resources:
+        #  {{- toYaml . | nindent 10 }}
+        # {{- end }}
+  {{- end }}
+
+  # --- Optional: Patroni specific settings ---
+  # Patroni is used by PGO for high availability. Advanced settings can be configured here.
+  # Refer to PGO and Patroni documentation for available options.
+  {{- with .Values.pgoPostgresql.patroni }}
+  patroni:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+{{- end }} 

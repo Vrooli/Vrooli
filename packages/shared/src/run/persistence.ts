@@ -1,9 +1,9 @@
-import { Run, RunCreateInput, RunUpdateInput } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { type Run, type RunCreateInput, type RunUpdateInput } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
-import { RunShape, RunStepShape, shapeRun } from "../shape/models/models.js";
+import { type RunShape, type RunStepShape, shapeRun } from "../shape/models/models.js";
 import { FINALIZE_RUN_POLL_INTERVAL_MS, FINALIZE_RUN_TIMEOUT_MS, STORE_RUN_PROGRESS_DEBOUNCE_MS } from "./consts.js";
-import { RunIdentifier, RunMetrics, RunProgress, RunProgressStep, RunTriggeredBy } from "./types.js";
+import { type RunIdentifier, type RunMetrics, type RunProgress, type RunProgressStep, type RunTriggeredBy } from "./types.js";
 
 /**
  * Handles saving and loading run progress. This includes:
@@ -360,8 +360,8 @@ export abstract class RunPersistence {
         const { completedAt, complexity, contextSwitches, id, name, startedAt, status } = step;
         const nodeId = step.locationId;
         const run = { id: runId, __typename: "Run" as const };
-        const resourceVersion = step.subroutineId ?
-            { id: step.subroutineId, __typename: "ResourceVersion" as const }
+        const resourceVersion = step.resourceVersionId ?
+            { id: step.resourceVersionId, __typename: "ResourceVersion" as const }
             : null;
         const resourceInId = step.objectId;
         const timeElapsed = this.calculateStepTimeElapsed(step);
@@ -407,7 +407,7 @@ export abstract class RunPersistence {
         const team = this.getRunTeam(run);
 
         //TODO
-        // For “io,” we might merge all inputs/outputs from each subcontext.
+        // For "io," we might merge all inputs/outputs from each subcontext.
         // This is one common approach; adapt as needed.
         const io: any[] = [];// IOEntry[] = [];
         for (const [subId, subCtx] of Object.entries(run.subcontexts)) {
@@ -485,9 +485,10 @@ export abstract class RunPersistence {
      */
     private fromRunStepShape(step: Run["steps"][number]): RunProgressStep {
         let objectType = "Project" as "Project" | "Routine";
-        if (step.resourceVersion?.resourceSubType.startsWith("Routine")) {
+        if (step.resourceVersion?.resourceSubType?.startsWith("Routine")) {
             objectType = "Routine";
         }
+
         return {
             completedAt: step.completedAt || undefined,
             complexity: step.complexity || 0,
@@ -495,12 +496,15 @@ export abstract class RunPersistence {
             id: step.id,
             locationId: step.nodeId,
             name: step.name,
+            nodeId: step.nodeId,
             objectId: step.resourceInId, // The ID of the routine version the node is a part of. May be different than the routine version being run if we step into a nested routine
             objectType,
             order: step.order,
             startedAt: step.startedAt,
             status: step.status,
-            subroutineId: step.resourceVersion?.id || null,
+            resourceInId: step.resourceInId,
+            resourceVersionId: step.resourceVersion?.id ?? undefined,
+            subroutineId: step.resourceVersion?.id ?? null, // Same as resourceVersionId
         };
     }
 
@@ -531,7 +535,7 @@ export abstract class RunPersistence {
     ): RunProgress {
         const { name, id: runId, status } = storedData;
         const { __version, branches, config, decisions, metrics: partialMetrics, subcontexts } = storedData.data
-            ? RunProgressConfig.deserialize(storedData, logger)
+            ? RunProgressConfig.parse(storedData, logger)
             : RunProgressConfig.default();
         const metrics = this.storedDataToMetrics(storedData, partialMetrics.creditsSpent);
         const owner = this.storedDataToOwner(storedData, userData);

@@ -1,0 +1,26 @@
+# Specifies the API version for the Helm chart.
+# For Helm 3, 'v2' is standard, indicating the chart follows modern Helm conventions.
+apiVersion: v2
+# The name of the chart. This is used to identify the chart in commands like 'helm install <name>'.
+name: vrooli
+# A human-readable description of what the chart does.
+description: "A Helm chart for deploying Vrooli microservices"
+# The type of chart. 'application' is standard for deployable applications.
+# Other types include 'library' for charts that are dependencies of other charts but don't deploy anything on their own.
+type: application
+# The version of this chart. This follows semantic versioning (SemVer).
+# Increment this when making changes to the chart's templates or default values.
+version: 0.1.0
+# The version of the application being deployed by this chart. Also follows SemVer.
+# This can be independent of the chart's version if, for example, you update the app without changing the chart structure.
+appVersion: "0.1.0" # Changed automatically during build process by version.sh
+# Chart maintainer metadata
+# Lists the individuals or teams responsible for maintaining this Helm chart.
+maintainers:
+  - name: Vrooli Team
+    email: support@vrooli.com
+# Define which K8s API versions this chart supports
+# Specifies the compatible Kubernetes versions. Helm will check this during installation.
+kubeVersion: ">=1.19.0-0"
+# A URL to an icon file that represents the application.
+icon: https://vrooli.com/favicon.ico

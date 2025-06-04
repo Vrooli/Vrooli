@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import * as yup from "yup";
+import type * as yup from "yup";
 
 export type YupMutateParams = {
     /** 

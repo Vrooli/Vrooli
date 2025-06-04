@@ -1,0 +1,77 @@
+name: Master CI/CD
+
+concurrency:
+  group: master
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      run_lint:
+        description: "Run linting step"
+        required: false
+        type: boolean
+        default: false
+      run_test:
+        description: "Run tests step"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SECRETS_SOURCE: file
+      ENVIRONMENT: production
+      RUN_LINT: ${{ github.event.inputs.run_lint != 'false' }}
+      RUN_TEST: ${{ github.event.inputs.run_test != 'false' }}
+      SSH_KEY_PATH: ~/.ssh/deploy_key
+      VPS_DEPLOY_USER: ${{ secrets.VPS_DEPLOY_USER }}
+      VPS_DEPLOY_HOST: ${{ secrets.VPS_DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create .env-prod file from secret
+        run: echo "${{ secrets.ENV_FILE_CONTENT }}" > .env-prod
+      - name: Create jwt_priv.pem from secret
+        run: echo "${{ secrets.JWT_PRIV_PEM }}" > jwt_priv_production.pem
+      - name: Create jwt_pub.pem from secret
+        run: echo "${{ secrets.JWT_PUB_PEM }}" > jwt_pub_production.pem
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "Host *\n \tStrictHostKeyChecking no\n" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+      - name: Set up SSH private key
+        if: env.VPS_SSH_PRIVATE_KEY != '' # Only run if the secret is set
+        run: |
+          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      - name: Verify SSH connection
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} "echo 'SSH OK'"
+      - name: Build, zip, and send to production
+        run: |
+          bash scripts/main/build.sh \
+            --environment production \
+            --ci-cd yes \
+            --bundles zip \
+            --artifacts docker \
+            --binaries none \
+            --dest local \
+            --yes yes \
+            --location remote \
+            --lint "${{ env.RUN_LINT == 'true' && 'yes' || 'no' }}" \
+            --test "${{ env.RUN_TEST == 'true' && 'yes' || 'no' }}"
+      - name: Deploy to Production
+        run: |
+          # Run the deploy script remotely on the production server via SSH
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} \
+            'bash ~/StartupFromScratch/scripts/main/deploy.sh --environment production --source docker --yes yes'

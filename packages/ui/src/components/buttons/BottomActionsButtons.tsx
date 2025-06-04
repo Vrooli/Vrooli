@@ -1,15 +1,15 @@
 import { exists } from "@local/shared";
-import { Box, BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "../../hooks/useErrorPopover.js";
 import { useKeyboardOpen } from "../../hooks/useKeyboardOpen.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
+import { type SxType } from "../../types.js";
 import { BottomActionsGrid } from "./BottomActionsGrid.js";
 import { LoadableButton } from "./LoadableButton.js";
-import { BottomActionsButtonsProps } from "./types.js";
+import { type BottomActionsButtonsProps } from "./types.js";
 
 interface SideActionsBoxProps extends BoxProps {
     hideButtons: boolean;

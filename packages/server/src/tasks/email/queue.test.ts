@@ -1,10 +1,10 @@
 import { PaymentType } from "@local/shared";
-import Bull from "bull";
+import type Bull from "bull";
 import { expect } from "chai";
 import sinon from "sinon";
 import * as yup from "yup";
 import { logger } from "../../events/logger.js";
-import { EmailProcessPayload, emailQueue, feedbackNotifyAdmin, sendCreditCardExpiringSoon, sendMail, sendPaymentFailed, sendPaymentThankYou, sendResetPasswordLink, sendSubscriptionCanceled, sendSubscriptionEnded, sendVerificationLink } from "./queue.js";
+import { type EmailProcessPayload, emailQueue, feedbackNotifyAdmin, sendCreditCardExpiringSoon, sendMail, sendPaymentFailed, sendPaymentThankYou, sendResetPasswordLink, sendSubscriptionCanceled, sendSubscriptionEnded, sendVerificationLink } from "./queue.js";
 
 /**
  * Validates the email task object structure.

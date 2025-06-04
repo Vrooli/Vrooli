@@ -3,7 +3,7 @@ import { pagePaddingBottom } from "../../styles.js";
 
 const settingsContentStackStyle = {
     paddingBottom: pagePaddingBottom,
-    display: 'flex',
+    display: "flex",
     flex: 1,
     minHeight: 0,
 } as const;

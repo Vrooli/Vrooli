@@ -1,0 +1,182 @@
+{
+  "name": "resource_manage",
+  "description": "Find, add, update or delete a resource depending on 'op'.",
+  "inputSchema": {
+    "anyOf": [
+      {
+        "description": "Find Resource",
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "find"
+          },
+          "resource_type": {
+            "enum": [
+              "Bot",
+              "ExternalData",
+              "Note",
+              "Project",
+              "RoutineApi",
+              "RoutineCode",
+              "RoutineData",
+              "RoutineGenerate",
+              "RoutineInformational",
+              "RoutineInternalAction",
+              "RoutineMultiStep",
+              "RoutineSmartContract",
+              "RoutineWeb",
+              "StandardDataStructure",
+              "StandardPrompt",
+              "Team"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "filters": {
+            "description": "Call `DefineTool` with `op = find` and `resource_type` to the target resource type to get the available filters.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "op",
+          "resource_type"
+        ]
+      },
+      {
+        "description": "Add Resource",
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "add"
+          },
+          "resource_type": {
+            "enum": [
+              "Bot",
+              "ExternalData",
+              "Note",
+              "Project",
+              "RoutineApi",
+              "RoutineCode",
+              "RoutineData",
+              "RoutineGenerate",
+              "RoutineInformational",
+              "RoutineInternalAction",
+              "RoutineMultiStep",
+              "RoutineSmartContract",
+              "RoutineWeb",
+              "StandardDataStructure",
+              "StandardPrompt",
+              "Team"
+            ],
+            "type": "string"
+          },
+          "attributes": {
+            "description": "Call `DefineTool` with `op = add` and `resource_type` to the target resource type to get the available attributes.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "attributes",
+          "op",
+          "resource_type"
+        ]
+      },
+      {
+        "description": "Update Resource",
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "update"
+          },
+          "resource_type": {
+            "enum": [
+              "Bot",
+              "ExternalData",
+              "Note",
+              "Project",
+              "RoutineApi",
+              "RoutineCode",
+              "RoutineData",
+              "RoutineGenerate",
+              "RoutineInformational",
+              "RoutineInternalAction",
+              "RoutineMultiStep",
+              "RoutineSmartContract",
+              "RoutineWeb",
+              "StandardDataStructure",
+              "StandardPrompt",
+              "Team"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "description": "Call `DefineTool` with `op = update` and `resource_type` to the target resource type to get the available attributes.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "attributes",
+          "id",
+          "op",
+          "resource_type"
+        ]
+      },
+      {
+        "description": "Delete Resource",
+        "type": "object",
+        "properties": {
+          "op": {
+            "type": "string",
+            "const": "delete"
+          },
+          "resource_type": {
+            "enum": [
+              "Bot",
+              "ExternalData",
+              "Note",
+              "Project",
+              "RoutineApi",
+              "RoutineCode",
+              "RoutineData",
+              "RoutineGenerate",
+              "RoutineInformational",
+              "RoutineInternalAction",
+              "RoutineMultiStep",
+              "RoutineSmartContract",
+              "RoutineWeb",
+              "StandardDataStructure",
+              "StandardPrompt",
+              "Team"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "op",
+          "resource_type"
+        ]
+      }
+    ],
+    "additionalProperties": false
+  },
+  "annotations": {
+    "title": "Resource Manage",
+    "readOnlyHint": false,
+    "openWorldHint": false
+  }
+}

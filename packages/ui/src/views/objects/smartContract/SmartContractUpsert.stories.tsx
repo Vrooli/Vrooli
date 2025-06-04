@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Code, CodeLanguage, CodeType, CodeVersion, CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { type Code, CodeLanguage, CodeType, type CodeVersion, type CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SmartContractUpsert } from "./SmartContractUpsert.js";
@@ -9,7 +9,7 @@ import { SmartContractUpsert } from "./SmartContractUpsert.js";
 // Create simplified mock data for CodeVersion responses
 const mockCodeVersionData: CodeVersion = {
     __typename: "CodeVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     calledByRoutineVersionsCount: 2,
@@ -33,12 +33,12 @@ contract SimpleStorage {
     isPrivate: false,
     root: {
         __typename: "Code" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         owner: {
             __typename: "User" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             handle: "blockchain-dev",
             name: "Blockchain Developer",
             profileImage: null,
@@ -47,37 +47,37 @@ contract SimpleStorage {
         isPrivate: false,
         versions: [{
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             versionLabel: "0.9.0",
         }, {
             __typename: "CodeVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             versionLabel: "1.0.0",
         }],
         tags: [{
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Ethereum",
         }, {
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Smart Contract",
         }, {
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             label: "Storage",
         }],
     } as unknown as Code,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         listFor: {} as any, // Circular reference
         resources: [
             {
                 __typename: "Resource" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -85,7 +85,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: generatePKString(),
+                    id: generatePK().toString(),
                     language: "en",
                     name: "Smart Contracts Documentation",
                     description: "Official Ethereum documentation on smart contracts",
@@ -93,7 +93,7 @@ contract SimpleStorage {
             },
             {
                 __typename: "Resource" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 usedFor: ResourceUsedFor.Context,
@@ -101,7 +101,7 @@ contract SimpleStorage {
                 list: {} as any, // Circular reference
                 translations: [{
                     __typename: "ResourceTranslation" as const,
-                    id: generatePKString(),
+                    id: generatePK().toString(),
                     language: "en",
                     name: "Solidity Documentation",
                     description: "Official documentation for the Solidity programming language",
@@ -113,7 +113,7 @@ contract SimpleStorage {
     translations: [
         {
             __typename: "CodeVersionTranslation" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             language: "en",
             name: "Simple Storage Contract",
             description: "A basic smart contract that demonstrates storage functionality on the Ethereum blockchain. This contract allows setting and retrieving a single integer value.",

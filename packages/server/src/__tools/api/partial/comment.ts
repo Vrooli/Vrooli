@@ -1,5 +1,5 @@
-import { Comment, CommentSearchResult, CommentThread, CommentTranslation, CommentYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Comment, type CommentSearchResult, type CommentThread, type CommentTranslation, type CommentYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const commentTranslation: ApiPartial<CommentTranslation> = {

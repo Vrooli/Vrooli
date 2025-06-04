@@ -1,9 +1,9 @@
-import { FindByPublicIdInput, Report, ReportCreateInput, ReportSearchInput, ReportSearchResult, ReportUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Report, type ReportCreateInput, type ReportSearchInput, type ReportSearchResult, type ReportUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsReport = {
     findOne: ApiEndpoint<FindByPublicIdInput, Report>;

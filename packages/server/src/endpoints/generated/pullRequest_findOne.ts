@@ -3,7 +3,7 @@ export const pullRequest_findOne = {
     "publicId": true,
     "createdAt": true,
     "updatedAt": true,
-    "mergedOrRejectedAt": true,
+    "closedAt": true,
     "commentsCount": true,
     "status": true,
     "from": {
@@ -19,7 +19,6 @@ export const pullRequest_findOne = {
             "isLatest": true,
             "isPrivate": true,
             "resourceSubType": true,
-            "simplicity": true,
             "timesStarted": true,
             "timesCompleted": true,
             "versionIndex": true,
@@ -214,7 +213,6 @@ export const pullRequest_findOne = {
                 "isLatest": true,
                 "isPrivate": true,
                 "resourceSubType": true,
-                "simplicity": true,
                 "timesStarted": true,
                 "timesCompleted": true,
                 "versionIndex": true,
@@ -266,5 +264,5 @@ export const pullRequest_findOne = {
         "language": true,
         "text": true
     },
-    "__cacheKey": "1741242636"
+    "__cacheKey": "1776863565"
 };

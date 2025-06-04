@@ -1,5 +1,5 @@
-import { Count } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Count } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const count: ApiPartial<Count> = {
     full: {

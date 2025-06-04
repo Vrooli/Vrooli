@@ -5,7 +5,7 @@ import { Grid, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useKeyboardOpen } from "../../hooks/useKeyboardOpen.js";
 import { pagePaddingBottom } from "../../styles.js";
-import { BottomActionsGridProps } from "./types.js";
+import { type BottomActionsGridProps } from "./types.js";
 
 export function BottomActionsGrid({
     children,

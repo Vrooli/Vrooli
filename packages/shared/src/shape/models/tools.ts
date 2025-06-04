@@ -1,4 +1,4 @@
-import { ShapeModel } from "../../consts/commonTypes.js";
+import { type ShapeModel } from "../../consts/commonTypes.js";
 import { DUMMY_ID } from "../../id/snowflake.js";
 import { exists } from "../../utils/exists.js";
 import { hasObjectChanged } from "../general/objectTools.js";
@@ -225,28 +225,34 @@ type UpdateRelOutput<
  */
 export function updateOwner<
     OType extends OwnerType,
-    OriginalItem extends { owner?: { __typename: OwnerType, id: string } | null | undefined },
+    OriginalItem extends { owner?: { __typename: OType, id: string } | null | undefined },
     UpdatedItem extends { owner?: { __typename: OType, id: string } | null | undefined },
     Prefix extends OwnerPrefix & string
 >(
     originalItem: OriginalItem,
     updatedItem: UpdatedItem,
     prefix: Prefix = "" as Prefix,
-): { [K in `${Prefix}${OType}Connect`]?: string } {
-    // Find owner data in item
+): { [K in `${Prefix}${OType}Connect` | `${Prefix}${OType}Disconnect`]?: string | boolean } {
     const originalOwnerData = originalItem.owner;
     const updatedOwnerData = updatedItem.owner;
-    // If original and updated missing
+
     if (
-        (originalOwnerData === null || originalOwnerData === undefined) &&
-        (updatedOwnerData === null || updatedOwnerData === undefined)
-    ) return {};
-    // If original and updated match, return empty object
-    if (originalOwnerData?.id === updatedOwnerData?.id) return {};
-    // If updated missing, disconnect
-    // TODO disabled for now
-    // Treat as create
-    return createOwner(updatedItem as any, prefix);
+        ((originalOwnerData === null || originalOwnerData === undefined) &&
+            (updatedOwnerData === null || updatedOwnerData === undefined)) ||
+        (originalOwnerData?.id === updatedOwnerData?.id)
+    ) {
+        return {};
+    }
+
+    if ((updatedOwnerData === null || updatedOwnerData === undefined) && originalOwnerData) {
+        let disconnectFieldName = `${prefix}${originalOwnerData.__typename}Disconnect`;
+        if (prefix === "") {
+            disconnectFieldName = disconnectFieldName.charAt(0).toLowerCase() + disconnectFieldName.slice(1);
+        }
+        return { [disconnectFieldName]: true } as any;
+    }
+
+    return createOwner(updatedItem as any, prefix) as any;
 }
 
 /**

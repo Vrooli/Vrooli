@@ -1,8 +1,8 @@
-import { calculateOccurrences, CalendarEvent, Schedule, ScheduleFor } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Typography, useTheme } from "@mui/material";
+import { calculateOccurrences, type CalendarEvent, type Schedule, ScheduleFor } from "@local/shared";
+import { Box, type BoxProps, Button, Checkbox, DialogContent, Divider, FormControlLabel, FormGroup, IconButton, InputAdornment, List, ListItem, ListItemText, Paper, styled, Tab, Tabs, TextField, Typography, useTheme } from "@mui/material";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Calendar, HeaderProps as CalendarHeaderProps, Components, dateFnsLocalizer, DateLocalizer, SlotInfo, View, Views } from "react-big-calendar";
+import { Calendar, type HeaderProps as CalendarHeaderProps, type Components, dateFnsLocalizer, type DateLocalizer, type SlotInfo, type View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
@@ -15,13 +15,17 @@ import { SessionContext } from "../../contexts/session.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { bottomNavHeight } from "../../styles.js";
-import { PartialWithType } from "../../types.js";
+import { type PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools.js";
 import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
-import { CalendarViewProps } from "../types.js";
+import { type CalendarViewProps } from "../types.js";
+
+// Workaround typing issues: wrap Calendar as any to satisfy JSX
+const BigCalendar: any = Calendar;
 
 // Define the tab values
 export enum CalendarTabs {
@@ -32,8 +36,7 @@ export enum CalendarTabs {
 // Define schedule types for filtering using the ScheduleFor enum
 const SCHEDULE_TYPES: ScheduleFor[] = [
     ScheduleFor.Meeting,
-    ScheduleFor.RunProject,
-    ScheduleFor.RunRoutine,
+    ScheduleFor.Run,
 ];
 
 const views = {
@@ -363,6 +366,7 @@ export function CalendarView({
     const locale = useMemo(() => getUserLocale(session), [session]);
     const [localizer, setLocalizer] = useState<DateLocalizer | null>(null);
     const { palette: themePalette } = useTheme();
+    const [location] = useLocation();
 
     // Active tab state
     const [activeTab, setActiveTab] = useHistoryState("calendar-tab", initialTab);
@@ -485,11 +489,7 @@ export function CalendarView({
                     } catch (displayError) {
                         console.error("Error getting display title:", displayError);
                         // Try to extract title/name from available data
-                        if (schedule.meetings?.[0]?.name) {
-                            title = schedule.meetings[0].name;
-                        } else if (schedule.meetings?.[0]?.translations?.[0]?.title) {
-                            title = schedule.meetings[0].translations[0].title;
-                        } else if (schedule.meetings?.[0]?.translations?.[0]?.name) {
+                        if (schedule.meetings?.[0]?.translations?.[0]?.name) {
                             title = schedule.meetings[0].translations[0].name;
                         } else if (schedule.runs?.[0]?.name) {
                             title = schedule.runs[0].name;
@@ -536,7 +536,13 @@ export function CalendarView({
                 event.title.toLowerCase().includes(searchQuery.toLowerCase());
 
             // Filter by selected types
-            const scheduleType = event.schedule?.scheduleFor as ScheduleFor | undefined;
+            // Determine schedule type by checking meetings or runs array
+            let scheduleType: ScheduleFor | undefined;
+            if (event.schedule?.meetings?.length) {
+                scheduleType = ScheduleFor.Meeting;
+            } else if (event.schedule?.runs?.length) {
+                scheduleType = ScheduleFor.Run;
+            }
             const matchesType = scheduleType ? selectedTypes.includes(scheduleType) : true;
 
             return matchesSearch && matchesType;
@@ -627,7 +633,14 @@ export function CalendarView({
 
     // Event styling based on type
     const eventPropGetter = useCallback((event: CalendarEvent) => {
-        const scheduleType = event.schedule?.scheduleFor as ScheduleFor | undefined;
+        // Determine schedule type by checking meetings or runs array
+        let scheduleType: ScheduleFor | undefined;
+        if (event.schedule?.meetings?.length) {
+            scheduleType = ScheduleFor.Meeting;
+        } else if (event.schedule?.runs?.length) {
+            scheduleType = ScheduleFor.Run;
+        }
+
         let backgroundColor = palette.primary.main; // Default color
         let color = palette.primary.contrastText; // Default text color
 
@@ -637,13 +650,9 @@ export function CalendarView({
                 backgroundColor = palette.info.light;
                 color = palette.info.contrastText;
                 break;
-            case ScheduleFor.RunProject:
+            case ScheduleFor.Run:
                 backgroundColor = palette.warning.light;
                 color = palette.warning.contrastText;
-                break;
-            case ScheduleFor.RunRoutine:
-                backgroundColor = palette.secondary.light;
-                color = palette.secondary.contrastText;
                 break;
             // Add more cases if needed
             default:
@@ -665,7 +674,7 @@ export function CalendarView({
         return {
             style,
         };
-    }, [palette.primary.main, palette.primary.contrastText, palette.success.light, palette.success.contrastText, palette.info.light, palette.info.contrastText, palette.warning.light, palette.warning.contrastText, palette.secondary.light, palette.secondary.contrastText, typography.caption.fontSize, typography.caption.lineHeight]);
+    }, [palette.primary.main, palette.primary.contrastText, palette.info.light, palette.info.contrastText, palette.warning.light, palette.warning.contrastText, typography.caption.fontSize, typography.caption.lineHeight]);
 
     const calendarComponents = useMemo(function calendarComponentsMemo() {
         return {
@@ -765,7 +774,7 @@ export function CalendarView({
                 </Tabs>
 
                 {activeTab === CalendarTabs.CALENDAR && (
-                    <Calendar<CalendarEvent, object>
+                    <BigCalendar<CalendarEvent, object>
                         localizer={localizer}
                         longPressThreshold={20}
                         events={filteredEvents}

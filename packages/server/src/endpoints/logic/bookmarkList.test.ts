@@ -1,6 +1,6 @@
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 // Tests for the BookmarkList endpoint (findOne, findMany, createOne, updateOne)
-import { BookmarkListCreateInput, BookmarkListSearchInput, BookmarkListUpdateInput, FindByIdInput, generatePK, nanoid, validatePK } from "@local/shared";
+import { type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListUpdateInput, type FindByIdInput, generatePK, nanoid, validatePK } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

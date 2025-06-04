@@ -1,5 +1,5 @@
-import { DotNotation } from "@local/shared";
-import { Displayer, ModelLogic, ModelLogicType } from "../models/types.js";
+import { type DotNotation } from "@local/shared";
+import { type Displayer, type ModelLogic, type ModelLogicType } from "../models/types.js";
 
 /**
  * Finds the most appropriate version to display for a root object.

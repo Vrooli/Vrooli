@@ -1,10 +1,10 @@
 /* c8 ignore start */
-import { CommentFor, TranslationKeyCommon } from "@local/shared";
-import { TypographyProps } from "@mui/material";
-import { ReactNode } from "react";
-import { IconInfo } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
-import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "../inputs/types.js";
+import { type CommentFor, type TranslationKeyCommon } from "@local/shared";
+import { type TypographyProps } from "@mui/material";
+import { type ReactNode } from "react";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SxType } from "../../types.js";
+import { type RichInputProps, type TextInputProps, type TranslatedRichInputProps, type TranslatedTextInputProps } from "../inputs/types.js";
 
 export interface CommentContainerProps {
     /** When true, forces the add comment form to be open, even on mobile */

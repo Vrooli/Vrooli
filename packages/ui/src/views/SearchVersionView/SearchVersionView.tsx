@@ -1,4 +1,4 @@
-import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
+import { LINKS, type ListObject, type ModelType, getObjectUrlBase } from "@local/shared";
 import { IconButton } from "@mui/material";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +17,7 @@ import { ELEMENT_CLASSES } from "../../utils/consts.js";
 import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { searchVersionViewTabParams } from "../../utils/search/objectToSearch.js";
-import { SearchVersionViewProps } from "../types.js";
+import { type SearchVersionViewProps } from "../types.js";
 
 const scrollContainerId = "version-search-scroll";
 const pageContainerStyle = {

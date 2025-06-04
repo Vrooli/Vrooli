@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
+import type { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
 type ObjectMap = { [key in ModelType]: GenericModelLogic | Record<string, never> };
@@ -54,18 +54,25 @@ export class ModelMap {
         const modelNames = Object.keys(ModelType) as (keyof typeof ModelMap.prototype.map)[];
         const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-        // Create a promise for each model import and process them in parallel
-        const importPromises = modelNames.map(async (modelName) => {
+        // Only include models with existing logic files
+        const validModelNames = modelNames.filter(modelName => {
             const fileName = lowercaseFirstLetter(modelName);
-            const modelPath = `./${fileName}.js`;
+            const jsExists = fs.existsSync(`${dirname}/${fileName}.js`);
+            const tsExists = fs.existsSync(`${dirname}/${fileName}.ts`);
+            return jsExists || tsExists;
+        });
+
+        // Dynamically import each model module in parallel
+        const importPromises = validModelNames.map(async (modelName) => {
+            const fileName = lowercaseFirstLetter(modelName);
             const filePathWithoutExtension = `${dirname}/${fileName}`;
+            const importPath = fs.existsSync(`${filePathWithoutExtension}.js`)
+                ? `./${fileName}.js`
+                : `./${fileName}.ts`;
             try {
-                if (fs.existsSync(`${filePathWithoutExtension}.js`) || fs.existsSync(`${filePathWithoutExtension}.ts`)) {
-                    this.map[modelName] = (await import(modelPath))[`${modelName}Model`];
-                } else {
-                    this.map[modelName] = {};
-                }
-                // If the model has a translation table, add that to the map as well
+                const module = await import(importPath);
+                this.map[modelName] = module[`${modelName}Model`] || {};
+
                 const translationTable = this.map[modelName].dbTranslationTable;
                 if (translationTable) {
                     const __typename = this.map[modelName].__typename + "Translation";
@@ -77,8 +84,7 @@ export class ModelMap {
                 }
             } catch (error) {
                 this.map[modelName] = {};
-                console.log(`qqqq Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, error);
-                logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
+                logger.warning(`Failed to load model ${modelName}Model at ${importPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
             }
         });
 

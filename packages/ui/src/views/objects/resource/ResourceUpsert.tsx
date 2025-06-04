@@ -1,4 +1,4 @@
-import { DUMMY_ID, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, Session, TranslationKeyCommon, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, ResourceUsedFor, type Session, type TranslationKeyCommon, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -22,9 +22,9 @@ import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { shortcuts } from "../../../utils/navigation/quickActions.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { PreSearchItem } from "../../../utils/search/siteToSearch.js";
+import { type PreSearchItem } from "../../../utils/search/siteToSearch.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ResourceFormProps, ResourceUpsertProps } from "./types.js";
+import { type ResourceFormProps, type ResourceUpsertProps } from "./types.js";
 
 export function resourceInitialValues(
     session: Session | undefined,

@@ -1,4 +1,4 @@
-import { ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteUpdateInput, FindByIdInput, uuid } from "@local/shared";
+import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

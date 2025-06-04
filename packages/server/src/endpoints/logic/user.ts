@@ -1,14 +1,15 @@
-import { AUTH_PROVIDERS, BotCreateInput, BotUpdateInput, FindByPublicIdInput, ImportCalendarInput, ProfileEmailUpdateInput, profileEmailUpdateValidation, ProfileUpdateInput, Success, User, UserSearchInput, UserSearchResult } from "@local/shared";
+import { AUTH_PROVIDERS, profileEmailUpdateValidation, type BotCreateInput, type BotUpdateInput, type ExportCalendarResult, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, type ProfileUpdateInput, type ScheduleCreateInput, type ScheduleSearchInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { RequestService } from "../../auth/request.js";
+import { type PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
-import { ApiEndpoint } from "../../types.js";
-import { parseICalFile } from "../../utils/calendar.js";
+import { type ApiEndpoint } from "../../types.js";
+import { convertICalEventsToSchedules, createICalFromSchedules, parseICalFile } from "../../utils/calendar.js";
 import { user_profile } from "../generated/user_profile.js";
 
 export type EndpointsUser = {
@@ -20,7 +21,7 @@ export type EndpointsUser = {
     profileEmailUpdate: ApiEndpoint<ProfileEmailUpdateInput, User>;
     importCalendar: ApiEndpoint<ImportCalendarInput, Success>;
     // importUserData: ApiEndpoint<ImportUserDataInput, Success>;
-    exportCalendar: ApiEndpoint<never, string>;
+    exportCalendar: ApiEndpoint<never, ExportCalendarResult>;
     exportData: ApiEndpoint<never, Success>;
 }
 
@@ -120,11 +121,146 @@ export const user: EndpointsUser = {
     },
     importCalendar: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 25, req });
-        await parseICalFile(input.file);
-        throw new CustomError("0999", "NotImplemented");
+        const userData = RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
+
+        try {
+            // Parse the iCal file
+            const events = await parseICalFile(input.file);
+
+            // Convert iCal events to schedule creation inputs
+            const scheduleInputs = convertICalEventsToSchedules(events, userData.id);
+
+            if (scheduleInputs.length === 0) {
+                return { __typename: "Success", success: true, message: "No valid events found in the calendar file." };
+            }
+
+            // Create schedules in the database
+            let createdCount = 0;
+            for (const scheduleInput of scheduleInputs) {
+                if (!scheduleInput.startTime || !scheduleInput.endTime) continue;
+
+                try {
+                    const scheduleCreateInput: ScheduleCreateInput = {
+                        id: scheduleInput.id,
+                        startTime: scheduleInput.startTime,
+                        endTime: scheduleInput.endTime,
+                        timezone: scheduleInput.timezone,
+                        recurrencesCreate: scheduleInput.recurrences?.map(rec => ({
+                            id: rec.id,
+                            recurrenceType: rec.recurrenceType,
+                            interval: rec.interval,
+                            dayOfWeek: rec.dayOfWeek,
+                            dayOfMonth: rec.dayOfMonth,
+                            month: rec.month,
+                            endDate: rec.endDate,
+                            duration: rec.duration,
+                        })),
+                    };
+
+                    await createOneHelper({
+                        input: scheduleCreateInput,
+                        objectType: "Schedule",
+                        req,
+                        info: { GQLResolveInfo: {} } as PartialApiInfo,
+                    });
+
+                    createdCount++;
+                } catch (error) {
+                    console.error(`Failed to create run with schedule ${scheduleInput.id}:`, error);
+                    // Continue with other schedules even if one fails
+                }
+            }
+
+            return {
+                __typename: "Success",
+                success: true,
+                message: `Successfully imported ${createdCount} calendar events as scheduled runs.`,
+            };
+        } catch (error) {
+            console.error("Error importing calendar:", error);
+            throw new CustomError("0523", "InternalError", { error: (error as Error).message });
+        }
     },
-    exportCalendar: async (_d) => {
-        throw new CustomError("0999", "NotImplemented");
+    exportCalendar: async (_, { req }) => {
+        await RequestService.get().rateLimit({ maxUser: 25, req });
+        const userData = RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
+        const input: ScheduleSearchInput = {
+            searchString: "",
+            take: 1000,
+            scheduleForUserId: userData.id,
+        };
+
+        try {
+            // Fetch user's schedules with related meetings and runs
+            const schedules = await readManyHelper({
+                input,
+                objectType: "Schedule",
+                req,
+                info: {
+                    GQLResolveInfo: {},
+                    select: {
+                        edges: {
+                            node: {
+                                id: true,
+                                startTime: true,
+                                endTime: true,
+                                timezone: true,
+                                recurrences: {
+                                    id: true,
+                                    recurrenceType: true,
+                                    interval: true,
+                                    dayOfWeek: true,
+                                    dayOfMonth: true,
+                                    month: true,
+                                    endDate: true,
+                                    duration: true,
+                                },
+                                meetings: {
+                                    id: true,
+                                    translations: {
+                                        id: true,
+                                        language: true,
+                                        name: true,
+                                        description: true,
+                                    },
+                                },
+                                runs: {
+                                    id: true,
+                                    name: true,
+                                    resourceVersion: {
+                                        id: true,
+                                        translations: {
+                                            id: true,
+                                            language: true,
+                                            name: true,
+                                            description: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                } as PartialApiInfo,
+            });
+
+            // Convert schedules to the format expected by createICalFromSchedules
+            const scheduleData = schedules.edges.map((edge: any) => ({
+                schedule: edge.node,
+                meeting: edge.node.meetings && edge.node.meetings.length > 0 ? edge.node.meetings[0] : undefined,
+                run: edge.node.runs && edge.node.runs.length > 0 ? edge.node.runs[0] : undefined,
+            }));
+
+            // Generate iCal content
+            const icalContent = createICalFromSchedules(scheduleData);
+
+            return {
+                __typename: "ExportCalendarResult" as const,
+                calendar: icalContent,
+            };
+        } catch (error) {
+            console.error("Error exporting calendar:", error);
+            throw new CustomError("0524", "InternalError", { error: (error as Error).message });
+        }
     },
     /**
      * Exports user data to a JSON file (created/saved routines, projects, teams, etc.).

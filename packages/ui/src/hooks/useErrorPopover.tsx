@@ -2,7 +2,7 @@ import { exists, uppercaseFirstLetter } from "@local/shared";
 import { useCallback, useMemo, useState } from "react";
 import { PopoverWithArrow } from "../components/dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../components/text/MarkdownDisplay.js";
-import { FormErrors } from "../types.js";
+import { type FormErrors } from "../types.js";
 
 interface UsePopoverMenuOptions {
     errors: FormErrors | undefined;

@@ -1,5 +1,5 @@
-import { Meeting, MeetingTranslation, MeetingYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Meeting, type MeetingTranslation, type MeetingYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const meetingTranslation: ApiPartial<MeetingTranslation> = {

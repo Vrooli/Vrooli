@@ -1,5 +1,5 @@
-import { LINKS } from "@local/shared";
-import { Box, BoxProps, Divider, List, ListItem, ListItemIcon, ListItemProps, ListItemText, ListProps, styled, useTheme } from "@mui/material";
+import { type LINKS } from "@local/shared";
+import { Box, type BoxProps, Divider, List, ListItem, ListItemIcon, type ListItemProps, ListItemText, type ListProps, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useElementDimensions } from "../../../hooks/useDimensions.js";
@@ -7,7 +7,7 @@ import { Icon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { accountSettingsData, displaySettingsData } from "../../../views/settings/index.js";
-import { SettingsData } from "../../../views/settings/types.js";
+import { type SettingsData } from "../../../views/settings/types.js";
 
 type ViewSize = "minimal" | "full";
 

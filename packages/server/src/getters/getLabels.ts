@@ -1,5 +1,5 @@
-import { ModelType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types.js";
+import { type ModelType, validatePK } from "@local/shared";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
@@ -25,13 +25,15 @@ export async function getLabels(
 ): Promise<string[]> {
     const model = ModelMap.get(objectType, true, errorTrace);
     if (objects.length <= 0) return [];
-    const objectsWithLanguages = typeof objects[0] === "string" ? objects.map(id => ({ id, languages })) : objects;
+    let objectsWithLanguages = (typeof objects[0] === "string" ? objects.map(id => ({ id, languages })) : objects) as { id: string, languages: string[] }[];
+    objectsWithLanguages = objectsWithLanguages.filter(x => !validatePK(x.id));
     // Query for labels data
     let where: any;
     let select: any;
     let labelsData: any[];
     try {
-        where = { id: { in: objectsWithLanguages.map(x => x.id) } };
+        const ids = objectsWithLanguages.map(x => BigInt(x.id));
+        where = { id: { in: ids } };
         select = typeof model.display().label.select === "function" ? model.display().label.select() : model.display().label.select;
         labelsData = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
             where,
@@ -45,7 +47,7 @@ export async function getLabels(
     if (!labelsData || labelsData.length <= 0) return new Array(objectsWithLanguages.length).fill("");
     // For each object, find the label
     const labels = objectsWithLanguages.map(object => {
-        const data = labelsData.find(x => x.id === object.id);
+        const data = labelsData.find(x => x.id.toString() === object.id);
         if (!data) return "";
         const label = model.display().label.get(data, object.languages);
         return label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;

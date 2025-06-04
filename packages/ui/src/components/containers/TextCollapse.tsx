@@ -2,7 +2,7 @@ import { LinearProgress, styled } from "@mui/material";
 import { useMemo } from "react";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { ContentCollapse } from "./ContentCollapse.js";
-import { TextCollapseProps } from "./types.js";
+import { type TextCollapseProps } from "./types.js";
 
 const DEFAULT_LOADING_LINES = 1;
 

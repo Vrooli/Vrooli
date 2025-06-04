@@ -245,7 +245,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [3, 2];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedTopAsc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"b\".\"embedding\" <-> ARRAY[3.000000, 2.000000]::vector) + 0.01, 2))) + (EXP(-\"a\".\"bookmarks\" / 5) * 20) AS points"
+                "(1 / (POWER((\"b\".\"embedding\" <-> ARRAY[3.000000, 2.000000]::vector) + 0.01, 2))) + (EXP(-\"a\".\"bookmarks\" / 5) * 20) AS points",
             );
         });
 
@@ -255,7 +255,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [1];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedTopDesc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[1.000000]::vector) + 0.01, 2))) + (LN(\"b\".\"bookmarks\" + 1) * 2) AS points"
+                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[1.000000]::vector) + 0.01, 2))) + (LN(\"b\".\"bookmarks\" + 1) * 2) AS points",
             );
         });
 
@@ -265,7 +265,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [8.3828191932843];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateCreatedAsc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[8.382819]::vector) + 0.01, 2))) + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"createdAt\") / 3600), 0.25)) * 1) AS points"
+                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[8.382819]::vector) + 0.01, 2))) + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"createdAt\") / 3600), 0.25)) * 1) AS points",
             );
         });
 
@@ -275,7 +275,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateUpdatedDesc");
             expect(builder.query.select).to.include(
-                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[]::vector) + 0.01, 2))) + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"updatedAt\") / 3600), 0.25)) * 100) AS points"
+                "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[]::vector) + 0.01, 2))) + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"updatedAt\") / 3600), 0.25)) * 100) AS points",
             );
         });
 
@@ -296,7 +296,7 @@ describe("SqlBuilder", () => {
             // Check for the presence of an empty array vector in the query,
             // but don't assert on the exact format since it may vary
             const selectItem = builder.query.select[0];
-            expect(selectItem).to.be.a('string');
+            expect(selectItem).to.be.a("string");
             expect(selectItem).to.include("ARRAY[");
             expect(selectItem).to.include("::vector");
         });

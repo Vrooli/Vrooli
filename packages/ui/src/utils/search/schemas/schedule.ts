@@ -1,4 +1,4 @@
-import { endpointsSchedule, FormSchema, ScheduleSortBy } from "@local/shared";
+import { endpointsSchedule, type FormSchema, ScheduleSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

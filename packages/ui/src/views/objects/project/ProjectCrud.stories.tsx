@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, ProjectVersion, ProjectVersionDirectory, Resource, ResourceUsedFor, Tag, User, endpointsProjectVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, type ProjectVersion, type ProjectVersionDirectory, type Resource, ResourceUsedFor, type Tag, type User, endpointsProjectVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ProjectCrud } from "./ProjectCrud.js";
@@ -9,7 +9,7 @@ import { ProjectCrud } from "./ProjectCrud.js";
 // Create simplified mock data for Project responses
 const mockProjectVersionData = {
     __typename: "ProjectVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     comments: [],
     commentsCount: 0,
     createdAt: new Date().toISOString(),
@@ -23,15 +23,15 @@ const mockProjectVersionData = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         listFor: {
             __typename: "ProjectVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         } as any,
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 5) + 3 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -39,7 +39,7 @@ const mockProjectVersionData = {
             list: {} as any,
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -52,20 +52,20 @@ const mockProjectVersionData = {
     },
     root: {
         __typename: "Project" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         parent: null,
         tags: Array.from({ length: Math.floor(Math.random() * 10) }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["Development", "Design", "Research", "Planning", "Documentation", "Testing"][Math.floor(Math.random() * 6)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         })) as Tag[],
         versions: [{
             __typename: "ProjectVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             versionLabel: "1.0.0",
         }],
     } as any,

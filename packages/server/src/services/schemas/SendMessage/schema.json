@@ -1,0 +1,116 @@
+{
+  "name": "send_message",
+  "description": "Send a chat message or publish an event for agents to react to.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "recipient": {
+        "description": "Where the message goes.",
+        "anyOf": [
+          {
+            "description": "Direct message",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "bot"
+              },
+              "botId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "botId",
+              "kind"
+            ]
+          },
+          {
+            "description": "Direct DM",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "user"
+              },
+              "userId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "userId"
+            ]
+          },
+          {
+            "description": "Whole thread",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "chat"
+              },
+              "chatId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "chatId",
+              "kind"
+            ]
+          },
+          {
+            "description": "MQTT / role broadcast",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "topic"
+              },
+              "topic": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "topic"
+            ]
+          }
+        ]
+      },
+      "content": {
+        "description": "Plain-text or structured JSON payload.",
+        "anyOf": [
+          {
+            "type": "object"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "metadata": {
+        "description": "Optional extra headers (JSON-serialisable).",
+        "type": "object"
+      },
+      "priority": {
+        "description": "Normal vs high-priority routing or QoS level (default: normal).",
+        "enum": [
+          0,
+          1,
+          "high",
+          "normal"
+        ]
+      }
+    },
+    "required": [
+      "content",
+      "recipient"
+    ],
+    "additionalProperties": false
+  },
+  "annotations": {
+    "title": "Send Message",
+    "readOnlyHint": false,
+    "openWorldHint": false
+  }
+}

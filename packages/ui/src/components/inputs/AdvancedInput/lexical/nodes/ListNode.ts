@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LIST_INDENT_SIZE } from "../consts.js";
 import { type LexicalEditor } from "../editor.js";
-import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types.js";
+import { type CustomDomElement, type DOMConversionMap, type DOMConversionOutput, type DOMExportOutput, type EditorConfig, type ElementTransformer, type ListNodeTagType, type ListType, type NodeConstructorPayloads, type NodeType, type SerializedListNode } from "../types.js";
 import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 import { type LexicalNode } from "./LexicalNode.js";

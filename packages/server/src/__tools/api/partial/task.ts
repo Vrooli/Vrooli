@@ -1,5 +1,5 @@
-import { CheckTaskStatusesResult } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type CheckTaskStatusesResult } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const checkTaskStatusesResult: ApiPartial<CheckTaskStatusesResult> = {
     common: {

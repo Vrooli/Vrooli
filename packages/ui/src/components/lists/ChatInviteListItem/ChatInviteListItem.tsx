@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { ChatInviteListItemProps } from "../types.js";
+import { type ChatInviteListItemProps } from "../types.js";
 
 export function ChatInviteListItem({
     data,

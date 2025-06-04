@@ -1,5 +1,5 @@
-import { StatsSite } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type StatsSite } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const statsSite: ApiPartial<StatsSite> = {
     full: {
@@ -14,7 +14,6 @@ export const statsSite: ApiPartial<StatsSite> = {
         resourcesCreatedByType: true,
         resourcesCompletedByType: true,
         resourceCompletionTimeAverageByType: true,
-        routineSimplicityAverage: true,
         routineComplexityAverage: true,
         runsStarted: true,
         runsCompleted: true,

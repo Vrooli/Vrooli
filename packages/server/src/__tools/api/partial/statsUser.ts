@@ -1,5 +1,5 @@
-import { StatsUser } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type StatsUser } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const statsUser: ApiPartial<StatsUser> = {
     full: {

@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { DateDisplay } from "../../text/DateDisplay.js";
 import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { ReportResponseListItemProps } from "../types.js";
+import { type ReportResponseListItemProps } from "../types.js";
 
 export function ReportResponseListItem({
     data,

@@ -3,9 +3,9 @@ import { alpha, Avatar, Box, ListItem, ListItemAvatar, ListItemButton, ListItemT
 // Keep ListItemChip for category display
 // import { NotificationCategory } from "@local/shared"; // Import category type
 import { useCallback, useMemo } from "react"; // Import useCallback and useMemo
-import { Icon, IconInfo } from "../../../icons/Icons.js"; // Import Icon and IconInfo
+import { Icon, type IconInfo } from "../../../icons/Icons.js"; // Import Icon and IconInfo
 import { useLocation } from "../../../route/router.js"; // Import useLocation for navigation
-import { NotificationListItemProps } from "../types.js";
+import { type NotificationListItemProps } from "../types.js";
 
 const notificationIconInfo = { name: "NotificationsCustomized", type: "Common" } as const;
 
@@ -40,7 +40,7 @@ export function NotificationListItem({
     isSelected,
     handleToggleSelect,
     sx, // Pass sx down to the root element
-    style // Pass style down
+    style, // Pass style down
 }: NotificationListItemProps) {
     const { palette, typography } = useTheme();
     const [, setLocation] = useLocation(); // Hook for navigation
@@ -109,9 +109,9 @@ export function NotificationListItem({
                             sx={{
                                 width: 16,
                                 height: 16,
-                                borderRadius: '50%',
+                                borderRadius: "50%",
                                 border: `2px solid ${palette.divider}`,
-                                backgroundColor: isSelected ? palette.secondary.main : 'transparent',
+                                backgroundColor: isSelected ? palette.secondary.main : "transparent",
                             }}
                         />
                     </Box>
@@ -141,7 +141,7 @@ export function NotificationListItem({
                     }
                     secondary={
                         <Stack spacing={0.5} sx={{ marginTop: 0.5 }}>
-                            {description && <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {description && <Typography variant="body2" color="text.secondary" sx={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                                 {description}
                             </Typography>}
                         </Stack>

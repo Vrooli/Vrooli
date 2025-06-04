@@ -1,6 +1,8 @@
-import { DbProvider, ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger } from "@local/server";
-import { ModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
-import pkg, { Prisma } from "@prisma/client";
+import type { PrismaDelegate } from "@local/server";
+import { DbProvider, ModelMap, Trigger, batch, findFirstRel, logger } from "@local/server";
+import type { ModelType } from "@local/shared";
+import { ReportStatus, ReportSuggestedAction, WEEKS_1_MS, uppercaseFirstLetter } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 
 // Constants for calculating when a moderation action for a report should be accepted
 // Minimum reputation sum of users who have suggested a specific moderation action
@@ -13,7 +15,93 @@ const MIN_REP: { [key in ReportSuggestedAction]: number } = {
 };
 // If report does not meet the minimum reputation for any of the above actions, this is the timeout before 
 // the highest voted action is accepted
-const DEFAULT_TIMEOUT = 1000 * 60 * 60 * 24 * 7; // 1 week
+const DEFAULT_TIMEOUT = WEEKS_1_MS; // 1 week equivalent
+
+/**
+ * Partial query to get data for a versioned object
+ */
+const versionedObjectQuery = {
+    id: true,
+    root: {
+        select: {
+            ownedByTeam: {
+                select: { id: true },
+            },
+            ownedByUser: {
+                select: { id: true },
+            },
+        },
+    },
+} as const;
+
+/**
+ * Partial query to get data for a non-versioned object
+ */
+const nonVersionedObjectQuery = {
+    id: true,
+    ownedByTeam: {
+        select: { id: true },
+    },
+    ownedByUser: {
+        select: { id: true },
+    },
+} as const;
+
+/**
+ * Partial query for non-versioned objects that don't use 
+ * "ownedBy" prefix for the owner field
+ */
+const nonVersionedObjectQuery2 = {
+    id: true,
+    team: {
+        select: { id: true },
+    },
+    user: {
+        select: { id: true },
+    },
+} as const;
+
+/**
+ * Partial query for non-versioned objects that only have a 
+ * createdBy field
+ */
+const nonVersionedObjectQuery3 = {
+    id: true,
+    createdBy: {
+        select: {
+            id: true,
+        },
+    },
+} as const;
+
+// Declare select shape and payload type for reports
+const reportSelect = {
+    id: true,
+    createdAt: true,
+    apiVersion: { select: versionedObjectQuery },
+    comment: { select: nonVersionedObjectQuery },
+    codeVersion: { select: versionedObjectQuery },
+    issue: { select: nonVersionedObjectQuery3 },
+    noteVersion: { select: versionedObjectQuery },
+    post: { select: nonVersionedObjectQuery2 },
+    projectVersion: { select: versionedObjectQuery },
+    routineVersion: { select: versionedObjectQuery },
+    standardVersion: { select: versionedObjectQuery },
+    tag: { select: nonVersionedObjectQuery3 },
+    team: { select: { id: true } },
+    user: { select: { id: true } },
+    createdBy: { select: { id: true } },
+    responses: {
+        select: {
+            id: true,
+            actionSuggested: true,
+            createdBy: {
+                select: { reputation: true },
+            },
+        },
+    },
+} as const;
+type ReportPayload = Prisma.reportGetPayload<{ select: typeof reportSelect }>;
 
 /**
  * Determines best action to pick from a list of [action, reputation] pairs. 
@@ -59,7 +147,7 @@ function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAct
     });
     // Return the least severe action
     return sortedSeverities[0];
-};
+}
 
 /**
  * Maps ReportSuggestedAction to ReportStatus
@@ -77,7 +165,7 @@ function actionToStatus(action: ReportSuggestedAction): ReportStatus {
         case ReportSuggestedAction.SuspendUser:
             return ReportStatus.ClosedSuspended;
     }
-};
+}
 
 /**
  * Types that can be soft-deleted
@@ -105,11 +193,7 @@ const nonHideableTypes = [
  * Checks if a report should be closed, with its suggested actions executed.
  * If so, performs the moderation action and triggers appropriate event.
  */
-async function moderateReport(
-    report: pkg.report & {
-        responses: (pkg.report_response & { createdBy: pkg.user })[]
-    },
-): Promise<void> {
+async function moderateReport(report: ReportPayload): Promise<void> {
     let acceptedAction: ReportSuggestedAction | null = null;
     // Group responses by action and sum reputation
     const sumsMap = report?.responses
@@ -196,7 +280,7 @@ async function moderateReport(
             objectOwner,
             reportContributors: report.responses.map(r => r.createdBy?.id).filter(id => id) as string[],
             reportCreatedById: (report as any).createdBy?.id ?? null,
-            reportId: report.id,
+            reportId: report.id.toString(),
             reportStatus: status,
             userUpdatingReportId: null,
         });
@@ -244,64 +328,8 @@ async function moderateReport(
                 break;
         }
     }
-};
+}
 
-/**
- * Partial query to get data for a versioned object
- */
-const versionedObjectQuery = {
-    id: true,
-    root: {
-        select: {
-            ownedByTeam: {
-                select: { id: true },
-            },
-            ownedByUser: {
-                select: { id: true },
-            },
-        },
-    },
-} as const;
-
-/**
- * Partial query to get data for a non-versioned object
- */
-const nonVersionedObjectQuery = {
-    id: true,
-    ownedByTeam: {
-        select: { id: true },
-    },
-    ownedByUser: {
-        select: { id: true },
-    },
-} as const;
-
-/**
- * Partial query for non-versioned objects that don't use 
- * "ownedBy" prefix for the owner field
- */
-const nonVersionedObjectQuery2 = {
-    id: true,
-    team: {
-        select: { id: true },
-    },
-    user: {
-        select: { id: true },
-    },
-} as const;
-
-/**
- * Partial query for non-versioned objects that only have a 
- * createdBy field
- */
-const nonVersionedObjectQuery3 = {
-    id: true,
-    createdBy: {
-        select: {
-            id: true,
-        },
-    },
-} as const;
 
 /**
  * Handles the moderation of content through report suggestions. It works like this: 
@@ -316,41 +344,16 @@ const nonVersionedObjectQuery3 = {
  *   the report is automatically accepted and the object is moderated accordingly.
  * 4. Notifications are sent to the relevant users when a decision is made, and reputation scores are updated.
  */
-export async function moderateReports() {
+export async function moderateReports(): Promise<void> {
     try {
-        await batch<Prisma.reportFindManyArgs>({
+        await batch<Prisma.reportFindManyArgs, ReportPayload>({
             objectType: "Report",
             processBatch: async (batch) => {
                 Promise.all(batch.map(async (report) => {
                     await moderateReport(report);
                 }));
             },
-            select: {
-                id: true,
-                createdAt: true,
-                apiVersion: { select: versionedObjectQuery },
-                comment: { select: nonVersionedObjectQuery },
-                codeVersion: { select: versionedObjectQuery },
-                issue: { select: nonVersionedObjectQuery3 },
-                noteVersion: { select: versionedObjectQuery },
-                post: { select: nonVersionedObjectQuery2 },
-                projectVersion: { select: versionedObjectQuery },
-                routineVersion: { select: versionedObjectQuery },
-                standardVersion: { select: versionedObjectQuery },
-                tag: { select: nonVersionedObjectQuery3 },
-                team: { select: { id: true } },
-                user: { select: { id: true } },
-                createdBy: { select: { id: true } },
-                responses: {
-                    select: {
-                        id: true,
-                        actionSuggested: true,
-                        createdBy: {
-                            select: { reputation: true },
-                        },
-                    },
-                },
-            },
+            select: reportSelect,
             where: {
                 status: ReportStatus.Open,
             },
@@ -358,4 +361,4 @@ export async function moderateReports() {
     } catch (error) {
         logger.error("moderateReports caught error", { error, trace: "0464" });
     }
-};
+}

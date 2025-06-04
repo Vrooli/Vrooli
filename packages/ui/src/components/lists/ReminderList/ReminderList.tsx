@@ -1,7 +1,7 @@
-import { DragDropContext, Draggable, DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps, DropResult, Droppable } from "@hello-pangea/dnd";
-import { Count, DUMMY_ID, DeleteManyInput, DeleteType, LINKS, ListObject, MyStuffPageTabOption, Reminder, ReminderList as ReminderListType, ResourceUsedFor, endpointsActions, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult, Droppable } from "@hello-pangea/dnd";
+import { type Count, DUMMY_ID, type DeleteManyInput, DeleteType, LINKS, type ListObject, MyStuffPageTabOption, type Reminder, type ReminderList as ReminderListType, ResourceUsedFor, endpointsActions, updateArray } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled } from "@mui/material";
-import { SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";
@@ -12,7 +12,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { openLink } from "../../../route/openLink.js";
 import { useLocation } from "../../../route/router.js";
 import { multiLineEllipsis, noSelect } from "../../../styles.js";
-import { ArgsType } from "../../../types.js";
+import { type ArgsType } from "../../../types.js";
 import { DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
@@ -22,7 +22,7 @@ import { getResourceUrl } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ReminderCrud, reminderInitialValues } from "../../../views/objects/reminder/ReminderCrud.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
-import { ObjectListActions } from "../types.js";
+import { type ObjectListActions } from "../types.js";
 
 const CONTENT_SPACING = 1;
 const ICON_SIZE = 20;

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, Meeting, MeetingInviteStatus, endpointsMeeting, generatePKString, generatePublicId, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, type Meeting, MeetingInviteStatus, endpointsMeeting, generatePK, generatePublicId, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { MeetingUpsert } from "./MeetingUpsert.js";
@@ -9,7 +9,7 @@ import { MeetingUpsert } from "./MeetingUpsert.js";
 // Create simplified mock data for Meeting responses
 const mockMeetingData: Meeting = {
     __typename: "Meeting" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     publicId: generatePublicId(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -18,7 +18,7 @@ const mockMeetingData: Meeting = {
     invites: [
         {
             __typename: "MeetingInvite" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             status: MeetingInviteStatus.Pending,
@@ -26,7 +26,7 @@ const mockMeetingData: Meeting = {
             meeting: {} as any, // This will be set by the circular reference
             user: {
                 __typename: "User" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
             } as any,
             you: {
                 __typename: "MeetingInviteYou" as const,
@@ -39,7 +39,7 @@ const mockMeetingData: Meeting = {
     openToAnyoneWithInvite: true,
     schedule: {
         __typename: "Schedule" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         startTime: new Date().toISOString(),
         endTime: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
         timezone: "America/New_York",
@@ -49,7 +49,7 @@ const mockMeetingData: Meeting = {
         recurrences: [
             {
                 __typename: "ScheduleRecurrence" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 dayOfMonth: null,
                 dayOfWeek: 2, // Tuesday
                 duration: 60, // 60 minutes
@@ -66,7 +66,7 @@ const mockMeetingData: Meeting = {
     showOnTeamProfile: true,
     team: {
         __typename: "Team" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         bannerImage: null,
         profileImage: null,
         handle: "example-team",
@@ -82,7 +82,7 @@ const mockMeetingData: Meeting = {
             isViewed: true,
             yourMembership: {
                 __typename: "Member" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 isAdmin: true,
                 permissions: "{}",
             } as any,

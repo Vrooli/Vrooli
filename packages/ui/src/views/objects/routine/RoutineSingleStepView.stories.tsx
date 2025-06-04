@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, Run, RunStatus, Tag, User, endpointsRoutineVersion, endpointsRunRoutine, generatePKString, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, type RoutineVersion, type Run, RunStatus, type Tag, type User, endpointsRoutineVersion, endpointsRunRoutine, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
@@ -7,7 +7,7 @@ import { RoutineSingleStepView } from "./RoutineSingleStepView.js";
 // Create simplified mock data for Routine responses
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     comments: [],
     commentsCount: 0,
@@ -95,11 +95,11 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -107,7 +107,7 @@ const mockRoutineVersionData: RoutineVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -120,12 +120,12 @@ const mockRoutineVersionData: RoutineVersion = {
     },
     root: {
         __typename: "Routine" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() } as User,
+        owner: { __typename: "User" as const, id: generatePK().toString() } as User,
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["AI", "Generate", "Content", "Automation", "Workflow", "Productivity", "Tools", "Development"][Math.floor(Math.random() * 8)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -134,7 +134,6 @@ const mockRoutineVersionData: RoutineVersion = {
         views: Math.floor(Math.random() * 10000),
     } as any,
     routineType: RoutineType.Generate,
-    simplicity: 5,
     subroutineLinks: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),
@@ -165,16 +164,15 @@ const mockRoutineVersionData: RoutineVersion = {
 // Mock run data
 const mockRunData: Run = {
     __typename: "Run" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     completedComplexity: 2,
     complexity: 2,
     createdAt: new Date().toISOString(),
-    creator: { __typename: "User" as const, id: generatePKString() } as User,
+    creator: { __typename: "User" as const, id: generatePK().toString() } as User,
     isCompleted: true,
     inputs: [],
     outputs: [],
     routineVersion: mockRoutineVersionData,
-    simplicity: 5,
     status: RunStatus.Completed,
     timeElapsed: 3240,
     timeStarted: new Date().toISOString(),
@@ -279,7 +277,7 @@ WithActiveRun.parameters = {
         ],
     },
     route: {
-        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}?runId=${generatePKString()}`,
+        path: `${API_URL}/v2${getObjectUrl(mockRoutineVersionData)}?runId=${generatePK().toString()}`,
     },
 };
 

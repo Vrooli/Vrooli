@@ -1,4 +1,4 @@
-import { FindByIdInput, IssueCloseInput, IssueCreateInput, IssueFor, IssueSearchInput, IssueStatus, uuid } from "@local/shared";
+import { type FindByIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

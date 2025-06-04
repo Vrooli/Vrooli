@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { generatePK, generatePKString, validatePK } from "./snowflake.js";
+import { generatePK, validatePK } from "./snowflake.js";
 
 describe("Snowflake IDs", () => {
     it("generates a valid Snowflake ID as bigint", () => {
@@ -9,8 +9,7 @@ describe("Snowflake IDs", () => {
     });
 
     it("generates a valid Snowflake ID string", () => {
-        const id = generatePKString();
-        expect(typeof id).to.equal("string");
+        const id = generatePK().toString();
         expect(validatePK(id)).to.equal(true);
     });
 
@@ -19,14 +18,14 @@ describe("Snowflake IDs", () => {
         // Generate 1000 IDs
         const COUNT = 1000;
         for (let i = 0; i < COUNT; i++) {
-            ids.add(generatePKString());
+            ids.add(generatePK().toString());
         }
         expect(ids.size).to.equal(COUNT);
     });
 
     it("validates Snowflake IDs correctly", () => {
         // Valid ID
-        const validId = generatePKString();
+        const validId = generatePK().toString();
         expect(validatePK(validId)).to.equal(true);
 
         // Invalid IDs

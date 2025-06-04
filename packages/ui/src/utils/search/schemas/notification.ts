@@ -1,4 +1,4 @@
-import { endpointsNotification, FormSchema, NotificationSortBy } from "@local/shared";
+import { endpointsNotification, type FormSchema, NotificationSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

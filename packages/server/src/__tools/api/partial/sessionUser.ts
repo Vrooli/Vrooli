@@ -1,5 +1,5 @@
-import { SessionUser } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type SessionUser } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const sessionUser: ApiPartial<SessionUser> = {
     full: {

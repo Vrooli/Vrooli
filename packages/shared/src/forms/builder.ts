@@ -1,10 +1,10 @@
 import * as Yup from "yup";
-import { ResourceSubTypeRoutine, RunRoutine } from "../api/types.js";
+import { type ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { nanoid } from "../id/publicId.js";
-import { RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../shape/configs/routine.js";
+import { type RoutineVersionConfig, defaultConfigFormInputMap, defaultConfigFormOutputMap } from "../shape/configs/routine.js";
 import { isObject } from "../utils/objects.js";
-import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputBase, FormInputType, FormSchema, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField, YupType } from "./types.js";
+import { type CheckboxFormInputProps, type CodeFormInputProps, type DropzoneFormInputProps, type FormElement, type FormInputBase, type FormInputType, type FormSchema, type IntegerFormInputProps, type LanguageFormInputProps, type LinkItemFormInputProps, type LinkUrlFormInputProps, type RadioFormInputProps, type SelectorFormInputOption, type SelectorFormInputProps, type SliderFormInputProps, type SwitchFormInputProps, type TagSelectorFormInputProps, type TextFormInputProps, type YupField, type YupType } from "./types.js";
 
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
@@ -28,8 +28,8 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
     [InputType.Checkbox]: function healCheckboxProps(props: Partial<CheckboxFormInputProps>): CheckboxFormInputProps {
         return {
             color: "secondary",
-            defaultValue: new Array(props.options?.length ?? 0).fill(false),
-            options: [{
+            defaultValue: props.defaultValue ?? new Array(props.options?.length ?? 1).fill(false),
+            options: props.options ?? [{
                 label: "Option 1",
                 value: "option-1",
             }],
@@ -151,7 +151,7 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
  * it cannot be validated with yup.
  */
 export const InputToYupType: { [key in InputType]?: YupType } = {
-    // [InputType.Checkbox]: 'array', //TODO
+    [InputType.Checkbox]: "array",
     [InputType.JSON]: "string",
     [InputType.IntegerInput]: "number",
     [InputType.Radio]: "string",
@@ -215,13 +215,13 @@ export class FormBuilder {
     static generateInitialValuesFromRoutineConfig(
         config: RoutineVersionConfig,
         routineType: ResourceSubTypeRoutine,
-        run?: Pick<RunRoutine, "io">,
+        run?: Pick<Run, "io">,
     ): Record<string, never> {
-        const formInput = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
-        const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap[routineType]().schema;
+        const formInputSchema = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
+        const formOutputSchema = config.formOutput?.schema ?? defaultConfigFormOutputMap[routineType]().schema;
 
-        const inputInitialValues = this.generateInitialValues(formInput.elements, this.INPUT_PREFIX);
-        const outputInitialValues = this.generateInitialValues(formOutput.elements, this.OUTPUT_PREFIX);
+        const inputInitialValues = FormBuilder.generateInitialValues(formInputSchema?.elements, FormBuilder.INPUT_PREFIX);
+        const outputInitialValues = FormBuilder.generateInitialValues(formOutputSchema?.elements, FormBuilder.OUTPUT_PREFIX);
 
         const initialValues = {
             ...inputInitialValues,
@@ -230,23 +230,39 @@ export class FormBuilder {
 
         if (run && Array.isArray(run.io)) {
             for (const io of run.io) {
-                if (io.routineVersionInput) {
-                    const key = `${this.INPUT_PREFIX}-${io.routineVersionInput.name ?? io.routineVersionInput.id}`;
+                if (!io.data) continue; // Skip if no data
+
+                let fieldName: string | null | undefined = null;
+                let key: string | null = null;
+                let matched = false;
+
+                // Attempt to match with an input field
+                fieldName = io.nodeInputName;
+                if (fieldName) {
+                    key = `${FormBuilder.INPUT_PREFIX}-${fieldName}`;
                     if (initialValues[key] !== undefined) {
                         try {
                             initialValues[key] = JSON.parse(io.data) as never;
                         } catch (error) {
-                            console.error("Error parsing io.data", error);
+                            initialValues[key] = io.data as never; // Use raw string if JSON parsing fails
+                            console.error(`Error parsing input run.io data for ${fieldName}:`, error);
                         }
+                        matched = true;
                     }
                 }
-                if (io.routineVersionOutput) {
-                    const key = `${this.OUTPUT_PREFIX}-${io.routineVersionOutput.name ?? io.routineVersionOutput.id}`;
-                    if (initialValues[key] !== undefined) {
-                        try {
-                            initialValues[key] = JSON.parse(io.data) as never;
-                        } catch (error) {
-                            console.error("Error parsing io.data", error);
+
+                // Attempt to match with an output field if not matched with input
+                if (!matched) {
+                    fieldName = io.nodeName; // nodeName is used for outputs or generic nodes
+                    if (fieldName) {
+                        key = `${FormBuilder.OUTPUT_PREFIX}-${fieldName}`;
+                        if (initialValues[key] !== undefined) {
+                            try {
+                                initialValues[key] = JSON.parse(io.data) as never;
+                            } catch (error) {
+                                initialValues[key] = io.data as never; // Use raw string if JSON parsing fails
+                                console.error(`Error parsing output run.io data for ${fieldName}:`, error);
+                            }
                         }
                     }
                 }
@@ -303,6 +319,9 @@ export class FormBuilder {
                         break;
                     case "object":
                         validator = Yup.object();
+                        break;
+                    case "array":
+                        validator = Yup.array().of(Yup.boolean());
                         break;
                     default:
                         validator = Yup.mixed();

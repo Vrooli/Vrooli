@@ -1,4 +1,4 @@
-import { OwnerShape, User, exists, getTranslation, noop } from "@local/shared";
+import { type OwnerShape, type User, exists, getTranslation, noop } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -14,11 +14,11 @@ import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { ListMenu } from "../../dialogs/ListMenu/ListMenu.js";
-import { FindObjectType, ListMenuItemData } from "../../dialogs/types.js";
+import { type FindObjectType, type ListMenuItemData } from "../../dialogs/types.js";
 import { userFromSession } from "../../lists/RelationshipList/RelationshipList.js";
-import { RelationshipItemTeam, RelationshipItemUser } from "../../lists/types.js";
+import { type RelationshipItemTeam, type RelationshipItemUser } from "../../lists/types.js";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "./styles.js";
-import { OwnerButtonProps } from "./types.js";
+import { type OwnerButtonProps } from "./types.js";
 
 enum OwnerTypesEnum {
     Self = "Self",

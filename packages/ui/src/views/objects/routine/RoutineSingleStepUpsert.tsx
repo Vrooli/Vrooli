@@ -1,6 +1,6 @@
-import { CallDataActionConfigObject, CallDataApiConfigObject, CallDataCodeConfigObject, CallDataGenerateConfigObject, CallDataSmartContractConfigObject, DUMMY_ID, FormInputBase, FormInputConfigObject, FormOutputConfigObject, FormSchema, GraphConfigObject, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionConfig, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, endpointsRoutineVersion, noop, noopSubmit, orDefault, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, stringifyObject, uuid, uuidValidate } from "@local/shared";
+import { type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, DUMMY_ID, type FormInputBase, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, LINKS, LlmTask, type RoutineShape, RoutineType, type RoutineVersion, RoutineVersionConfig, type RoutineVersionCreateInput, type RoutineVersionInputShape, type RoutineVersionOutputShape, type RoutineVersionShape, type RoutineVersionUpdateInput, SearchPageTabOption, type Session, endpointsRoutineVersion, noop, noopSubmit, orDefault, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, stringifyObject, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
-import { FieldHelperProps, Formik, useField } from "formik";
+import { type FieldHelperProps, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
@@ -21,7 +21,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
+import { type UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "../../../hooks/tasks.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -32,8 +32,8 @@ import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/
 import { PubSub } from "../../../utils/pubsub.js";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "../../../utils/search/schemas/resource.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
-import { RoutineSingleStepFormProps, RoutineSingleStepUpsertProps } from "./types.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, type RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "./RoutineTypeForms.js";
+import { type RoutineSingleStepFormProps, type RoutineSingleStepUpsertProps } from "./types.js";
 
 export function routineSingleStepInitialValues(
     session: Session | undefined,
@@ -235,7 +235,7 @@ function RoutineSingleStepForm({
     const [codeVersionField, , codeVersionHelpers] = useField<RoutineVersion["codeVersion"]>("codeVersion");
 
     const config = useMemo(function configMemo() {
-        return RoutineVersionConfig.deserialize({ config: configField.value, routineType: routineTypeField.value }, console);
+        return RoutineVersionConfig.parse({ config: configField.value, routineType: routineTypeField.value }, console);
     }, [configField.value, routineTypeField.value]);
 
     const onCallDataActionChange = useCallback(function onCallDataActionChange(callDataAction: CallDataActionConfigObject) {
@@ -342,10 +342,10 @@ function RoutineSingleStepForm({
             inputsHelpers.setValue([]);
             outputsHelpers.setValue([]);
             routineTypeHelpers.setValue(type);
-            configHelpers.setValue(RoutineVersionConfig.deserialize({
+            configHelpers.setValue(RoutineVersionConfig.parse({
                 config: undefined,
                 routineType: type,
-            }, console, { useFallbacks: true }).serialize("json"));
+            }, console, { useFallbacks: true }).export());
         }
         // If we're losing data, confirm with user
         const losingData = loseDataCheck[routineTypeField.value];

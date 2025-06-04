@@ -1,4 +1,4 @@
-import { CopyInput, CopyResult, Count, DeleteAccountInput, DeleteAllInput, DeleteManyInput, DeleteOneInput, DeleteType, Success, lowercaseFirstLetter } from "@local/shared";
+import { type CopyInput, type CopyResult, type Count, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, type Success, lowercaseFirstLetter } from "@local/shared";
 import { copyHelper } from "../../actions/copies.js";
 import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes.js";
 import { PasswordAuthService } from "../../auth/email.js";
@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 import { auth } from "./auth.js";
 
 export type EndpointsActions = {

@@ -2,12 +2,12 @@ import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { EmbeddingService } from "../../services/embedding.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { ReminderFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types.js";
+import { type ReminderListModelInfo, type ReminderListModelLogic, type ReminderModelInfo, type ReminderModelLogic } from "./types.js";
 
 const __typename = "Reminder" as const;
 export const ReminderModel: ReminderModelLogic = ({
@@ -16,12 +16,12 @@ export const ReminderModel: ReminderModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
-            get: (select) => select.name,
+            get: (select) => select.name ?? "",
         },
         embed: {
-            select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
-            get: ({ description, name }, languages) => {
-                return getEmbeddableString({ description, name }, languages?.[0]);
+            select: () => ({ id: true, embeddingExpiredAt: true, name: true, description: true }),
+            get: ({ name, description }, languages) => {
+                return EmbeddingService.getEmbeddableString({ description, name }, languages?.[0]);
             },
         },
     }),
@@ -30,7 +30,7 @@ export const ReminderModel: ReminderModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
-                embeddingNeedsUpdate: true,
+                embeddingExpiredAt: new Date(),
                 name: data.name,
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),
@@ -39,7 +39,7 @@ export const ReminderModel: ReminderModelLogic = ({
                 reminderItems: await shapeHelper({ relation: "reminderItems", relTypes: ["Create"], isOneToOne: false, objectType: "ReminderItem", parentRelationshipName: "reminder", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
-                embeddingNeedsUpdate: (typeof data.name === "string" || typeof data.description === "string") ? true : undefined,
+                embeddingExpiredAt: (typeof data.name === "string" || typeof data.description === "string") ? new Date() : undefined,
                 name: noNull(data.name),
                 description: noNull(data.description),
                 dueDate: noNull(data.dueDate),

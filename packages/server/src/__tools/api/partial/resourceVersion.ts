@@ -1,5 +1,5 @@
-import { ResourceVersion, ResourceVersionTranslation, ResourceVersionYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ResourceVersion, type ResourceVersionTranslation, type ResourceVersionYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const resourceVersionTranslation: ApiPartial<ResourceVersionTranslation> = {
@@ -40,7 +40,6 @@ export const resourceVersion: ApiPartial<ResourceVersion> = {
         isLatest: true,
         isPrivate: true,
         resourceSubType: true,
-        simplicity: true,
         timesStarted: true,
         timesCompleted: true,
         versionIndex: true,

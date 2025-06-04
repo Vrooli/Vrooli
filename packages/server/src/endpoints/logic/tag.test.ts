@@ -1,4 +1,4 @@
-import { FindByIdInput, SEEDED_IDS, TagCreateInput, TagSearchInput, TagUpdateInput, uuid } from "@local/shared";
+import { type FindByIdInput, SEEDED_IDS, type TagCreateInput, type TagSearchInput, type TagUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

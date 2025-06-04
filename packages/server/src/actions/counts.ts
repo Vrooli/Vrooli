@@ -1,10 +1,10 @@
 import { combineQueries } from "../builders/combineQueries.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
-import { CountInputBase, PrismaDelegate } from "../builders/types.js";
+import { type CountInputBase, type PrismaDelegate } from "../builders/types.js";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 import { DbProvider } from "../db/provider.js";
 import { ModelMap } from "../models/base/index.js";
-import { CountHelperProps } from "./types.js";
+import { type CountHelperProps } from "./types.js";
 
 /**
  * Counts the number of objects in the database, optionally filtered by a where clauses

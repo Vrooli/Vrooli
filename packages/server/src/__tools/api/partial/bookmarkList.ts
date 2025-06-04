@@ -1,5 +1,5 @@
-import { BookmarkList } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type BookmarkList } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const bookmarkList: ApiPartial<BookmarkList> = {

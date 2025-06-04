@@ -1,8 +1,8 @@
-import { SessionUser } from "@local/shared";
+import { type SessionUser } from "@local/shared";
 import { expect } from "chai";
 import { ModelMap } from "../models/base/index.js";
-import { PreMap } from "../models/types.js";
-import { InputsById } from "../utils/types.js";
+import { type PreMap } from "../models/types.js";
+import { type InputsById } from "../utils/types.js";
 import { calculatePreShapeData } from "./cuds.js";
 
 describe("calculatePreShapeData", () => {

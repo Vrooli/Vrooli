@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { $moveSelectionPointToEnd, $updateElementSelectionOnCreateDeleteNode, RangeSelection } from "../selection.js";
-import { DOMConversionMap, DOMExportOutput, EditorConfig, LexicalNodeBase, LexicalNodeClass, NodeKey, NodeType, SerializedLexicalNode } from "../types.js";
+import { $moveSelectionPointToEnd, $updateElementSelectionOnCreateDeleteNode, type RangeSelection } from "../selection.js";
+import { type DOMConversionMap, type DOMExportOutput, type EditorConfig, LexicalNodeBase, type LexicalNodeClass, type NodeKey, type NodeType, type SerializedLexicalNode } from "../types.js";
 import { errorOnReadOnly, getActiveEditor, getActiveEditorState } from "../updates.js";
 import { $createNode, $createNodeKey, $getCompositionKey, $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, $setSelection, errorOnInsertTextNodeOnRoot, getCommonAncestor, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkNodeAsDirty, removeFromParent, removeNode } from "../utils.js";
-import { ElementNode } from "./ElementNode.js";
+import { type ElementNode } from "./ElementNode.js";
 
 export class LexicalNode extends LexicalNodeBase {
     static __type: NodeType = "Root";

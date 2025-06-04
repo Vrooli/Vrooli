@@ -1,11 +1,11 @@
-import { HomeResult, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ReminderSortBy, ResourceSortBy, ScheduleSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { type HomeResult, type PageInfo, type Popular, type PopularSearchInput, type PopularSearchResult, ReminderSortBy, ResourceSortBy, ScheduleSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { SessionService } from "../../auth/session.js";
 import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter.js";
-import { PartialApiInfo } from "../../builders/types.js";
+import { type PartialApiInfo } from "../../builders/types.js";
 import { schedulesWhereInTimeframe } from "../../events/schedule.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
 
@@ -118,7 +118,7 @@ export const feed: EndpointsFeed = {
                     take: teamTake,
                 },
                 objectType: "Team",
-            })
+            });
             teams = nodes;
             teamPageInfo = pageInfo;
         }

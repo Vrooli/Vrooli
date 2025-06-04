@@ -1,4 +1,4 @@
-import { ModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
+import { type ModelType, type OrArray, type PageInfo, type TimeFrame, type VisibilityType } from "@local/shared";
 import { type RequestService } from "../auth/request.js";
 
 /**

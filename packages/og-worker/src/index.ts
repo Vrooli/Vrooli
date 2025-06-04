@@ -32,7 +32,7 @@ const BOT_UA = new RegExp(BOT_UA_STRING, "i");
 
 
 // Base metadata extracted from index.html
-const BASE_META: Omit<Meta, 'url'> = {
+const BASE_META: Omit<Meta, "url"> = {
     siteName: "Vrooli",
     title: "Vrooli",
     description: "A collaborative and self-improving automation platform",
@@ -164,84 +164,84 @@ const routes = [
     {
         patterns: ["/u/:id"],
         api: getUserMeta,
-        typeLabel: "User"
+        typeLabel: "User",
     },
     {
         patterns: ["/team/:id"],
         api: getTeamMeta,
-        typeLabel: "Team"
+        typeLabel: "Team",
     },
     {
         patterns: ["/api/:id", "/api/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "API"
+        typeLabel: "API",
     },
     {
         patterns: ["/note/:id", "/note/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Note"
+        typeLabel: "Note",
     },
     {
         patterns: ["/project/:id", "/project/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Project"
+        typeLabel: "Project",
     },
     {
         patterns: ["/code/:id", "/code/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Data Converter"
+        typeLabel: "Data Converter",
     },
     {
         patterns: ["/ds/:id", "/ds/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Data Structure"
+        typeLabel: "Data Structure",
     },
     {
         patterns: ["/prompt/:id", "/prompt/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Prompt"
+        typeLabel: "Prompt",
     },
     {
         patterns: ["/flow/:id", "/flow/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Flow"
+        typeLabel: "Flow",
     },
     {
         patterns: ["/action/:id", "/action/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Action"
+        typeLabel: "Action",
     },
     {
         patterns: ["/contract/:id", "/contract/:id/v/:version"],
         api: getResourceMeta,
-        typeLabel: "Smart Contract"
+        typeLabel: "Smart Contract",
     },
     {
         patterns: ["/chat/:id"],
         api: getChatMeta,
-        typeLabel: "Chat"
+        typeLabel: "Chat",
     },
     {
         patterns: ["/issue/:id"],
         api: getIssueMeta,
-        typeLabel: "Issue"
+        typeLabel: "Issue",
     },
     {
         patterns: ["/meeting/:id"],
         api: getMeetingMeta,
-        typeLabel: "Meeting"
+        typeLabel: "Meeting",
     },
     {
         patterns: ["/run/:id"],
         api: getRunMeta,
-        typeLabel: "Run"
+        typeLabel: "Run",
     },
 ];
 
 // Flatten routes: Create an entry for each pattern
 const flatRoutes = routes.flatMap((route) =>
     route.patterns.map((pattern) => ({
-        pattern: pattern,
+        pattern,
         routeInfo: parse(pattern),
         api: route.api,
         typeLabel: route.typeLabel,
@@ -251,7 +251,7 @@ const flatRoutes = routes.flatMap((route) =>
 // Helper to build API URLs
 function buildApiUrl(originHost: string, requestPath: string): string {
     // Ensure path starts with a slash and remove trailing slashes
-    const cleanPath = (requestPath.startsWith('/') ? requestPath : `/${requestPath}`).replace(/\/+$/, "");
+    const cleanPath = (requestPath.startsWith("/") ? requestPath : `/${requestPath}`).replace(/\/+$/, "");
     // Handle root explicitly if necessary, though unlikely for dynamic routes
     if (cleanPath === "") return `https://${originHost}/api/v2/`;
     return `https://${originHost}/api/v2${cleanPath}`;
@@ -260,11 +260,11 @@ function buildApiUrl(originHost: string, requestPath: string): string {
 // Helper to parse Accept-Language header (basic)
 function getPreferredLanguages(req: Request): string[] {
     const acceptLanguage = req.headers.get("accept-language");
-    if (!acceptLanguage) return ['en']; // Default to English if header is missing
+    if (!acceptLanguage) return ["en"]; // Default to English if header is missing
 
     return acceptLanguage
-        .split(',')
-        .map(lang => lang.split(';')[0].trim().toLowerCase().split('-')[0]) // Get primary code (e.g., 'en' from 'en-US')
+        .split(",")
+        .map(lang => lang.split(";")[0].trim().toLowerCase().split("-")[0]) // Get primary code (e.g., 'en' from 'en-US')
         .filter(Boolean); // Remove any empty strings
 }
 
@@ -299,7 +299,7 @@ function getTranslation<T extends { language: string }>( // Ensure type T has la
     }
 
     // 2. Try English
-    const english = translations.find((t: T) => t.language === 'en');
+    const english = translations.find((t: T) => t.language === "en");
     if (english) return english;
 
     // 3. Fallback to the first one
@@ -440,7 +440,7 @@ async function getTeamMeta(env: Env, baseHost: string, typeLabel: string, pathna
         const name = translation?.name ?? data.handle ?? typeLabel;
         return {
             ...BASE_META,
-            title: `${name}${data.handle ? ` (${data.handle})` : ''}${TITLE_SUFFIX}`,
+            title: `${name}${data.handle ? ` (${data.handle})` : ""}${TITLE_SUFFIX}`,
             description: bio ?? BASE_META.description ?? "",
             image: data.profileImage ?? BASE_META.image,
             url: teamUrl,
@@ -466,7 +466,7 @@ async function getResourceMeta(env: Env, baseHost: string, typeLabel: string, pa
         return {
             ...BASE_META,
             title: `${name}${TITLE_SUFFIX}`,
-            description: description,
+            description,
             url: resourceUrl,
         };
     } catch (error) {
@@ -490,7 +490,7 @@ async function getChatMeta(env: Env, baseHost: string, typeLabel: string, pathna
         return {
             ...BASE_META,
             title: `${name}${TITLE_SUFFIX}`,
-            description: description,
+            description,
             url: chatUrl,
         };
     } catch (error) {
@@ -514,7 +514,7 @@ async function getIssueMeta(env: Env, baseHost: string, typeLabel: string, pathn
         return {
             ...BASE_META,
             title: `${name}${TITLE_SUFFIX}`,
-            description: description,
+            description,
             url: issueUrl,
         };
     } catch (error) {
@@ -538,7 +538,7 @@ async function getMeetingMeta(env: Env, baseHost: string, typeLabel: string, pat
         return {
             ...BASE_META,
             title: `${name}${TITLE_SUFFIX}`,
-            description: description,
+            description,
             url: meetingUrl,
         };
     } catch (error) {
@@ -573,20 +573,21 @@ async function getRunMeta(env: Env, baseHost: string, typeLabel: string, pathnam
  * @param typeLabel The type of resource that wasn't found (e.g., "User", "Team")
  * @returns Meta object
  */
-function fallbackMeta(_baseHost: string, url: string, typeLabel: string = "Page"): Meta {
+function fallbackMeta(_baseHost: string, url: string, typeLabel = "Page"): Meta {
     return {
         ...BASE_META, // Start with base
         title: `${typeLabel} not found${TITLE_SUFFIX}`, // Custom not found title
         description: BASE_META.description ?? "", // Keep base description
-        url: url, // Reflect the requested URL
+        url, // Reflect the requested URL
     };
 }
 
 
 /* -------- 5. HTML Renderer --------------------------------------------- */
 
-const esc = (s: string) =>
-    s ? s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!)) : "";
+function esc(s: string) {
+    return s ? s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]!)) : "";
+}
 
 /**
  * Renders the final HTML with Open Graph and Twitter Card metadata.
@@ -596,24 +597,24 @@ const esc = (s: string) =>
  */
 function render(m: Meta, baseHost: string): string {
     // Resolve image URL (prepend baseHost if it's a relative path)
-    const imageUrl = m.image.startsWith('http') ? m.image : baseHost + m.image;
+    const imageUrl = m.image.startsWith("http") ? m.image : baseHost + m.image;
 
     return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>${esc(m.title)}</title>
 <meta name="description" content="${esc(m.description)}">
-<meta property="og:site_name" content="${esc(m.siteName ?? BASE_META.siteName ?? 'Vrooli')}">
+<meta property="og:site_name" content="${esc(m.siteName ?? BASE_META.siteName ?? "Vrooli")}"> 
 <meta property="og:title" content="${esc(m.title)}">
 <meta property="og:description" content="${esc(m.description)}">
 <meta property="og:url" content="${m.url}">
 <meta property="og:image" content="${imageUrl}">
-<meta property="og:type" content="${esc(m.type ?? BASE_META.type ?? 'website')}">
-${m.locale ?? BASE_META.locale ? `<meta property="og:locale" content="${esc(m.locale ?? BASE_META.locale ?? 'en_US')}">` : ''}
-${m.imageWidth ?? BASE_META.imageWidth ? `<meta property="og:image:width" content="${esc(m.imageWidth ?? BASE_META.imageWidth ?? '')}">` : ''}
-${m.imageHeight ?? BASE_META.imageHeight ? `<meta property="og:image:height" content="${esc(m.imageHeight ?? BASE_META.imageHeight ?? '')}">` : ''}
-<meta name="twitter:card" content="${esc(m.twitterCard ?? BASE_META.twitterCard ?? 'summary_large_image')}">
-${m.twitterCard !== 'summary' ? `<meta name="twitter:image" content="${imageUrl}">` : ''}
-${esc(m.title) ? `<meta name="twitter:title" content="${esc(m.title)}">` : ''}
-${esc(m.description) ? `<meta name="twitter:description" content="${esc(m.description)}">` : ''}
+<meta property="og:type" content="${esc(m.type ?? BASE_META.type ?? "website")}">
+${m.locale ?? BASE_META.locale ? `<meta property="og:locale" content="${esc(m.locale ?? BASE_META.locale ?? "en_US")}">` : ""}
+${m.imageWidth ?? BASE_META.imageWidth ? `<meta property="og:image:width" content="${esc(m.imageWidth ?? BASE_META.imageWidth ?? "")}">` : ""}
+${m.imageHeight ?? BASE_META.imageHeight ? `<meta property="og:image:height" content="${esc(m.imageHeight ?? BASE_META.imageHeight ?? "")}">` : ""}
+<meta name="twitter:card" content="${esc(m.twitterCard ?? BASE_META.twitterCard ?? "summary_large_image")}">
+${m.twitterCard !== "summary" ? `<meta name="twitter:image" content="${imageUrl}">` : ""}
+${esc(m.title) ? `<meta name="twitter:title" content="${esc(m.title)}">` : ""}
+${esc(m.description) ? `<meta name="twitter:description" content="${esc(m.description)}">` : ""}
 </head><body><p>Loading...</p></body></html>`;
     // Note: Removed the script load, as the worker only serves metadata to bots.
     // The actual UI loading happens when a real user hits the page and gets proxied.

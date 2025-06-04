@@ -377,7 +377,7 @@ export const endpoints = {
         const { checkTaskStatusesResult } = await import("./partial/task.js");
         const { success } = await import("./partial/success.js");
         return {
-            startLlmTask: await toObject(success, "full"),
+            startSwarmTask: await toObject(success, "full"),
             startRunTask: await toObject(success, "full"),
             cancelTask: await toObject(success, "full"),
             checkStatuses: await toObject(checkTaskStatusesResult, "full"),

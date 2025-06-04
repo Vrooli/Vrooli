@@ -1,12 +1,12 @@
-import { DotNotation, ModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
-import { AnyObjectSchema } from "yup";
-import { PartialApiInfo } from "../builders/types.js";
-import { PromiseOrValue } from "../types.js";
-import { InputNode } from "../utils/inputNode.js";
-import { SearchMap } from "../utils/searchMap.js";
-import { SearchStringMap } from "../utils/searchStringMap.js";
-import { SortMap } from "../utils/sortMap.js";
-import { IdsCreateToConnect, InputsById, QueryAction } from "../utils/types.js";
+import { type DotNotation, type ModelType, type ObjectLimit, type SessionUser, type YupMutateParams } from "@local/shared";
+import { type AnyObjectSchema } from "yup";
+import { type PartialApiInfo } from "../builders/types.js";
+import { type PromiseOrValue } from "../types.js";
+import { type InputNode } from "../utils/inputNode.js";
+import { type SearchMap } from "../utils/searchMap.js";
+import { type SearchStringMap } from "../utils/searchStringMap.js";
+import { type SortMap } from "../utils/sortMap.js";
+import { type IdsCreateToConnect, type InputsById, type QueryAction } from "../utils/types.js";
 
 type ApiObject = Record<string, any>;
 type DbObject = Record<string, any>;
@@ -146,7 +146,7 @@ export interface SupplementalConverter<
     getSuppFields: ({ ids, objects, partial, userData }: {
         ids: string[],
         languages: string[] | undefined,
-        objects: ({ id: string } & DbObject)[],
+        objects: ({ id: string | bigint } & DbObject)[],
         partial: PartialApiInfo,
         userData: Pick<SessionUser, "id" | "languages"> | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
@@ -511,6 +511,7 @@ export type Mutater<Model extends {
             additionalData: Record<string, any>,
             data: Model["ApiCreate"],
             idsCreateToConnect: IdsCreateToConnect,
+            isSeeding: boolean,
             preMap: PreMap;
             userData: SessionUser,
         }) => PromiseOrValue<Model["DbCreate"]> : never : never,
@@ -591,13 +592,6 @@ export type Displayer<
     /** Display the object for push notifications, etc. */
     label: {
         /** Prisma selection for the label */
-        select: () => Model["DbSelect"],
-        /** Converts the selection to a string */
-        get: (select: Model["DbModel"], languages: string[] | undefined) => string,
-    }
-    /** Object representation for text embedding, which is used for search */
-    embed?: {
-        /** Prisma selection for the embed */
         select: () => Model["DbSelect"],
         /** Converts the selection to a string */
         get: (select: Model["DbModel"], languages: string[] | undefined) => string,

@@ -1,5 +1,5 @@
-import { Transfer, TransferYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Transfer, type TransferYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const transferYou: ApiPartial<TransferYou> = {
@@ -14,7 +14,7 @@ export const transfer: ApiPartial<Transfer> = {
         id: true,
         createdAt: true,
         updatedAt: true,
-        mergedOrRejectedAt: true,
+        closedAt: true,
         status: true,
         fromOwner: async () => rel((await import("./user.js")).user, "nav"),
         toOwner: async () => rel((await import("./user.js")).user, "nav"),

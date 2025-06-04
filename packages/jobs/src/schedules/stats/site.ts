@@ -1,6 +1,6 @@
 import { DbProvider, logger } from "@local/server";
-import { ResourceType } from "@local/shared";
-import { PeriodType, Prisma } from "@prisma/client";
+import { generatePK, ResourceType } from "@local/shared";
+import { type PeriodType, Prisma } from "@prisma/client";
 
 /**
  * Creates periodic site-wide stats
@@ -15,6 +15,7 @@ export async function logSiteStats(
 ) {
     // Initialize stats object with new structure
     const data: Prisma.stats_siteCreateInput = {
+        id: generatePK(),
         periodStart,
         periodEnd,
         periodType,
@@ -25,7 +26,6 @@ export async function logSiteStats(
         resourcesCreatedByType: {},
         resourcesCompletedByType: {},
         resourceCompletionTimeAverageByType: {},
-        routineSimplicityAverage: 0,
         routineComplexityAverage: 0,
         runsStarted: 0,
         runsCompleted: 0,
@@ -46,7 +46,7 @@ export async function logSiteStats(
 
         // Get distinct user IDs active in the period
         const activeUserGroups = await DbProvider.get().session.groupBy({
-            by: ['user_id'],
+            by: ["user_id"],
             where: {
                 last_refresh_at: {
                     gte: periodStart,
@@ -61,8 +61,8 @@ export async function logSiteStats(
             data.activeUsers = await DbProvider.get().user.count({
                 where: {
                     id: { in: activeUserIds },
-                    isBot: false // Filter out bots
-                }
+                    isBot: false, // Filter out bots
+                },
             });
         } else {
             data.activeUsers = 0;
@@ -77,7 +77,7 @@ export async function logSiteStats(
 
         // --- Resources Created (Query 'resource' table by type) ---
         const resourceTypesToCountCreate: ResourceType[] = [
-            ResourceType.Api, ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard // Use PascalCase
+            ResourceType.Api, ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard, // Use PascalCase
         ];
         for (const type of resourceTypesToCountCreate) {
             resourcesCreatedByType[type] = await DbProvider.get().resource.count({
@@ -93,7 +93,7 @@ export async function logSiteStats(
 
         // --- Resources Completed & Completion Time (Query 'resource' table by type) ---
         const resourceTypesToCountComplete: ResourceType[] = [
-            ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard // Use PascalCase
+            ResourceType.Code, ResourceType.Project, ResourceType.Routine, ResourceType.Standard, // Use PascalCase
         ];
 
         for (const type of resourceTypesToCountComplete) {
@@ -127,7 +127,7 @@ export async function logSiteStats(
         data.resourcesCompletedByType = resourcesCompletedByType;
         data.resourceCompletionTimeAverageByType = resourceCompletionTimeAverageByType;
 
-        // --- Routine Complexity/Simplicity (Query 'resource_version' for completed routines) ---
+        // --- Routine Complexity (Query 'resource_version' for completed routines) ---
         const completedRoutinesCount = resourcesCompletedByType[ResourceType.Routine] ?? 0;
         if (completedRoutinesCount > 0) {
             const latestCompletedRoutineVersions = await DbProvider.get().resource_version.findMany({
@@ -140,28 +140,25 @@ export async function logSiteStats(
                     },
                     isLatest: true,
                 },
-                select: { id: true }
+                select: { id: true },
             });
 
             const routineAggregates = await DbProvider.get().resource_version.aggregate({
                 where: {
-                    id: { in: latestCompletedRoutineVersions.map(v => v.id) }
+                    id: { in: latestCompletedRoutineVersions.map(v => v.id) },
                 },
                 _sum: {
                     complexity: true,
-                    simplicity: true,
                 },
             });
             data.routineComplexityAverage = (routineAggregates._sum.complexity ?? 0) / completedRoutinesCount;
-            data.routineSimplicityAverage = (routineAggregates._sum.simplicity ?? 0) / completedRoutinesCount;
         } else {
             data.routineComplexityAverage = 0;
-            data.routineSimplicityAverage = 0;
         }
 
         // --- Runs Started (Query consolidated 'run' table) ---
         data.runsStarted = await DbProvider.get().run.count({
-            where: { startedAt: { gte: periodStart, lte: periodEnd } }
+            where: { startedAt: { gte: periodStart, lte: periodEnd } },
         });
 
         // --- Runs Completed & Completion Time & Context Switches (Query consolidated 'run' table) ---
@@ -223,7 +220,7 @@ export async function logSiteStats(
             periodStart,
             periodEnd,
             calculatedData: data,
-            trace: "0423"
+            trace: "0423",
         });
     }
-};
+}

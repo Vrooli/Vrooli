@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
+import { type Bookmark, type BookmarkCreateInput, type BookmarkList, deleteArrayIndex, endpointsBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, IconButton } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,7 @@ import { SideActionsButtons } from "../../../components/buttons/SideActionsButto
 import { ListContainer } from "../../../components/containers/ListContainer.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
-import { ObjectListActions } from "../../../components/lists/types.js";
+import { type ObjectListActions } from "../../../components/lists/types.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
@@ -20,7 +20,7 @@ import { DUMMY_LIST_LENGTH } from "../../../utils/consts.js";
 import { listToAutocomplete } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
-import { BookmarkListViewProps } from "./types.js";
+import { type BookmarkListViewProps } from "./types.js";
 
 export function BookmarkListView({
     display,

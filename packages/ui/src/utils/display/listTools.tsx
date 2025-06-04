@@ -1,5 +1,5 @@
-import { AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Reaction, ReactionFor, ReportFor, Resource, ResourceType, ResourceVersion, Run, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
-import { Chip, Palette } from "@mui/material";
+import { type AutocompleteOption, type Bookmark, BookmarkFor, type Chat, type ChatInvite, type ChatParticipant, CommentFor, CopyType, DUMMY_ID, DeleteType, type DotNotation, type ListObject, type Meeting, type Member, type MemberInvite, type Reaction, ReactionFor, ReportFor, type Resource, ResourceType, type ResourceVersion, type Run, type User, type View, type YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
+import { Chip, type Palette } from "@mui/material";
 import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/resource.js";
 import { displayDate, firstString } from "./stringTools.js";

@@ -1,9 +1,9 @@
-import { RoutineVersion } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
-import { GraphConfig, RoutineVersionConfig } from "../shape/configs/routine.js";
+import { type ResourceVersion } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
+import { type GraphConfig, RoutineVersionConfig } from "../shape/configs/routine.js";
 import { getTranslation } from "../translations/translationTools.js";
-import { RunSubroutineResult } from "./executor.js";
-import { IOKey, IOMap, IOValue, RunStateMachineServices, RunTriggeredBy, type SubroutineContext } from "./types.js";
+import { type RunSubroutineResult } from "./executor.js";
+import { type IOKey, type IOMap, type IOValue, type RunStateMachineServices, type RunTriggeredBy, type SubroutineContext } from "./types.js";
 
 /**
  * Handles context management for running subroutines.
@@ -22,9 +22,10 @@ export class SubroutineContextManager {
      * 
      * @param initialValues Optional initial values to seed the context's inputs.
      *                      Keys and values will be used to pre-populate the inputs.
+     * @param timeZone Optional timezone for time-based boundary events. Defaults to "UTC".
      * @returns The new context
      */
-    static initializeContext(initialValues: IOMap = {}): SubroutineContext {
+    static initializeContext(initialValues: IOMap = {}, timeZone = "UTC"): SubroutineContext {
         const allInputsMap = { ...initialValues };
         const allInputsList = Object.entries(initialValues).map(([key, value]) => ({ key, value }));
 
@@ -38,6 +39,15 @@ export class SubroutineContextManager {
             allInputsMap,
             allOutputsList: [],
             allOutputsMap: {},
+            triggeredBoundaryEventIds: [],
+            nodeStartTimes: {},
+            runtimeEvents: {
+                messages: [],
+                signals: [],
+                errors: [],
+                escalations: [],
+            },
+            timeZone,
         };
     }
 
@@ -81,24 +91,24 @@ export class SubroutineContextManager {
      * configuration, and uses the parent's mapping configuration to determine which
      * IO values (with composite keys) should be passed into the subroutine.
      * 
-     * NOTE: This method produces an object keyed by the subroutine’s input names for easier processing during a single-step run. 
+     * NOTE: This method produces an object keyed by the subroutine's input names for easier processing during a single-step run. 
      * It must be further processed by `prepareMultiStepSubroutineContext` or `mapSubroutineResultToParentKeys` to change 
      * the keys to the proper composite keys before merging into the parent context.
      * 
-     * @param parentRoutine The parent routine (from the current location’s object)
+     * @param parentRoutine The parent routine (from the current location's object)
      * @param nodeId The ID of the current node in the parent graph (i.e. where the subroutine is located in the parent graph)
      * @param parentSubcontext The existing subcontext (I/O values) from the parent branch
      * @param services The state machine's services
      * @returns An object with keys that are the subroutine's input names, and values that are the parent's IO values.
      */
     static async mapParentContextToSubroutineInputs(
-        parentRoutine: RoutineVersion,
+        parentRoutine: ResourceVersion,
         nodeId: string,
         parentSubcontext: SubroutineContext,
         services: RunStateMachineServices,
     ): Promise<IOMap | null> {
         // Deserialize the parent's graph configuration.
-        const { graph: parentGraph } = RoutineVersionConfig.deserialize(parentRoutine, services.logger, { useFallbacks: true });
+        const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, services.logger, { useFallbacks: true });
         if (!parentGraph) {
             services.logger.error("mapParentContextToSubroutineInputs: Invalid parent graph configuration.");
             return null;
@@ -240,24 +250,27 @@ export class SubroutineContextManager {
      */
     static buildSubroutineContext(
         initialValues: IOMap,
-        subroutine: RoutineVersion,
+        subroutine: ResourceVersion,
         parentContext: SubroutineContext,
         userData: RunTriggeredBy,
     ): SubroutineContext {
         // Get information about the subroutine and use it to build the currentTask
-        const { description, instructions, name } = getTranslation(subroutine, userData.languages, true);
+        const translation = getTranslation(subroutine, userData.languages, true);
         const currentTask: SubroutineContext["currentTask"] = {
-            description: description ?? "",
-            instructions: instructions ?? "",
-            name: name ?? "",
+            description: translation.description ?? "",
+            instructions: translation.instructions ?? "",
+            name: translation.name ?? "",
         };
 
         // Get the overall task for the subroutine
         const overallTask: SubroutineContext["overallTask"] = parentContext.overallTask ?? parentContext.currentTask;
 
+        // Determine timezone - use user's timezone, fallback to parent context, then UTC
+        const timeZone = userData.timeZone || parentContext.timeZone || "UTC";
+
         // Build the subroutine context
         const subroutineContext: SubroutineContext = {
-            ...SubroutineContextManager.initializeContext(initialValues),
+            ...SubroutineContextManager.initializeContext(initialValues, timeZone),
             currentTask,
             overallTask,
         };
@@ -276,18 +289,18 @@ export class SubroutineContextManager {
      * 
      * @param subroutineResult The result of `SubroutineExecutor.run`, containing inputs and outputs
      * @param nodeId The ID of the node that the inputs belong to
-     * @param parentRoutine The parent routine (from the current location’s object)
+     * @param parentRoutine The parent routine (from the current location's object)
      * @param logger The logger to use for logging
      * @returns The converted inputs or outputs
      */
     static mapSubroutineResultToParentKeys(
         subroutineResult: Pick<RunSubroutineResult, "inputs" | "outputs">,
         nodeId: string,
-        parentRoutine: RoutineVersion,
+        parentRoutine: ResourceVersion,
         logger: PassableLogger,
     ): Pick<RunSubroutineResult, "inputs" | "outputs"> | null {
         // Deserialize the parent's graph configuration.
-        const { graph: parentGraph } = RoutineVersionConfig.deserialize(parentRoutine, logger, { useFallbacks: true });
+        const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, logger, { useFallbacks: true });
         if (!parentGraph) {
             logger.error("mapSubroutineResultToParentKeys: Invalid parent graph configuration.");
             return null;
@@ -333,6 +346,112 @@ export class SubroutineContextManager {
 
         // Return the converted inputs and outputs
         return result;
+    }
+
+    /**
+     * Adds a runtime event to the subroutine context.
+     * 
+     * @param context The subroutine context to update
+     * @param eventType The type of event to add ("message", "signal", "error", "escalation")
+     * @param eventId The ID or code of the event
+     */
+    static addRuntimeEvent(
+        context: SubroutineContext,
+        eventType: "message" | "signal" | "error" | "escalation",
+        eventId: string,
+    ): void {
+        if (!context.runtimeEvents) {
+            context.runtimeEvents = {
+                messages: [],
+                signals: [],
+                errors: [],
+                escalations: [],
+            };
+        }
+
+        switch (eventType) {
+            case "message":
+                context.runtimeEvents.messages.push(eventId);
+                break;
+            case "signal":
+                context.runtimeEvents.signals.push(eventId);
+                break;
+            case "error":
+                context.runtimeEvents.errors.push(eventId);
+                break;
+            case "escalation":
+                context.runtimeEvents.escalations.push(eventId);
+                break;
+        }
+    }
+
+    /**
+     * Marks a boundary event as triggered to prevent it from firing again.
+     * 
+     * @param context The subroutine context to update
+     * @param boundaryEventId The ID of the boundary event that was triggered
+     */
+    static markBoundaryEventTriggered(context: SubroutineContext, boundaryEventId: string): void {
+        if (!context.triggeredBoundaryEventIds) {
+            context.triggeredBoundaryEventIds = [];
+        }
+        if (!context.triggeredBoundaryEventIds.includes(boundaryEventId)) {
+            context.triggeredBoundaryEventIds.push(boundaryEventId);
+        }
+    }
+
+    /**
+     * Records the start time for a node, used for timer boundary events.
+     * 
+     * @param context The subroutine context to update
+     * @param nodeId The ID of the node that started
+     * @param startTime The start time in milliseconds (defaults to current time)
+     */
+    static recordNodeStartTime(context: SubroutineContext, nodeId: string, startTime: number = Date.now()): void {
+        if (!context.nodeStartTimes) {
+            context.nodeStartTimes = {};
+        }
+        context.nodeStartTimes[nodeId] = startTime;
+    }
+
+    /**
+     * Adds multiple runtime events to the subroutine context for external event delivery.
+     * This method is designed to be called by event bus/webhook listeners when messages 
+     * or signals are received from external systems.
+     * 
+     * @param context The subroutine context to update
+     * @param events An object containing arrays of event IDs to add
+     */
+    static addMultipleRuntimeEvents(
+        context: SubroutineContext,
+        events: {
+            messages?: string[];
+            signals?: string[];
+            errors?: string[];
+            escalations?: string[];
+        },
+    ): void {
+        if (!context.runtimeEvents) {
+            context.runtimeEvents = {
+                messages: [],
+                signals: [],
+                errors: [],
+                escalations: [],
+            };
+        }
+
+        if (events.messages) {
+            context.runtimeEvents.messages.push(...events.messages);
+        }
+        if (events.signals) {
+            context.runtimeEvents.signals.push(...events.signals);
+        }
+        if (events.errors) {
+            context.runtimeEvents.errors.push(...events.errors);
+        }
+        if (events.escalations) {
+            context.runtimeEvents.escalations.push(...events.escalations);
+        }
     }
 
     //TODO this might need to be done in the server. The server should load the context for the branch, trim it down to fit in the context window, and then send it to the AI.

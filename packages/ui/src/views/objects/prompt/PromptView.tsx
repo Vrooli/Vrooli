@@ -1,4 +1,4 @@
-import { BookmarkFor, CommentFor, ResourceList as ResourceListType, StandardShape, StandardVersion, Tag, endpointsStandardVersion, getTranslation } from "@local/shared";
+import { BookmarkFor, CommentFor, type ResourceList as ResourceListType, type StandardShape, type StandardVersion, type Tag, endpointsStandardVersion, getTranslation } from "@local/shared";
 import {
     Box,
     Button,
@@ -10,10 +10,10 @@ import {
     Stack,
     Tooltip,
     Typography,
-    useTheme
+    useTheme,
 } from "@mui/material";
 import { Formik } from "formik";
-import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
@@ -37,7 +37,7 @@ import { ScrollBox } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { PromptViewProps } from "./types.js";
+import { type PromptViewProps } from "./types.js";
 
 export function PromptView({
     display,
@@ -209,7 +209,7 @@ export function PromptView({
                                 size={80}
                                 style={{
                                     margin: 10,
-                                    filter: `drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))`,
+                                    filter: "drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))",
                                 }}
                             />
 
@@ -471,7 +471,7 @@ export function PromptView({
             {permissions.canUpdate && (
                 <Box
                     sx={{
-                        position: 'fixed',
+                        position: "fixed",
                         bottom: 16,
                         right: 16,
                         zIndex: 10,
@@ -483,7 +483,7 @@ export function PromptView({
                         sx={{
                             backgroundColor: palette.primary.main,
                             color: palette.primary.contrastText,
-                            '&:hover': {
+                            "&:hover": {
                                 backgroundColor: palette.primary.dark,
                             },
                             width: 56,

@@ -1,5 +1,5 @@
-import { Wallet, WalletComplete, WalletInit } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Wallet, type WalletComplete, type WalletInit } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const wallet: ApiPartial<Wallet> = {

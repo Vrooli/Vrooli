@@ -1,12 +1,8 @@
-import * as yup from "yup";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
-import { bio, bool, handle, id, imageFile, name } from "../utils/commonFields.js";
-import { maxStrErr } from "../utils/errors.js";
+import { bio, bool, config, handle, id, imageFile, name } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
-
-export const botSettings = yup.string().trim().removeEmptyString().max(4096, maxStrErr);
 
 export const botTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -21,7 +17,7 @@ export const botValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         bannerImage: opt(imageFile),
-        botSettings: req(botSettings),
+        botSettings: req(config),
         handle: opt(handle),
         isBotDepictingPerson: req(bool),
         isPrivate: opt(bool),
@@ -32,7 +28,7 @@ export const botValidation: YupModel<["create", "update"]> = {
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
-        botSettings: opt(botSettings),
+        botSettings: opt(config),
         handle: opt(handle),
         isBotDepictingPerson: opt(bool),
         isPrivate: opt(bool),

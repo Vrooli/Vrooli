@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
+import { BUSINESS_NAME, LINKS, type ListObject, type ModelType, getObjectUrlBase } from "@local/shared";
 import { Box, IconButton, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ import { ELEMENT_CLASSES, ELEMENT_IDS } from "../../utils/consts.js";
 import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { searchViewTabParams } from "../../utils/search/objectToSearch.js";
-import { SearchViewProps } from "../../views/types.js";
+import { type SearchViewProps } from "../../views/types.js";
 
 const scrollContainerId = "main-search-scroll";
 const pageContainerStyle = {

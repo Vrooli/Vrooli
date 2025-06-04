@@ -1,5 +1,5 @@
-import { Tag, TagTranslation, TagYou } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Tag, type TagTranslation, type TagYou } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 
 export const tagTranslation: ApiPartial<TagTranslation> = {

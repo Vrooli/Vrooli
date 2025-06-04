@@ -1,6 +1,6 @@
-import { ModelType, ResourceSubType, ResourceType, ScheduleFor, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
-import { PeriodType } from "@prisma/client";
-import { RequestService } from "../auth/request.js";
+import { type ModelType, type ResourceSubType, type ResourceType, type ScheduleFor, type TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { type PeriodType } from "@prisma/client";
+import { type RequestService } from "../auth/request.js";
 import { timeFrameToPrisma } from "../builders/timeFrame.js";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 
@@ -242,7 +242,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     maxPointsEarned: (pointsEarned: number) => ({ pointsEarned: { lte: pointsEarned } }),
     maxScore: (score: number) => ({ score: { lte: score } }),
     maxScoreRoot: (score: number) => ({ root: { score: { lte: score } } }),
-    maxSimplicity: (simplicity: number) => ({ simplicity: { lte: simplicity } }),
     maxTimesCompleted: (timesCompleted: number) => ({ timesCompleted: { lte: timesCompleted } }),
     maxViews: (views: number) => ({ views: { lte: views } }),
     maxViewsRoot: (views: number) => ({ root: { views: { lte: views } } }),
@@ -257,7 +256,6 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     minPointsEarned: (pointsEarned: number) => ({ pointsEarned: { gte: pointsEarned } }),
     minScore: (score: number) => ({ score: { gte: score } }),
     minScoreRoot: (score: number) => ({ root: { score: { gte: score } } }),
-    minSimplicity: (simplicity: number) => ({ simplicity: { gte: simplicity } }),
     minTimesCompleted: (timesCompleted: number) => ({ timesCompleted: { gte: timesCompleted } }),
     minViews: (views: number) => ({ views: { gte: views } }),
     minViewsRoot: (views: number) => ({ root: { views: { gte: views } } }),
@@ -283,6 +281,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     reportsId: (id: string) => oneToManyId(id, "reports"),
     responseId: (id: string) => oneToOneId(id, "response"),
     rootId: (id: string) => oneToOneId(id, "root"),
+    rootResourceType: (resourceType: ResourceType) => ({ root: { resourceType } }),
     resourceType: (resourceType: ResourceType) => ({ resourceType }),
     resourceTypes: (resourceTypes: ResourceType[]) => ({ resourceType: { in: resourceTypes } }),
     runTeamId: (id: string) => ({ run: { team: { id } } }),

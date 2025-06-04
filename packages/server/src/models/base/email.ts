@@ -5,7 +5,7 @@ import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { EmailFormat } from "../formats.js";
-import { EmailModelLogic } from "./types.js";
+import { type EmailModelLogic } from "./types.js";
 
 const __typename = "Email" as const;
 export const EmailModel: EmailModelLogic = ({

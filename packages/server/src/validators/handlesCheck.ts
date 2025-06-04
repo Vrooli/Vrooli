@@ -1,4 +1,4 @@
-import { PrismaDelegate } from "../builders/types.js";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";

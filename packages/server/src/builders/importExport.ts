@@ -1,9 +1,9 @@
-import { ApiVersionConfig, ApiVersionConfigObject, CodeVersionConfig, CodeVersionConfigObject, ModelType, NoteVersionConfig, NoteVersionConfigObject, Owner, ProjectVersionConfig, ProjectVersionConfigObject, Resource, ResourceShape, ResourceType, ResourceVersionShape, RoutineVersionConfig, RoutineVersionConfigObject, SessionUser, StandardVersionConfig, StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
+import { ApiVersionConfig, type ApiVersionConfigObject, type BaseConfigObject, CodeVersionConfig, type CodeVersionConfigObject, ModelType, NoteVersionConfig, type NoteVersionConfigObject, type Owner, ProjectVersionConfig, type ProjectVersionConfigObject, type Resource, type ResourceShape, ResourceType, type ResourceVersionShape, RoutineVersionConfig, type RoutineVersionConfigObject, type SessionUser, StandardVersionConfig, type StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { createOneHelper } from "../actions/creates.js";
 import { updateOneHelper } from "../actions/updates.js";
-import { RequestService } from "../auth/request.js";
+import { type RequestService } from "../auth/request.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
@@ -12,7 +12,7 @@ import { permissionsCheck } from "../validators/permissions.js";
 import { combineQueries } from "./combineQueries.js";
 import { InfoConverter } from "./infoConverter.js";
 import { permissionsSelectHelper } from "./permissionsSelectHelper.js";
-import { PartialApiInfo } from "./types.js";
+import { type PartialApiInfo } from "./types.js";
 
 /** The current overall export format version. */
 const EXPORT_VERSION = "1.0.0";
@@ -93,6 +93,8 @@ export type ImportConfig = {
      * The user requesting the import/export.
      */
     userData: Pick<SessionUser, "id" | "languages">;
+    /** If this import is part of seeding */
+    isSeeding: boolean;
 }
 
 /**
@@ -247,28 +249,28 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const versions = shape.versions.map(version => {
             // Return without "root" field
             const { codeLanguage, config, resourceSubType, root, ...rest } = version.shape;
-            let configJson: string;
+            let configJson: BaseConfigObject;
             switch (root?.resourceType) {
                 case ResourceType.Api:
-                    configJson = new ApiVersionConfig({ config }).serialize("json");
+                    configJson = new ApiVersionConfig({ config: config as ApiVersionConfigObject }).export();
                     break;
                 case ResourceType.Code:
-                    configJson = new CodeVersionConfig({ codeLanguage, config }).serialize("json");
+                    configJson = new CodeVersionConfig({ codeLanguage, config: config as CodeVersionConfigObject }).export();
                     break;
                 case ResourceType.Note:
-                    configJson = new NoteVersionConfig({ config }).serialize("json");
+                    configJson = new NoteVersionConfig({ config: config as NoteVersionConfigObject }).export();
                     break;
                 case ResourceType.Project:
-                    configJson = new ProjectVersionConfig({ config }).serialize("json");
+                    configJson = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject }).export();
                     break;
                 case ResourceType.Routine:
-                    configJson = new RoutineVersionConfig({ config, resourceSubType }).serialize("json");
+                    configJson = new RoutineVersionConfig({ config: config as RoutineVersionConfigObject, resourceSubType }).export();
                     break;
                 case ResourceType.Standard:
-                    configJson = new StandardVersionConfig({ config, resourceSubType }).serialize("json");
+                    configJson = new StandardVersionConfig({ config: config as StandardVersionConfigObject, resourceSubType }).export();
                     break;
                 default:
-                    configJson = JSON.stringify({});
+                    configJson = { __version: "0.0.0" } as BaseConfigObject;
                     break;
             }
             // Serialize the config
@@ -295,7 +297,8 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const resourceShape = this.shapeData(data, config);
         const input = shapeResource.create(resourceShape);
         const req = this.buildRequest(config);
-        const result = await createOneHelper({ info, input, objectType: "Resource", req });
+        const adminFlags = config.isSeeding ? { isSeeding: true } : undefined;
+        const result = await createOneHelper({ adminFlags, info, input, objectType: "Resource", req });
         return result as Resource;
     }
 
@@ -304,7 +307,8 @@ export class ResourceImportExport extends AbstractImportExport<ResourceImportDat
         const resourceShape = this.shapeData(data, config);
         const input = shapeResource.update({ ...existing, owner: existing.owner ?? null }, resourceShape);
         const req = this.buildRequest(config);
-        const result = await updateOneHelper({ info, input, objectType: "Resource", req });
+        const adminFlags = config.isSeeding ? { isSeeding: true } : undefined;
+        const result = await updateOneHelper({ adminFlags, info, input, objectType: "Resource", req });
         return result as Resource;
     }
 
@@ -424,12 +428,14 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             continue;
         }
 
-        const { dbTable, format, idField, validate } = ModelMap.getLogic(["dbTable", "format", "idField", "validate"], objectType as `${ModelType}`);
+        const { dbTable, format, validate } = ModelMap.getLogic(["dbTable", "format", "validate"], objectType as `${ModelType}`);
 
-        // Gather all non-null IDs from this group.
-        const idsToCheck = objects
-            .map(obj => obj.shape[idField])
-            .filter(id => id != null);
+
+        // Objects with publicIds can be updated during seeding. Everything else will be created
+        const publicIdsToCheck = config.isSeeding ? objects
+            .map(obj => obj.shape["publicId"])
+            .filter(publicId => publicId != null)
+            : [];
 
         // Select using all fields required for checking permissions, 
         // combined with the shape that is imported/exported.
@@ -441,11 +447,11 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
         const partialInfoUpdate = InfoConverter.get().fromApiToPartialApi(await importer.getInfoUpdate(), format.apiRelMap) as PartialApiInfo;
         const selectImportUpdate = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfoUpdate)?.select;
         const combinedSelect = combineQueries([selectPermissions, selectImportCreate, selectImportUpdate], { mergeMode: "loose" });
-        // Do a single findMany query for all objects of this type that have an ID.
-        const existingObjectsPrisma = idsToCheck.length > 0
+        // Do a single findMany query for all objects of this type that have a publicId.
+        const existingObjectsPrisma = publicIdsToCheck.length > 0
             ? await DbProvider.get()[dbTable].findMany({
-                where: { [idField]: { in: idsToCheck } },
-                select: combinedSelect,
+                where: { publicId: { in: publicIdsToCheck } },
+                select: { ...combinedSelect, id: true, publicId: true }, // Make sure ID and publicId are included
             })
             : [];
         const partialInfo = mergeDeep(partialInfoCreate, partialInfoUpdate);
@@ -453,21 +459,21 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             return InfoConverter.get().fromDbToApi(obj, partialInfo);
         });
 
-        // Create a lookup map for existing objects by their ID.
+        // Create a lookup map for existing objects by their publicId
         const existingMap = new Map<string, object>();
         for (const existing of existingObjects) {
-            existingMap.set(existing[idField], existing);
+            existingMap.set(existing["publicId"], existing);
         }
 
         // Process each object in the group.
         for (const obj of objects) {
-            const objId = obj.shape[idField];
+            const publicId = obj.shape["publicId"];
             const canSkipPermissions = config.onConflict === "overwrite" && config.skipPermissions === true;
-            let canImport = canSkipPermissions || !objId;
+            let canImport = canSkipPermissions || !publicId;
 
-            // If the object has an ID, it may already exist.
-            if (objId) {
-                const existing = existingMap.get(objId);
+            // If the object has a publicId, it may already exist.
+            if (publicId) {
+                const existing = existingMap.get(publicId);
                 if (!existing) {
                     canImport = true;
                 } else if (config.onConflict === "skip") {
@@ -479,13 +485,19 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
                 } else {
                     // Check that the user has permission to overwrite (i.e. delete) the object
                     try {
-                        await permissionsCheck(
-                            { [objId]: { __typename: objectType as `${ModelType}`, ...existing } },
-                            { ["Delete"]: [objId] },
-                            {},
-                            config.userData,
-                        );
-                        canImport = true;
+                        // Permissions use ID instead of publicId
+                        const id = obj["id"];
+                        if (!id) {
+                            canImport = false;
+                        } else {
+                            await permissionsCheck(
+                                { [id]: { __typename: objectType as `${ModelType}`, ...existing } },
+                                { ["Delete"]: [id] },
+                                {},
+                                config.userData,
+                            );
+                            canImport = true;
+                        }
                     } catch (error) {
                         result.errors++;
                         continue;
@@ -494,7 +506,7 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             }
 
             if (canImport) {
-                const existing = existingMap.get(objId);
+                const existing = publicId ? existingMap.get(publicId) : null;
                 if (existing) {
                     await importer.importUpdate(existing, obj, config);
                 } else {

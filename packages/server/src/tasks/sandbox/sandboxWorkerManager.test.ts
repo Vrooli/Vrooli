@@ -4,7 +4,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { MB } from "./consts.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
-import { RunUserCodeInput, RunUserCodeOutput } from "./types.js";
+import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
 
 type WorkerManager = SandboxChildProcessManager;
 

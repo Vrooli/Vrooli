@@ -1,17 +1,18 @@
-import { SessionUser } from "@local/shared";
+import { type SessionUser } from "@local/shared";
 import { SessionService } from "../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { RecursivePartial } from "../types.js";
+import { type RecursivePartial } from "../types.js";
 import { cudHelper } from "./cuds.js";
-import { UpdateManyHelperProps, UpdateOneHelperProps } from "./types.js";
+import { type UpdateManyHelperProps, type UpdateOneHelperProps } from "./types.js";
 
 /**
  * Helper function for updating multiple objects of the same type in a single line
  * @returns GraphQL response object
  */
 export async function updateManyHelper<ObjectModel>({
+    adminFlags,
     additionalData,
     info,
     input,
@@ -25,6 +26,7 @@ export async function updateManyHelper<ObjectModel>({
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
+        adminFlags,
         additionalData,
         info: partialInfo,
         inputData: input.map(d => ({

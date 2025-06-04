@@ -1,6 +1,6 @@
 /* c8 ignore start */
-import { RoutineVersion } from "@local/shared";
-import { BuildAction } from "../../../utils/consts.js";
+import { type RoutineVersion } from "@local/shared";
+import { type BuildAction } from "../../../utils/consts.js";
 
 type Node = any;
 type NodeLink = any;

@@ -85,7 +85,7 @@ yarn test:coverage
 yarn test:api
 
 # Run database tests
-yarn test:db
+yarn test:postgres
 ```
 
 ## Building and Deployment

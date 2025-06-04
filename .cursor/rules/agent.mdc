@@ -8,7 +8,7 @@ You are working on *Vrooli*, an innovative web application that orchestrates AI 
 1. Project Orientation
 - **Documentation Check:**  
   - [README.md](mdc:README.md) Understand the project vision, roadmap, and overall requirements.  
-  - [ARCHITECTURE.md](mdc:ARCHITECTURE.md) and [TASKS.md](mdc:TASKS.md): Review project structure and task planning guidelines.
+  - [README.md](mdc:docs/architecture/README.md) and [TASKS.md](mdc:TASKS.md): Review project structure and task planning guidelines.
 - **Planning & Learning:**  
   - Draft a brief plan before coding and await confirmation.
   - After plan confirmation, store the active plan in a markdown file in the `/scratch` folder for future reference. 

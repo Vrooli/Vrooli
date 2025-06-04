@@ -1,5 +1,8 @@
 /* c8 ignore start */
+import { type BaseConfigObject, type TeamConfigObject } from "@local/shared";
 import { type RunConfig } from "../run/types.js";
+import { type BotConfigObject } from "../shape/configs/bot.js";
+import { type MessageConfigObject } from "../shape/configs/message.js";
 
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -298,7 +301,7 @@ export type BookmarkUpdateInput = {
 
 export type BotCreateInput = BaseTranslatableCreateInput<UserTranslationCreateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
-    botSettings: Scalars["String"];
+    botSettings: BotConfigObject;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isBotDepictingPerson: Scalars["Boolean"];
@@ -309,7 +312,7 @@ export type BotCreateInput = BaseTranslatableCreateInput<UserTranslationCreateIn
 
 export type BotUpdateInput = BaseTranslatableUpdateInput<UserTranslationCreateInput, UserTranslationUpdateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
-    botSettings?: InputMaybe<Scalars["String"]>;
+    botSettings?: InputMaybe<BotConfigObject>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isBotDepictingPerson?: InputMaybe<Scalars["Boolean"]>;
@@ -409,6 +412,7 @@ export type ChatInviteYou = {
 };
 
 export type ChatMessage = DbObject<"ChatMessage"> & {
+    config: MessageConfigObject;
     chat: Chat;
     createdAt: Scalars["Date"];
     language: Scalars["String"];
@@ -426,6 +430,7 @@ export type ChatMessage = DbObject<"ChatMessage"> & {
 };
 
 export type ChatMessageCreateInput = {
+    config: MessageConfigObject;
     chatConnect: Scalars["ID"];
     id: Scalars["ID"];
     language: Scalars["String"];
@@ -438,7 +443,7 @@ export type ChatMessageCreateInput = {
 export type ChatMessageCreateWithTaskInfoInput = {
     message: ChatMessageCreateInput;
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -484,13 +489,14 @@ export enum ChatMessageSortBy {
 
 export type ChatMessageUpdateInput = {
     id: Scalars["ID"];
+    config?: InputMaybe<MessageConfigObject>;
     text?: InputMaybe<Scalars["String"]>;
 };
 
 export type ChatMessageUpdateWithTaskInfoInput = {
     message: ChatMessageUpdateInput;
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -819,6 +825,11 @@ export type EmailSignUpInput = {
     theme: Scalars["String"];
 };
 
+export type ExportCalendarResult = {
+    __typename: "ExportCalendarResult";
+    calendar: Scalars["String"];
+};
+
 export type FindByIdInput = {
     id: Scalars["ID"];
 };
@@ -1022,35 +1033,6 @@ export type IssueYou = {
     isBookmarked: Scalars["Boolean"];
     reaction?: Maybe<Scalars["String"]>;
 };
-
-export enum LlmTask {
-    BotAdd = "BotAdd",
-    BotDelete = "BotDelete",
-    BotFind = "BotFind",
-    BotUpdate = "BotUpdate",
-    MembersAdd = "MembersAdd",
-    MembersDelete = "MembersDelete",
-    MembersFind = "MembersFind",
-    MembersUpdate = "MembersUpdate",
-    ReminderAdd = "ReminderAdd",
-    ReminderDelete = "ReminderDelete",
-    ReminderFind = "ReminderFind",
-    ReminderUpdate = "ReminderUpdate",
-    ResourceAdd = "ResourceAdd",
-    ResourceDelete = "ResourceDelete",
-    ResourceFind = "ResourceFind",
-    ResourceUpdate = "ResourceUpdate",
-    RunStart = "RunStart",
-    ScheduleAdd = "ScheduleAdd",
-    ScheduleDelete = "ScheduleDelete",
-    ScheduleFind = "ScheduleFind",
-    ScheduleUpdate = "ScheduleUpdate",
-    Start = "Start",
-    TeamAdd = "TeamAdd",
-    TeamDelete = "TeamDelete",
-    TeamFind = "TeamFind",
-    TeamUpdate = "TeamUpdate"
-}
 
 export type Meeting = DbObject<"Meeting"> & {
     attendees: Array<User>;
@@ -1574,7 +1556,7 @@ export type PullRequest = DbObject<"PullRequest"> & {
     createdBy?: Maybe<User>;
     createdAt: Scalars["Date"];
     from: PullRequestFrom;
-    mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
+    closedAt?: Maybe<Scalars["Date"]>;
     publicId: Scalars["String"];
     status: PullRequestStatus;
     to: PullRequestTo;
@@ -1742,7 +1724,7 @@ export type ReadAssetsInput = {
 export type RegenerateResponseInput = {
     messageId: Scalars["ID"];
     model: string;
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -2063,6 +2045,7 @@ export type Resource = DbObject<"Resource"> & {
 
 export type ResourceCreateInput = {
     id: Scalars["ID"];
+    publicId?: InputMaybe<Scalars["String"]>;
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
@@ -2137,7 +2120,7 @@ export enum ResourceType {
 }
 
 export enum ResourceSubTypeRoutine {
-    RoutineAction = "RoutineAction",
+    RoutineInternalAction = "RoutineInternalAction",
     RoutineApi = "RoutineApi",
     RoutineCode = "RoutineCode",
     RoutineData = "RoutineData",
@@ -2159,7 +2142,7 @@ export enum ResourceSubTypeStandard {
 }
 
 export enum ResourceSubType {
-    RoutineAction = "RoutineAction",
+    RoutineInternalAction = "RoutineInternalAction",
     RoutineApi = "RoutineApi",
     RoutineCode = "RoutineCode",
     RoutineData = "RoutineData",
@@ -2195,7 +2178,7 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
     commentsCount: Scalars["Int"];
     completedAt?: Maybe<Scalars["Date"]>;
     complexity: Scalars["Int"];
-    config?: Maybe<Scalars["String"]>;
+    config?: Maybe<BaseConfigObject>;
     createdAt: Scalars["Date"];
     forks: Array<Resource>;
     forksCount: Scalars["Int"];
@@ -2210,8 +2193,7 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
     reports: Array<Report>;
     reportsCount: Scalars["Int"];
     root: Resource;
-    resourceSubType: ResourceSubType;
-    simplicity: Scalars["Int"];
+    resourceSubType?: ResourceSubType;
     timesCompleted: Scalars["Int"];
     timesStarted: Scalars["Int"];
     translations: Array<ResourceVersionTranslation>;
@@ -2225,13 +2207,14 @@ export type ResourceVersion = DbObject<"ResourceVersion"> & {
 
 export type ResourceVersionCreateInput = BaseTranslatableCreateInput<ResourceVersionTranslationCreateInput> & {
     codeLanguage?: InputMaybe<Scalars["String"]>;
-    config?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<BaseConfigObject>;
     id: Scalars["ID"];
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
+    publicId?: InputMaybe<Scalars["String"]>;
     relatedVersionsCreate?: InputMaybe<Array<ResourceVersionRelationCreateInput>>;
-    resourceSubType: ResourceSubType;
+    resourceSubType?: ResourceSubType;
     rootConnect?: InputMaybe<Scalars["ID"]>;
     rootCreate?: InputMaybe<ResourceCreateInput>;
     versionLabel: Scalars["String"];
@@ -2273,19 +2256,18 @@ export type ResourceVersionSearchInput = BaseSearchInput<ResourceVersionSortBy> 
     maxBookmarksRoot?: InputMaybe<Scalars["Int"]>;
     maxComplexity?: InputMaybe<Scalars["Int"]>;
     maxScoreRoot?: InputMaybe<Scalars["Int"]>;
-    maxSimplicity?: InputMaybe<Scalars["Int"]>;
     maxTimesCompleted?: InputMaybe<Scalars["Int"]>;
     maxViewsRoot?: InputMaybe<Scalars["Int"]>;
     minBookmarksRoot?: InputMaybe<Scalars["Int"]>;
     minComplexity?: InputMaybe<Scalars["Int"]>;
     minScoreRoot?: InputMaybe<Scalars["Int"]>;
-    minSimplicity?: InputMaybe<Scalars["Int"]>;
     minTimesCompleted?: InputMaybe<Scalars["Int"]>;
     minViewsRoot?: InputMaybe<Scalars["Int"]>;
     ownedByTeamIdRoot?: InputMaybe<Scalars["ID"]>;
     ownedByUserIdRoot?: InputMaybe<Scalars["ID"]>;
     reportId?: InputMaybe<Scalars["ID"]>;
     rootId?: InputMaybe<Scalars["ID"]>;
+    rootResourceType?: InputMaybe<ResourceType>;
     resourceSubType?: InputMaybe<ResourceSubType>;
     resourceSubTypes?: InputMaybe<Array<ResourceSubType>>;
     searchString?: InputMaybe<Scalars["String"]>;
@@ -2312,8 +2294,6 @@ export enum ResourceVersionSortBy {
     ForksDesc = "ForksDesc",
     RunsAsc = "RunsAsc",
     RunsDesc = "RunsDesc",
-    SimplicityAsc = "SimplicityAsc",
-    SimplicityDesc = "SimplicityDesc"
 }
 
 export type ResourceVersionTranslation = BaseTranslation<"ResourceVersionTranslation"> & {
@@ -2339,7 +2319,7 @@ export type ResourceVersionTranslationUpdateInput = BaseTranslationUpdateInput &
 
 export type ResourceVersionUpdateInput = BaseTranslatableUpdateInput<ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput> & {
     codeLanguage?: InputMaybe<Scalars["String"]>;
-    config?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<BaseConfigObject>;
     id: Scalars["ID"];
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
@@ -2601,6 +2581,7 @@ export type Schedule = DbObject<"Schedule"> & {
     startTime: Scalars["Date"];
     timezone: Scalars["String"];
     updatedAt: Scalars["Date"];
+    user: User;
 };
 
 export type ScheduleCreateInput = {
@@ -2790,6 +2771,7 @@ export type Session = {
 export type SessionUser = {
     __typename: "SessionUser";
     credits: Scalars["String"];
+    creditAccountId?: Maybe<Scalars["String"]>;
     handle?: Maybe<Scalars["String"]>;
     hasPremium: Scalars["Boolean"];
     id: Scalars["String"];
@@ -2808,13 +2790,12 @@ export type SessionUserSession = {
     lastRefreshAt: Scalars["Date"];
 };
 
-export type StartLlmTaskInput = {
+export type StartSwarmTaskInput = {
     chatId: Scalars["ID"];
     model: string;
     parentId?: InputMaybe<Scalars["ID"]>;
     respondingBot: { id?: string, publicId?: string, handle?: string };
-    shouldNotRunTasks: Scalars["Boolean"];
-    task: LlmTask;
+    task: SwarmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
 
@@ -2872,7 +2853,6 @@ export type StatsSite = DbObject<"StatsSite"> & {
     resourcesCreatedByType: Scalars["String"];
     resourcesCompletedByType: Scalars["String"];
     resourceCompletionTimeAverageByType: Scalars["String"];
-    routineSimplicityAverage: Scalars["Float"];
     routineComplexityAverage: Scalars["Float"];
     runCompletionTimeAverage: Scalars["Float"];
     runContextSwitchesAverage: Scalars["Float"];
@@ -3083,7 +3063,7 @@ export type Team = DbObject<"Team"> & {
     bookmarks: Scalars["Int"];
     comments: Array<Comment>;
     commentsCount: Scalars["Int"];
-    config?: Maybe<Scalars["String"]>;
+    config?: Maybe<TeamConfigObject>;
     createdAt: Scalars["Date"];
     forks: Array<Team>;
     handle?: Maybe<Scalars["String"]>;
@@ -3120,7 +3100,7 @@ export type Team = DbObject<"Team"> & {
 
 export type TeamCreateInput = BaseTranslatableCreateInput<TeamTranslationCreateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
-    config?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<TeamConfigObject>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isOpenToNewMembers?: InputMaybe<Scalars["Boolean"]>;
@@ -3179,7 +3159,7 @@ export type TeamTranslationUpdateInput = BaseTranslationUpdateInput & {
 
 export type TeamUpdateInput = BaseTranslatableUpdateInput<TeamTranslationCreateInput, TeamTranslationUpdateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
-    config?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<TeamConfigObject>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isOpenToNewMembers?: InputMaybe<Scalars["Boolean"]>;
@@ -3215,7 +3195,7 @@ export type TimeFrame = {
 export type Transfer = DbObject<"Transfer"> & {
     createdAt: Scalars["Date"];
     fromOwner?: Maybe<Owner>;
-    mergedOrRejectedAt?: Maybe<Scalars["Date"]>;
+    closedAt?: Maybe<Scalars["Date"]>;
     object: TransferObject;
     status: TransferStatus;
     toOwner?: Maybe<Owner>;
@@ -3297,7 +3277,7 @@ export type User = DbObject<"User"> & {
     bookmarked?: Maybe<Array<Bookmark>>;
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
-    botSettings?: Maybe<Scalars["String"]>;
+    botSettings?: Maybe<BotConfigObject>;
     comments?: Maybe<Array<Comment>>;
     createdAt: Scalars["Date"];
     emails?: Maybe<Array<Email>>;

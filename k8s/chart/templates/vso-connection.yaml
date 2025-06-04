@@ -1,0 +1,16 @@
+{{- if .Values.vso.enabled -}}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: {{ include "vrooli.fullname" . }}-vault-connection
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+spec:
+  address: {{ .Values.vso.vaultAddr | quote }}
+  # If Vault is using TLS and requires a custom CA bundle:
+  # caBundleSecretRef:
+  #   name: "vault-ca-secret" # Name of a K8s secret containing ca.crt
+  #   namespace: {{ .Release.Namespace }} # Or the namespace where the CA secret is
+  # skipTLSVerify: false # Set to true only for testing, not recommended for production
+{{- end }} 

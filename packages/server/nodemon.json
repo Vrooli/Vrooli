@@ -1,7 +1,11 @@
 {
     "watch": [
-        "./src"
+        "src"
     ],
-    "ext": "ts",
-    "exec": "swc src -d dist --source-maps && node --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js"
+    "ext": "ts,json",
+    "ignore": [
+        "src/**/*.test.ts",
+        "dist"
+    ],
+    "exec": "swc src -d dist --source-maps && sh ../../scripts/fixImports.sh dist && node --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js"
 }

@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Box, BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { createRef, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { Icon, IconInfo } from "../../icons/Icons.js";
-import { TabListType, TabStateColors } from "../../utils/search/objectToSearch.js";
-import { PageTabsProps } from "../types.js";
+import { Icon, type IconInfo } from "../../icons/Icons.js";
+import { type TabListType, type TabStateColors } from "../../utils/search/objectToSearch.js";
+import { type PageTabsProps } from "../types.js";
 
 const DRAG_END_DELAY_MS = 50;
 const RESIZE_UPDATE_UNDERLINE_DELAY_MS = 100;

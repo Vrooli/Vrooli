@@ -2,8 +2,8 @@ import { RunStatus } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ListItemChip, ListItemCompletionBar, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { RunListItemProps } from "../types.js";
+import { ListItemChip, ListItemCompletionBar, type ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { type RunListItemProps } from "../types.js";
 
 function statusToColor(status: RunStatus | undefined): ListItemStyleColor {
     if (!status) return "Default";

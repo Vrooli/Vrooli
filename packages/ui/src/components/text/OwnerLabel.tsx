@@ -5,7 +5,7 @@ import { SessionContext } from "../../contexts/session.js";
 import { useLocation } from "../../route/router.js";
 import { firstString } from "../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
-import { OwnerLabelProps } from "./types.js";
+import { type OwnerLabelProps } from "./types.js";
 
 /**
  * Gets name of user or team that owns/created this object

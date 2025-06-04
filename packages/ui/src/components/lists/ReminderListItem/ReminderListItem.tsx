@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { endpointsReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
+import { endpointsReminder, type Reminder, type ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
@@ -9,7 +9,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
 import { ObjectListItemBase } from "../../lists/ObjectListItemBase/ObjectListItemBase.js";
-import { ReminderListItemProps } from "../../lists/types.js";
+import { type ReminderListItemProps } from "../../lists/types.js";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);

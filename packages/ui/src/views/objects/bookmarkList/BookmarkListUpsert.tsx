@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
+import { type Bookmark, type BookmarkList, type BookmarkListCreateInput, type BookmarkListShape, type BookmarkListUpdateInput, bookmarkListValidation, type BookmarkShape, type DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmarkList, type ListObject, noopSubmit, type Session, shapeBookmarkList, type Success, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
@@ -10,7 +10,7 @@ import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/F
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
-import { ObjectListActions } from "../../../components/lists/types.js";
+import { type ObjectListActions } from "../../../components/lists/types.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts/session.js";
@@ -25,13 +25,13 @@ import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FormContainer } from "../../../styles.js";
-import { ArgsType } from "../../../types.js";
+import { type ArgsType } from "../../../types.js";
 import { BulkObjectAction } from "../../../utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "../../../utils/consts.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { BookmarkListFormProps, BookmarkListUpsertProps } from "./types.js";
+import { type BookmarkListFormProps, type BookmarkListUpsertProps } from "./types.js";
 
 function bookmarkListInitialValues(
     session: Session | undefined,

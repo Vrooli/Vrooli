@@ -110,21 +110,21 @@ const lightTheme = createTheme({
         MuiTextField: {
             styleOverrides: {
                 root: ({ theme }) => ({
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                         color: lightPalette.background.textPrimary,
                         backgroundColor: theme.palette.background.paper,
                         borderRadius: theme.spacing(3),
-                        '& fieldset': {
-                            border: 'none',
+                        "& fieldset": {
+                            border: "none",
                         },
-                        '&:hover fieldset': {
-                            border: 'none',
+                        "&:hover fieldset": {
+                            border: "none",
                         },
-                        '&.Mui-focused fieldset': {
-                            border: 'none',
+                        "&.Mui-focused fieldset": {
+                            border: "none",
                         },
                     },
-                    '& label.Mui-focused': {
+                    "& label.Mui-focused": {
                         color: theme.palette.background.textSecondary,
                     },
                 }),
@@ -196,21 +196,21 @@ const darkTheme = createTheme({
         MuiTextField: {
             styleOverrides: {
                 root: ({ theme }) => ({
-                    '& .MuiOutlinedInput-root': {
+                    "& .MuiOutlinedInput-root": {
                         color: darkPalette.background.textPrimary,
                         backgroundColor: theme.palette.background.paper,
                         borderRadius: theme.spacing(3),
-                        '& fieldset': {
-                            border: 'none',
+                        "& fieldset": {
+                            border: "none",
                         },
-                        '&:hover fieldset': {
-                            border: 'none',
+                        "&:hover fieldset": {
+                            border: "none",
                         },
-                        '&.Mui-focused fieldset': {
-                            border: 'none',
+                        "&.Mui-focused fieldset": {
+                            border: "none",
                         },
                     },
-                    '& label.Mui-focused': {
+                    "& label.Mui-focused": {
                         color: theme.palette.background.textSecondary,
                     },
                 }),

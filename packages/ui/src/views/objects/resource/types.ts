@@ -1,5 +1,5 @@
-import { Resource, ResourceShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, CrudPropsPartial, FormProps } from "../../../types.js";
+import { type Resource, type ResourceShape } from "@local/shared";
+import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps } from "../../../types.js";
 
 type ResourceUpsertPropsPage = CrudPropsPage & {
     isMutate: boolean;

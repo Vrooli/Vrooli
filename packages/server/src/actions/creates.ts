@@ -1,11 +1,11 @@
-import { SessionUser } from "@local/shared";
+import { type SessionUser } from "@local/shared";
 import { SessionService } from "../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
-import { RecursivePartial } from "../types.js";
+import { type RecursivePartial } from "../types.js";
 import { cudHelper } from "./cuds.js";
-import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
+import { type CreateManyHelperProps, type CreateOneHelperProps } from "./types.js";
 
 /**
  * Helper function for creating multiple objects of the same type in a single line.
@@ -13,6 +13,7 @@ import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
  * @returns API response object
  */
 export async function createManyHelper<ObjectModel>({
+    adminFlags,
     additionalData,
     info,
     input,
@@ -25,6 +26,7 @@ export async function createManyHelper<ObjectModel>({
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
+        adminFlags,
         additionalData,
         info: partialInfo,
         inputData: input.map(d => ({

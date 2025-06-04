@@ -1,4 +1,4 @@
-import { StyledEngineProvider, Theme, ThemeProvider, createTheme } from "@mui/material";
+import { StyledEngineProvider, type Theme, ThemeProvider, createTheme } from "@mui/material";
 import { render as rtlRender } from "@testing-library/react";
 import { SessionContext } from "../contexts/session.js";
 import { DEFAULT_THEME, themes } from "../utils/display/theme.js";

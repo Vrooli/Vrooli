@@ -1,7 +1,7 @@
-import { SessionUser, SubscribableObject } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { type SessionUser, type SubscribableObject } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
-import { PrismaDelegate } from "../builders/types.js";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { ModelMap } from "../models/base/index.js";
 import { CustomError } from "./error.js";

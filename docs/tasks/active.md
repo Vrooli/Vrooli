@@ -1,5 +1,57 @@
-# Enhance Chat and Message Storage with Metadata
+# Complete RunStateMachine Migration Integration
 Priority: HIGH  
+Status: IN_PROGRESS
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Complete the integration of RunStateMachine with the UnifiedExecutionEngine following the migration guide. The foundation has been established with all type systems, interfaces, and basic integration in place. The remaining work involves updating the execution flow to use the new unified system while maintaining backward compatibility.
+
+**Progress Completed:**
+- ✅ Enhanced `packages/shared/src/run/executor.ts` with new execution context types
+- ✅ Created `packages/shared/src/run/executionContextManager.ts` with context integration
+- ✅ Added strategy configuration to `packages/shared/src/shape/configs/routine.ts`
+- ✅ Created `packages/server/src/services/execution/unifiedSubroutineExecutor.ts`
+- ✅ Created `packages/server/src/services/execution/interfaces.ts` with server-side interfaces
+- ✅ Fixed import issues and type conflicts in the unified subroutine executor
+- ✅ Added ExecutionContextManager import to RunStateMachine
+- ✅ Fixed variable naming issues in initNewRun method
+- ✅ Fixed null check for resourceSubType
+- ✅ All compilation errors resolved (except minor pre-existing linter issues)
+
+**Key Deliverables Remaining:**
+- [ ] Update RunStateMachine execution flow to use the new context system:
+  - Add buildExecutionContext method to runIteration
+  - Implement swarm context retrieval and integration
+  - Add enhanced execution path with fallback to legacy system
+- [ ] Implement state synchronization between swarm and routine execution:
+  - Add context synchronization after execution
+  - Update swarm blackboard with routine results
+  - Ensure bidirectional state flow
+- [ ] Add strategy-aware execution:
+  - Check for unified execution engine availability
+  - Route execution to appropriate strategy
+  - Handle strategy override system
+- [ ] Create comprehensive testing for the migration:
+  - Test both legacy and unified execution paths
+  - Verify context flow and state synchronization
+  - Ensure backward compatibility
+
+**Technical Implementation Notes:**
+The migration follows a 3-tier architecture (Coordination/Process/Execution layers) with swarm-based AI execution. The RunStateMachine now supports both legacy SubroutineExecutor and the new UnifiedExecutionEngine, allowing for gradual migration and backward compatibility.
+
+**Files Modified:**
+- `packages/shared/src/run/executor.ts`
+- `packages/shared/src/run/executionContextManager.ts`
+- `packages/shared/src/shape/configs/routine.ts`
+- `packages/shared/src/run/stateMachine.ts`
+- `packages/server/src/services/execution/unifiedSubroutineExecutor.ts`
+- `packages/server/src/services/execution/interfaces.ts`
+
+---
+
+# Enhance Chat and Message Storage with Metadata
+Priority: MEDIUM  
 Status: TODO
 Dependencies: None
 ParentTask: None
@@ -30,7 +82,7 @@ Implement functionality to store additional contextual information in chats and 
 ---
 
 # Refactor Active Chat Store with Chat ID Identifier
-Priority: HIGH  
+Priority: MEDIUM  
 Status: TODO
 Dependencies: None
 ParentTask: None

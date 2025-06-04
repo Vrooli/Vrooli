@@ -1,8 +1,8 @@
-import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from "@local/shared";
+import { type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsEmail = {
     createOne: ApiEndpoint<EmailCreateInput, Email>;

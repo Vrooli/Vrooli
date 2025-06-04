@@ -14,22 +14,33 @@ export interface ToolAnnotations {
     openWorldHint?: boolean;
 }
 
-/**
- * Interface representing a Tool in the MCP protocol.
- */
+export interface ToolInputSchema {
+    type: string;
+    properties: Record<string, any>;
+    required?: string[];
+}
+
+/** Vrooli-specific tool definition (compatible with OpenAI function tool schema) */
 export interface Tool {
-    /** Unique identifier for the tool */
+    /** Name of the tool (must be a-z, A-Z, 0-9, _, or - and must be 64 chars or less) */
     name: string;
-    /** Human-readable description */
+    /** Optional description of the tool */
     description?: string;
-    /** JSON Schema for the tool's parameters */
-    inputSchema: {
-        type: string;
-        properties: Record<string, any>;
-        required?: string[];
+    /** Optional JSON schema for the input parameters */
+    inputSchema?: Record<string, unknown>;
+    /** Optional: Estimated cost of running the tool, as a string (e.g., for BigInt compatibility). */
+    estimatedCost?: string;
+    /** Optional annotations for how the tool should be used/displayed */
+    annotations?: {
+        /** Optional display name for the tool */
+        title?: string;
+        /** Optional hint that the tool does not modify state */
+        readOnlyHint?: boolean;
+        /** Optional hint that the tool interacts with the outside world */
+        openWorldHint?: boolean;
+        /** Custom Vrooli flag to indicate if it's a native AI tool (vs. an MCP/Swarm function) */
+        isNativeAiTool?: boolean;
     };
-    /** Optional hints about tool behavior */
-    annotations?: ToolAnnotations;
 }
 
 /**
@@ -44,16 +55,8 @@ export interface ContentItem {
  * Response structure for tool execution as expected by MCP SDK
  */
 export interface ToolResponse {
-    content: ContentItem[];
-    isError?: boolean;
+    isError: boolean;
+    content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: string }>;
+    runId?: string;
+    creditsUsed?: string;
 }
-
-/**
- * Type for logger instance
- */
-export interface Logger {
-    info: (message: string, ...meta: any[]) => void;
-    warn: (message: string, ...meta: any[]) => void;
-    error: (message: string, ...meta: any[]) => void;
-    debug: (message: string, ...meta: any[]) => void;
-} 

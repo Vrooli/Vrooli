@@ -3,7 +3,7 @@ import { CODE_BLOCK_COMMAND } from "../commands.js";
 import { COMMAND_PRIORITY_HIGH } from "../consts.js";
 import { useLexicalComposerContext } from "../context.js";
 import { ElementNode } from "../nodes/ElementNode.js";
-import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types.js";
+import { type DOMConversionMap, type DOMConversionOutput, type NodeConstructorPayloads, type NodeType, type SerializedCodeBlockNode } from "../types.js";
 import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils.js";
 import commonSpriteHref from "/sprites/common-sprite.svg";
 

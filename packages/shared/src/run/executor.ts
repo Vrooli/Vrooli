@@ -1,14 +1,162 @@
-import { ModelType, ResourceSubType, ResourceVersion, RunStepStatus } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { ResourceSubType, ResourceType, RunStepStatus, type ResourceVersion } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { InputType } from "../consts/model.js";
 import { CodeLanguage } from "../consts/ui.js";
-import { FormInputType, FormSchema } from "../forms/types.js";
+import { type FormInputType } from "../forms/types.js";
 import { DUMMY_ID } from "../id/snowflake.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
+import { type StandardVersionConfigObject } from "../shape/configs/standard.js";
 import { getTranslation } from "../translations/translationTools.js";
+import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink } from "../utils/relatedResource.js";
 import { BranchManager } from "./branch.js";
 import { SubroutineContextManager } from "./context.js";
-import { BranchLocationDataMap, BranchProgress, BranchStatus, ExecuteStepResult, IOMap, InitializedRunState, InputGenerationStrategy, Location, RunConfig, RunProgress, RunProgressStep, RunStateMachineServices, SubroutineExecutionStrategy, SubroutineIOMapping, SubroutineInputDisplayInfo, SubroutineOutputDisplayInfo, SubroutineOutputDisplayInfoProps } from "./types.js";
+import { BranchStatus, InputGenerationStrategy, SubroutineExecutionStrategy, type BranchLocationDataMap, type BranchProgress, type ExecuteStepResult, type IOMap, type InitializedRunState, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, type RunTriggeredBy, type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./types.js";
+
+// NEW: Enhanced execution context types for the unified execution architecture
+/**
+ * Execution context for the unified execution engine.
+ * This provides a standardized interface for all execution tiers.
+ */
+export interface ExecutionContext {
+    /** Unique identifier for this subroutine instance */
+    subroutineInstanceId: string;
+    /** The routine/subroutine to execute */
+    routine: ResourceVersion;
+    /** Input/output mapping for the subroutine */
+    ioMapping: SubroutineIOMapping;
+    /** Current location in the execution */
+    currentLocation: Location;
+    /** Parent swarm context if available */
+    parentSwarmContext?: SwarmContext;
+    /** Parent routine context if this is a nested subroutine */
+    parentRoutineContext?: RoutineContext;
+    /** User session data */
+    userData: RunTriggeredBy;
+    /** Run configuration */
+    config: RunConfig;
+    /** Execution limits */
+    limits: ExecutionLimits;
+    /** Current execution status */
+    status: ExecutionStatus;
+    /** When execution started */
+    startedAt: Date;
+    /** The bot executing this subroutine (if from a swarm) */
+    executingBotId?: string;
+}
+
+/**
+ * Swarm context that flows into routine execution.
+ */
+export interface SwarmContext {
+    conversationId: string;
+    goal: string;
+    subtasks: any[]; // SwarmSubTask from server types
+    blackboard: any[]; // BlackboardItem from server types
+    resources: any[]; // SwarmResource from server types
+    records: any[]; // ToolCallRecord from server types
+    teamConfig?: any; // TeamConfigObject from server types
+    chatConfig: any; // ChatConfigObject from server types
+    swarmLeader?: string;
+    subtaskLeaders?: Record<string, string>;
+}
+
+/**
+ * Routine context for nested execution.
+ */
+export interface RoutineContext {
+    runId: string;
+    routineId: string;
+    currentStep?: string;
+    contextData: Record<string, unknown>;
+    parentConfig: RunConfig;
+    creditsUsed: bigint;
+    timeElapsed: number;
+}
+
+/**
+ * Execution limits for subroutines.
+ */
+export interface ExecutionLimits {
+    maxCredits: bigint;
+    maxTimeMs: number;
+    maxToolCalls: number;
+    maxReasoningSteps: number;
+    strictLimits: boolean;
+}
+
+/**
+ * Execution status enum.
+ */
+export enum ExecutionStatus {
+    Pending = "pending",
+    Running = "running",
+    Completed = "completed",
+    Failed = "failed",
+    Cancelled = "cancelled",
+    TimedOut = "timed_out",
+    CreditLimitExceeded = "credit_limit_exceeded",
+}
+
+/**
+ * Enhanced execution result for the unified system.
+ */
+export interface ExecutionResult {
+    success: boolean;
+    ioMapping: SubroutineIOMapping;
+    creditsUsed: bigint;
+    timeElapsed: number;
+    toolCallsCount: number;
+    error?: {
+        code: string;
+        message: string;
+        details?: unknown;
+    };
+    metadata?: {
+        strategy: string;
+        warnings?: string[];
+        metrics?: Record<string, number>;
+    };
+}
+
+/**
+ * Dependencies for execution.
+ */
+export interface ExecutionDependencies {
+    logger: PassableLogger;
+    toolRunner?: any; // From server-side execution system
+    reasoningEngine?: any; // From server-side execution system
+    messageStore?: any; // From server-side execution system
+}
+
+// Re-export from types for convenience  
+
+/**
+ * Internal representation of a routine's input configuration,
+ * combining form definition with an optional linked standard.
+ */
+interface InternalRoutineInputConfig {
+    name: string;
+    isRequired: boolean;
+    description?: string;
+    formDefinition: FormInputType;
+    standardVersion?: {
+        codeLanguage?: CodeLanguage | string; // string for custom, CodeLanguage for known
+        props: Record<string, unknown>;
+    };
+}
+
+/**
+ * Internal representation of a routine's output configuration.
+ */
+interface InternalRoutineOutputConfig {
+    name: string;
+    description?: string;
+    formDefinition: FormInputType;
+    standardVersion?: {
+        codeLanguage?: CodeLanguage | string;
+        props: Record<string, unknown>;
+    };
+}
 
 /**
  * The result of running a subroutine.
@@ -51,8 +199,8 @@ export abstract class SubroutineExecutor {
      * @returns True if the routine is a single-step routine, false otherwise
      */
     public isSingleStepRoutine(resource: ResourceVersion): boolean {
-        return resource.resourceSubType !== ResourceSubType.RoutineMultiStep
-            && resource.resourceSubType.startsWith("Routine");
+        return Boolean(resource && resource.resourceSubType !== ResourceSubType.RoutineMultiStep
+            && resource.resourceSubType && resource.resourceSubType.startsWith("Routine"));
     }
 
     /**
@@ -66,35 +214,13 @@ export abstract class SubroutineExecutor {
     }
 
     /**
-     * Finds the FormElement that corresponds to the given input or output
-     * 
-     * @param schema The schema to search
-     * @param io The input or output to find
-     * @returns The FormElement with the same name as the input or output, or undefined if it is not found
-     */
-    private findFormElement(schema: FormSchema | undefined, io: RoutineVersionInput | RoutineVersionOutput): FormInputType | undefined {
-        if (!schema) {
-            return undefined;
-        }
-        const key = io.name;
-        if (!key) {
-            return undefined;
-        }
-        const element = schema.elements.find((element) => Object.prototype.hasOwnProperty.call(element, "fieldName") && (element as FormInputType).fieldName === key);
-        if (!element) {
-            return undefined;
-        }
-        return element as FormInputType;
-    }
-
-    /**
      * Converts a FormElement and input/output into props to tell the LLM exactly what we expect it to generate.
      * 
      * @param formElement The FormElement to convert
      * @param io The input or output element to convert
      * @returns The converted props
      */
-    private findElementStructure(formElement: FormInputType | undefined, io: RoutineVersionInput | RoutineVersionOutput): { defaultValue: unknown | undefined, props: SubroutineOutputDisplayInfoProps } {
+    private findElementStructure(formElement: FormInputType | undefined, io: InternalRoutineInputConfig | InternalRoutineOutputConfig): { defaultValue: unknown | undefined, props: SubroutineOutputDisplayInfoProps } {
         const result: { defaultValue: unknown | undefined, props: SubroutineOutputDisplayInfoProps } = { defaultValue: undefined, props: { type: "Text", schema: undefined } };
         // There are three cases:
         // 1. The io has a standard version attached, which defines a specific schema to adhere to
@@ -106,8 +232,9 @@ export abstract class SubroutineExecutor {
             const { codeLanguage, props } = io.standardVersion;
             result.props.type = codeLanguage === CodeLanguage.Json ? "JSON schema"
                 : codeLanguage === CodeLanguage.Yaml ? "YAML schema"
-                    : "Unknown";
-            result.props.schema = props;
+                    : typeof codeLanguage === "string" && codeLanguage ? codeLanguage // Use custom string if provided
+                        : "Unknown"; // Fallback for unknown or undefined codeLanguage
+            result.props.schema = typeof props === "object" && props !== null ? JSON.stringify(props) : String(props);
         }
         // Case 2
         else if (formElement) {
@@ -196,7 +323,6 @@ export abstract class SubroutineExecutor {
                     break;
                 }
                 case InputType.Selector: {
-                    // TODO: For now, assume that options are objects with a "value" property
                     result.props.type = "One of the values from the provided options";
                     const { defaultValue, multiple, options, noneOption } = formElement.props;
                     if (defaultValue !== undefined) {
@@ -298,29 +424,108 @@ export abstract class SubroutineExecutor {
      * @returns A record mapping each input and output name to its current value and required flag.
      */
     private buildIOMapping(
-        routine: RoutineVersion,
+        routine: ResourceVersion,
         providedInputs: IOMap,
         logger: PassableLogger,
     ): SubroutineIOMapping {
         // Initialize the mapping
         const mapping: SubroutineIOMapping = { inputs: {}, outputs: {} };
-
-        // Some input information can be grabbed from the routine's inputs and outputs directly.
-        // Other information can be found in the routine's form schemas
-        const { formInput, formOutput } = RoutineVersionConfig.deserialize(routine, logger, { useFallbacks: true });
+        const parsedRoutine = RoutineVersionConfig.parse(routine, logger, { useFallbacks: true });
+        const { formInput, formOutput } = parsedRoutine;
         const formInputSchema = formInput?.schema;
         const formOutputSchema = formOutput?.schema;
 
+        const inputsConfig: InternalRoutineInputConfig[] = [];
+        if (formInputSchema?.elements) {
+            for (const element of formInputSchema.elements) {
+                if ("fieldName" in element && element.fieldName) {
+                    // element is FormInputType. It should have fieldName, label, and props.
+                    const specificProps = element.props as { isRequired?: boolean; placeholder?: string;[key: string]: any };
+                    let standardVersionDef: InternalRoutineInputConfig["standardVersion"] = undefined;
+
+                    if (routine.relatedVersions) {
+                        for (const link of routine.relatedVersions) {
+                            const adaptedLink: RelatedVersionLink = {
+                                targetVersionId: link.toVersion.id,
+                                labels: link.labels,
+                                targetVersionObject: link.toVersion,
+                            };
+                            const fieldNameFromLink = RelatedResourceUtils.getFieldIdentifierFromLink(adaptedLink, RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD);
+                            if (fieldNameFromLink === element.fieldName) {
+                                const relatedStandard = link.toVersion;
+                                if (relatedStandard) {
+                                    const lang = relatedStandard.codeLanguage;
+                                    const standardConfig = relatedStandard.config as StandardVersionConfigObject | undefined;
+                                    standardVersionDef = {
+                                        codeLanguage: lang === null ? undefined : lang,
+                                        props: standardConfig?.props ?? {},
+                                    };
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    inputsConfig.push({
+                        name: element.fieldName,
+                        isRequired: !!(specificProps?.isRequired || (element as { isRequired?: boolean }).isRequired),
+                        description: element.label ?? specificProps?.placeholder,
+                        formDefinition: element, // element is already FormInputType
+                        standardVersion: standardVersionDef,
+                    });
+                }
+            }
+        }
+
+        const outputsConfig: InternalRoutineOutputConfig[] = [];
+        if (formOutputSchema?.elements) {
+            for (const element of formOutputSchema.elements) {
+                if ("fieldName" in element && element.fieldName) {
+                    // element is FormInputType. It should have fieldName, label, and props.
+                    const specificProps = element.props as { placeholder?: string;[key: string]: any };
+                    let standardVersionDef: InternalRoutineOutputConfig["standardVersion"] = undefined;
+
+                    if (routine.relatedVersions) {
+                        for (const link of routine.relatedVersions) {
+                            const adaptedLink: RelatedVersionLink = {
+                                targetVersionId: link.toVersion.id,
+                                labels: link.labels,
+                                targetVersionObject: link.toVersion,
+                            };
+                            const fieldNameFromLink = RelatedResourceUtils.getFieldIdentifierFromLink(adaptedLink, RelatedResourceLabel.DEFINES_STANDARD_FOR_OUTPUT_FIELD);
+                            if (fieldNameFromLink === element.fieldName) {
+                                const relatedStandard = link.toVersion;
+                                if (relatedStandard) {
+                                    const lang = relatedStandard.codeLanguage;
+                                    const standardConfig = relatedStandard.config as StandardVersionConfigObject | undefined;
+                                    standardVersionDef = {
+                                        codeLanguage: lang === null ? undefined : lang,
+                                        props: standardConfig?.props ?? {},
+                                    };
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    outputsConfig.push({
+                        name: element.fieldName,
+                        description: element.label ?? specificProps?.placeholder,
+                        formDefinition: element, // element is already FormInputType
+                        standardVersion: standardVersionDef,
+                    });
+                }
+            }
+        }
+
         // Process inputs
-        routine.inputs.forEach((input) => {
+        inputsConfig.forEach((input) => {
             if (!input.name) {
                 return;
             }
 
-            const formElement = this.findFormElement(formInputSchema, input);
+            const formElement = input.formDefinition;
             const { defaultValue, props } = this.findElementStructure(formElement, input);
 
-            const description = formElement?.description ?? undefined;
+            const description = input.description ?? formElement?.description ?? undefined;
             const isRequired = input.isRequired ?? false;
             const name = input.name;
             const value = providedInputs[name];
@@ -336,15 +541,15 @@ export abstract class SubroutineExecutor {
         });
 
         // Process outputs
-        routine.outputs.forEach((output) => {
+        outputsConfig.forEach((output) => {
             if (!output.name) {
                 return;
             }
 
-            const formElement = this.findFormElement(formOutputSchema, output);
+            const formElement = output.formDefinition;
             const { defaultValue, props } = this.findElementStructure(formElement, output);
 
-            const description = formElement?.description ?? undefined;
+            const description = output.description ?? formElement?.description ?? undefined;
             const name = output.name;
             const value = providedInputs[name];
 
@@ -517,7 +722,7 @@ export abstract class SubroutineExecutor {
 
         // Don't continue if we need to manually fill in missing inputs
         if (missingRequiredInputNames.length > 0 && runConfig.decisionConfig.inputGeneration === InputGenerationStrategy.Manual) {
-            services.notifier?.sendMissingInputsRequest(state.runIdentifier.runId, state.runIdentifier.type, branch);
+            services.notifier?.sendMissingInputsRequest(state.runIdentifier.runId, branch);
             result.updatedBranchStatus = BranchStatus.Waiting;
             return result;
         }
@@ -527,11 +732,11 @@ export abstract class SubroutineExecutor {
             // But if we can automatically generate inputs, do that first
             if (missingRequiredInputNames.length > 0 && runConfig.decisionConfig.inputGeneration !== InputGenerationStrategy.Manual) {
                 const missingInputs = await this.generateMissingInputs(branch.subroutineInstanceId, routine, ioMapping, runConfig);
-                result.inputs = missingInputs;
+                result.inputs = missingInputs.inputs;
                 result.cost = missingInputs.cost;
             }
             // Send a request to the client to confirm manual execution
-            services.notifier?.sendManualExecutionConfirmationRequest(state.runIdentifier.runId, state.runIdentifier.type, branch);
+            services.notifier?.sendManualExecutionConfirmationRequest(state.runIdentifier.runId, branch);
             result.updatedBranchStatus = BranchStatus.Waiting;
             return result;
         }
@@ -578,6 +783,9 @@ export abstract class SubroutineExecutor {
             complexity: 0,
             contextSwitches: 0,
             id: DUMMY_ID,
+            nodeId: location.locationId, // ID of the graph node
+            resourceInId: location.objectId, // ID of parent resource version (the resource containing the graph config) that the subroutine is in
+            resourceVersionId: subroutine?.id, // ID of the resource at the node (the subroutine)
             startedAt: new Date(Date.now()),
             completedAt: undefined,
             name: getTranslation(subroutine, state.userData.languages, true).name ?? "",
@@ -586,7 +794,6 @@ export abstract class SubroutineExecutor {
         };
     }
 
-    // TODO need to create/update run_routine_io records for each input and output
     /**
      * Execute the next step in a branch
      * 
@@ -617,11 +824,12 @@ export abstract class SubroutineExecutor {
         const result: ExecuteStepResult = {
             branchId: branch.branchId,
             branchStatus: branch.status,
-            deferredDecisions: [],
             creditsSpent: BigInt(0).toString(),
+            deferredDecision: null,
             newLocations: null,
             step: null,
             subroutineRun: null,
+            ioRecordsToCreate: null,
         };
 
         // Find the location data for the branch
@@ -650,8 +858,11 @@ export abstract class SubroutineExecutor {
         const { location, object, subroutine, subcontext: parentContext } = locationData;
         const nodeId = location.locationId;
 
+        // Record the node start time for boundary event timing
+        SubroutineContextManager.recordNodeStartTime(parentContext, nodeId);
+
         // Run the appropriate action based on the object type
-        if (object.__typename === ModelType.RoutineVersion) {
+        if (object.resourceSubType?.startsWith("Routine")) {
             // Action only needed if there is a subroutine
             if (!subroutine) {
                 services.logger.info(`executeStep: No subroutine found at ${branch.locationStack[branch.locationStack.length - 1]?.locationId}`);
@@ -661,55 +872,104 @@ export abstract class SubroutineExecutor {
             const isSingleStep = this.isSingleStepRoutine(subroutine);
             if (isSingleStep) {
                 // Build context to pass into subroutine
-                const knownSubroutineInputs = await SubroutineContextManager.mapParentContextToSubroutineInputs(object, nodeId, parentContext, services);
+                const knownSubroutineInputs = await SubroutineContextManager.mapParentContextToSubroutineInputs(object as ResourceVersion, nodeId, parentContext, services);
                 if (!knownSubroutineInputs) {
                     services.logger.error(`executeStep: Child context could not be prepared for single-step subroutine ${subroutine.id}`);
                     result.branchStatus = BranchStatus.Failed;
                     return result;
                 }
 
-                // Execute the subroutine
-                const subroutineResult = await this.run(
-                    subroutine,
-                    knownSubroutineInputs,
-                    run.config,
-                    branch,
-                    services,
-                    state,
-                );
+                try {
+                    // Execute the subroutine
+                    const subroutineResult = await this.run(
+                        subroutine,
+                        knownSubroutineInputs,
+                        run.config,
+                        branch,
+                        services,
+                        state,
+                    );
 
-                // Parse the result
-                const properlyKeyedResult = SubroutineContextManager.mapSubroutineResultToParentKeys(subroutineResult, nodeId, object, services.logger);
-                if (!properlyKeyedResult) {
-                    services.logger.error(`executeStep: Inputs or outputs could not be converted to composite keys for single-step subroutine ${subroutine.id}`);
+                    // Parse the result
+                    const properlyKeyedResult = SubroutineContextManager.mapSubroutineResultToParentKeys(subroutineResult, nodeId, object, services.logger);
+                    if (!properlyKeyedResult) {
+                        services.logger.error(`executeStep: Inputs or outputs could not be converted to composite keys for single-step subroutine ${subroutine.id}`);
+                        result.branchStatus = BranchStatus.Failed;
+                        return result;
+                    }
+                    result.subroutineRun = {
+                        inputs: properlyKeyedResult.inputs,
+                        outputs: properlyKeyedResult.outputs,
+                    };
+                    result.creditsSpent = (BigInt(result.creditsSpent) + BigInt(subroutineResult.cost)).toString();
+
+                    // Prepare IO records
+                    result.ioRecordsToCreate = [];
+                    if (properlyKeyedResult.inputs) {
+                        for (const [key, value] of Object.entries(properlyKeyedResult.inputs)) {
+                            try {
+                                result.ioRecordsToCreate.push({
+                                    runId: run.runId, // Actual DB ID of the current run
+                                    nodeName: nodeId, // ID of the graph node in the parent graph
+                                    nodeInputName: key,
+                                    data: JSON.stringify(value),
+                                });
+                            } catch (error) {
+                                services.logger.error(`executeStep: Failed to stringify input ${key} for node ${nodeId}. Error: ${error}`);
+                                // Decide if this should cause the step to fail or just log and continue
+                            }
+                        }
+                    }
+                    if (properlyKeyedResult.outputs) {
+                        for (const [key, value] of Object.entries(properlyKeyedResult.outputs)) {
+                            try {
+                                result.ioRecordsToCreate.push({
+                                    runId: run.runId,
+                                    nodeName: nodeId,
+                                    nodeInputName: key,
+                                    data: JSON.stringify(value),
+                                });
+                            } catch (error) {
+                                services.logger.error(`executeStep: Failed to stringify output ${key} for node ${nodeId}. Error: ${error}`);
+                                // Decide if this should cause the step to fail or just log and continue
+                            }
+                        }
+                    }
+
+                    // If the branch status is being updated, this indicates that the subroutine has NOT completed
+                    const isSubroutineCompleted = subroutineResult.updatedBranchStatus === undefined;
+                    if (!isSubroutineCompleted && subroutineResult.updatedBranchStatus) {
+                        result.branchStatus = subroutineResult.updatedBranchStatus;
+                    }
+
+                    // Update step data
+                    if (result.step) {
+                        result.step.complexity = subroutine.complexity;
+                        // If completed, set the completion data
+                        if (isSubroutineCompleted) {
+                            result.step.completedAt = new Date(Date.now());
+                            result.step.status = RunStepStatus.Completed;
+                        }
+                    }
+                } catch (error) {
+                    // Handle errors thrown by the subroutine - these could trigger error boundary events
+                    services.logger.error(`executeStep: Error executing subroutine ${subroutine.id}: ${error}`);
+
+                    // Add error to runtime events if it's a BPMN error
+                    if (error instanceof Error && error.message) {
+                        const errorCode = error.name || "GenericError";
+                        SubroutineContextManager.addRuntimeEvent(parentContext, "error", errorCode);
+                    }
+
                     result.branchStatus = BranchStatus.Failed;
                     return result;
-                }
-                result.subroutineRun = {
-                    inputs: properlyKeyedResult.inputs,
-                    outputs: properlyKeyedResult.outputs,
-                };
-                result.creditsSpent = (BigInt(result.creditsSpent) + BigInt(subroutineResult.cost)).toString();
-                // If the branch status is being updated, this indicates that the subroutine has NOT completed
-                const isSubroutineCompleted = subroutineResult.updatedBranchStatus === undefined;
-                if (isSubroutineCompleted) {
-                    result.branchStatus = subroutineResult.updatedBranchStatus as BranchStatus;
-                }
-                // Update step data
-                if (result.step) {
-                    result.step.complexity = subroutine.complexity;
-                    // If completed, set the completion data
-                    if (isSubroutineCompleted) {
-                        result.step.completedAt = new Date(Date.now());
-                        result.step.status = RunStepStatus.Completed;
-                    }
                 }
             }
             // If it's a multi-step routine, we need to call getAvailableStartLocations with the subroutine config and create new branches
             const isMultiStep = this.isMultiStepRoutine(subroutine);
             if (isMultiStep) {
                 // Deserialize the child's graph configuration.
-                const { graph: childGraph } = RoutineVersionConfig.deserialize(subroutine, services.logger, { useFallbacks: true });
+                const { graph: childGraph } = RoutineVersionConfig.parse(subroutine, services.logger, { useFallbacks: true });
                 if (!childGraph) {
                     services.logger.error("executeStep: Invalid child graph configuration.");
                     result.branchStatus = BranchStatus.Failed;
@@ -744,11 +1004,12 @@ export abstract class SubroutineExecutor {
                     config: childGraph,
                     decisionKey,
                     services,
-                    subroutine,
+                    subroutine: { id: subroutine.id, resourceSubType: subroutine.resourceSubType },
                     subcontext: childContext,
                 });
-                if (decision.deferredDecisions) {
-                    result.deferredDecisions = decision.deferredDecisions;
+                // If the navigator returns deferred decisions, take the first one.
+                if (decision.deferredDecisions && decision.deferredDecisions.length > 0) {
+                    result.deferredDecision = decision.deferredDecisions[0]; // Take the first deferred decision
                     result.branchStatus = BranchStatus.Waiting;
                     return result;
                 }
@@ -776,7 +1037,7 @@ export abstract class SubroutineExecutor {
                 return result;
             }
             return result;
-        } else if (object.__typename === ModelType.ProjectVersion) {
+        } else if (object.root?.resourceType === ResourceType.Project) {
             // Projects are for navigation only, so no action needed
             return result;
         } else {
@@ -835,15 +1096,13 @@ export abstract class SubroutineExecutor {
             }
         }
         // Add deferred decisions
-        if (stepResult.deferredDecisions && stepResult.deferredDecisions.length > 0) {
+        if (stepResult.deferredDecision) {
             // Update the decision strategy
-            const updatedDecisions = services.pathSelectionHandler.updateDecisionOptions(run, stepResult.deferredDecisions);
+            const updatedDecisions = services.pathSelectionHandler.updateDecisionOptions(run, [stepResult.deferredDecision]); // Pass as an array
             // Update the run progress
             run.decisions = updatedDecisions;
             // Send a decision request to the client
-            for (const decision of stepResult.deferredDecisions) {
-                services.notifier?.sendDecisionRequest(state.runIdentifier.runId, decision);
-            }
+            services.notifier?.sendDecisionRequest(state.runIdentifier.runId, stepResult.deferredDecision);
             // If the branch is still active, put it in a waiting state
             if (branch.status === BranchStatus.Active) {
                 branch.status = BranchStatus.Waiting;
@@ -875,7 +1134,44 @@ export abstract class SubroutineExecutor {
         if (stepResult.subroutineRun) {
             const { inputs, outputs } = stepResult.subroutineRun;
             const existingSubcontext = run.subcontexts[branch.subroutineInstanceId];
-            run.subcontexts[branch.subroutineInstanceId] = SubroutineContextManager.updateContext(existingSubcontext, inputs, outputs);
+            if (existingSubcontext) {
+                run.subcontexts[branch.subroutineInstanceId] = SubroutineContextManager.updateContext(existingSubcontext, inputs, outputs);
+            } else {
+                services.logger.info(`updateRunAfterStep: Subcontext for instance ${branch.subroutineInstanceId} not found. Inputs/outputs will not be merged.`);
+            }
         }
     }
+}
+
+/**
+ * Enhanced SubroutineExecutor interface for the unified execution system.
+ * This replaces the complex parameter-heavy interface with a simplified
+ * ExecutionContext-based approach.
+ */
+export interface EnhancedSubroutineExecutor {
+    /**
+     * Executes a subroutine step using the unified execution engine.
+     * 
+     * @param context The execution context containing all necessary data
+     * @param currentLocation The current location in the execution
+     * @param dependencies External dependencies for execution
+     * @returns Promise resolving to execution result
+     */
+    executeStep(
+        context: ExecutionContext,
+        currentLocation: Location,
+        dependencies: ExecutionDependencies
+    ): Promise<ExecutionResult>;
+
+    /**
+     * Estimates the cost of executing a subroutine.
+     * 
+     * @param context The execution context
+     * @param location The location where execution would occur
+     * @returns Promise resolving to estimated cost in credits
+     */
+    estimateCost(
+        context: ExecutionContext,
+        location: Location
+    ): Promise<bigint>;
 }

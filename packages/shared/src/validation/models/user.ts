@@ -2,10 +2,10 @@ import * as yup from "yup";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
 import { yupObj } from "../utils/builders/yupObj.js";
-import { bio, bool, email, handle, id, imageFile, name, password, publicId, theme } from "../utils/commonFields.js";
+import { bio, bool, config, email, handle, id, imageFile, name, password, publicId, theme } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
-import { botSettings, botValidation } from "./bot.js";
+import { botValidation } from "./bot.js";
 import { emailValidation } from "./email.js";
 
 /**
@@ -57,7 +57,7 @@ export const userValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         // Bot part
         isBotDepictingPerson: opt(bool),
-        botSettings: opt(botSettings),
+        botSettings: opt(config),
         // Profile part
         bannerImage: opt(imageFile),
         handle: opt(handle),

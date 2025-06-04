@@ -1,9 +1,9 @@
-import { Express } from "express";
+import { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { logger } from "../../events/logger.js";
-import { McpServerApp, McpServerMode, ServerConfig } from "./server.js";
+import { McpServerApp, McpServerMode, type ServerConfig } from "./server.js";
 
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const HEARTBEAT_INTERVAL_MS = 30_000;

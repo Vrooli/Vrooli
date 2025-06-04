@@ -1,11 +1,11 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet, type BotCreateInput, type BotUpdateInput, type ServerError, type SessionUser, type TeamCreateInput, type TeamUpdateInput } from "@local/shared";
 import Busboy from "busboy";
-import { Express, NextFunction, Request, Response, Router } from "express";
+import { Router, type Express, type NextFunction, type Request, type Response } from "express";
 import { SessionService } from "../auth/session.js";
-import { PartialApiInfo } from "../builders/types.js";
+import { type PartialApiInfo } from "../builders/types.js";
 import { CustomError } from "../events/error.js";
 import { context } from "../middleware/context.js";
-import { ApiEndpoint } from "../types.js";
+import { type ApiEndpoint } from "../types.js";
 import { processAndStoreFiles } from "../utils/fileStorage.js";
 import { ResponseService } from "../utils/response.js";
 
@@ -511,7 +511,7 @@ export async function initRestApi(app: Express) {
         [endpointsTag.createOne, Logic.tag.createOne, Select.tag_createOne],
         [endpointsTag.updateOne, Logic.tag.updateOne, Select.tag_updateOne],
         // Task
-        [endpointsTask.startLlmTask, Logic.task.startLlmTask, Select.task_startLlmTask],
+        [endpointsTask.startSwarmTask, Logic.task.startSwarmTask, Select.task_startSwarmTask],
         [endpointsTask.startRunTask, Logic.task.startRunTask, Select.task_startRunTask],
         [endpointsTask.cancelTask, Logic.task.cancelTask, Select.task_cancelTask],
         [endpointsTask.checkStatuses, Logic.task.checkStatuses, Select.task_checkStatuses],
@@ -536,9 +536,9 @@ export async function initRestApi(app: Express) {
         [endpointsUser.findOne, Logic.user.findOne, Select.user_findOne],
         [endpointsUser.findMany, Logic.user.findMany, Select.user_findMany],
         [endpointsUser.profileEmailUpdate, Logic.user.profileEmailUpdate, Select.user_profileEmailUpdate],
-        //[endpointsUser.importCalendar, Logic.user.importCalendar, Select.user_importCalendar, icalConfig],
+        [endpointsUser.importCalendar, Logic.user.importCalendar, Select.user_importCalendar, icalConfig],
         //[endpointsUser.importUserData, Logic.user.importUserData, Select.user_importUserData],
-        //[endpointsUser.exportCalendar, Logic.user.exportCalendar, Select.user_exportCalendar],
+        [endpointsUser.exportCalendar, Logic.user.exportCalendar, Select.user_exportCalendar],
         //[endpointsUser.exportUserData, Logic.user.exportUserData, Select.user_exportUserData],
         // Views
         [endpointsView.findMany, Logic.view.findMany, Select.view_findMany],

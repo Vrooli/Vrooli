@@ -1,4 +1,4 @@
-import { endpointsPullRequest, FormSchema, PullRequestSortBy } from "@local/shared";
+import { endpointsPullRequest, type FormSchema, PullRequestSortBy } from "@local/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

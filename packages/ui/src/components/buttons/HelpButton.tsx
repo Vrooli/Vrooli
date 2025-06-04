@@ -7,7 +7,7 @@ import { linkColors, noSelect } from "../../styles.js";
 import { MenuTitle } from "../dialogs/MenuTitle/MenuTitle.js";
 import { RichInputBase } from "../inputs/RichInput/RichInput.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
-import { HelpButtonProps } from "./types.js";
+import { type HelpButtonProps } from "./types.js";
 
 const HelpMenu = styled(Menu)(() => ({
     zIndex: "40000 !important",

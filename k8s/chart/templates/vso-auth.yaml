@@ -1,0 +1,21 @@
+{{- if .Values.vso.enabled -}}
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: {{ include "vrooli.fullname" . }}-vault-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "vrooli.labels" . | nindent 4 }}
+spec:
+  # Reference to the VaultConnection created above
+  # VSO will look for a VaultConnection in the same namespace by default if not specified
+  # vaultConnectionRef: {{ include "vrooli.fullname" . }}-vault-connection
+
+  method: kubernetes
+  mount: {{ .Values.vso.k8sAuthMount | default "kubernetes" | quote }} # Path where K8s auth is mounted in Vault
+  kubernetes:
+    role: {{ .Values.vso.k8sAuthRole | quote }} # The Vault role VSO will assume
+    # Optional: specify the service account VSO runs as, if different from default
+    # serviceAccount: vault-secrets-operator # Name of the SA VSO controller uses
+    # audience: vault # Optional: if your K8s auth role in Vault has a specific audience
+{{- end }} 

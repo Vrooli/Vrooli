@@ -1,11 +1,11 @@
-import { Box, BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, type BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { Icon, IconInfo } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
+import { Icon, type IconInfo } from "../../icons/Icons.js";
+import { type SxType } from "../../types.js";
 import { fontSizeToPixels } from "../../utils/display/stringTools.js";
 import { HelpButton } from "../buttons/HelpButton.js";
-import { TitleProps } from "./types.js";
+import { type TitleProps } from "./types.js";
 
 interface OuterBoxProps extends BoxProps {
     addSidePadding: boolean;

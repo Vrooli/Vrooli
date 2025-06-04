@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { Reminder, endpointsReminder, generatePKString, getObjectUrl } from "@local/shared";
+import { type Reminder, endpointsReminder, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReminderCrud } from "./ReminderCrud.js";
@@ -9,7 +9,7 @@ import { ReminderCrud } from "./ReminderCrud.js";
 // Create simplified mock data for Reminder responses
 const mockReminderData = {
     __typename: "Reminder" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
@@ -19,7 +19,7 @@ const mockReminderData = {
     description: "This is a **detailed** description for the reminder using markdown.\nInclude all technical specifications and user guides.",
     reminderItems: Array.from({ length: 3 }, (_, i) => ({
         __typename: "ReminderItem" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         dueDate: new Date(Date.now() + (i + 1) * 43200000).toISOString(), // Staggered due dates
@@ -30,7 +30,7 @@ const mockReminderData = {
     })),
     reminderList: {
         __typename: "ReminderList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         reminders: [],

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A tool that controls a virtual computer. Learn more about the\n[computer tool](https://platform.openai.com/docs/guides/tools-computer-use).",
+  "type": "object",
+  "properties": {
+    "display_height": {
+      "description": "The height of the computer display.",
+      "type": "number"
+    },
+    "display_width": {
+      "description": "The width of the computer display.",
+      "type": "number"
+    },
+    "environment": {
+      "description": "The type of computer environment to control.",
+      "enum": [
+        "browser",
+        "linux",
+        "mac",
+        "ubuntu",
+        "windows"
+      ],
+      "type": "string"
+    },
+    "type": {
+      "description": "The type of the computer use tool. Always `computer_use_preview`.",
+      "type": "string",
+      "const": "computer-preview"
+    }
+  },
+  "required": [
+    "display_height",
+    "display_width",
+    "environment",
+    "type"
+  ]
+}

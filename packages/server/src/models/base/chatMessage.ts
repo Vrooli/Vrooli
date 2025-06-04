@@ -1,27 +1,27 @@
-import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, DEFAULT_LANGUAGE, MaxObjects, openAIServiceInfo, validatePK } from "@local/shared";
-import { Request } from "express";
+import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@local/shared";
+import { type Prisma } from "@prisma/client";
+import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
-import { PartialApiInfo } from "../../builders/types.js";
+import { type PartialApiInfo } from "../../builders/types.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { Trigger } from "../../events/trigger.js";
-import { SocketService } from "../../sockets/io.js";
-import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context.js";
-import { requestBotResponse } from "../../tasks/llm/queue.js";
-import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat.js";
+import { messageStore } from "../../services/conversation/responseEngine.js";
+import { QueueService } from "../../tasks/queues.js";
+import { type LLMCompletionTask, QueueTaskType } from "../../tasks/taskTypes.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
-import { InputNode } from "../../utils/inputNode.js";
+import { type ChatMessagePre, MessageInfoCollector, type PreMapChatData, type PreMapMessageData } from "../../utils/messageTree.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
 import { getSingleTypePermissions, permissionsCheck } from "../../validators/permissions.js";
 import { ChatMessageFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types.js";
+import { type ChatMessageModelInfo, type ChatMessageModelLogic, type ChatModelInfo, type ChatModelLogic, type ReactionModelLogic, type UserModelLogic } from "./types.js";
 
 const DEFAULT_CHAT_TAKE = 25;
 const MAX_CHAT_TAKE = DEFAULT_CHAT_TAKE;
@@ -43,223 +43,46 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
     mutate: {
         shape: {
             /**
-             * Collects bot information, message information, and chat information for AI responses, 
+             * Collects message and chat information for AI responses, 
              * notifications, and web socket events.
              * 
              * NOTE: Updated messages don't trigger AI responses. Instead, you must create a new message 
              * with versionIndex set to the previous version's index + 1.
              */
-            pre: async ({ Create, Update, Delete, userData, inputsById, ...rest }): Promise<ChatMessagePre> => {
-                // Initialize objects to store bot, message, and chat information
-                const preMap: ChatMessagePre = { chatData: {}, messageData: {}, userData: {} };
+            pre: async ({ Create, Update, Delete, userData }): Promise<ChatMessagePre> => {
+                /* Gather ids ---------------------------------------------------------- */
+                const createChatIds = Create.map(c => c.input.chatConnect).filter(Boolean) as string[];
+                const updateDeleteIds = [...Update, ...Delete].map(x => x.node.id);
 
-                // Find stored chat and chat message information 
-                await getChatParticipantData({
-                    includeMessageInfo: true,
-                    includeMessageParentInfo: true,
-                    chatIds: [...Create].map(({ input }) => input.chatConnect).filter(Boolean) as string[],
-                    messageIds: [...Update, ...Delete].map(({ node }) => node.id),
-                    preMap,
-                    userData,
-                });
+                /* 1️⃣  Fast meta from DB */
+                const pre = await MessageInfoCollector.collect(createChatIds, updateDeleteIds);
 
-                // Collect information for new messages, which can't be queried for
+                /* 2️⃣  Add placeholder records for brand-new messages we just received */
                 for (const { node, input } of Create) {
-                    // Collect chat information
-                    let chatId = input.chatConnect ?? null;
-                    // Collect information for new chats
-                    if (node.parent && node.parent.__typename === "Chat" && ["Create"].includes(node.parent.action)) {
-                        const chatUpsertInfo = inputsById[node.parent.id]?.input as ChatCreateInput | undefined;
-                        if (chatUpsertInfo?.id) {
-                            chatId = chatUpsertInfo.id;
-                            // Store all invite information. Later we'll check if any of these are bots (which are automatically accepted, 
-                            // and can potentially be used for AI responses)
-                            preMap.chatData[chatId] = {
-                                potentialBotIds: chatUpsertInfo.invitesCreate?.map(i => typeof i === "string" ? (inputsById[i]?.input as ChatInviteCreateInput)?.userConnect : i.userConnect) ?? [],
-                                participantsDelete: ((chatUpsertInfo as ChatUpdateInput).participantsDelete ?? []),
-                                isNew: node.parent.action === "Create",
-                            };
-                        }
-                    }
-                    // Collect message data
-                    preMap.messageData[node.id] = {
+                    pre.chatData[input.chatConnect] ??= { hasBotParticipants: true, isNew: false };
+                    pre.messageData[node.id] = {
                         __type: "Create",
-                        chatId,
+                        chatId: input.chatConnect,
                         messageId: node.id,
-                        parentId: input.parentConnect || null, // NOTE: This is overwritten later
+                        parentId: input.parentConnect ?? null,
                         text: input.text,
-                        userId: input.userConnect || userData.id,
+                        userId: input.userConnect ?? userData.id,
                     };
                 }
 
-                // Update information for updated messages
-                for (const { node, input } of Update) {
-                    const messageData = preMap.messageData[node.id] as PreMapMessageDataUpdate | undefined;
-                    if (!messageData || !input.text) continue;
-                    messageData.text = input.text;
-                }
-
-                // Collect information for constructing the message tree, which is effected by creating and deleting messages on existing chats
-                const chatsWithMessages: { [chatId: string]: { messagesCreate: ChatMessageCreateInput[]; messagesDelete: string[] } } = {};
-                for (const { node, input } of [...Create, ...Delete]) {
-                    // If chat is new, skip
-                    const isChatNew = node.parent && node.parent.__typename === "Chat" && ["Create"].includes(node.parent.action);
-                    if (isChatNew) continue;
-                    const chatId = preMap.messageData[node.id]?.chatId;
-                    if (!chatId) continue;
-                    // Collect messages to create and delete for each chat
-                    if (!chatsWithMessages[chatId]) chatsWithMessages[chatId] = { messagesCreate: [], messagesDelete: [] };
-                    if (node.action === "Create") chatsWithMessages[chatId].messagesCreate.push(input as ChatMessageCreateInput);
-                    else if (node.action === "Delete") chatsWithMessages[chatId].messagesDelete.push(input as string);
-                }
-                const chatUpdateInputs = Object.entries(chatsWithMessages).reduce((acc, [chatId, { messagesCreate, messagesDelete }]) => {
-                    acc.push({
-                        id: chatId,
-                        messagesCreate,
-                        messagesDelete,
-                    });
-                    return acc;
-                }, [] as ChatUpdateInput[]);
-                // Collect db information for constructing the message tree
-                const { branchInfo } = await populatePreMapForChatUpdates({ updateInputs: chatUpdateInputs });
-                for (const data of chatUpdateInputs) {
-                    // Update Creates and Updates (and add new Updates if needed) to include parent and children information
-                    const operations = await shapeHelper({ relation: "messages", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "ChatMessage", parentRelationshipName: "chat", data, idsCreateToConnect: {}, preMap: {}, userData, ...rest });
-                    const { summary } = prepareChatMessageOperations(operations, branchInfo[data.id]);
-                    for (const { id: messageId, parentId } of summary.Create) {
-                        // Update the corresponding message in preMapMessageData
-                        const messageData = preMap.messageData[messageId] as PreMapMessageDataCreate | PreMapMessageDataUpdate | undefined;
-                        if (messageData) {
-                            messageData.parentId = parentId;
-                        }
-                    }
-                    for (const { id: messageId, parentId } of summary.Update) {
-                        // If it exists, update the corresponding message in preMapMessageData
-                        const messageData = preMap.messageData[messageId] as PreMapMessageDataCreate | PreMapMessageDataUpdate | undefined;
-                        if (messageData) {
-                            messageData.parentId = parentId;
-                        }
-                        // If it doesn't exist yet, this indicates the update is due to healing the tree 
-                        // (i.e. a message was deleted, so its children need to be updated to point to the new parent).
-                        // Add a new entry to preMapMessageData, and push new input to the Update array.
-                        else {
-                            const updateInput: { node: InputNode; input: ChatMessageUpdateInput; } = {
-                                node: { __typename: "ChatMessage", id: messageId, action: "Update", children: [], parent: null },
-                                input: { id: messageId }, // No updates needed. We'll get the parent ID from the preMap data
-                            };
-                            Update.push(updateInput);
-                            preMap.messageData[messageId] = {
-                                __type: "Update",
-                                chatId: data.id,
-                                messageId,
-                                parentId,
-                            };
-                        }
-                    }
-                }
-
-                // Parse potential bots and bots being removed
-                const potentialBotIds: string[] = [];
-                const participantsBeingRemovedIds: string[] = [];
-                Object.entries(preMap.chatData).forEach(([id, chat]) => {
-                    if (!chat.isNew) return;
-                    if (chat.potentialBotIds) {
-                        chat.potentialBotIds.forEach(botId => {
-                            // Only add to potentialBotIds if the user ID is not already a key in botData (and also not your ID)
-                            if (!preMap.userData[botId] && botId !== userData.id) potentialBotIds.push(botId);
-                            // If it is already a key in bot data, update chatData.botParticipants
-                            else if (preMap.userData[botId]) {
-                                if (!chat.botParticipants) chat.botParticipants = [];
-                                chat.botParticipants.push(botId);
-                            }
-                        });
-                    }
-                    // Add participants being removed to participantsBeingRemovedIds. 
-                    // Since this is the ID of the participant object and not the actual user, we'll have to query for the user later.
-                    if (chat.participantsDelete) participantsBeingRemovedIds.push(...chat.participantsDelete);
-                });
-                // Query potential bot IDs. Any found to be bots will automatically be accepted, 
-                // and can potentially be used for AI responses.
-                if (potentialBotIds.length) {
-                    const potentialBots = await DbProvider.get().user.findMany({
-                        where: {
-                            id: { in: potentialBotIds.map(id => BigInt(id)) },
-                            isBot: true,
-                        },
-                        select: {
-                            id: true,
-                            invitedByUser: {
-                                select: {
-                                    id: true,
-                                },
-                            },
-                            isPrivate: true,
-                            botSettings: true,
-                            name: true,
-                        },
-                    });
-                    potentialBots.forEach(user => {
-                        // Any participant (even not bots) can be added to preMapUserData
-                        preMap.userData[user.id.toString()] = {
-                            botSettings: user.botSettings ?? JSON.stringify({}),
-                            id: user.id.toString(),
-                            isBot: true,
-                            name: user.name,
-                        };
-                        // Add any bot that is public or invited by you to participants
-                        if (!user.isPrivate || user.invitedByUser?.id.toString() === userData.id) {
-                            Object.entries(preMap.chatData).forEach(([id, chat]) => {
-                                if (chat.potentialBotIds?.includes(user.id.toString()) && !chat.botParticipants?.includes(user.id.toString())) {
-                                    if (!chat.botParticipants) chat.botParticipants = [];
-                                    chat.botParticipants.push(user.id.toString());
-                                }
-                            });
-                        }
-                    });
-                }
-                // Query participants being deleted and remove them from botData and chatData.botParticipants
-                if (participantsBeingRemovedIds.length) {
-                    const participantsBeingRemoved = await DbProvider.get().chat_participants.findMany({
-                        where: {
-                            id: { in: participantsBeingRemovedIds.map(id => BigInt(id)) },
-                        },
-                        select: {
-                            id: true,
-                            user: {
-                                select: {
-                                    id: true,
-                                },
-                            },
-                        },
-                    });
-                    participantsBeingRemoved.forEach(participant => {
-                        // Remove from chatData.botParticipants
-                        Object.values(preMap.chatData).forEach((chat) => {
-                            if (chat.botParticipants?.includes(participant.user.id.toString())) {
-                                chat.botParticipants = chat.botParticipants.filter(id => id !== participant.user.id.toString());
-                            }
-                        });
-                        // NOTE: Don't remove from preMapUserData, since their messages may still be in the context for AI responses
-                    });
-                }
-                // Messages can be created for you or bots. Make sure all new messages meet this criteria.
-                for (const { node } of Create) {
-                    const message = preMap.messageData[node.id] as PreMapMessageDataCreate | undefined;
-                    if (message && message.userId !== userData.id && !Object.keys(preMap.userData).includes(message.userId ?? "")) {
-                        throw new CustomError("0526", "Unauthorized", { message });
-                    }
-                }
-
-                // Return data
-                return preMap;
+                return pre;
             },
             create: async ({ data, userData, ...rest }) => {
                 const preMap = rest.preMap[__typename] as ChatMessagePre;
                 // Prefer parent ID from preMap data over what's provided by the client
-                const messageData = preMap?.messageData[data.id] as PreMapMessageDataCreate | undefined;
-                const parentId = messageData?.parentId !== undefined ? messageData.parentId : data.parentConnect;
+                const messageData = preMap?.messageData[data.id];
+                let parentId = data.parentConnect;
+                if (messageData?.__type === "Create" && messageData.parentId !== undefined) {
+                    parentId = messageData.parentId;
+                }
                 return {
                     id: BigInt(data.id),
+                    config: data.config as unknown as Prisma.InputJsonValue,
                     language: userData.languages[0] ?? DEFAULT_LANGUAGE,
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     user: { connect: { id: BigInt(data.userConnect ?? userData.id) } }, // Can create messages for bots. This is authenticated in the "pre" function.
@@ -271,37 +94,36 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             update: async ({ data, ...rest }) => {
                 const preMap = rest.preMap[__typename] as ChatMessagePre;
                 // Allow parentId updates, but only from the pre function
-                const messageData = preMap?.messageData[data.id] as PreMapMessageDataUpdate | undefined;
-                const parentId = messageData?.parentId;
+                const messageData = preMap?.messageData[data.id];
+                let parentId: string | undefined = undefined;
+                if (messageData?.__type === "Update" && messageData.parentId) {
+                    parentId = messageData.parentId;
+                }
                 return {
+                    config: noNull(data.config as unknown as Prisma.InputJsonValue),
                     parent: parentId ? { connect: { id: BigInt(parentId) } } : undefined,
                     text: noNull(data.text),
                 };
             },
         },
         trigger: {
-            afterMutations: async ({ additionalData, createdIds, deletedIds, updatedIds, preMap, resultsById, userData }) => {
-                const preMapUserData: Record<string, PreMapUserData> = preMap[__typename]?.userData ?? {};
+            afterMutations: async ({ createdIds, deletedIds, updatedIds, preMap, resultsById, userData, additionalData }) => {
                 const preMapChatData: Record<string, PreMapChatData> = preMap[__typename]?.chatData ?? {};
                 const preMapMessageData: Record<string, PreMapMessageData> = preMap[__typename]?.messageData ?? {};
-                // Call triggers
+
+                // Handle created messages
                 for (const objectId of createdIds) {
-                    const messageData = preMapMessageData[objectId] as PreMapMessageDataCreate | undefined;
-                    if (!messageData) {
-                        logger.error("Message data not found", { trace: "0238", user: userData.id, message: objectId });
+                    const messageData = preMapMessageData[objectId];
+                    if (!messageData || messageData.__type !== "Create") {
+                        logger.error("Message data not found or not 'Create' type for LLM task creation", { trace: "0238", user: userData.id, messageId: objectId });
                         continue;
                     }
                     const chatId = messageData.chatId;
-                    const chatMessage = resultsById[objectId] as ChatMessage | undefined;
-                    const senderId = messageData.userId;
-                    if (!chatMessage || !chatId || !senderId) {
-                        logger.error("Message, message sender, or chat not found", { trace: "0363", user: userData.id, messageId: objectId, chatId });
-                        continue;
-                    }
-                    // Add message to cache
-                    const model = additionalData.model || openAIServiceInfo.defaultModel;
-                    await (new ChatContextManager(model)).addMessage(messageData);
-                    // Common trigger logic
+
+                    // Extract additional data passed into endpoint
+                    const modelForTask = additionalData?.model as string | undefined;
+                    const taskContexts = additionalData?.taskContexts as TaskContextInfo[] | undefined;
+
                     await Trigger(userData.languages).objectCreated({
                         createdById: userData.id,
                         hasCompleteAndPublic: true, // N/A
@@ -310,42 +132,43 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectId,
                         objectType: __typename,
                     });
+                    const chatMessageForResult = resultsById[objectId] as ChatMessage | undefined;
+                    if (!chatMessageForResult) {
+                        logger.error("ChatMessage result not found for chatMessageCreated trigger", { trace: "0363a", user: userData.id, messageId: objectId });
+                        continue;
+                    }
                     await Trigger(userData.languages).chatMessageCreated({
                         excludeUserId: userData.id,
                         chatId,
                         messageId: objectId,
-                        senderId,
-                        message: chatMessage,
+                        senderId: messageData.userId,
+                        message: chatMessageForResult,
                     });
-                    // Determine which bots should respond, if any.
+
                     const chat: PreMapChatData | undefined = preMapChatData[chatId];
-                    const bots: PreMapUserData[] = chat?.botParticipants?.map(id => preMapUserData[id]).filter(b => b) ?? [];
-                    const botsToRespond = determineRespondingBots(messageData.text, messageData.userId, chat, bots, userData.id);
-                    if (botsToRespond.length) {
-                        // Send typing indicator while bots are responding
-                        SocketService.get().emitSocketEvent("typing", chatId, { starting: botsToRespond });
-                        const task = additionalData.task || "Start";
-                        const taskContexts = Array.isArray(additionalData.taskContexts) ? additionalData.taskContexts : [];
-                        // For each bot that should respond, request bot response
-                        for (const botId of botsToRespond) {
-                            // Call LLM for bot response
-                            requestBotResponse({
-                                chatId,
-                                mode: "text",
-                                model,
-                                parentId: messageData.messageId,
-                                parentMessage: messageData.text,
-                                respondingBotId: botId,
-                                shouldNotRunTasks: false,
-                                task,
-                                taskContexts,
-                                participantsData: preMapUserData,
-                                userData,
-                            });
-                        }
+                    if (chat?.hasBotParticipants) {
+                        const llmTaskPayload: LLMCompletionTask = {
+                            id: generatePK().toString(),
+                            type: QueueTaskType.LLM_COMPLETION,
+                            chatId: messageData.chatId,
+                            messageId: objectId,
+                            userData,
+                            taskContexts: taskContexts ?? [],
+                            model: modelForTask,
+                        };
+                        QueueService.get().llm.addTask(llmTaskPayload);
+                        logger.info(`LLM task ${llmTaskPayload.id} added to queue for message ${objectId}.`);
                     }
                 }
+
+                // Handle updated messages
                 for (const objectId of updatedIds) {
+                    const messageData = preMapMessageData[objectId];
+                    if (!messageData) {
+                        logger.error("Message data not found for update operations", { trace: "chatMessage_update_no_preMapData", objectId });
+                        continue;
+                    }
+
                     await Trigger(userData.languages).objectUpdated({
                         updatedById: userData.id,
                         hasCompleteAndPublic: true, // N/A
@@ -355,24 +178,33 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
-                    // Update message in cache
-                    const messageData = preMapMessageData[objectId] as PreMapMessageDataUpdate | undefined;
-                    if (messageData) {
-                        const model = additionalData.model || openAIServiceInfo.defaultModel;
-                        await (new ChatContextManager(model)).editMessage(messageData);
+
+                    const updatedDbMessage = resultsById[objectId] as ChatMessage | undefined;
+                    if (updatedDbMessage) {
+                        await messageStore.updateMessage(objectId, updatedDbMessage);
+                    } else {
+                        logger.error("Updated message not found in resultsById for cache update", { trace: "chatMessage_update_cache_no_result", objectId });
                     }
-                    //TODO should probably call determineRespondingBots and requestBotResponse here as well
+
                     const chatMessage = resultsById[objectId] as ChatMessage | undefined;
                     if (!chatMessage) {
-                        logger.error("Result message not found", { trace: "0365", user: userData.id, messageId: objectId });
+                        logger.error("Result message not found for chatMessageUpdated trigger", { trace: "0365", user: userData.id, messageId: objectId });
                         continue;
                     }
                     await Trigger(userData.languages).chatMessageUpdated({
-                        data: preMapMessageData[objectId],
+                        data: messageData,
                         message: chatMessage,
                     });
                 }
+
+                // Handle deleted messages
                 for (const objectId of deletedIds) {
+                    const messageData = preMapMessageData[objectId];
+                    if (!messageData) {
+                        logger.error("Message data not found for delete operations", { trace: "chatMessage_delete_no_preMapData", objectId });
+                        continue;
+                    }
+
                     await Trigger(userData.languages).objectDeleted({
                         deletedById: userData.id,
                         hasBeenTransferred: false, // N/A
@@ -381,14 +213,12 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                         objectType: __typename,
                         wasCompleteAndPublic: true, // N/A
                     });
-                    const messageData = preMapMessageData[objectId] as PreMapMessageDataDelete | undefined;
-                    if (messageData) {
-                        await Trigger(userData.languages).chatMessageDeleted({
-                            data: messageData,
-                        });
-                    } else {
-                        logger.error("Message data not found", { trace: "0067", user: userData.id, message: objectId });
-                    }
+
+                    await messageStore.deleteMessage(objectId);
+
+                    await Trigger(userData.languages).chatMessageDeleted({
+                        data: messageData,
+                    });
                 }
             },
         },
@@ -439,7 +269,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 // Find the message with the highest sequence in the chat
                 const highestSeqMessage = await DbProvider.get().chat_message.findFirst({
                     where: { chatId: BigInt(chatId) },
-                    orderBy: { sequence: "desc" },
+                    orderBy: { createdAt: "desc" },
                     select: { id: true },
                 });
 
@@ -649,7 +479,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
             const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["DbModel"], userId), userId) : false;
-            const isParticipant = uuidValidate(userId) && (data.chat as Record<string, any>).participants?.some((p) => p.user?.id === userId || p.userId === userId);
+            const isParticipant = validatePK(userId) && (data.chat as Record<string, any>).participants?.some((p) => p.user?.id.toString() === userId || p.userId.toString() === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,
                 canDelete: () => isLoggedIn && !isDeleted && (isMessageOwner || isChatAdmin),
@@ -671,7 +501,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 return { // If you own the chat or created the message
                     OR: [
                         { chat: useVisibility("Chat", "Own", data) },
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { SELECTION_CHANGE_COMMAND } from "./commands.js";
 import { CSS_TO_STYLES, FULL_RECONCILE, NO_DIRTY_NODES } from "./consts.js";
-import { EditorState, LexicalEditor, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor.js";
+import { type EditorState, type LexicalEditor, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor.js";
 import { $garbageCollectDetachedDecorators, $garbageCollectDetachedNodes } from "./garbageCollector.js";
 import { initMutationObserver } from "./mutations.js";
 import { type LexicalNode } from "./nodes/LexicalNode.js";
 import { type TextNode } from "./nodes/TextNode.js";
 import { reconcileRoot } from "./reconcile.js";
 import { applySelectionTransforms, internalCreateSelection, updateDOMSelection } from "./selection.js";
-import { CommandPayloadType, EditorListenerPayload, EditorListeners, EditorUpdateOptions, LexicalCommand, MutatedNodes, NodeType, RegisteredNode, RegisteredNodes, SerializedEditorState, SerializedLexicalNode, Transform } from "./types.js";
+import { type CommandPayloadType, type EditorListenerPayload, type EditorListeners, type EditorUpdateOptions, type LexicalCommand, type MutatedNodes, type NodeType, type RegisteredNode, type RegisteredNodes, type SerializedEditorState, type SerializedLexicalNode, type Transform } from "./types.js";
 import { $getCompositionKey, $getRoot, $isNode, $isNodeSelection, $isRangeSelection, getDOMSelection, getNextSibling, getPreviousSibling, getStyleObjectFromRawCSS, isAttachedToRoot, removeDOMBlockCursorElement, scheduleMicroTask, updateDOMBlockCursorElement } from "./utils.js";
 
 let activeEditorState: null | EditorState = null;

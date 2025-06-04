@@ -5,7 +5,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { RunIOFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { RunIOModelInfo, RunIOModelLogic, RunModelInfo, RunModelLogic } from "./types.js";
+import { type RunIOModelInfo, type RunIOModelLogic, type RunModelInfo, type RunModelLogic } from "./types.js";
 
 const __typename = "RunIO" as const;
 export const RunIOModel: RunIOModelLogic = ({

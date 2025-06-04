@@ -1,5 +1,5 @@
-import { RangeSelection } from "../selection.js";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, LinkAttributes, NodeConstructorPayloads, NodeType, SerializedAutoLinkNode, SerializedLinkNode } from "../types.js";
+import { type RangeSelection } from "../selection.js";
+import { type BaseSelection, type DOMConversionMap, type DOMConversionOutput, type LinkAttributes, type NodeConstructorPayloads, type NodeType, type SerializedAutoLinkNode, type SerializedLinkNode } from "../types.js";
 import { $applyNodeReplacement, $createNode, $isNode, $isRangeSelection, getParent, isHTMLAnchorElement } from "../utils.js";
 import { ElementNode } from "./ElementNode.js";
 import { type LexicalNode } from "./LexicalNode.js";

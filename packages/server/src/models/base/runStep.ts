@@ -6,7 +6,7 @@ import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";
 import { RunStepFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { RunModelInfo, RunModelLogic, RunStepModelInfo, RunStepModelLogic } from "./types.js";
+import { type RunModelInfo, type RunModelLogic, type RunStepModelInfo, type RunStepModelLogic } from "./types.js";
 
 const __typename = "RunStep" as const;
 export const RunStepModel: RunStepModelLogic = ({

@@ -1,4 +1,4 @@
-import { FormInputType, FormSchema, InputType, OrArray, ParseSearchParamsResult, Tag, UrlPrimitive } from "@local/shared";
+import { type FormInputType, type FormSchema, InputType, type OrArray, type ParseSearchParamsResult, type Tag, type UrlPrimitive } from "@local/shared";
 
 /**
  * Prepares an array of form items to be encoded into a URL search parameter.

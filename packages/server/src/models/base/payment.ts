@@ -2,7 +2,7 @@ import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PaymentFormat } from "../formats.js";
-import { PaymentModelLogic } from "./types.js";
+import { type PaymentModelLogic } from "./types.js";
 
 const __typename = "Payment" as const;
 export const PaymentModel: PaymentModelLogic = ({

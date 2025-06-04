@@ -1,6 +1,6 @@
 import { Button, Divider } from "@mui/material";
 import { propButtonStyle } from "./styles.js";
-import { FormImageProps } from "./types.js";
+import { type FormImageProps } from "./types.js";
 
 const dividerStyle = {
     paddingTop: "8px",

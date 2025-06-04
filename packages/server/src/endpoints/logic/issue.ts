@@ -1,10 +1,10 @@
-import { FindByPublicIdInput, Issue, IssueCloseInput, IssueCreateInput, IssueSearchInput, IssueSearchResult, IssueUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Issue, type IssueCloseInput, type IssueCreateInput, type IssueSearchInput, type IssueSearchResult, type IssueUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { CustomError } from "../../events/error.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsIssue = {
     findOne: ApiEndpoint<FindByPublicIdInput, Issue>;

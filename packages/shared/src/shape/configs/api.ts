@@ -1,7 +1,6 @@
-import { ResourceVersion } from "../../api/types.js";
+import { type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -96,12 +95,12 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
         this.callLink = config.callLink;
     }
 
-    static deserialize(
+    static parse(
         version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean }
+        opts?: { useFallbacks?: boolean },
     ): ApiVersionConfig {
-        return this.parseConfig<ApiVersionConfigObject, ApiVersionConfig>(
+        return super.parseBase<ApiVersionConfigObject, ApiVersionConfig>(
             version.config,
             logger,
             (cfg) => {
@@ -115,7 +114,6 @@ export class ApiVersionConfig extends BaseConfig<ApiVersionConfigObject> {
                 }
                 return new ApiVersionConfig({ config: cfg });
             },
-            { mode: opts?.mode }
         );
     }
 

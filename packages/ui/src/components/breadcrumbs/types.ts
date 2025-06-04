@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { SxType } from "../../types.js";
+import { type SxType } from "../../types.js";
 
 export interface BreadcrumbsBaseProps {
     ariaLabel?: string;

@@ -1,14 +1,14 @@
-import { TranslationKeyCommon } from "@local/shared";
+import { type TranslationKeyCommon } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { IconInfo } from "../../../icons/Icons.js";
+import { type IconInfo } from "../../../icons/Icons.js";
 import { CardGrid } from "../../lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../navigation/TopBar.js";
 import { Title } from "../../text/Title.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { SubroutineCreateDialogProps } from "../types.js";
+import { type SubroutineCreateDialogProps } from "../types.js";
 
 type SubroutineType = "Api" | "Code" | "Data" | "Generate" | "Prompt" | "SmartContract" | "WebContent";
 type SubroutineInfo = {

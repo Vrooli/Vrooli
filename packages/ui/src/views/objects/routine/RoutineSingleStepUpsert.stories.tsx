@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RoutineVersion, RoutineVersionYou, endpointsRoutineVersion, generatePKString, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, type RoutineVersion, type RoutineVersionYou, endpointsRoutineVersion, generatePK, getObjectUrl } from "@local/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepUpsert } from "./RoutineSingleStepUpsert.js";
@@ -9,7 +9,7 @@ import { RoutineSingleStepUpsert } from "./RoutineSingleStepUpsert.js";
 // Create simplified mock data for Routine responses
 const mockRoutineVersionData: RoutineVersion = {
     __typename: "RoutineVersion" as const,
-    id: generatePKString(),
+    id: generatePK().toString(),
     apiVersion: null,
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     callLink: "",
@@ -100,15 +100,15 @@ const mockRoutineVersionData: RoutineVersion = {
     reportsCount: 0,
     resourceList: {
         __typename: "ResourceList" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         createdAt: new Date().toISOString(),
         listFor: {
             __typename: "RoutineVersion" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
         },
         resources: Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => ({
             __typename: "Resource" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             usedFor: ResourceUsedFor.Context,
@@ -116,7 +116,7 @@ const mockRoutineVersionData: RoutineVersion = {
             list: {} as any, // This will be set by the circular reference below
             translations: [{
                 __typename: "ResourceTranslation" as const,
-                id: generatePKString(),
+                id: generatePK().toString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 language: "en",
@@ -129,12 +129,12 @@ const mockRoutineVersionData: RoutineVersion = {
     },
     root: {
         __typename: "Routine" as const,
-        id: generatePKString(),
+        id: generatePK().toString(),
         isPrivate: false,
-        owner: { __typename: "User" as const, id: generatePKString() },
+        owner: { __typename: "User" as const, id: generatePK().toString() },
         tags: Array.from({ length: Math.floor(Math.random() * 5) + 2 }, () => ({
             __typename: "Tag" as const,
-            id: generatePKString(),
+            id: generatePK().toString(),
             tag: ["AI", "Generate", "Content", "Automation", "Workflow", "Productivity", "Tools", "Development"][Math.floor(Math.random() * 8)],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -143,7 +143,6 @@ const mockRoutineVersionData: RoutineVersion = {
         views: Math.floor(Math.random() * 10000),
     },
     routineType: RoutineType.Generate,
-    simplicity: 5,
     subroutineLinks: [],
     timesCompleted: Math.floor(Math.random() * 500),
     timesStarted: Math.floor(Math.random() * 1000),

@@ -108,6 +108,7 @@ model chat {
     publicId               String                      @unique @db.VarChar(12)
     createdAt              DateTime                    @default(now()) @db.Timestamptz(6)
     updatedAt              DateTime                    @updatedAt @db.Timestamptz(6)
+    config                 Json?                       @default("{}")
     isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              BigInt?                     @db.BigInt
@@ -128,14 +129,14 @@ model chat {
 }
 
 model chat_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    chatId             BigInt                      @db.BigInt
-    chat               chat                        @relation(fields: [chatId], references: [id], onDelete: Cascade)
-    language           String                      @db.VarChar(3)
-    name               String?                     @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    chatId             BigInt                       @db.BigInt
+    chat               chat                         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    language           String                       @db.VarChar(3)
+    name               String?                      @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
 
     @@unique([chatId, language], name: "chat_translation_chatid_language_unique")
     @@index([chatId], name: "idx_chat_translation_chatId")
@@ -146,15 +147,14 @@ model chat_message {
     createdAt         DateTime           @default(now()) @db.Timestamptz(6)
     updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
     language          String             @db.VarChar(3)
-    metadata          String?            @db.VarChar(4096)
+    config            Json?              @default("{}")
     text              String             @db.VarChar(32768)
     score             Int                @default(0)
-    sequence          Int                @default(autoincrement())
     versionIndex      Int                @default(0)
     parentId          BigInt?            @db.BigInt
     userId            BigInt?            @db.BigInt
-    chatId            BigInt?            @db.BigInt
-    chat              chat?              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+    chatId            BigInt             @db.BigInt
+    chat              chat               @relation(fields: [chatId], references: [id], onDelete: Cascade)
     parent            chat_message?      @relation("chat_message_parent", fields: [parentId], references: [id], onDelete: SetNull)
     children          chat_message[]     @relation("chat_message_parent")
     user              user?              @relation("chat_message_user", fields: [userId], references: [id], onDelete: SetNull)
@@ -298,14 +298,14 @@ model issue {
 }
 
 model issue_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    description        String?                     @db.VarChar(2048)
-    name               String?                     @db.VarChar(128)
-    issueId            BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    issue              issue                       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    description        String?                      @db.VarChar(2048)
+    name               String?                      @db.VarChar(128)
+    issueId            BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    issue              issue                        @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
     @@unique([issueId, language], name: "issue_translation_issueId_language_unique")
     @@index([issueId], name: "idx_issue_translation_issueId")
@@ -364,15 +364,15 @@ model meeting_invite {
 }
 
 model meeting_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    meetingId          BigInt                      @db.BigInt
-    meeting            meeting                     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-    language           String                      @db.VarChar(3)
-    name               String?                     @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
-    link               String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    meetingId          BigInt                       @db.BigInt
+    meeting            meeting                      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    language           String                       @db.VarChar(3)
+    name               String?                      @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
+    link               String?                      @db.VarChar(2048)
 
     @@unique([meetingId, language], name: "meeting_translation_meetingid_language_unique")
     @@index([meetingId], name: "idx_meeting_translation_meetingId")
@@ -464,11 +464,11 @@ model team {
     bookmarks          Int                         @default(0)
     views              Int                         @default(0)
     parentId           BigInt?                     @db.BigInt
-    premiumId          BigInt?                     @unique @db.BigInt
     createdById        BigInt?                     @db.BigInt
     stripeCustomerId   String?                     @unique @db.VarChar(255)
     createdBy          user?                       @relation("team_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     chats              chat[]
+    creditAccount      credit_account?
     emails             email[]
     issues             issue[]
     apiKeys            api_key[]
@@ -477,7 +477,7 @@ model team {
     meetings           meeting[]
     paymentHistory     payment[]
     phones             phone[]
-    premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
+    plan               plan?
     tags               team_tag[]
     translations       team_translation[]
     members            member[]
@@ -501,14 +501,14 @@ model team {
 }
 
 model team_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    bio                String?                     @db.VarChar(2048)
-    name               String                      @db.VarChar(128)
-    language           String                      @db.VarChar(3)
-    teamId             BigInt                      @db.BigInt
-    team               team                        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    bio                String?                      @db.VarChar(2048)
+    name               String                       @db.VarChar(128)
+    language           String                       @db.VarChar(3)
+    teamId             BigInt                       @db.BigInt
+    team               team                         @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
     @@unique([teamId, language], name: "team_translation_teamId_language_unique")
     @@index([teamId], name: "idx_team_translation_teamId")
@@ -597,15 +597,66 @@ model payment {
     @@index([userId], name: "idx_payment_userId")
 }
 
-model premium {
+model plan {
     id                  BigInt    @id @db.BigInt
-    credits             BigInt    @default(0)
     customPlan          String?   @db.VarChar(2048)
     enabledAt           DateTime? @db.Timestamptz(6)
     expiresAt           DateTime? @db.Timestamptz(6)
     receivedFreeTrialAt DateTime? @db.Timestamptz(6)
-    team                team?
-    user                user?
+    teamId              BigInt?   @unique @db.BigInt
+    userId              BigInt?   @unique @db.BigInt
+    team                team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user                user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model credit_account {
+    /// One account per *credit holder* (user *or* team).      
+    id             BigInt                @id @db.BigInt
+    /// Redundant but handy for quick queries & locking:
+    currentBalance BigInt                @default(0)
+    /// last ledger row applied – lets us "fast-fail" replays
+    lastEntryId    BigInt?               @unique
+    /// The entity this account belongs to.
+    userId         BigInt?               @unique @db.BigInt
+    teamId         BigInt?               @unique @db.BigInt
+    user           user?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+    team           team?                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    /// Ledger entries (1-N)
+    entries        credit_ledger_entry[]
+
+    @@index([userId], name: "idx_credit_account_userId")
+    @@index([teamId], name: "idx_credit_account_teamId")
+}
+
+model credit_ledger_entry {
+    id             BigInt             @id @db.BigInt
+    createdAt      DateTime           @default(now()) @db.Timestamptz(6)
+    /// idempotency key (UUID, Stripe id, etc.) – one ledger row per key
+    idempotencyKey String             @unique @db.VarChar(64)
+    /// ALWAYS signed. Positive = incoming, negative = outgoing.    
+    amount         BigInt
+    type           CreditEntryType
+    source         CreditSourceSystem
+    /// Free-form JSON – stores Stripe session id, turnId, etc.
+    meta           Json?
+
+    /// The account affected
+    accountId BigInt
+    account   credit_account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+    /// Optional linkage to a payment row (so we keep all payment-processor
+    /// details in one table, but still have a single source of truth for
+    /// credits).  Null for internal or spend entries.
+    paymentId BigInt? @db.BigInt
+
+    /// For transfers we store *both* sides: one entry negative on the sender's
+    /// account, one entry positive on the receiver's account, both sharing the
+    /// same `transferGroup`.  That lets you JOIN the pair later.
+    transferGroup String? @db.VarChar(64)
+
+    @@index([accountId, createdAt], name: "idx_credit_ledger_entry_accountId_createdAt")
+    @@index([paymentId], name: "idx_credit_ledger_entry_paymentId")
+    @@index([transferGroup], name: "idx_credit_ledger_entry_transferGroup")
 }
 
 model pull_request {
@@ -697,19 +748,19 @@ model reminder_list {
 }
 
 model reminder {
-    id                 BigInt                      @id @db.BigInt
-    createdAt          DateTime                    @default(now()) @db.Timestamptz(6)
-    updatedAt          DateTime                    @updatedAt @db.Timestamptz(6)
-    completedAt        DateTime?                   @db.Timestamptz(6)
-    dueDate            DateTime?                   @db.Timestamptz(6)
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    name               String                      @db.VarChar(128)
-    description        String?                     @db.VarChar(2048)
+    id                 BigInt                       @id @db.BigInt
+    createdAt          DateTime                     @default(now()) @db.Timestamptz(6)
+    updatedAt          DateTime                     @updatedAt @db.Timestamptz(6)
+    completedAt        DateTime?                    @db.Timestamptz(6)
+    dueDate            DateTime?                    @db.Timestamptz(6)
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    name               String                       @db.VarChar(128)
+    description        String?                      @db.VarChar(2048)
     index              Int
-    reminderListId     BigInt                      @db.BigInt
+    reminderListId     BigInt                       @db.BigInt
     reminderItems      reminder_item[]
-    reminderList       reminder_list               @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    reminderList       reminder_list                @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
 
     @@index([reminderListId, createdAt], name: "idx_reminder_reminderListId_createdAt")
 }
@@ -878,7 +929,6 @@ model resource_version {
     resourceSubType String?  @db.VarChar(32)
     isAutomatable   Boolean? // For routines
     complexity      Int? // For routines & projects
-    simplicity      Int? // For routines & projects
 
     // Run fields
     timesStarted   Int        @default(0)
@@ -922,11 +972,11 @@ model resource_version_relation {
 }
 
 model resource_translation {
-    id                 BigInt                      @id @db.BigInt
-    resourceVersionId  BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
+    id                 BigInt                       @id @db.BigInt
+    resourceVersionId  BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
 
     // Common fields
     name        String  @db.VarChar(128)
@@ -1032,6 +1082,8 @@ model schedule {
     startTime     DateTime
     endTime       DateTime
     timezone      String
+    userId        BigInt                      @db.BigInt
+    user          user                        @relation("schedule_user", fields: [userId], references: [id], onDelete: Cascade)
     exceptions    schedule_exception[]
     meetings      meeting[]                   @relation("meeting_schedule")
     recurrences   schedule_recurrence[]
@@ -1040,6 +1092,7 @@ model schedule {
 
     @@index([publicId])
     @@index([startTime], name: "idx_schedule_startTime")
+    @@index([userId], name: "idx_schedule_userId")
 }
 
 model schedule_exception {
@@ -1102,7 +1155,6 @@ model stats_site {
     resourcesCompletedByType            Json?
     resourceCompletionTimeAverageByType Json? // { "ROUTINE": 120.5, "CODE": 60.2 }
 
-    routineSimplicityAverage  Float
     routineComplexityAverage  Float
     runsStarted               Int
     runsCompleted             Int
@@ -1171,13 +1223,13 @@ model tag {
 }
 
 model tag_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    description        String?                     @db.VarChar(2048)
-    tagId              BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    tag                tag                         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    description        String?                      @db.VarChar(2048)
+    tagId              BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    tag                tag                          @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
     @@unique([tagId, language], name: "tag_translation_tagId_language_unique")
     @@index([tagId], name: "idx_tag_translation_tagId")
@@ -1190,6 +1242,7 @@ model transfer {
     status                TransferStatus @default(Pending)
     initializedByReceiver Boolean        @default(false)
     message               String?        @db.VarChar(4096)
+    closedAt              DateTime?      @db.Timestamptz(6)
     denyReason            String?        @db.VarChar(2048)
     fromTeamId            BigInt?        @db.BigInt
     fromUserId            BigInt?        @db.BigInt
@@ -1240,12 +1293,11 @@ model user {
     currentStreak             Int                         @default(0)
     longestStreak             Int                         @default(0)
     accountTabsOrder          String?                     @db.VarChar(255)
-    botSettings               String?                     @db.VarChar(4096)
+    botSettings               Json?                       @default("{}")
     notificationSettings      String?                     @db.VarChar(2048)
     bookmarks                 Int                         @default(0)
     views                     Int                         @default(0)
     reputation                Int                         @default(0)
-    premiumId                 BigInt?                     @unique @db.BigInt
     stripeCustomerId          String?                     @unique @db.VarChar(255)
     status                    AccountStatus               @default(Unlocked)
     apiKeys                   api_key[]
@@ -1257,6 +1309,7 @@ model user {
     chatsInvited              chat_invite[]
     chatMessages              chat_message[]              @relation("chat_message_user")
     comments                  comment[]                   @relation("comment_ownedByUser")
+    creditAccount             credit_account?
     emails                    email[]
     phones                    phone[]
     invitedByUser             user?                       @relation("user_invitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
@@ -1271,7 +1324,7 @@ model user {
     notificationSubscriptions notification_subscription[]
     memberships               member[]
     membershipsInvited        member_invite[]
-    premium                   premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
+    plan                      plan?
     pullRequests              pull_request[]              @relation("pull_request_createdBy")
     reminderLists             reminder_list[]             @relation("reminder_list_user")
     reportsReceived           report[]                    @relation("report_user")
@@ -1294,6 +1347,7 @@ model user {
     sessions                  session[]
     stats                     stats_user[]
     wallets                   wallet[]
+    schedules                 schedule[]                  @relation("schedule_user")
 
     @@index([publicId], name: "idx_user_publicId")
     @@index([invitedByUserId, createdAt], name: "idx_user_invitedByUserId_createdAt")
@@ -1337,13 +1391,13 @@ model session {
 }
 
 model user_translation {
-    id                 BigInt                      @id @db.BigInt
-    embedding          Unsupported("vector(768)")?
-    embeddingExpiredAt DateTime?                   @default(now()) @db.Timestamptz(6)
-    bio                String?                     @db.VarChar(2048)
-    userId             BigInt                      @db.BigInt
-    language           String                      @db.VarChar(3)
-    user               user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                 BigInt                       @id @db.BigInt
+    embedding          Unsupported("vector(1536)")?
+    embeddingExpiredAt DateTime?                    @default(now()) @db.Timestamptz(6)
+    bio                String?                      @db.VarChar(2048)
+    userId             BigInt                       @db.BigInt
+    language           String                       @db.VarChar(3)
+    user               user                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language], name: "user_translation_userId_language_unique")
     @@index([userId], name: "idx_user_translation_userId")
@@ -1396,6 +1450,41 @@ enum AccountStatus {
     Unlocked
     SoftLocked
     HardLocked
+}
+
+enum CreditEntryType {
+    // + incoming
+    Purchase
+    TransferIn
+    RollOver
+    Bonus
+    Refund
+    DonationReceived
+    MigrationImport
+    AdjustmentIncrease
+    // – outgoing
+    Spend
+    TransferOut
+    DonationGiven
+    Expire
+    Chargeback
+    AdjustmentDecrease
+    Penalty
+    // catch-all
+    Other
+}
+
+enum CreditSourceSystem {
+    Stripe
+    CryptoGateway
+    PartnerGateway
+    Scheduler
+    InternalAgent
+    Admin
+    MigrationScript
+    TestHarness
+    OtherProcessor
+    Other
 }
 
 enum InviteStatus {

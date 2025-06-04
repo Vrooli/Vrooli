@@ -1,4 +1,4 @@
-import { FindByIdInput, MeetingCreateInput, MeetingSearchInput, MeetingUpdateInput, uuid } from "@local/shared";
+import { type FindByIdInput, type MeetingCreateInput, type MeetingSearchInput, type MeetingUpdateInput, uuid } from "@local/shared";
 import { expect } from "chai";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";

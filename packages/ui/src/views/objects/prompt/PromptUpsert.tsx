@@ -1,4 +1,4 @@
-import { CodeLanguage, DUMMY_ID, endpointsStandardVersion, FormSchema, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardType, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, endpointsStandardVersion, type FormSchema, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, type Session, shapeStandardVersion, StandardType, type StandardVersion, type StandardVersionCreateInput, type StandardVersionShape, standardVersionTranslationValidation, type StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
 import { Button, Divider } from "@mui/material";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -22,7 +22,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { FormView } from "../../../forms/FormView/FormView.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { getAutoFillTranslationData, useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -31,7 +31,7 @@ import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { PromptFormProps, PromptUpsertProps } from "./types.js";
+import { type PromptFormProps, type PromptUpsertProps } from "./types.js";
 
 export function promptInitialValues(
     session: Session | undefined,

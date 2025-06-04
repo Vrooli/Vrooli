@@ -1,7 +1,7 @@
-import { StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
+import { type StatsSiteSearchInput, type StatsSiteSearchResult } from "@local/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 
 export type EndpointsStatsSite = {
     findMany: ApiEndpoint<StatsSiteSearchInput, StatsSiteSearchResult>;

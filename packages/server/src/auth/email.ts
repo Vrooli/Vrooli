@@ -1,11 +1,13 @@
-import { AUTH_PROVIDERS, DAYS_2_MS, MINUTES_15_MS, Session, TranslationKeyError } from "@local/shared";
-import { AccountStatus, PrismaPromise, email, premium, session, user, user_auth } from "@prisma/client";
+import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@local/shared";
+import { AccountStatus, type Prisma, type PrismaPromise, type credit_account, type email, type plan, type session, type user, type user_auth } from "@prisma/client";
 import bcrypt from "bcrypt";
-import { Request } from "express";
+import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { Notify } from "../notify/notify.js";
-import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue.js";
+import { UI_URL } from "../server.js";
+import { AUTH_EMAIL_TEMPLATES } from "../tasks/index.js";
+import { QueueService } from "../tasks/queues.js";
 import { randomString, validateCode } from "./codes.js";
 import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 import { RequestService } from "./request.js";
@@ -21,7 +23,8 @@ const EMAIL_VERIFICATION_CODE_LENGTH = 8;
 export type UserDataForPasswordAuth = Pick<user, "id" | "handle" | "languages" | "lastLoginAttempt" | "logInAttempts" | "name" | "profileImage" | "publicId" | "theme" | "status" | "updatedAt"> & {
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
-    premium: Pick<premium, "credits" | "expiresAt"> | null;
+    plan: Pick<plan, "expiresAt"> | null;
+    creditAccount: Pick<credit_account, "id" | "currentBalance"> | null;
     sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revokedAt"> & {
         auth: Pick<user_auth, "id" | "provider">;
     })[];
@@ -66,10 +69,15 @@ export class PasswordAuthService {
                 },
             },
             languages: true,
-            premium: {
+            plan: {
                 select: {
-                    credits: true,
                     expiresAt: true,
+                },
+            },
+            creditAccount: {
+                select: {
+                    id: true,
+                    currentBalance: true,
                 },
             },
             sessions: {
@@ -87,7 +95,7 @@ export class PasswordAuthService {
                     },
                 },
             },
-        } as const;
+        } satisfies Prisma.userSelect;
     }
 
     /**
@@ -231,6 +239,7 @@ export class PasswordAuthService {
                 transactions.push(
                     DbProvider.get().session.create({
                         data: {
+                            id: generatePK(),
                             device_info: deviceInfo,
                             expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                             last_refresh_at: new Date(),
@@ -289,11 +298,27 @@ export class PasswordAuthService {
     }
 
     /**
-     * Generates a URL-safe code for account confirmations and password resets
-     * @param length Length of code to generate
+     * Generates a reset password code and link
+     * @param userPublicId User's public ID
+     * @returns The generated reset password code, and a URL to go to for verification
      */
-    static generateEmailVerificationCode(length?: number): string {
-        return randomString(length ?? EMAIL_VERIFICATION_CODE_LENGTH);
+    static generateResetPasswordCode(userPublicId: string): { code: string, link: string } {
+        const code = randomString(EMAIL_VERIFICATION_CODE_LENGTH);
+        const compositeKey = `${userPublicId}:${code}`;
+        const link = `${UI_URL}${LINKS.ResetPassword}?code="${compositeKey}"`;
+        return { code, link };
+    }
+
+    /**
+     * Generates a verification code and link for email verification
+     * @param userPublicId User's public ID
+     * @returns The generated verification code, and a URL to go to for verification
+     */
+    static generateEmailVerificationCode(userPublicId: string): { code: string, link: string } {
+        const code = randomString(EMAIL_VERIFICATION_CODE_LENGTH);
+        const compositeKey = `${userPublicId}:${code}`;
+        const link = `${UI_URL}${LINKS.Login}?code="${compositeKey}"`;
+        return { code, link };
     }
 
     /**
@@ -306,9 +331,9 @@ export class PasswordAuthService {
             throw new CustomError("0063", "NoEmails");
         }
         // Generate new code
-        const resetPasswordCode = this.generateEmailVerificationCode();
+        const { code, link } = this.generateResetPasswordCode(user.publicId);
         const commonAuthData = {
-            resetPasswordCode,
+            resetPasswordCode: code,
             lastResetPasswordRequestAttempt: new Date(),
         } as const;
         // Find the password auth
@@ -319,6 +344,7 @@ export class PasswordAuthService {
             await DbProvider.get().user_auth.create({
                 data: {
                     ...commonAuthData,
+                    id: generatePK(),
                     provider: AUTH_PROVIDERS.Password,
                     user: {
                         connect: { id: BigInt(user.id) },
@@ -336,10 +362,11 @@ export class PasswordAuthService {
             });
         }
         // Send new verification emails
-        for (const email of user.emails) {
-            sendResetPasswordLink(email.emailAddress, user.publicId, resetPasswordCode);
-        }
-        return true;
+        const success = await QueueService.get().email.addTask({
+            to: user.emails.map((e) => e.emailAddress),
+            ...AUTH_EMAIL_TEMPLATES.ResetPassword(user.publicId, link),
+        });
+        return success.success;
     }
 
     static emailVerificationCodeSelect() {
@@ -365,7 +392,7 @@ export class PasswordAuthService {
         userId: string,
         userPublicId: string,
         languages: string[] | undefined,
-    ): Promise<void> {
+    ): Promise<boolean> {
         // Find the email
         let email = await DbProvider.get().email.findUnique({
             where: { emailAddress },
@@ -375,6 +402,7 @@ export class PasswordAuthService {
         if (!email) {
             email = await DbProvider.get().email.create({
                 data: {
+                    id: generatePK(),
                     emailAddress,
                     user: {
                         connect: { id: BigInt(userId) },
@@ -392,19 +420,23 @@ export class PasswordAuthService {
             throw new CustomError("0059", "EmailAlreadyVerified");
         }
         // Generate new code
-        const verificationCode = this.generateEmailVerificationCode();
+        const { code, link } = this.generateEmailVerificationCode(userPublicId);
         // Store code and request time
         await DbProvider.get().email.update({
             where: { id: email.id },
             data: {
-                verificationCode,
+                verificationCode: code,
                 lastVerificationCodeRequestAttempt: new Date(),
             },
         });
         // Send new verification email
-        sendVerificationLink(emailAddress, userPublicId, verificationCode);
+        const success = await QueueService.get().email.addTask({
+            to: [emailAddress],
+            ...AUTH_EMAIL_TEMPLATES.VerificationLink(userPublicId, link),
+        });
         // Warn of new verification email to existing devices (if applicable)
         Notify(languages).pushNewEmailVerification().toUser(userId);
+        return success.success;
     }
 
     /**

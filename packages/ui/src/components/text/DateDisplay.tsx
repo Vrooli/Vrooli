@@ -2,7 +2,7 @@ import { Box, Typography, useTheme } from "@mui/material";
 import { IconCommon } from "../../icons/Icons.js";
 import { displayDate } from "../../utils/display/stringTools.js";
 import { TextLoading } from "../lists/TextLoading/TextLoading.js";
-import { DateDisplayProps } from "./types.js";
+import { type DateDisplayProps } from "./types.js";
 
 const scheduleIconStyle = {
     marginRight: "4px",

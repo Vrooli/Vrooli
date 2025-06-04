@@ -1,8 +1,8 @@
-import { OwnerShape, RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
+import { type OwnerShape, type RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog.js";
-import { FindSubroutineDialogProps } from "../types.js";
+import { type FindSubroutineDialogProps } from "../types.js";
 
 const limitTo = [
     "RoutineSingleStep",

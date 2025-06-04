@@ -1,25 +1,15 @@
 import { expect } from "chai";
 import { describe } from "mocha";
 import sinon from "sinon";
-import { ResourceVersion } from "../../api/types.js";
+import { type ResourceVersion } from "../../api/types.js";
 import { CodeLanguage } from "../../consts/index.js";
-import { CodeVersionConfig, CodeVersionConfigObject } from "./code.js";
+import { CodeVersionConfig, type CodeVersionConfigObject, type JsonSchema } from "./code.js";
 import { LATEST_CONFIG_VERSION } from "./utils.js";
 
-type PartialCodeVersion = Pick<ResourceVersion, "codeLanguage" | "content" | "data">;
+// Type for constructing the argument to CodeVersionConfig.parse
+type VersionInputForParse = Pick<ResourceVersion, "codeLanguage" | "config">;
 
-// Sample CodeVersion objects with filled-out content fields
-const sampleCodeVersionSpread: PartialCodeVersion = {
-    codeLanguage: CodeLanguage.Javascript,
-    content: "function sum(a, b, c) { return a + b + c; }",
-    data: null,  // Will be set in tests
-};
-
-const sampleCodeVersionDirect: PartialCodeVersion = {
-    codeLanguage: CodeLanguage.Javascript,
-    content: "function greet({ name, age }) { return `Hello, ${name}, age ${age}`; }",
-    data: null,  // Will be set in tests
-};
+const DEFAULT_TEST_CONTENT = "function main() { return 'test'; }";
 
 describe("CodeVersionConfig", () => {
     let consoleErrorStub: sinon.SinonStub;
@@ -37,10 +27,24 @@ describe("CodeVersionConfig", () => {
     });
 
     describe("deserialization", () => {
+        it("correctly falls back to defaults on invalid data (e.g. non-JSON string)", () => {
+            const versionWithInvalidConfig: VersionInputForParse = {
+                codeLanguage: CodeLanguage.Javascript,
+                config: "not a valid json string" as any,
+            };
+            const config = CodeVersionConfig.parse(versionWithInvalidConfig, console);
+            const defaultConfig = CodeVersionConfig.default({
+                codeLanguage: CodeLanguage.Javascript,
+                initialContent: "",
+            });
+            expect(config.export()).to.deep.equal(defaultConfig.export());
+            expect(consoleErrorStub.calledWithMatch(/Failed to parse CodeVersionConfig string/)).to.be.true;
+        });
+
         describe("inputs", () => {
             describe("spreads", () => {
                 it("number array", () => {
-                    const validData: CodeVersionConfigObject = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: {
                             inputSchema: {
@@ -53,16 +57,22 @@ describe("CodeVersionConfig", () => {
                         },
                         outputConfig: [],
                         testCases: [],
+                        content: "function sum(a, b, c) { return a + b + c; }",
                     };
-                    const validDataString = JSON.stringify(validData);
-                    const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validData.inputConfig);
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
 
                 it("mixed type array", () => {
-                    const validData: CodeVersionConfigObject = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: {
                             inputSchema: {
@@ -79,18 +89,24 @@ describe("CodeVersionConfig", () => {
                         },
                         outputConfig: [],
                         testCases: [],
+                        content: "function process(a,b,c) { console.log(a,b,c); }",
                     };
-                    const validDataString = JSON.stringify(validData);
-                    const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validData.inputConfig);
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
             });
 
             describe("directs", () => {
                 it("simple object", () => {
-                    const validDirectData = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: {
                             inputSchema: {
@@ -105,16 +121,22 @@ describe("CodeVersionConfig", () => {
                         },
                         outputConfig: [],
                         testCases: [],
+                        content: "function greet(obj) { return obj.name; }",
                     };
-                    const validDirectDataString = JSON.stringify(validDirectData);
-                    const codeVersion = { ...sampleCodeVersionDirect, data: validDirectDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validDirectData.inputConfig);
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
 
                 it("nested object", () => {
-                    const validDirectData = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: {
                             inputSchema: {
@@ -137,44 +159,63 @@ describe("CodeVersionConfig", () => {
                             },
                             shouldSpread: false,
                         },
+                        outputConfig: [],
+                        testCases: [],
+                        content: DEFAULT_TEST_CONTENT,
                     };
-                    const validDirectDataString = JSON.stringify(validDirectData);
-                    const codeVersion = { ...sampleCodeVersionDirect, data: validDirectDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validDirectData.inputConfig);
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
             });
 
-            it("null input", () => {
-                const codeVersion = { ...sampleCodeVersionDirect, data: null } as CodeVersion;
-                const config = CodeVersionConfig.deserialize(codeVersion, console);
-                const defaultConfig = CodeVersionConfig.default(codeVersion);
-                expect(config.__version).to.equal(defaultConfig.__version);
-                expect(config.inputConfig).to.deep.equal(defaultConfig.inputConfig);
+            it("null config string in version input", () => {
+                const versionWithNullConfig: VersionInputForParse = {
+                    codeLanguage: CodeLanguage.Javascript,
+                    config: null,
+                };
+                const parsedConfig = CodeVersionConfig.parse(versionWithNullConfig, console);
+                const defaultConfig = CodeVersionConfig.default({
+                    codeLanguage: CodeLanguage.Javascript,
+                    initialContent: "",
+                });
+                expect(parsedConfig.export()).to.deep.equal(defaultConfig.export());
+                expect(consoleErrorStub.calledWithMatch(/Content was not available in parsed config/)).to.be.true;
             });
         });
 
         describe("outputs", () => {
             describe("single schema", () => {
                 it("string", () => {
-                    const validData = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: CodeVersionConfig.defaultInputConfig(),
-                        outputConfig: { type: "string" },
+                        outputConfig: { type: "string" } as JsonSchema,
                         testCases: [],
-                    } as CodeVersionConfigObject;
-                    const validDataString = JSON.stringify(validData);
-                    const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validData.inputConfig);
-                    expect(config.outputConfig).to.deep.equal({ type: "string" });
+                        content: DEFAULT_TEST_CONTENT,
+                    };
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
 
-
                 it("object with properties", () => {
-                    const validData: CodeVersionConfigObject = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: CodeVersionConfig.defaultInputConfig(),
                         outputConfig: {
@@ -184,21 +225,27 @@ describe("CodeVersionConfig", () => {
                                 message: { type: "string" },
                             },
                             required: ["result"],
-                        },
+                        } as JsonSchema,
                         testCases: [],
-                    } as CodeVersionConfigObject;
-                    const validDataString = JSON.stringify(validData);
-                    const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validData.inputConfig);
-                    expect(config.outputConfig).to.deep.equal(validData.outputConfig);
+                        content: DEFAULT_TEST_CONTENT,
+                    };
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
             });
 
             describe("multiple schemas", () => {
                 it("string and object", () => {
-                    const validData: CodeVersionConfigObject = {
+                    const configObject: CodeVersionConfigObject = {
                         __version: LATEST_CONFIG_VERSION,
                         inputConfig: CodeVersionConfig.defaultInputConfig(),
                         outputConfig: [
@@ -208,85 +255,98 @@ describe("CodeVersionConfig", () => {
                                 properties: { error: { type: "string" } },
                                 required: ["error"],
                             },
-                        ],
+                        ] as JsonSchema[],
                         testCases: [],
-                    } as CodeVersionConfigObject;
-                    const validDataString = JSON.stringify(validData);
-                    const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                    const config = CodeVersionConfig.deserialize(codeVersion, console);
-                    expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(config.inputConfig).to.deep.equal(validData.inputConfig);
-                    expect(config.outputConfig).to.deep.equal(validData.outputConfig);
+                        content: DEFAULT_TEST_CONTENT,
+                    };
+                    const configString = JSON.stringify(configObject);
+                    const versionInput: VersionInputForParse = {
+                        codeLanguage: CodeLanguage.Javascript,
+                        config: configString as any,
+                    };
+                    const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
+                    expect(parsedConfig.content).to.equal(configObject.content);
+                    expect(consoleErrorStub.called).to.be.false;
                 });
             });
 
             it("no outputConfig provided", () => {
-                const validData: Partial<CodeVersionConfigObject> = {
+                const configObject: CodeVersionConfigObject = {
                     __version: LATEST_CONFIG_VERSION,
                     inputConfig: CodeVersionConfig.defaultInputConfig(),
-                    // outputConfig is omitted
+                    content: DEFAULT_TEST_CONTENT,
+                    testCases: CodeVersionConfig.defaultTestCases(),
                 };
-                const validDataString = JSON.stringify(validData);
-                const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-                const config = CodeVersionConfig.deserialize(codeVersion, console);
-                expect(config.__version).to.equal(LATEST_CONFIG_VERSION);
-                expect(config.inputConfig).to.deep.equal(validData.inputConfig);
-                expect(config.outputConfig).to.deep.equal(CodeVersionConfig.defaultOutputConfig());
+                const configString = JSON.stringify(configObject);
+                const versionInput: VersionInputForParse = {
+                    codeLanguage: CodeLanguage.Javascript,
+                    config: configString as any,
+                };
+                const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+                expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
+                expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
+                expect(parsedConfig.outputConfig).to.deep.equal(CodeVersionConfig.defaultOutputConfig());
+                expect(parsedConfig.content).to.equal(configObject.content);
+                expect(consoleErrorStub.called).to.be.false;
             });
-        });
-
-        it("correctly falls back to defaults on invalid data", () => {
-            const codeVersion = { ...sampleCodeVersionSpread, data: "invalid json" } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
-            const defaultConfig = CodeVersionConfig.default(codeVersion);
-            expect(config.__version).to.equal(defaultConfig.__version);
-            expect(config.inputConfig).to.deep.equal(defaultConfig.inputConfig);
         });
     });
 
     describe("serialization", () => {
         it("spread input and array output", () => {
-            const validData: CodeVersionConfigObject = {
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: { inputSchema: { type: "array", items: { type: "number" } }, shouldSpread: true },
-                outputConfig: [{ type: "string" }],
+                outputConfig: [{ type: "string" }] as JsonSchema[],
                 testCases: [],
+                content: "function spreadTest() { return 'ok'; }",
+                resources: [],
+                contractDetails: undefined,
             };
-            const validDataString = JSON.stringify(validData);
-            const codeVersion = { ...sampleCodeVersionSpread, data: validDataString } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
-            const serialized = config.serialize("json");
-            const expected = JSON.stringify(config.export());
-            expect(serialized).to.equal(expected);
-            expect(expected).to.equal(validDataString);
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
+                codeLanguage: CodeLanguage.Javascript,
+                config: configString as any,
+            };
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+            expect(parsedConfig.export()).to.deep.equal(configObject);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("direct input and single schema output", () => {
-            const validData: CodeVersionConfigObject = {
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: { inputSchema: { type: "object" }, shouldSpread: false },
-                outputConfig: [{ type: "string" }],
+                outputConfig: { type: "string" } as JsonSchema,
                 testCases: [],
+                content: "function directTest() { return 'ok'; }",
+                resources: [],
+                contractDetails: undefined,
             };
-            const validDataString = JSON.stringify(validData);
-            const codeVersion = { ...sampleCodeVersionDirect, data: validDataString } as CodeVersion;
-            const config = CodeVersionConfig.deserialize(codeVersion, console);
-            const serialized = config.serialize("json");
-            const expected = JSON.stringify(config.export());
-            expect(serialized).to.equal(expected);
-            expect(expected).to.equal(validDataString);
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
+                codeLanguage: CodeLanguage.Javascript,
+                config: configString as any,
+            };
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
+            expect(parsedConfig.export()).to.deep.equal(configObject);
+            expect(consoleErrorStub.called).to.be.false;
         });
     });
 
     describe("runTestCases", () => {
         it("runs a passing test case correctly with spread input", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function sum(a, b, c) { return a + b + c; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "array", items: { type: "number" } },
                     shouldSpread: true,
                 },
-                outputConfig: [{ type: "number" }],
+                outputConfig: [{ type: "number" }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Simple addition",
@@ -294,53 +354,57 @@ describe("CodeVersionConfig", () => {
                         expectedOutput: 6,
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function sum(a, b, c) { return a + b + c; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox() {
                 return { output: 6 };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Simple addition",
                     passed: true,
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("runs a failing test case correctly with spread input", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function sum(a, b, c) { return a + b + c; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "array", items: { type: "number" } },
                     shouldSpread: true,
                 },
-                outputConfig: [{ type: "number" }],
+                outputConfig: [{ type: "number" }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Simple addition",
                         input: [1, 2, 3],
-                        expectedOutput: 7,  // Expecting 7, but runSandbox returns 6
+                        expectedOutput: 7,
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function sum(a, b, c) { return a + b + c; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox() {
                 return { output: 6 };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Simple addition",
@@ -348,16 +412,18 @@ describe("CodeVersionConfig", () => {
                     actualOutput: 6,
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("handles errors in runSandbox correctly", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function sum(a, b, c) { throw new Error('Test error'); }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "array", items: { type: "number" } },
                     shouldSpread: true,
                 },
-                outputConfig: [{ type: "number" }],
+                outputConfig: [{ type: "number" }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Error case",
@@ -365,18 +431,19 @@ describe("CodeVersionConfig", () => {
                         expectedOutput: 6,
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function sum(a, b, c) { throw new Error('Test error'); }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox() {
                 return { error: "Test error" };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Error case",
@@ -384,16 +451,18 @@ describe("CodeVersionConfig", () => {
                     error: "Test error",
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("runs multiple test cases correctly", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function sum(a, b, c) { return a + b + c; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "array", items: { type: "number" } },
                     shouldSpread: true,
                 },
-                outputConfig: [{ type: "number" }],
+                outputConfig: [{ type: "number" }] as JsonSchema[],
                 testCases: [
                     {
                         description: "First test",
@@ -406,20 +475,21 @@ describe("CodeVersionConfig", () => {
                         expectedOutput: 15,
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function sum(a, b, c) { return a + b + c; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as number[];
                 const sum = input.reduce((a, b) => a + b, 0);
                 return { output: sum };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "First test",
@@ -430,10 +500,12 @@ describe("CodeVersionConfig", () => {
                     passed: true,
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("runs test cases with direct input correctly", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function add(obj) { return obj.a + obj.b; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: {
@@ -442,7 +514,7 @@ describe("CodeVersionConfig", () => {
                     },
                     shouldSpread: false,
                 },
-                outputConfig: [{ type: "number" }],
+                outputConfig: [{ type: "number" }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Object input",
@@ -450,35 +522,38 @@ describe("CodeVersionConfig", () => {
                         expectedOutput: 3,
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function add(obj) { return obj.a + obj.b; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { a: number; b: number };
                 return { output: input.a + input.b };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Object input",
                     passed: true,
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("runs test cases with complex object output correctly", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "object", properties: { name: { type: "string" } } },
                     shouldSpread: false,
                 },
-                outputConfig: [{ type: "object", properties: { greeting: { type: "string" } } }],
+                outputConfig: [{ type: "object", properties: { greeting: { type: "string" } } }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Greeting test",
@@ -486,55 +561,59 @@ describe("CodeVersionConfig", () => {
                         expectedOutput: { greeting: "Hello, Alice" },
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { name: string };
                 return { output: { greeting: `Hello, ${input.name}` } };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Greeting test",
                     passed: true,
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
 
         it("detects failing test case with object output", async () => {
-            const configData: CodeVersionConfigObject = {
+            const testContent = "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }";
+            const configObject: CodeVersionConfigObject = {
                 __version: LATEST_CONFIG_VERSION,
                 inputConfig: {
                     inputSchema: { type: "object", properties: { name: { type: "string" } } },
                     shouldSpread: false,
                 },
-                outputConfig: [{ type: "object", properties: { greeting: { type: "string" } } }],
+                outputConfig: [{ type: "object", properties: { greeting: { type: "string" } } }] as JsonSchema[],
                 testCases: [
                     {
                         description: "Greeting test",
                         input: { name: "Alice" },
-                        expectedOutput: { greeting: "Hi, Alice" },  // Expecting "Hi", but getting "Hello"
+                        expectedOutput: { greeting: "Hi, Alice" },
                     },
                 ],
+                content: testContent,
             };
-            const codeVersion: PartialCodeVersion = {
+            const configString = JSON.stringify(configObject);
+            const versionInput: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
-                content: "function greet(obj) { return { greeting: `Hello, ${obj.name}` }; }",
-                data: JSON.stringify(configData),
+                config: configString as any,
             };
-            const config = CodeVersionConfig.deserialize(codeVersion as CodeVersion, console);
+            const parsedConfig = CodeVersionConfig.parse(versionInput, console);
 
             async function runSandbox(params: { input?: unknown }) {
                 const input = params.input as { name: string };
                 return { output: { greeting: `Hello, ${input.name}` } };
             }
-            const results = await config.runTestCases(runSandbox);
+            const results = await parsedConfig.runTestCases(runSandbox);
             expect(results).to.deep.equal([
                 {
                     description: "Greeting test",
@@ -542,6 +621,7 @@ describe("CodeVersionConfig", () => {
                     actualOutput: { greeting: "Hello, Alice" },
                 },
             ]);
+            expect(consoleErrorStub.called).to.be.false;
         });
     });
 });

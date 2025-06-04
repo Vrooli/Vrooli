@@ -1,0 +1,30 @@
+{{- /*
+This template generates Services for each service defined in .Values.services
+*/ -}}
+
+{{- range $name, $svc := .Values.services }}
+{{- $serviceEnabled := true -}}
+{{- if hasKey $svc "enabled" -}}
+  {{- $serviceEnabled = $svc.enabled -}}
+{{- end -}}
+
+{{- if $serviceEnabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vrooli.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "vrooli.labels" $ | nindent 4 }}
+    {{- include "vrooli.componentLabels" (dict "componentName" $name "root" $) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+      protocol: TCP
+      name: http {{- if eq $name "nsfwDetector" }}-tcp{{- end }} # Ensure port name is valid if it's just numbers
+  selector:
+    {{- include "vrooli.selectorLabels" $ | nindent 4 }}
+    {{- include "vrooli.componentLabels" (dict "componentName" $name "root" $) | nindent 4 }}
+{{- end }}{{/* if $serviceEnabled */}}
+{{- end }} 

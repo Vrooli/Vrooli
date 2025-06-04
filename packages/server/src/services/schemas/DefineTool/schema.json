@@ -1,0 +1,57 @@
+{
+  "name": "define_tool",
+  "description": "Return the detailed input schema for ResourceManage given a resource variant *and* CRUD op.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "toolName": {
+        "description": "CRUD for *any* resource",
+        "type": "string",
+        "const": "resource_manage"
+      },
+      "variant": {
+        "description": "Resource type",
+        "enum": [
+          "Bot",
+          "ExternalData",
+          "Note",
+          "Project",
+          "RoutineApi",
+          "RoutineCode",
+          "RoutineData",
+          "RoutineGenerate",
+          "RoutineInformational",
+          "RoutineInternalAction",
+          "RoutineMultiStep",
+          "RoutineSmartContract",
+          "RoutineWeb",
+          "StandardDataStructure",
+          "StandardPrompt",
+          "Team"
+        ],
+        "type": "string"
+      },
+      "op": {
+        "description": "The operation to define",
+        "enum": [
+          "add",
+          "delete",
+          "find",
+          "update"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "op",
+      "toolName",
+      "variant"
+    ],
+    "additionalProperties": false
+  },
+  "annotations": {
+    "title": "Define Tool Parameters",
+    "readOnlyHint": true,
+    "openWorldHint": false
+  }
+}

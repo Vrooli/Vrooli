@@ -1,12 +1,12 @@
-import { Box, FormControl, FormControlProps, FormHelperText, InputAdornment, InputLabel, List, ListItem, OutlinedInput, Popover, TextField, Typography, useTheme } from "@mui/material";
+import { Box, FormControl, type FormControlProps, FormHelperText, InputAdornment, InputLabel, List, ListItem, OutlinedInput, Popover, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { CountryCallingCode, CountryCode } from "libphonenumber-js";
+import { type CountryCallingCode, type CountryCode } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebounce } from "../../../hooks/useDebounce.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { useStableCallback } from "../../../hooks/useStableCallback.js";
 import { IconCommon } from "../../../icons/Icons.js";
-import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types.js";
+import { type PhoneNumberInputBaseProps, type PhoneNumberInputProps } from "../types.js";
 
 const anchorOrigin = {
     vertical: "bottom",

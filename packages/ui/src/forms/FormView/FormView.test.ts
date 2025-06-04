@@ -1,4 +1,4 @@
-import { FormSchema, GridContainer } from "@local/shared";
+import { type FormSchema, type GridContainer } from "@local/shared";
 import { expect } from "chai";
 import { normalizeFormContainers } from "./FormView.js";
 

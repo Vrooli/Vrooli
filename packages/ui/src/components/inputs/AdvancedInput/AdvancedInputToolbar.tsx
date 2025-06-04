@@ -1,14 +1,14 @@
-import { TranslationFuncCommon, TranslationKeyCommon } from "@local/shared";
-import { Box, BoxProps, Breakpoints, Button, IconButton, IconButtonProps, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { type TranslationFuncCommon, type TranslationKeyCommon } from "@local/shared";
+import { Box, type BoxProps, type Breakpoints, Button, IconButton, type IconButtonProps, List, ListItem, ListItemIcon, type ListItemProps, ListItemText, type Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
-import { Dimensions } from "../../../types.js";
+import { Icon, IconCommon, type IconInfo, IconText } from "../../../icons/Icons.js";
+import { type Dimensions } from "../../../types.js";
 import { keyComboToString } from "../../../utils/display/device.js";
-import { AdvancedInputAction, AdvancedInputActiveStates } from "./utils.js";
+import { type AdvancedInputAction, type AdvancedInputActiveStates } from "./utils.js";
 
 type PrePopoverActionItem = {
     action: AdvancedInputAction | `${AdvancedInputAction}`,

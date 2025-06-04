@@ -1,17 +1,17 @@
 import i18next from "i18next";
-import { LlmTask, ResourceSubType, StartLlmTaskInput, type ResourceVersion } from "../../api/types.js";
-import { HttpMethod } from "../../consts/api.js";
+import { ResourceSubType, type ResourceVersion, type StartSwarmTaskInput } from "../../api/types.js";
+import { type HttpMethod } from "../../consts/api.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
+import { McpToolName, type McpSwarmToolName } from "../../consts/mcp.js";
 import { InputType } from "../../consts/model.js";
 import { DEFAULT_LANGUAGE } from "../../consts/ui.js";
 import { type FormInputBase, type FormSchema } from "../../forms/types.js";
 import { nanoid } from "../../id/publicId.js";
 import { BotStyle, type SubroutineIOMapping } from "../../run/types.js";
 import { getDotNotationValue } from "../../utils/objects.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
 import { type LlmModel } from "./bot.js";
-import { CodeVersionConfigObject, JsonSchema } from "./code.js";
-import { stringifyObject, type StringifyMode } from "./utils.js";
+import { type CodeVersionConfigObject, type JsonSchema } from "./code.js";
 
 const LATEST_CONFIG_VERSION = "1.0";
 
@@ -20,15 +20,14 @@ const LATEST_CONFIG_VERSION = "1.0";
  */
 export interface ConfigCallDataAction {
     /**
-     * The task to perform.
+     * The name of the MCP tool to be executed.
+     * This determines the expected structure for `inputTemplate`.
      */
-    task: LlmTask;
+    toolName: McpToolName | McpSwarmToolName;
     /**
-     * JSON template to use for generating the task input. 
+     * The input that will be passed to the tool. It **must** conform to the **exact** shape of the tool's input schema.
      * 
-     * This should match the shape used to perform the task through the API (e.g. ApiCreateInput, NoteSearchInput, etc.)
-     * 
-     * Use double curly braces to reference routine inputs and special functions/values.
+     * You may use double curly braces to reference routine inputs and special functions/values.
      * Available data:
      * - Routine inputs: `{{input.routineInputName}}`
      * - Primary key generator: `{{generatePrimaryKey()}}`
@@ -41,7 +40,7 @@ export interface ConfigCallDataAction {
      * - Random number generator: `{{random()}}`
      *     NOTE: To control the range of the random number, pass in a min and max value (e.g. `{{random(1, 10)}}`)
      * 
-     * Full example:
+     * Example (remember that the real input template must match the tool's actual input schema. This is just for demonstration purposes):
      * {
      *     "id": "{{generatePrimaryKey()}}",
      *     "isPrivate": "{{input.isPrivate}}",
@@ -74,12 +73,20 @@ export interface ConfigCallDataAction {
      */
     inputTemplate: string;
     /**
+     * Specifies execution contexts allowed to run this action.
+     * If not specified, the action will be allowed in all contexts.
+     * 
+     * - `user`: The action can be run by a user directly.
+     * - `agent`: The action can be run by an AI agent.
+     */
+    allowedContexts?: ("user" | "agent")[];
+    /**
      * Mapping from routine output names to task output fields.
-     * 
+     *
      * For example, { "routineOutputX": "id", "routineOutputY": "child[0].name" }
-     * This means the 'id' field from the task output will be assigned to "routineOutputX",
-     * and the 'name' field from the first child of the task output will be assigned to "routineOutputY".
-     * 
+     * means the 'id' field from the tool's response payload will be assigned to "routineOutputX",
+     * and the 'name' field from the first child of the tool's response payload will be assigned to "routineOutputY".
+     *
      * NOTE: Supports dot notation.
      */
     outputMapping: Record<string, string>;
@@ -170,7 +177,7 @@ export type ConfigCallDataGenerate = {
     /**
      * The bot to use for the LLM.
      */
-    respondingBot?: StartLlmTaskInput["respondingBot"] | null;
+    respondingBot?: StartSwarmTaskInput["respondingBot"] | null;
 };
 
 /**
@@ -192,7 +199,7 @@ export interface ConfigCallDataSmartContract {
      */
     methodName: string;
     /**
-     * Arguments/params to pass to the contract’s method.
+     * Arguments/params to pass to the contract's method.
      */
     args?: any[];
     /**
@@ -210,6 +217,44 @@ export interface ConfigCallDataSmartContract {
      * Could include references to a wallet, signers, or other instructions.
      */
     meta?: Record<string, any>;
+}
+
+/**
+ * Represents how to perform a web search.
+ */
+export interface ConfigCallDataWeb {
+    /** 
+     * Template for the search query. Allows dynamic query generation using routine inputs.
+     * e.g., "latest news about {{input.topic}}"
+     */
+    queryTemplate: string;
+    /** Optional: specify the search engine (e.g., "google", "bing", "duckduckgo"). Defaults to a generic provider if not specified. */
+    searchEngine?: string;
+    /** Optional: maximum number of search results to return. */
+    maxResults?: number;
+    /** 
+     * Optional: filter results by a time range. 
+     * Examples: "past_hour", "past_day", "past_week", "past_month", "past_year".
+     * Specific supported values may depend on the search provider.
+     */
+    timeRange?: string;
+    /** Optional: specify the search region or country code (e.g., "US", "GB"). */
+    region?: string;
+    /**
+     * Mapping from routine output names to search result fields.
+     * Search results are expected to be an array of objects.
+     * Example: { "titles": "results[*].title", "links": "results[*].url", "firstSnippet": "results[0].snippet" }
+     * 
+     * Available fields from a typical search result item:
+     * - `title`: The title of the search result.
+     * - `link`: The URL of the search result.
+     * - `snippet`: A short description or snippet from the page.
+     * - `source`: The source website or domain.
+     * - `publishedDate`: The publication date, if available.
+     * The structure is generally `results: Array<{ title: string; link: string; snippet?: string; ... }>`
+     * Use dot notation and array indexing to access specific parts. `[*]` denotes all items in an array.
+     */
+    outputMapping: Record<string, string>;
 }
 
 export type CallDataActionConfigObject = {
@@ -232,6 +277,10 @@ export type CallDataSmartContractConfigObject = {
     __version: string;
     schema: ConfigCallDataSmartContract;
 };
+export type CallDataWebConfigObject = {
+    __version: string;
+    schema: ConfigCallDataWeb;
+};
 
 export type FormInputConfigObject = {
     __version: string;
@@ -246,6 +295,62 @@ type GraphType = "BPMN-2.0"; // Add more as needed
 type GraphBaseConfigObject = {
     __version: string;
     __type: GraphType;
+};
+/**
+ * Map of BPMN call activity ID to subroutine information.
+ * 
+ * Specifying subroutine information here instead of in the BPMN diagram allows us to:
+ * - Keep the BPMN diagram clean and focused on the process
+ * - Import and export the BPMN diagram to other platforms more easily
+ * - Dynamically change the subroutine based on the context
+ * 
+ * To connect the BPMN diagram to the subroutine, simply use a call activity with 
+ * `calledElement` set to a key in this map, and the corresponding value will be the subroutine ID and 
+ * input/output mappings.
+ * 
+ * Full example:
+ * <bpmn:callActivity id="callActivityA" name="Call A" calledElement="A">
+ *     <bpmn:extensionElements>
+ *       <vrooli:ioMapping>
+ *         // The optional `fromContext` field allows for connecting an input to another input or output
+ *         <vrooli:input name="inputA" fromContext="callActivityB.inputC" />
+ *         <vrooli:iput name="inputB" />
+ *         // `fromContext` with the `root` keyword allows for connecting to data passed into the routine, instead of another subroutine
+ *         <vrooli:iput name="inputC"  fromContext="root.inputD" />
+ *         <vrooli:output name="outputX" />
+ *         // The optional `toRootContext` field allows for exporting the output to the parent context when the routine is done, rather than the 
+ *         // default behavior of keeping the output in the scope of the current routine
+ *         <vrooli:output name="outputY" toRootContext="outputZ" />
+ *       </vrooli:ioMapping>
+ *     </bpmn:extensionElements>
+ * </bpmn:callActivity>
+ * 
+ * {
+ *   callActivityA: {
+ *       subroutineId: "123-456-789",
+ *       inputMap: {
+ *           inputA: "subroutineInputA",
+ *           inputB: "subroutineInputB",
+ *       },
+ *       outputMap: {
+ *           outputB: "subroutineOutputB",
+ *       },
+ * }
+ */
+type ActivityMap = Record<string, {
+    /** The ID of the subroutine */
+    subroutineId: string;
+    /** A map of call activity input name to subroutine input name */
+    inputMap: Record<string, string>;
+    /** A map of call activity output name to subroutine output name */
+    outputMap: Record<string, string>;
+}>;
+/**
+ * Map of root context name to routine (not subroutine) input/output name
+ */
+type RootContext = {
+    inputMap: Record<string, string>;
+    outputMap: Record<string, string>;
 };
 export type BpmnSchema = {
     /** How the BPMN diagram data is stored */
@@ -273,62 +378,8 @@ export type BpmnSchema = {
     //       </bpmn:completionCondition>
     //     </bpmn:multiInstanceLoopCharacteristics>
     //   </bpmn:callActivity> 
-    /**
-     * Map of BPMN call activity ID to subroutine information.
-     * 
-     * Specifying subroutine information here instead of in the BPMN diagram allows us to:
-     * - Keep the BPMN diagram clean and focused on the process
-     * - Import and export the BPMN diagram to other platforms more easily
-     * - Dynamically change the subroutine based on the context
-     * 
-     * To connect the BPMN diagram to the subroutine, simply use a call activity with 
-     * `calledElement` set to a key in this map, and the corresponding value will be the subroutine ID and 
-     * input/output mappings.
-     * 
-     * Full example:
-     * <bpmn:callActivity id="callActivityA" name="Call A" calledElement="A">
-     *     <bpmn:extensionElements>
-     *       <vrooli:ioMapping>
-     *         // The optional `fromContext` field allows for connecting an input to another input or output
-     *         <vrooli:input name="inputA" fromContext="callActivityB.inputC" />
-     *         <vrooli:iput name="inputB" />
-     *         // `fromContext` with the `root` keyword allows for connecting to data passed into the routine, instead of another subroutine
-     *         <vrooli:iput name="inputC"  fromContext="root.inputD" />
-     *         <vrooli:output name="outputX" />
-     *         // The optional `toRootContext` field allows for exporting the output to the parent context when the routine is done, rather than the 
-     *         // default behavior of keeping the output in the scope of the current routine
-     *         <vrooli:output name="outputY" toRootContext="outputZ" />
-     *       </vrooli:ioMapping>
-     *     </bpmn:extensionElements>
-     * </bpmn:callActivity>
-     * 
-     * {
-     *   callActivityA: {
-     *       subroutineId: "123-456-789",
-     *       inputMap: {
-     *           inputA: "subroutineInputA",
-     *           inputB: "subroutineInputB",
-     *       },
-     *       outputMap: {
-     *           outputB: "subroutineOutputB",
-     *       },
-     * }
-     */
-    activityMap: Record<string, {
-        /** The ID of the subroutine */
-        subroutineId: string;
-        /** A map of call activity input name to subroutine input name */
-        inputMap: Record<string, string>;
-        /** A map of call activity output name to subroutine output name */
-        outputMap: Record<string, string>;
-    }>;
-    /**
-     * Map of root context name to routine (not subroutine) input/output name
-     */
-    rootContext: {
-        inputMap: Record<string, string>;
-        outputMap: Record<string, string>;
-    }
+    activityMap: ActivityMap;
+    rootContext: RootContext;
 };
 export type GraphBpmnConfigObject = GraphBaseConfigObject & {
     __type: "BPMN-2.0";
@@ -353,20 +404,33 @@ export type RoutineVersionConfigObject = BaseConfigObject & {
     callDataGenerate?: CallDataGenerateConfigObject;
     /** Config for calling a smart contract */
     callDataSmartContract?: CallDataSmartContractConfigObject;
+    /** Config for calling a web search */
+    callDataWeb?: CallDataWebConfigObject;
     /** Config for entering information to complete the routine */
     formInput?: FormInputConfigObject;
     /** Config for information generated by the routine */
     formOutput?: FormOutputConfigObject;
     /** Config for running multi-step routines */
     graph?: GraphConfigObject;
+    /** NEW: Execution strategy configuration for the unified execution system */
+    executionStrategy?: "reasoning" | "deterministic" | "conversational" | "auto";
+    /** NEW: Whether subroutines can override the parent routine's execution strategy */
+    allowStrategyOverride?: boolean;
+    /** NEW: Execution strategy overrides for specific subroutines (nodeId -> strategy) */
+    subroutineStrategies?: Record<string, "reasoning" | "deterministic" | "conversational">;
 };
 
 function defaultConfigCallDataAction(): CallDataActionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         schema: {
-            task: LlmTask.ResourceFind,
-            inputTemplate: "",
+            toolName: McpToolName.ResourceManage, // Or another sensible default
+            inputTemplate: JSON.stringify({
+                op: "find",
+                resource_type: "Note", // Example, adjust as needed
+                filters: {},
+            }),
+            allowedContexts: [],
             outputMapping: {},
         },
     };
@@ -408,6 +472,15 @@ function defaultConfigCallDataSmartContract(): CallDataSmartContractConfigObject
             contractAddress: "",
             chain: "ethereum",
             methodName: "",
+        },
+    };
+}
+function defaultConfigCallDataWeb(): CallDataWebConfigObject {
+    return {
+        __version: LATEST_CONFIG_VERSION,
+        schema: {
+            queryTemplate: "",
+            outputMapping: {},
         },
     };
 }
@@ -457,7 +530,7 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
 }
 
 export const defaultConfigFormInputMap = {
-    [ResourceSubType.RoutineAction]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineData]: () => defaultSchemaInput(),
@@ -465,10 +538,11 @@ export const defaultConfigFormInputMap = {
     [ResourceSubType.RoutineInformational]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
+    [ResourceSubType.RoutineWeb]: () => defaultSchemaInput(),
 };
 
 export const defaultConfigFormOutputMap = {
-    [ResourceSubType.RoutineAction]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineData]: () => defaultSchemaOutput(),
@@ -476,16 +550,15 @@ export const defaultConfigFormOutputMap = {
     [ResourceSubType.RoutineInformational]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
+    [ResourceSubType.RoutineWeb]: () => defaultSchemaOutput(),
 };
 
-function isValidFormSchema(schema: FormSchema): boolean {
-    return (
-        Object.prototype.hasOwnProperty.call(schema, "containers") &&
-        Array.isArray(schema.containers) &&
-        Object.prototype.hasOwnProperty.call(schema, "elements") &&
-        Array.isArray(schema.elements)
-    );
-}
+// function isValidFormSchema(schema: any): schema is FormSchema {
+//     if (typeof schema !== "object" || schema === null) return false;
+//     if (!Array.isArray(schema.elements)) return false;
+//     // Add more checks if necessary, e.g., for element structure
+//     return true;
+// }
 
 /**
  * Top-level routine config that encapsulates all sub-config sections.
@@ -496,11 +569,13 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
     callDataCode?: CallDataCodeConfig;
     callDataGenerate?: CallDataGenerateConfig;
     callDataSmartContract?: CallDataSmartContractConfig;
+    callDataWeb?: CallDataWebConfig;
     formInput?: FormInputConfig;
     formOutput?: FormOutputConfig;
     graph?: GraphConfig;
+    resourceSubType?: ResourceSubType;
 
-    constructor({ config, resourceSubType }: { config: RoutineVersionConfigObject, resourceSubType: ResourceSubType }) {
+    constructor({ config, resourceSubType }: { config: RoutineVersionConfigObject, resourceSubType?: ResourceSubType }) {
         super(config);
         this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.callDataAction = config.callDataAction ? new CallDataActionConfig(config.callDataAction) : undefined;
@@ -508,38 +583,41 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
         this.callDataCode = config.callDataCode ? new CallDataCodeConfig(config.callDataCode) : undefined;
         this.callDataGenerate = config.callDataGenerate ? new CallDataGenerateConfig(config.callDataGenerate) : undefined;
         this.callDataSmartContract = config.callDataSmartContract ? new CallDataSmartContractConfig(config.callDataSmartContract) : undefined;
+        this.callDataWeb = config.callDataWeb ? new CallDataWebConfig(config.callDataWeb) : undefined;
         this.formInput = config.formInput ? new FormInputConfig(config.formInput) : undefined;
         this.formOutput = config.formOutput ? new FormOutputConfig(config.formOutput) : undefined;
         this.graph = config.graph ? GraphConfig.create(config.graph) : undefined;
+        this.resourceSubType = resourceSubType;
     }
 
-    static deserialize(
+    static parse(
         version: Pick<ResourceVersion, "config" | "resourceSubType">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): RoutineVersionConfig {
-        return this.parseConfig<RoutineVersionConfigObject, RoutineVersionConfig>(
+        return super.parseBase<RoutineVersionConfigObject, RoutineVersionConfig>(
             version.config,
             logger,
             (cfg) => {
-                // ensure defaults for input/output/testcases
                 if (opts?.useFallbacks ?? true) {
                     cfg.callDataAction ??= defaultConfigCallDataAction();
                     cfg.callDataApi ??= defaultConfigCallDataApi();
                     cfg.callDataCode ??= defaultConfigCallDataCode();
                     cfg.callDataGenerate ??= defaultConfigCallDataGenerate();
                     cfg.callDataSmartContract ??= defaultConfigCallDataSmartContract();
-                    cfg.formInput ??= defaultConfigFormInputMap[version.resourceSubType]();
-                    cfg.formOutput ??= defaultConfigFormOutputMap[version.resourceSubType]();
+                    cfg.callDataWeb ??= defaultConfigCallDataWeb();
+                    if (version.resourceSubType) {
+                        cfg.formInput ??= defaultConfigFormInputMap[version.resourceSubType]();
+                        cfg.formOutput ??= defaultConfigFormOutputMap[version.resourceSubType]();
+                    } else {
+                        cfg.formInput ??= defaultSchemaInput();
+                        cfg.formOutput ??= defaultSchemaOutput();
+                        logger.info("RoutineVersionConfig.parse: resourceSubType is undefined. Falling back to default formInput/formOutput.");
+                    }
                 }
                 return new RoutineVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
             },
-            { mode: opts?.mode },
         );
-    }
-
-    serialize(mode: StringifyMode): string {
-        return stringifyObject(this.export(), mode);
     }
 
     export(): RoutineVersionConfigObject {
@@ -550,6 +628,7 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
             callDataCode: this.callDataCode?.export(),
             callDataGenerate: this.callDataGenerate?.export(),
             callDataSmartContract: this.callDataSmartContract?.export(),
+            callDataWeb: this.callDataWeb?.export(),
             formInput: this.formInput?.export(),
             formOutput: this.formOutput?.export(),
             graph: this.graph?.export(),
@@ -794,7 +873,7 @@ export class CallDataCodeConfig {
      * Builds the input for the sandboxed code by mapping routine inputs to the expected structure.
      * 
      * @param ioMapping Mapping of routine input names to their current values.
-     * @param inputConfig The code’s input configuration (e.g., shouldSpread, inputSchema).
+     * @param inputConfig The code's input configuration (e.g., shouldSpread, inputSchema).
      * @returns The constructed input, typed according to inputConfig.shouldSpread.
      * @throws Error if the routine's input template is incompatible with the code's input definition.
      */
@@ -893,7 +972,10 @@ export class CallDataCodeConfig {
         }
 
         // Normalize output config and output mappings to be arrays
-        const outputConfigs: readonly JsonSchema[] = Array.isArray(outputConfig) ? outputConfig : [outputConfig];
+        const outputConfigs: readonly JsonSchema[] = outputConfig
+            ? (Array.isArray(outputConfig) ? outputConfig : [outputConfig])
+            : []; // Default to empty array if outputConfig is undefined
+
         const outputMappings = Array.isArray(this.schema.outputMappings) ? this.schema.outputMappings : [this.schema.outputMappings];
         // If the arrays are not the same length, we're not handling every case. Throw an error.
         if (outputMappings.length !== outputConfigs.length) {
@@ -1050,6 +1132,69 @@ class CallDataSmartContractConfig {
     }
 
     // Add SmartContract-specific methods here
+}
+
+export class CallDataWebConfig {
+    __version: string;
+    schema: ConfigCallDataWeb;
+
+    constructor(data: CallDataWebConfigObject) {
+        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
+        this.schema = data.schema;
+    }
+
+    export(): CallDataWebConfigObject {
+        return {
+            __version: this.__version,
+            schema: this.schema,
+        };
+    }
+
+    /**
+     * Builds the search query by replacing placeholders in the queryTemplate.
+     * @param ioMapping Mapping of routine input names to their current values.
+     * @returns The processed search query string.
+     */
+    buildSearchQuery(ioMapping: Pick<SubroutineIOMapping, "inputs">): string {
+        let query = this.schema.queryTemplate;
+        const placeholderRegex = /\{\{input\.([^}]+)\}\}/g;
+
+        query = query.replace(placeholderRegex, (match, inputName) => {
+            const inputValue = ioMapping.inputs[inputName]?.value;
+            if (inputValue === undefined) {
+                // Consider how to handle missing inputs: throw error, replace with empty string, or keep placeholder
+                // For now, let's replace with an empty string or indicate missing
+                // console.warn(`Input "${inputName}" not found in ioMapping for query template.`);
+                return "";
+            }
+            return String(inputValue);
+        });
+        return query;
+    }
+
+    /**
+     * Applies the output mapping to the web search result and updates the ioMappings.outputs.
+     * @param ioMappings The ioMappings object containing the outputs to update.
+     * @param searchResult The result object from the web search (expected to have a `results` array).
+     */
+    parseSearchResult(ioMappings: SubroutineIOMapping, searchResult: { results?: Array<Record<string, any>> }): void {
+        if (!searchResult.results || !Array.isArray(searchResult.results)) {
+            return;
+        }
+
+        for (const [outputName, path] of Object.entries(this.schema.outputMapping)) {
+            // The path is expected to be relative to the `searchResult` object,
+            // often starting with `results[...]` or `results[*].fieldName`.
+            const value = getDotNotationValue({ results: searchResult.results }, path);
+
+            const output = ioMappings.outputs[outputName];
+            if (output) {
+                output.value = value ?? null; // Assign null if value is undefined
+            } else {
+                // console.warn(`Output name "${outputName}" in outputMapping not found in routine's ioMappings.`);
+            }
+        }
+    }
 }
 
 /**

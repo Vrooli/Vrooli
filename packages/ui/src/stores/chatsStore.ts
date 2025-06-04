@@ -1,4 +1,4 @@
-import { Chat, ChatSearchInput, ChatSearchResult, ChatSortBy, endpointsChat } from "@local/shared";
+import { type Chat, type ChatSearchInput, type ChatSearchResult, ChatSortBy, endpointsChat } from "@local/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";

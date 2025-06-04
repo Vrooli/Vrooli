@@ -1,4 +1,4 @@
-import { DeleteAccountInput, endpointsActions, LINKS, Session, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { type DeleteAccountInput, endpointsActions, LINKS, type Session, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
@@ -13,7 +13,7 @@ import { PubSub } from "../../../utils/pubsub.js";
 import { PasswordTextInput } from "../../inputs/PasswordTextInput/PasswordTextInput.js";
 import { DialogTitle } from "../DialogTitle/DialogTitle.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
-import { DeleteAccountDialogProps } from "../types.js";
+import { type DeleteAccountDialogProps } from "../types.js";
 
 const titleId = "delete-object-dialog-title";
 const initialValues = {

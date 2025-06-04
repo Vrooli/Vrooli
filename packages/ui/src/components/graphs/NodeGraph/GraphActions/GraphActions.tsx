@@ -1,5 +1,5 @@
 import { Box, IconButton, styled } from "@mui/material";
-import { GraphActionsProps } from "../types.js";
+import { type GraphActionsProps } from "../types.js";
 
 const ActionsContainer = styled(Box)(({ theme }) => ({
     display: "flex",

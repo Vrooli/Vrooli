@@ -1,5 +1,5 @@
-import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, ModelType, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
-import { Prisma } from "@prisma/client";
+import { DEFAULT_LANGUAGE, generatePublicId, MaxObjects, type ModelType, type ReportFor, type ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { type Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
@@ -8,7 +8,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { ReportFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { ReportModelInfo, ReportModelLogic } from "./types.js";
+import { type ReportModelInfo, type ReportModelLogic } from "./types.js";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ChatMessage: "chatMessage",

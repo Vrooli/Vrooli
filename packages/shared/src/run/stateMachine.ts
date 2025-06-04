@@ -1,19 +1,19 @@
 import { RunStatus } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
 import { RoutineVersionConfig } from "../shape/configs/routine.js";
 import { RunProgressConfig } from "../shape/configs/run.js";
 import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
 import { DEFAULT_LOOP_DELAY_MULTIPLIER, DEFAULT_MAX_LOOP_DELAY_MS, DEFAULT_MAX_RUN_CREDITS, DEFAULT_ON_BRANCH_FAILURE, LATEST_RUN_CONFIG_VERSION, MAX_MAIN_LOOP_ITERATIONS, MAX_PARALLEL_BRANCHES } from "./consts.js";
 import { SubroutineContextManager } from "./context.js";
-import { SubroutineExecutor } from "./executor.js";
+import { type SubroutineExecutor } from "./executor.js";
 import { RunLimitsManager } from "./limits.js";
-import { RunLoader } from "./loader.js";
-import { BpmnNavigator, NavigatorFactory, NavigatorRegistry } from "./navigator.js";
-import { RunNotifier } from "./notifier.js";
-import { PathSelectionHandler } from "./pathSelection.js";
-import { RunPersistence } from "./persistence.js";
-import { BranchLocationDataMap, BranchStatus, ConcurrencyMode, InitializedRunState, Location, RunConfig, RunIdentifier, RunProgress, RunRequestLimits, RunStateMachineServices, RunStateMachineState, RunStatusChangeReason, RunTriggeredBy, StateMachineStatus, SubroutineContext } from "./types.js";
+import { type RunLoader } from "./loader.js";
+import { BpmnNavigator, NavigatorFactory, type NavigatorRegistry } from "./navigator.js";
+import { type RunNotifier } from "./notifier.js";
+import { type PathSelectionHandler } from "./pathSelection.js";
+import { type RunPersistence } from "./persistence.js";
+import { BranchStatus, RunStatusChangeReason, StateMachineStatus, type BranchLocationDataMap, type BranchProgress, type ConcurrencyMode, type ExecuteStepResult, type InitializedRunState, type Location, type RunConfig, type RunIdentifier, type RunProgress, type RunRequestLimits, type RunStateMachineServices, type RunStateMachineState, type RunTriggeredBy, type SubroutineContext } from "./types.js";
 
 /** Maps graph types to navigators */
 const navigatorRegistry: NavigatorRegistry = {
@@ -51,8 +51,12 @@ type RunStateMachineProps = {
     pathSelectionHandler: PathSelectionHandler,
     /** Persistence service for saving/loading run progress */
     persistence: RunPersistence,
-    /** Executor for running subroutines */
-    subroutineExecutor: SubroutineExecutor,
+    /** Executor for running subroutines (optional for backward compatibility) */
+    subroutineExecutor?: SubroutineExecutor,
+    /** NEW: Unified execution engine for enhanced execution capabilities */
+    unifiedExecutionEngine?: any, // IUnifiedExecutionEngine from server
+    /** NEW: State synchronizer for swarm-routine integration */
+    stateSynchronizer?: any, // StateSynchronizer from server
 }
 
 /**
@@ -101,7 +105,14 @@ export class RunStateMachine {
         pathSelectionHandler,
         persistence,
         subroutineExecutor,
+        unifiedExecutionEngine,
+        stateSynchronizer,
     }: RunStateMachineProps) {
+        // Ensure at least one execution method is provided
+        if (!subroutineExecutor && !unifiedExecutionEngine) {
+            throw new Error("Either subroutineExecutor or unifiedExecutionEngine must be provided");
+        }
+
         this.services = {
             limitsManager: new RunLimitsManager(logger),
             loader,
@@ -110,7 +121,9 @@ export class RunStateMachine {
             notifier,
             pathSelectionHandler,
             persistence,
-            subroutineExecutor,
+            subroutineExecutor: subroutineExecutor as SubroutineExecutor, // Type assertion since we validate above
+            unifiedExecutionEngine,
+            stateSynchronizer,
         };
         this.state = {
             pendingConfigUpdate: null,
@@ -192,7 +205,8 @@ export class RunStateMachine {
             },
         };
         const subroutineInstanceId = BranchManager.generateSubroutineInstanceId(startObject.id);
-        const run: RunProgress = {
+        // Initial run object, runId will be added in finalizeInit
+        const initialRunData: Omit<RunProgress, "runId"> = {
             __version: LATEST_RUN_CONFIG_VERSION,
             branches: RunProgressConfig.defaultBranches(),
             config,
@@ -208,17 +222,17 @@ export class RunStateMachine {
         };
         // Determine if parallel execution is allowed
         let supportsParallelExecution = false;
-        if (startObject.resourceSubType.startsWith("Routine")) {
-            const routineConfig = RoutineVersionConfig.deserialize(startObject, this.services.logger, { useFallbacks: true });
+        if (startObject.resourceSubType && startObject.resourceSubType.startsWith("Routine")) {
+            const routineConfig = RoutineVersionConfig.parse(startObject, this.services.logger, { useFallbacks: true });
             const graphConfig = routineConfig.graph;
             const navigator = graphConfig ? this.services.navigatorFactory.getNavigator(graphConfig.__type) : null;
             supportsParallelExecution = navigator?.supportsParallelExecution ?? false;
         }
         // Create a separate branch for each start location
-        run.branches = BranchManager.forkBranches(null, startLocations, subroutineInstanceId, supportsParallelExecution);
+        initialRunData.branches = BranchManager.forkBranches(null, startLocations, subroutineInstanceId, supportsParallelExecution);
 
         // Finalize initialization
-        return await this.finalizeInit(run, userData);
+        return await this.finalizeInit(initialRunData, userData);
     }
 
     /**
@@ -267,8 +281,8 @@ export class RunStateMachine {
         // Update the state machine's state
         this.state.userData = userData;
 
-        // Store the run in the database
-        this.services.persistence.saveProgress(run);
+        // Store the run in the database - cast to RunProgress since persistence will add the runId
+        this.services.persistence.saveProgress(run as RunProgress);
         await this.services.persistence.finalizeSave(false);
         const runId = this.services.persistence["_lastStoredShape"]?.id;
         if (!runId) {
@@ -276,12 +290,15 @@ export class RunStateMachine {
         }
         this.state.runIdentifier = { runId };
 
-        // Update path decisions
-        this.services.pathSelectionHandler.updateDecisionOptions(run);
+        // Create the complete run object with runId
+        const completeRun: RunProgress = { ...run, runId };
+
+        // Update path decisions with the complete run object
+        this.services.pathSelectionHandler.updateDecisionOptions(completeRun);
 
         this.state.status = StateMachineStatus.Initialized;
 
-        return { ...run, runId };
+        return completeRun;
     }
 
     /**
@@ -347,22 +364,43 @@ export class RunStateMachine {
         // Run branches either sequentially or in parallel. 
         if (mode === "Sequential") {
             for (const branch of activeBranches) {
-                // Run the branch
-                const stepResult = await this.services.subroutineExecutor.executeStep(
-                    run,
-                    branch,
-                    branchLocationDataMap,
-                    this.services,
-                    this.state,
-                );
-                // Update the branch and run data
-                this.services.subroutineExecutor.updateRunAfterStep(
-                    run,
-                    branch,
-                    stepResult,
-                    this.services,
-                    this.state,
-                );
+                // NEW: Try to use unified execution engine if available
+                if (this.services.unifiedExecutionEngine && this.services.subroutineExecutor) {
+                    const stepResult = await this.executeStepWithUnifiedEngine(
+                        run,
+                        branch,
+                        branchLocationDataMap,
+                        this.services,
+                        this.state,
+                    );
+                    // Update the branch and run data
+                    this.services.subroutineExecutor.updateRunAfterStep(
+                        run,
+                        branch,
+                        stepResult,
+                        this.services,
+                        this.state,
+                    );
+                } else {
+                    // FALLBACK: Use legacy subroutine executor
+                    const stepResult = await this.services.subroutineExecutor?.executeStep(
+                        run,
+                        branch,
+                        branchLocationDataMap,
+                        this.services,
+                        this.state,
+                    );
+                    if (stepResult) {
+                        // Update the branch and run data
+                        this.services.subroutineExecutor?.updateRunAfterStep(
+                            run,
+                            branch,
+                            stepResult,
+                            this.services,
+                            this.state,
+                        );
+                    }
+                }
                 // Check limits
                 runStatusChangeReason = this.services.limitsManager.checkLimits(run, limits, startTimeMs);
                 if (runStatusChangeReason) {
@@ -381,32 +419,45 @@ export class RunStateMachine {
                 const batch = activeBranches.slice(i, i + batchSize);
 
                 // Execute the current batch in parallel
-                const stepResults = await Promise.all(batch.map((branch) => {
+                const stepResults = await Promise.all(batch.map(async (branch) => {
                     this.assertInitialized(this.state);
-                    return this.services.subroutineExecutor.executeStep(
-                        run,
-                        branch,
-                        branchLocationDataMap,
-                        this.services,
-                        this.state,
-                    );
+
+                    // NEW: Try to use unified execution engine if available
+                    if (this.services.unifiedExecutionEngine && this.services.subroutineExecutor) {
+                        return await this.executeStepWithUnifiedEngine(
+                            run,
+                            branch,
+                            branchLocationDataMap,
+                            this.services,
+                            this.state,
+                        );
+                    } else {
+                        // FALLBACK: Use legacy subroutine executor
+                        return await this.services.subroutineExecutor?.executeStep(
+                            run,
+                            branch,
+                            branchLocationDataMap,
+                            this.services,
+                            this.state,
+                        );
+                    }
                 }));
 
                 // Aggregate results
-                for (const stepResult of stepResults) {
-                    const branch = activeBranches.find(b => b.branchId === stepResult.branchId);
-                    if (!branch) {
-                        this.services.logger.error(`runUntilDone: Branch ${stepResult.branchId} not found in run ${run.runId}`);
-                        continue;
+                for (let j = 0; j < stepResults.length; j++) {
+                    const stepResult = stepResults[j];
+                    const branch = batch[j];
+
+                    if (stepResult && branch) {
+                        // Update the branch and run data
+                        this.services.subroutineExecutor?.updateRunAfterStep(
+                            run,
+                            branch,
+                            stepResult,
+                            this.services,
+                            this.state,
+                        );
                     }
-                    // Update the branch and run data
-                    this.services.subroutineExecutor.updateRunAfterStep(
-                        run,
-                        branch,
-                        stepResult,
-                        this.services,
-                        this.state,
-                    );
                 }
 
                 // Check limits after each batch
@@ -604,7 +655,7 @@ export class RunStateMachine {
 
     /**
      * Retrieves the start time (in ms) for the run from run.metrics.startedAt.
-     * If it isn’t set, uses the current time and sets it.
+     * If it isn't set, uses the current time and sets it.
      *
      * @param run The current run progress.
      * @returns The start time in milliseconds.
@@ -644,7 +695,7 @@ export class RunStateMachine {
         // Collect estimated max credits for each branch
         const costArray = await Promise.all(run.branches.map(async (branch) => {
             const currentObject = branchLocationDataMap[branch.branchId]?.object;
-            if (!currentObject || !currentObject.resourceSubType.startsWith("Routine")) {
+            if (!currentObject || !currentObject.resourceSubType?.startsWith("Routine")) {
                 return BigInt(0);
             }
 
@@ -655,7 +706,7 @@ export class RunStateMachine {
                 return BigInt(Number.MAX_SAFE_INTEGER);
             }
 
-            const cost = await this.services.subroutineExecutor.estimateCost(
+            const cost = await this.services.subroutineExecutor?.estimateCost(
                 branch.subroutineInstanceId,
                 currentObject,
                 run.config,
@@ -752,6 +803,252 @@ export class RunStateMachine {
         run.status = status;
         // NOTE: Don't call saveProgress here. Let the main loop handle it.
         this.services.logger.info(`pauseRun: Run ${this.state.runIdentifier.runId} has been paused.`);
+    }
+
+    // Implementation of ManagedTaskStateMachine methods
+    public getTaskId(): string {
+        if (!this.state.runIdentifier?.runId) {
+            this.services.logger.error("RunStateMachine: getTaskId called before runIdentifier was set.");
+            return "undefined_run_task_id";
+        }
+        return this.state.runIdentifier.runId;
+    }
+
+    public getCurrentSagaStatus(): string {
+        switch (this.state.status) {
+            case StateMachineStatus.Idle:
+                return "IDLE";
+            case StateMachineStatus.Initialized:
+                return "INITIALIZED";
+            case StateMachineStatus.Running:
+                return "RUNNING";
+            case StateMachineStatus.Paused:
+                return "PAUSED";
+            case StateMachineStatus.Completed:
+                return "COMPLETED";
+            case StateMachineStatus.Failed:
+                return "FAILED";
+            case StateMachineStatus.Transitioning:
+                return "TRANSITIONING";
+            default:
+                this.services.logger.warn(`RunStateMachine: Unknown status encountered in getCurrentSagaStatus: ${this.state.status}`);
+                return "UNKNOWN";
+        }
+    }
+
+    public async requestPause(): Promise<boolean> {
+        if (this.state.status === StateMachineStatus.Running || this.state.status === StateMachineStatus.Initialized) {
+            const previousStatus = this.state.status;
+            try {
+                await this.stopRun(RunStatus.Paused); // stopRun initiates the pause
+                // Check if the status is now Paused. It might also have transitioned to Transitioning first.
+                // Success means the pause request was accepted and the machine is now in a paused state.
+                return this.state.status === StateMachineStatus.Paused;
+            } catch (error) {
+                this.services.logger.error("RunStateMachine: Error during requestPause.", { error, previousStatus });
+                return false;
+            }
+        }
+        this.services.logger.warn(`RunStateMachine: requestPause called in non-pausable state: ${this.state.status}`);
+        return false;
+    }
+
+    public async requestStop(reason: string): Promise<boolean> {
+        this.services.logger.info(`RunStateMachine: requestStop called for ${this.state.runIdentifier?.runId}. Reason: ${reason}`);
+        if (this.state.status === StateMachineStatus.Running || this.state.status === StateMachineStatus.Paused || this.state.status === StateMachineStatus.Initialized) {
+            const previousStatus = this.state.status;
+            try {
+                await this.stopRun(RunStatus.Cancelled); // stopRun initiates the cancellation
+                // After cancellation, the machine should be in a terminal state (Completed or Failed) or Paused if stopRun handles it that way.
+                // Success means the stop request was accepted and the machine is no longer in its previous active/paused state.
+                return this.state.status === StateMachineStatus.Failed ||
+                    this.state.status === StateMachineStatus.Completed ||
+                    (previousStatus !== StateMachineStatus.Paused && this.state.status === StateMachineStatus.Paused); // If it was running and is now paused due to stop
+            } catch (error) {
+                this.services.logger.error("RunStateMachine: Error during requestStop.", { error, previousStatus });
+                return false;
+            }
+        }
+        this.services.logger.warn(`RunStateMachine: requestStop called in non-stoppable state: ${this.state.status}`);
+        return false;
+    }
+
+    public getAssociatedUserId(): string | undefined {
+        return this.state.userData?.id;
+    }
+    // End of ManagedTaskStateMachine methods
+
+    /**
+     * Executes a step using the unified execution engine when available.
+     * This method bridges the legacy RunStateMachine interface with the new unified execution system.
+     */
+    private async executeStepWithUnifiedEngine(
+        run: RunProgress,
+        branch: BranchProgress,
+        branchLocationDataMap: BranchLocationDataMap,
+        services: RunStateMachineServices,
+        state: InitializedRunState,
+    ): Promise<ExecuteStepResult> {
+        const { unifiedExecutionEngine, stateSynchronizer, logger } = services;
+
+        if (!unifiedExecutionEngine) {
+            throw new Error("Unified execution engine not available");
+        }
+
+        // Get branch location data
+        const branchLocationData = branchLocationDataMap[branch.branchId];
+        if (!branchLocationData) {
+            throw new Error(`Branch location data not found for branch ${branch.branchId}`);
+        }
+
+        const { location, object: routine, subroutine, subcontext } = branchLocationData;
+
+        try {
+            // Build ExecutionContext from current run state
+            const executionContext = await this.buildExecutionContext(
+                run,
+                branch,
+                routine,
+                subcontext,
+                state.userData,
+                stateSynchronizer,
+            );
+
+            // Execute using the unified execution engine
+            // For now, we'll use a basic execution strategy - in the future this could be strategy-aware
+            const executionResult = await unifiedExecutionEngine.executeWithStrategy(
+                { name: "deterministic", execute: async () => ({ success: true, ioMapping: executionContext.ioMapping, creditsUsed: BigInt(0), timeElapsed: 0, toolCallsCount: 0 }), estimateCost: async () => BigInt(0) },
+                executionContext,
+            );
+
+            // Convert ExecutionResult back to ExecuteStepResult
+            const stepResult: ExecuteStepResult = {
+                branchId: branch.branchId,
+                branchStatus: executionResult.success ? BranchStatus.Active : BranchStatus.Failed,
+                creditsSpent: executionResult.creditsUsed.toString(),
+                deferredDecision: null,
+                newLocations: null,
+                step: null, // Will be populated by updateRunAfterStep
+                subroutineRun: executionResult.success ? {
+                    inputs: Object.fromEntries(
+                        Object.entries(executionResult.ioMapping.inputs).map(([key, info]) => [key, info.value]),
+                    ),
+                    outputs: Object.fromEntries(
+                        Object.entries(executionResult.ioMapping.outputs).map(([key, info]) => [key, info.value]),
+                    ),
+                } : null,
+                ioRecordsToCreate: null,
+            };
+
+            // Sync results back to swarm context if available
+            if (stateSynchronizer && executionContext.parentSwarmContext) {
+                try {
+                    await stateSynchronizer.syncRoutineResultsToSwarm(executionContext);
+                } catch (error) {
+                    logger.warn("Failed to sync routine results to swarm", { error });
+                }
+            }
+
+            return stepResult;
+
+        } catch (error) {
+            logger.error("Unified execution engine step failed", { error, branchId: branch.branchId });
+
+            // Return error result
+            return {
+                branchId: branch.branchId,
+                branchStatus: BranchStatus.Failed,
+                creditsSpent: "0",
+                deferredDecision: null,
+                newLocations: null,
+                step: null,
+                subroutineRun: null,
+                ioRecordsToCreate: null,
+            };
+        }
+    }
+
+    /**
+     * Builds an ExecutionContext from the current run state for the unified execution engine.
+     */
+    private async buildExecutionContext(
+        run: RunProgress,
+        branch: BranchProgress,
+        routine: any, // ResourceVersion
+        subcontext: SubroutineContext,
+        userData: RunTriggeredBy,
+        stateSynchronizer?: any, // StateSynchronizer
+    ): Promise<any> { // ExecutionContext
+        // Get swarm context if available
+        let parentSwarmContext;
+        if (stateSynchronizer) {
+            try {
+                parentSwarmContext = await stateSynchronizer.getSwarmContext(run.runId);
+            } catch (error) {
+                this.services.logger.warn("Failed to get swarm context", { error, runId: run.runId });
+            }
+        }
+
+        // Create execution limits from run config
+        const executionLimits = {
+            maxCredits: BigInt(run.config.limits.maxCredits || "1000"),
+            maxTimeMs: run.config.limits.maxTime || 300000, // 5 minutes default
+            maxToolCalls: 100, // Default limit
+            maxReasoningSteps: 10, // Default limit
+            strictLimits: false,
+        };
+
+        // Build basic I/O mapping from subcontext
+        const ioMapping = {
+            inputs: Object.fromEntries(
+                Object.entries(subcontext.allInputsMap).map(([key, value]) => [
+                    key,
+                    {
+                        value,
+                        isRequired: false,
+                        name: key,
+                        description: undefined,
+                        props: undefined,
+                        defaultValue: undefined,
+                    },
+                ]),
+            ),
+            outputs: Object.fromEntries(
+                Object.entries(subcontext.allOutputsMap).map(([key, value]) => [
+                    key,
+                    {
+                        value,
+                        name: key,
+                        description: undefined,
+                        props: undefined,
+                        defaultValue: undefined,
+                    },
+                ]),
+            ),
+        };
+
+        // Build ExecutionContext
+        const executionContext = {
+            subroutineInstanceId: branch.subroutineInstanceId,
+            routine,
+            ioMapping,
+            currentLocation: branch.locationStack[branch.locationStack.length - 1] || {
+                locationId: "start",
+                objectId: routine.id,
+                objectType: "Routine" as const,
+                subroutineId: null,
+            },
+            parentSwarmContext,
+            parentRoutineContext: undefined, // TODO: Implement for nested routines
+            userData,
+            config: run.config,
+            limits: executionLimits,
+            status: "pending" as const, // ExecutionStatus
+            startedAt: new Date(),
+            executingBotId: run.config.botConfig.respondingBot?.id,
+        };
+
+        return executionContext;
     }
 }
 

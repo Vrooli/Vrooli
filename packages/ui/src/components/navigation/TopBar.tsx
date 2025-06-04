@@ -4,7 +4,7 @@ import { randomString } from "../../utils/codes.js";
 import { DialogTitle } from "../dialogs/DialogTitle/DialogTitle.js";
 import { Navbar } from "./Navbar.js";
 import { PartialNavbar } from "./PartialNavbar.js";
-import { TopBarProps } from "./types.js";
+import { type TopBarProps } from "./types.js";
 
 /**
  * Generates an app bar for both pages and dialogs

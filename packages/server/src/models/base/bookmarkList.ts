@@ -4,7 +4,7 @@ import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { BookmarkListFormat } from "../formats.js";
-import { BookmarkListModelLogic } from "./types.js";
+import { type BookmarkListModelLogic } from "./types.js";
 
 const __typename = "BookmarkList" as const;
 export const BookmarkListModel: BookmarkListModelLogic = ({

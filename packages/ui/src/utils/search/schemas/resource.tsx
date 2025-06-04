@@ -1,5 +1,5 @@
-import { endpointsResource, FormSchema, InputType, ResourceSortBy, ResourceSubType, RoutineType } from "@local/shared";
-import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { endpointsResource, type FormSchema, InputType, ResourceSortBy, ResourceSubType, type RoutineType } from "@local/shared";
+import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
@@ -36,7 +36,7 @@ export const routineTypes = [
         iconInfo: { name: "CaseSensitive", type: "Text" } as const,
     },
     {
-        type: ResourceSubType.RoutineAction,
+        type: ResourceSubType.RoutineInternalAction,
         label: "Action",
         description: "Performs specific actions within Vrooli, such as creating, updating, or deleting objects.",
         iconInfo: { name: "Action", type: "Common" } as const,

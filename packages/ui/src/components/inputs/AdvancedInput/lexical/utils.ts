@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { $insertDataTransferForRichText, copyToClipboard } from "./clipboard.js";
-import { CUT_COMMAND, PASTE_COMMAND } from "./commands.js";
+import { type CUT_COMMAND, type PASTE_COMMAND } from "./commands.js";
 import { CAN_USE_DOM, COMPOSITION_SUFFIX, DOM_TEXT_TYPE, HAS_DIRTY_NODES, IGNORE_TAGS, IS_APPLE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts.js";
 import { type EditorState, type LexicalEditor } from "./editor.js";
 import { type DecoratorNode } from "./nodes/DecoratorNode.js";
@@ -15,8 +15,8 @@ import { type TableCellNode } from "./nodes/TableCellNode.js";
 import { type TableNode } from "./nodes/TableNode.js";
 import { type TextNode } from "./nodes/TextNode.js";
 import { LexicalNodes } from "./nodes/index.js";
-import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection.js";
-import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types.js";
+import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, type NodeSelection, type Point, type RangeSelection, moveSelectionPointToSibling } from "./selection.js";
+import { type BaseSelection, type CommandPayloadType, type CustomDomElement, type DOMChildConversion, type DOMConversion, type DOMConversionFn, type DOMConversionOutput, type EditorConfig, type IntentionallyMarkedAsDirtyElement, type LexicalNodeClass, type MutatedNodes, type NodeConstructorPayloads, type NodeConstructors, type NodeKey, type NodeMap, type NodeMutation, type ObjectClass, type PasteCommandType, type PointType, type RegisteredNodes, type ShadowRootNode, type Spread, type TableMapType, type TableMapValueType } from "./types.js";
 import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, updateEditor } from "./updates.js";
 
 export function getWindow(editor: LexicalEditor): Window {

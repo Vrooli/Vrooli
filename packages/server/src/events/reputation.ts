@@ -2,10 +2,13 @@
  * Handles giving reputation to users when some action is performed.
  */
 
-import { ModelType } from "@local/shared";
+import { DAYS_1_S, generatePK, type ModelType } from "@local/shared";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
-import { withRedis } from "../redisConn.js";
+import { CacheService } from "../redisConn.js";
+
+// max iterations for reward–threshold loop
+const MAX_REWARD_LOOPS = 1000;
 
 export enum ReputationEvent {
     ObjectDeletedFromReport = "ObjectDeletedFromReport",
@@ -27,14 +30,18 @@ export enum ReputationEvent {
 
 const MaxReputationGainPerDay = 100;
 
+// Add constant for contributions needed per reputation point
+const REPORT_CONTRIBUTIONS_PER_POINT = 10;
+const REPUTATION_REDIS_TTL_S = DAYS_1_S;
+
 /**
  * Checks if an object type is tracked by the repuation system
  * @param objectType The object type to check
  * @returns `Public${objectType}Created` if it's a tracked reputation nevent
  */
-export const objectReputationEvent = <T extends keyof typeof ModelType>(objectType: T): `Public${T}Created` | null => {
+export function objectReputationEvent<T extends keyof typeof ModelType>(objectType: T): `Public${T}Created` | null {
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
-};
+}
 
 /**
  * Finds the next threshold for rewarding a reputation point,
@@ -52,16 +59,18 @@ export const objectReputationEvent = <T extends keyof typeof ModelType>(objectTy
  * - If curr is -10 and direction is -1, returns -20
  * - If curr is -999 and direction is -1, returns -1000
  */
-export const nextRewardThreshold = (curr: number, direction: 1 | -1) => {
-    const diffSigns = (curr < 0 && direction > 0) || (curr > 0 && direction < 0);
+export function nextRewardThreshold(curr: number, direction: 1 | -1) {
+    // Only adjust curr by 1 for negative-to-positive transitions to preserve digit count
+    const diffSigns = curr < 0 && direction > 0;
     // Determine magnitude of curr (1 * 10^(digits - 1)). 
     // NOTE: We move curr by 1 when signs are opposite because not doing so would cause 
     // situations like nextRewardThreshold(-10, 1) to return 0 instead of -9.
+    // eslint-disable-next-line no-magic-numbers
     const magnitude = Math.pow(10, (Math.abs(curr + (diffSigns ? direction : 0)) + "").length - 1);
     return direction > 0 ?
         Math.ceil((curr + 1) / magnitude) * magnitude :
         Math.floor((curr - 1) / magnitude) * magnitude;
-};
+}
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a vote. 
@@ -76,19 +85,21 @@ export const nextRewardThreshold = (curr: number, direction: 1 | -1) => {
  * , and so on.
  * @returns The amount of reputation to reward the user, or NaN if an error occurred
  */
-export const reputationDeltaVote = (v0: number, v1: number): number => {
+export function reputationDeltaVote(v0: number, v1: number): number {
     if (typeof v0 !== "number" || typeof v1 !== "number") {
         logger.error("Invalid vote count", { trace: "0101", v0, v1 });
         return NaN;
     }
     if (v0 === v1) return 0;
 
-    const pastTarget = () => direction > 0 ? curr > v1 : curr < v1;
-
     const direction = v1 > v0 ? 1 : -1;
     let reputationDelta = 0;
     let curr = v0;
     let loops = 0;
+
+    function pastTarget() {
+        return direction > 0 ? curr > v1 : curr < v1;
+    }
 
     do {
         curr = nextRewardThreshold(curr, direction);
@@ -100,28 +111,32 @@ export const reputationDeltaVote = (v0: number, v1: number): number => {
         reputationDelta++;
         // Track the number of loops to prevent infinite loops
         loops++;
-    } while (loops < 1000); // Prevent infinite loops
+    } while (loops < MAX_REWARD_LOOPS); // Prevent infinite loops
 
     logger.error("Infinite loop detected in reputationDeltaVote", { trace: "0102", v0, v1, reputationDelta });
-    return reputationDelta;
-};
+    return reputationDelta * direction;
+}
 
 /**
  * Generates the reputation which should be rewarded to a user for receiving a star.
  * Same as votes, but double the magnitude.
  */
-export const reputationDeltaStar = (v0: number, v1: number): number => {
+export function reputationDeltaStar(v0: number, v1: number): number {
     return reputationDeltaVote(v0, v1) * 2;
-};
+}
 
 /**
  * Generates the reputation which should be rewarded to a user for contributing to a report. 
  * Should receive a reputation point every 10 contributions
  * @param totalContributions The total number of contributions you've made to any report
  */
-export const reputationDeltaReportContribute = (totalContributions: number): number => {
-    return Math.floor(totalContributions / 10);
-};
+export function reputationDeltaReportContribute(totalContributions: number): number {
+    // Reward exactly 1 point each time totalContributions is a multiple of the threshold
+    if (totalContributions < REPORT_CONTRIBUTIONS_PER_POINT) {
+        return 0;
+    }
+    return totalContributions % REPORT_CONTRIBUTIONS_PER_POINT === 0 ? 1 : 0;
+}
 
 /**
  * Maps reputation events to the amount of reputation gained. Events which 
@@ -148,38 +163,46 @@ const reputationMap: { [key in ReputationEvent]?: number } = {
  * @param delta The amount of reputation to add to the user's reputation gained today
  * @returns The new reputation gained today
  */
-async function getReputationGainedToday(userId: string, delta: number): Promise<number> {
+async function getReputationGainedToday(userId: string, delta: number): Promise<{ permitted: boolean; total: number; applied: number }> {
     const keyBase = `reputation-gain-limit-${userId}`;
-    // Initialize with max value, so on fail we don't increase reputation in the non-Redis database
-    let reputationGainedToday = Number.MAX_SAFE_INTEGER;
-    await withRedis({
-        process: async (redisClient) => {
-            // If redis isn't available, return
-            if (!redisClient) {
-                return;
-            }
-            // Increment the reputation gained today by the given amount
-            reputationGainedToday = await redisClient.incrBy(keyBase, delta);
-            // If key is new, set it to expire in 24 hours
-            if (reputationGainedToday === delta) {
-                await redisClient.expire(keyBase, 60 * 60 * 24);
-            }
-        },
-        trace: "0514",
-    });
-    // If we didn't get the repuation from redis, try to get it from the database
-    if (reputationGainedToday === Number.MAX_SAFE_INTEGER) {
-        const reputationAward = await DbProvider.get().award.findFirst({
-            where: {
-                userId,
-                category: "Reputation",
-            },
-        });
-        if (reputationAward) {
-            reputationGainedToday = reputationAward.progress + delta;
+    try {
+        const redisClient = await CacheService.get().raw();
+        // Get current count (or 0)
+        const currentStr = await redisClient.get(keyBase);
+        const current = currentStr !== null ? parseInt(currentStr, 10) : 0;
+        // Compute how much of delta can be applied without exceeding daily limits
+        const maxAllowed = delta > 0
+            ? MaxReputationGainPerDay - current
+            : -MaxReputationGainPerDay - current;
+        const applied = Math.sign(maxAllowed) === Math.sign(delta)
+            ? (Math.abs(delta) <= Math.abs(maxAllowed) ? delta : maxAllowed)
+            : 0;
+        if (applied === 0) {
+            return { permitted: false, total: current, applied: 0 };
         }
+        // Atomically apply the permitted delta and set TTL when first created
+        const multi = redisClient.multi();
+        multi.incrby(keyBase, applied);
+        if (currentStr === null) multi.expire(keyBase, REPUTATION_REDIS_TTL_S);
+        await multi.exec();
+        const newTotal = current + applied;
+        return { permitted: true, total: newTotal, applied };
+    } catch (error) {
+        logger.warn("Redis unavailable, falling back to database for reputation gain", { trace: "0514", error });
     }
-    return reputationGainedToday;
+    // Fallback to database
+    const reputationAward = await DbProvider.get().award.findFirst({
+        where: { userId: BigInt(userId), category: "Reputation" },
+    });
+    const previousProgress = reputationAward?.progress ?? 0;
+    // Compute how much can be applied without exceeding daily limits via DB
+    const maxAllowedDb = delta > 0
+        ? MaxReputationGainPerDay - previousProgress
+        : -MaxReputationGainPerDay - previousProgress;
+    const appliedDb = Math.sign(maxAllowedDb) === Math.sign(delta)
+        ? (Math.abs(delta) <= Math.abs(maxAllowedDb) ? delta : maxAllowedDb)
+        : 0;
+    return { permitted: appliedDb !== 0, total: previousProgress + appliedDb, applied: appliedDb };
 }
 
 /**
@@ -189,6 +212,7 @@ async function getReputationGainedToday(userId: string, delta: number): Promise<
  * @param event The event which caused the reputation change
  * @param objectId1 The id of the first object involved in the event, if applicable
  * @param objectId2 The id of the second object involved in the event, if applicable
+ * @param options Optional options for the function
  */
 async function updateReputationHelper(
     delta: number,
@@ -196,39 +220,88 @@ async function updateReputationHelper(
     event: ReputationEvent | `${ReputationEvent}`,
     objectId1?: string,
     objectId2?: string,
+    options?: { skipRateLimit?: boolean },
 ) {
-    // Determine how much reputation the user will have gained today. 
-    // Should not be able to gain more than 100 reputation per day, 
-    // or lose more than 100 reputation per day.
-    const totalReputationToday = await getReputationGainedToday(userId, delta);
-    let updatedReputation = totalReputationToday;
-    if (totalReputationToday > MaxReputationGainPerDay) {
-        updatedReputation = MaxReputationGainPerDay;
-    }
-    else if (totalReputationToday < -MaxReputationGainPerDay) {
-        updatedReputation = -MaxReputationGainPerDay;
-    }
-    // If already past the max or min reputation, don't update
-    if (totalReputationToday - delta > MaxReputationGainPerDay || totalReputationToday - delta < -MaxReputationGainPerDay) {
+    // Skip if no change in reputation to avoid unnecessary operations
+    if (delta === 0) {
         return;
     }
-    // Update the user's reputation
-    await DbProvider.get().award.update({
-        where: { userId_category: { userId, category: "Reputation" } },
-        data: { progress: updatedReputation },
-    });
-    // Also add to user's reputation history, so they can see why their reputation changed
-    const amount = totalReputationToday > MaxReputationGainPerDay || totalReputationToday < -MaxReputationGainPerDay ?
-        totalReputationToday - delta : delta;
-    await DbProvider.get().reputation_history.create({
-        data: {
+
+    // Branch rate-limit logic based on skipRateLimit flag
+    let permitted: boolean;
+    let totalReputationToday: number;
+    let applied: number;
+
+    if (options?.skipRateLimit) {
+        // Bypass daily cap
+        permitted = delta !== 0;
+        applied = delta;
+        try {
+            const redisClient = await CacheService.get().raw();
+            const currentStr = await redisClient.get(`reputation-gain-limit-${userId}`);
+            const current = currentStr !== null ? parseInt(currentStr, 10) : 0;
+            totalReputationToday = current + applied;
+        } catch (error) {
+            logger.warn("Failed to read Redis for skipRateLimit", { trace: "0616", userId, error });
+            totalReputationToday = applied;
+        }
+    } else {
+        // Original rate-limited path
+        const result = await getReputationGainedToday(userId, delta);
+        permitted = result.permitted;
+        totalReputationToday = result.total;
+        applied = result.applied;
+    }
+
+    if (!permitted) {
+        // outside daily limits, skip update
+        return;
+    }
+
+    const amount = applied;
+
+    // Apply updates atomically in a database transaction
+    await DbProvider.get().$transaction(async (tx) => {
+        // Update the award progress to the clamped total
+        await tx.award.updateMany({
+            where: { userId: BigInt(userId), category: "Reputation" },
+            data: { progress: totalReputationToday },
+        });
+        // Update the user's actual reputation score
+        await tx.user.update({
+            where: { id: BigInt(userId) },
+            data: { reputation: { increment: amount } },
+        });
+        // Add to user's reputation history, so they can see why their reputation changed
+        await tx.reputation_history.create({
+            data: {
+                id: generatePK(),
+                userId: BigInt(userId),
+                amount,
+                event,
+                objectId1: objectId1 ? BigInt(objectId1) : null,
+                objectId2: objectId2 ? BigInt(objectId2) : null,
+            },
+        });
+    }, { isolationLevel: "Serializable" });
+
+    // Sync Redis daily counter to the clamped total to prevent drift
+    try {
+        const redisClient = await CacheService.get().raw();
+        await redisClient.set(
+            `reputation-gain-limit-${userId}`,
+            totalReputationToday,
+            "EX",
+            REPUTATION_REDIS_TTL_S,
+        );
+    } catch (error) {
+        logger.warn("Failed to sync reputation limit to Redis", {
+            trace: "0615",
             userId,
-            amount,
-            event,
-            objectId1,
-            objectId2,
-        },
-    });
+            clampedTotal: totalReputationToday,
+            error,
+        });
+    }
 }
 
 /**
@@ -247,8 +320,8 @@ export function Reputation() {
             // Find the reputation history entry for the object creation
             const historyEntry = await DbProvider.get().reputation_history.findFirst({
                 where: {
-                    objectId1: objectId,
-                    userId,
+                    objectId1: BigInt(objectId),
+                    userId: BigInt(userId),
                     event: {
                         in: [
                             "PublicApiCreated",
@@ -260,15 +333,20 @@ export function Reputation() {
                     },
                 },
             });
-            // If the entry exists, delete it and decrease the user's reputation
+            // If the entry exists, delete it and revert the reputation change properly
             if (historyEntry) {
                 await DbProvider.get().reputation_history.delete({
                     where: { id: historyEntry.id },
                 });
-                await DbProvider.get().user.update({
-                    where: { id: userId },
-                    data: { reputation: { decrement: historyEntry.amount } },
-                });
+                // Bypass daily cap when reverting creation
+                await updateReputationHelper(
+                    -historyEntry.amount,
+                    userId,
+                    historyEntry.event as ReputationEvent,
+                    objectId,
+                    undefined,
+                    { skipRateLimit: true },
+                );
             }
         },
         /**

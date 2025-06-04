@@ -1,9 +1,9 @@
 /* c8 ignore start */
-import { TimeFrame } from "../api/types.js";
-import { InputType } from "../consts/model.js";
-import { SearchPageTabOption } from "../consts/search.js";
-import { CodeLanguage } from "../consts/ui.js";
-import { TagShape } from "../shape/models/models.js";
+import { type TimeFrame } from "../api/types.js";
+import { type InputType } from "../consts/model.js";
+import { type SearchPageTabOption } from "../consts/search.js";
+import { type CodeLanguage } from "../consts/ui.js";
+import { type TagShape } from "../shape/models/models.js";
 
 /**
  * Non-input form elements
@@ -500,7 +500,7 @@ export interface YupCheck {
  * Types supported by yup validation. Does not include "array" because this type is applied to 
  * a single field.
  */
-export type YupType = "boolean" | "date" | "mixed" | "number" | "object" | "string";
+export type YupType = "boolean" | "date" | "mixed" | "number" | "object" | "string" | "array";
 
 /**
  * Shape of yup inside FieldData, BEFORE it is converted to an overall yup schema
@@ -573,6 +573,7 @@ export type GridContainer = GridContainerBase & {
 /* #endregion Layout Types */
 //==============================================================
 
+type FormLayout = Omit<GridContainerBase, "direction">;
 /**
  * Schema object that specifies the following properties of a form:
  * - Overall Layout
@@ -585,7 +586,7 @@ export interface FormSchema {
     /**
      * Contains information about the overall layout of the form
      */
-    layout?: Omit<GridContainerBase, "direction">;
+    layout?: FormLayout;
     /**
      * Contains information about subsections of the form. Subsections 
      * can only be one level deep. If this is empty, then all elements
@@ -627,7 +628,7 @@ export interface JSONSchemaFormat {
     /**
      * Specifies the properties of this schema, if type is "object".
      */
-    properties?: { [x: string]: any }; // TODO
+    properties?: { [x: string]: JSONSchemaFormat };
 }
 
 /**
@@ -653,7 +654,6 @@ export interface JSONVariable {
     defaultValue?: string | object;
     /**
      * Value of the field, or list of accepted values
-     * //TODO might replace with yup validation
      */
     value?: string | string[];
 }

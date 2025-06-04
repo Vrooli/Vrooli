@@ -1,10 +1,10 @@
-import { FindByIdInput, Notification, NotificationSearchInput, NotificationSearchResult, NotificationSettings, NotificationSettingsUpdateInput, Success, VisibilityType } from "@local/shared";
+import { type FindByIdInput, type Notification, type NotificationSearchInput, type NotificationSearchResult, type NotificationSettings, type NotificationSettingsUpdateInput, type Success, VisibilityType } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { defaultNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings.js";
-import { ApiEndpoint } from "../../types.js";
+import { type ApiEndpoint } from "../../types.js";
 import { parseJsonOrDefault } from "../../utils/objectTools.js";
 
 export type EndpointsNotification = {

@@ -1,9 +1,9 @@
-import { FormControl, FormControlProps, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
+import { FormControl, type FormControlProps, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
-import { PasswordTextInputProps } from "../types.js";
+import { type PasswordTextInputProps } from "../types.js";
 
 type PasswordStrengthProps = {
     label: string;

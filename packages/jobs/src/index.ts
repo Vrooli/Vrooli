@@ -10,7 +10,7 @@ import { generateEmbeddings } from "./schedules/embeddings.js";
 import { genSitemap, isSitemapMissing } from "./schedules/genSitemap.js";
 import { moderatePullRequests } from "./schedules/moderatePullRequests.js";
 import { moderateReports } from "./schedules/moderateReports.js";
-import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium.js";
+import { paymentsExpirePlan } from "./schedules/paymentsExpirePremium.js";
 import { paymentsFail } from "./schedules/paymentsFail.js";
 import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits.js";
 import { scheduleNotify } from "./schedules/scheduleNotify.js";
@@ -119,8 +119,8 @@ const cronJobs: CronJobDefinition[] = [
         schedule: generateCronJob(null, null, "*", "*", "*"), // Off-peak time every day
     },
     {
-        description: "expire premium",
-        jobFunction: paymentsExpirePremium,
+        description: "expire plans",
+        jobFunction: paymentsExpirePlan,
         schedule: generateCronJob(null, null, "*", "*", "*"), // Off-peak time every day
     },
     {

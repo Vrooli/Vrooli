@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { expect } from "chai";
-import { DataEmoji, EmojiProperties, SkinTone, emojiUnified, emojiVariationUnified, parseNativeEmoji, unifiedWithoutSkinTone } from "./EmojiPicker.js";
+import { type DataEmoji, EmojiProperties, SkinTone, emojiUnified, emojiVariationUnified, parseNativeEmoji, unifiedWithoutSkinTone } from "./EmojiPicker.js";
 
 describe("parseNativeEmoji", () => {
     it("should convert a simple unified emoji code to a native emoji", () => {

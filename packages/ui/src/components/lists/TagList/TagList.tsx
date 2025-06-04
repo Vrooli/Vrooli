@@ -1,8 +1,8 @@
 import { Box, Chip, Stack, styled, useTheme } from "@mui/material";
-import { SyntheticEvent, useCallback, useMemo, useState } from "react";
+import { type SyntheticEvent, useCallback, useMemo, useState } from "react";
 import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { TagListProps } from "../types.js";
+import { type TagListProps } from "../types.js";
 
 const DEFAULT_MAX_CHARACTERS = 50;
 

@@ -138,7 +138,6 @@ export const run_createOne = {
         "updatedAt": true,
         "codeLanguage": true,
         "completedAt": true,
-        "simplicity": true,
         "timesStarted": true,
         "timesCompleted": true,
         "commentsCount": true,
@@ -151,7 +150,7 @@ export const run_createOne = {
             "publicId": true,
             "createdAt": true,
             "updatedAt": true,
-            "mergedOrRejectedAt": true,
+            "closedAt": true,
             "commentsCount": true,
             "status": true,
             "createdBy": {
@@ -288,5 +287,5 @@ export const run_createOne = {
             "versionLabel": true
         }
     },
-    "__cacheKey": "-238947153"
+    "__cacheKey": "727322190"
 };

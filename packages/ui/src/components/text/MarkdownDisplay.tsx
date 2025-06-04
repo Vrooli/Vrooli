@@ -1,15 +1,15 @@
 /* eslint-disable import/extensions */
 
-import { ListObject, nanoid } from "@local/shared";
+import { type ListObject, nanoid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { usePress, UsePressEvent } from "../../hooks/gestures.js";
+import { usePress, type UsePressEvent } from "../../hooks/gestures.js";
 import { uiPathToApi, useLazyFetch } from "../../hooks/useFetch.js";
 import { IconCommon, IconText } from "../../icons/Icons.js";
-import { SxType } from "../../types.js";
+import { type SxType } from "../../types.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";

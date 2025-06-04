@@ -7,8 +7,8 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { DateDisplay } from "../../text/DateDisplay.js";
-import { ListItemChip, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
-import { ReportListItemProps } from "../types.js";
+import { ListItemChip, type ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { type ReportListItemProps } from "../types.js";
 
 function statusToColor(status: ReportStatus | undefined): ListItemStyleColor {
     if (!status) return "Default";

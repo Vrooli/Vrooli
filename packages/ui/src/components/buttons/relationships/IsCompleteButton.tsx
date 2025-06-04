@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../../icons/Icons.js";
 import { RelationshipButton, RelationshipChip } from "./styles.js";
-import { IsCompleteButtonProps } from "./types.js";
+import { type IsCompleteButtonProps } from "./types.js";
 
 export function IsCompleteButton({
     isEditing,

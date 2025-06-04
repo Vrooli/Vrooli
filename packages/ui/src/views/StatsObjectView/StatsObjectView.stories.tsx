@@ -1,4 +1,4 @@
-import { ListObject, uuid } from "@local/shared";
+import { type ListObject, uuid } from "@local/shared";
 import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { StatsObjectView } from "./StatsObjectView.js";

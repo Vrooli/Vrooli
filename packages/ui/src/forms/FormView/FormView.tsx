@@ -1,6 +1,6 @@
-import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "@hello-pangea/dnd";
-import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, mergeDeep, nanoid, noop, noopSubmit, preventFormSubmit } from "@local/shared";
-import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
+import { DragDropContext, Draggable, type DraggableProvided, type DropResult, Droppable } from "@hello-pangea/dnd";
+import { type CreateFormInputProps, type FormBuildViewProps, FormBuilder, type FormDividerType, type FormElement, type FormHeaderType, type FormImageType, type FormInformationalType, type FormInputType, type FormQrCodeType, type FormRunViewProps, type FormSchema, FormStructureType, type FormTipType, type FormVideoType, type FormViewProps, type GridContainer, InputType, createFormInput, mergeDeep, nanoid, noop, noopSubmit, preventFormSubmit } from "@local/shared";
+import { Box, type BoxProps, Divider, Grid, type GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
@@ -14,7 +14,7 @@ import { FormVideo } from "../../components/inputs/form/FormVideo.js";
 import { FormErrorBoundary } from "../../forms/FormErrorBoundary/FormErrorBoundary.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { Icon, IconCommon, IconInfo } from "../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo } from "../../icons/Icons.js";
 import { randomString } from "../../utils/codes.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 

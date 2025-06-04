@@ -1,4 +1,4 @@
-import { endpointsMeeting, Meeting } from "@local/shared";
+import { endpointsMeeting, type Meeting } from "@local/shared";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
@@ -10,7 +10,7 @@ import { useLocation } from "../../../route/router.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
-import { MeetingViewProps } from "./types.js";
+import { type MeetingViewProps } from "./types.js";
 
 export function MeetingView({
     display,

@@ -1,6 +1,6 @@
-import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
-import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderListShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
-import { Box, Button, Checkbox, Divider, Grid, IconButton, InputBase, Palette, Paper, Stack, styled, Typography, useTheme } from "@mui/material";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
+import { type CanConnect, type DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, type Reminder, type ReminderCreateInput, type ReminderItemShape, type ReminderListShape, type ReminderShape, type ReminderUpdateInput, reminderValidation, shapeReminder, type Success, uuid } from "@local/shared";
+import { Box, Button, Checkbox, Divider, Grid, IconButton, InputBase, type Palette, Paper, Stack, styled, Typography, useTheme } from "@mui/material";
 import { Field, Formik, useField } from "formik";
 import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,7 +16,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
-import { useAutoFill, UseAutoFillProps } from "../../../hooks/tasks.js";
+import { useAutoFill, type UseAutoFillProps } from "../../../hooks/tasks.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -24,7 +24,7 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ReminderCrudProps, ReminderFormProps } from "./types.js";
+import { type ReminderCrudProps, type ReminderFormProps } from "./types.js";
 
 export function reminderInitialValues(existing?: Partial<ReminderShape> & { reminderList: CanConnect<ReminderListShape> } | null | undefined): ReminderShape {
     return {
@@ -172,7 +172,7 @@ const ReminderStep = memo(({
     }, []);
 
     return (
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ position: 'relative' }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ position: "relative" }}>
             {/* Drag Handle always visible */}
             <Box {...dragHandleProps} sx={styles.dragHandle}>
                 <IconCommon name="Drag" />
@@ -207,16 +207,16 @@ const ReminderStep = memo(({
                         onChange={handleLocalNameChange}
                         onBlur={handleLocalNameBlur}
                         sx={{
-                            fontSize: 'inherit',
-                            '& .MuiInputBase-input': {
+                            fontSize: "inherit",
+                            "& .MuiInputBase-input": {
                                 padding: 0,
-                                height: 'auto',
+                                height: "auto",
                             },
-                            '&.Mui-focused': {
+                            "&.Mui-focused": {
                             },
-                            '&:before': { borderBottom: 'none' },
-                            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
-                            '&:after': { borderBottom: 'none' },
+                            "&:before": { borderBottom: "none" },
+                            "&:hover:not(.Mui-disabled):before": { borderBottom: "none" },
+                            "&:after": { borderBottom: "none" },
                         }}
                     />
 
@@ -230,7 +230,7 @@ const ReminderStep = memo(({
                         {(isEditing || reminderItem.dueDate) && (
                             <>
                                 {/* Wrapper to position both the text and input */}
-                                <Box sx={{ position: 'relative', width: "max-content" }}>
+                                <Box sx={{ position: "relative", width: "max-content" }}>
                                     {/* The visible clickable text */}
                                     <Typography
                                         variant="caption"
@@ -238,11 +238,11 @@ const ReminderStep = memo(({
                                         sx={{
                                             cursor: "pointer",
                                             color: "text.secondary",
-                                            lineHeight: 'normal',
-                                            borderBottom: '1px dashed',
-                                            borderColor: 'text.secondary',
-                                            padding: '2px 4px',
-                                            position: 'relative',
+                                            lineHeight: "normal",
+                                            borderBottom: "1px dashed",
+                                            borderColor: "text.secondary",
+                                            padding: "2px 4px",
+                                            position: "relative",
                                             zIndex: 1, // Keep text above input
                                         }}
                                     >
@@ -259,17 +259,17 @@ const ReminderStep = memo(({
                                         value={reminderItem.dueDate
                                             ? new Date(reminderItem.dueDate)
                                                 .toISOString()
-                                                .substring(0, new Date(reminderItem.dueDate).toISOString().lastIndexOf(':'))
-                                            : ''}
+                                                .substring(0, new Date(reminderItem.dueDate).toISOString().lastIndexOf(":"))
+                                            : ""}
                                         onChange={handleDateChange}
                                         style={{
-                                            position: 'absolute',
+                                            position: "absolute",
                                             top: 0,
                                             left: 0,
-                                            width: '100%',
-                                            height: '100%',
+                                            width: "100%",
+                                            height: "100%",
                                             opacity: 0, // Invisible but clickable
-                                            cursor: 'pointer',
+                                            cursor: "pointer",
                                         }}
                                     />
                                 </Box>
@@ -280,7 +280,7 @@ const ReminderStep = memo(({
                                         edge="end"
                                         size="small"
                                         onClick={handleClearDate}
-                                        sx={{ padding: '2px', marginLeft: '2px' }}
+                                        sx={{ padding: "2px", marginLeft: "2px" }}
                                     >
                                         <IconCommon name="Close" size={14} fill="text.secondary" />
                                     </IconButton>
@@ -291,7 +291,7 @@ const ReminderStep = memo(({
                             edge="end"
                             size="small"
                             onClick={onDelete}
-                            sx={{ padding: '2px' }}
+                            sx={{ padding: "2px" }}
                         >
                             <IconCommon name="Delete" fill="error.main" />
                         </IconButton>
@@ -311,17 +311,17 @@ const ReminderStep = memo(({
                         as={InputBase}
                         onFocus={handleItemFocus}
                         sx={{
-                            fontSize: 'inherit',
-                            padding: '4px 0 5px',
-                            '& .MuiInputBase-input': {
+                            fontSize: "inherit",
+                            padding: "4px 0 5px",
+                            "& .MuiInputBase-input": {
                                 padding: 0,
-                                height: 'auto',
+                                height: "auto",
                                 lineHeight: 1.43,
                             },
-                            '&.Mui-focused': {},
-                            '&:before': { borderBottom: 'none' },
-                            '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
-                            '&:after': { borderBottom: 'none' },
+                            "&.Mui-focused": {},
+                            "&:before": { borderBottom: "none" },
+                            "&:hover:not(.Mui-disabled):before": { borderBottom: "none" },
+                            "&:after": { borderBottom: "none" },
                         }}
                     />
                 )}

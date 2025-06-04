@@ -10,7 +10,7 @@ import { ReportFor } from "../../api/types.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { validatePK } from "../../id/snowflake.js";
 import { urlRegexDev } from "../../validation/utils/regex.js";
-import { YupMutateParams } from "../../validation/utils/types.js";
+import { type YupMutateParams } from "../../validation/utils/types.js";
 import { enumToYup } from "./builders/convert.js";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";
@@ -48,13 +48,22 @@ yup.addMethod(yup.bool, "toBool", function transformToBool() {
 
 
 // db fields
-export const id = yup.string().trim().removeEmptyString().test(
-    "id-validation",
-    "Must be a valid ID (UUID or Snowflake ID)",
-    (value) => value === null || value === undefined || (
-        typeof value === "string" && validatePK(value)
-    ),
-);
+export const id = yup
+    .string()
+    .transform((value, originalValue) => {
+        if (typeof originalValue === "bigint") {
+            return originalValue.toString();
+        }
+        // If it's already a string (or something yup.string() can handle), pass it through
+        return value;
+    })
+    .trim()
+    .removeEmptyString() // Use the custom method as it's chained on a StringSchema
+    .test(
+        "id-validation",
+        "Must be a valid ID (UUID or Snowflake ID)",
+        (value) => value === null || value === undefined || validatePK(value as string),
+    );
 
 // Add publicId validation
 export const publicId = yup.string().trim().removeEmptyString().test(
@@ -217,7 +226,7 @@ export const reportReason = yup.string().trim().removeEmptyString().min(1, minSt
 export const instructions = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const jsonVariable = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 export const phoneNumber = yup.string().trim().removeEmptyString().max(16, maxStrErr);
-export const config = yup.string().trim().removeEmptyString().max(32768, maxStrErr);
+export const config = yup.object();
 
 // enums
 export const reportCreatedFor = enumToYup(ReportFor);

@@ -1,4 +1,4 @@
-import { NodeWithRoutineListCrudProps, NodeWithRoutineListFormProps, NodeWithRoutineListShape } from "../types.js";
+import { type NodeWithRoutineListCrudProps, type NodeWithRoutineListFormProps, type NodeWithRoutineListShape } from "../types.js";
 
 export function nodeWithRoutineListInitialValues(existing: NodeWithRoutineListShape): NodeWithRoutineListShape {
     return { ...existing };

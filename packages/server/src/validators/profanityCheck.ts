@@ -1,11 +1,11 @@
-import { ModelType } from "@local/shared";
+import { type ModelType } from "@local/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { authDataWithInput } from "../utils/authDataWithInput.js";
 import { hasProfanity } from "../utils/censor.js";
-import { AuthDataById } from "../utils/getAuthenticatedData.js";
-import { CudInputData, InputsById } from "../utils/types.js";
+import { type AuthDataById } from "../utils/getAuthenticatedData.js";
+import { type CudInputData, type InputsById } from "../utils/types.js";
 import { getParentInfo } from "./permissions.js";
 
 type ProfanityFieldsToCheck = {

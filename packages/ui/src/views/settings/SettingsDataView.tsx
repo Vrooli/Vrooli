@@ -9,7 +9,7 @@ import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLocation } from "../../route/router.js";
-import { SettingsDataFormProps, SettingsDataViewProps } from "./types.js";
+import { type SettingsDataFormProps, type SettingsDataViewProps } from "./types.js";
 
 //TODO add section for managing uploaded files, with information about how much storage is used and a way to delete files
 function DataOption({

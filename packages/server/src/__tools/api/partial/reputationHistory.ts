@@ -1,5 +1,5 @@
-import { ReputationHistory } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ReputationHistory } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const reputationHistory: ApiPartial<ReputationHistory> = {
     full: {

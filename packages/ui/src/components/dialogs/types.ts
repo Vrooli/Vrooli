@@ -1,14 +1,14 @@
 /* c8 ignore start */
-import { Bookmark, BookmarkFor, ListObject, RoutineVersion, TranslationKeyCommon } from "@local/shared";
-import { DialogProps, PopoverProps } from "@mui/material";
-import { ReactNode } from "react";
+import { type Bookmark, type BookmarkFor, type ListObject, type RoutineVersion, type TranslationKeyCommon } from "@local/shared";
+import { type DialogProps, type PopoverProps } from "@mui/material";
+import { type ReactNode } from "react";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
-import { IconInfo } from "../../icons/Icons.js";
-import { SxType, ViewDisplayType } from "../../types.js";
-import { ObjectAction } from "../../utils/actions/objectActions.js";
-import { CookiePreferences } from "../../utils/localStorage.js";
-import { HelpButtonProps } from "../buttons/types.js";
-import { TitleProps } from "../text/types.js";
+import { type IconInfo } from "../../icons/Icons.js";
+import { type SxType, type ViewDisplayType } from "../../types.js";
+import { type ObjectAction } from "../../utils/actions/objectActions.js";
+import { type CookiePreferences } from "../../utils/localStorage.js";
+import { type HelpButtonProps } from "../buttons/types.js";
+import { type TitleProps } from "../text/types.js";
 
 export interface BulkDeleteDialogProps {
     handleClose: (selectedForDelete: ListObject[]) => unknown;

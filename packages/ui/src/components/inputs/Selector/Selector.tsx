@@ -4,7 +4,7 @@ import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
-import { SelectorBaseProps, SelectorProps } from "../types.js";
+import { type SelectorBaseProps, type SelectorProps } from "../types.js";
 
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,

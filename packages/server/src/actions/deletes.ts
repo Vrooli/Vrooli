@@ -1,7 +1,7 @@
-import { Count, SessionUser, Success } from "@local/shared";
+import { type Count, type SessionUser, type Success } from "@local/shared";
 import { SessionService } from "../auth/session.js";
 import { cudHelper } from "./cuds.js";
-import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types.js";
+import { type DeleteManyHelperProps, type DeleteOneHelperProps } from "./types.js";
 
 /**
  * Helper function for deleting one object in a single line

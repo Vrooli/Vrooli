@@ -1,15 +1,15 @@
-import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, TranslationFuncCommon, getFormikFieldName } from "@local/shared";
+import { type LinkItemFormInput, type LinkItemFormInputProps, type LinkItemType, type TranslationFuncCommon, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { LinkInputBase } from "../LinkInput/LinkInput.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
-import { FormInputProps } from "./types.js";
+import { type FormInputProps } from "./types.js";
 
 type LimitTypeOption = {
     iconInfo: IconInfo;

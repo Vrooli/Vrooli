@@ -1,10 +1,10 @@
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
-import { UsePressEvent, usePress } from "../../hooks/gestures.js";
+import { type UsePressEvent, usePress } from "../../hooks/gestures.js";
 import { useLocation } from "../../route/router.js";
 import { addSearchParams } from "../../route/searchParams.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
-import { VersionDisplayProps } from "./types.js";
+import { type VersionDisplayProps } from "./types.js";
 
 /**
  * Displays version of object.

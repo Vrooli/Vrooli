@@ -1,5 +1,5 @@
 import { exists, mergeDeep } from "@local/shared";
-import { ApiPartial, DeepPartialBooleanWithFragments, MaybeLazyAsync, NonMaybe, SelectionType } from "./types.js";
+import { type ApiPartial, type DeepPartialBooleanWithFragments, type MaybeLazyAsync, type NonMaybe, type SelectionType } from "./types.js";
 
 function simpleHash(str: string): string {
     let hash = 0;
@@ -38,7 +38,7 @@ export async function toObject<T extends ApiPartial<any>>(
                 endCursor: true,
                 hasNextPage: true,
             },
-        }
+        };
         shaped = await rel({ [selectionType]: shaped }, selectionType);
     }
     // Add cache key to avoid having the server stringify the whole object to generate one

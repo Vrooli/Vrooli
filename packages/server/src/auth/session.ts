@@ -1,8 +1,8 @@
-import { DEFAULT_LANGUAGE, Session, SessionUser } from "@local/shared";
-import { Request } from "express";
+import { DEFAULT_LANGUAGE, generatePK, type Session, type SessionUser } from "@local/shared";
+import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
-import { PasswordAuthService, UserDataForPasswordAuth } from "./email.js";
+import { PasswordAuthService, type UserDataForPasswordAuth } from "./email.js";
 import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
 import { RequestService } from "./request.js";
 
@@ -30,6 +30,7 @@ export class SessionService {
         const ipAddress = req.ip;
         const sessionData = await DbProvider.get().session.create({
             data: {
+                id: generatePK(),
                 device_info: deviceInfo,
                 expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
                 last_refresh_at: new Date(),
@@ -88,9 +89,10 @@ export class SessionService {
             __typename: "SessionUser" as const,
             id: userData.id.toString(),
             publicId: userData.publicId,
-            credits: (userData.premium?.credits ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
+            credits: (userData.creditAccount?.currentBalance ?? BigInt(0)) + "", // Convert to string because BigInt can't be serialized
+            creditAccountId: userData.creditAccount ? userData.creditAccount.id.toString() : undefined,
             handle: userData.handle ?? undefined,
-            hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
+            hasPremium: new Date(userData.plan?.expiresAt ?? 0) > new Date(),
             languages: userData.languages,
             name: userData.name,
             profileImage: userData.profileImage,

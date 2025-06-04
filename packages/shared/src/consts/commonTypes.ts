@@ -1,7 +1,9 @@
 // Dot Notation
 // eslint-disable-next-line no-magic-numbers
 type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+// eslint-disable-next-line no-magic-numbers
 type DottablePaths<T, P extends Prev[number] = 5> = [] | ([P] extends [never] ? never :
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     T extends readonly any[] ? never :
     T extends object ? {
         [K in ExtractDottable<keyof T>]: [K, ...DottablePaths<T[K], Prev[P]>]
@@ -27,6 +29,7 @@ export type DotNotation<T> = Join<Extract<DottablePaths<T, 3>, string[]>, ".">;
 /**
  * Prepends a string to all keys in an object
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type PrependString<T extends Record<string, any>, Prefix extends string> = {
     [K in keyof T as `${Prefix}${K & string}`]: T[K]
 }
@@ -43,13 +46,16 @@ export type DeepPartialBoolean<T> = {
     boolean;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PassableLoggerData = Record<string, any>;
 /**
  * Logger that is passed into a function. Typically `console` in the UI 
  * and winston in the server.
  */
 export type PassableLogger = {
-    error: (message: string, data?: Record<string, any>) => unknown;
-    info: (message: string, data?: Record<string, any>) => unknown;
+    error: (message: string, data?: PassableLoggerData) => unknown;
+    info: (message: string, data?: PassableLoggerData) => unknown;
+    warn: (message: string, data?: PassableLoggerData) => unknown;
 }
 
 /**

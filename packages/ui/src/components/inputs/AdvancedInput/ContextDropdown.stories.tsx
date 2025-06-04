@@ -1,6 +1,6 @@
 import { Box, Button } from "@mui/material";
 import { useCallback, useRef, useState } from "react";
-import { ContextDropdown, ListObject } from "./ContextDropdown.js";
+import { ContextDropdown, type ListObject } from "./ContextDropdown.js";
 
 const centerStyle = {
     display: "flex",

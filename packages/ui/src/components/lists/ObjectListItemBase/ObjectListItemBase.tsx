@@ -1,10 +1,10 @@
-import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, nanoid } from "@local/shared";
-import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
+import { type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type Member, type MemberInvite, type ReactionFor, getObjectUrl, isOfType, nanoid } from "@local/shared";
+import { AvatarGroup, Box, type BoxProps, Chip, type ChipProps, type ListItemProps, ListItemText, type Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
-import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
-import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
+import { type UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -20,10 +20,10 @@ import { CommentsButton } from "../../buttons/CommentsButton.js";
 import { ReportsButton } from "../../buttons/ReportsButton.js";
 import { VoteButton } from "../../buttons/VoteButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
-import { CompletionBarProps } from "../../types.js";
+import { type CompletionBarProps } from "../../types.js";
 import { TagList } from "../TagList/TagList.js";
 import { TextLoading } from "../TextLoading/TextLoading.js";
-import { ObjectListItemProps } from "../types.js";
+import { type ObjectListItemProps } from "../types.js";
 
 const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";

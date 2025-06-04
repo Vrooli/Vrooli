@@ -1,42 +1,21 @@
-import { DUMMY_ID, generatePK, ModelType, SessionUser, validatePK, YupMutateParams } from "@local/shared";
-import { PrismaPromise } from "@prisma/client";
-import { AnyObjectSchema, ValidationError as YupError } from "yup";
+import { generatePK, type ModelType, type SessionUser, validatePK, type YupMutateParams } from "@local/shared";
+import { type PrismaPromise } from "@prisma/client";
+import { type AnyObjectSchema, ValidationError as YupError } from "yup";
 import { InfoConverter } from "../builders/infoConverter.js";
-import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
+import { type PartialApiInfo, type PrismaCreate, type PrismaDelegate, type PrismaUpdate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
-import { PreMap } from "../models/types.js";
-import { cudInputsToMaps, CudInputsToMapsResult } from "../utils/cudInputsToMaps.js";
+import { type PreMap } from "../models/types.js";
+import { cudInputsToMaps, type CudInputsToMapsResult } from "../utils/cudInputsToMaps.js";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps.js";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
-import { CudInputData } from "../utils/types.js";
+import { type CudInputData } from "../utils/types.js";
 import { maxObjectsCheck } from "../validators/maxObjectsCheck.js";
 import { permissionsCheck } from "../validators/permissions.js";
 import { profanityCheck } from "../validators/profanityCheck.js";
-import { CudAdditionalData } from "./types.js";
-
-type CudHelperParams = {
-    /** Additional data that can be passed to ModelLogic functions */
-    additionalData?: CudAdditionalData,
-    /**
-     * If the user is an admin, flags to disable different checks
-     */
-    adminFlags?: {
-        disableAllChecks?: boolean,
-        disableInputValidationAndCasting?: boolean,
-        disableMaxObjectsCheck?: boolean,
-        disablePermissionsCheck?: boolean,
-        disableProfanityCheck?: boolean,
-        disableTriggerAfterMutations?: boolean,
-    }
-    info: PartialApiInfo,
-    inputData: CudInputData[],
-    userData: SessionUser,
-}
-
-type CudHelperResult = Array<boolean | Record<string, any>>;
+import { type CudAdditionalData, type CudHelperParams, type CudHelperResult } from "./types.js";
 
 type CudDataMaps = CudInputsToMapsResult;
 
@@ -62,8 +41,14 @@ interface ValidationErrorPayload {
     objectType: string;
     action: string;
     errors: FieldError[];
+    context?: {
+        inputKeys: string[];
+        errorCount: number;
+        firstErrorMessage: string;
+    };
 }
 
+const DEBUG_CASTING = false;
 /**
  * Validates and casts input data using the model's Yup schemas.
  * @param inputData The array of input data to validate and cast.
@@ -84,7 +69,11 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                     : undefined;
 
         if (!schemaFactory) {
-            throw new CustomError("0953", "InternalError", { action, objectType });
+            throw new CustomError("0953", "InternalError", {
+                action,
+                objectType,
+                context: "Missing schema factory",
+            });
         }
 
         try {
@@ -97,10 +86,30 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
                     ? err.inner.map(e => ({ path: e.path ?? "", message: e.message }))
                     : [{ path: err.path ?? "", message: err.message }];
 
-                const payload: ValidationErrorPayload = { objectType, action, errors: fieldErrors };
+                const payload: ValidationErrorPayload = {
+                    objectType,
+                    action,
+                    errors: fieldErrors,
+                    context: {
+                        inputKeys: Object.keys(input),
+                        errorCount: fieldErrors.length,
+                        firstErrorMessage: err.message,
+                    },
+                };
                 throw new CustomError("0558", "ValidationFailed", payload);
             }
-            throw new CustomError("0959", "InternalError", { err, objectType });
+            // Validation errors can be hard to debug, so logging the input data can help
+            if (DEBUG_CASTING) {
+                console.error(`DEBUG: Error during schema casting for objectType: ${objectType}`);
+                console.error("DEBUG: Failing input data:", JSON.stringify(input, (_key, value) => {
+                    if (typeof value === "bigint") {
+                        return `BigInt(${value.toString()})`;
+                    }
+                    return value;
+                }, 2));
+                console.error("DEBUG: Original error during casting:", err);
+            }
+            throw new CustomError("0959", "InternalError", { originalError: err, objectType, action, context: "Validation failed" });
         }
     }
 }
@@ -111,50 +120,84 @@ async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
  * Returns the placeholder ➜ snowflake map in case callers want it.
  */
 export function convertCreateIds(inputData: CudInputData[]) {
-    /** placeholder → snowflake */
-    const map = new Map<string, bigint>();
+    const placeholderToSnowflakeMap = new Map<string, bigint>();
 
-    /** Recursive walker that rewrites any scalar or scalar‑inside‑array/object */
-    function deepReplace(value: any): any {
-        // scalar → swap if we have a mapping
-        if (typeof value === "string" || typeof value === "number") {
-            const hit = map.get(String(value));
-            return hit ? hit.toString() : value;
+    // Pass 1: Collect all placeholder IDs from 'Create' inputs and map them to new Snowflakes.
+    function collectPlaceholderIdsRecursive(obj: any, action: CudInputData["action"]) {
+        if (!obj || typeof obj !== "object") {
+            return;
         }
 
-        // array → recurse on every element
-        if (Array.isArray(value)) {
-            return value.map(deepReplace);
+        if (Array.isArray(obj)) {
+            for (const item of obj) {
+                collectPlaceholderIdsRecursive(item, action);
+            }
+            return;
         }
 
-        // object → recurse on every key
-        if (value && typeof value === "object") {
-            for (const key of Object.keys(value)) {
-                value[key] = deepReplace(value[key]);
+        // For 'Create' actions, if we find an 'id' field that's a placeholder, map it.
+        if (action === "Create" && Object.prototype.hasOwnProperty.call(obj, "id")) {
+            const currentId = String(obj.id); // Ensure obj.id is treated as a string
+            if (!validatePK(currentId) && !placeholderToSnowflakeMap.has(currentId)) {
+                placeholderToSnowflakeMap.set(currentId, generatePK());
             }
         }
 
-        return value;
-    }
-
-    for (const entry of inputData) {
-        if (entry.action !== "Create") continue;
-
-        const create = entry.input as PrismaCreate;
-        const currentId = (create as any).id ?? DUMMY_ID;
-
-        if (!validatePK(currentId)) {
-            const sf = generatePK();
-            map.set(String(currentId), sf);
-            create.id = sf.toString();
+        // Recurse for other properties
+        for (const key of Object.keys(obj)) {
+            collectPlaceholderIdsRecursive(obj[key], action);
         }
     }
 
     for (const entry of inputData) {
-        entry.input = deepReplace(entry.input);
+        if (entry.action === "Create") {
+            collectPlaceholderIdsRecursive(entry.input, "Create");
+        }
     }
 
-    return map;
+    // Pass 2: Recursively replace all placeholder IDs (keys in the map) with their Snowflake values.
+    // This pass also handles replacing foreign key references in Update/Create inputs.
+    // It creates new objects/arrays to avoid in-place modification issues.
+    function replacePlaceholdersRecursive(obj: any): any {
+        if (typeof obj === "string") {
+            const snowflake = placeholderToSnowflakeMap.get(obj);
+            return snowflake ? snowflake.toString() : obj;
+        }
+        // Handle numbers that might be used as placeholder IDs, converting to string for map lookup and replacement
+        if (typeof obj === "number") {
+            const snowflake = placeholderToSnowflakeMap.get(String(obj));
+            return snowflake ? snowflake.toString() : obj;
+        }
+
+        if (Array.isArray(obj)) {
+            return obj.map(item => replacePlaceholdersRecursive(item));
+        }
+
+        if (obj && typeof obj === "object") {
+            const newObj: Record<string, any> = {};
+            for (const key of Object.keys(obj)) {
+                if (key === "id") { // Special handling for 'id' fields
+                    const currentId = String(obj[key]); // Ensure obj[key] is treated as a string
+                    const snowflake = placeholderToSnowflakeMap.get(currentId);
+                    // If it's in the map, it was a placeholder PK for a Create action.
+                    // Otherwise, it's an existing valid ID or a reference not part of this batch's creations.
+                    newObj[key] = snowflake ? snowflake.toString() : currentId;
+                } else {
+                    // For other fields, recurse to replace any potential FK references.
+                    newObj[key] = replacePlaceholdersRecursive(obj[key]);
+                }
+            }
+            return newObj;
+        }
+
+        return obj; // Return primitives or null/undefined as-is
+    }
+
+    for (let i = 0; i < inputData.length; i++) {
+        inputData[i].input = replacePlaceholdersRecursive(inputData[i].input);
+    }
+
+    return placeholderToSnowflakeMap;
 }
 
 /**
@@ -207,6 +250,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
  * @param userData The session user data.
  * @param maps The maps containing grouped data.
  * @param additionalData Additional data to pass to the shape functions.
+ * @param isSeeding Whether the operation is part of seeding.
  * @returns An object containing the operations array and transaction data.
  */
 async function buildOperations(
@@ -216,6 +260,7 @@ async function buildOperations(
     userData: SessionUser,
     maps: CudDataMaps,
     additionalData: CudAdditionalData,
+    isSeeding: boolean,
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
     const deletedIdsByType: { [key in ModelType]?: string[] } = {};
@@ -240,6 +285,7 @@ async function buildOperations(
                     additionalData,
                     data: input,
                     idsCreateToConnect: maps.idsCreateToConnect,
+                    isSeeding,
                     preMap: maps.preMap,
                     userData,
                 })
@@ -478,7 +524,7 @@ export async function cudHelper({
     const topInputsByType = groupTopLevelDataByType(inputData);
     Object.freeze(topInputsByType);
 
-    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {});
+    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps, additionalData || {}, adminFlags?.isSeeding ?? false);
     Object.freeze(transactionData);
 
     const transactionResult = await executeTransaction(transactionData.operations);

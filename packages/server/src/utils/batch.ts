@@ -1,5 +1,5 @@
-import { ModelType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types.js";
+import { type ModelType } from "@local/shared";
+import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 
 export const DEFAULT_BATCH_SIZE = 100;
@@ -9,10 +9,10 @@ export type FindManyArgs = {
     where?: unknown,
 }
 
-export interface BatchProps<T extends FindManyArgs> {
+export interface BatchProps<T extends FindManyArgs, R = unknown> {
     batchSize?: number,
     objectType: ModelType | `${ModelType}`
-    processBatch: (batch: any[]) => Promise<void>,
+    processBatch: (batch: R[]) => Promise<void>,
     select: T["select"],
     where?: T["where"],
 }
@@ -21,13 +21,13 @@ export interface BatchProps<T extends FindManyArgs> {
  * Processes data from the database in batches, 
  * as to not overload the database with a large query
  */
-export async function batch<T extends FindManyArgs>({
+export async function batch<T extends FindManyArgs, R = unknown>({
     batchSize = DEFAULT_BATCH_SIZE,
     objectType,
     processBatch,
     select,
     where,
-}: BatchProps<T>) {
+}: BatchProps<T, R>) {
     const { ModelMap } = await import("../models/base/index.js");
     const delegate = DbProvider.get()[ModelMap.get(objectType).dbTable] as PrismaDelegate;
     let skip = 0;
@@ -35,7 +35,6 @@ export async function batch<T extends FindManyArgs>({
 
     do {
         // Find all entities according to the given options
-        console.log('in batch', objectType, JSON.stringify({ select, skip, take: batchSize, where }, null, 2));
         const batch = await delegate.findMany({
             select,
             skip,
@@ -45,13 +44,13 @@ export async function batch<T extends FindManyArgs>({
         skip += batchSize;
         currentBatchSize = batch.length;
 
-        await processBatch(batch);
+        await processBatch(batch as R[]);
     } while (currentBatchSize === batchSize);
 }
 
-interface BatchGroupProps<T extends FindManyArgs, R> extends Omit<BatchProps<T>, "processBatch"> {
+interface BatchGroupProps<T extends FindManyArgs, R> extends Omit<BatchProps<T, R>, "processBatch"> {
     initialResult: R,
-    processBatch: (batch: any[], result: R) => void,
+    processBatch: (batch: R[], result: R) => void,
     finalizeResult?: (result: R) => R,
 }
 
@@ -66,9 +65,9 @@ export async function batchGroup<T extends FindManyArgs, R>({
     ...props
 }: BatchGroupProps<T, R>): Promise<R> {
     const result = initialResult;
-    await batch<T>({
+    await batch<T, R>({
         ...props,
-        processBatch: async (batch) => processBatch(batch, result),
+        processBatch: async (batch) => processBatch(batch as R[], result),
     });
     return finalizeResult ? finalizeResult(result) : result;
 }

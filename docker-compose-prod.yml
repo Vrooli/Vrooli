@@ -106,7 +106,7 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      db:
+      postgres:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "node -e \"require('http').request({hostname: 'localhost', port: process.env.PORT_API || 5329, path: '/healthcheck'}, res => { if (res.statusCode === 200) { process.exit(0) } else { process.exit(1) } }).on('error', err => { process.exit(1) }).end()\"" ]
@@ -175,10 +175,10 @@ services:
       server:
         condition: service_healthy
     command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
-  db:
+  postgres:
     image: pgvector/pgvector:pg15 
     restart: always
-    container_name: db
+    container_name: postgres
     environment:
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
       POSTGRES_USER: "${DB_USER:-site}"
@@ -190,7 +190,7 @@ services:
       - app
     volumes:
       - ./data/postgres-dev:/var/lib/postgresql/data
-      - ./packages/db/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
+      - ./packages/postgres/entrypoint/run-postgres.sh:/usr/local/bin/run-postgres.sh:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-site} && psql -U ${DB_USER:-site} -d postgres -c 'SELECT 1'" ]
       interval: 10s
@@ -217,31 +217,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  # Service for NSFW detection
+  nsfw-detector:
+    image: steelcityamir/safe-content-ai:1.1.0
+    container_name: nsfw-detector
+    restart: always
+    networks:
+      - app
+    expose:
+      - 8000 # Expose port 8000 internally to the app network
+    # GPU resources are recommended for this container for performance.
+    # Configuration depends on your Docker setup (e.g., deploy.resources.reservations.devices)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      # Basic TCP check as the service doesn't have a dedicated health endpoint
+      test: ["CMD", "nc", "-z", "localhost", "8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s # Give it time to download/load the model
+
 networks:
   proxy:
     name: nginx-proxy
     external: true
   app:
-    # TODO matomo and mariadb need to be added after kubernetes too
-    # matomo:
-    #   image: matomo
-    #   restart: always
-    #   links:
-    #     - db
-    #   volumes:
-    #     - matomo:/var/www/html
-    #   environment:
-    #     - MATOMO_DATABASE_HOST=db
-    #     - MATOMO_DATABASE_USERNAME=your_user
-    #     - MATOMO_DATABASE_PASSWORD=your_password
-    #     - MATOMO_DATABASE_DBNAME=matomo
-    # db:
-    #   image: mariadb
-    #   restart: always
-    #   volumes:
-    #     - db:/var/lib/mysql
-    #   environment:
-    #     - MYSQL_ROOT_PASSWORD=your_root_password
-    #     - MYSQL_USER=your_user
-    #     - MYSQL_PASSWORD=your_password
-    #     - MYSQL_DATABASE=matomo

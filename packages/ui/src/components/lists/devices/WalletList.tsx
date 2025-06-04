@@ -1,4 +1,4 @@
-import { DeleteOneInput, endpointsActions, endpointsWallet, Success, updateArray, Wallet, WalletUpdateInput } from "@local/shared";
+import { type DeleteOneInput, endpointsActions, endpointsWallet, type Success, updateArray, type Wallet, type WalletUpdateInput } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +10,7 @@ import { multiLineEllipsis } from "../../../styles.js";
 import { hasWalletExtension, validateWallet } from "../../../utils/authentication/walletIntegration.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ListContainer } from "../../containers/ListContainer.js";
-import { WalletListItemProps, WalletListProps } from "./types.js";
+import { type WalletListItemProps, type WalletListProps } from "./types.js";
 
 export function WalletListItem({
     handleDelete,

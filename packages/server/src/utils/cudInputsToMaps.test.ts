@@ -6,7 +6,7 @@ import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, inputToMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps.js";
 import { InputNode } from "./inputNode.js";
-import { IdsByAction, IdsByType, InputsByType } from "./types.js";
+import { type IdsByAction, type IdsByType, type InputsByType } from "./types.js";
 
 describe("fetchAndMapPlaceholder", () => {
     let placeholderToIdMap;

@@ -1,4 +1,4 @@
-import { Comment, CommentFor, CommentThread, CommentTranslation, endpointsComment, generatePK } from "@local/shared";
+import { type Comment, CommentFor, type CommentThread, type CommentTranslation, endpointsComment, generatePK } from "@local/shared";
 import { Box, Paper, useTheme } from "@mui/material";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
@@ -38,7 +38,7 @@ function Outer({ children }: { children: React.ReactNode }) {
                         elevation={2}
                         sx={{
                             ...containerStyle,
-                            backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e"
+                            backgroundColor: palette.mode === "light" ? "#f5f7fa" : "#1e1e1e",
                         }}
                     >
                         {children}
@@ -94,43 +94,47 @@ interface MockCommentThread extends Partial<CommentThread> {
     totalInThread: number;
 }
 
-const createMockComment = (id: string, text: string, owner: string = "John Doe", isCurrentUser: boolean = false): MockComment => ({
-    __typename: "Comment" as const,
-    id,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    translations: [{
-        __typename: "CommentTranslation" as const,
-        id: `${id}-translation`,
-        language: "en",
-        text,
-    }],
-    owner: {
-        __typename: "User" as const,
-        id: isCurrentUser ? "current-user-id" : `user-${id}`,
-        handle: owner,
-        name: owner,
-    },
-    you: {
-        __typename: "CommentYou" as const,
-        canDelete: isCurrentUser || owner === "Maria Garcia", // Only allow deletion for current user or specific moderator
-        canUpdate: isCurrentUser, // Only allow updates for current user
-        canReply: true, // Everyone can reply
-        canReport: !isCurrentUser, // Can't report your own comments
-        canBookmark: true,
-        canReact: true,
-        isBookmarked: false,
-        reaction: null,
-    },
-});
+function createMockComment(id: string, text: string, owner = "John Doe", isCurrentUser = false): MockComment {
+    return {
+        __typename: "Comment" as const,
+        id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        translations: [{
+            __typename: "CommentTranslation" as const,
+            id: `${id}-translation`,
+            language: "en",
+            text,
+        }],
+        owner: {
+            __typename: "User" as const,
+            id: isCurrentUser ? "current-user-id" : `user-${id}`,
+            handle: owner,
+            name: owner,
+        },
+        you: {
+            __typename: "CommentYou" as const,
+            canDelete: isCurrentUser || owner === "Maria Garcia", // Only allow deletion for current user or specific moderator
+            canUpdate: isCurrentUser, // Only allow updates for current user
+            canReply: true, // Everyone can reply
+            canReport: !isCurrentUser, // Can't report your own comments
+            canBookmark: true,
+            canReact: true,
+            isBookmarked: false,
+            reaction: null,
+        },
+    };
+}
 
-const createMockThread = (comment: MockComment, childThreads: MockCommentThread[] = []): MockCommentThread => ({
-    __typename: "CommentThread" as const,
-    comment,
-    childThreads,
-    endCursor: null,
-    totalInThread: childThreads.length,
-});
+function createMockThread(comment: MockComment, childThreads: MockCommentThread[] = []): MockCommentThread {
+    return {
+        __typename: "CommentThread" as const,
+        comment,
+        childThreads,
+        endCursor: null,
+        totalInThread: childThreads.length,
+    };
+}
 
 // Mock comment data
 const mockComments = [
@@ -138,18 +142,18 @@ const mockComments = [
         createMockComment(generatePK().toString(), "This is a top-level comment that discusses the main features of this object. It's quite detailed and provides useful information.", "Current User", true),
         [
             createMockThread(
-                createMockComment(generatePK().toString(), "Great point! I'd like to add that there are additional considerations here.", "Jane Smith")
+                createMockComment(generatePK().toString(), "Great point! I'd like to add that there are additional considerations here.", "Jane Smith"),
             ),
             createMockThread(
-                createMockComment(generatePK().toString(), "I disagree with some parts of your assessment. Let me explain why in this long message.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", "Alex Johnson")
+                createMockComment(generatePK().toString(), "I disagree with some parts of your assessment. Let me explain why in this long message.\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.", "Alex Johnson"),
             ),
-        ]
+        ],
     ),
     createMockThread(
-        createMockComment(generatePK().toString(), "Has anyone tried using this with the new API? I'm getting some unexpected results.", "Sam Wilson")
+        createMockComment(generatePK().toString(), "Has anyone tried using this with the new API? I'm getting some unexpected results.", "Sam Wilson"),
     ),
     createMockThread(
-        createMockComment(generatePK().toString(), "The documentation for this could be improved. Here are some suggestions.", "Maria Garcia")
+        createMockComment(generatePK().toString(), "The documentation for this could be improved. Here are some suggestions.", "Maria Garcia"),
     ),
 ];
 
@@ -172,38 +176,40 @@ const defaultProps = {
 };
 
 // Sample comment handlers for MSW
-const commentHandlers = (responseData = emptyCommentsResponse) => [
-    // Mock find many comments endpoint
-    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
-        return HttpResponse.json({ data: responseData });
-    }),
+function commentHandlers(responseData = emptyCommentsResponse) {
+    return [
+        // Mock find many comments endpoint
+        http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
+            return HttpResponse.json({ data: responseData });
+        }),
 
-    // Mock create comment endpoint
-    http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, async ({ request }) => {
-        const body = await request.json() as Record<string, any>;
-        console.log("Create comment request body:", body);
+        // Mock create comment endpoint
+        http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, async ({ request }) => {
+            const body = await request.json() as Record<string, any>;
+            console.log("Create comment request body:", body);
 
-        // Check for text in the first translation
-        let commentText = "New comment";
-        if (body.text) {
-            // Handle direct text property
-            commentText = body.text;
-        } else if (body.translations && Array.isArray(body.translations) && body.translations.length > 0) {
-            // Handle translations array
-            commentText = body.translations[0].text || "New comment";
-        }
+            // Check for text in the first translation
+            let commentText = "New comment";
+            if (body.text) {
+                // Handle direct text property
+                commentText = body.text;
+            } else if (body.translations && Array.isArray(body.translations) && body.translations.length > 0) {
+                // Handle translations array
+                commentText = body.translations[0].text || "New comment";
+            }
 
-        // Create a mock response with the submitted data
-        const newComment = createMockComment(
-            generatePK().toString(),
-            commentText,
-            "Current User",
-            true // Mark as current user's comment
-        );
+            // Create a mock response with the submitted data
+            const newComment = createMockComment(
+                generatePK().toString(),
+                commentText,
+                "Current User",
+                true, // Mark as current user's comment
+            );
 
-        return HttpResponse.json({ data: newComment });
-    }),
-];
+            return HttpResponse.json({ data: newComment });
+        }),
+    ];
+}
 
 // Loading handlers that delay response
 const loadingHandlers = [
@@ -215,38 +221,40 @@ const loadingHandlers = [
 ];
 
 // Read-only handlers that return 403 for create operations
-const readOnlyHandlers = (responseData = emptyCommentsResponse) => [
-    // Allow read operations
-    http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
-        return HttpResponse.json({ data: responseData });
-    }),
+function readOnlyHandlers(responseData = emptyCommentsResponse) {
+    return [
+        // Allow read operations
+        http.get(`${API_URL}/v2${endpointsComment.findMany.endpoint}*`, () => {
+            return HttpResponse.json({ data: responseData });
+        }),
 
-    // Deny write operations
-    http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, () => {
-        return HttpResponse.json(
-            {
-                success: false,
-                error: "You don't have permission to create comments"
-            },
-            { status: 403 }
-        );
-    }),
-];
+        // Deny write operations
+        http.post(`${API_URL}/v2${endpointsComment.createOne.endpoint}`, () => {
+            return HttpResponse.json(
+                {
+                    success: false,
+                    error: "You don't have permission to create comments",
+                },
+                { status: 403 },
+            );
+        }),
+    ];
+}
 
 export default {
     title: "Components/Containers/CommentContainer",
     component: CommentContainer,
     decorators: [
-        (Story) => <Outer><Story /></Outer>
+        (Story) => <Outer><Story /></Outer>,
     ],
     parameters: {
         docs: {
             description: {
-                component: "Displays comments for an object with thread functionality and comment input."
-            }
+                component: "Displays comments for an object with thread functionality and comment input.",
+            },
         },
         session: signedInPremiumWithCreditsSession,
-    }
+    },
 };
 
 // Story Components
@@ -259,13 +267,13 @@ export function EmptyWithComments() {
 }
 EmptyWithComments.parameters = {
     msw: {
-        handlers: commentHandlers(emptyCommentsResponse)
+        handlers: commentHandlers(emptyCommentsResponse),
     },
     docs: {
         description: {
-            story: "Empty state with ability to leave comments."
-        }
-    }
+            story: "Empty state with ability to leave comments.",
+        },
+    },
 };
 
 export function EmptyReadOnly() {
@@ -277,13 +285,13 @@ export function EmptyReadOnly() {
 }
 EmptyReadOnly.parameters = {
     msw: {
-        handlers: readOnlyHandlers(emptyCommentsResponse)
+        handlers: readOnlyHandlers(emptyCommentsResponse),
     },
     docs: {
         description: {
-            story: "Empty state without ability to leave comments (read-only)."
-        }
-    }
+            story: "Empty state without ability to leave comments (read-only).",
+        },
+    },
 };
 
 export function PopulatedWithComments() {
@@ -295,13 +303,13 @@ export function PopulatedWithComments() {
 }
 PopulatedWithComments.parameters = {
     msw: {
-        handlers: commentHandlers(populatedCommentsResponse)
+        handlers: commentHandlers(populatedCommentsResponse),
     },
     docs: {
         description: {
-            story: "Populated state with ability to leave comments. Shows a realistic mix of comments with different permissions: only your own comments can be edited, and only your comments or those from the moderator (Maria Garcia) can be deleted."
-        }
-    }
+            story: "Populated state with ability to leave comments. Shows a realistic mix of comments with different permissions: only your own comments can be edited, and only your comments or those from the moderator (Maria Garcia) can be deleted.",
+        },
+    },
 };
 
 export function PopulatedReadOnly() {
@@ -313,13 +321,13 @@ export function PopulatedReadOnly() {
 }
 PopulatedReadOnly.parameters = {
     msw: {
-        handlers: readOnlyHandlers(populatedCommentsResponse)
+        handlers: readOnlyHandlers(populatedCommentsResponse),
     },
     docs: {
         description: {
-            story: "Populated state without ability to leave comments (read-only). Same permission structure as PopulatedWithComments, but API returns 403 for create operations."
-        }
-    }
+            story: "Populated state without ability to leave comments (read-only). Same permission structure as PopulatedWithComments, but API returns 403 for create operations.",
+        },
+    },
 };
 
 export function Loading() {
@@ -331,13 +339,13 @@ export function Loading() {
 }
 Loading.parameters = {
     msw: {
-        handlers: loadingHandlers
+        handlers: loadingHandlers,
     },
     docs: {
         description: {
-            story: "Loading state while fetching comments."
-        }
-    }
+            story: "Loading state while fetching comments.",
+        },
+    },
 };
 
 export function MobileView() {
@@ -349,16 +357,16 @@ export function MobileView() {
 }
 MobileView.parameters = {
     msw: {
-        handlers: commentHandlers(populatedCommentsResponse)
+        handlers: commentHandlers(populatedCommentsResponse),
     },
     viewport: {
-        defaultViewport: 'mobile1',
+        defaultViewport: "mobile1",
     },
     docs: {
         description: {
-            story: "Mobile view (narrow width) with comments."
-        }
-    }
+            story: "Mobile view (narrow width) with comments.",
+        },
+    },
 };
 
 export function ForceAddCommentOpen() {
@@ -371,11 +379,11 @@ export function ForceAddCommentOpen() {
 }
 ForceAddCommentOpen.parameters = {
     msw: {
-        handlers: commentHandlers(emptyCommentsResponse)
+        handlers: commentHandlers(emptyCommentsResponse),
     },
     docs: {
         description: {
-            story: "Comments with add comment form forced open."
-        }
-    }
+            story: "Comments with add comment form forced open.",
+        },
+    },
 }; 

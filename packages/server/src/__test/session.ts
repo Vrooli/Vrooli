@@ -1,7 +1,7 @@
 import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, nanoid, SEEDED_PUBLIC_IDS } from "@local/shared";
-import { Request, Response } from "express";
+import { type Request, type Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
-import { UserDataForPasswordAuth } from "../auth/email.js";
+import { type UserDataForPasswordAuth } from "../auth/email.js";
 import { JsonWebToken } from "../auth/jwt.js";
 import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";

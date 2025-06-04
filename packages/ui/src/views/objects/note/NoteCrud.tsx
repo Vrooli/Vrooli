@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointsActions, endpointsNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
+import { DUMMY_ID, type DeleteOneInput, DeleteType, type ListObject, LlmTask, type NoteVersion, type NoteVersionCreateInput, type NoteVersionShape, type NoteVersionUpdateInput, type OwnerShape, type Session, type Success, endpointsActions, endpointsNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
 import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
@@ -34,8 +34,8 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { NoteCrudProps } from "../../../views/objects/note/types.js";
-import { NoteFormProps } from "./types.js";
+import { type NoteCrudProps } from "../../../views/objects/note/types.js";
+import { type NoteFormProps } from "./types.js";
 
 const sideActionButtonsExclude = [ObjectAction.Delete, ObjectAction.Edit] as const;
 

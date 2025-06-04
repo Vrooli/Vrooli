@@ -1,5 +1,5 @@
-import { Phone } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Phone } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const phone: ApiPartial<Phone> = {
     full: {

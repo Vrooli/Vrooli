@@ -1,4 +1,4 @@
-import { SearchStringQueryParams } from "../models/types.js";
+import { type SearchStringQueryParams } from "../models/types.js";
 
 type P = SearchStringQueryParams;
 

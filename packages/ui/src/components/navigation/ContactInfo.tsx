@@ -1,7 +1,7 @@
-import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
+import { LINKS, SOCIALS, type TranslationKeyCommon } from "@local/shared";
 import { Box, Divider, Link, Tooltip, Typography, styled } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { Icon, IconInfo } from "../../icons/Icons.js";
+import { Icon, type IconInfo } from "../../icons/Icons.js";
 import { noSelect } from "../../styles.js";
 
 type ContactInfoItem = {

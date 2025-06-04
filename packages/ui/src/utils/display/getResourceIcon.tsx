@@ -1,6 +1,6 @@
-import { LINKS, ModelType, ResourceUsedFor } from "@local/shared";
-import { Avatar, Palette } from "@mui/material";
-import { Icon, IconFavicon, IconInfo } from "../../icons/Icons.js";
+import { LINKS, type ModelType, ResourceUsedFor } from "@local/shared";
+import { Avatar, type Palette } from "@mui/material";
+import { Icon, IconFavicon, type IconInfo } from "../../icons/Icons.js";
 import { getCookiePartialData } from "../../utils/localStorage.js";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
 import { extractImageUrl } from "./imageTools.js";

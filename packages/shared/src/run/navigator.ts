@@ -1,17 +1,53 @@
 import BpmnModdle from "bpmn-moddle";
-import { DbObject } from "../api/types.js";
-import { PassableLogger } from "../consts/commonTypes.js";
+import { CronExpressionParser } from "cron-parser";
+import * as isoDur from "iso8601-duration";
+import jexl from "jexl";
+import { ResourceType, type ResourceVersion } from "../api/types.js";
+import { type PassableLogger } from "../consts/commonTypes.js";
+import { SECONDS_1_MS } from "../consts/numbers.js";
 import { nanoid } from "../id/publicId.js";
-import { GraphBpmnConfig, GraphConfig } from "../shape/configs/routine.js";
+import { type GraphBpmnConfig, type GraphConfig } from "../shape/configs/routine.js";
 import { LRUCache } from "../utils/lruCache.js";
-import { RoutineGraphType } from "../utils/routineGraph.js";
+import { type RoutineGraphType } from "../utils/routineGraph.js";
 import { BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES, BPMN_DEFINITIONS_CACHE_LIMIT, BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES } from "./consts.js";
-import { PathSelectionHandler } from "./pathSelection.js";
-import { DecisionOption, DeferredDecisionData, Id, Location, RunConfig, RunStateMachineServices, SubroutineContext } from "./types.js";
+import { SubroutineContextManager } from "./context.js";
+import { type PathSelectionHandler } from "./pathSelection.js";
+import { type DecisionOption, type DeferredDecisionData, type Id, type Location, type RunConfig, type RunProgress, type RunStateMachineServices, type SubroutineContext } from "./types.js";
+
+/**
+ * TODO: BOUNDARY EVENTS - NEXT IMPLEMENTATION STEPS
+ * 
+ * 1. SERVER INTEGRATION:
+ *    - Implement webhook endpoints using BpmnEventBus methods
+ *    - Set up event bus listeners for external message/signal sources
+ *    - Hook into application error handling to call BpmnEventBus.deliverError()
+ * 
+ * 2. TIMER POLLING:
+ *    - Set up periodic getTriggeredBoundaryEvents() calls for active runs
+ *    - Implement efficient scheduling to avoid unnecessary polling
+ *    - Add polling optimization based on timer event schedules
+ * 
+ * 3. TESTING:
+ *    - Integration tests with the new boundary event functionality
+ *    - Test timer events (duration, date, cron cycles)
+ *    - Test message/signal delivery via webhooks
+ *    - Test error/escalation propagation
+ *    - Test interrupting vs non-interrupting event behavior
+ * 
+ * 4. MONITORING:
+ *    - Add metrics for boundary event trigger rates and response times
+ *    - Performance monitoring for event consumption and memory usage
+ *    - Alerting for failed event deliveries
+ * 
+ * 5. FUTURE ENHANCEMENTS:
+ *    - Support for repeating boundary events
+ *    - Complex timer expressions and calculations
+ *    - Advanced message correlation patterns
+ *    - Event persistence and replay capabilities
+ */
 
 /**
  * Represents how to proceed after a node has been executed
- * TODO does not yet handle repeating nodes/boundary events
  */
 type NavigationDecison = {
     /**
@@ -62,7 +98,7 @@ type GetAvailableStartLocationsParams<Config extends GraphConfig> = {
     /** The state machine's services */
     services: RunStateMachineServices;
     /** Additional subroutine information required to generate the locations */
-    subroutine: DbObject<"RoutineVersion">;
+    subroutine: Pick<ResourceVersion, "id" | "resourceSubType">;
     /** The current context (e.g. variables, state) for the subroutine, which may be needed to evaluate conditions */
     subcontext: SubroutineContext;
 }
@@ -85,6 +121,10 @@ type GetAvailableNextLocationsParams<Config extends GraphConfig> = {
     decisionKey: string;
     /** The current location (last item in the location stack) in the graph */
     location: Location;
+    /** The processId of the current branch being evaluated */
+    processId: Id;
+    /** The full run progress object */
+    runProgress: RunProgress;
     /** The run config. Used to determine how strict to be with certain decisions */
     runConfig: RunConfig;
     /** The state machine's services */
@@ -312,10 +352,20 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
     private bpmnModdle = new BpmnModdle();
 
-    // Store parsed BPMN definitions to avoid re-parsing the same XML
-    private definitionsCache = new LRUCache<string, BpmnModdle.Definitions>(BPMN_DEFINITIONS_CACHE_LIMIT, BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES);
-    // Store mappings of definitionId to { [elementId: string]: BpmnElement }
-    private elementCache = new LRUCache<string, Map<string, BpmnModdle.BaseElement>>(BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES);
+    /** Cache for parsed BPMN XML definitions */
+    private definitionsCache = new LRUCache<string, BpmnModdle.Definitions>({
+        limit: BPMN_DEFINITIONS_CACHE_LIMIT,
+        maxSizeBytes: BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES,
+    });
+
+    /** Cache for individual BPMN elements, keyed by definitions ID */
+    private elementCache = new LRUCache<string, Map<string, BpmnModdle.BaseElement>>({
+        limit: BPMN_ELEMENT_CACHE_LIMIT,
+        maxSizeBytes: BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES,
+    });
+
+    /** Jexl engine for evaluating BPMN expressions. */
+    private jexlEngine = new jexl.Jexl();
 
     private END_STATE: NavigationDecison = {
         deferredDecisions: [],
@@ -331,6 +381,10 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         closedLocations: [],
         triggerBranchFailure: false,
     };
+
+    private isGraphBpmnConfig(config: GraphConfig): config is GraphBpmnConfig {
+        return config.__type === "BPMN-2.0";
+    }
 
     /**
      * Checks if the provided Graph config is supported by this navigator.
@@ -448,7 +502,13 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getAvailableNextLocations<Config extends GraphConfig>(params: GetAvailableNextLocationsParams<Config>): Promise<NavigationDecison> {
-        const { config, decisionKey, location, runConfig, services, subcontext } = params as unknown as GetAvailableNextLocationsParams<GraphBpmnConfig>;
+        const { config: genericConfig, decisionKey, location, processId: _processId, runProgress: _runProgress, runConfig, services, subcontext } = params;
+
+        if (!this.isGraphBpmnConfig(genericConfig)) {
+            services.logger.error(`BpmnNavigator: Expected config type "BPMN-2.0" but received ${genericConfig.__type} in getAvailableNextLocations`);
+            return this.END_STATE;
+        }
+        const config = genericConfig; // TypeScript should infer GraphBpmnConfig here
 
         // Validate the BPMN version
         if (!this.isSupportedBpmnVersion(config, services.logger)) {
@@ -461,7 +521,8 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         // Find the current BPMN element by ID
         const element = this.findElementById(definitions, location.locationId, services.logger);
         if (!element) {
-            return this.END_STATE;
+            services.logger.error(`BpmnNavigator: Element with ID ${location.locationId} not found in getAvailableNextLocations.`);
+            return { ...this.END_STATE, triggerBranchFailure: true };
         }
 
         // If the element is an end event, there are no next locations
@@ -614,7 +675,16 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getAvailableStartLocations<Config extends GraphConfig>(params: GetAvailableStartLocationsParams<Config>): Promise<NavigationDecison> {
-        const { config, decisionKey, services, subroutine, subcontext } = params as unknown as GetAvailableStartLocationsParams<GraphBpmnConfig>;
+        const { config: genericConfig, decisionKey, services, subroutine, subcontext } = params;
+
+        if (!this.isGraphBpmnConfig(genericConfig)) {
+            services.logger.error(`BpmnNavigator: Expected config type "BPMN-2.0" but received ${genericConfig.__type} in getAvailableStartLocations`);
+            return this.END_STATE;
+        }
+        const config = genericConfig; // TypeScript should infer GraphBpmnConfig here
+
+        const isSubroutineARoutine = subroutine.resourceSubType && subroutine.resourceSubType.startsWith("Routine");
+        const subroutineObjectType = isSubroutineARoutine ? ResourceType.Routine : ResourceType.Project;
 
         // Validate the BPMN version
         if (!this.isSupportedBpmnVersion(config, services.logger)) {
@@ -636,7 +706,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         const data: BpmnGraphData = {
             config,
             location: {
-                __typename: subroutine.__typename,
+                objectType: subroutineObjectType,
                 objectId: subroutine.id,
                 locationId: subroutine.id, // Can be anything, as it will be replaced by the start event ID
                 subroutineId: null,
@@ -658,7 +728,13 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getTriggeredBoundaryEvents<Config extends GraphConfig>(params: GetTriggeredBoundaryEventsParams<Config>): Promise<NavigationDecison> {
-        const { config, location, services, subcontext } = params as unknown as GetTriggeredBoundaryEventsParams<GraphBpmnConfig>;
+        const { config: genericConfig, location, services, subcontext } = params;
+
+        if (!this.isGraphBpmnConfig(genericConfig)) {
+            services.logger.error(`BpmnNavigator: Expected config type "BPMN-2.0" but received ${genericConfig.__type} in getTriggeredBoundaryEvents`);
+            return this.NOOP_STATE; // Use NOOP_STATE for early returns where the node is still active
+        }
+        const config = genericConfig; // TypeScript should infer GraphBpmnConfig here
 
         // Validate the BPMN version
         if (!this.isSupportedBpmnVersion(config, services.logger)) {
@@ -711,7 +787,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     /**
-     * Finds all StartEvent elements across the BPMN diagram’s processes.
+     * Finds all StartEvent elements across the BPMN diagram's processes.
      * @param definitions The BPMN definitions to search
      * @returns StartEvent elements, grouped by process ID
      */
@@ -921,7 +997,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         // Return the new location
         return {
             // __typename and objectId stay the same, as they reference the current routine
-            __typename: originalLocation.__typename,
+            objectType: originalLocation.objectType,
             objectId: originalLocation.objectId,
             // locationId changes, as it references the node we're going to next
             locationId: node.id,
@@ -991,7 +1067,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
         // Loop through each boundary event and place it in the appropriate array
         for (const boundaryEvent of elementBoundaryEvents) {
-            if (this.isBoundaryEventTriggered(boundaryEvent, subcontext)) {
+            if (this.isBoundaryEventTriggered(boundaryEvent, subcontext, data.logger)) {
                 triggered.push(boundaryEvent);
             } else {
                 unTriggered.push(boundaryEvent);
@@ -1043,24 +1119,138 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         return boundaryEvents;
     }
 
+    private parseDuration(str: string): number {
+        return isoDur.toSeconds(isoDur.parse(str)) * SECONDS_1_MS;
+    }
+
+    private isCronDue(expr: string, startedAt: number, now: number, logger: PassableLogger, subcontext: SubroutineContext): boolean {
+        try {
+            const options = {
+                currentDate: new Date(startedAt), // Set the frame of reference to when the node/timer started
+                tz: subcontext.timeZone, // Use user's timezone from subcontext
+            };
+            const interval = CronExpressionParser.parse(expr, options);
+            const nextOccurrence = interval.next();
+            return nextOccurrence.getTime() <= now;
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.error(`Error parsing or evaluating cron expression "${expr}": ${errorMessage}`);
+            return false; // If cron is invalid, it can't be due
+        }
+    }
+
     /**
      * Determines if a boundary event has been triggered, based on your run context
-     * and the event definition. This is a placeholder for your actual logic:
-     * 
-     * - Timer boundary events might check timestamps or durations in `context`.
-     * - Message boundary events might check if a certain message was received.
-     * - Error boundary events might check if an error was thrown in the sub-process, etc.
+     * and the event definition. 
      * 
      * @param boundaryEvent The boundary event to evaluate.
      * @param subcontext The current subroutine context, which might store event signals, timestamps, etc.
+     * @param logger The logger to use for logging.
      * @returns True if the boundary event has been triggered, false otherwise.
      */
-    private isBoundaryEventTriggered(boundaryEvent: BpmnModdle.BoundaryEvent, subcontext: SubroutineContext): boolean {
-        // Replace with real checks. This is a stub.
-        // For example, if boundaryEvent.eventDefinitions[0] is a TimerEventDefinition, 
-        // check if the timer has elapsed in the subcontext, etc.
-        //TODO
-        return false;
+    private isBoundaryEventTriggered(
+        boundaryEvent: BpmnModdle.BoundaryEvent,
+        subcontext: SubroutineContext,
+        logger: PassableLogger,
+    ): boolean {
+        // 1. don't re-trigger the same boundary event
+        if (subcontext.triggeredBoundaryEventIds?.includes(boundaryEvent.id)) return false;
+
+        const [eventDef] = boundaryEvent.eventDefinitions || [];
+        if (!eventDef) return false;
+
+        // Cast to specific event definition types to access their properties
+        const timerEventDef = eventDef.$type === "bpmn:TimerEventDefinition" ? eventDef as BpmnModdle.TimerEventDefinition : null;
+        const messageEventDef = eventDef.$type === "bpmn:MessageEventDefinition" ? eventDef as BpmnModdle.MessageEventDefinition : null;
+        const signalEventDef = eventDef.$type === "bpmn:SignalEventDefinition" ? eventDef as BpmnModdle.SignalEventDefinition : null;
+        const errorEventDef = eventDef.$type === "bpmn:ErrorEventDefinition" ? eventDef as BpmnModdle.ErrorEventDefinition : null;
+        const escalationEventDef = eventDef.$type === "bpmn:EscalationEventDefinition" ? eventDef as BpmnModdle.EscalationEventDefinition : null;
+        const conditionalEventDef = eventDef.$type === "bpmn:ConditionalEventDefinition" ? eventDef as BpmnModdle.ConditionalEventDefinition : null;
+
+        let isTriggered = false;
+
+        switch (eventDef.$type) {
+            /* ──────────── TIMER ──────────── */
+            case "bpmn:TimerEventDefinition": {
+                if (!timerEventDef) return false; // Should not happen given the switch case
+                const startedAt = subcontext.nodeStartTimes[boundaryEvent.attachedToRef?.id ?? ""] ?? Date.now();
+                const now = Date.now();
+
+                if ((timerEventDef.timeDuration && now >= startedAt + this.parseDuration(timerEventDef.timeDuration.body ?? "")) ||
+                    (timerEventDef.timeDate && now >= Date.parse(timerEventDef.timeDate.body ?? "")) ||
+                    (timerEventDef.timeCycle && this.isCronDue(timerEventDef.timeCycle.body ?? "", startedAt, now, logger, subcontext))) {
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── MESSAGE ──────────── */
+            case "bpmn:MessageEventDefinition": {
+                if (!messageEventDef) return false;
+                const messageId = messageEventDef.messageRef?.id ?? "";
+                const messageIndex = subcontext.runtimeEvents.messages.indexOf(messageId);
+                if (messageIndex >= 0) {
+                    // Consume the message (remove from array)
+                    subcontext.runtimeEvents.messages.splice(messageIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── SIGNAL ──────────── */
+            case "bpmn:SignalEventDefinition": {
+                if (!signalEventDef) return false;
+                const signalId = signalEventDef.signalRef?.id ?? "";
+                const signalIndex = subcontext.runtimeEvents.signals.indexOf(signalId);
+                if (signalIndex >= 0) {
+                    // Consume the signal (remove from array)
+                    subcontext.runtimeEvents.signals.splice(signalIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── ERROR ──────────── */
+            case "bpmn:ErrorEventDefinition": {
+                if (!errorEventDef) return false;
+                const errorCode = errorEventDef.errorRef?.errorCode ?? "";
+                const errorIndex = subcontext.runtimeEvents.errors.indexOf(errorCode);
+                if (errorIndex >= 0) {
+                    // Consume the error (remove from array)
+                    subcontext.runtimeEvents.errors.splice(errorIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── ESCALATION ──────────── */
+            case "bpmn:EscalationEventDefinition": {
+                if (!escalationEventDef) return false;
+                const escalationCode = escalationEventDef.escalationRef?.escalationCode ?? "";
+                const escalationIndex = subcontext.runtimeEvents.escalations.indexOf(escalationCode);
+                if (escalationIndex >= 0) {
+                    // Consume the escalation (remove from array)
+                    subcontext.runtimeEvents.escalations.splice(escalationIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── CONDITIONAL ──────────── */
+            case "bpmn:ConditionalEventDefinition": {
+                if (!conditionalEventDef) return false;
+                const expr = conditionalEventDef.condition?.body ?? (conditionalEventDef.condition as any)?.text ?? ""; // Added any cast for text
+                isTriggered = expr ? this.evaluateExpression(expr, subcontext, logger) : false;
+                break;
+            }
+        }
+
+        // If triggered, mark it as triggered so it doesn't fire again
+        if (isTriggered) {
+            SubroutineContextManager.markBoundaryEventTriggered(subcontext, boundaryEvent.id);
+        }
+
+        return isTriggered;
     }
 
     /**
@@ -1075,14 +1265,105 @@ export class BpmnNavigator implements IRoutineStepNavigator {
      * @returns True if the event has triggered, false otherwise.
      */
     private isEventTriggered(element: BpmnModdle.Event, data: BpmnGraphData): boolean {
-        const { subcontext } = data;
+        const { subcontext, logger } = data;
 
-        // You might check eventDefinitions here:
-        // e.g. if element.eventDefinitions[0] is "bpmn:TimerEventDefinition"
-        // or "bpmn:MessageEventDefinition". Then see if subcontext indicates it's been triggered.
-        // For now, this is a simple placeholder:
-        //TODO
-        return false;
+        // Cast to access eventDefinitions property which exists on concrete event types
+        const eventWithDefinitions = element as BpmnModdle.Event & { eventDefinitions?: BpmnModdle.EventDefinition[] };
+        const [eventDef] = eventWithDefinitions.eventDefinitions || [];
+        if (!eventDef) return true; // Events without definitions are treated as always triggered
+
+        // Cast to specific event definition types to access their properties
+        const timerEventDef = eventDef.$type === "bpmn:TimerEventDefinition" ? eventDef as BpmnModdle.TimerEventDefinition : null;
+        const messageEventDef = eventDef.$type === "bpmn:MessageEventDefinition" ? eventDef as BpmnModdle.MessageEventDefinition : null;
+        const signalEventDef = eventDef.$type === "bpmn:SignalEventDefinition" ? eventDef as BpmnModdle.SignalEventDefinition : null;
+        const errorEventDef = eventDef.$type === "bpmn:ErrorEventDefinition" ? eventDef as BpmnModdle.ErrorEventDefinition : null;
+        const escalationEventDef = eventDef.$type === "bpmn:EscalationEventDefinition" ? eventDef as BpmnModdle.EscalationEventDefinition : null;
+        const conditionalEventDef = eventDef.$type === "bpmn:ConditionalEventDefinition" ? eventDef as BpmnModdle.ConditionalEventDefinition : null;
+
+        let isTriggered = false;
+
+        switch (eventDef.$type) {
+            /* ──────────── TIMER ──────────── */
+            case "bpmn:TimerEventDefinition": {
+                if (!timerEventDef) return false;
+                const startedAt = subcontext.nodeStartTimes[element.id] ?? Date.now();
+                const now = Date.now();
+
+                if ((timerEventDef.timeDuration && now >= startedAt + this.parseDuration(timerEventDef.timeDuration.body ?? "")) ||
+                    (timerEventDef.timeDate && now >= Date.parse(timerEventDef.timeDate.body ?? "")) ||
+                    (timerEventDef.timeCycle && this.isCronDue(timerEventDef.timeCycle.body ?? "", startedAt, now, logger, subcontext))) {
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── MESSAGE ──────────── */
+            case "bpmn:MessageEventDefinition": {
+                if (!messageEventDef) return false;
+                const messageId = messageEventDef.messageRef?.id ?? "";
+                const messageIndex = subcontext.runtimeEvents.messages.indexOf(messageId);
+                if (messageIndex >= 0) {
+                    // Consume the message (remove from array)
+                    subcontext.runtimeEvents.messages.splice(messageIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── SIGNAL ──────────── */
+            case "bpmn:SignalEventDefinition": {
+                if (!signalEventDef) return false;
+                const signalId = signalEventDef.signalRef?.id ?? "";
+                const signalIndex = subcontext.runtimeEvents.signals.indexOf(signalId);
+                if (signalIndex >= 0) {
+                    // Consume the signal (remove from array)
+                    subcontext.runtimeEvents.signals.splice(signalIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── ERROR ──────────── */
+            case "bpmn:ErrorEventDefinition": {
+                if (!errorEventDef) return false;
+                const errorCode = errorEventDef.errorRef?.errorCode ?? "";
+                const errorIndex = subcontext.runtimeEvents.errors.indexOf(errorCode);
+                if (errorIndex >= 0) {
+                    // Consume the error (remove from array)
+                    subcontext.runtimeEvents.errors.splice(errorIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── ESCALATION ──────────── */
+            case "bpmn:EscalationEventDefinition": {
+                if (!escalationEventDef) return false;
+                const escalationCode = escalationEventDef.escalationRef?.escalationCode ?? "";
+                const escalationIndex = subcontext.runtimeEvents.escalations.indexOf(escalationCode);
+                if (escalationIndex >= 0) {
+                    // Consume the escalation (remove from array)
+                    subcontext.runtimeEvents.escalations.splice(escalationIndex, 1);
+                    isTriggered = true;
+                }
+                break;
+            }
+
+            /* ──────────── CONDITIONAL ──────────── */
+            case "bpmn:ConditionalEventDefinition": {
+                if (!conditionalEventDef) return false;
+                const expr = conditionalEventDef.condition?.body ?? (conditionalEventDef.condition as any)?.text ?? "";
+                isTriggered = expr ? this.evaluateExpression(expr, subcontext, logger) : false;
+                break;
+            }
+
+            default:
+                // Unknown event type, assume it's triggered
+                isTriggered = true;
+                break;
+        }
+
+        return isTriggered;
     }
 
     /**
@@ -1133,7 +1414,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         }
 
         // Evaluate the expression using your engine
-        return this.evaluateExpression(expressionText, data.subcontext);
+        return this.evaluateExpression(expressionText, data.subcontext, data.logger);
     }
 
     /**
@@ -1173,7 +1454,6 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         return null;
     }
 
-    //TODO call sandbox to evaluate expression
     /**
      * Evaluates a BPMN condition expression against the subroutine context.
      * Depending on your process engine or expression language, 
@@ -1183,27 +1463,55 @@ export class BpmnNavigator implements IRoutineStepNavigator {
      * @param subcontext The subroutine context, containing variables and state needed for evaluation.
      * @returns True if the expression evaluates to a truthy value, false otherwise.
      */
-    private evaluateExpression(expression: string, subcontext: SubroutineContext): boolean {
-        // For demonstration, a naive approach:
-        // 1. Strip out BPMN-style placeholders: "${...}"
-        // 2. Evaluate in some JavaScript sandbox or your own expression library.
-        // 
-        // WARNING: Do NOT eval untrusted strings in real code!
-        // Use a safe parser or expression engine.
+    private evaluateExpression(expression: string, subcontext: SubroutineContext, logger: PassableLogger): boolean {
+        // Strip out BPMN-style placeholders if they still exist.
+        // Usually, this should be handled before calling this function if expressions
+        // are extracted from XML attributes like <conditionExpression body="${foo > 5}"/>
         if (expression.startsWith("${") && expression.endsWith("}")) {
+            expression = expression.slice(2, -1).trim();
+        } else if (expression.startsWith("#{") && expression.endsWith("}")) {
+            // Also handle deferred evaluation syntax, though for conditions, immediate is typical
             expression = expression.slice(2, -1).trim();
         }
 
-        // Stub logic: check if context has the variable.
-        // For example: "foo > 5" => parse context['foo'] if it exists
-        // This is a toy. Replace with your real logic or library.
+        // If after stripping, the expression is empty, treat as true (unconditional) or false based on desired strictness.
+        // For now, let's assume an empty expression after stripping means it's not a valid conditional expression to evaluate.
+        // Camunda treats empty conditionExpressions on sequence flows as "true" if it's not a default flow.
+        // However, an empty string passed to Jexl would cause an error.
+        // A truly empty 'body' attribute in Camunda would likely mean no condition.
+        // Let's return true for an empty expression for now, mimicking an unconditional flow.
+        if (!expression) {
+            // this.services.logger.warn("Empty expression string received in evaluateExpression. Treating as true.");
+            // It's safer to return false if an expression was expected but is now empty after stripping.
+            // Or, this indicates the XML parsing should distinguish between an empty expression and no expression.
+            // For now, if an expression string was provided, it's expected to be non-empty to be evaluated.
+            // Let's be strict: if it becomes empty, it's probably an issue or needs specific handling.
+            // Consider if an empty expression should default to true (like an unconditional flow).
+            // Camunda's behavior: an outgoing sequence flow with no condition is taken.
+            // If a conditionExpression element *exists* but its body is empty, Camunda might throw an error or evaluate to false.
+            // Let's default to false if an expression was expected (i.e., string passed in) but is now empty.
+            logger.info("Evaluating an empty expression string in evaluateExpression. Defaulting to false.");
+            return false; // Or true, depending on desired default for "empty" explicit conditions
+        }
+
+        // Prepare the context for JEXL by merging inputs and outputs.
+        // Outputs will take precedence in case of name collision.
+        const jexlContext = {
+            ...(subcontext.allInputsMap || {}),
+            ...(subcontext.allOutputsMap || {}),
+        };
+
         try {
-            // If you trust your expression or have a safe parser, do something like:
-            // return mySafeExpressionEvaluator(expression, context);
-            // For demonstration:
-            return Boolean(expression);
+            // Jexl's evalSync will evaluate the expression against the provided context.
+            const result = this.jexlEngine.evalSync(expression, jexlContext);
+            return Boolean(result);
         } catch (err) {
-            // If expression fails to evaluate, log or handle error
+            // Log the error. Decide if this should throw, or return false for safety.
+            // For sequence flow conditions, returning false usually means the path isn't taken.
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.error(
+                `Error evaluating BPMN expression "${expression}": ${errorMessage}`,
+            );
             return false;
         }
     }
@@ -1272,7 +1580,13 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
     public async getIONamesPassedIntoNode<Config extends GraphConfig>(data: GetIONamesPassedIntoNodeParams<Config>): Promise<GetIONamesPassedIntoNodeResult> {
         // Parse inputs
-        const { config, nodeId, services } = data as unknown as GetIONamesPassedIntoNodeParams<GraphBpmnConfig>;
+        const { config: genericConfig, nodeId, services } = data;
+
+        if (!this.isGraphBpmnConfig(genericConfig)) {
+            services.logger.error(`BpmnNavigator: Expected config type "BPMN-2.0" but received ${genericConfig.__type} in getIONamesPassedIntoNode`);
+            return {}; // Return empty result on config mismatch
+        }
+        const config = genericConfig; // TypeScript should infer GraphBpmnConfig here
 
         // Initialize result
         const result: GetIONamesPassedIntoNodeResult = {};

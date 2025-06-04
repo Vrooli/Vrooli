@@ -1,8 +1,8 @@
-import { DEFAULT_LANGUAGE, ModelType, SessionUser, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, type ModelType, type SessionUser, type TransferObjectType, type TransferRequestReceiveInput, type TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import i18next from "i18next";
 import { noNull } from "../../builders/noNull.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
-import { PartialApiInfo, PrismaDelegate } from "../../builders/types.js";
+import { type PartialApiInfo, type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
@@ -10,7 +10,7 @@ import { getSingleTypePermissions } from "../../validators/permissions.js";
 import { TransferFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { ModelMap } from "./index.js";
-import { TeamModelLogic, TransferModelInfo, TransferModelLogic, UserModelLogic } from "./types.js";
+import { type TeamModelLogic, type TransferModelInfo, type TransferModelLogic, type UserModelLogic } from "./types.js";
 
 const __typename = "Transfer" as const;
 
@@ -57,8 +57,8 @@ export function transfer() {
                     members: {
                         some: {
                             isAdmin: true,
-                            user: { id: BigInt(userData.id) }
-                        }
+                            user: { id: BigInt(userData.id) },
+                        },
                     },
                 },
             });

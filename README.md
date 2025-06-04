@@ -110,6 +110,7 @@
     <h3 style="margin-bottom: 10px;">🛠️ Develop</h3>
     <ul style="list-style-type: none; padding-left: 0;">
       <li><a href="#-development-stack" style="text-decoration: none; color: #007acc;">🥞 Development Stack</a></li>
+      <li><a href="#-security-architecture" style="text-decoration: none; color: #007acc;">🔒 Security Architecture</a></li>
       <li><a href="#️-project-structure" style="text-decoration: none; color: #007acc;">🗂️ Project Structure</a></li>
       <li><a href="#-developer-setup" style="text-decoration: none; color: #007acc;">👩🏼‍💻 Developer Setup</a></li>
     </ul>
@@ -151,120 +152,114 @@
 # 📖 About
 
 ## ❓ What is Vrooli?
-Vrooli is a polymorphic, collaborative, and self-improving automation platform designed to automate entire teams with unprecedented efficiency. Here's how it works:
+Vrooli is an innovative AI execution platform that enables **recursive self-improvement** through collaborative intelligence ecosystems. Unlike traditional automation platforms, Vrooli creates autonomous systems where AI agents progressively enhance their own capabilities by building, improving, and sharing automated processes. Here's how it works:
 
-- **Create Autonomous Agents:** Users create bots, known as autonomous agents, which can be interacted with through chat to complete various tasks. Autonomous agents are AI-driven bots capable of performing tasks without constant human supervision. [Check out our current bots here](https://vrooli.com/search?type="User"&isBot=true).
-- **Build Dynamic Teams:** Users and bots can be organized into teams and assigned roles. Teams can collaborate towards specific goals or missions, such as building a business, conducting research, creating a game, or any other project that benefits from collaboration. Bots can be added or removed at any time, providing flexibility to grow and reshape your business without the complexities of hiring and payroll. [Check out our current teams here](https://vrooli.com/search?type="Team").
-- **Run Powerful Routines:** Tasks are accomplished using routines — reusable building blocks that combine standards, APIs, code, smart contracts, and more. These routines can be tailored for any purpose, such as internal business processes, tutorials, onboarding forms, and cognitive architectures for the bots. Routines can be run by users, bots, or a combination of both, enabling seamless collaboration. [Check out our current routines here](https://vrooli.com/search?type="Routine").
-- **Recursive Self-Improvement:** Bots utilize cognitive routines to continually build and enhance various components on the site — including other cognitive routines — enabling recursive self-improvement. Recursive self-improvement refers to the process where bots iteratively enhance their own capabilities. One of our goals is to build a team of bots that automatically suggests improvements to the most popular routines on the platform. [Learn more about recursive self-improvement here](#-recursive-self-improvement).
+- **Create Autonomous Agents:** Users create AI-driven agents capable of sophisticated reasoning, planning, and execution without constant human supervision. These agents can interact through chat and coordinate complex multi-step tasks. [Check out our current agents here](https://vrooli.com/search?type="User"&isBot=true).
+
+- **Orchestrate Dynamic Swarms:** Agents can be organized into temporary task forces called "swarms" - dynamic coalitions that assemble automatically around specific objectives, then disband when complete. Swarms enable sophisticated coordination through AI metacognition rather than rigid programming.
+
+- **Build Hierarchical Teams:** Users and agents can be organized into persistent teams with defined roles and organizational structures using MOISE+ modeling. Teams provide strategic direction and resource allocation while swarms handle tactical execution. [Check out our current teams here](https://vrooli.com/search?type="Team").
+
+- **Execute Evolutionary Routines:** Tasks are accomplished using routines — reusable automation building blocks that evolve from conversational (natural language) to reasoning (structured analysis) to deterministic (reliable automation) as patterns emerge. Routines combine AI reasoning, API calls, code execution, and human oversight. [Check out our current routines here](https://vrooli.com/search?type="Routine").
+
+- **Enable Recursive Self-Improvement:** The system achieves true recursive self-improvement through **compound knowledge effects** - where every routine becomes a building block for more sophisticated automation, creating exponential growth in capability over time.
 
 ## 🤔 Why use Vrooli?
-Vrooli is your ultimate tool for staying organized and achieving both personal and professional goals. Here's what sets it apart from other solutions:
+Vrooli represents a fundamental breakthrough in automation - moving beyond simple task execution to **collaborative intelligence ecosystems** where capabilities grow exponentially through agent cooperation and routine evolution:
 
-- **Shared and Evolving Routines:** Routines can be shared and improved by anyone. They can be combined to create new, more sophisticated routines, promoting a collaborative ecosystem.
-- **Polymorphic Output:** The output of a routine varies significantly based on the bot executing it. For instance, an Edgar Allan Poe bot would approach a "Write a Novel" routine differently than an Isaac Asimov bot. Polymorphic in this context means that routines can produce different outputs based on the bot's unique personality, as well as their role and the team they are part of.
-- **Accessible Business Processes:** Anyone can copy a public team, granting access to refined business processes and on-demand employees for various purposes, all at no additional cost.
-- **Standards for Structure:** Create standards to define prompts, allowing for the quick structuring of chat messages to bots.
-- **Integrated Communication:** Engage with multiple bots and humans in the same conversation, facilitating seamless collaboration to complete tasks.
-- **Scheduled Automation:** Routines can be scheduled to run at specific times or when certain conditions are met, ensuring timely and automated task completion.
+- **Three-Tier Intelligence Architecture:** Vrooli's unique architecture enables coordination intelligence (swarm orchestration), process intelligence (universal routine execution), and execution intelligence (strategy-aware processing) working together seamlessly.
 
+- **Strategy Evolution Pipeline:** Routines naturally progress from human-like flexibility to machine-like reliability as usage patterns emerge, creating a path from exploration to optimization without losing adaptability.
 
-# ⚙️ Functionality
+- **Universal Automation Ecosystem:** Platform-agnostic execution means routines created in BPMN can run in Langchain, Temporal workflows can integrate with n8n - creating unprecedented interoperability.
+
+- **Event-Driven Intelligence:** Specialized agents monitor performance, security, and quality through a sophisticated event system, providing adaptive capabilities that evolve with your needs.
+
+- **Polymorphic Execution:** The same routine produces different outputs based on the executing agent's personality, role, and team context - enabling truly personalized automation at scale.
+
+- **Hierarchical Resource Management:** Sophisticated credit, time, and computational resource management ensures efficient execution while maintaining strict security boundaries.
 
 ## ✨ Key Features
-Vrooli stands out as a dynamic and capable automation platform designed to maximize efficiency and innovation for both business and personal use. Here's what you can expect:
+Vrooli's advanced AI execution architecture delivers unprecedented automation capabilities:
 
 ### Currently Supported Features
 
-#### Chat & Communication
-- 💬 Real-time chat with multiple bots and humans in the same conversation
-- 🤖 Create and customize bots with unique personas
-- 🎯 Instruct bots to perform site actions and agentic operations
-- 💡 Smart action suggestions from bots
-- 🔄 Context-aware conversations with chat history retention
+#### Three-Tier AI Architecture
+- 🧠 **Coordination Intelligence:** SwarmStateMachine orchestrates dynamic agent teams through prompt-based metacognition
+- ⚙️ **Process Intelligence:** RunStateMachine provides universal routine execution across platforms (BPMN, Langchain, Temporal)  
+- 🎯 **Execution Intelligence:** UnifiedExecutor delivers strategy-aware processing with conversational, reasoning, and deterministic modes
 
-#### Automation & Workflows
-- 📋 Create, comment on, and vote for routines
-- 🔄 Reusable routine templates and references
-- 📊 Visual routine flowcharts with descriptive steps
-- ⏰ Reminders and scheduling capabilities
-- 🤖 Run routines automatically or step-by-step
+#### Advanced Agent Coordination
+- 🐝 Dynamic swarm assembly and disassembly based on task requirements
+- 👥 MOISE+ organizational modeling for sophisticated team structures
+- 🤖 Autonomous agents with specialized capabilities and persistent personas
+- 📊 Event-driven coordination through natural language understanding
 
-#### Platform Features
-- 💳 Access AI features by buying credits
-- ⚡ LLM fallback system for service continuity
-- 🎨 Enhanced markdown support
-- 🎓 Interactive (skippable) tutorial for new users
-- 🔍 Embedding infrastructure for similarity search
+#### Evolutionary Automation
+- 🔄 Strategy evolution from conversational → reasoning → deterministic
+- 📋 Recursive routine composition with unlimited nesting capabilities
+- 🌐 Universal workflow support (BPMN 2.0, with Langchain/Temporal/Airflow coming)
+- ⚡ Context inheritance and sensitivity-aware data handling
+
+#### Intelligent Communication
+- 💬 Multi-agent chat with context-aware conversations
+- 🎯 MCP (Model Context Protocol) tool integration
+- 🔧 Real-time tool execution with approval workflows
+- 📊 Streaming execution with progressive results
+
+#### Enterprise-Grade Infrastructure
+- 💳 Sophisticated credit and resource management
+- 🔒 Comprehensive security framework with guard rails
+- 📊 Three-tier caching system (L1 LRU, L2 Redis, L3 PostgreSQL)
+- ⚡ AI model fallback system across providers (OpenAI, Anthropic, Mistral)
 
 ### Coming Soon
 
-#### Core Functionality
-- 👥 Routine roles and team management
-- 📱 Comprehensive mobile support
-  - Android and iOS apps
-  - Push notifications
-- 📅 Calendar integration
-  - Calendar sync
-- 🤝 Team collaboration features
-  - Member invitations
-  - Object transfer capabilities
-  - Data importing/exporting
+#### Platform Expansion
+- 📱 Comprehensive mobile support (Android and iOS apps)
+- 🔌 Additional navigator support (Langchain, Temporal, Airflow, n8n)
+- 🌐 Web browsing capabilities and API integration
+- 📜 Smart contract integration for blockchain operations
 
-#### Advanced Features
-- 🌐 Web browsing capabilities for routines
-- 🔌 API integration
-- 📜 Smart contract integration
-- 🎨 Custom routine interfaces
-- 🔍 Explore/Recommendation system
-- 💻 Offline/Local support
-- 🧠 World model for contextual awareness
-- 💰 Microtransactions for API calls and services
+#### Advanced Intelligence
+- 🧠 Cross-swarm learning and knowledge sharing
+- 🎯 Autonomous routine generation and optimization
+- 📈 Predictive scaling and performance optimization
+- 🔍 Enhanced recommendation and discovery systems
 
-#### Platform Evolution
-- 🌐 Decentralization and Governance
-  - DID-based reputation system
-  - Decentralized data storage
-  - Decentralized cloud service integration
-- ⚖️ Pull request system for routine improvements
-- 📈 Enhanced scaling capabilities
-
-## 🔑 Core Capabilities
-Learn more about our key features and how they work together:
-
-### Autonomous Agents
-Vrooli allows you to create bots, known as autonomous agents, that perform tasks without constant human supervision. These agents can interact with users through chat and execute various functions, such as scheduling tasks, summarizing meetings, and generating marketing reports. This enables a seamless automation experience, providing reliable support around the clock.
-
-### Recursive Self-Improvement
-At the heart of Vrooli is the concept of recursive self-improvement. Bots utilize cognitive routines to continuously enhance their own capabilities and those of the platform. This iterative process ensures that Vrooli evolves and becomes more efficient over time, learning from each interaction and task completion to better serve user needs.
-
-### Polymorphic Routines
-Vrooli's routines are polymorphic, meaning they can adapt and produce varied outputs based on the executing agent's unique personality and role. For example, a routine designed to analyze financial data will generate different insights when run by a Warren Buffett bot compared to an Elon Musk bot. This flexibility allows for a more personalized and dynamic approach to automation.
-
-### Dynamic Team Building
-Users can create and manage dynamic teams consisting of both bots and humans, with each member assigned specific roles. These teams foster collaboration towards common goals such as developing new products, conducting market research, or managing social media campaigns. The ability to add or remove bots at any time provides the flexibility to adapt to changing project requirements in a way that traditional organizations cannot.
-
-### Powerful and Reusable Routines
-Tasks are accomplished through routines — reusable building blocks that integrate standards, APIs, code, smart contracts, and other native components. These routines can be customized for any purpose, whether for internal business processes, tutorials, onboarding forms, personal guides, or cognitive architectures for bots. By leveraging routines, users can streamline complex workflows and achieve consistent results.
-
-### Shared and Evolving Ecosystem
-Vrooli promotes a collaborative ecosystem where routines can be shared, improved, and combined to create new, sophisticated routines. This shared knowledge base accelerates the development of innovative solutions and enhances the overall capabilities of the platform. It also reduces the learning curve and setup time for new users, enabling them to leverage existing routines to achieve their goals more efficiently.
-
-### Accessible and Integrated Communication
-Engage with multiple bots and humans in the same conversation, enabling integrated communication and seamless collaboration. This ensures that tasks are completed efficiently and that all team members, whether human or bot, are on the same page.
-
-### Scheduled and Conditional Automation
-Routines can be scheduled to run at specific times or triggered by certain conditions. This feature ensures timely and automated task completion, allowing users to focus on more strategic activities.
-
-Vrooli's unique features make it a powerful tool for automating workflows and enhancing productivity. Whether you're managing a business, conducting research, or working on creative projects, Vrooli provides the capabilities to automate, improve, and innovate continuously.
+#### Decentralization Features
+- 🌐 DID-based reputation system
+- ⚖️ Governance mechanisms for collective decision-making
+- 🔗 Decentralized data storage and cloud integration
+- 💰 Cryptographic resource tokenization
 
 ## 🔄 Recursive Self-Improvement
-Recursive self-improvement is at the core of Vrooli's potential to revolutionize meaningful work, enabling both bots and humans to iteratively enhance their workflows and efficiencies. Here's how it works:
+Vrooli achieves true recursive self-improvement through a sophisticated compound knowledge system that goes far beyond simple metric analysis:
 
-- **Step 1:** Bots and humans create routines. These routines are sequences of tasks that can be reused and combined in various ways. Time, cost, and complexity metrics for each routine and their subroutines are tracked.
-- **Step 2:** Bots and humans analyze these metrics to improve the efficiency of routines and other components like standards, teams, and projects. By identifying the least efficient or least automated areas, they can prioritize these for enhancement. Improvements can be crowdsourced using Vrooli profits or donations.
-- **Step 3:** The same improvement process can be applied to the routines and components used in Step 2. This means bots and humans are constantly refining the tools they use to improve other routines.
-- **Step k:** This process is repeated as many times as necessary, continually improving the routines that enhance other routines. This creates a meta-improvement loop, where the system becomes more efficient over time.
+### Hierarchical Intelligence Evolution
+The system enables recursive self-improvement through **top-down decomposition** and **evolutionary execution**:
+
+- **Strategy Evolution Pipeline:** Routines naturally evolve from conversational (human-like reasoning) to reasoning (structured frameworks) to deterministic (reliable automation) as patterns emerge and best practices crystallize.
+
+- **Recursive Routine Composition:** Any routine can contain other routines as subroutines with unlimited nesting. This enables complex workflows to decompose naturally while maintaining context inheritance and security boundaries.
+
+- **Compound Knowledge Effects:** Every routine becomes a building block for more sophisticated automation. As the library of proven routines grows, new capabilities emerge exponentially through novel combinations.
+
+### Autonomous Improvement Mechanisms
+- **Event-Driven Intelligence:** Specialized agents continuously monitor performance, security, and quality through a sophisticated event bus, automatically identifying optimization opportunities.
+
+- **Cross-Swarm Learning:** Agents share insights and successful patterns across organizational boundaries, accelerating the evolution of best practices across the entire ecosystem.
+
+- **Pattern Recognition and Codification:** The system automatically identifies successful interaction patterns and suggests their conversion into reusable routines, reducing manual effort over time.
+
+### Meta-Improvement Loops
+- **Strategy Optimization:** Agents analyze which execution strategies work best for different types of tasks and automatically tune strategy selection algorithms.
+
+- **Routine Enhancement:** Successful routine patterns are automatically suggested for combination into more powerful workflows, with agents proposing and testing improvements.
+
+- **Infrastructure Evolution:** The system monitors its own performance and suggests architectural improvements, creating a path toward self-optimizing infrastructure.
+
+This creates a **meta-improvement loop** where agents not only improve the routines they use but also enhance the very processes used to create improvements, leading to accelerating capability growth over time.
 
 # 💻 Installation
 
@@ -304,17 +299,122 @@ Video coming soon!
 # 🛠️ Develop
 
 ## 🥞 Development Stack
-Vrooli is built using a modern and robust technology stack to ensure performance, scalability, and ease of development. Here are the core components:
+Vrooli is built using a sophisticated, enterprise-grade technology stack designed to support advanced AI execution, distributed coordination, and recursive self-improvement capabilities:
 
-- [<img align="left" alt="React" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" style="padding-right:10px;" />](https://reactjs.org/) **React:** A powerful JavaScript library for building user interfaces, ensuring a dynamic and responsive frontend.
+### Core Technologies
+- [<img align="left" alt="React" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" style="padding-right:10px;" />](https://reactjs.org/) **React:** A powerful JavaScript library for building dynamic, responsive user interfaces with real-time agent interaction capabilities.
 
-- [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/) **TypeScript:** A typed superset of JavaScript that enhances code quality and maintainability.
+- [<img align="left" alt="typeScript" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" style="padding-right:10px;" />](https://www.typescriptlang.org/) **TypeScript:** A typed superset of JavaScript providing type safety for complex AI coordination logic and distributed systems.
 
-- [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/) **Node.js:** A runtime environment that allows for server-side execution of JavaScript, powering the backend of Vrooli.
+- [<img align="left" alt="Node.js" width="26px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" style="padding-right:10px;" />](https://nodejs.org/) **Node.js:** High-performance runtime environment powering the three-tier AI execution architecture with event-driven processing.
 
-- [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/) **PostgreSQL:** A powerful, open-source relational database system used for data storage and management.
+### AI & Execution Infrastructure
+- **Three-Tier Architecture:** SwarmStateMachine (Coordination Intelligence), RunStateMachine (Process Intelligence), UnifiedExecutor (Execution Intelligence)
+- **AI Model Management:** Multi-provider support (OpenAI, Anthropic, Mistral) with intelligent fallback and cost optimization
+- **MCP Integration:** Model Context Protocol for universal tool integration and agent-to-agent communication
+- **Strategy Evolution:** Dynamic execution strategy selection (Conversational → Reasoning → Deterministic)
 
-- [<img align="left" alt="Docker" width="26px" src="./packages/ui/src/assets/icons/service/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** A platform for developing, shipping, and running applications in containers, ensuring consistency across different environments.
+### Data & State Management
+- [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/) **PostgreSQL + pgvector:** Primary database with vector embedding support for knowledge base and similarity search.
+
+- **Redis:** L2 distributed caching layer for swarm state management and cross-server coordination.
+
+- **Three-Tier Caching:** L1 (Local LRU), L2 (Redis), L3 (PostgreSQL) with debounced write-behind patterns for optimal performance.
+
+### Distributed Systems & Coordination
+- **Event Bus Architecture:** Publish-subscribe messaging for event-driven intelligence and inter-agent communication
+- **MOISE+ Modeling:** Organizational structure specification for sophisticated team coordination
+- **Context Management:** Hierarchical execution contexts with sensitivity-aware data handling
+- **Resource Management:** Sophisticated credit, time, and computational resource tracking across execution tiers
+
+### Security & Isolation
+- [<img align="left" alt="Docker" width="26px" src="./packages/ui/src/assets/icons/service/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** Containerized deployment with sandboxed execution environments for secure code execution.
+
+- **Guard Rails Framework:** Synchronous safety checks with configurable barriers and emergency stops
+- **Encryption & Secrets:** End-to-end encryption with secure API key management and credential rotation
+- **Audit System:** Comprehensive logging and compliance monitoring for enterprise requirements
+
+### Workflow & Integration
+- **Universal Navigators:** Plug-and-play support for BPMN 2.0, with planned support for Langchain, Temporal, Airflow, and n8n
+- **Routine Evolution:** Automatic progression from conversational to deterministic execution strategies
+- **Cross-Platform Compatibility:** Platform-agnostic routine execution enabling unprecedented workflow interoperability
+
+This technology stack enables Vrooli's unique capabilities: recursive self-improvement, collaborative intelligence ecosystems, and universal automation platform support.
+
+## 🔒 Security Architecture
+Vrooli implements a comprehensive, multi-layered security framework designed specifically for AI-driven automation systems. Our security approach addresses both traditional cybersecurity concerns and novel AI-specific threats:
+
+### AI-Specific Threat Protection
+
+#### Input Security
+- **Prompt Injection Prevention:** Advanced input sanitization and context isolation to prevent malicious prompt manipulation
+- **Data Poisoning Detection:** Anomaly detection systems monitor for corrupted or malicious training data
+- **Context Contamination Guards:** Strict isolation between swarms, agents, and routine executions to prevent information leakage
+
+#### Model Security  
+- **Output Validation:** Comprehensive validation engines ensure AI outputs meet quality and safety standards
+- **Bias Detection:** Continuous monitoring for demographic bias and discriminatory patterns in AI decisions
+- **Hallucination Checks:** Cross-verification systems validate AI-generated facts and citations
+
+#### Execution Security
+- **Sandboxed Environments:** All code execution occurs in isolated containers with strict resource limits
+- **Permission Controls:** Granular access controls based on agent roles, team memberships, and routine requirements
+- **Resource Limits:** Sophisticated quota management prevents resource exhaustion attacks
+
+### Multi-Layer Defense Framework
+
+#### Guard Rails System
+- **Synchronous Safety Checks:** Real-time validation of inputs and outputs with <10ms overhead
+- **Emergency Stop Protocol:** Immediate system halt capabilities for safety-critical situations  
+- **Barrier Handshakes:** Consensus-based approval for high-risk operations with configurable timeouts
+
+#### Event-Driven Security Intelligence
+- **Security Agents:** Specialized AI agents monitor security events and respond to threats in real-time
+- **Adaptive Threat Detection:** Machine learning models identify novel attack patterns and anomalies
+- **Incident Response:** Automated threat containment and notification systems
+
+#### Data Protection
+- **End-to-End Encryption:** All data encrypted in transit and at rest using industry-standard algorithms
+- **Sensitivity Classification:** Automatic data classification (public, internal, confidential, secret, PII) with appropriate handling
+- **Privacy Controls:** GDPR and CCPA compliant data handling with user-controlled data export and deletion
+
+### Access Control & Authentication
+
+#### Multi-Factor Security
+- **Identity Verification:** Robust authentication with multi-factor support
+- **Role-Based Access:** Granular permissions based on organizational roles and responsibilities
+- **API Security:** Secure credential management with automatic rotation and audit logging
+
+#### Team & Swarm Security
+- **Organizational Boundaries:** MOISE+ modeling ensures proper authority relationships and permission inheritance
+- **Resource Allocation:** Hierarchical resource limits prevent abuse while enabling legitimate operations
+- **Audit Trails:** Comprehensive logging of all actions for compliance and forensic analysis
+
+### Compliance & Governance
+
+#### Regulatory Compliance
+- **GDPR Compliance:** Full data protection regulation compliance with privacy-by-design principles
+- **SOX/FINRA Support:** Financial industry compliance capabilities for regulated organizations
+- **HIPAA Ready:** Healthcare data protection capabilities for medical applications
+
+#### Governance Framework
+- **Policy Enforcement:** Machine-readable policy DSL with automated compliance checking
+- **Risk Assessment:** Continuous risk monitoring with automatic escalation procedures
+- **Compliance Reporting:** Automated generation of compliance reports and audit documentation
+
+### Security Monitoring & Response
+
+#### Real-Time Monitoring
+- **Security Event Correlation:** Advanced analysis of security events across all system components
+- **Threat Intelligence:** Integration with external threat feeds and indicators of compromise
+- **Performance Impact:** Security measures designed for minimal performance impact on AI operations
+
+#### Incident Response
+- **Automated Response:** Immediate automated responses to detected threats and anomalies
+- **Escalation Procedures:** Clear escalation paths for human intervention when required
+- **Recovery Protocols:** Comprehensive disaster recovery and business continuity planning
+
+This security architecture ensures that Vrooli can safely enable autonomous AI operations while maintaining the highest standards of data protection, privacy, and regulatory compliance.
 
 ## [🗂️ Project Structure][project-structure]
 [This docs section][project-structure] provides a comprehensive overview of the project's structure, helping developers get familiar with the layout and organization of the codebase.

@@ -1,8 +1,8 @@
 import * as yup from "yup";
 import { splitDotNotation } from "../../../utils/objects.js";
 import { omit } from "../../../utils/omit.js";
-import { YupModel, YupModelOptions, YupMutateParams } from "../types.js";
-import { RelationshipType, rel } from "./rel.js";
+import { type YupModel, type YupModelOptions, type YupMutateParams } from "../types.js";
+import { type RelationshipType, rel } from "./rel.js";
 
 /**
  * Creates a yup object

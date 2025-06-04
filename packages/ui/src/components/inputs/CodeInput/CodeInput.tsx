@@ -1,5 +1,5 @@
 /* eslint-disable import/extensions */
-import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
+import { CodeLanguage, Status, type TranslationKeyLangs, isEqual } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -11,10 +11,10 @@ import { SelectorBase } from "../../inputs/Selector/Selector.js";
 import React from "react";
 import { SessionContext } from "../../../contexts/session.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
-import { Icon, IconCommon, IconInfo, IconText } from "../../../icons/Icons.js";
+import { Icon, IconCommon, type IconInfo, IconText } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
-import { CodeInputBaseProps, CodeInputProps } from "../types.js";
+import { type CodeInputBaseProps, type CodeInputProps } from "../types.js";
 
 const ICON_SIZE_PX = 20;
 

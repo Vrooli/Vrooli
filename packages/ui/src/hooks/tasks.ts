@@ -1,12 +1,12 @@
-import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_PUBLIC_IDS, StartLlmTaskInput, TaskContextInfo, TaskType, endpointsTask, getTranslation, nanoid, noop } from "@local/shared";
+import { type AITaskInfo, type CheckTaskStatusesInput, type CheckTaskStatusesResult, DUMMY_ID, LlmTask, SEEDED_PUBLIC_IDS, type StartSwarmTaskInput, type TaskContextInfo, TaskType, endpointsTask, getTranslation, nanoid, noop } from "@local/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import type { IconInfo } from "../icons/Icons.js";
 import { useActiveChat } from "../stores/activeChatStore.js";
-import { AITaskDisplay, AITaskDisplayState } from "../types.js";
+import { type AITaskDisplay, AITaskDisplayState } from "../types.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
 import { getCookieTasksForChat, setCookieTasksForChat } from "../utils/localStorage.js";
-import { ChatTaskPub, ContextConnect, PubSub } from "../utils/pubsub.js";
+import { type ChatTaskPub, type ContextConnect, PubSub } from "../utils/pubsub.js";
 import { useLazyFetch } from "./useFetch.js";
 
 export type UseAutoFillProps<FormShape = object> = {
@@ -167,7 +167,7 @@ export function useAutoFill<T = object>({
     const contextId = useRef<string>(nanoid());
 
     // Starts the autofill process in the server. Must listen to socket events for the result
-    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointsTask.startLlmTask);
+    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartSwarmTaskInput, undefined>(endpointsTask.startLlmTask);
     const autoFill = useCallback(function autoFillCallback() {
         const chatId = chat?.id;
         if (!chatId) {
@@ -186,7 +186,7 @@ export function useAutoFill<T = object>({
             autoHideDuration: "persist",
         });
 
-        fetchLazyWrapper<StartLlmTaskInput, undefined>({
+        fetchLazyWrapper<StartSwarmTaskInput, undefined>({
             fetch: startLlmTask,
             inputs: {
                 chatId,

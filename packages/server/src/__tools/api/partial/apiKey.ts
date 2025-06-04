@@ -1,5 +1,5 @@
-import { ApiKey, ApiKeyCreated } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type ApiKey, type ApiKeyCreated } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const apiKey: ApiPartial<ApiKey> = {
     full: {

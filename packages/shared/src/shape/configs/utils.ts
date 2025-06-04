@@ -1,4 +1,4 @@
-import { PassableLogger } from "../../consts/commonTypes.js";
+import { type PassableLogger } from "../../consts/commonTypes.js";
 
 export const LATEST_CONFIG_VERSION = "1.0";
 

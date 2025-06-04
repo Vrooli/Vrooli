@@ -1,7 +1,7 @@
-import { Team } from "../../api/types.js";
+import { type Team } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { BaseConfig, BaseConfigObject } from "./baseConfig.js";
-import { stringifyObject, type StringifyMode } from "./utils.js";
+import { BaseConfig, type BaseConfigObject } from "./base.js";
+import { type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
@@ -34,9 +34,6 @@ const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
  * ```
  */
 export type TeamConfigObject = BaseConfigObject & {
-    /**
-     * Roles available to team mmembers
-     */
     /**
      * Declarative description of the team's organisational structure.
      *
@@ -71,12 +68,12 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
         this.structure = config.structure;
     }
 
-    static deserialize(
+    static parse(
         version: Pick<Team, "config">,
         logger: PassableLogger,
-        opts?: { mode?: StringifyMode; useFallbacks?: boolean },
+        opts?: { useFallbacks?: boolean },
     ): TeamConfig {
-        return this.parseConfig<TeamConfigObject, TeamConfig>(
+        return super.parseBase<TeamConfigObject, TeamConfig>(
             version.config,
             logger,
             (cfg) => {
@@ -85,12 +82,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
                 }
                 return new TeamConfig({ config: cfg });
             },
-            { mode: opts?.mode },
         );
-    }
-
-    serialize(mode: StringifyMode): string {
-        return stringifyObject(this.export(), mode);
     }
 
     /**

@@ -1,7 +1,7 @@
-import { Session, TranslationKeyCommon } from "@local/shared";
-import { FilterOptionsState } from "@mui/material";
+import { type Session, type TranslationKeyCommon } from "@local/shared";
+import { type FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
-import { IconInfo } from "../../icons/Icons.js";
+import { type IconInfo } from "../../icons/Icons.js";
 import { SessionService } from "../authentication/session.js";
 import { normalizeText, removeEmojis, removePunctuation } from "../display/documentTools.js";
 

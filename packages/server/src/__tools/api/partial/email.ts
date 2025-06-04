@@ -1,5 +1,5 @@
-import { Email } from "@local/shared";
-import { ApiPartial } from "../types.js";
+import { type Email } from "@local/shared";
+import { type ApiPartial } from "../types.js";
 
 export const email: ApiPartial<Email> = {
     full: {

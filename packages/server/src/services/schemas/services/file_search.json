@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "A tool that searches for relevant content from uploaded files. Learn more about\nthe\n[file search tool](https://platform.openai.com/docs/guides/tools-file-search).",
+  "type": "object",
+  "properties": {
+    "type": {
+      "description": "The type of the file search tool. Always `file_search`.",
+      "type": "string",
+      "const": "file_search"
+    },
+    "vector_store_ids": {
+      "description": "The IDs of the vector stores to search.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "filters": {
+      "description": "A filter to apply.",
+      "anyOf": [
+        {
+          "description": "A filter used to compare a specified attribute key to a given value using a\ndefined comparison operation.",
+          "type": "object",
+          "properties": {
+            "key": {
+              "description": "The key to compare against the value.",
+              "type": "string"
+            },
+            "type": {
+              "description": "Specifies the comparison operator: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`.\n\n- `eq`: equals\n- `ne`: not equal\n- `gt`: greater than\n- `gte`: greater than or equal\n- `lt`: less than\n- `lte`: less than or equal",
+              "enum": [
+                "eq",
+                "gt",
+                "gte",
+                "lt",
+                "lte",
+                "ne"
+              ],
+              "type": "string"
+            },
+            "value": {
+              "description": "The value to compare against the attribute key; supports string, number, or\nboolean types.",
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            }
+          },
+          "required": [
+            "key",
+            "type",
+            "value"
+          ]
+        },
+        {
+          "description": "Combine multiple filters using `and` or `or`.",
+          "type": "object",
+          "properties": {
+            "filters": {
+              "description": "Array of filters to combine. Items can be `ComparisonFilter` or\n`CompoundFilter`.",
+              "type": "array",
+              "items": {}
+            },
+            "type": {
+              "description": "Type of operation: `and` or `or`.",
+              "enum": [
+                "and",
+                "or"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "filters",
+            "type"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_num_results": {
+      "description": "The maximum number of results to return. This number should be between 1 and 50\ninclusive.",
+      "type": "number"
+    },
+    "ranking_options": {
+      "description": "Ranking options for search.",
+      "type": "object",
+      "properties": {
+        "ranker": {
+          "description": "The ranker to use for the file search.",
+          "enum": [
+            "auto",
+            "default-2024-11-15"
+          ],
+          "type": "string"
+        },
+        "score_threshold": {
+          "description": "The score threshold for the file search, a number between 0 and 1. Numbers\ncloser to 1 will attempt to return only the most relevant results, but may\nreturn fewer results.",
+          "type": "number"
+        }
+      }
+    }
+  },
+  "required": [
+    "type",
+    "vector_store_ids"
+  ]
+}

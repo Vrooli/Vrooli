@@ -3,16 +3,16 @@
  * This is needed to properly format data, query additional fields that can't be included in the initial query 
  * (or are in another database perhaps), handle unions, etc.
  */
-import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, ModelType, OrArray, SessionUser, exists, getDotNotationValue, isObject, omit, setDotNotationValue } from "@local/shared";
+import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, isObject, omit, setDotNotationValue, type ModelType, type OrArray, type SessionUser } from "@local/shared";
 import pkg from "lodash";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { FormatMap } from "../models/formats.js";
-import { ApiRelMap, JoinMap, ModelLogicType } from "../models/types.js";
-import { RecursivePartial } from "../types.js";
+import { type ApiRelMap, type JoinMap, type ModelLogicType } from "../models/types.js";
+import { type RecursivePartial } from "../types.js";
 import { groupPrismaData } from "./groupPrismaData.js";
 import { isRelationshipObject } from "./isOfType.js";
-import { PartialApiInfo, PrismaSelect } from "./types.js";
+import { type PartialApiInfo, type PrismaSelect } from "./types.js";
 
 const { merge } = pkg;
 
@@ -403,7 +403,7 @@ function getKeyPaths(obj: object, parentKey?: string): string[] {
  */
 export async function addSupplementalFieldsHelper<GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, userData }: {
     languages: string[],
-    objects: ({ id: string } & { [x: string]: any })[],
+    objects: ({ id: string | bigint } & { [x: string]: any })[],
     objectType: `${ModelType}`,
     partial: PartialApiInfo,
     userData: Pick<SessionUser, "id" | "languages"> | null,
@@ -413,7 +413,7 @@ export async function addSupplementalFieldsHelper<GraphQLModel extends { [x: str
     const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
     if (!supplementer) return objects;
     // Get IDs from objects
-    const ids = objects.map(({ id }) => id);
+    const ids = objects.map(({ id }) => id.toString());
     // Get supplemental data by field
     const supplementalData = await supplementer.getSuppFields({ ids, languages, objects, partial, userData });
     // Convert supplemental data shape into dot notation
@@ -488,10 +488,10 @@ export async function addSupplementalFields(
         // Supplements are calculated for an array of objects, so we must loop through 
         // Add each value to supplementsByObjectId
         for (const v of valuesWithSupplements) {
-            supplementsByObjectId[v.id] = v;
+            supplementsByObjectId[v.id.toString()] = v;
             // Also add the type to the object, which can be used 
             // by our union resolver to determine which __typename to use
-            supplementsByObjectId[v.id].__typename = type;
+            supplementsByObjectId[v.id.toString()].__typename = type;
         }
     }
     // Convert supplementsByObjectId dictionary back into shape of data

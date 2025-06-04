@@ -1,13 +1,13 @@
 
 // We have copied the code here for customization purposes, such as replacing the default code block component
-import { LexicalEditor } from "./editor.js";
+import { type LexicalEditor } from "./editor.js";
 import { type ElementNode } from "./nodes/ElementNode.js";
 import { type LexicalNode } from "./nodes/LexicalNode.js";
 import { type TextNode } from "./nodes/TextNode.js";
 import { type CodeBlockNode } from "./plugins/CodePlugin.js";
 import { $createRangeSelection } from "./selection.js";
 import { hasFormat } from "./transformers/textFormatTransformers.js";
-import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types.js";
+import { type ElementTransformer, type LexicalTransformer, type TextFormatTransformer, type TextMatchTransformer } from "./types.js";
 import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isAttachedToRoot } from "./utils.js";
 
 /**

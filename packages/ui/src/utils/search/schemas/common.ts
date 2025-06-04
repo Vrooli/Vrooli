@@ -1,5 +1,5 @@
 /* eslint-disable func-style */
-import { FormInputType, FormSchema, GridContainer, InputType, TranslationKeyCommon } from "@local/shared";
+import { type FormInputType, type FormSchema, type GridContainer, InputType, type TranslationKeyCommon } from "@local/shared";
 import i18next from "i18next";
 
 export const searchFormLayout = (title: TranslationKeyCommon): FormSchema["layout"] => ({
@@ -35,14 +35,6 @@ export const votesContainer = (): GridContainer => ({
     totalItems: 2,
 });
 export const votesRootContainer = votesContainer;
-export const simplicityContainer = (): GridContainer => ({
-    title: i18next.t("Simplicity"),
-    description: i18next.t("SimplicityHelp"),
-    direction: "row",
-    disableCollapse: true,
-    totalItems: 2,
-});
-export const simplicityRootContainer = simplicityContainer;
 export const complexityContainer = (): GridContainer => ({
     title: i18next.t("Complexity"),
     description: i18next.t("ComplexityHelp"),
@@ -177,40 +169,6 @@ export const votesRootFields = (): FormInputType[] => ([
         ...votesFields()[1],
         fieldName: "maxVotesRoot",
         id: "maxVotesRoot",
-    },
-]);
-export const simplicityFields = (): FormInputType[] => ([
-    {
-        fieldName: "minSimplicity",
-        id: "minSimplicity",
-        label: i18next.t("Min"),
-        type: InputType.IntegerInput,
-        props: {
-            min: 0,
-            defaultValue: 0,
-            zeroText: i18next.t("MinNo"),
-        },
-    },
-    {
-        fieldName: "maxSimplicity",
-        id: "maxSimplicity",
-        label: i18next.t("Max"),
-        type: InputType.IntegerInput,
-        props: {
-            min: 0,
-            defaultValue: 0,
-            zeroText: i18next.t("MaxNo"),
-        },
-    },
-]);
-export const simplicityRootFields = (): FormInputType[] => ([
-    {
-        ...simplicityFields()[0],
-        fieldName: "minSimplicityRoot",
-    },
-    {
-        ...simplicityFields()[1],
-        fieldName: "maxSimplicityRoot",
     },
 ]);
 export function complexityFields(): FormInputType[] {
