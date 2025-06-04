@@ -262,7 +262,7 @@ Ready to explore the details? Our documentation is organized for progressive lea
 
 ### ⚙️ **Tier-Specific Intelligence**
 - **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence.md)** - Metacognitive swarm coordination
-- **[Tier 2: Process Intelligence](tiers/tier2-process-intelligence.md)** - Universal routine orchestration  
+- **[Tier 2: Process Intelligence](tiers/tier2-process-intelligence/README.md)** - Universal routine orchestration
 - **[Tier 3: Execution Intelligence](tiers/tier3-execution-intelligence.md)** - Context-aware strategy execution
 
 ### 🌊 **Event-Driven Intelligence**
