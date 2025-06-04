@@ -1,6 +1,6 @@
-import { type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ListObject, type NavigableObject, type ReactInput, ReactionFor, type ReactionSummary, ReportFor, type Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
-import { Box, type BoxProps, CircularProgress, type CircularProgressProps, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { type RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { ReactionFor, ReportFor, endpointsChatMessage, endpointsReaction, getObjectUrl, getTranslation, noop, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ListObject, type NavigableObject, type ReactInput, type ReactionSummary, type StreamErrorPayload, type Success } from "@local/shared";
+import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, styled, useTheme, type BoxProps, type CircularProgressProps } from "@mui/material";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -63,6 +63,7 @@ type ChatBubbleReactionsProps = {
     onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
+    messageStreamError?: StreamErrorPayload;
 }
 
 const NavigationBox = styled(Box)(() => ({
@@ -212,6 +213,7 @@ function ChatBubbleReactions({
     onDelete,
     onEdit,
     onRetry,
+    messageStreamError,
 }: ChatBubbleReactionsProps) {
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
@@ -292,6 +294,22 @@ function ChatBubbleReactions({
         </Tooltip>
     ) : null;
 
+    // Show retry button for bot responses with retryable errors
+    const retryForBotResponse = isBot && status === "failed" && messageStreamError?.retryable ? (
+        <Tooltip title={t("Regenerate response")}>
+            <IconButton
+                color="secondary"
+                onClick={handleRegenerateResponse}
+                size="small"
+            >
+                <IconCommon
+                    decorative
+                    name="Refresh"
+                />
+            </IconButton>
+        </Tooltip>
+    ) : null;
+
     return (
         <ReactionsOuterBox isOwn={isOwn}>
             <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
@@ -320,6 +338,7 @@ function ChatBubbleReactions({
             </ReactionsMainStack>
             <Stack direction="row" alignItems="center">
                 {statusIndicator}
+                {retryForBotResponse}
                 <NavigationArrows
                     activeIndex={activeIndex}
                     numSiblings={numSiblings}
@@ -459,6 +478,7 @@ export function ChatBubble({
     onRegenerateResponse,
     onReply,
     onRetry,
+    messageStreamError,
 }: ChatBubbleProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
@@ -467,6 +487,7 @@ export function ChatBubble({
     const profileColors = useMemo(() => placeholderColor(message.user?.id), [message.user?.id]);
 
     const [react] = useLazyFetch<ReactInput, Success>(endpointsReaction.createOne);
+    const [regenerateResponse] = useLazyFetch(endpointsChatMessage.regenerateResponse);
 
     const {
         handleDelete,
@@ -512,9 +533,24 @@ export function ChatBubble({
     function startEdit() {
         onEdit(message);
     }
+
     function startRegenerateResponse() {
-        onRegenerateResponse(message);
+        // If this is a retryable error, use the regenerateResponse endpoint
+        if (messageStreamError?.retryable && message.user?.isBot) {
+            fetchLazyWrapper({
+                fetch: regenerateResponse,
+                inputs: { messageId: message.id },
+                onError: (error) => {
+                    console.error("Failed to regenerate response:", error);
+                    PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
+                },
+            });
+        } else {
+            // Otherwise, use the standard regenerate flow
+            onRegenerateResponse(message);
+        }
     }
+
     function startReply() {
         onReply(message);
     }
@@ -632,6 +668,7 @@ export function ChatBubble({
                     onDelete={handleDelete}
                     onEdit={startEdit}
                     onRetry={startRetry}
+                    messageStreamError={messageStreamError}
                 />
             </ChatBubbleOuterBox>
         </>
@@ -760,6 +797,7 @@ type MessageRenderData = {
     onDeleted: (message: ChatMessageShape) => unknown;
     message: ChatMessageShape;
     isOwn: boolean;
+    messageStreamError?: StreamErrorPayload;
 }
 
 type ChatBubbleTreeProps = {
@@ -850,6 +888,7 @@ export function ChatBubbleTree({
                     onDeleted: (message) => { removeMessages([message.id]); },
                     message: sibling.message,
                     isOwn,
+                    messageStreamError: undefined, // Regular messages don't have stream errors
                 },
                 ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
             ];
@@ -883,6 +922,7 @@ export function ChatBubbleTree({
                         onRetry={handleRetry}
                         message={data.message}
                         isOwn={data.isOwn}
+                        messageStreamError={data.messageStreamError}
                     />
                 ))}
                 {messageStream && (
@@ -904,7 +944,7 @@ export function ChatBubbleTree({
                             status: messageStream.__type === "error" ? "failed" : "sending",
                             translations: [{
                                 language: "en",
-                                text: messageStream.message,
+                                text: messageStream.accumulatedMessage || "",
                             }],
                             user: messageStream.botId && {
                                 id: messageStream.botId,
@@ -913,6 +953,7 @@ export function ChatBubbleTree({
                             versionIndex: 0,
                         } as unknown as ChatMessageShape}
                         isOwn={false}
+                        messageStreamError={messageStream.error}
                     />
                 )}
             </InnerMessageList>

@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type ChatMessageShape, type Comment, type CommentThread, type NavigableObject } from "@local/shared";
+import { type ChatMessageShape, type Comment, type CommentThread, type NavigableObject, type StreamErrorPayload } from "@local/shared";
 import { type LinearProgressProps } from "@mui/material";
 import { type ReactNode } from "react";
 import { type PageTab } from "../hooks/useTabs.js";
@@ -30,6 +30,8 @@ export interface ChatBubbleProps {
     onRegenerateResponse: (message: ChatMessageShape) => unknown;
     /** Try to send a failed message */
     onRetry: (message: ChatMessageShape) => unknown;
+    /** Error information from streaming responses that can contain retry info */
+    messageStreamError?: StreamErrorPayload;
 }
 
 export interface CommentConnectorProps {
