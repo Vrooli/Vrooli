@@ -20,8 +20,8 @@
  * - [Resource Management](../resource-management/resource-coordination.md) - Resource type usage
  * - [Security Boundaries](../security/security-boundaries.md) - Security type usage
  * - [Event Bus Protocol](../event-driven/event-bus-protocol.md) - Event type usage
- * - [Performance Characteristics](../monitoring/performance-characteristics.md) - Performance type usage
- * - [State Synchronization](../context-memory/state-synchronization.md) - State type usage
+ * - [Performance Characteristics](../monitoring/_PERFORMANCE_CHARACTERISTICS.md) - Performance type usage
+ * - [State Synchronization](../context-memory/README.md) - State type usage
  * - [Integration Map](../communication/integration-map.md) - End-to-end type validation
  */
 

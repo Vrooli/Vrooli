@@ -37,7 +37,7 @@ sequenceDiagram
 ### **Error Handling Integration**
 - When a circuit breaker is OPEN, subsequent calls typically result in an immediate `CIRCUIT_BREAKER_OPEN` error.
 - This error is processed by the [Error Propagation and Recovery Framework](../error-propagation.md), which may trigger fallback strategies or alert monitoring systems.
-- The decision to open or close the circuit, and the specific recovery actions, are determined by policies managed within the Error Framework, referencing [Error Classification](../decision-trees/error-classification-severity.md) and [Recovery Strategy Selection](../decision-trees/recovery-strategy-selection.md).
+- The decision to open or close the circuit, and the specific recovery actions, are determined by policies managed within the Error Framework, referencing [Error Classification](error-classification-severity.md) and [Recovery Strategy Selection](recovery-strategy-selection.md).
 
 ### **Core Circuit Breaker Interfaces**
 

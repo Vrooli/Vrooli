@@ -1,6 +1,6 @@
 # 🔍 Debugging Guide: Systematic Troubleshooting Across All Tiers
 
-> **TL;DR**: A comprehensive guide for debugging issues across Vrooli's [three-tier execution architecture](README.md#-architecture-overview-the-three-pillars-of-intelligence). Provides systematic troubleshooting approaches, common failure patterns, and debugging tools for each tier.
+> **TL;DR**: A comprehensive guide for debugging issues across Vrooli's [three-tier execution architecture](../_ARCHITECTURE_OVERVIEW.md). Provides systematic troubleshooting approaches, common failure patterns, and debugging tools for each tier.
 
 ---
 

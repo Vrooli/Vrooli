@@ -45,7 +45,7 @@ graph TD
 
 ## Resource Conflict Resolution
 
-When multiple operations compete for limited resources (e.g., concurrent tool calls under a quota, multiple branches needing credits), conflicts are resolved using the strategies outlined in the [Resource Conflict Resolution Decision Tree](decision-trees/resource-conflict-resolution.md). Key strategies include:
+When multiple operations compete for limited resources (e.g., concurrent tool calls under a quota, multiple branches needing credits), conflicts are resolved using the strategies outlined in the [Resource Conflict Resolution Decision Tree](resource-conflict-resolution.md). Key strategies include:
 - `FIRST_COME_FIRST_SERVED`
 - `PRIORITY_BASED` (using `ExecutionPriority` from [types/core-types.ts](../types/core-types.ts))
 - `PROPORTIONAL_SHARING`
@@ -62,7 +62,7 @@ Resource-related errors are critical for system stability and are handled by the
 - **`RESOURCE_ALLOCATION_FAILED`**: Tier 1 or Tier 2 failed to secure necessary resources for a child operation.
 
 **Severity and Recovery**:
-- These errors are typically classified as `ERROR` or `CRITICAL` depending on impact, using the [Error Classification Decision Tree](decision-trees/error-classification-severity.md).
+- These errors are typically classified as `ERROR` or `CRITICAL` depending on impact, using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
 - Recovery strategies, selected via the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md), may include:
     - `RETRY_MODIFIED` (e.g., with reduced scope or after a delay).
     - `GRACEFUL_DEGRADATION` (e.g., completing with partial results).
@@ -87,10 +87,10 @@ Resource emergency protocols provide safeguards for resource exhaustion and syst
 - **[Types System](../types/core-types.ts)** - Complete resource management type definitions
 - **[Resource Conflict Resolution](resource-conflict-resolution.md)** - Algorithm for resolving resource conflicts
 - **[Error Propagation](../resilience/error-propagation.md)** - Resource-related error handling
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Resource impact on performance
+- **[Performance Characteristics](../monitoring/_PERFORMANCE_CHARACTERISTICS.md)** - Resource impact on performance
 - **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with resource management
 - **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven resource coordination
-- **[State Synchronization](../context-memory/state-synchronization.md)** - Resource state management
+- **[State Synchronization](../context-memory/README.md)** - Resource state management
 - **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement in resource access
 - **[Integration Map](../communication/integration-map.md)** - Resource management validation procedures
 

@@ -41,7 +41,7 @@ For new implementers, follow this sequence to understand and build the security 
 
 ### **Advanced Features**
 7. **[Event-Driven Security](../event-driven/event-bus-protocol.md)** - Security event processing and threat response
-8. **[Monitoring Integration](../monitoring/performance-characteristics.md)** - Security metrics and performance monitoring
+8. **[Monitoring Integration](../monitoring/_PERFORMANCE_CHARACTERISTICS.md)** - Security metrics and performance monitoring
 9. **[AI Services Security](../ai-services/README.md)** - AI-specific security protections and validations
 
 ## Security Architecture Framework

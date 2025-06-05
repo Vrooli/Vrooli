@@ -130,11 +130,11 @@ This decision framework is used by the `TierResourceManager` at each tier (Swarm
 
 **Error Integration**: Resource conflict resolution coordinates with [Error Handling](../resilience/error-propagation.md#error-handling-across-patterns) for systematic conflict error management.
 
-**Performance Integration**: Resource conflict resolution coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware resolution.
+**Performance Integration**: Resource conflict resolution coordinates with [Performance Requirements](../monitoring/_PERFORMANCE_CHARACTERISTICS.md#performance-requirements-by-communication-pattern) for performance-aware resolution.
 
 **Security Integration**: Resource conflict resolution respects [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure resource access.
 
-**State Integration**: Resource conflict resolution coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
+**State Integration**: Resource conflict resolution coordinates with [State Synchronization](../context-memory/README.md#transaction-and-consistency-protocol) for consistency.
 
 **Event Integration**: Resource conflict events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for conflict coordination.
 
@@ -145,11 +145,11 @@ This decision framework is used by the `TierResourceManager` at each tier (Swarm
 - **[Resource Coordination](resource-coordination.md)** - Resource allocation and management context
 - **[Types System](../types/core-types.ts)** - Complete resource conflict type definitions
 - **[Error Propagation](../resilience/error-propagation.md)** - Resource conflict error handling
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Resource conflict impact on performance
+- **[Performance Characteristics](../monitoring/_PERFORMANCE_CHARACTERISTICS.md)** - Resource conflict impact on performance
 - **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement in resource conflicts
 - **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with resource conflicts
 - **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven resource conflict coordination
-- **[State Synchronization](../context-memory/state-synchronization.md)** - Resource conflict state management
+- **[State Synchronization](../context-memory/README.md)** - Resource conflict state management
 - **[Integration Map](../communication/integration-map.md)** - Resource conflict validation procedures
 
 This document provides systematic resource conflict resolution for the communication architecture, ensuring fair and efficient resource allocation through algorithmic decision making and coordinated resolution procedures. 

@@ -66,7 +66,7 @@ graph TB
 - **Predictive Failure Agent**: Predicts potential failures and triggers preventive actions
 - **Recovery Strategy Evolution Agent**: Evolves recovery strategies based on success patterns
 
-### **✅ [Quality Assurance Agents](quality-agents.md)**
+### **✅ [Quality Assurance Agents](../routine-examples/quality-agents.md)**
 **Purpose**: Intelligent output validation, bias detection, and quality improvement
 
 **Examples**:
@@ -75,7 +75,7 @@ graph TB
 - **Code Quality Agent**: Security vulnerability detection and best practice enforcement
 - **Translation Quality Agent**: Cultural sensitivity and accuracy validation
 
-### **📊 [Performance Monitoring Agents](monitoring-agents.md)**
+### **📊 [Performance Monitoring Agents](../routine-examples/monitoring-agents.md)**
 **Purpose**: Context-aware system observability and performance optimization
 
 **Examples**:
@@ -83,15 +83,6 @@ graph TB
 - **Cost Monitoring Agent**: Budget tracking and spend optimization
 - **User Experience Agent**: Journey analysis and satisfaction prediction
 - **Infrastructure Health Agent**: Predictive maintenance and capacity planning
-
-### **🎯 [Domain-Specific Agents](domain-specific-agents.md)**
-**Purpose**: Specialized intelligence for specific industries and use cases
-
-**Examples**:
-- **Healthcare Workflow Agent**: Clinical decision support and patient safety
-- **Financial Risk Agent**: Portfolio risk assessment and regulatory compliance
-- **Legal Document Agent**: Contract analysis and compliance checking
-- **Educational Content Agent**: Learning outcome optimization and accessibility
 
 ---
 
@@ -353,9 +344,8 @@ interface CustomAgentConfig {
 
 ### **Explore Examples**
 - **[Security Agents](security-agents.md)** - Start with adaptive threat detection
-- **[Quality Agents](quality-agents.md)** - Deploy intelligent output validation
-- **[Monitoring Agents](monitoring-agents.md)** - Create context-aware observability
-- **[Domain Agents](domain-specific-agents.md)** - Explore industry-specific intelligence
+- **[Quality Agents](../routine-examples/quality-agents.md)** - Deploy intelligent output validation
+- **[Monitoring Agents](../routine-examples/monitoring-agents.md)** - Create context-aware observability
 
 ---
 

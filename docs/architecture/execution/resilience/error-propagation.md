@@ -17,12 +17,12 @@ import type {
     RecoveryStrategy,
     ErrorPropagationResult,
     EmergencyStopReason
-} from "./types/index.js";
+} from "../types/index.js";
 ```
 
 ## Error Propagation Architecture
 
-The error propagation system coordinates error handling across all three tiers using systematic algorithms and centralized interfaces. **All error classification must use the [Error Classification Decision Tree](decision-trees/error-classification-severity.md#severity-decision-tree) and all recovery selection must use the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md#recovery-strategy-selection-flowchart).**
+The error propagation system coordinates error handling across all three tiers using systematic algorithms and centralized interfaces. **All error classification must use the [Error Classification Decision Tree](error-classification-severity.md#severity-decision-tree) and all recovery selection must use the [Recovery Strategy Selection Algorithm](recovery-strategy-selection.md#recovery-strategy-selection-flowchart).**
 
 ```mermaid
 graph TB
@@ -86,12 +86,12 @@ graph TB
 The error coordination system follows this systematic process:
 
 1. **Error Detection**: Component detects error condition
-2. **Error Classification**: Apply [Error Classification Decision Tree](decision-trees/error-classification-severity.md#severity-decision-tree)
-3. **Recovery Selection**: Use [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md#recovery-strategy-selection-flowchart)
+2. **Error Classification**: Apply [Error Classification Decision Tree](error-classification-severity.md#severity-decision-tree)
+3. **Recovery Selection**: Use [Recovery Strategy Selection Algorithm](recovery-strategy-selection.md#recovery-strategy-selection-flowchart)
 4. **Recovery Execution**: Execute selected recovery strategy with monitoring
 5. **Escalation Decision**: Apply escalation rules based on recovery success
 
-**Integration Validation**: Use [Integration Map Error Handling Integration](integration-map.md#error-handling-integration) for comprehensive validation of the error coordination system.
+**Integration Validation**: Use [Integration Map Error Handling Integration](../communication/integration-map.md#error-handling-integration) for comprehensive validation of the error coordination system.
 
 ## Tier-Specific Error Interfaces
 
@@ -110,25 +110,25 @@ sequenceDiagram
     %% Error detection and classification
     T3->>T3: Detect execution error
     T3->>T3: Apply error classification decision tree
-    Note right of T3: Implementation: [Error Classification Decision Tree](decision-trees/error-classification-severity.md#severity-decision-tree)
+    Note right of T3: Implementation: [Error Classification Decision Tree](error-classification-severity.md#severity-decision-tree)
     
     alt Error Severity: RECOVERABLE
         T3->>T3: Apply recovery strategy selection
-        Note right of T3: Implementation: [Recovery Strategy Selection](decision-trees/recovery-strategy-selection.md#recovery-strategy-selection-flowchart)
+        Note right of T3: Implementation: [Recovery Strategy Selection](recovery-strategy-selection.md#recovery-strategy-selection-flowchart)
         
         alt Local Recovery Succeeds
             T3->>Events: Publish error/recovered event
             T3->>T2: Return successful result
         else Local Recovery Fails
             T3->>T2: Propagate error with context
-            Note right of T3: Implementation: [Error Propagation Interface](types/core-types.ts)
+            Note right of T3: Implementation: [Error Propagation Interface](../types/core-types.ts)
         end
     else Error Severity: CRITICAL
         T3->>T2: Immediate escalation
         T3->>Events: Publish error/critical event
     else Error Severity: FATAL
         T3->>Recovery: Trigger emergency stop
-        Note right of T3: Implementation: [Emergency Stop Protocol](types/core-types.ts)
+        Note right of T3: Implementation: [Emergency Stop Protocol](../types/core-types.ts)
         Recovery->>T1: System-wide emergency stop
     end
 
@@ -142,7 +142,7 @@ sequenceDiagram
             T2->>T1: Return with partial success
         else T2 Recovery Fails
             T2->>T1: Escalate to coordination tier
-            Note right of T2: Implementation: [Tier Escalation Protocol](types/core-types.ts)
+            Note right of T2: Implementation: [Tier Escalation Protocol](../types/core-types.ts)
         end
     end
 
@@ -155,7 +155,7 @@ sequenceDiagram
             T1->>Events: Publish error/swarm_recovered event
         else T1 Recovery Fails
             T1->>Recovery: Request human intervention
-            Note right of T1: Implementation: [Human Escalation Protocol](types/core-types.ts)
+            Note right of T1: Implementation: [Human Escalation Protocol](../types/core-types.ts)
         end
     end
 
@@ -166,13 +166,13 @@ sequenceDiagram
     Events->>T3: Recovery coordination events
 ```
 
-**Error Interface Integration**: All error propagation uses [Error Propagation Interfaces](types/core-types.ts) from the centralized type system for consistency across tiers.
+**Error Interface Integration**: All error propagation uses [Error Propagation Interfaces](../types/core-types.ts) from the centralized type system for consistency across tiers.
 
 ## Recovery Strategy Coordination Framework
 
 ### **Coordinated Recovery Strategy Execution**
 
-The recovery coordination system manages recovery strategies across all tiers and components. **All recovery strategy selection must use the [Recovery Strategy Selection Algorithm](decision-trees/recovery-strategy-selection.md#recovery-strategy-selection-flowchart) to ensure consistent and optimal recovery approaches.**
+The recovery coordination system manages recovery strategies across all tiers and components. **All recovery strategy selection must use the [Recovery Strategy Selection Algorithm](recovery-strategy-selection.md#recovery-strategy-selection-flowchart) to ensure consistent and optimal recovery approaches.**
 
 ```mermaid
 graph LR
@@ -220,13 +220,13 @@ graph LR
     class Complete outcome
 ```
 
-**Strategy Coordination Integration**: Recovery strategy coordination integrates with [Resource Coordination Emergency Protocols](resource-coordination.md#emergency-protocols) and [Circuit Breaker Integration](implementation/circuit-breakers.md#circuit-breaker-protocol-and-integration), detailed in their respective documents.
+**Strategy Coordination Integration**: Recovery strategy coordination integrates with [Resource Coordination Emergency Protocols](../resource-management/resource-coordination.md#emergency-protocols) and [Circuit Breaker Integration](circuit-breakers.md#circuit-breaker-protocol-and-integration), detailed in their respective documents.
 
 ## Emergency Stop Protocols
 
 ### **System-Wide Emergency Stop Coordination**
 
-The emergency stop protocol provides immediate system protection for critical failures. **All emergency procedures must use the [Emergency Stop Interfaces](types/core-types.ts) for consistent emergency response.**
+The emergency stop protocol provides immediate system protection for critical failures. **All emergency procedures must use the [Emergency Stop Interfaces](../types/core-types.ts) for consistent emergency response.**
 
 ```mermaid
 sequenceDiagram
@@ -242,7 +242,7 @@ sequenceDiagram
 
     %% Emergency trigger
     Trigger->>Emergency: triggerEmergencyStop(FATAL_ERROR)
-    Note right of Trigger: Implementation: [Emergency Stop Interface](types/core-types.ts)
+    Note right of Trigger: Implementation: [Emergency Stop Interface](../types/core-types.ts)
     
     Emergency->>Emergency: Classify emergency severity
     Emergency->>Emergency: Determine emergency scope
@@ -273,7 +273,7 @@ sequenceDiagram
     %% System state coordination
     Emergency->>Emergency: Validate all tiers stopped
     Emergency->>Recovery: Begin emergency recovery
-    Note right of Emergency: Implementation: [Emergency Recovery Protocol](types/core-types.ts)
+    Note right of Emergency: Implementation: [Emergency Recovery Protocol](../types/core-types.ts)
     
     %% Recovery coordination
     Recovery->>Recovery: Assess system damage
@@ -286,11 +286,11 @@ sequenceDiagram
         Recovery->>Events: Publish recovery events
     else System requires intervention
         Recovery->>Emergency: Request human intervention
-        Note right of Recovery: Implementation: [Human Escalation](types/core-types.ts)
+        Note right of Recovery: Implementation: [Human Escalation](../types/core-types.ts)
     end
 ```
 
-**Emergency Integration**: Emergency procedures use [Emergency Interfaces](types/core-types.ts) from the centralized type system and coordinate with [Resource Emergency Protocols](resource-coordination.md#emergency-protocols) and the overall system state management described in [State Synchronization](state-synchronization.md).
+**Emergency Integration**: Emergency procedures use [Emergency Interfaces](../types/core-types.ts) from the centralized type system and coordinate with [Resource Emergency Protocols](../resource-management/resource-coordination.md#emergency-protocols) and the overall system state management described in [State Synchronization](../context-memory/README.md#error-handling-for-state-and-cache-issues).
 
 ## Error Handling Across Communication Patterns
 
@@ -328,7 +328,7 @@ Different communication patterns have specialized error handling approaches, all
 
 **Recovery Strategy**: Recovery strategies include cache invalidation, database repair, transaction rollback, and consistent state reconstruction.
 
-**State Sync Integration**: State synchronization error handling is detailed in [State Synchronization](../context-memory/state-synchronization.md#error-handling-for-state-and-cache-issues).
+**State Sync Integration**: State synchronization error handling is detailed in [State Synchronization](../context-memory/README.md#error-handling-for-state-and-cache-issues).
 
 ## Related Documentation
 
@@ -340,10 +340,10 @@ Different communication patterns have specialized error handling approaches, all
 - **[Failure Scenarios](failure-scenarios/README.md)** - Specific failure scenario documentation
 - **[Communication Patterns](../communication/communication-patterns.md)** - Error handling within each communication pattern
 - **[Integration Map](../communication/integration-map.md)** - End-to-end error handling validation
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Performance impact of error handling
+- **[Performance Characteristics](../_PERFORMANCE_REFERENCE.md)** - Performance impact of error handling
 - **[Resource Management](../resource-management/resource-coordination.md)** - Resource coordination during error recovery
 - **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement during error situations
-- **[State Synchronization](../context-memory/state-synchronization.md)** - State consistency during error recovery
+- **[State Synchronization](../context-memory/README.md)** - State consistency during error recovery
 - **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven error coordination
 
 This document provides the comprehensive framework for systematic error handling across the entire Vrooli execution architecture, ensuring reliable operation through centralized error management and coordinated recovery procedures. 
