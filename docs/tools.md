@@ -13,7 +13,7 @@ vim .env-dev
 
 ## Setup full project based on environment variables:
 ```bash
-chmod +x ./scripts/*
+chmod +x ./scripts/main/setup.sh
 pnpm cache clean && ./scripts/main/setup.sh
 ```
 **Read /scripts/main/setup.sh for available flags**
