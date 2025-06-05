@@ -1,10 +1,12 @@
-# Autonomous Operations
+# 🤖 Autonomous Operations: Self-Directed Coordination
 
-The autonomous operations layer enables swarms to maintain productivity and forward progress without continuous external supervision. This system solves the critical "idle swarm" problem by implementing proactive task management and intelligent monitoring.
+> **TL;DR**: The autonomous operations layer enables swarms to maintain productivity and forward progress without continuous external supervision. This system solves the critical "idle swarm" problem by implementing proactive task management and intelligent monitoring.
+
+---
 
 ## 🤖 Self-Directed Task Management
 
-### Autonomous Subtask Progression
+### **Autonomous Subtask Progression**
 
 The system continuously monitors for incomplete work and automatically drives progress:
 
@@ -24,7 +26,7 @@ interface AutonomousSubtaskManager {
 }
 ```
 
-### Task Priority and Selection
+### **Task Priority and Selection**
 
 The autonomous system evaluates tasks using multiple criteria:
 
@@ -67,9 +69,11 @@ class TaskSelector {
 }
 ```
 
+---
+
 ## 📊 Progress Monitoring and Intervention
 
-### Stall Detection
+### **Stall Detection**
 
 The system identifies when tasks are not making meaningful progress:
 
@@ -115,7 +119,7 @@ class ProgressTracker {
 }
 ```
 
-### Intervention Strategies
+### **Intervention Strategies**
 
 When stalls are detected, the system publishes stall events that agents can subscribe to and respond to autonomously:
 
@@ -185,9 +189,11 @@ graph TD
 - **Default Routing**: If no specialists subscribe, events route to the team leader
 - **Collaborative Resolution**: Multiple agents can contribute to solving a stall
 
+---
+
 ## 🔄 Proactive Event Generation
 
-### Event Types for Autonomous Operation
+### **Event Types for Autonomous Operation**
 
 ```typescript
 type AutonomousEvent = 
@@ -217,7 +223,7 @@ interface SwarmEventGenerator {
 }
 ```
 
-### Autonomous Monitoring Loop
+### **Autonomous Monitoring Loop**
 
 The core monitoring loop that runs continuously:
 
@@ -271,9 +277,11 @@ class AutonomousMonitor {
 }
 ```
 
+---
+
 ## 📈 Intelligent Resource Management
 
-### Dynamic Resource Allocation
+### **Dynamic Resource Allocation**
 
 The system monitors and optimizes resource usage:
 
@@ -313,7 +321,7 @@ class ResourceOptimizer {
 }
 ```
 
-### Performance Metrics and Optimization
+### **Performance Metrics and Optimization**
 
 ```typescript
 interface PerformanceTracker {
@@ -338,55 +346,86 @@ interface ImprovementSuggestion {
 }
 ```
 
+---
+
 ## 🔧 Tool Integration for Autonomous Operation
 
-### MCP Tools for Self-Management
-
-The autonomous system uses MCP tools to modify swarm state:
+The autonomous system uses MCP tools to modify swarm state and coordinate activities:
 
 ```typescript
-// Autonomous task delegation
+// Autonomous task delegation using update_swarm_shared_state
 await update_swarm_shared_state({
-    subtasks: [
-        ...existingSubtasks,
-        {
-            id: `auto_task_${Date.now()}`,
-            description: "Review and optimize current approach",
-            status: "todo",
-            priority: "MEDIUM",
-            assignedTo: bestAvailableAgent,
-            createdBy: "autonomous_monitor",
-            reason: "Detected efficiency opportunity"
-        }
-    ]
-});
-
-// Proactive event subscription for specialists
-await update_swarm_shared_state({
-    eventSubscriptions: {
-        ...currentSubscriptions,
-        "swarm/stall/technical": [technicalSpecialistId],
-        "swarm/resource/constraint": [resourceManagerId]
+    subTasks: {
+        set: [
+            {
+                id: `auto_task_${Date.now()}`,
+                description: "Review and optimize current approach",
+                status: "todo",
+                priority: "MEDIUM",
+                assignee_bot_id: bestAvailableAgent,
+                created_at: new Date().toISOString()
+            }
+        ]
     }
 });
 
 // Dynamic blackboard updates for team coordination
 await update_swarm_shared_state({
-    blackboard: [
-        ...currentBlackboard,
-        {
-            id: `insight_${Date.now()}`,
-            type: "performance_insight",
-            content: "Task decomposition strategy showing 40% efficiency improvement",
-            visibility: "team",
-            priority: "HIGH"
+    blackboard: {
+        set: [
+            {
+                id: `insight_${Date.now()}`,
+                value: {
+                    type: "performance_insight",
+                    content: "Task decomposition strategy showing 40% efficiency improvement",
+                    visibility: "team",
+                    priority: "HIGH"
+                }
+            }
+        ]
+    }
+});
+
+// Communication using send_message
+await send_message({
+    recipient: { kind: "chat", chatId: currentChatId },
+    content: "Autonomous monitoring detected efficiency opportunity. Implementing optimization strategy.",
+    metadata: {
+        mcpLlmModel: "gpt-4",
+        messageConfig: {
+            __version: "1.0",
+            resources: [],
+            role: "assistant"
         }
-    ]
+    }
 });
 ```
 
-This autonomous operation layer ensures that swarms remain productive and continuously improve their performance, even during periods of reduced external supervision.
+> 📖 **Learn More**: [MCP Tools Reference](mcp-tools-reference.md) provides comprehensive documentation for all coordination tools
 
 ---
 
-**Next**: [Conclusion](./conclusion.md) - Why this approach represents the future of multi-agent coordination. 
+## 🎯 Benefits of Autonomous Operations
+
+This autonomous operation layer ensures that swarms:
+
+- **🔄 Maintain Productivity**: Continuous forward progress without supervision
+- **📊 Self-Optimize**: Learn from patterns and improve efficiency over time
+- **🚨 Proactive Recovery**: Detect and resolve stalls before they impact delivery
+- **📈 Adaptive Resource Use**: Dynamically optimize resource allocation
+- **👥 Intelligent Delegation**: Match tasks to the best available expertise
+
+The result is a coordination system that becomes more effective through use, reducing the need for manual intervention while maintaining high-quality outputs.
+
+---
+
+## 🔗 Related Documentation
+
+- **[MCP Tools Reference](mcp-tools-reference.md)** - Complete coordination tool documentation
+- **[Metacognitive Framework](metacognitive-framework.md)** - How agents reason about coordination
+- **[SwarmStateMachine](swarm-state-machine.md)** - State management and lifecycle
+- **[Implementation Architecture](implementation-architecture.md)** - Technical components and integration
+
+---
+
+> 💡 **Next Steps**: Explore the [MCP Tools Reference](mcp-tools-reference.md) to understand the coordination capabilities that enable autonomous operations, or see [SwarmStateMachine](swarm-state-machine.md) for state management details. 

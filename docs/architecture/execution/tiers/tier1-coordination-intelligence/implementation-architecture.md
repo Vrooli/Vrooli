@@ -1,4 +1,8 @@
-# Implementation Architecture
+# 🏗️ Implementation Architecture: Technical Components
+
+> **TL;DR**: This document covers the technical implementation of Tier 1's coordination intelligence, including core components, integration patterns, and state management architecture.
+
+---
 
 ## 🏗️ Architecture Overview
 
@@ -66,6 +70,8 @@ graph TB
     class PromptInjection,BestPractices,RLOptimization enhance
 ```
 
+---
+
 ## 🔧 Code Component Integration
 
 The actual implementation consists of several key classes that work together to create the coordination intelligence:
@@ -115,41 +121,47 @@ sequenceDiagram
     API-->>User: Stream responses
 ```
 
+---
+
 ## 🎯 Key Components
 
-### 1. SwarmStateMachine
+### **1. SwarmStateMachine**
 Manages the swarm lifecycle and event processing:
 - Maintains event queue for sequential processing
 - Handles pause/resume/stop operations
 - Manages tool approval/rejection flows
 - Implements configurable delays between processing cycles
 
-### 2. CompletionService
+### **2. CompletionService**
 High-level coordination of AI responses:
 - Builds role-specific system prompts
 - Selects appropriate responders via AgentGraph
 - Manages conversation and team configuration
 - Tracks resource usage and enforces limits
 
-### 3. ReasoningEngine
+### **3. ReasoningEngine**
 Low-level execution of AI reasoning loops:
 - Streams LLM responses with proper context
 - Executes tool calls (immediate or deferred)
 - Manages abort signals for cancellation
 - Tracks credits and tool call counts
 
-### 4. ToolRunner
+### **4. ToolRunner**
 Executes MCP and custom tools:
 - Routes tool calls to appropriate handlers
 - Manages sandboxed execution environments
 - Returns structured results with cost tracking
 
-### 5. State Management
+> 📖 **Learn More**: [MCP Tools Reference](mcp-tools-reference.md) provides comprehensive documentation for all available coordination tools
+
+### **5. State Management**
 Multi-layer caching system:
-- L1: Local LRU cache for hot conversations
-- L2: Redis for distributed state sharing
-- L3: PostgreSQL for persistent storage
-- Write-behind pattern with debouncing
+- **L1**: Local LRU cache for hot conversations
+- **L2**: Redis for distributed state sharing
+- **L3**: PostgreSQL for persistent storage
+- **Write-behind pattern** with debouncing
+
+---
 
 ## 📊 Event-Driven Coordination Flow
 
@@ -169,18 +181,13 @@ const systemMessage = await completion.generateSystemMessageForBot(
 const response = await reasoningEngine.runLoop({
     startMessage: { id: messageId },
     systemMessageContent: systemMessage, // Includes role instructions
-    availableTools: mcpTools,           // update_swarm_shared_state, etc.
+    availableTools: mcpTools,           // MCP coordination tools
     bot: responder,
     // ... limits and context
 });
 
 // 4. Tool calls modify swarm state
-await update_swarm_shared_state({
-    subtasks: [/* new subtasks */],
-    eventSubscriptions: {
-        "swarm/role/monitor": ["monitor_bot_456"]
-    }
-});
+// See MCP Tools Reference for comprehensive examples
 
 // 5. Events propagate to subscribed agents
 BusService.publish({
@@ -189,9 +196,11 @@ BusService.publish({
 });
 ```
 
+---
+
 ## 🔄 Dynamic Behavior Examples
 
-### Leadership Recognition
+### **Leadership Recognition**
 ```typescript
 // Leader recognizes need for expertise
 if (goal.includes("complex") || estimatedHours > 2) {
@@ -200,41 +209,120 @@ if (goal.includes("complex") || estimatedHours > 2) {
 }
 ```
 
-### Event Subscription
+### **Event Subscription**
 ```typescript
-// Specialist subscribes to relevant events
-await update_swarm_shared_state({
-    eventSubscriptions: {
-        ...current,
-        "swarm/ext/github": ["devops_bot_789"],
-        "swarm/subtask": ["coordinator_bot_123"]
-    }
-});
+// Specialist subscribes to relevant events using subscribe_to_events tool
+// See MCP Tools Reference for detailed examples
 ```
 
-### Role-Based Tool Access
+### **Role-Based Tool Access**
 ```typescript
 // Future enhancement: Role-based tool access
 const toolsForRole = {
     "leader": ["*"], // All tools
-    "analyst": ["find_resources", "start_routine"],
-    "monitor": ["subscribe_to_events", "read_blackboard"]
+    "analyst": ["resource_manage", "run_routine"],
+    "monitor": ["send_message", "update_swarm_shared_state"]
 };
 ```
 
+---
+
 ## ⚙️ State Management Architecture
 
-The state management system provides multiple layers of caching and persistence for optimal performance and consistency. For complete details on state synchronization, caching strategies, and consistency protocols, see **[State Synchronization and Context Management](../../context-memory/state-synchronization.md)**.
+The state management system provides multiple layers of caching and persistence for optimal performance and consistency:
 
-Key features include:
+### **Caching Strategy**
 - **L1 Cache**: Hot conversations stay in memory for immediate access
 - **L2 Cache**: Redis provides distributed state sharing across instances  
 - **L3 Storage**: PostgreSQL ensures durability and queryability
-- **Consistency Guarantees**: Write-through for critical changes, write-behind with debouncing for high-frequency updates
-- **Event-driven Invalidation**: Maintains consistency across distributed instances
 
-This implementation achieves true metacognitive coordination - agents understand their purpose and coordinate naturally through language, while the underlying infrastructure ensures reliability, state consistency, and resource management.
+### **Consistency Guarantees**
+- **Write-through** for critical changes
+- **Write-behind with debouncing** for high-frequency updates
+- **Event-driven invalidation** maintains consistency across distributed instances
+
+### **Performance Characteristics**
+- **Local Cache Hit**: ~1-5ms response time
+- **Redis Cache Hit**: ~10-50ms response time
+- **Database Query**: ~50-200ms response time
+- **Cache Invalidation**: Real-time via event bus
+
+> 📖 **Learn More**: For complete details on state synchronization, caching strategies, and consistency protocols, see **[Context & Memory Architecture](../../context-memory/README.md)**
 
 ---
 
-**Next**: [SwarmStateMachine](./swarm-state-machine.md) - Deep dive into the state machine architecture. 
+## 🧠 Prompt Engineering and Context
+
+### **Dynamic Prompt Construction**
+The system dynamically builds prompts that include:
+- **Role-specific instructions** based on agent capabilities
+- **Current swarm state** including goals, subtasks, and team structure
+- **MOISE+ organizational constraints** serialized as JSON
+- **Available tool schemas** with usage examples
+- **Historical context** from successful coordination patterns
+
+### **Context Injection Pipeline**
+```typescript
+const systemPrompt = await buildSystemPrompt({
+    role: agentRole,
+    goal: swarmGoal,
+    teamStructure: moiseConfig,
+    availableTools: mcpToolSchemas,
+    currentState: swarmState,
+    bestPractices: coordinationPatterns
+});
+```
+
+### **Adaptive Prompt Selection**
+The system can select different prompt variants based on:
+- **Swarm complexity** (simple vs. multi-phase goals)
+- **Team experience** (new teams vs. established teams)
+- **Domain requirements** (regulated vs. creative environments)
+- **Performance feedback** (successful vs. struggling coordination)
+
+---
+
+## 🔗 Integration Points
+
+### **Tier 2 Integration**
+- **Tool Routing**: MCP tools route routine execution requests to Tier 2
+- **Context Inheritance**: Swarm state flows down to routine execution context
+- **Result Aggregation**: Routine outputs update swarm state and resources
+
+### **Tier 3 Integration**
+- **Resource Enforcement**: Tier 3 enforces resource limits set by Tier 1
+- **Safety Coordination**: Safety events bubble up for swarm-level decisions
+- **Tool Approval**: Tier 1 manages approval workflows for sensitive operations
+
+### **External Integrations**
+- **WebSocket APIs**: Real-time updates to connected clients
+- **Event Bus**: Cross-system coordination and monitoring
+- **State Persistence**: Reliable storage and recovery capabilities
+
+---
+
+## 🎯 Implementation Benefits
+
+This implementation achieves true metacognitive coordination:
+
+- **🧠 Agents understand their purpose** and coordinate naturally through language
+- **🏗️ Minimal infrastructure** with maximum flexibility
+- **📊 Reliable state management** ensures consistency and recoverability
+- **🔄 Event-driven intelligence** enables specialized capabilities without hard-coding
+- **⚙️ Tool-mediated coordination** provides structured ways to modify state while maintaining natural agent interaction
+
+The result is a coordination system that feels natural to AI agents while providing the reliability and scalability needed for production deployment.
+
+---
+
+## 🔗 Related Documentation
+
+- **[MCP Tools Reference](mcp-tools-reference.md)** - Complete coordination tool documentation
+- **[SwarmStateMachine](swarm-state-machine.md)** - Detailed state machine architecture
+- **[Metacognitive Framework](metacognitive-framework.md)** - Coordination reasoning principles
+- **[MOISE+ Comprehensive Guide](moise-comprehensive-guide.md)** - Organizational modeling implementation
+- **[Context & Memory Architecture](../../context-memory/README.md)** - State synchronization details
+
+---
+
+> 💡 **Next Steps**: Explore the [SwarmStateMachine](swarm-state-machine.md) for detailed state management, or see [MCP Tools Reference](mcp-tools-reference.md) for coordination capabilities. 

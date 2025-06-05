@@ -7,16 +7,15 @@
 ## 🧭 Navigation Guide
 
 **📍 You're in the right place if you want:**
-- **Detailed code examples** organized by execution tier (T1/T2/T3)
-- **TypeScript implementations** of error handling patterns
-- **Step-by-step error flow** explanations with code
+- **Detailed TypeScript code examples** for error handling in application logic
+- **Tier-by-tier error flow analysis** (T1 coordination, T2 process, T3 execution)
+- **Step-by-step debugging** of complex error patterns
 
-**🔀 Use [Failure Scenarios](failure-scenarios/README.md) instead if you need:**
-- **Infrastructure-specific failures** (communication outages, database failures)
-- **System-level recovery procedures** for specific failure types
-- **Operational troubleshooting** for infrastructure issues
-
-**🚨 Need immediate help?** Start with **[Troubleshooting Guide](troubleshooting-guide.md)** for quick fixes.
+**🔀 Quick alternatives:**
+- **🚨 Need immediate fixes?** → **[Troubleshooting Guide](troubleshooting-guide.md)**
+- **⚡ Need quick patterns?** → **[Quick Reference](quick-reference.md)**
+- **🏗️ Infrastructure outages?** → **[Failure Scenarios](failure-scenarios/README.md)**
+- **🔧 Building resilient code?** → **[Implementation Guide](resilience-implementation-guide.md)**
 
 ---
 

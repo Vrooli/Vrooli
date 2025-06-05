@@ -4,204 +4,91 @@
 
 ---
 
-## 🎯 Quick Navigation
+## 🔄 Quick Navigation
 
-### **🚨 Need Immediate Help?**
-- **System is broken right now** → **[Troubleshooting Guide](troubleshooting-guide.md)** - Quick diagnostic checklist and immediate solutions
+> 📚 **Which document to use?** → **[Document Guide](document-guide.md)** - Complete navigation for all resilience documentation
 
-### **🏗️ Building Resilient Systems?**
-- **Understanding the framework** → **[Error Classification](error-classification-severity.md)** + **[Recovery Strategy Selection](recovery-strategy-selection.md)**
-- **Writing resilient code** → **[Implementation Guide](resilience-implementation-guide.md)** - Practical patterns and examples
-- **Setting up protection** → **[Circuit Breakers](circuit-breakers.md)** - Preventing cascading failures
+### **🚨 Crisis Response (Immediate Issues)**
+- **[Troubleshooting Guide](troubleshooting-guide.md)** - Step-by-step diagnostics with immediate fixes
 
-### **🔍 Deep Debugging & Analysis?**
-- **Comprehensive error examples** → **[Error Scenarios & Patterns](error-scenarios-guide.md)** - Detailed code examples organized by tier
-- **Infrastructure-specific failures** → **[Failure Scenarios](failure-scenarios/README.md)** - Communication failures, component outages, system-level issues
-- **Understanding error flow** → **[Error Propagation](error-propagation.md)** - Cross-tier coordination patterns
+### **⚡ Developer Tools**
+- **[Quick Reference](quick-reference.md)** - Fast lookup patterns and code templates  
+- **[Implementation Guide](resilience-implementation-guide.md)** - Complete implementation patterns
+
+### **📚 Framework & Understanding**
+- **[Error Classification](error-classification-severity.md)** - Systematic error categorization
+- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Algorithm for choosing recovery approaches
+- **[Error Scenarios Guide](error-scenarios-guide.md)** - Detailed debugging examples
 
 ---
 
-## 🏗️ Architecture Philosophy
+## 🔄 The Systematic Resilience Process
 
-Vrooli's resilience differs from traditional approaches through **emergent intelligence**:
+Every error in Vrooli follows this four-step systematic approach:
 
 ```mermaid
-graph TB
-    subgraph "🔍 Detection & Classification"
-        ErrorDetection[Real-time Error Detection<br/>📊 Pattern recognition<br/>⚡ Early warning systems]
-        Classification[Systematic Classification<br/>📋 Severity assessment<br/>🎯 Recovery guidance]
+graph LR
+    subgraph "🔍 Step 1: Detection & Classification"
+        S1[Error Occurs<br/>📊 Systematic detection<br/>📋 Apply classification tree<br/>🎯 Determine severity & type]
     end
     
-    subgraph "🧠 Intelligent Recovery"
-        ResilienceAgents[AI Resilience Agents<br/>🤖 Pattern learning<br/>💡 Strategy adaptation<br/>📈 Continuous improvement]
-        RecoveryExecution[Strategy Execution<br/>🔄 Automated recovery<br/>⚡ Escalation handling<br/>📊 Success validation]
+    subgraph "🧠 Step 2: Strategy Selection"  
+        S2[Choose Recovery<br/>⚙️ Apply selection algorithm<br/>📊 Consider context & resources<br/>🎯 Select optimal strategy]
     end
     
-    subgraph "🔄 Adaptive Learning"
-        PatternAnalysis[Pattern Analysis<br/>📊 Success/failure tracking<br/>🎯 Strategy optimization<br/>🔄 Threshold adaptation]
-        StrategyEvolution[Strategy Evolution<br/>🌱 New patterns discovered<br/>📈 Performance improvement<br/>🤖 Agent specialization]
+    subgraph "⚡ Step 3: Recovery Execution"
+        S3[Execute Strategy<br/>🔄 Implement chosen approach<br/>📊 Monitor progress<br/>⚖️ Escalate if needed]
     end
     
-    ErrorDetection --> Classification
-    Classification --> ResilienceAgents
-    ResilienceAgents --> RecoveryExecution
-    RecoveryExecution --> PatternAnalysis
-    PatternAnalysis --> StrategyEvolution
-    StrategyEvolution -.->|"Improves"| ResilienceAgents
+    subgraph "🤖 Step 4: Learning & Adaptation"
+        S4[Pattern Learning<br/>📈 AI agents analyze results<br/>💡 Improve strategies<br/>🔄 Update thresholds]
+    end
     
-    classDef detection fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef intelligence fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef learning fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    S1 --> S2 --> S3 --> S4
+    S4 -.->|"Improves future"| S1
     
-    class ErrorDetection,Classification detection
-    class ResilienceAgents,RecoveryExecution intelligence
-    class PatternAnalysis,StrategyEvolution learning
+    classDef step fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    class S1,S2,S3,S4 step
 ```
 
-**Key Insight**: Instead of hard-coded recovery logic, specialized AI agents learn from failure patterns and continuously improve recovery strategies based on your team's specific failure modes and success patterns.
+**Key Insight**: This systematic approach ensures consistent, intelligent error handling that improves over time through AI-driven pattern learning.
 
 ---
 
-## 🔄 The Resilience Process
+## 🤖 AI-Driven Resilience Integration
 
-Every error follows this systematic approach:
+**What makes Vrooli unique**: Resilience capabilities emerge from intelligent agents rather than static rules.
 
-```mermaid
-sequenceDiagram
-    participant Component as System Component
-    participant Classifier as Error Classifier
-    participant Agent as Resilience Agent
-    participant Recovery as Recovery Executor
-    
-    Component->>Classifier: Error detected
-    Classifier->>Classifier: Apply severity classification
-    Classifier->>Agent: Classified error + context
-    Agent->>Agent: Select recovery strategy
-    Agent->>Recovery: Execute chosen strategy
-    
-    alt Recovery Success
-        Recovery->>Component: System restored
-        Recovery->>Agent: Log success pattern
-    else Recovery Failure
-        Recovery->>Agent: Request escalation
-        Agent->>Recovery: Execute escalation strategy
-        Recovery->>Agent: Log failure pattern
-    end
-    
-    Agent->>Agent: Analyze patterns & improve
+### **Deployment Pattern**
+```typescript
+// Deploy resilience agents like any specialized agent
+const resilienceAgent = {
+  name: "Performance Recovery Specialist",
+  subscriptions: ["step/failed", "tool/timeout", "routine/completed"],
+  onEvent: async (event) => {
+    const pattern = await analyzePattern(event.payload);
+    if (pattern.shouldOptimize) {
+      await proposeOptimization(pattern);
+    }
+  }
+};
+
+await deployAgent(resilienceAgent, { 
+  permissions: ["modify_timeouts", "suggest_alternatives"] 
+});
 ```
 
----
+### **Agent Types**
+- **Performance Recovery**: Timeout tuning, tool substitution, caching strategies
+- **Resource Optimization**: Credit reallocation, scope reduction, usage optimization  
+- **Pattern Learning**: Failure prediction, proactive fixes, threshold adaptation
+- **Domain-Specific**: Industry-specific resilience (finance, healthcare, etc.)
 
-## 📚 Documentation Guide
-
-### **Foundation Documents (Read These First)**
-| Document | Purpose | When to Use |
-|----------|---------|-------------|
-| **[Error Classification](error-classification-severity.md)** | Learn systematic error severity assessment | Setting up error handling, troubleshooting unclear error severities |
-| **[Recovery Strategy Selection](recovery-strategy-selection.md)** | Understand strategy selection algorithm | Implementing recovery logic, customizing recovery behavior |
-
-### **Implementation & Protection**
-| Document | Purpose | When to Use |
-|----------|---------|-------------|
-| **[Implementation Guide](resilience-implementation-guide.md)** | Build resilient components with practical code patterns | Writing new code, adding error handling to existing components |
-| **[Circuit Breakers](circuit-breakers.md)** | Prevent cascading failures through service protection | Protecting external dependencies, handling service degradation |
-| **[Error Propagation](error-propagation.md)** | Coordinate cross-tier error handling | Understanding system-wide error flows, debugging complex failures |
-
-### **Troubleshooting & Diagnosis**
-| Document | Purpose | When to Use |
-|----------|---------|-------------|
-| **[Troubleshooting Guide](troubleshooting-guide.md)** | **🚨 START HERE** - Quick diagnostic checklist and immediate solutions | **First response to any system issue** |
-| **[Error Scenarios & Patterns](error-scenarios-guide.md)** | Comprehensive code examples organized by execution tier | Deep debugging, understanding complex error patterns and implementations |
-| **[Failure Scenarios](failure-scenarios/README.md)** | Infrastructure-specific failure analysis and recovery procedures | Communication outages, service failures, infrastructure problems |
-
-> 💡 **Quick Decision**: **System broken?** → Troubleshooting Guide. **Need code examples?** → Error Scenarios & Patterns. **Infrastructure issue?** → Failure Scenarios. **Building something?** → Implementation Guide.
+> 📖 **Complete agent examples**: See [Optimization Agents](../emergent-capabilities/routine-examples/optimization-agents.md)
 
 ---
 
-## 🤖 AI-Driven Resilience
-
-**What makes Vrooli unique**: Resilience capabilities emerge from intelligent agents rather than static rules:
-
-### **Resilience Agents**
-- **Pattern Learning**: Analyze failure histories to identify recurring issues
-- **Strategy Adaptation**: Modify recovery strategies based on success rates
-- **Proactive Improvement**: Suggest system improvements before failures occur
-- **Domain Specialization**: Develop expertise in specific failure domains
-
-### **Emergent Capabilities**
-- **Self-Tuning Thresholds**: Circuit breaker thresholds adapt based on service behavior
-- **Context-Aware Recovery**: Recovery strategies consider system state and load
-- **Predictive Failure Prevention**: Early warning systems based on pattern recognition
-- **Quality-Performance Tradeoffs**: Intelligent degradation strategies
-
-> 📖 **Learn More**: See [Emergent Capabilities](../emergent-capabilities/README.md) for how resilience agents provide adaptive, learning-based error handling.
-
----
-
-## 🎯 Common Scenarios
-
-### **🚨 "Something is broken and I need to fix it RIGHT NOW"**
-→ **[Troubleshooting Guide](troubleshooting-guide.md)** - Start here for immediate diagnostic checklist and quick fixes
-
-### **🏗️ "I'm building a new component and want to make it resilient"**  
-→ **[Implementation Guide](resilience-implementation-guide.md)** - Practical code patterns and examples for robust components
-
-### **🔍 "I'm seeing a complex error pattern and need to understand what's happening"**  
-→ **[Error Scenarios & Patterns](error-scenarios-guide.md)** - Comprehensive examples with detailed TypeScript implementations
-
-### **📡 "External service/communication is unreliable or failing"**
-→ **[Circuit Breakers](circuit-breakers.md)** for protection + **[Failure Scenarios](failure-scenarios/README.md)** for specific recovery procedures
-
-### **🌊 "System-wide failure is cascading across tiers"**
-→ **[Error Propagation](error-propagation.md)** for coordination patterns + **[Troubleshooting Guide](troubleshooting-guide.md)** for immediate action
-
-### **🤖 "I want AI-driven resilience that learns and improves"**
-→ Deploy **[Resilience Agents](../emergent-capabilities/README.md)** for adaptive, learning-based error handling
-
-### **📋 "I need to understand the systematic approach to error handling"**
-→ **[Error Classification](error-classification-severity.md)** + **[Recovery Strategy Selection](recovery-strategy-selection.md)** for the foundational framework
-
----
-
-## 🔗 Integration Points
-
-The resilience architecture integrates seamlessly with other system components:
-
-| System | Integration | Benefits |
-|--------|------------|----------|
-| **[Communication](../communication/README.md)** | Error handling in all communication patterns | Robust inter-tier coordination |
-| **[Resource Management](../resource-management/README.md)** | Resource-aware recovery strategies | Efficient resource utilization during failures |
-| **[Security](../security/README.md)** | Security-aware error recovery | Secure failure handling without privilege escalation |
-| **[Event-Driven](../event-driven/README.md)** | Event-based resilience coordination | Real-time failure detection and coordination |
-
----
-
-## 🚀 Key Benefits
-
-### **🧠 Intelligent Learning**
-- Failure patterns are automatically analyzed and learned
-- Recovery strategies evolve based on success rates
-- Threshold tuning happens automatically based on service behavior
-
-### **⚡ Rapid Recovery**  
-- Systematic classification enables faster recovery decisions
-- Circuit breakers prevent cascading failures
-- Multi-tier coordination ensures appropriate escalation
-
-### **🔄 Continuous Improvement**
-- Recovery strategies improve over time
-- New failure patterns are automatically detected
-- Teams can deploy domain-specific resilience expertise
-
-### **📊 Comprehensive Coverage**
-- Handles traditional system failures and AI-specific challenges
-- Covers all communication patterns and system components
-- Scales from component-level to system-wide resilience
-
----
-
-## 🌟 Why Vrooli's Resilience is Different
+## 🚀 Why Vrooli's Resilience is Different
 
 Traditional error handling uses static rules and manual updates. **Vrooli's resilience is living intelligence** that:
 
@@ -214,64 +101,24 @@ Traditional error handling uses static rules and manual updates. **Vrooli's resi
 
 ---
 
-## 🚀 Next Steps
+## 🚀 Getting Started
 
-### **👤 For New Users**
-1. Start with **[Troubleshooting Guide](troubleshooting-guide.md)** for immediate needs
-2. Read **[Error Classification](error-classification-severity.md)** to understand the framework
-3. Follow **[Implementation Guide](resilience-implementation-guide.md)** for practical patterns
+### **👤 New Users**
+1. **[Document Guide](document-guide.md)** - Understand the documentation structure
+2. **[Error Classification](error-classification-severity.md)** - Learn the framework
 
-### **🔧 For Developers** 
-1. Study **[Error Scenarios & Patterns](error-scenarios-guide.md)** for code examples
-2. Implement **[Circuit Breakers](circuit-breakers.md)** for service protection  
-3. Deploy **[Resilience Agents](../emergent-capabilities/README.md)** for adaptive behavior
+### **🔧 Developers** 
+1. **[Quick Reference](quick-reference.md)** - Fast patterns and code lookup
+2. **[Implementation Guide](resilience-implementation-guide.md)** - Build resilient components
 
-### **⚙️ For Operators**
-1. Use **[Failure Scenarios](failure-scenarios/README.md)** for infrastructure issues
-2. Understand **[Error Propagation](error-propagation.md)** for system coordination
-3. Set up monitoring based on **[Integration Points](#-integration-points)** below
+### **⚙️ Operators**
+1. **[Troubleshooting Guide](troubleshooting-guide.md)** - Emergency response procedures
+2. **[Infrastructure Failures](failure-scenarios/README.md)** - System-level issues
 
 ---
 
 > 💡 **Remember**: Resilience in Vrooli isn't just about handling errors—it's about building intelligence that learns from failures and continuously improves your system's reliability and performance.
 
----
-
-## 📍 Document Navigation Flowchart
-
-Use this flowchart to quickly find the right resilience documentation for your needs:
-
-```mermaid
-flowchart TD
-    Start([🚨 I need resilience help]) --> Immediate{System broken<br/>RIGHT NOW?}
-    
-    Immediate -->|Yes| Troubleshoot[📋 Troubleshooting Guide<br/>Quick diagnostic checklist<br/>Immediate solutions]
-    
-    Immediate -->|No| Purpose{What do you need?}
-    
-    Purpose -->|Understanding concepts| Framework[📚 Framework Documents<br/>• Error Classification<br/>• Recovery Strategy Selection]
-    
-    Purpose -->|Building/coding| Implementation[🔨 Implementation Guide<br/>Practical code patterns<br/>Resilient component design]
-    
-    Purpose -->|Analyzing complex errors| Analysis{What type of analysis?}
-    
-    Purpose -->|Setting up protection| Protection[🛡️ Circuit Breakers<br/>Service protection<br/>Cascading failure prevention]
-    
-    Analysis -->|Code-level debugging| CodeExamples[💻 Error Scenarios & Patterns<br/>Tier-by-tier code examples<br/>TypeScript implementations]
-    
-    Analysis -->|Infrastructure issues| Infrastructure[🏗️ Failure Scenarios<br/>Communication failures<br/>Component outages<br/>System-level recovery]
-    
-    Analysis -->|Cross-tier coordination| Flow[🌊 Error Propagation<br/>Cross-tier error flow<br/>Coordination patterns]
-    
-    classDef urgent fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef framework fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef practical fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef analysis fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class Troubleshoot urgent
-    class Framework,Flow framework
-    class Implementation,Protection,CodeExamples practical
-    class Infrastructure analysis
-```
+> 📚 **Need navigation help?** → **[Document Guide](document-guide.md)** provides a complete map of all resilience documentation.
 
 --- 

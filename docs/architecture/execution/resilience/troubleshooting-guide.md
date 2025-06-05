@@ -1,6 +1,8 @@
 # 🔧 Resilience Troubleshooting Guide
 
-> **TL;DR**: Quick reference for diagnosing and resolving common resilience issues across Vrooli's execution architecture. Organized by error type and system component for fast troubleshooting.
+> **TL;DR**: Step-by-step diagnostics for immediate system issues. Use this when something is broken RIGHT NOW and you need immediate fixes.
+
+> 📚 **Need a different document?** → **[Document Guide](document-guide.md)** explains which resilience document to use for your specific situation.
 
 ---
 
@@ -45,11 +47,6 @@
 - Reduce request scope (fewer symbols, shorter timeframe)
 - Use cached results if acceptable
 - Schedule for later execution
-
-**Prevention:**
-- Implement intelligent request batching
-- Deploy rate limit monitoring agents
-- Use cost-optimized tool selection
 
 ### **Tool Authentication Failure**
 ```typescript
@@ -239,26 +236,6 @@ if (emergency_budget_available) {
 
 ---
 
-## 📊 Monitoring and Alerts
-
-### **Setting Up Proactive Monitoring**
-```typescript
-// Key Metrics to Track:
-- Circuit breaker state changes
-- Error rate trends by tier
-- Recovery strategy success rates
-- Resource utilization patterns
-- Response time degradation
-```
-
-### **Alert Thresholds**
-- **Error Rate > 5%**: Investigate potential issues
-- **Circuit Breaker Opens**: Immediate attention required
-- **Recovery Failure Rate > 20%**: Strategy adjustment needed
-- **Resource Usage > 80%**: Prepare for limit management
-
----
-
 ## 🎯 Common Resolution Patterns
 
 ### **Graceful Degradation**
@@ -273,22 +250,8 @@ if (emergency_budget_available) {
 3. **Human Intervention**: Manual override and assistance
 4. **Emergency Protocols**: System-wide protection measures
 
-### **Learning and Improvement**
-1. **Pattern Recording**: Log all failure and recovery patterns
-2. **Strategy Evolution**: Let AI agents improve approaches
-3. **Threshold Tuning**: Adjust based on actual performance
-4. **Preventive Measures**: Deploy proactive monitoring
-
 ---
 
-## 📚 Related Documentation
+> 💡 **Pro Tip**: For immediate crisis response, follow the diagnostic checklist above. For understanding WHY errors happen and detailed debugging, check the **[Error Scenarios Guide](error-scenarios-guide.md)**. For building resilient code, use the **[Implementation Guide](resilience-implementation-guide.md)**. 
 
-- **[Error Classification](error-classification-severity.md)** - Systematic error severity assessment
-- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Algorithm for choosing recovery approaches
-- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker configuration and management
-- **[Implementation Guide](resilience-implementation-guide.md)** - Building resilient components
-- **[Failure Scenarios](failure-scenarios/README.md)** - Detailed failure analysis and procedures
-
----
-
-> 💡 **Pro Tip**: Most resilience issues can be resolved faster by understanding the error classification and applying the appropriate recovery strategy. When in doubt, check the [Implementation Guide](resilience-implementation-guide.md) for practical code patterns. 
+> 📚 **Confused about which doc to use?** → **[Document Guide](document-guide.md)** provides navigation help. 

@@ -1,17 +1,12 @@
-# Recovery Strategy Selection Algorithm
+# 🧠 Recovery Strategy Selection Algorithm
 
-This document provides the **systematic decision algorithm** for selecting appropriate recovery strategies based on error classification, system state, and operational context within Vrooli's three-tier execution architecture.
+> **TL;DR**: Systematic algorithm for choosing appropriate recovery strategies based on error classification and system context. Use this after classifying an error to determine the best recovery approach.
 
-**Prerequisites**: 
-- Read [Error Propagation](error-propagation.md) to understand recovery strategy integration with error handling
-- Review [Error Classification](error-classification-severity.md) to understand error severity assessment
-- Study [Types System](../types/core-types.ts) for all recovery strategy interface definitions
+---
 
-**All recovery strategy types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on the decision algorithm and strategy selection.
+## 🔄 Recovery Strategy Selection Flowchart
 
-## Recovery Strategy Selection Flowchart
-
-This flowchart illustrates the process of choosing a recovery strategy once an error has been classified.
+This flowchart shows how to choose a recovery strategy once an error has been classified:
 
 ```mermaid
 flowchart TD
@@ -73,59 +68,43 @@ flowchart TD
     class Start,Resolved default
 ```
 
-## Key Recovery Strategies (`RecoveryType` Enum)
+---
 
-Refer to `error-propagation.md` for the full `RecoveryType` enum definition. This tree primarily utilizes:
+## 🎯 Key Recovery Strategies
 
-*   **`EMERGENCY_STOP`**: For FATAL errors. Halts relevant system operations and alerts administrators.
-*   **`ESCALATE_TO_HUMAN`**: For CRITICAL errors that risk data/security or where automated recovery fails. Requires human intervention.
-*   **`FALLBACK_STRATEGY` / `FALLBACK_MODEL`**: Switching to a simpler, safer, or alternative logic/AI model. Often combined with `RETRY_MODIFIED`.
-*   **`REDUCE_SCOPE`**: Modifying the operation to consume fewer resources or attempt a less complex task.
-*   **`GRACEFUL_DEGRADATION`**: Accepting partial success or reduced quality if full recovery isn't feasible for critical but non-data-threatening issues.
-*   **`RETRY_SAME`**: Retrying the exact same operation, typically with a backoff strategy. Suitable for transient errors.
-*   **`WAIT_AND_RETRY`**: Similar to `RETRY_SAME` but implies waiting for external conditions (like resource availability) to improve.
-*   **`RETRY_MODIFIED`**: Retrying the operation with adjusted parameters (e.g., after reducing scope or falling back to a different model).
-*   **`ESCALATE_TO_PARENT`**: If a lower tier cannot resolve an ERROR, it escalates to its parent tier for handling.
-*   **`LOG_WARNING` / `LOG_INFO`**: For non-critical issues, logging is the primary action, with monitoring for trend analysis.
+| Strategy | When Used | Purpose | Example |
+|----------|-----------|---------|---------|
+| **EMERGENCY_STOP** | 🔴 FATAL errors | Halt system operations immediately | Memory overflow, security breach |
+| **ESCALATE_TO_HUMAN** | 🟠 CRITICAL errors with data/security risk | Require human intervention | Data corruption, authentication failure |
+| **FALLBACK_STRATEGY** | 🟠 CRITICAL or 🟡 ERROR | Switch to simpler/safer approach | Use cached data instead of API |
+| **REDUCE_SCOPE** | 🟡 ERROR (resource issues) | Modify operation to use fewer resources | Analyze fewer data points |
+| **GRACEFUL_DEGRADATION** | 🟠 CRITICAL (non-data-threatening) | Accept partial success | Serve limited results |
+| **RETRY_SAME** | 🟡 ERROR (transient) | Retry exact same operation with backoff | Network timeout, temporary service outage |
+| **WAIT_AND_RETRY** | 🟡 ERROR (resource constraint) | Wait for conditions to improve | Rate limit reset, resource availability |
+| **RETRY_MODIFIED** | 🟡 ERROR | Retry with adjusted parameters | Different model, reduced scope |
+| **ESCALATE_TO_PARENT** | 🟡 ERROR (unresolvable) | Let higher tier handle the error | Complex coordination required |
+| **LOG_WARNING/INFO** | 🔵 WARNING / ⚪ INFO | Monitor and log for pattern analysis | Minor configuration issue |
 
-## Contextual Considerations
+---
 
-The selection process also considers:
+## 🤖 Contextual Factors
 
-*   **`Recoverability`**: Can the error be automatically recovered, partially recovered, or is it non-recoverable by automated means?
-*   **`ErrorCategory`**: Transient errors are more likely to benefit from retries, while logic or configuration errors might need fallback or escalation.
-*   **`AttemptCount`**: The number of previous recovery attempts for the same error influences whether to escalate or try a different strategy.
-*   **`CircuitState`**: If a circuit breaker is open for the failing service/operation, retries might be skipped in favor of fallbacks or immediate escalation.
-*   **`ResourceAvailability`**: Current system load and available resources can influence whether to retry or reduce scope.
+The algorithm considers these factors when selecting strategies:
 
-## Usage
+### **Error Context**
+- **Recoverability**: Automatic, partial, or requires manual intervention
+- **Error Category**: Transient, resource, logic, configuration, unknown
+- **Attempt Count**: Number of previous recovery attempts
+- **Circuit State**: Whether circuit breakers are open
 
-This decision tree, in conjunction with the error classification from `error-classification-severity.md`, provides a structured approach for the `ErrorPropagationProtocol` (defined in `error-propagation.md`) to select and execute the most appropriate `RecoveryStrategy` for any given runtime error, aiming to maximize system resilience and reliability. 
+### **System Context**
+- **Resource Availability**: Current system load and available resources
+- **Data Sensitivity**: Importance of preventing data loss
+- **Performance Requirements**: Acceptable degradation levels
+- **Security Constraints**: Privilege escalation risks
 
-**Performance Integration**: Recovery strategy selection coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware recovery.
+---
 
-**Resource Integration**: Recovery strategy selection coordinates with [Resource Management](../resource-management/resource-coordination.md#resource-allocation-flow) for resource-aware recovery.
+> 💡 **Usage**: Apply this algorithm after using [Error Classification](error-classification-severity.md) to determine error severity. The selected strategy guides the specific recovery implementation.
 
-**Security Integration**: Recovery strategy selection respects [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure recovery.
-
-**State Integration**: Recovery strategy selection coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
-
-**Event Integration**: Recovery strategy events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for recovery coordination.
-
-**Circuit Breaker Integration**: Recovery strategy selection triggers [Circuit Breaker Protocol](circuit-breakers.md#circuit-breaker-protocol-and-integration) for component protection.
-
-## Related Documentation
-
-- **[Error Propagation](error-propagation.md)** - Recovery strategy integration with error handling
-- **[Error Classification](error-classification-severity.md)** - Error severity assessment for strategy selection
-- **[Types System](../types/core-types.ts)** - Complete recovery strategy type definitions
-- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker integration with recovery strategies
-- **[Failure Scenarios](failure-scenarios/README.md)** - Specific failure scenario recovery strategies
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Recovery strategy impact on performance
-- **[Resource Management](../resource-management/resource-coordination.md)** - Resource coordination during recovery
-- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement during recovery
-- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven recovery coordination
-- **[State Synchronization](../context-memory/state-synchronization.md)** - State consistency during recovery
-- **[Integration Map](../communication/integration-map.md)** - Recovery strategy validation procedures
-
-This document provides systematic recovery strategy selection for the communication architecture, ensuring effective error recovery through algorithmic decision making and coordinated recovery procedures. 
+> 📚 **Implementation**: See [Quick Reference](quick-reference.md) for code patterns implementing these recovery strategies. 

@@ -1,10 +1,14 @@
-# Metacognitive Framework
+# 🧠 Metacognitive Framework: Coordination Through Understanding
 
-## 🧠 The Metacognitive Advantage
+> **TL;DR**: Vrooli's metacognitive framework enables AI agents to coordinate through reasoning about coordination itself, rather than following hard-coded coordination logic. This creates infinitely flexible coordination that evolves with AI capabilities.
 
-Traditional multi-agent systems hard-code coordination logic into separate services. Vrooli takes a radically different approach: **coordination emerges from AI reasoning**. Here's how:
+---
 
-### 1. Dynamic Role Understanding
+## 🎯 The Metacognitive Advantage
+
+Traditional multi-agent systems hard-code coordination logic into separate services. Vrooli takes a radically different approach: **coordination emerges from AI reasoning**. Agents understand their roles, analyze situations, and coordinate naturally through intelligence rather than programming.
+
+### **1. Dynamic Role Understanding**
 ```typescript
 // Instead of hard-coded role behaviors, agents understand their role through prompting
 const systemPrompt = `
@@ -20,29 +24,28 @@ if (role === "leader") {
 }
 ```
 
-### 2. MOISE+ Organizational Modeling  
+### **2. MOISE+ Organizational Context**
 
-*MOISE+* gives us a formal grammar for describing who **may/must/must-not do** any piece of work. Instead of relying on an LLM's best guess, we feed the agents an explicit organization specification consisting of three linked dimensions:
+Instead of relying on an LLM's best guess about coordination, we provide explicit organizational specifications. MOISE+ gives us a formal grammar for describing who **may/must/must-not do** any piece of work across three dimensions:
 
-| Dimension | What it captures | In-doc symbols | Runtime effect |
-|-----------|------------------|---------------|----------------|
-| **Structural** | Roles, groups, inheritance, social links | `role`, `group`, `link` | Who *can* be assigned to a task |
-| **Functional** | Goals, missions, plans (decomposition) | `mission`, `plan`, `goal` | Which steps exist & in what order |
-| **Deontic** | Permissions, obligations, prohibitions | `permission`, `obligation`, `prohibition` | Who *must / may / must-not* act |
+| Dimension | What it captures | Runtime effect |
+|-----------|------------------|----------------|
+| **Structural** | Roles, groups, inheritance, social links | Who *can* be assigned to a task |
+| **Functional** | Goals, missions, plans (decomposition) | Which steps exist & in what order |
+| **Deontic** | Permissions, obligations, prohibitions | Who *must / may / must-not* act |
 
-In Vrooli we serialise the MOISE+ spec to JSON and inject it into the **SwarmContext**; every tier then enforces the relevant dimension deterministically:
-1. Tier 1 (Leader agent) — uses structural & deontic info to pick assignees.  
-2. Tier 2 (RunStateMachine) — validates each sub-routine call against deontic rules.  
-3. Tier 3 (Guard-Rails) — blocks or barriers high-risk steps based on norms.
+We serialize the MOISE+ spec to JSON and inject it into the **SwarmContext**; every tier then enforces the relevant dimension deterministically.
 
-### 3. Flexible Coordination Patterns
-Agents can invent new coordination strategies on the fly:
-- **Hierarchical**: Leader delegates to specialists
-- **Peer-to-peer**: Agents collaborate directly via events
-- **Emergent**: Patterns evolve based on task success
-- **Hybrid**: Mix strategies as needed
+> 📖 **Learn More**: [MOISE+ Comprehensive Guide](moise-comprehensive-guide.md) covers complete implementation across all tiers
 
-### 4. Tool-Mediated Actions
+### **3. Flexible Coordination Patterns**
+Agents can dynamically select and even invent coordination strategies:
+- **🔄 Hierarchical**: Leader delegates to specialists
+- **👥 Peer-to-peer**: Agents collaborate directly via events
+- **🌱 Emergent**: Patterns evolve based on task success
+- **🔀 Hybrid**: Mix strategies as needed
+
+### **4. Tool-Mediated Actions**
 Instead of API calls to coordination services, agents use MCP tools that feel natural:
 ```typescript
 // Agent naturally expresses coordination intent
@@ -55,9 +58,13 @@ await update_swarm_shared_state({
 });
 ```
 
+> 📖 **Learn More**: [MCP Tools Reference](mcp-tools-reference.md) provides comprehensive tool documentation
+
+---
+
 ## 🎯 Key Design Principles
 
-### 1. Prompt as Configuration
+### **1. Prompt as Configuration**
 The system prompt *is* the coordination logic. Changes to coordination behavior are as simple as updating prompts:
 ```typescript
 // Easy to experiment with new coordination strategies
@@ -68,7 +75,7 @@ const promptVariants = {
 };
 ```
 
-### 2. State as Context
+### **2. State as Context**
 All coordination state lives in the conversation context, making it naturally accessible to LLM reasoning:
 ```typescript
 interface SwarmState {
@@ -81,34 +88,36 @@ interface SwarmState {
 }
 ```
 
-### 3. Events as Natural Communication
+### **3. Events as Natural Communication**
 Agents communicate through an event system that maps to natural concepts:
 - `swarm/user` - "The user said something"
 - `swarm/subtask` - "A subtask was updated"  
 - `swarm/role/analyst` - "Message for analysts"
 
-### 4. Tools as Capabilities
+### **4. Tools as Capabilities**
 MCP tools provide structured ways to modify swarm state while maintaining consistency:
-- `update_swarm_shared_state` - Modify any aspect of shared state
-- `find_resources` - Search for existing routines/artifacts
-- `start_routine` - Execute reusable workflows
-- `subscribe_to_events` - Dynamically adjust event routing
+- `update_swarm_shared_state` - Modify swarm state including subtasks and blackboard
+- `resource_manage` - Search for and manage existing routines/artifacts
+- `run_routine` - Execute reusable workflows
+- `send_message` - Communicate with users and other agents
+
+---
 
 ## 📈 Dynamic Upgradeability
 
 This architecture is designed for continuous improvement:
 
-### 1. Prompt Evolution
+### **1. Prompt Evolution**
 - A/B test different prompt strategies
 - Learn from successful swarm patterns
 - Incorporate new coordination research
 
-### 2. Tool Expansion
+### **2. Tool Expansion**
 - Add new MCP tools as needs emerge
 - No code changes required in core engine
 - Backwards compatible with existing swarms
 
-### 3. Reinforcement Learning
+### **3. Reinforcement Learning**
 ```mermaid
 graph LR
     subgraph "RL Loop"
@@ -131,7 +140,9 @@ The system tracks:
 
 This data feeds back into prompt templates and best practice recommendations.
 
-## 🏗️ MOISE+ Organizational Modeling
+---
+
+## 🏗️ Example: MOISE+ Organizational Structure
 
 Teams can define rich organizational structures using MOISE+ notation:
 
@@ -173,4 +184,28 @@ This structure informs agent behavior through the prompt, creating sophisticated
 
 ---
 
-**Next**: [Implementation Architecture](./implementation-architecture.md) - See how these concepts are implemented in code. 
+## 🚀 Benefits of This Approach
+
+Unlike traditional multi-agent systems, the metacognitive approach provides:
+
+- **🔄 Infinite Flexibility**: Agents can invent new coordination strategies on-demand
+- **🧠 AI Evolution Alignment**: Automatically improves as LLMs become more capable
+- **📝 Natural Knowledge Transfer**: Best practices shared through human-readable prompts
+- **🏗️ Simplified Architecture**: Fewer moving parts, easier maintenance
+- **🎯 Domain Adaptability**: Same infrastructure works across all domains
+
+> 📖 **Learn More**: [Why Prompt-Based Coordination](why-prompt-based-coordination.md) provides detailed comparison with traditional approaches
+
+---
+
+## 🔗 Related Documentation
+
+- **[Implementation Architecture](implementation-architecture.md)** - Technical components and integration patterns
+- **[MCP Tools Reference](mcp-tools-reference.md)** - Complete coordination tool documentation
+- **[Autonomous Operations](autonomous-operations.md)** - Self-directed coordination capabilities
+- **[SwarmStateMachine](swarm-state-machine.md)** - State management and lifecycle
+- **[Why Prompt-Based Coordination](why-prompt-based-coordination.md)** - Advantages over traditional systems
+
+---
+
+> 💡 **Next Steps**: Understand the technical implementation in [Implementation Architecture](implementation-architecture.md), or explore the available coordination tools in [MCP Tools Reference](mcp-tools-reference.md). 

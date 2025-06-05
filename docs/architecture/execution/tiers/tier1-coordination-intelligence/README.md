@@ -4,15 +4,17 @@
 
 Unlike traditional multi-agent systems with rigid coordination services, Vrooli's Tier 1 leverages **AI metacognition** - the ability for agents to reason about their own thinking and coordinate dynamically through natural language understanding. This creates an infinitely flexible coordination layer that evolves with AI capabilities.
 
-## 📚 Documentation Structure
+---
 
-This documentation is organized into several focused sections:
+## 📋 Quick Navigation
 
-- **[Metacognitive Framework](./metacognitive-framework.md)** - The core advantage of prompt-based coordination
-- **[Implementation Architecture](./implementation-architecture.md)** - Technical architecture and components
-- **[SwarmStateMachine](./swarm-state-machine.md)** - State machine architecture and lifecycle management
-- **[Autonomous Operations](./autonomous-operations.md)** - Self-directed task management and monitoring
-- **[Conclusion](./conclusion.md)** - Why prompt-based metacognition wins
+| **Core Concepts** | **Implementation Details** | **Advanced Topics** |
+|-------------------|---------------------------|---------------------|
+| **[🧠 Metacognitive Framework](metacognitive-framework.md)** - The foundational coordination approach | **[🏗️ Implementation Architecture](implementation-architecture.md)** - Technical components and integration | **[🤖 Autonomous Operations](autonomous-operations.md)** - Self-directed task management |
+| **[🔧 MCP Tools Reference](mcp-tools-reference.md)** - **🆕 Complete tool documentation** | **[⚙️ SwarmStateMachine](swarm-state-machine.md)** - State management and lifecycle | **[📚 MOISE+ Comprehensive Guide](moise-comprehensive-guide.md)** - Organizational modeling |
+| **[🎯 Why This Approach](why-prompt-based-coordination.md)** - Advantages over traditional systems | | |
+
+---
 
 ## 🧠 Core Architecture Overview
 
@@ -26,7 +28,7 @@ graph TB
             
             MoiseSerializer[MOISE+ Serializer<br/>📦 Inject roles / missions / norms<br/>⬇️ Into leader prompt]
             
-            MCPTools[MCP Tool Suite<br/>🔧 update_swarm_shared_state<br/>📋 manage_subtasks<br/>👥 delegate_roles<br/>📢 subscribe_to_events]
+            MCPTools[MCP Tool Suite<br/>🔧 update_swarm_shared_state<br/>📊 resource_manage<br/>⚙️ run_routine<br/>💬 send_message]
             
             SwarmContext[Swarm Context<br/>📊 Current state<br/>🎯 Goals & subtasks<br/>👥 Team structure<br/>📝 Execution history]
         end
@@ -73,44 +75,105 @@ graph TB
     class TeamConfig team
 ```
 
+---
+
 ## 🎯 Key Concepts
 
-### Metacognitive Coordination
+### **Metacognitive Coordination**
 Traditional multi-agent systems hard-code coordination logic into separate services. Vrooli takes a radically different approach: **coordination emerges from AI reasoning**. Agents understand their roles, analyze situations, and coordinate naturally through prompts.
 
-### MOISE+ Organizational Modeling
+> 📖 **Learn More**: [Metacognitive Framework](metacognitive-framework.md) explains how agents reason about coordination
+
+### **MOISE+ Organizational Modeling**
 Teams define rich organizational structures using MOISE+ notation, providing a formal grammar for describing who **may/must/must-not** do any piece of work. This creates sophisticated coordination without hard-coding.
 
-### Dynamic Capabilities
-All coordination behaviors emerge from prompting:
-- **Hierarchical**: Leader delegates to specialists
-- **Peer-to-peer**: Agents collaborate directly via events
-- **Emergent**: Patterns evolve based on task success
-- **Hybrid**: Mix strategies as needed
+> 📖 **Learn More**: [MOISE+ Comprehensive Guide](moise-comprehensive-guide.md) covers complete implementation across all tiers
 
-### Tool-Mediated Actions
-Instead of API calls to coordination services, agents use MCP tools that feel natural:
+### **Tool-Mediated Coordination**
+Instead of API calls to coordination services, agents use MCP tools that feel natural and map to coordination concepts:
+
 ```typescript
 await update_swarm_shared_state({
-    subtasks: [
-        { id: "T1", description: "Analyze market trends", status: "todo" },
-        { id: "T2", description: "Generate report", status: "todo", depends_on: ["T1"] }
-    ],
-    subtaskLeaders: { "T1": "analyst_bot_123" }
+    subTasks: {
+        set: [
+            { id: "T1", description: "Analyze market trends", status: "todo" },
+            { id: "T2", description: "Generate report", status: "todo", depends_on: ["T1"] }
+        ]
+    }
 });
 ```
 
-## 🚀 Get Started
+> 📖 **Learn More**: [MCP Tools Reference](mcp-tools-reference.md) provides complete tool documentation
 
-Begin with the **[Metacognitive Framework](./metacognitive-framework.md)** to understand the foundational concepts, then explore the **[Implementation Architecture](./implementation-architecture.md)** for technical details.
+### **Autonomous Operations**
+The system maintains productivity without continuous supervision through intelligent monitoring, stall detection, and proactive task management.
 
-For understanding the autonomous operation capabilities, see **[Autonomous Operations](./autonomous-operations.md)**.
+> 📖 **Learn More**: [Autonomous Operations](autonomous-operations.md) covers self-directed coordination
 
-## 📚 Deep Dive Documentation
+---
 
-### **Core Intelligence Components**
-- **[SwarmStateMachine Implementation](swarm-state-machine.md)** - Complete architecture, state lifecycle, and autonomous operation capabilities
-- **[MOISE+ Comprehensive Guide](moise-comprehensive-guide.md)** - Complete organizational modeling implementation
-- **[Metacognitive Framework](metacognitive-framework.md)** - Multi-level reasoning and self-reflection capabilities
-- **[Implementation Architecture](implementation-architecture.md)** - Technical architecture and integration patterns
-- **[Autonomous Operations](autonomous-operations.md)** - Self-managing swarm capabilities and intelligent delegation 
+## 🚀 Dynamic Capabilities
+
+All coordination behaviors emerge from prompting rather than hard-coded logic:
+
+- **🔄 Hierarchical**: Leader delegates to specialists based on role analysis
+- **👥 Peer-to-peer**: Agents collaborate directly via intelligent event routing  
+- **🌱 Emergent**: Coordination patterns evolve based on task success metrics
+- **🔀 Hybrid**: Mix strategies dynamically as situations require
+
+This flexibility allows teams to invent coordination strategies that traditional systems cannot anticipate.
+
+---
+
+## 🏗️ Implementation Highlights
+
+### **State Management Integration**
+- **L1 Cache**: Hot conversations in memory for immediate access
+- **L2 Cache**: Redis for distributed state sharing  
+- **L3 Storage**: PostgreSQL for durability and auditability
+- **Event Integration**: Real-time coordination through pub/sub messaging
+
+### **Tool Routing Architecture**
+- **CompositeToolRunner**: Automatic routing between OpenAI and MCP tools
+- **Natural Interfaces**: Tools designed for AI agent reasoning patterns
+- **Consistent Error Handling**: Unified error management across all coordination tools
+
+### **Metacognitive Prompting**
+- **Role-Aware Prompts**: System messages adapted to agent responsibilities
+- **Context Injection**: Dynamic integration of team structure and current state
+- **Strategy Selection**: Agents choose coordination approaches based on situation analysis
+
+> 📖 **Learn More**: [Implementation Architecture](implementation-architecture.md) covers technical details
+
+---
+
+## 📊 Performance & Benefits
+
+| **Aspect** | **Traditional Multi-Agent** | **Prompt-Based Coordination** |
+|------------|------------------------------|-------------------------------|
+| **Development Time** | Months per domain | Hours per domain |
+| **Coordination Flexibility** | Fixed patterns only | Infinite adaptability |
+| **Maintenance Overhead** | High - multiple services | Low - prompt updates |
+| **AI Model Compatibility** | Requires API changes | Works with any LLM |
+| **Knowledge Transfer** | Code documentation | Natural language patterns |
+
+> 📖 **Learn More**: [Why This Approach](why-prompt-based-coordination.md) provides detailed comparison
+
+---
+
+## 🔧 Getting Started
+
+### **For Understanding Concepts**
+1. **[🧠 Metacognitive Framework](metacognitive-framework.md)** - Start here to understand the foundational approach
+2. **[🔧 MCP Tools Reference](mcp-tools-reference.md)** - Explore available coordination capabilities
+3. **[🎯 Why This Approach](why-prompt-based-coordination.md)** - Understand advantages over traditional systems
+
+### **For Implementation**
+1. **[🏗️ Implementation Architecture](implementation-architecture.md)** - Technical components and integration patterns  
+2. **[⚙️ SwarmStateMachine](swarm-state-machine.md)** - State management and lifecycle details
+3. **[📚 MOISE+ Comprehensive Guide](moise-comprehensive-guide.md)** - Organizational constraint implementation
+
+### **For Advanced Usage**
+1. **[🤖 Autonomous Operations](autonomous-operations.md)** - Self-directed coordination capabilities
+2. **[Event-Driven Architecture](../../event-driven/README.md)** - Cross-tier coordination patterns
+3. **[Communication Protocols](../../communication/tier-communication-protocols.md)** - Inter-tier integration 

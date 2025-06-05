@@ -1,15 +1,10 @@
-# Error Classification and Severity Assessment
+# 📋 Error Classification and Severity Assessment
 
-This document provides the **systematic decision algorithm** for classifying errors by type, severity, category, and recoverability within Vrooli's three-tier execution architecture.
+> **TL;DR**: Systematic decision algorithm for classifying errors by severity and type. Use this to ensure consistent error handling across all tiers.
 
-**Prerequisites**: 
-- Read [Error Propagation](error-propagation.md) to understand error classification integration with error handling
-- Review [Recovery Strategy Selection](recovery-strategy-selection.md) to understand how classification guides recovery
-- Study [Types System](../types/core-types.ts) for all error classification interface definitions
+---
 
-**All error classification types are defined in the centralized type system** at [types/core-types.ts](../types/core-types.ts). This document focuses on the decision algorithm and classification criteria.
-
-## Severity Decision Tree
+## 🔄 Severity Decision Tree
 
 This flowchart helps determine the severity of a detected error based on its impact on the system and data.
 
@@ -46,42 +41,44 @@ flowchart TD
     class Warning warning
 ```
 
-## Severity Levels Defined
+---
 
-*   **FATAL (🔴)**: Complete system failure or imminent catastrophic risk. Requires immediate system-wide halt and manual intervention. No automated recovery is typically possible at this stage.
-*   **CRITICAL (🟠)**: Severe error with significant impact, such as potential data loss, security breach, or failure of a major component affecting multiple runs/swarms. Requires immediate attention, robust automated recovery attempts, and escalation if recovery is not swift.
-*   **ERROR (🟡)**: A failure that has occurred, impacting functionality but not (yet) critical or fatal. This could be a single significant operation failure, multiple related non-critical failures, or an error whose full impact is initially unclear. Automated recovery is the primary response.
-*   **WARNING (🔵)**: A minor, unexpected issue or a deviation from normal behavior that does not immediately impact functionality but could lead to problems if unaddressed. Typically logged for monitoring and analysis; may trigger alerts if patterns emerge.
-*   **INFO (⚪️)**: (Not explicitly in the tree but a common level) Informational messages about system operation, not indicative of a problem.
+## 📊 Severity Levels Defined
 
-## Usage
+| Level | Symbol | Description | Response |
+|-------|--------|-------------|----------|
+| **FATAL** | 🔴 | Complete system failure or imminent catastrophic risk | Immediate system-wide halt and manual intervention |
+| **CRITICAL** | 🟠 | Severe error with significant impact (data loss, security breach, major component failure) | Immediate attention, automated recovery, escalation if needed |
+| **ERROR** | 🟡 | Functionality impacted but not critical (single operation failure, multiple minor failures) | Automated recovery as primary response |
+| **WARNING** | 🔵 | Minor issue that doesn't immediately impact functionality but could lead to problems | Log for monitoring, alert on patterns |
+| **INFO** | ⚪ | Informational messages about normal system operation | Standard logging |
 
-This decision tree should be used by error handling protocols (see `error-propagation.md`) to consistently classify the severity of runtime errors. The output of this classification (`ErrorSeverity` enum) then drives the selection of appropriate `RecoveryStrategy` and escalation procedures. 
+---
 
-**Performance Integration**: Error classification coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-related error assessment.
+## 🎯 Classification Examples
 
-**Resource Integration**: Error classification coordinates with [Resource Management](../resource-management/resource-coordination.md#resource-allocation-flow) for resource-related error assessment.
+### **🔧 Tool/API Errors**
+- **Rate Limit**: 🟡 ERROR → Retry with delay or alternative
+- **Authentication Failure**: 🟠 CRITICAL → Security implications
+- **Service Unavailable**: 🟡 ERROR → Alternative service or cached results
 
-**Security Integration**: Error classification coordinates with [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for security-related error assessment.
+### **💰 Resource Errors**
+- **Credit Exhaustion**: 🟠 CRITICAL → Scope reduction or emergency expansion
+- **Memory Overflow**: 🔴 FATAL → System protection required
+- **Timeout**: 🟡 ERROR → Retry or alternative approach
 
-**State Integration**: Error classification coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for state-related error assessment.
+### **📡 Communication Errors**
+- **Network Timeout**: 🟡 ERROR → Alternative communication path
+- **MCP Server Down**: 🟠 CRITICAL → Fallback to direct interface
+- **Event Bus Failure**: 🟠 CRITICAL → Local buffering and direct calls
 
-**Event Integration**: Error classification events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for classification coordination.
+### **🗃️ State Errors**
+- **Checkpoint Corruption**: 🟠 CRITICAL → Previous checkpoint or reconstruction
+- **Context Loss**: 🟡 ERROR → Rebuild from swarm state
+- **Concurrency Conflict**: 🔵 WARNING → Retry with backoff
 
-**Circuit Breaker Integration**: Error classification triggers [Circuit Breaker Protocol](circuit-breakers.md#circuit-breaker-protocol-and-integration) for error-based protection.
+---
 
-## Related Documentation
+> 💡 **Usage**: This classification algorithm drives recovery strategy selection and escalation procedures. The output severity level determines the appropriate response pattern.
 
-- **[Error Propagation](error-propagation.md)** - Error classification integration with error handling
-- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Recovery strategy selection based on classification
-- **[Types System](../types/core-types.ts)** - Complete error classification type definitions
-- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker integration with error classification
-- **[Failure Scenarios](failure-scenarios/README.md)** - Specific failure scenario classifications
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Performance-related error classification
-- **[Resource Management](../resource-management/resource-coordination.md)** - Resource-related error classification
-- **[Security Boundaries](../security/security-boundaries.md)** - Security-related error classification
-- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven error classification
-- **[State Synchronization](../context-memory/state-synchronization.md)** - State-related error classification
-- **[Integration Map](../communication/integration-map.md)** - Error classification validation procedures
-
-This document provides systematic error classification for the communication architecture, ensuring consistent error assessment through algorithmic decision making and coordinated classification procedures. 
+> 📚 **Next Steps**: Use [Recovery Strategy Selection](recovery-strategy-selection.md) to choose the appropriate recovery approach based on the classification. 
