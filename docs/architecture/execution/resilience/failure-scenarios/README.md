@@ -1,71 +1,69 @@
-# Failure Scenarios and Recovery Procedures
+# 💥 Failure Scenarios: Infrastructure & System-Level Failures
 
-This directory contains comprehensive documentation for specific failure scenarios, their classification, and systematic recovery procedures within Vrooli's three-tier execution architecture.
+This directory contains detailed documentation for specific **infrastructure and system-level failure scenarios**, their systematic analysis, and recovery procedures within Vrooli's execution architecture.
 
-**Prerequisites**: 
-- Read [Error Propagation](../error-propagation.md) to understand failure scenario integration with error handling
-- Review [Error Classification](../error-classification-severity.md) for severity assessment of failure scenarios
-- Study [Recovery Strategy Selection](../recovery-strategy-selection.md) for recovery strategy selection
-- Review [Types System](../../types/core-types.ts) for all failure scenario interface definitions
+> **📖 Prerequisites**: Review [Error Classification](../error-classification-severity.md) and [Recovery Strategy Selection](../recovery-strategy-selection.md) to understand the systematic approach applied to all failure scenarios.
 
-**All failure scenario types are defined in the centralized type system** at [types/core-types.ts](../../types/core-types.ts). This directory focuses on specific failure scenarios and their recovery procedures.
+---
 
-## Failure Scenario Documentation
+## 🧭 Navigation Guide
 
-### **Critical Component Failures**
-- **[Critical Component Failures](critical-component-failures.md)** - Database outages, service failures, infrastructure issues
+**📍 You're in the right place if you need:**
+- **Infrastructure failure procedures** (database outages, network partitions, service crashes)
+- **System-level recovery procedures** for operational issues
+- **Communication layer troubleshooting** (MCP failures, event bus issues)
 
-### **Communication Failures**
-- Tool routing failures and MCP integration issues
-- Event bus failures and message delivery problems
-- State synchronization failures and cache corruption
+**🔀 Use [Error Scenarios & Patterns](../error-scenarios-guide.md) instead if you want:**
+- **Code implementation examples** organized by execution tier
+- **Detailed TypeScript error handling patterns**
+- **Application-level error scenarios** with step-by-step code flows
 
-### **Resource Exhaustion**
-- Credit exhaustion and quota exceeded scenarios
-- Memory and CPU resource exhaustion
-- Rate limiting and throttling scenarios
+**🚨 Need immediate help?** Start with **[Troubleshooting Guide](../troubleshooting-guide.md)** for quick diagnostic checklist.
 
-### **Security Violations**
-- Permission boundary violations
-- Security context corruption
-- Unauthorized access attempts
+---
 
-## Integration with Error Framework
+## 🎯 Failure Scenario Categories
 
-All failure scenarios integrate with the central error handling framework:
+### **🏗️ Infrastructure Failures**
+- **[Critical Component Failures](critical-component-failures.md)** - Database outages, service crashes, infrastructure issues
 
-**Error Classification**: Failure scenarios use [Error Classification Decision Tree](../error-classification-severity.md) for systematic severity assessment.
+### **📡 Communication Failures**  
+- **[Communication Failures](communication-failures.md)** - Tool routing issues, event bus problems, state synchronization failures
 
-**Recovery Strategy**: Failure scenarios apply [Recovery Strategy Selection Algorithm](../recovery-strategy-selection.md) for systematic recovery.
+### **⚙️ Planned Failure Types**
+- **Resource Exhaustion Scenarios** - Credit limits, memory/CPU exhaustion, rate limiting scenarios
+- **Security Incident Response** - Permission boundary violations, unauthorized access, security breach procedures  
+- **Data Consistency Issues** - State corruption, checkpoint failures, distributed consistency problems
 
-**Error Propagation**: Failure scenarios coordinate with [Error Propagation Framework](../error-propagation.md) for error handling.
+> 📝 **Note**: Additional failure scenarios will be added based on operational experience and identified needs.
 
-**Circuit Breakers**: Failure scenarios trigger [Circuit Breaker Protocol](../circuit-breakers.md) for component protection.
+---
 
-## Performance and Resource Integration
+## 🔄 Integration with Resilience Framework
 
-**Performance Integration**: Failure scenarios coordinate with [Performance Requirements](../../monitoring/performance-characteristics.md) for performance-aware recovery.
+All failure scenarios use the systematic resilience framework:
 
-**Resource Integration**: Failure scenarios coordinate with [Resource Management](../../resource-management/resource-coordination.md) for resource-aware recovery.
+1. **[Error Classification](../error-classification-severity.md)** - Severity assessment and categorization
+2. **[Recovery Strategy Selection](../recovery-strategy-selection.md)** - Algorithm-driven recovery approach
+3. **[Circuit Breakers](../circuit-breakers.md)** - Component protection and isolation
+4. **[Error Propagation](../error-propagation.md)** - Cross-tier coordination and escalation
 
-**Security Integration**: Failure scenarios respect [Security Boundaries](../../security/security-boundaries.md) for secure recovery.
+---
 
-**State Integration**: Failure scenarios coordinate with [State Synchronization](../../context-memory/state-synchronization.md) for consistency.
+## 🚀 Quick Navigation
 
-**Event Integration**: Failure scenario events use [Event Bus Protocol](../../event-driven/event-bus-protocol.md) for failure coordination.
+**For rapid troubleshooting** → Use [Troubleshooting Guide](../troubleshooting-guide.md)
+**For systematic analysis** → Follow failure scenario procedures in this directory
+**For implementation guidance** → See [Implementation Guide](../resilience-implementation-guide.md)
 
-## Related Documentation
+---
 
-- **[Error Propagation](../error-propagation.md)** - Central error handling framework
-- **[Error Classification](../error-classification-severity.md)** - Error severity assessment
-- **[Recovery Strategy Selection](../recovery-strategy-selection.md)** - Recovery strategy selection
-- **[Circuit Breakers](../circuit-breakers.md)** - Circuit breaker integration
-- **[Types System](../../types/core-types.ts)** - Complete failure scenario type definitions
-- **[Performance Characteristics](../../monitoring/performance-characteristics.md)** - Performance impact of failures
-- **[Resource Management](../../resource-management/resource-coordination.md)** - Resource coordination during failures
-- **[Security Boundaries](../../security/security-boundaries.md)** - Security enforcement during failures
-- **[Event Bus Protocol](../../event-driven/event-bus-protocol.md)** - Event-driven failure coordination
-- **[State Synchronization](../../context-memory/state-synchronization.md)** - State consistency during failures
-- **[Integration Map](../../communication/integration-map.md)** - Failure scenario validation procedures
+## 📚 Related Documentation
 
-This directory provides comprehensive failure scenario documentation for the communication architecture, ensuring systematic failure handling through documented procedures and coordinated recovery strategies. 
+- **[Resilience Architecture](../README.md)** - Main resilience documentation
+- **[Troubleshooting Guide](../troubleshooting-guide.md)** - Quick diagnostic reference
+- **[Error Classification](../error-classification-severity.md)** - Systematic error assessment
+- **[Recovery Strategy Selection](../recovery-strategy-selection.md)** - Recovery decision algorithms
+- **[Types System](../../types/core-types.ts)** - Complete failure scenario interface definitions
+
+This directory provides comprehensive failure analysis for systematic recovery through documented procedures and coordinated response strategies. 

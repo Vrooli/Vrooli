@@ -57,6 +57,15 @@ graph TB
 - **API Security Agent**: Adaptive rate limiting and abuse prevention
 - **Data Privacy Agent**: GDPR/CCPA compliance and privacy violation detection
 
+### **🛡️ [Resilience Agents](resilience-agents.md)**
+**Purpose**: AI-driven adaptive error handling and system reliability improvement
+
+**Examples**:
+- **Pattern Learning Agent**: Learns from error patterns to improve recovery strategy selection
+- **Threshold Optimization Agent**: Dynamically optimizes circuit breaker thresholds and retry parameters
+- **Predictive Failure Agent**: Predicts potential failures and triggers preventive actions
+- **Recovery Strategy Evolution Agent**: Evolves recovery strategies based on success patterns
+
 ### **✅ [Quality Assurance Agents](quality-agents.md)**
 **Purpose**: Intelligent output validation, bias detection, and quality improvement
 

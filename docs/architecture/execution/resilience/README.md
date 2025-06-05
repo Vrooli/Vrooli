@@ -1,479 +1,277 @@
-# Resilience and Error Handling Architecture
+# 🛡️ Resilience Architecture: Intelligent Fault Tolerance
 
-## Overview
+> **TL;DR**: Vrooli's resilience architecture provides systematic error handling through classification, recovery strategy selection, and AI-driven adaptation. This creates self-improving fault tolerance that learns from failures and continuously improves recovery patterns.
 
-Vrooli's resilience architecture provides comprehensive fault tolerance and error handling specifically designed for AI-driven execution environments. The system handles both traditional system failures and AI-specific challenges like model unavailability, quality degradation, and context overflow.
+---
 
-## Fault Tolerance Framework
+## 🎯 Quick Navigation
 
-The resilience framework coordinates multiple layers of failure detection, recovery, and adaptation:
+### **🚨 Need Immediate Help?**
+- **System is broken right now** → **[Troubleshooting Guide](troubleshooting-guide.md)** - Quick diagnostic checklist and immediate solutions
+
+### **🏗️ Building Resilient Systems?**
+- **Understanding the framework** → **[Error Classification](error-classification-severity.md)** + **[Recovery Strategy Selection](recovery-strategy-selection.md)**
+- **Writing resilient code** → **[Implementation Guide](resilience-implementation-guide.md)** - Practical patterns and examples
+- **Setting up protection** → **[Circuit Breakers](circuit-breakers.md)** - Preventing cascading failures
+
+### **🔍 Deep Debugging & Analysis?**
+- **Comprehensive error examples** → **[Error Scenarios & Patterns](error-scenarios-guide.md)** - Detailed code examples organized by tier
+- **Infrastructure-specific failures** → **[Failure Scenarios](failure-scenarios/README.md)** - Communication failures, component outages, system-level issues
+- **Understanding error flow** → **[Error Propagation](error-propagation.md)** - Cross-tier coordination patterns
+
+---
+
+## 🏗️ Architecture Philosophy
+
+Vrooli's resilience differs from traditional approaches through **emergent intelligence**:
 
 ```mermaid
 graph TB
-    subgraph "Resilience Framework"
-        ResilienceOrchestrator[Resilience Orchestrator<br/>🛡️ Central resilience coordination<br/>🔄 Recovery orchestration<br/>📊 Health monitoring]
-        
-        subgraph "Failure Detection"
-            AnomalyDetector[Anomaly Detector<br/>📊 Pattern-based detection<br/>🚨 Real-time monitoring<br/>⚡ Early warning system]
-            HealthProbe[Health Probe<br/>💓 Component health checks<br/>🔍 Dependency monitoring<br/>📊 Performance tracking]
-            CircuitBreaker[Circuit Breaker<br/>⚡ Failure isolation<br/>🔄 Auto-recovery<br/>📊 Fallback strategies]
-        end
-        
-        subgraph "AI-Specific Recovery"
-            ModelFallback[Model Fallback<br/>🔄 Alternative models<br/>📊 Quality degradation<br/>⚡ Seamless switching]
-            ContextRecovery[Context Recovery<br/>📋 State reconstruction<br/>🔄 Checkpoint restoration<br/>💾 Data consistency]
-            StrategyAdaptation[Strategy Adaptation<br/>🧠 Dynamic strategy switching<br/>📊 Performance monitoring<br/>🎯 Optimization]
-        end
-        
-        subgraph "System Recovery"
-            StateRecovery[State Recovery<br/>🔄 Checkpoint restoration<br/>📊 Transaction rollback<br/>💾 Data consistency]
-            ServiceRecovery[ServiceRecovery<br/>🔄 Service restart<br/>📊 Load redistribution<br/>⚖️ Capacity management]
-            DataRecovery[DataRecovery<br/>💾 Backup restoration<br/>🔄 Replication sync<br/>📊 Integrity verification]
-        end
-        
-        subgraph "Event-Driven Failure Detection/Adaptation"
-            FailureEvents[Failure Events<br/>🚨 Error reports<br/>📉 Degradation signals<br/>💔 Anomaly detection]
-            ResilienceAgents[Resilience Agents<br/>🤖 Subscribe to events<br/>🔍 Analyze failures<br/>💡 Adapt & recover]
-        end
+    subgraph "🔍 Detection & Classification"
+        ErrorDetection[Real-time Error Detection<br/>📊 Pattern recognition<br/>⚡ Early warning systems]
+        Classification[Systematic Classification<br/>📋 Severity assessment<br/>🎯 Recovery guidance]
     end
     
-    ResilienceOrchestrator --> AnomalyDetector
-    ResilienceOrchestrator --> HealthProbe
-    ResilienceOrchestrator --> CircuitBreaker
-    ResilienceOrchestrator --> ModelFallback
-    ResilienceOrchestrator --> ContextRecovery
-    ResilienceOrchestrator --> StrategyAdaptation
-    ResilienceOrchestrator --> StateRecovery
-    ResilienceOrchestrator --> DataRecovery
-    ResilienceOrchestrator --> FailureEvents
-    ResilienceOrchestrator --> ResilienceAgents
+    subgraph "🧠 Intelligent Recovery"
+        ResilienceAgents[AI Resilience Agents<br/>🤖 Pattern learning<br/>💡 Strategy adaptation<br/>📈 Continuous improvement]
+        RecoveryExecution[Strategy Execution<br/>🔄 Automated recovery<br/>⚡ Escalation handling<br/>📊 Success validation]
+    end
     
-    classDef orchestrator fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    subgraph "🔄 Adaptive Learning"
+        PatternAnalysis[Pattern Analysis<br/>📊 Success/failure tracking<br/>🎯 Strategy optimization<br/>🔄 Threshold adaptation]
+        StrategyEvolution[Strategy Evolution<br/>🌱 New patterns discovered<br/>📈 Performance improvement<br/>🤖 Agent specialization]
+    end
+    
+    ErrorDetection --> Classification
+    Classification --> ResilienceAgents
+    ResilienceAgents --> RecoveryExecution
+    RecoveryExecution --> PatternAnalysis
+    PatternAnalysis --> StrategyEvolution
+    StrategyEvolution -.->|"Improves"| ResilienceAgents
+    
     classDef detection fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef aiRecovery fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef systemRecovery fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef learning fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef intelligence fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef learning fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     
-    class ResilienceOrchestrator orchestrator
-    class AnomalyDetector,HealthProbe,CircuitBreaker detection
-    class ModelFallback,ContextRecovery,StrategyAdaptation aiRecovery
-    class StateRecovery,ServiceRecovery,DataRecovery systemRecovery
-    class FailureEvents,ResilienceAgents learning
+    class ErrorDetection,Classification detection
+    class ResilienceAgents,RecoveryExecution intelligence
+    class PatternAnalysis,StrategyEvolution learning
 ```
 
-## AI-Specific Error Classification
+**Key Insight**: Instead of hard-coded recovery logic, specialized AI agents learn from failure patterns and continuously improve recovery strategies based on your team's specific failure modes and success patterns.
 
-AI systems face unique challenges that traditional error handling doesn't address. Our classification system identifies and handles these specialized error types:
+---
 
-```mermaid
-graph TB
-    subgraph "AI Error Classification"
-        subgraph "Model Errors"
-            ModelUnavailable[Model Unavailable<br/>🚫 Service down<br/>⚡ Network issues<br/>💰 Rate limits]
-            QualityDegradation[Quality Degradation<br/>📉 Poor outputs<br/>🎯 Accuracy loss<br/>🔍 Inconsistency]
-            ContextOverflow[Context Overflow<br/>📋 Token limits<br/>💾 Memory constraints<br/>⚡ Processing limits]
-        end
-        
-        subgraph "Execution Errors"
-            RoutineFailure[Routine Failure<br/>🔧 Logic errors<br/>📊 Data issues<br/>🔄 State corruption]
-            ResourceExhaustion[Resource Exhaustion<br/>💰 Credit depletion<br/>⏱️ Timeout<br/>📊 Capacity limits]
-            DependencyFailure[Dependency Failure<br/>🔗 API failures<br/>🌐 Network issues<br/>🔧 Service outages]
-        end
-        
-        subgraph "Coordination Errors"
-            SwarmDisconnection[Swarm Disconnection<br/>📡 Communication loss<br/>👥 Agent unavailability<br/>🔄 Synchronization failure]
-            ConsensusFailure[Consensus Failure<br/>🤝 Agreement issues<br/>⚖️ Conflict resolution<br/>🔄 Deadlock scenarios]
-            StateInconsistency[State Inconsistency<br/>💾 Data corruption<br/>🔄 Sync failures<br/>📊 Version conflicts]
-        end
-    end
-    
-    classDef modelErrors fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef executionErrors fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef coordinationErrors fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    
-    class ModelUnavailable,QualityDegradation,ContextOverflow modelErrors
-    class RoutineFailure,ResourceExhaustion,DependencyFailure executionErrors
-    class SwarmDisconnection,ConsensusFailure,StateInconsistency coordinationErrors
-```
+## 🔄 The Resilience Process
 
-## Recovery Strategy Framework
-
-The recovery system implements different strategies based on error type and system state:
-
-```typescript
-interface ErrorHandlingFramework {
-    // Model Error Recovery
-    handleModelUnavailable(context: RunContext): RecoveryStrategy;
-    handleQualityDegradation(qualityMetrics: QualityMetrics): QualityRecovery;
-    handleContextOverflow(context: RunContext): ContextStrategy;
-    
-    // Execution Error Recovery
-    handleRoutineFailure(failure: RoutineFailure): RetryStrategy;
-    handleResourceExhaustion(usage: ResourceUsage): ResourceStrategy;
-    handleDependencyFailure(dependency: Dependency): FallbackStrategy;
-    
-    // Coordination Error Recovery
-    handleSwarmDisconnection(swarmId: string): ReconnectionStrategy;
-    handleConsensusFailure(participants: Agent[]): ConsensusStrategy;
-    handleStateInconsistency(state: SystemState): ConsistencyStrategy;
-}
-
-// Recovery Strategy Implementations
-interface RecoveryStrategy {
-    readonly strategyType: RecoveryType;
-    readonly maxRetries: number;
-    readonly backoffStrategy: BackoffStrategy;
-    readonly fallbackOptions: FallbackOption[];
-    
-    execute(context: RecoveryContext): Promise<RecoveryResult>;
-    shouldRetry(attempt: number, error: Error): boolean;
-    selectFallback(availableOptions: FallbackOption[]): FallbackOption;
-}
-
-// Specific Recovery Strategies
-interface ModelFallbackStrategy extends RecoveryStrategy {
-    readonly fallbackModels: ModelConfiguration[];
-    readonly qualityThresholds: QualityThreshold[];
-    readonly costConstraints: CostConstraint[];
-    
-    selectOptimalFallback(context: RunContext): ModelConfiguration;
-    assessQualityTrade-offs(model: ModelConfiguration): QualityAssessment;
-}
-
-interface ContextCompressionStrategy extends RecoveryStrategy {
-    readonly compressionTechniques: CompressionTechnique[];
-    readonly summarizationMethods: SummarizationMethod[];
-    readonly prioritizationRules: PrioritizationRule[];
-    
-    compressContext(context: RunContext): CompressedContext;
-    maintainCriticalInformation(context: RunContext): CriticalContext;
-    reconstructContext(compressed: CompressedContext): RunContext;
-}
-```
-
-## Graceful Degradation Architecture
-
-When full functionality cannot be maintained, the system degrades gracefully across defined quality levels:
-
-```mermaid
-graph TB
-    subgraph "Degradation Framework"
-        DegradationController[Degradation Controller<br/>📉 Quality management<br/>⚖️ Trade-off optimization<br/>🎯 Service continuity]
-        
-        subgraph "Quality Levels"
-            HighQuality[High Quality<br/>🎯 Full capabilities<br/>💰 High cost<br/>⚡ Optimal performance]
-            MediumQuality[Medium Quality<br/>⚖️ Balanced trade-offs<br/>💰 Moderate cost<br/>📊 Good performance]
-            BasicQuality[Basic Quality<br/>⚡ Essential features<br/>💰 Low cost<br/>🔄 Fallback mode]
-            EmergencyMode[Emergency Mode<br/>🚨 Critical only<br/>💰 Minimal cost<br/>🛡️ Safety first]
-        end
-        
-        subgraph "Adaptation Mechanisms"
-            QualityMonitor[Quality Monitor<br/>📊 Real-time assessment<br/>🎯 Threshold monitoring<br/>📈 Trend analysis]
-            TradeoffOptimizer[Trade-off Optimizer<br/>⚖️ Cost-quality balance<br/>🎯 User preferences<br/>📊 Performance metrics]
-            ServiceSelector[Service Selector<br/>🎯 Capability matching<br/>📊 Performance prediction<br/>⚡ Dynamic switching]
-        end
-    end
-    
-    DegradationController --> HighQuality
-    DegradationController --> MediumQuality
-    DegradationController --> BasicQuality
-    DegradationController --> EmergencyMode
-    
-    DegradationController --> QualityMonitor
-    DegradationController --> TradeoffOptimizer
-    DegradationController --> ServiceSelector
-    
-    HighQuality -.->|"Degrades to"| MediumQuality
-    MediumQuality -.->|"Degrades to"| BasicQuality
-    BasicQuality -.->|"Degrades to"| EmergencyMode
-    
-    EmergencyMode -.->|"Recovers to"| BasicQuality
-    BasicQuality -.->|"Recovers to"| MediumQuality
-    MediumQuality -.->|"Recovers to"| HighQuality
-    
-    classDef controller fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef highQuality fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    classDef mediumQuality fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef basicQuality fill:#ffccbc,stroke:#f4511e,stroke-width:2px
-    classDef emergency fill:#ffebee,stroke:#c62828,stroke-width:2px
-    classDef adaptation fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    
-    class DegradationController controller
-    class HighQuality highQuality
-    class MediumQuality mediumQuality
-    class BasicQuality basicQuality
-    class EmergencyMode emergency
-    class QualityMonitor,TradeoffOptimizer,ServiceSelector adaptation
-```
-
-### Quality Level Definitions
-
-| Quality Level | Capabilities | Performance | Cost | Use Case |
-|---------------|-------------|-------------|------|----------|
-| **High Quality** | Full AI capabilities, complex reasoning, multi-modal | Optimal response time, highest accuracy | Premium pricing | Production workloads, critical tasks |
-| **Medium Quality** | Core AI features, balanced performance | Good response time, high accuracy | Standard pricing | Regular operations, most workflows |
-| **Basic Quality** | Essential features only, simplified responses | Acceptable latency, adequate accuracy | Reduced pricing | Non-critical tasks, backup mode |
-| **Emergency Mode** | Safety-critical functions only | Variable performance, basic validation | Minimal cost | System failures, emergency situations |
-
-### Degradation Triggers and Recovery
-
-```typescript
-interface DegradationController {
-    // Monitor system health and trigger degradation
-    monitorSystemHealth(): SystemHealthMetrics;
-    
-    // Determine appropriate quality level
-    selectQualityLevel(
-        metrics: SystemHealthMetrics,
-        constraints: ResourceConstraints,
-        userPreferences: QualityPreferences
-    ): QualityLevel;
-    
-    // Execute quality level transition
-    transitionToQualityLevel(
-        currentLevel: QualityLevel,
-        targetLevel: QualityLevel
-    ): Promise<TransitionResult>;
-    
-    // Recovery coordination
-    attemptRecovery(
-        fromLevel: QualityLevel,
-        targetLevel: QualityLevel
-    ): Promise<RecoveryResult>;
-}
-
-// Degradation triggers
-enum DegradationTrigger {
-    MODEL_UNAVAILABLE = "model_unavailable",
-    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded",
-    COST_BUDGET_EXCEEDED = "cost_budget_exceeded",
-    PERFORMANCE_DEGRADED = "performance_degraded",
-    DEPENDENCY_FAILURE = "dependency_failure",
-    RESOURCE_EXHAUSTION = "resource_exhaustion"
-}
-```
-
-## Failure Detection and Monitoring
-
-### Health Monitoring System
-
-```typescript
-interface HealthMonitoringSystem {
-    // Component health checks
-    checkServiceHealth(serviceId: string): Promise<HealthStatus>;
-    checkModelAvailability(modelId: string): Promise<AvailabilityStatus>;
-    checkResourceUsage(): ResourceUsageMetrics;
-    
-    // Performance monitoring
-    trackResponseTimes(serviceId: string): PerformanceMetrics;
-    trackQualityMetrics(outputs: AIOutput[]): QualityMetrics;
-    trackErrorRates(): ErrorRateMetrics;
-    
-    // Anomaly detection
-    detectAnomalies(metrics: SystemMetrics): AnomalyReport[];
-    predictFailures(historicalData: HistoricalMetrics): FailurePrediction[];
-}
-
-interface HealthStatus {
-    serviceId: string;
-    status: 'healthy' | 'degraded' | 'failed';
-    lastChecked: Date;
-    responseTime: number;
-    errorRate: number;
-    availabilityPercent: number;
-}
-```
-
-### Circuit Breaker Implementation
-
-Circuit breakers prevent cascading failures by isolating failed services:
-
-```typescript
-interface CircuitBreakerConfig {
-    failureThreshold: number;        // Failures before opening
-    recoveryTimeout: number;         // Time before attempting recovery
-    monitoringWindow: number;        // Window for failure counting
-    successThreshold: number;        // Successes needed to close
-}
-
-class AIServiceCircuitBreaker {
-    private state: 'closed' | 'open' | 'half-open' = 'closed';
-    private failureCount: number = 0;
-    private lastFailureTime: Date | null = null;
-    
-    async execute<T>(operation: () => Promise<T>): Promise<T> {
-        if (this.state === 'open') {
-            if (this.shouldAttemptRecovery()) {
-                this.state = 'half-open';
-            } else {
-                throw new CircuitBreakerOpenError();
-            }
-        }
-        
-        try {
-            const result = await operation();
-            this.onSuccess();
-            return result;
-        } catch (error) {
-            this.onFailure();
-            throw error;
-        }
-    }
-    
-    private onSuccess(): void {
-        this.failureCount = 0;
-        this.state = 'closed';
-    }
-    
-    private onFailure(): void {
-        this.failureCount++;
-        this.lastFailureTime = new Date();
-        
-        if (this.failureCount >= this.config.failureThreshold) {
-            this.state = 'open';
-        }
-    }
-}
-```
-
-## Event-Driven Resilience
-
-The system uses event-driven architecture to enable adaptive resilience through specialized agents:
+Every error follows this systematic approach:
 
 ```mermaid
 sequenceDiagram
-    participant System as System Component
-    participant EventBus as Event Bus
-    participant ResilienceAgent as Resilience Agent
-    participant RecoveryService as Recovery Service
-
-    System->>EventBus: emit failure/model_unavailable
-    EventBus->>ResilienceAgent: notify failure event
-    ResilienceAgent->>ResilienceAgent: analyze failure pattern
-    ResilienceAgent->>RecoveryService: initiate recovery strategy
-    RecoveryService->>System: apply recovery actions
-    System->>EventBus: emit recovery/strategy_applied
-    EventBus->>ResilienceAgent: confirm recovery
+    participant Component as System Component
+    participant Classifier as Error Classifier
+    participant Agent as Resilience Agent
+    participant Recovery as Recovery Executor
+    
+    Component->>Classifier: Error detected
+    Classifier->>Classifier: Apply severity classification
+    Classifier->>Agent: Classified error + context
+    Agent->>Agent: Select recovery strategy
+    Agent->>Recovery: Execute chosen strategy
+    
+    alt Recovery Success
+        Recovery->>Component: System restored
+        Recovery->>Agent: Log success pattern
+    else Recovery Failure
+        Recovery->>Agent: Request escalation
+        Agent->>Recovery: Execute escalation strategy
+        Recovery->>Agent: Log failure pattern
+    end
+    
+    Agent->>Agent: Analyze patterns & improve
 ```
 
-### Resilience Event Types
+---
 
-```typescript
-interface ResilienceEvent {
-    eventType: ResilienceEventType;
-    timestamp: Date;
-    source: string;
-    severity: 'low' | 'medium' | 'high' | 'critical';
-    context: EventContext;
-    metadata: Record<string, unknown>;
-}
+## 📚 Documentation Guide
 
-enum ResilienceEventType {
-    // Failure events
-    'failure/model_unavailable',
-    'failure/context_overflow', 
-    'failure/quality_degradation',
-    'failure/resource_exhaustion',
-    
-    // Recovery events
-    'recovery/strategy_applied',
-    'recovery/fallback_activated',
-    'recovery/service_restored',
-    
-    // Adaptation events
-    'adaptation/strategy_updated',
-    'adaptation/threshold_adjusted',
-    'adaptation/pattern_learned'
-}
-```
+### **Foundation Documents (Read These First)**
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| **[Error Classification](error-classification-severity.md)** | Learn systematic error severity assessment | Setting up error handling, troubleshooting unclear error severities |
+| **[Recovery Strategy Selection](recovery-strategy-selection.md)** | Understand strategy selection algorithm | Implementing recovery logic, customizing recovery behavior |
 
-## Recovery Coordination
+### **Implementation & Protection**
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| **[Implementation Guide](resilience-implementation-guide.md)** | Build resilient components with practical code patterns | Writing new code, adding error handling to existing components |
+| **[Circuit Breakers](circuit-breakers.md)** | Prevent cascading failures through service protection | Protecting external dependencies, handling service degradation |
+| **[Error Propagation](error-propagation.md)** | Coordinate cross-tier error handling | Understanding system-wide error flows, debugging complex failures |
 
-### Multi-Tier Recovery
+### **Troubleshooting & Diagnosis**
+| Document | Purpose | When to Use |
+|----------|---------|-------------|
+| **[Troubleshooting Guide](troubleshooting-guide.md)** | **🚨 START HERE** - Quick diagnostic checklist and immediate solutions | **First response to any system issue** |
+| **[Error Scenarios & Patterns](error-scenarios-guide.md)** | Comprehensive code examples organized by execution tier | Deep debugging, understanding complex error patterns and implementations |
+| **[Failure Scenarios](failure-scenarios/README.md)** | Infrastructure-specific failure analysis and recovery procedures | Communication outages, service failures, infrastructure problems |
 
-Recovery strategies coordinate across all three execution tiers:
+> 💡 **Quick Decision**: **System broken?** → Troubleshooting Guide. **Need code examples?** → Error Scenarios & Patterns. **Infrastructure issue?** → Failure Scenarios. **Building something?** → Implementation Guide.
+
+---
+
+## 🤖 AI-Driven Resilience
+
+**What makes Vrooli unique**: Resilience capabilities emerge from intelligent agents rather than static rules:
+
+### **Resilience Agents**
+- **Pattern Learning**: Analyze failure histories to identify recurring issues
+- **Strategy Adaptation**: Modify recovery strategies based on success rates
+- **Proactive Improvement**: Suggest system improvements before failures occur
+- **Domain Specialization**: Develop expertise in specific failure domains
+
+### **Emergent Capabilities**
+- **Self-Tuning Thresholds**: Circuit breaker thresholds adapt based on service behavior
+- **Context-Aware Recovery**: Recovery strategies consider system state and load
+- **Predictive Failure Prevention**: Early warning systems based on pattern recognition
+- **Quality-Performance Tradeoffs**: Intelligent degradation strategies
+
+> 📖 **Learn More**: See [Emergent Capabilities](../emergent-capabilities/README.md) for how resilience agents provide adaptive, learning-based error handling.
+
+---
+
+## 🎯 Common Scenarios
+
+### **🚨 "Something is broken and I need to fix it RIGHT NOW"**
+→ **[Troubleshooting Guide](troubleshooting-guide.md)** - Start here for immediate diagnostic checklist and quick fixes
+
+### **🏗️ "I'm building a new component and want to make it resilient"**  
+→ **[Implementation Guide](resilience-implementation-guide.md)** - Practical code patterns and examples for robust components
+
+### **🔍 "I'm seeing a complex error pattern and need to understand what's happening"**  
+→ **[Error Scenarios & Patterns](error-scenarios-guide.md)** - Comprehensive examples with detailed TypeScript implementations
+
+### **📡 "External service/communication is unreliable or failing"**
+→ **[Circuit Breakers](circuit-breakers.md)** for protection + **[Failure Scenarios](failure-scenarios/README.md)** for specific recovery procedures
+
+### **🌊 "System-wide failure is cascading across tiers"**
+→ **[Error Propagation](error-propagation.md)** for coordination patterns + **[Troubleshooting Guide](troubleshooting-guide.md)** for immediate action
+
+### **🤖 "I want AI-driven resilience that learns and improves"**
+→ Deploy **[Resilience Agents](../emergent-capabilities/README.md)** for adaptive, learning-based error handling
+
+### **📋 "I need to understand the systematic approach to error handling"**
+→ **[Error Classification](error-classification-severity.md)** + **[Recovery Strategy Selection](recovery-strategy-selection.md)** for the foundational framework
+
+---
+
+## 🔗 Integration Points
+
+The resilience architecture integrates seamlessly with other system components:
+
+| System | Integration | Benefits |
+|--------|------------|----------|
+| **[Communication](../communication/README.md)** | Error handling in all communication patterns | Robust inter-tier coordination |
+| **[Resource Management](../resource-management/README.md)** | Resource-aware recovery strategies | Efficient resource utilization during failures |
+| **[Security](../security/README.md)** | Security-aware error recovery | Secure failure handling without privilege escalation |
+| **[Event-Driven](../event-driven/README.md)** | Event-based resilience coordination | Real-time failure detection and coordination |
+
+---
+
+## 🚀 Key Benefits
+
+### **🧠 Intelligent Learning**
+- Failure patterns are automatically analyzed and learned
+- Recovery strategies evolve based on success rates
+- Threshold tuning happens automatically based on service behavior
+
+### **⚡ Rapid Recovery**  
+- Systematic classification enables faster recovery decisions
+- Circuit breakers prevent cascading failures
+- Multi-tier coordination ensures appropriate escalation
+
+### **🔄 Continuous Improvement**
+- Recovery strategies improve over time
+- New failure patterns are automatically detected
+- Teams can deploy domain-specific resilience expertise
+
+### **📊 Comprehensive Coverage**
+- Handles traditional system failures and AI-specific challenges
+- Covers all communication patterns and system components
+- Scales from component-level to system-wide resilience
+
+---
+
+## 🌟 Why Vrooli's Resilience is Different
+
+Traditional error handling uses static rules and manual updates. **Vrooli's resilience is living intelligence** that:
+
+- **🧠 Learns** from every failure to improve future recovery
+- **🔄 Adapts** strategies based on your team's specific patterns  
+- **🤖 Evolves** through specialized AI agents, not hard-coded logic
+- **🎯 Optimizes** for your domain's unique challenges and requirements
+
+**Result**: A resilience system that becomes more intelligent and effective over time, turning failures into learning opportunities and competitive advantages.
+
+---
+
+## 🚀 Next Steps
+
+### **👤 For New Users**
+1. Start with **[Troubleshooting Guide](troubleshooting-guide.md)** for immediate needs
+2. Read **[Error Classification](error-classification-severity.md)** to understand the framework
+3. Follow **[Implementation Guide](resilience-implementation-guide.md)** for practical patterns
+
+### **🔧 For Developers** 
+1. Study **[Error Scenarios & Patterns](error-scenarios-guide.md)** for code examples
+2. Implement **[Circuit Breakers](circuit-breakers.md)** for service protection  
+3. Deploy **[Resilience Agents](../emergent-capabilities/README.md)** for adaptive behavior
+
+### **⚙️ For Operators**
+1. Use **[Failure Scenarios](failure-scenarios/README.md)** for infrastructure issues
+2. Understand **[Error Propagation](error-propagation.md)** for system coordination
+3. Set up monitoring based on **[Integration Points](#-integration-points)** below
+
+---
+
+> 💡 **Remember**: Resilience in Vrooli isn't just about handling errors—it's about building intelligence that learns from failures and continuously improves your system's reliability and performance.
+
+---
+
+## 📍 Document Navigation Flowchart
+
+Use this flowchart to quickly find the right resilience documentation for your needs:
 
 ```mermaid
-graph TB
-    subgraph "Tier 1: Coordination Recovery"
-        T1Recovery[Swarm Recovery<br/>👥 Reassign agents<br/>🔄 Rebalance workload<br/>📊 Update strategies]
-    end
+flowchart TD
+    Start([🚨 I need resilience help]) --> Immediate{System broken<br/>RIGHT NOW?}
     
-    subgraph "Tier 2: Process Recovery"
-        T2Recovery[Run Recovery<br/>🔄 Restore checkpoints<br/>📊 Resume execution<br/>🎯 Retry failed steps]
-    end
+    Immediate -->|Yes| Troubleshoot[📋 Troubleshooting Guide<br/>Quick diagnostic checklist<br/>Immediate solutions]
     
-    subgraph "Tier 3: Execution Recovery"
-        T3Recovery[Strategy Recovery<br/>🤖 Switch strategies<br/>🔧 Fallback tools<br/>📊 Adjust parameters]
-    end
+    Immediate -->|No| Purpose{What do you need?}
     
-    subgraph "Cross-Tier Coordination"
-        RecoveryOrchestrator[Recovery Orchestrator<br/>🎯 Coordinate recovery<br/>📊 Track progress<br/>🔄 Optimize strategy]
-    end
+    Purpose -->|Understanding concepts| Framework[📚 Framework Documents<br/>• Error Classification<br/>• Recovery Strategy Selection]
     
-    RecoveryOrchestrator --> T1Recovery
-    RecoveryOrchestrator --> T2Recovery
-    RecoveryOrchestrator --> T3Recovery
+    Purpose -->|Building/coding| Implementation[🔨 Implementation Guide<br/>Practical code patterns<br/>Resilient component design]
     
-    T1Recovery -.->|informs| T2Recovery
-    T2Recovery -.->|coordinates| T3Recovery
-    T3Recovery -.->|reports to| T1Recovery
+    Purpose -->|Analyzing complex errors| Analysis{What type of analysis?}
     
-    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef orchestrator fill:#fff3e0,stroke:#f57c00,stroke-width:3px
+    Purpose -->|Setting up protection| Protection[🛡️ Circuit Breakers<br/>Service protection<br/>Cascading failure prevention]
     
-    class T1Recovery tier1
-    class T2Recovery tier2
-    class T3Recovery tier3
-    class RecoveryOrchestrator orchestrator
+    Analysis -->|Code-level debugging| CodeExamples[💻 Error Scenarios & Patterns<br/>Tier-by-tier code examples<br/>TypeScript implementations]
+    
+    Analysis -->|Infrastructure issues| Infrastructure[🏗️ Failure Scenarios<br/>Communication failures<br/>Component outages<br/>System-level recovery]
+    
+    Analysis -->|Cross-tier coordination| Flow[🌊 Error Propagation<br/>Cross-tier error flow<br/>Coordination patterns]
+    
+    classDef urgent fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef framework fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef practical fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef analysis fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    
+    class Troubleshoot urgent
+    class Framework,Flow framework
+    class Implementation,Protection,CodeExamples practical
+    class Infrastructure analysis
 ```
 
-## Performance and Reliability Metrics
-
-### Key Resilience Metrics
-
-| Metric Category | Specific Metrics | Target Values | Monitoring Frequency |
-|-----------------|------------------|---------------|---------------------|
-| **Availability** | Service uptime, Model availability | >99.9% | Real-time |
-| **Recovery** | Mean time to recovery (MTTR) | <30 seconds | Per incident |
-| **Quality** | Output quality scores, Consistency | >85% quality score | Per response |
-| **Resilience** | Failure detection time, Recovery success rate | <5s detection, >95% success | Continuous |
-
-### Resilience Dashboard
-
-```typescript
-interface ResilienceDashboard {
-    // Real-time system health
-    systemHealth: SystemHealthOverview;
-    
-    // Active incidents and recovery
-    activeIncidents: IncidentStatus[];
-    recoveryProgress: RecoveryProgress[];
-    
-    // Performance metrics
-    performanceMetrics: {
-        mttr: number;              // Mean Time To Recovery
-        mtbf: number;              // Mean Time Between Failures
-        errorRate: number;         // Overall error rate
-        recoveryRate: number;      // Successful recovery percentage
-    };
-    
-    // Quality trends
-    qualityTrends: QualityTrendData[];
-    degradationEvents: DegradationEvent[];
-}
-```
-
-## Related Documentation
-
-- **[Error Classification and Severity](error-classification-severity.md)** - Detailed error classification system
-- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Strategy selection algorithms
-- **[Circuit Breakers](circuit-breakers.md)** - Circuit breaker implementation details
-- **[Error Propagation](error-propagation.md)** - Error handling across system boundaries
-- **[Failure Scenarios](failure-scenarios/README.md)** - Common failure patterns and responses
-- **[Main Execution Architecture](../README.md)** - Complete three-tier execution architecture
-- **[AI Services](../ai-services/README.md)** - AI service availability and fallback
-- **[Monitoring](../monitoring/README.md)** - System monitoring and observability
-- **[Security](../security/README.md)** - Security-related failure handling 
+--- 

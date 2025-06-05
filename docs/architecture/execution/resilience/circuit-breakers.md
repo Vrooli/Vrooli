@@ -306,34 +306,16 @@ This circuit breaker mechanism is a key component in building resilient and faul
 
 ## Related Documentation
 
-- **[Error Propagation](error-propagation.md)** - Circuit breaker integration with error handling
-- **[Types System](../types/core-types.ts)** - Complete circuit breaker type definitions
-- **[Error Classification](error-classification-severity.md)** - Error classification for circuit breaker triggers
-- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Recovery strategies for circuit breaker states
+- **[Error Propagation](error-propagation.md)** - Circuit breaker integration with error handling framework
+- **[Error Classification](error-classification-severity.md)** - Error severity assessment for circuit breaker triggers
+- **[Recovery Strategy Selection](recovery-strategy-selection.md)** - Recovery strategies for different circuit breaker states
+- **[Types System](../types/core-types.ts)** - Complete circuit breaker interface definitions
 - **[Communication Patterns](../communication/communication-patterns.md)** - Circuit breaker integration within communication patterns
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Circuit breaker impact on performance
-- **[Resource Management](../resource-management/resource-coordination.md)** - Circuit breaker integration with resource management
-- **[Event Bus Protocol](../event-driven/event-bus-protocol.md)** - Event-driven circuit breaker coordination
-- **[State Synchronization](../context-memory/state-synchronization.md)** - Circuit breaker state management
-- **[Security Boundaries](../security/security-boundaries.md)** - Security considerations in circuit breaker operation
-- **[Integration Map](../communication/integration-map.md)** - Circuit breaker validation procedures
 
-This document provides comprehensive circuit breaker functionality for the communication architecture, ensuring reliable operation through systematic failure detection, isolation, and recovery procedures.
+### **Cross-System Integration**
+- **[Performance Monitoring](../monitoring/README.md)** - Circuit breaker impact on system performance
+- **[Resource Management](../resource-management/README.md)** - Resource-aware circuit breaker operation
+- **[Event-Driven Architecture](../event-driven/README.md)** - Event-based circuit breaker coordination
+- **[Security Boundaries](../security/README.md)** - Security considerations in circuit breaker operation
 
-**Performance Integration**: Circuit breakers coordinate with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) for performance-aware circuit breaking.
-
-**Error Integration**: Circuit breakers integrate with [Error Handling](error-propagation.md#error-handling-across-patterns) for systematic failure management.
-
-**Resource Integration**: Circuit breakers coordinate with [Resource Management](../resource-management/resource-coordination.md#resource-allocation-flow) for resource-aware protection.
-
-**Event Integration**: Circuit breaker events use [Event Bus Protocol](../event-driven/event-bus-protocol.md#event-subscription-and-routing) for state coordination.
-
-**State Integration**: Circuit breaker state coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
-
-**Security Integration**: Circuit breakers respect [Security Boundaries](../security/security-boundaries.md#trust-model-and-privilege-hierarchy) for secure operation.
-
-**Circuit Breaker Error Strategy**: Circuit breaker failures follow [Error Classification](error-classification-severity.md) for severity assessment.
-
-**Circuit Breaker Recovery Strategy**: Circuit breaker recovery uses [Recovery Strategy Selection](recovery-strategy-selection.md) for systematic recovery.
-
-**Circuit Breaker Emergency Strategy**: Circuit breaker emergencies trigger [Emergency Stop Protocols](error-propagation.md#emergency-stop-protocols) for system protection. 
+This document provides comprehensive circuit breaker functionality for reliable operation through systematic failure detection, isolation, and recovery procedures. 

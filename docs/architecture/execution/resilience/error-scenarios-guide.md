@@ -1,6 +1,22 @@
-# 🚨 Error Scenarios Guide: When Things Go Wrong
+# 🚨 Error Scenarios & Patterns: Comprehensive Implementation Examples
 
-> **TL;DR**: This guide provides concrete examples of error scenarios in Vrooli's execution architecture, showing how errors are detected, propagated, and recovered across the three tiers. Use this as a practical troubleshooting reference and to understand the system's resilience patterns.
+> **TL;DR**: This guide provides concrete examples of error scenarios in Vrooli's execution architecture, organized by execution tier. It shows how errors are detected, propagated, and recovered with detailed TypeScript implementations. Use this as a practical reference for understanding error patterns and building resilient code.
+
+---
+
+## 🧭 Navigation Guide
+
+**📍 You're in the right place if you want:**
+- **Detailed code examples** organized by execution tier (T1/T2/T3)
+- **TypeScript implementations** of error handling patterns
+- **Step-by-step error flow** explanations with code
+
+**🔀 Use [Failure Scenarios](failure-scenarios/README.md) instead if you need:**
+- **Infrastructure-specific failures** (communication outages, database failures)
+- **System-level recovery procedures** for specific failure types
+- **Operational troubleshooting** for infrastructure issues
+
+**🚨 Need immediate help?** Start with **[Troubleshooting Guide](troubleshooting-guide.md)** for quick fixes.
 
 ---
 
