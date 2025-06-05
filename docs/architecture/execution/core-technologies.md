@@ -106,143 +106,29 @@ graph TD
 
 ## Execution Strategy Evolution
 
-Routines evolve from abstract to concrete as usage patterns emerge:
+> 📍 **Complete Strategy Details**: For comprehensive information about the four execution strategies (Conversational, Reasoning, Deterministic, Routing) and how routines evolve between them, see **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)**.
 
-```mermaid
-graph LR
-    subgraph "Conversational"
-        A[Human-like reasoning<br/>💬 Natural language<br/>🤔 Creative problem-solving<br/>🔄 Adaptive responses]
-    end
-    
-    subgraph "Reasoning"
-        B[Structured thinking<br/>🧠 Logical frameworks<br/>📊 Data-driven decisions<br/>🎯 Goal optimization]
-    end
-    
-    subgraph "Deterministic"
-        C[Reliable automation<br/>⚙️ API integrations<br/>📋 Strict validation<br/>💰 Cost optimization]
-    end
-    
-    A -->|"Patterns emerge"| B
-    B -->|"Best practices proven"| C
-    C -.->|"Edge cases discovered"| A
-    
-    A1[Goal alignment discussions] --> B1[Strategic planning frameworks] --> C1[Automated resource allocation]
-    A2[Creative brainstorming] --> B2[Innovation methodologies] --> C2[Idea evaluation pipelines]
-    A3[Customer service chats] --> B3[Support decision trees] --> C3[Automated ticket routing]
-    
-    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    
-    class A,A1,A2,A3 conv
-    class B,B1,B2,B3 reason
-    class C,C1,C2,C3 determ
-```
+**Conversational → Reasoning → Deterministic → Routing**
+
+- **Conversational**: Initial human-like exploration and problem-solving
+- **Reasoning**: Structured approaches as patterns emerge  
+- **Deterministic**: Optimized automation for proven workflows
+- **Routing**: Intelligent coordination for complex multi-phase tasks
 
 ### **The Evolution Mechanism: Top-Down Decomposition**
 
-The key insight driving this evolution is **top-down decomposition enabled by recursive routine composition**. Here's how it works:
+The key insight driving this evolution is **top-down decomposition enabled by recursive routine composition**. 
 
-**1. Conversational Phase - Natural Language Exploration**
-```mermaid
-graph TB
-    subgraph "Conversational: 'Analyze Market Trends'"
-        Conv[🗣️ Conversational Strategy<br/>Agent receives natural language goal<br/>'Analyze market trends for Q4']
-        
-        ConvSteps[Agent reasoning:<br/>💭 'I need to gather data...'<br/>💭 'Then analyze patterns...'<br/>💭 'Finally create insights...']
-        
-        ConvExec[Execution:<br/>🔄 Dynamic conversation<br/>🤔 Real-time decisions<br/>📝 Learning from feedback]
-    end
-    
-    Conv --> ConvSteps --> ConvExec
-    
-    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    class Conv,ConvSteps,ConvExec conv
-```
+> 📖 **Implementation Details**: For detailed diagrams, implementation examples, and the complete decomposition process, see **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)**.
 
-**2. Reasoning Phase - Pattern Recognition**
-```mermaid
-graph TB
-    subgraph "Reasoning: Structured Framework Emerges"
-        Reason[🧠 Reasoning Strategy<br/>Patterns identified from conversational executions<br/>Structured approach developed]
-        
-        ReasonSteps[Logical framework:<br/>📊 1. Data Collection Phase<br/>📈 2. Pattern Analysis Phase<br/>📋 3. Insight Generation Phase]
-        
-        ReasonExec[Execution:<br/>🎯 Systematic approach<br/>📊 Data-driven decisions<br/>⚖️ Structured validation]
-    end
-    
-    Reason --> ReasonSteps --> ReasonExec
-    
-    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    class Reason,ReasonSteps,ReasonExec reason
-```
+### **Key Concepts**
 
-**3. Deterministic Phase - Automation Crystallization**
-```mermaid
-graph TB
-    subgraph "Deterministic: Automated Multi-Step Routine"
-        Determ[⚙️ Deterministic Strategy<br/>Best practices proven and codified<br/>Reliable automation workflow]
-        
-        DetermSteps[Multi-step routine:<br/>🌐 Step 1: Web Search APIs<br/>📊 Step 2: Data Processing Code<br/>📋 Step 3: Report Generation]
-        
-        DetermExec[Execution:<br/>🔄 Fully automated<br/>✅ Strict validation<br/>💰 Cost optimized]
-    end
-    
-    Determ --> DetermSteps --> DetermExec
-    
-    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    class Determ,DetermSteps,DetermExec determ
-```
+- **Gradual Refinement**: Routines evolve incrementally as patterns emerge
+- **Recursive Composition**: Sub-routines can use different strategies within parent routines
+- **Context Inheritance**: Sub-routines inherit appropriate context while maintaining security boundaries
+- **Learning Propagation**: Insights from execution inform optimization opportunities
 
-### **Recursive Routine Composition: The Foundation of Evolution**
-
-The evolution from conversational to deterministic strategies is enabled by Vrooli's **recursive routine composition** capability:
-
-```mermaid
-graph TB
-    subgraph "Multi-Step Routine: 'Market Analysis Example'"
-        MSR[📋 Market Analysis<br/>Multi-Step Routine<br/>Strategy: Deterministic]
-        
-        subgraph "Sub-Routines (can be any strategy)"
-            SR1[🌐 Data Collection<br/>Multi-Step Routine<br/>Strategy: Reasoning]
-            SR2[📊 Pattern Analysis<br/>Single-Step: Code<br/>Strategy: Deterministic]  
-            SR3[📝 Report Generation<br/>Multi-Step Routine<br/>Strategy: Conversational]
-        end
-        
-        subgraph "Sub-Sub-Routines"
-            SSR1[🔍 Web Search<br/>Single-Step: Web<br/>Strategy: Deterministic]
-            SSR2[📱 API Calls<br/>Single-Step: API<br/>Strategy: Deterministic]
-            SSR3[💭 Creative Writing<br/>Single-Step: Generate<br/>Strategy: Conversational]
-        end
-    end
-    
-    MSR --> SR1
-    MSR --> SR2
-    MSR --> SR3
-    
-    SR1 --> SSR1
-    SR1 --> SSR2
-    SR3 --> SSR3
-    
-    classDef multi fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef single fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:1px,stroke-dasharray: 5 5
-    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px,stroke-dasharray: 5 5
-    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:1px,stroke-dasharray: 5 5
-    
-    class MSR,SR1,SR3 multi
-    class SR2,SSR1,SSR2,SSR3 single
-    class MSR,SSR1,SSR2 determ
-    class SR1 reason
-    class SR3,SSR3 conv
-```
-
-**Key Evolution Insights:**
-
-1. **Gradual Refinement**: Routines don't evolve all at once - individual sub-routines can be at different strategy levels
-2. **Strategic Mixing**: A deterministic parent routine can contain conversational sub-routines for creative tasks
-3. **Context Preservation**: Each sub-routine maintains its own execution context while contributing to the parent's goals
-4. **Learning Propagation**: Insights from sub-routine execution inform parent routine optimization
+This enables Vrooli's **compound knowledge effect** - every routine becomes a building block for more sophisticated automation.
 
 ### **The Decomposition Process**
 

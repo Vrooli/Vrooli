@@ -6,51 +6,47 @@ This directory contains comprehensive documentation for Vrooli's event-driven me
 
 ## Event-Driven Overview
 
-Vrooli's event-driven architecture represents a fundamental shift from hard-coded intelligence to **emergent, customizable capabilities**. Rather than building safety, security, performance monitoring, and optimization directly into the system, these capabilities emerge from **specialized agents and routines** that teams deploy and configure according to their specific needs.
+> 📖 **Architecture Context**: For complete execution architecture overview, see the **[Main Execution Architecture](../README.md)**. For communication patterns, see **[Communication Architecture](../communication/README.md)**.
 
-> **🎯 Core Philosophy**: Instead of hard-coding infrastructure capabilities, we provide a minimal event bus that enables **specialized agents** to subscribe to events and implement security, monitoring, optimization, and other capabilities through intelligent routines. See [Routine Examples](../emergent-capabilities/routine-examples/README.md) for examples.
+Vrooli's event-driven architecture enables **emergent, customizable capabilities** through specialized agent swarms rather than hard-coded infrastructure. Instead of building security, monitoring, and optimization directly into the system, these capabilities emerge from intelligent agents that teams deploy according to their specific needs.
+
+> **🎯 Core Philosophy**: Minimal event infrastructure + specialized intelligence agents = customizable, evolving capabilities that adapt to team needs.
 
 ```mermaid
 graph TB
-    subgraph "🌊 Minimal Event Bus Core"
-        EventBus[Event Bus<br/>📊 Topic-based routing<br/>🔄 Reliable delivery<br/>⚡ Barrier synchronization]
+    subgraph "🌊 Event Bus (Minimal Core)"
+        EventBus[Event Bus<br/>📊 Topic routing<br/>🔄 Delivery guarantees<br/>⚡ Barrier sync]
     end
     
-    subgraph "Event Producers"
-        T1Events[Tier 1 Events<br/>📋 Goal changes<br/>👥 Team updates<br/>💰 Resource allocation]
-        T2Events[Tier 2 Events<br/>🔄 State transitions<br/>🌿 Branch completion<br/>⚠️ Execution errors]
-        T3Events[Tier 3 Events<br/>✅ Step completion<br/>📊 Strategy changes<br/>🔧 Tool usage]
+    subgraph "🤖 Intelligent Capabilities (Agent-Provided)"
+        SecuritySwarms[🔒 Security Agents<br/>Domain-specific threat detection<br/>Adaptive compliance monitoring<br/>Evolving defense strategies]
+        MonitoringSwarms[📊 Monitoring Agents<br/>Performance tracking<br/>Business metrics analysis<br/>Predictive alerting]
+        OptimizationSwarms[⚡ Optimization Agents<br/>Pattern recognition<br/>Cost reduction strategies<br/>Process improvements]
+        QualitySwarms[✅ Quality Agents<br/>Output validation<br/>Bias detection<br/>Accuracy tracking]
     end
-    
-    subgraph "🤖 Agent Subscribers (Examples)"
-        SecuritySwarms[Security Swarms<br/>🔒 Threat detection routines<br/>🚨 Incident response agents<br/>📊 Compliance monitoring bots]
-        MonitoringSwarms[Monitoring Swarms<br/>📊 Performance tracking agents<br/>🚨 Alert generation routines<br/>📈 Analytics bots]
-        OptimizationSwarms[Optimization Swarms<br/>🔄 Pattern recognition agents<br/>📋 Routine improvement bots<br/>🎯 Strategy evolution routines]
-        QualitySwarms[Quality Swarms<br/>✅ Output validation agents<br/>🔍 Bias detection routines<br/>📊 Quality tracking bots]
-    end
-    
-    T1Events --> EventBus
-    T2Events --> EventBus
-    T3Events --> EventBus
     
     EventBus --> SecuritySwarms
-    EventBus --> MonitoringSwarms
+    EventBus --> MonitoringSwarms 
     EventBus --> OptimizationSwarms
     EventBus --> QualitySwarms
     
-    %% Self-improvement loops
-    OptimizationSwarms -.->|"Improved routines"| SecuritySwarms
+    %% Cross-agent learning
+    OptimizationSwarms -.->|"Improved strategies"| SecuritySwarms
     QualitySwarms -.->|"Quality insights"| MonitoringSwarms
     SecuritySwarms -.->|"Security patterns"| OptimizationSwarms
     
     classDef eventBus fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef producers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef consumers fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef agents fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class EventBus eventBus
-    class T1Events,T2Events,T3Events producers
-    class SecuritySwarms,MonitoringSwarms,OptimizationSwarms,QualitySwarms consumers
+    class SecuritySwarms,MonitoringSwarms,OptimizationSwarms,QualitySwarms agents
 ```
+
+**Key Advantages:**
+- **🎯 Team Autonomy**: Deploy specialized agents for your domain
+- **🔄 Continuous Evolution**: Capabilities improve through agent learning
+- **📊 Comprehensive Coverage**: Multiple specialized agents provide overlapping protection
+- **⚡ Real-Time Response**: Immediate reaction to events as they occur
 
 ## Implementation Reading Order
 

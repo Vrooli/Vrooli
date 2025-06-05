@@ -105,10 +105,22 @@ sequenceDiagram
     ToolRunner->>Agent: Tool execution result
     Note right of ToolRunner: Interface: [ToolCallResult](../types/core-types.ts)
 
-    Note over Agent,State: Success Criteria:<br/>• Tool Routing: ~1-2s P95<br/>• Direct: ~100-200ms P95<br/>• Events: ~200-500ms P95<br/>• State: Variable
+    Note over Agent,State: Success Criteria:<br/>Complete integration validation<br/>See [Performance Targets](tier-communication-protocols.md#performance-targets)
 ```
 
 **Flow Validation**: This flow validates integration of all four communication patterns with complete error handling, resource management, and security enforcement.
+
+## 🎯 **Success Criteria and Performance Targets**
+
+For comprehensive performance characteristics and targets, see **[Tier Communication Protocols](tier-communication-protocols.md#performance-targets)**.
+
+**Key Integration Metrics:**
+- **End-to-End Flow**: Complete user request → response cycle
+- **Error Recovery**: System resilience under failure conditions  
+- **Resource Efficiency**: Optimal resource utilization across tiers
+- **Concurrent Load**: Performance under realistic concurrent usage
+
+## 🔧 **Validation Framework**
 
 ## Implementation Validation Framework
 
@@ -210,10 +222,7 @@ sequenceDiagram
    ```
 
 2. **Performance Validation**
-   - [ ] Tool Routing Communication: ~1-2s P95 latency consistently achieved
-   - [ ] Direct Service Interface: ~100-200ms P95 latency consistently achieved  
-   - [ ] Event-Driven Messaging: ~200-500ms P95 latency consistently achieved
-   - [ ] State Synchronization: Variable latency but ~200 ops/sec sustained
+   - [ ] All communication patterns meet targets defined in [Tier Communication Protocols](tier-communication-protocols.md#performance-targets)
    - [ ] Error handling overhead: <10ms additional latency per error
 
 3. **Load Testing Validation**
@@ -281,10 +290,7 @@ console.log('Performance Analysis:', performanceDiagnostic);
 ```
 
 **Performance Targets**:
-- Tool Routing Communication: ~1-2s P95
-- Direct Service Interface: ~100-200ms P95
-- Event-Driven Messaging: ~200-500ms P95
-- State Synchronization: ~200 ops/sec sustained
+See [Tier Communication Protocols Performance Targets](tier-communication-protocols.md#performance-targets) for detailed specifications.
 
 **Common Fixes**:
 - Apply [Pattern-Specific Optimization](communication-patterns.md#performance-optimization-strategies)

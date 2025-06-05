@@ -6,51 +6,39 @@ This directory contains the core documentation for communication patterns and in
 
 ## Visual Architecture Overview
 
+> 📖 **Architecture Context**: For complete three-tier architecture overview, see the **[Architecture Overview](../_ARCHITECTURE_OVERVIEW.md)**.
+
+The communication architecture focuses on how the three tiers coordinate through four primary communication patterns:
+
 ```mermaid
 graph TB
-    subgraph "Tier 1: Coordination Intelligence"
-        T1[SwarmStateMachine<br/>🐝 Natural language reasoning<br/>👥 Team coordination<br/>🎯 Goal decomposition]
-    end
-    
-    subgraph "Tier 2: Process Intelligence" 
-        T2[RunStateMachine<br/>🔄 Routine orchestration<br/>📊 State management<br/>⚡ Parallel coordination]
-    end
-    
-    subgraph "Tier 3: Execution Intelligence"
-        T3[UnifiedExecutor<br/>🤖 Strategy-aware execution<br/>🔧 Tool integration<br/>💰 Resource management]
-    end
-    
-    subgraph "Communication Framework"
-        ToolRouting[Tool Routing Communication<br/>🎯 T1→T2 coordination<br/>🔧 CompositeToolRunner dispatch]
+    subgraph "Communication Patterns"
+        ToolRouting["🎯 Tool Routing Communication<br/>• T1 agents → T2 routines<br/>• CompositeToolRunner dispatch<br/>• MCP & OpenAI tools"]
         
-        Direct[Direct Service Interface<br/>⚡ T2→T3 execution<br/>📊 High-performance calls]
+        DirectInterface["📞 Direct Interface Communication<br/>• T2 orchestrator → T3 executor<br/>• TypeScript interfaces<br/>• High-performance calls"]
         
-        Events[Event-Driven Messaging<br/>📡 Cross-tier coordination<br/>🔄 Asynchronous communication]
+        EventBus["📡 Event-Driven Messaging<br/>• Cross-tier coordination<br/>• Async intelligence agents<br/>• Real-time monitoring"]
         
-        State[State Synchronization<br/>💾 Context management<br/>🔄 Distributed consistency]
+        SharedState["💾 Shared State Communication<br/>• ChatConfigObject persistence<br/>• Context inheritance<br/>• Distributed consistency"]
     end
     
-    %% Primary communication flows
-    T1 -->|Tool Routing| ToolRouting
-    ToolRouting --> T2
-    T2 -->|Direct Calls| Direct
-    Direct --> T3
+    subgraph "Performance Targets"
+        Perf["> 📊 See Performance Reference<br/>• Tool Routing: ~1-2s P95<br/>• Direct Interface: ~100-200ms P95<br/>• Event Bus: ~200-500ms P95<br/>• Shared State: ~50-100ms P95"]
+    end
     
-    %% Cross-tier coordination
-    Events -.->|Monitor & Coordinate| T1
-    Events -.->|Monitor & Coordinate| T2  
-    Events -.->|Monitor & Coordinate| T3
+    ToolRouting -.-> Perf
+    DirectInterface -.-> Perf
+    EventBus -.-> Perf
+    SharedState -.-> Perf
     
-    State -.->|Context Sharing| T1
-    State -.->|Context Sharing| T2
-    State -.->|Context Sharing| T3
-    
-    classDef tier fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef pattern fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    classDef perf fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px,stroke-dasharray:3 3
     
-    class T1,T2,T3 tier
-    class ToolRouting,Direct,Events,State pattern
+    class ToolRouting,DirectInterface,EventBus,SharedState pattern
+    class Perf perf
 ```
+
+> 📊 **Performance Details**: For complete performance characteristics, monitoring thresholds, and optimization strategies, see **[Performance Reference](../_PERFORMANCE_REFERENCE.md)**.
 
 ## Implementation Reading Order
 
@@ -124,5 +112,12 @@ The communication architecture is built upon four primary patterns, detailed in 
 - **[Security Boundaries](../security/README.md)** - Security model and permissions
 - **[Resilience & Error Handling](../resilience/README.md)** - Error propagation and recovery
 - **[Performance & Monitoring](../monitoring/README.md)** - Performance optimization
+
+## 📚 Deep Dive Documentation
+
+- **[Communication Patterns](communication-patterns.md)** - Detailed patterns for each tier interaction
+- **[Tier Communication Protocols](tier-communication-protocols.md)** - **🆕 Specific protocols, interfaces, and data flows between the three tiers**
+- **[Integration Map](integration-map.md)** - Complete integration testing approach
+- **[Implementation: MCP Integration](implementation/mcp-integration.md)** - Tool routing implementation details
 
 This communication architecture ensures optimal operation across all tiers while providing comprehensive integration capabilities and robust coordination through systematic patterns and interfaces.

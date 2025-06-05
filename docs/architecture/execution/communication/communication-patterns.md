@@ -150,24 +150,14 @@ When making decisions based on this matrix, refer to the authoritative documents
 
 ## Performance Characteristics
 
-### **Communication Latency Targets**
+For detailed performance targets, latency specifications, and implementation characteristics, see **[Tier Communication Protocols](tier-communication-protocols.md#performance-targets)**.
 
-| Communication Type | Expected Latency | Max Acceptable | Timeout |
-|-------------------|------------------|----------------|---------|
-| **T1 → T2 Tool Routing** | <10ms | 50ms | 5s |
-| **T2 → T3 Step Execution** | <5ms | 20ms | 30s |
-| **T1 ↔ T3 Emergency** | <1ms | 5ms | 1s |
-| **Event Propagation** | <2ms | 10ms | N/A |
-| **State Synchronization** | Variable | 1s | 30s |
-
-### **Throughput Characteristics**
-
-| Tier Communication | Messages/Second | Batch Size | Queue Depth |
-|--------------------|-----------------|------------|-------------|
-| **T1 → T2** | 1,000 | 10 | 100 |
-| **T2 → T3** | 10,000 | 5 | 50 |
-| **T1 ↔ T3 Emergency** | 100 | 1 | 10 |
-| **Events (All Tiers)** | 5,000 | 20 | 200 |
+**Quick Reference**:
+- **Tool Routing**: Optimized for natural language coordination
+- **Direct Interface**: Optimized for high-performance execution  
+- **Event-Driven**: Optimized for asynchronous coordination
+- **State Sync**: Optimized for consistency with variable latency
+- **Emergency Control**: Optimized for immediate response
 
 ## Pattern Coordination Example
 
@@ -175,15 +165,15 @@ When making decisions based on this matrix, refer to the authoritative documents
 
 ```mermaid
 sequenceDiagram
-    participant Agent as Tier 1 Agent
-    participant ToolRunner as CompositeToolRunner
-    participant McpRunner as McpToolRunner
-    participant BuiltInTools as BuiltInTools
-    participant EB as Event Bus
-    participant T2 as Tier 2 Service
-    participant T3 as Tier 3 Executor
-    participant State as State Store
-    participant Safety as Safety System
+    participant Agent        as "Tier 1 Agent"
+    participant ToolRunner   as "CompositeToolRunner"
+    participant McpRunner    as "McpToolRunner"
+    participant BuiltInTools as "Built-In Tools"
+    participant EB           as "Event Bus"
+    participant T2           as "Tier 2 Service"
+    participant T3           as "Tier 3 Executor"
+    participant State        as "State Store"
+    participant Safety       as "Safety System"
 
     Note over Agent,Safety: All Communication Patterns Working Together
 
@@ -204,7 +194,7 @@ sequenceDiagram
         T3->>State: Update step state
         T3->>EB: Publish step/completed event
         T3-->>T2: StepExecutionResult
-        
+
         %% 5. Emergency Control Channel (if needed)
         alt Emergency condition detected
             T3->>Safety: detectEmergencyCondition()
@@ -219,7 +209,7 @@ sequenceDiagram
     %% 3. Event-driven coordination
     par Event-driven coordination
         EB-->>Agent: Performance events
-        EB-->>T2: Resource events  
+        EB-->>T2: Resource events
         EB-->>T3: Optimization events
     end
 
@@ -232,7 +222,7 @@ sequenceDiagram
     McpRunner-->>ToolRunner: ToolCallResult
     ToolRunner-->>Agent: Tool execution result
 
-    Note over Agent,Safety: Pattern Performance Targets Met:<br/>Refer to [Performance Characteristics](../monitoring/performance-characteristics.md) for specific targets.<br/>All five communication patterns work in concert for robust operation.
+    Note over Agent,Safety: Pattern Integration Success — all five communication patterns coordinated; see Tier Communication Protocols
 ```
 
 ## Error Handling Across Patterns

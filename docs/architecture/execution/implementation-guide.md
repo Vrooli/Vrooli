@@ -1,6 +1,8 @@
-# 🛠️ Execution Architecture Implementation Guide
+# 🔨 Implementation Guide: Building the Three-Tier Architecture
 
 > **TL;DR**: Step-by-step implementation guide for building Vrooli's three-tier execution architecture. Provides concrete code examples, interface implementations, and integration patterns for each tier.
+
+> 📋 **Architecture Context**: For foundational concepts and architecture overview, see **[Architecture Overview](_ARCHITECTURE_OVERVIEW.md)**. This guide focuses on **practical implementation** with code examples and integration patterns.
 
 ---
 

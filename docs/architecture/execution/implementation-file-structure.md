@@ -1,6 +1,8 @@
-# 🗂️ Implementation File Structure
+# 📁 Implementation File Structure: Organizing the Three-Tier Architecture
 
 > **TL;DR**: This document defines the ideal file structure for implementing Vrooli's three-tier execution architecture, organized to support clear separation of concerns and easy extension.
+
+> 📋 **Architecture Context**: For foundational concepts and tier responsibilities, see **[Architecture Overview](_ARCHITECTURE_OVERVIEW.md)**. This document focuses on **code organization** and file structure best practices.
 
 ---
 

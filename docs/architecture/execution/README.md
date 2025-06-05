@@ -2,6 +2,8 @@
 
 > **TL;DR**: Vrooli's execution architecture enables AI agents to build better AI agents. Through a three-tier hierarchy with event-driven intelligence, we create **compound knowledge effects** where every improvement amplifies the entire system's capabilities.
 
+> 📖 **Quick Reference**: For basic architecture concepts, see **[Architecture Overview](_ARCHITECTURE_OVERVIEW.md)**. For performance targets, see **[Performance Reference](_PERFORMANCE_REFERENCE.md)**.
+
 ---
 
 ## 🎯 The Vision: From Automation to Intelligence Evolution
@@ -40,41 +42,15 @@ graph TB
 
 ## 🏗️ Architecture Overview: The Three Pillars of Intelligence
 
-Our execution architecture rests on three fundamental pillars, each enabling higher-order intelligence:
+> 📋 **Architecture Summary**: See **[Architecture Overview](_ARCHITECTURE_OVERVIEW.md)** for the complete three-tier architecture explanation, core components, communication patterns, and state objects.
 
-### **The Hierarchy of Intelligence**
+Our execution architecture creates **compound intelligence** through three interconnected tiers:
 
-```mermaid
-graph TB
-    subgraph "🎯 TIER 1: Coordination Intelligence"
-        T1[SwarmStateMachine<br/><br/>🧠 Metacognitive reasoning<br/>👥 Dynamic team formation<br/>📋 Strategic planning<br/>🔄 Goal decomposition]
-        T1_Desc["<b>Why it matters:</b><br/>• Agents reason about <i>thinking itself</i><br/>• Teams self-organize around objectives<br/>• Strategy emerges from AI reasoning<br/>• No hard-coded coordination logic"]
-    end
-    
-    subgraph "⚙️ TIER 2: Process Intelligence"  
-        T2[RunStateMachine<br/><br/>🔄 Universal routine orchestration<br/>📊 Cross-platform execution<br/>⚡ Parallel coordination<br/>🎯 Strategy evolution]
-        T2_Desc["<b>Why it matters:</b><br/>• Routines evolve from conversation to code<br/>• Patterns emerge and crystallize<br/>• Any workflow format supported<br/>• Continuous process optimization"]
-    end
-    
-    subgraph "🛠️ TIER 3: Execution Intelligence"
-        T3[UnifiedExecutor<br/><br/>🤖 Context-aware execution<br/>🔧 Tool integration<br/>💰 Resource optimization<br/>🛡️ Safety enforcement]
-        T3_Desc["<b>Why it matters:</b><br/>• Execution learns from outcomes<br/>• Tools become smarter through use<br/>• Resources auto-optimize<br/>• Safety evolves with threats"]
-    end
-    
-    T1 -.->|"Delegates to"| T2
-    T2 -.->|"Executes via"| T3
-    T3 -.->|"Learns from"| T1
-    
-    classDef tier1 fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
-    classDef tier2 fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px  
-    classDef tier3 fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef desc fill:#fffde7,stroke:#f57c00,stroke-width:1px,font-size:11px
-    
-    class T1 tier1
-    class T2 tier2
-    class T3 tier3
-    class T1_Desc,T2_Desc,T3_Desc desc
-```
+- **🧠 Tier 1: Coordination Intelligence** - Metacognitive swarm coordination through natural language reasoning
+- **⚙️ Tier 2: Process Intelligence** - Universal routine orchestration across any workflow format  
+- **🛠️ Tier 3: Execution Intelligence** - Context-aware strategy execution with adaptive optimization
+
+**Key Innovation**: Instead of hard-coding capabilities, **specialized agent swarms** provide security, monitoring, optimization, and quality assurance through intelligent event processing.
 
 ---
 
@@ -125,41 +101,13 @@ graph TB
 
 ## 🎭 Strategy Evolution: From Conversation to Code
 
-Watch how intelligence evolves in real-time. Routines begin as natural conversations and gradually crystallize into optimized automation as patterns emerge:
+Routines naturally evolve through four execution strategies as patterns emerge and best practices are proven:
 
-```mermaid
-graph LR
-    subgraph "🗣️ CONVERSATIONAL"
-        C1[Human-like Reasoning<br><br>💭 Creative problem-solving<br>🤔 Adaptive responses<br>📝 Learning from context<br>💡 Novel solutions]
-        C1_Ex["<b>Example:</b><br>'Help me understand<br>this customer complaint<br>and suggest solutions'"]
-    end
+**Conversational → Reasoning → Deterministic → Routing**
 
-    subgraph "🧠 REASONING"
-        R1[Structured Intelligence<br><br>📊 Data-driven decisions<br>🎯 Goal optimization<br>⚖️ Multi-factor analysis<br>🔍 Pattern recognition]
-        R1_Ex["<b>Example:</b><br>Systematic framework:<br>1. Categorize complaint<br>2. Analyze sentiment<br>3. Generate solutions<br>4. Prioritize actions"]
-    end
+This evolution happens **automatically** through use, driven by [optimization agents](emergent-capabilities/routine-examples/optimization-agents.md) that analyze patterns and propose improvements through collaborative pull requests.
 
-    subgraph "⚙️ DETERMINISTIC"
-        D1[Optimized Automation<br><br>🚀 Lightning-fast execution<br>💰 Cost optimization<br>✅ Guaranteed reliability<br>🔄 Self-monitoring]
-        D1_Ex["<b>Example:</b><br>Automated pipeline:<br>API → NLP → Decision<br>Tree → Action Queue<br>→ Customer Response"]
-    end
-
-    C1 -->|"Patterns Emerge"| R1
-    R1 -->|"Best Practices Proven"| D1
-    D1 -.->|"Edge Cases Discovered"| C1
-
-    classDef conv fill:#fff9c4,stroke:#f57f17,stroke-width:3px
-    classDef reason fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px
-    classDef determ fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
-    classDef example fill:#f5f5f5,stroke:#9e9e9e,stroke-width:1px,font-size:11px
-
-    class C1 conv
-    class R1 reason
-    class D1 determ
-    class C1_Ex,R1_Ex,D1_Ex example
-```
-
-**The Magic**: This evolution happens **automatically** through use. Every execution teaches the system. Every pattern gets recognized. Every improvement becomes available to all routines.
+> 📖 **Complete Guide**: See **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** for the full evolution process, implementation details, agent collaboration workflows, and real-world examples.
 
 ---
 
@@ -256,7 +204,9 @@ Ready to explore the details? Our documentation is organized for progressive lea
 
 ### 🎯 **Core Architecture**
 - **[Core Technologies](core-technologies.md)** - Foundational concepts and terminology
+- **[Swarm Execution Integration](swarm-execution-integration.md)** - **🆕 How swarm configurations drive the three-tier execution architecture**
 - **[Concrete Implementation Examples](concrete-examples.md)** - 🆕 **Practical examples showing the three-tier architecture in action**
+- **[Error Scenarios Guide](error-scenarios-guide.md)** - **🆕 Comprehensive error handling examples across all three tiers**
 - **[Implementation Guide](implementation-guide.md)** - Step-by-step implementation with concrete code examples
 - **[Implementation Roadmap](implementation-roadmap.md)** - Detailed phased implementation approach
 - **[Implementation File Structure](implementation-file-structure.md)** - 🆕 **Complete file organization for the three-tier architecture**
@@ -358,6 +308,12 @@ Ready to explore the details? Our documentation is organized for progressive lea
 ### **"Where can I find the complete event specifications?"**
 📍 **[Event Catalog](event-driven/event-catalog.md)** provides comprehensive tables of all events with triggers, payloads, delivery guarantees, and agent subscription patterns.
 
+### **"How do swarm configurations relate to execution architecture?"**
+📍 **[Swarm Execution Integration](swarm-execution-integration.md)** shows how ChatConfigObject drives execution across all three tiers, including state transitions, resource management, and tool approval workflows.
+
+### **"What exactly is a 'routine' vs a 'workflow' vs a 'step'?"**
+📍 **[Core Technologies](core-technologies.md)** provides clear definitions: **Routines** are reusable, versioned workflows; **Steps** are individual actions within routines; **Workflows** are the execution patterns that routines follow (Native, BPMN, etc.).
+
 ### **"How exactly is MOISE+ handled in each tier?"** 
 📍 **[MOISE+ Comprehensive Guide](tiers/tier1-coordination-intelligence/moise-comprehensive-guide.md)** covers implementation across all tiers:
 - **Tier 1**: MOISE+ → Agent prompts for role-based reasoning
@@ -369,6 +325,9 @@ Ready to explore the details? Our documentation is organized for progressive lea
 
 ### **"How do routines evolve from conversational to deterministic?"**
 📍 **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** explains how optimization agents analyze usage patterns and propose improved routine versions through collaborative pull requests.
+
+### **"What are the different Navigator types and how do they work?"**
+📍 **[Navigator System](tiers/tier2-process-intelligence/navigators.md)** explains how Native Vrooli, BPMN, and other workflow formats are executed through universal navigation interfaces.
 
 ### **"What's the minimal vs. agent-based infrastructure approach?"**
 We provide **minimal, reliable infrastructure** (event bus, state machines, execution engine) and enable **specialized swarm agents** to provide advanced capabilities. See **[Emergent Capabilities](emergent-capabilities/README.md)** for examples.
@@ -387,15 +346,23 @@ These capabilities come from **intelligent agent swarms**, not hard-coded infras
 ### **"How do I debug issues across the tiers?"**
 📍 **[Debugging Guide](debugging-guide.md)** provides systematic troubleshooting approaches for each tier with concrete examples and debugging tools.
 
+### **"What are the complete state machine lifecycles?"**
+📍 **State Machine Diagrams** provide comprehensive lifecycle management details:
+- **[SwarmStateMachine Complete Architecture](tiers/tier1-coordination-intelligence/swarm-state-machine.md)** - Complete swarm lifecycle, autonomous operation, and state transitions
+- **[RunStateMachine State Diagram](tiers/tier2-process-intelligence/run-state-machine-diagram.md)** - Complete routine execution lifecycle across all navigator types
+
 ### **"What are the performance expectations for each tier?"**
 📍 **[Performance Characteristics](performance-characteristics.md)** details response times, throughput, and optimization strategies for all tiers.
 
 ### **"How do I actually implement this architecture?"**
 📍 **[Implementation Guide](implementation-guide.md)** provides step-by-step instructions with concrete code examples for building each tier.
 
+### **"What happens when things go wrong?"**
+📍 **[Error Scenarios Guide](error-scenarios-guide.md)** provides comprehensive examples of error handling across all three tiers, including recovery patterns, error propagation, and prevention strategies. Also see **[Resilience Architecture](resilience/README.md)** for fault tolerance principles.
+
 ---
 
-## 🌟 The Path Forward
+## 🎯 The Path Forward
 
 This architecture represents more than just a technical implementation—it's a **foundation for the future of AI**. Every routine executed, every pattern learned, every improvement made contributes to a growing ecosystem of intelligence that becomes more powerful over time.
 
@@ -409,6 +376,21 @@ The question isn't whether AI will become more capable. The question is whether 
 ---
 
 > 💡 **Ready to dive deeper?** Start with [Concrete Implementation Examples](concrete-examples.md) to see the architecture in action, then explore [Core Technologies](core-technologies.md) to understand the foundational concepts, follow the [Implementation Guide](implementation-guide.md) to build your first tier, or explore [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md) to see how AI agents coordinate through metacognition.
+
+---
+
+## 📝 Documentation Philosophy
+
+This documentation follows a **hub-and-spoke model** to minimize redundancy:
+
+- **Central Hub Documents** provide comprehensive coverage of core concepts
+- **Specialized Documents** link to hubs rather than duplicating explanations  
+- **Cross-References** use specific anchor links for precision
+- **TL;DR Sections** link to main architectural overviews
+
+This approach ensures consistency, reduces maintenance overhead, and provides clear navigation paths for different learning objectives.
+
+> 📋 **Maintenance Guide**: See **[Documentation Maintenance](_DOCUMENTATION_MAINTENANCE.md)** for guidelines on avoiding redundancy and maintaining consistent cross-references across all execution architecture documentation.
 
 ---
 

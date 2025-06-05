@@ -1,6 +1,8 @@
-# 🛠️ Concrete Implementation Examples
+# 🎭 Concrete Implementation Examples: Three-Tier Architecture in Action
 
 > **TL;DR**: This document provides practical, concrete examples showing how Vrooli's three-tier execution architecture works in practice. Use these examples as templates for understanding the flow from high-level swarm coordination down to individual tool execution.
+
+> 📋 **Architecture Context**: For foundational concepts, see **[Architecture Overview](_ARCHITECTURE_OVERVIEW.md)**. This document focuses on **practical implementation examples** with real code and data flows.
 
 ---
 
@@ -18,7 +20,7 @@
 
 ## 🚀 Complete Execution Flow Example
 
-Let's trace a complete execution from **Tier 1 coordination** through **Tier 2 process intelligence** to **Tier 3 execution**:
+Let's trace a complete execution through all three tiers with a practical scenario:
 
 ### **Scenario**: Customer Feedback Collection & Analysis
 

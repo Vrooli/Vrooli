@@ -104,4 +104,13 @@ await update_swarm_shared_state({
 
 Begin with the **[Metacognitive Framework](./metacognitive-framework.md)** to understand the foundational concepts, then explore the **[Implementation Architecture](./implementation-architecture.md)** for technical details.
 
-For understanding the autonomous operation capabilities, see **[Autonomous Operations](./autonomous-operations.md)**. 
+For understanding the autonomous operation capabilities, see **[Autonomous Operations](./autonomous-operations.md)**.
+
+## 📚 Deep Dive Documentation
+
+### **Core Intelligence Components**
+- **[SwarmStateMachine Implementation](swarm-state-machine.md)** - Complete architecture, state lifecycle, and autonomous operation capabilities
+- **[MOISE+ Comprehensive Guide](moise-comprehensive-guide.md)** - Complete organizational modeling implementation
+- **[Metacognitive Framework](metacognitive-framework.md)** - Multi-level reasoning and self-reflection capabilities
+- **[Implementation Architecture](implementation-architecture.md)** - Technical architecture and integration patterns
+- **[Autonomous Operations](autonomous-operations.md)** - Self-managing swarm capabilities and intelligent delegation 
