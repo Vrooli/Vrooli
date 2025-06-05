@@ -297,7 +297,7 @@ interface KnowledgeResourceManager extends ResourceManager {
 3. **[Integration Examples](../concrete-examples.md)** - See knowledge management in action
 
 ### **For Operations**
-1. **[Performance Characteristics](../performance-characteristics.md)** - Knowledge system performance
+1. **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Knowledge system performance
 2. **[Monitoring](../monitoring/README.md)** - Knowledge system monitoring
 3. **[Security](../security/README.md)** - Knowledge security and permissions
 

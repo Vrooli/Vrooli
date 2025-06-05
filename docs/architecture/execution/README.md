@@ -52,6 +52,8 @@ Our execution architecture creates **compound intelligence** through three inter
 
 **Key Innovation**: Instead of hard-coding capabilities, **specialized agent swarms** provide security, monitoring, optimization, and quality assurance through intelligent event processing.
 
+> 🔗 **For Implementation**: See **[Concrete Implementation Examples](concrete-examples.md)** to see the three tiers working together in practice.
+
 ---
 
 ## 🌊 The Event-Driven Nervous System
@@ -205,14 +207,24 @@ Ready to explore the details? Our documentation is organized for progressive lea
 ### 🎯 **Core Architecture**
 - **[Core Technologies](core-technologies.md)** - Foundational concepts and terminology
 - **[Swarm Execution Integration](swarm-execution-integration.md)** - **🆕 How swarm configurations drive the three-tier execution architecture**
-- **[Concrete Implementation Examples](concrete-examples.md)** - 🆕 **Practical examples showing the three-tier architecture in action**
-- **[Error Scenarios Guide](error-scenarios-guide.md)** - **🆕 Comprehensive error handling examples across all three tiers**
-- **[Implementation Guide](implementation-guide.md)** - Step-by-step implementation with concrete code examples
-- **[Implementation Roadmap](implementation-roadmap.md)** - Detailed phased implementation approach
-- **[Implementation File Structure](implementation-file-structure.md)** - 🆕 **Complete file organization for the three-tier architecture**
-- **[Future Expansion Roadmap](future-expansion-roadmap.md)** - Long-term vision and expansion plans
-- **[Success Metrics](success-metrics.md)** - How we measure architectural success
 - **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** - Complete guide to how routines evolve from conversational to deterministic
+
+### 🛠️ **Implementation**
+- **[Implementation Guide](implementation/implementation-guide.md)** - Step-by-step implementation with concrete code examples
+- **[Implementation Roadmap](implementation/implementation-roadmap.md)** - Detailed phased implementation approach
+- **[Implementation File Structure](implementation/implementation-file-structure.md)** - 🆕 **Complete file organization for the three-tier architecture**
+- **[Concrete Implementation Examples](implementation/concrete-examples.md)** - 🆕 **Practical examples showing the three-tier architecture in action**
+
+### 🔧 **Operations & Debugging**
+- **[Debugging Guide](operations/debugging-guide.md)** - Comprehensive troubleshooting across all tiers
+
+### 🛡️ **Specialized Systems**
+- **[Tool Approval & Scheduling System](systems/tool-approval-system.md)** - User control over AI agent tool execution with approval workflows and scheduling
+- **[URL Redirection System](systems/url-redirection-system.md)** - Swarm-level URL redirection for simulation mode, testing environments, and flexible endpoint management
+
+### 📊 **Planning & Metrics**
+- **[Success Metrics](planning/success-metrics.md)** - How we measure architectural success
+- **[Future Expansion Roadmap](planning/future-expansion-roadmap.md)** - Long-term vision and expansion plans
 
 ### ⚙️ **Tier-Specific Intelligence**
 - **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md)** - Metacognitive swarm coordination
@@ -231,11 +243,6 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **[Resilience Architecture](resilience/README.md)** - Fault tolerance and error handling
 - **[Resource Management](resource-management/README.md)** - Unified computational, data, and knowledge resource management
 - **[Monitoring Architecture](monitoring/README.md)** - Performance tracking and observability
-- **[Tool Approval & Scheduling System](tool-approval-system.md)** - User control over AI agent tool execution with approval workflows and scheduling
-- **[URL Redirection System](url-redirection-system.md)** - Swarm-level URL redirection for simulation mode, testing environments, and flexible endpoint management
-
-### 📊 **System Management**
-- **[Communication Architecture](communication/README.md)** - Inter-tier communication patterns
 - **[Types System](types/README.md)** - Shared interfaces and type definitions
 
 ### 🌱 **Emergent Capabilities**
@@ -243,11 +250,9 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **[API Bootstrapping](emergent-capabilities/api-bootstrapping.md)** - Emergent creation of API integrations through routine composition
 - **[Data Bootstrapping](emergent-capabilities/data-bootstrapping.md)** - Emergent creation of documentation and data resources
 
-### 🛠️ **Operation & Performance**
-- **[Debugging Guide](debugging-guide.md)** - Comprehensive troubleshooting across all tiers
-- **[Performance Characteristics](performance-characteristics.md)** - Performance expectations, bottlenecks, and optimization strategies
+### 📊 **System Management**
+- **[Communication Architecture](communication/README.md)** - Inter-tier communication patterns
 
----
 
 ## 🚀 Why This Architecture Changes Everything
 
@@ -321,7 +326,7 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **Tier 3**: MOISE+ → Action-level permission validation
 
 ### **"How does tool approval and scheduling work?"**
-📍 **[Tool Approval System](tool-approval-system.md)** details the complete workflow from tool requests through user approval/rejection to execution.
+📍 **[Tool Approval System](systems/tool-approval-system.md)** details the complete workflow from tool requests through user approval/rejection to execution.
 
 ### **"How do routines evolve from conversational to deterministic?"**
 📍 **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** explains how optimization agents analyze usage patterns and propose improved routine versions through collaborative pull requests.
@@ -344,7 +349,7 @@ These capabilities come from **intelligent agent swarms**, not hard-coded infras
 - **Optimization**: [Optimization agents](emergent-capabilities/routine-examples/optimization-agents.md) that continuously improve routines
 
 ### **"How do I debug issues across the tiers?"**
-📍 **[Debugging Guide](debugging-guide.md)** provides systematic troubleshooting approaches for each tier with concrete examples and debugging tools.
+📍 **[Debugging Guide](operations/debugging-guide.md)** provides systematic troubleshooting approaches for each tier with concrete examples and debugging tools.
 
 ### **"What are the complete state machine lifecycles?"**
 📍 **State Machine Diagrams** provide comprehensive lifecycle management details:
@@ -352,13 +357,13 @@ These capabilities come from **intelligent agent swarms**, not hard-coded infras
 - **[RunStateMachine State Diagram](tiers/tier2-process-intelligence/run-state-machine-diagram.md)** - Complete routine execution lifecycle across all navigator types
 
 ### **"What are the performance expectations for each tier?"**
-📍 **[Performance Characteristics](performance-characteristics.md)** details response times, throughput, and optimization strategies for all tiers.
+📍 **[Performance Characteristics](monitoring/performance-characteristics.md)** details response times, throughput, and optimization strategies for all tiers.
 
 ### **"How do I actually implement this architecture?"**
-📍 **[Implementation Guide](implementation-guide.md)** provides step-by-step instructions with concrete code examples for building each tier.
+📍 **[Implementation Guide](implementation/implementation-guide.md)** provides step-by-step instructions with concrete code examples for building each tier.
 
 ### **"What happens when things go wrong?"**
-📍 **[Error Scenarios Guide](error-scenarios-guide.md)** provides comprehensive examples of error handling across all three tiers, including recovery patterns, error propagation, and prevention strategies. Also see **[Resilience Architecture](resilience/README.md)** for fault tolerance principles.
+📍 **[Error Scenarios Guide](resilience/error-scenarios-guide.md)** provides comprehensive examples of error handling across all three tiers, including recovery patterns, error propagation, and prevention strategies. Also see **[Resilience Architecture](resilience/README.md)** for fault tolerance principles.
 
 ---
 
@@ -375,7 +380,7 @@ The question isn't whether AI will become more capable. The question is whether 
 
 ---
 
-> 💡 **Ready to dive deeper?** Start with [Concrete Implementation Examples](concrete-examples.md) to see the architecture in action, then explore [Core Technologies](core-technologies.md) to understand the foundational concepts, follow the [Implementation Guide](implementation-guide.md) to build your first tier, or explore [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md) to see how AI agents coordinate through metacognition.
+> 💡 **Ready to dive deeper?** Start with [Concrete Implementation Examples](implementation/concrete-examples.md) to see the architecture in action, then explore [Core Technologies](core-technologies.md) to understand the foundational concepts, follow the [Implementation Guide](implementation/implementation-guide.md) to build your first tier, or explore [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md) to see how AI agents coordinate through metacognition.
 
 ---
 

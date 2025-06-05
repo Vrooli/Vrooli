@@ -176,7 +176,7 @@ Vrooli's success is measured across multiple dimensions that reflect its core mi
 ## Related Documentation
 
 - **[Implementation Roadmap](implementation-roadmap.md)** - Phased approach to achieving these metrics
-- **[Performance Characteristics](monitoring/performance-characteristics.md)** - Technical performance requirements and optimization
+- **[Performance Characteristics](monitoring/monitoring/performance-characteristics.md)** - Technical performance requirements and optimization
 - **[Main Execution Architecture](README.md)** - Complete architectural overview that enables these capabilities
 - **[Business Impact Analysis](business-impact-analysis.md)** - Detailed analysis of business value creation (if available)
 

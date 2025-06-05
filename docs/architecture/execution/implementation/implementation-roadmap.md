@@ -285,7 +285,7 @@ The implementation follows a **progressive enhancement strategy** where each pha
 - **[Main Execution Architecture](README.md)** - Complete architectural overview
 - **[Communication Patterns](communication/communication-patterns.md)** - Inter-tier communication design
 - **[Tier-Specific Documentation](tiers/)** - Individual tier implementation guides
-- **[Performance Characteristics](monitoring/performance-characteristics.md)** - Performance requirements and optimization
+- **[Performance Characteristics](monitoring/monitoring/performance-characteristics.md)** - Performance requirements and optimization
 - **[Security Boundaries](security/security-boundaries.md)** - Security model and implementation
 - **[Error Handling](resilience/error-propagation.md)** - Error management and recovery strategies
 

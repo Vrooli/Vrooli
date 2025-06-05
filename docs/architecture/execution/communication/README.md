@@ -56,8 +56,8 @@ graph TB
 ### **Phase 3: Cross-Cutting Architecture**
 For comprehensive understanding of the full execution architecture, continue with:
 - **[Event-Driven Architecture](../event-driven/README.md)** - Event bus protocol and coordination
-- **[State Synchronization](../context-memory/README.md)** - Context management and consistency
-- **[Resource Management](../resource-management/README.md)** - Resource allocation and coordination
+- **[Context & Memory Management](../context-memory/README.md)** - Context architecture and layer management
+- **[Resource Management](../resource-management/README.md)** - Resource allocation, coordination, and state management
 - **[Security Boundaries](../security/README.md)** - Security model and permissions
 - **[Error Handling & Resilience](../resilience/README.md)** - Error propagation and recovery
 - **[Performance & Monitoring](../monitoring/README.md)** - Performance optimization and observability
@@ -107,8 +107,8 @@ The communication architecture is built upon four primary patterns, detailed in 
 - **[Main Execution Architecture](../README.md)** - Complete three-tier execution architecture overview
 - **[Individual Tier Documents](../tiers/)** - Tier-specific implementation details
 - **[Event-Driven Architecture](../event-driven/README.md)** - Event bus and coordination
-- **[Context & Memory](../context-memory/README.md)** - State management and synchronization
-- **[Resource Management](../resource-management/README.md)** - Resource allocation and conflicts
+- **[Context & Memory Management](../context-memory/README.md)** - Context architecture and layer management
+- **[Resource Management](../resource-management/README.md)** - Resource allocation, coordination, and state management
 - **[Security Boundaries](../security/README.md)** - Security model and permissions
 - **[Resilience & Error Handling](../resilience/README.md)** - Error propagation and recovery
 - **[Performance & Monitoring](../monitoring/README.md)** - Performance optimization
