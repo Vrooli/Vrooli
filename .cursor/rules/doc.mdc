@@ -27,7 +27,7 @@ This document outlines the styling and content guidelines for creating documenta
     -   Start with a brief introduction explaining the document's purpose.
     -   Include a "Too Long; Didn't Read" (TL;DR) summary at the beginning for quick insights, especially for longer documents.
 -   **Cross-References**:
-    -   Link to related documentation files using relative paths (e.g., `[Link Text](../path/to/document.md)`).
+    -   Link to related documentation files using relative paths (e.g., `[Link Text](mdc:../path/to/document.md)`).
     -   Use descriptive link text that clearly indicates the target content.
     -   Encourage linking to minimize redundancy and keep documents focused.
 -   **Practical Examples**:
@@ -37,7 +37,7 @@ This document outlines the styling and content guidelines for creating documenta
 ## ✨ Visual Enhancement & Formatting
 
 -   **Mermaid Diagrams**:
-    -   Use [Mermaid diagrams](https://mermaid.js.org/intro/) to illustrate complex workflows, architectures, system relationships, and decision trees.
+    -   Use [Mermaid diagrams](mdc:https:/mermaid.js.org/intro) to illustrate complex workflows, architectures, system relationships, and decision trees.
     -   Ensure diagrams are clear, well-labeled, and contribute to understanding.
     -   Example:
         ```mermaid
@@ -88,5 +88,80 @@ This document outlines the styling and content guidelines for creating documenta
 -   **Comprehensive Coverage**: Address both "happy path" scenarios and potential edge cases or problems.
 -   **Future-Proof**: Structure content to remain relevant as the project evolves, or clearly mark version-specific information.
 -   **Review and Update**: Periodically review documentation for outdated information or areas needing improvement.
+
+## 🎨 Mermaid Diagram Guidelines
+
+### **Text Formatting and Line Breaks**
+
+#### **Newlines and Line Breaks**
+- **Use `<br>` tags** for manual line breaks within node text:
+  ```mermaid
+  A["First line<br>Second line<br>Third line"]
+  ```
+
+#### **Automatic Text Wrapping (Recommended)**
+- **Use markdown strings** with backticks and double quotes for automatic text wrapping:
+  ```mermaid
+  A["`This text will automatically wrap when it becomes too long and you can
+     start a new line by simply using a newline character`"]
+  ```
+
+#### **Text Formatting**
+- **Bold text**: Use double asterisks within markdown strings: `**bold text**`
+- **Italics**: Use single asterisks within markdown strings: `*italic text*`
+- **Example**:
+  ```mermaid
+  A["`**Bold text** and *italic text* with automatic wrapping`"]
+  ```
+
+### **Character Restrictions and Escaping**
+
+#### **Reserved Words That Break Diagrams**
+- **The word "end"** (case-sensitive): Must be wrapped in quotes
+  ```mermaid
+  A["End"] --> B["START"]  // ✅ Correct
+  A[End] --> B[START]      // ❌ Will break
+  ```
+
+#### **Problematic Character Sequences**
+- **Avoid starting connecting nodes with "o" or "x"**: Add space or capitalize
+  ```mermaid
+  A --- ops    // ✅ Correct (space added)
+  A --- Ops    // ✅ Correct (capitalized)
+  A ---ops     // ❌ Will create unexpected edge types
+  ```
+
+#### **Special Character Escaping**
+- **Use HTML entity codes** for special characters:
+  ```mermaid
+  A["Hash symbol: &#35;"]     // For #
+  A["Semicolon: &#59;"]       // For ;
+  A["Less than: &lt;"]       // For <
+  A["Greater than: &gt;"]    // For >
+  ```
+
+#### **Comments and Directives**
+- **Avoid curly braces `{}` in comments** using `%%`:
+  ```mermaid
+  %% This is a good comment
+  %% Avoid: This comment has {braces} - may confuse renderer
+  ```
+
+#### **Unicode and Emojis**
+- **Fully supported** within quoted text and markdown strings:
+  ```mermaid
+  A["`🚀 Unicode works: शान्तिः سلام 和平`"]
+  ```
+
+#### **Quotes and Special Text**
+- **Use double quotes** to safely include problematic characters:
+  ```mermaid
+  A["Text with (parentheses) and {braces} and [brackets]"]
+  ```
+
+### **Best Practices for Mermaid Text**
+1. **Use markdown strings** `"` for text that needs formatting or automatic wrapping
+2. **Quote any text** that contains special characters, punctuation, or reserved words
+3. **Use entity codes** for symbols that might interfere with Mermaid syntax
 
 By following these guidelines, we can create a high-quality, engaging, and useful documentation suite that supports the Vrooli project and its community.

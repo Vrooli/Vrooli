@@ -115,6 +115,102 @@ graph LR
 
 ---
 
+## 🌟 Emergent Capability Categories
+
+### **🔌 Infrastructure Integration**
+
+#### **API Bootstrapping** 
+Dynamic service integration through routine composition rather than code changes.
+
+- **[API Bootstrapping Guide](./api-bootstrapping.md)** - Complete guide to emergent API integration
+- **Dynamic Service Integration**: Add support for new APIs without infrastructure changes
+- **Schema Discovery**: Automatically analyze and document API capabilities  
+- **Authentication Integration**: Seamless integration with External Integrations layer
+- **Testing & Validation**: Automated generation of test suites and documentation
+
+#### **Data Bootstrapping**
+Emergent creation and management of shared documentation and data resources.
+
+- **[Data Bootstrapping Guide](./data-bootstrapping.md)** - Complete guide to emergent document and data creation
+- **Multi-Format Support**: Create documents in optimal formats (.docx, .pptx, .ipynb, .pdf, etc.)
+- **External Storage Integration**: Seamless integration with Google Drive, OneDrive, GitHub, Dropbox
+- **Intelligent Format Selection**: Automatic selection of best format based on content and audience
+- **Collaborative Workflows**: AI-enhanced collaborative document creation and maintenance
+
+### **🧠 Intelligence Enhancement**
+
+#### **Routine Creation**
+Autonomous generation of new routines based on successful patterns and emerging needs.
+
+- **Pattern Recognition**: Identify successful automation patterns for replication
+- **Template Generation**: Create reusable routine templates from proven workflows
+- **Parameterization**: Make routines configurable for different contexts and requirements
+- **Quality Assurance**: Automated testing and validation of generated routines
+
+#### **Strategy Evolution**
+Development of new execution strategies optimized for specific domains and use cases.
+
+- **Performance Analysis**: Identify optimization opportunities in execution strategies
+- **Strategy Synthesis**: Combine successful strategy elements into new approaches
+- **Context Adaptation**: Create strategies optimized for specific domains or constraints
+- **A/B Testing**: Systematically evaluate new strategies against existing approaches
+
+### **🤖 Agent Specialization**
+
+#### **Event-Driven Agents**
+Specialized agents for monitoring, optimization, and system management.
+
+- **Security Agents**: Create agents specialized in threat detection and response
+- **Performance Agents**: Develop agents focused on system optimization and monitoring
+- **Compliance Agents**: Agents for regulatory compliance and audit requirements
+- **Business Logic Agents**: Create domain-specific agents for industry automation
+
+#### **Cross-Swarm Coordination**
+Advanced coordination patterns between swarms and organizations.
+
+- **Communication Protocols**: Develop new inter-swarm communication patterns
+- **Resource Sharing**: Create mechanisms for resource pooling and sharing
+- **Knowledge Transfer**: Knowledge sharing protocols between organizations
+- **Collaborative Planning**: Enable joint planning and execution across swarm boundaries
+
+### **📊 Knowledge & Learning**
+
+#### **Knowledge Base Expansion**
+Dynamically expand knowledge base capabilities and integration patterns.
+
+- **Source Integration**: Add support for new knowledge sources and data formats
+- **Indexing Strategies**: Create optimized indexing approaches for different content types
+- **Retrieval Enhancement**: Develop improved retrieval algorithms and ranking methods
+- **Quality Control**: Quality assessment and validation routines
+
+#### **Learning Acceleration**
+Create learning and adaptation mechanisms for faster capability development.
+
+- **Feedback Loops**: Establish systematic feedback collection and integration
+- **Pattern Mining**: Extract successful patterns from execution history
+- **Adaptation Strategies**: Create mechanisms for automatic system adaptation
+- **Performance Prediction**: Develop predictive models for execution optimization
+
+### **🔒 Security & Governance**
+
+#### **Security Automation**
+Comprehensive security monitoring and response capabilities.
+
+- **Threat Detection**: Create specialized threat detection and analysis routines
+- **Incident Response**: Develop automated incident response and containment procedures
+- **Compliance Monitoring**: Regulatory compliance and audit automation
+- **Risk Assessment**: Create dynamic risk assessment and mitigation strategies
+
+#### **Governance Mechanisms**
+Democratic governance and policy automation for large-scale operations.
+
+- **Policy Creation**: Policy definition and enforcement mechanisms
+- **Voting Systems**: Create democratic decision-making processes for swarm coordination
+- **Compliance Automation**: Develop automated compliance checking and reporting
+- **Audit Trails**: Establish comprehensive audit and accountability systems
+
+---
+
 ## 🌟 Real-World Emergent Capability Examples
 
 ### **🏥 Healthcare Compliance Ecosystem**
@@ -158,17 +254,25 @@ graph LR
 Explore adaptive routines that evolve from conversational to deterministic:
 
 - **[Optimization Agents](routine-examples/optimization-agents.md)** - Self-improving performance enhancement routines
-- **[Customer Support Evolution](routine-examples/customer-support-evolution.md)** - How support routines adapt to common patterns
-- **[Financial Analysis Pipeline](routine-examples/financial-analysis-pipeline.md)** - Market analysis that learns from successful patterns
-- **[Content Generation Workflows](routine-examples/content-generation-workflows.md)** - Creative processes that optimize while maintaining quality
+- **[Security Agents](routine-examples/security-agents.md)** - Adaptive threat detection and response
+- **[Quality Agents](routine-examples/quality-agents.md)** - Intelligent output validation and improvement
+- **[Monitoring Agents](routine-examples/monitoring-agents.md)** - Context-aware system observability
+- **[Decision Support](routine-examples/decision-support.md)** - Intelligent decision-making frameworks
+- **[Productivity](routine-examples/productivity.md)** - Workflow optimization and automation
+- **[Metareasoning](routine-examples/metareasoning.md)** - Self-reflective capability improvement
 
 ### **🤖 [Agent Examples](agent-examples/README.md)**
 Discover intelligent agents that provide specialized domain expertise:
 
 - **[Security Agents](agent-examples/security-agents.md)** - Adaptive threat detection and compliance monitoring
-- **[Quality Assurance Agents](agent-examples/quality-agents.md)** - Intelligent output validation and bias detection
-- **[Performance Monitoring Agents](agent-examples/monitoring-agents.md)** - Context-aware system observability
-- **[Domain-Specific Agents](agent-examples/domain-specific-agents.md)** - Healthcare, finance, legal, and other specialized intelligence
+
+### **🔌 [Infrastructure Capabilities](./api-bootstrapping.md)**
+Learn how to create emergent infrastructure integrations:
+
+- **[API Bootstrapping](./api-bootstrapping.md)** - Dynamic service integration through routine composition
+- **[Data Bootstrapping](./data-bootstrapping.md)** - Emergent document and data creation with external storage
+- **Service Discovery** - Intelligent discovery and integration of external services
+- **Authentication Management** - Emergent OAuth and API key handling
 
 ---
 
@@ -193,6 +297,26 @@ if (proposedOptimization.confidence > 0.8) {
   await performanceAgent.acceptProposal(proposedOptimization.id);
 }
 ```
+
+### **Implementation Guidelines**
+
+When developing new emergent capabilities, follow these principles:
+
+1. **🏗️ Leverage Existing Infrastructure**: Build upon Vrooli's three-tier architecture and existing capabilities
+2. **🧩 Ensure Composability**: Make new patterns combinable with existing routines and strategies
+3. **🛡️ Maintain Security**: Integrate with security frameworks and maintain isolation boundaries
+4. **📈 Enable Evolution**: Design patterns that can improve and adapt over time
+5. **📚 Document Thoroughly**: Provide clear documentation and examples for community adoption
+
+### **Quality Standards**
+
+Emergent capabilities must meet these quality standards:
+
+- **⚡ Performance**: Minimal impact on system performance with efficient resource usage
+- **🔄 Reliability**: Robust error handling and graceful degradation
+- **🔒 Security**: Comprehensive security validation and threat mitigation
+- **📖 Documentation**: Clear documentation with examples and integration guides
+- **🧪 Testing**: Comprehensive test suites and validation procedures
 
 ### **Composition Patterns**
 
@@ -243,6 +367,16 @@ class AdaptiveSecurityAgent {
 | **Tier 2: Process** | Orchestrates routine evolution | Converting conversational → deterministic |
 | **Tier 3: Execution** | Executes intelligent agent actions | Running agent analysis routines |
 
+### **Integration Requirements**
+
+All emergent capabilities must integrate with:
+
+- **[Knowledge Base](../knowledge-base/README.md)** for routine storage and discovery
+- **[External Integrations](../../external-integrations/README.md)** for authentication and service access
+- **[Event-Driven Architecture](../event-driven/README.md)** for coordination and monitoring
+- **[Security Boundaries](../security/security-boundaries.md)** for safe execution
+- **[Resource Management](../resource-management/resource-coordination.md)** for sustainable operation
+
 ### **Event-Driven Intelligence Flow**
 
 ```mermaid
@@ -283,5 +417,9 @@ sequenceDiagram
 - **[Event-Driven Architecture](../event-driven/README.md)** - The event system that powers emergent intelligence
 - **[Tier 1: Coordination Intelligence](../tiers/tier1-coordination-intelligence/README.md)** - How agent swarms are coordinated
 - **[MOISE+ Organizational Modeling](../tiers/tier1-coordination-intelligence/moise-comprehensive-guide.md)** - Formal frameworks for agent collaboration
+- **[Knowledge Base Architecture](../knowledge-base/README.md)** - Routine storage and management
+- **[External Integrations](../../external-integrations/README.md)** - Service integration capabilities
+- **[Future Expansion Roadmap](../future-expansion-roadmap.md)** - Long-term vision for recursive self-improvement
+- **[Implementation Roadmap](../implementation-roadmap.md)** - Near-term development phases
 
 > **💡 Remember**: The most powerful capabilities in Vrooli aren't the ones we build—they're the ones that **emerge** from intelligent agents reasoning about your specific domain challenges and automatically proposing routine improvements through experience. 
