@@ -52,7 +52,7 @@ Our execution architecture creates **compound intelligence** through three inter
 
 **Key Innovation**: Instead of hard-coding capabilities, **specialized agent swarms** provide security, monitoring, optimization, and quality assurance through intelligent event processing.
 
-> 🔗 **For Implementation**: See **[Concrete Implementation Examples](concrete-examples.md)** to see the three tiers working together in practice.
+> 🔗 **For Implementation**: See **[Concrete Implementation Examples](implementation/concrete-examples.md)** to see the three tiers working together in practice.
 
 ---
 
@@ -109,7 +109,7 @@ Routines naturally evolve through four execution strategies as patterns emerge a
 
 This evolution happens **automatically** through use, driven by [optimization agents](emergent-capabilities/routine-examples/optimization-agents.md) that analyze patterns and propose improvements through collaborative pull requests.
 
-> 📖 **Complete Guide**: See **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** for the full evolution process, implementation details, agent collaboration workflows, and real-world examples.
+> 📖 **Complete Guide**: For technical implementation details, see **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)** which covers the agent architecture, pattern recognition engines, and collaborative review processes. For real-world performance examples, see **[Optimization Agent Routines](emergent-capabilities/routine-examples/optimization-agents.md)**.
 
 ---
 
@@ -207,7 +207,7 @@ Ready to explore the details? Our documentation is organized for progressive lea
 ### 🎯 **Core Architecture**
 - **[Core Technologies](core-technologies.md)** - Foundational concepts and terminology
 - **[Swarm Execution Integration](swarm-execution-integration.md)** - **🆕 How swarm configurations drive the three-tier execution architecture**
-- **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** - Complete guide to how routines evolve from conversational to deterministic
+- **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)** - Technical implementation of how routines evolve through intelligent agent collaboration
 
 ### 🛠️ **Implementation**
 - **[Implementation Guide](implementation/implementation-guide.md)** - Step-by-step implementation with concrete code examples
@@ -319,6 +319,9 @@ Ready to explore the details? Our documentation is organized for progressive lea
 ### **"What exactly is a 'routine' vs a 'workflow' vs a 'step'?"**
 📍 **[Core Technologies](core-technologies.md)** provides clear definitions: **Routines** are reusable, versioned workflows; **Steps** are individual actions within routines; **Workflows** are the execution patterns that routines follow (Native, BPMN, etc.).
 
+### **"How can I understand the architecture through hands-on examples?"**
+📍 **[Quick Start Guide](quick-start-guide.md)** provides a 15-minute hands-on introduction to the three-tier architecture with practical examples showing how coordination, process intelligence, and execution work together.
+
 ### **"How exactly is MOISE+ handled in each tier?"** 
 📍 **[MOISE+ Comprehensive Guide](tiers/tier1-coordination-intelligence/moise-comprehensive-guide.md)** covers implementation across all tiers:
 - **Tier 1**: MOISE+ → Agent prompts for role-based reasoning
@@ -329,7 +332,10 @@ Ready to explore the details? Our documentation is organized for progressive lea
 📍 **[Tool Approval System](systems/tool-approval-system.md)** details the complete workflow from tool requests through user approval/rejection to execution.
 
 ### **"How do routines evolve from conversational to deterministic?"**
-📍 **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** explains how optimization agents analyze usage patterns and propose improved routine versions through collaborative pull requests.
+📍 **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)** explains how optimization agents analyze usage patterns and propose improved routine versions through collaborative pull requests.
+
+### **"Can I see concrete examples of strategy evolution in action?"**
+📍 **[Optimization Agent Routines](emergent-capabilities/routine-examples/optimization-agents.md)** provides real-world examples with performance metrics showing how routines evolve from 450 credits and 5+ minutes to 75 credits and 45 seconds while improving quality. For the technical implementation details, see **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)**.
 
 ### **"What are the different Navigator types and how do they work?"**
 📍 **[Navigator System](tiers/tier2-process-intelligence/navigators.md)** explains how Native Vrooli, BPMN, and other workflow formats are executed through universal navigation interfaces.
@@ -380,7 +386,15 @@ The question isn't whether AI will become more capable. The question is whether 
 
 ---
 
-> 💡 **Ready to dive deeper?** Start with [Concrete Implementation Examples](implementation/concrete-examples.md) to see the architecture in action, then explore [Core Technologies](core-technologies.md) to understand the foundational concepts, follow the [Implementation Guide](implementation/implementation-guide.md) to build your first tier, or explore [Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md) to see how AI agents coordinate through metacognition.
+> 💡 **Ready to dive deeper?** 
+> 
+> **🚀 New to the Architecture?** Start with **[Quick Start Guide](quick-start-guide.md)** for a 15-minute hands-on introduction to all three tiers.
+> 
+> **📈 Want to See Evolution in Action?** Check out **[Optimization Agent Routines](emergent-capabilities/routine-examples/optimization-agents.md)** to see real performance improvements and the agents that drive them.
+> 
+> **🛠️ Ready to Build?** Follow the **[Implementation Guide](implementation/implementation-guide.md)** for step-by-step instructions, or explore **[Concrete Implementation Examples](implementation/concrete-examples.md)** to see the architecture in action.
+> 
+> **🧠 Deep Dive into Intelligence?** Explore **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md)** to see how AI agents coordinate through metacognition, or understand the foundational concepts in **[Core Technologies](core-technologies.md)**.
 
 ---
 

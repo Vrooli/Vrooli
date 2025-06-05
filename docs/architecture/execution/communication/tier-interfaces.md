@@ -199,7 +199,7 @@ interface InterTierEvents {
 ## State Synchronization Interface
 
 **Primary Communication Pattern**: [State Synchronization](communication-patterns.md#4-state-synchronization-all-tiers).
-- **Mechanism**: Primarily through the management and propagation of `RunContext` and cached configurations. Details in [State Synchronization](../context-memory/state-synchronization.md).
+- **Mechanism**: Primarily through the management and propagation of `RunContext` and cached configurations. Details in [State Synchronization](../context-memory/README.md).
 - **Data**: `RunContext`, `ContextVariable`, `CacheInvalidationEvent` (via Event Bus).
 - **Purpose**: Ensuring consistent view of state where necessary, optimizing performance through caching, and managing context inheritance.
 
@@ -280,7 +280,7 @@ Validation of these interface contracts in action is covered by the [Integration
 - **Authoritative Documents for Cross-Cutting Concerns**:
     - [Security Boundaries](../security/security-boundaries.md)
     - [Error Propagation and Recovery Framework](../resilience/error-propagation.md)
-    - [State Synchronization](../context-memory/state-synchronization.md)
+    - [State Synchronization](../context-memory/README.md)
     - [Resource Coordination](../resource-management/resource-coordination.md)
 - **[Integration Map and Validation Document](integration-map.md)**: For testing and validating inter-tier communication.
 

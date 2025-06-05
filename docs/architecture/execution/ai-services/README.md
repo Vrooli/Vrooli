@@ -232,7 +232,7 @@ This architecture ensures that Vrooli can reliably access AI capabilities across
 
 - **[Main Execution Architecture](../README.md)** - Complete three-tier execution architecture overview
 - **[Communication Patterns](../communication/communication-patterns.md)** - AI service integration with communication patterns
-- **[Error Handling](../resilience/error-propagation.md)** - AI service error handling and recovery
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - AI service performance optimization
-- **[Resource Management](../resource-management/resource-coordination.md)** - AI service resource allocation
-- **[Security Boundaries](../security/security-boundaries.md)** - AI service security and access control
+- **[Error Scenarios & Patterns](../resilience/error-scenarios-guide.md)** - AI service error handling and recovery
+- **[Performance Characteristics Reference](../_PERFORMANCE_REFERENCE.md)** - AI service performance optimization
+- **[Resource Management](../resource-management/README.md)** - AI service resource allocation
+- **[Security Boundaries](../security/README.md)** - AI service security and access control

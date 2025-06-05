@@ -20,7 +20,7 @@ sequenceDiagram
     participant Agent as Tier 1 Agent
     participant Security as Security System
     participant ToolRunner as CompositeToolRunner
-    participant McpRunner as McpToolRunner
+    participant McpRunner as McpRunner
     participant BuiltInTools as BuiltInTools
     participant T2 as Tier 2 Service
     participant Resources as Resource Manager
@@ -185,7 +185,7 @@ For comprehensive performance characteristics and targets, see **[Tier Communica
    - [ ] Error events properly trigger circuit breakers
 
 3. **Resource Management Integration**
-   - [ ] Resource allocation follows [Resource Allocation Flow](../resource-management/resource-coordination.md#resource-allocation-flow)
+   - [ ] Resource allocation follows [Resource Allocation Flow](../resource-management/README.md#resource-allocation-flow)
    - [ ] Resource conflicts resolved using [Conflict Resolution Algorithm](../resource-management/resource-conflict-resolution.md)
    - [ ] Resource limits enforced at all tier boundaries
    - [ ] Emergency resource protocols activate correctly
@@ -247,172 +247,96 @@ For comprehensive performance characteristics and targets, see **[Tier Communica
 
 **Problem Categories**:
 1. Type Inconsistencies
-2. Performance Degradation  
+2. Performance Degradation
 3. Error Handling Failures
-4. Resource Coordination Issues
-5. Security Boundary Violations
+4. Resource Management Conflicts
+5. Security Validation Errors
 
-### **Type Inconsistency Troubleshooting**
+**Troubleshooting Steps**:
+1. **Validate Type System**: Ensure `tsc --noEmit` passes on all relevant files.
+2. **Check Interface Contracts**: Verify implementations match definitions in `core-types.ts`.
+3. **Review Communication Patterns**: Ensure correct patterns are used.
+4. **Examine Error Logs**: Check for detailed error messages and stack traces.
+5. **Analyze Performance Metrics**: Compare against targets in `_PERFORMANCE_REFERENCE.md`.
+6. **Debug with Integration Tests**: Use end-to-end tests to isolate issues.
 
-**Symptoms**: Compilation errors, runtime type mismatches, interface contract violations
+### **Tier-Specific Troubleshooting**
 
-**Diagnostic Procedure**:
-```bash
-# Check for duplicate type definitions
-find . -name "*.ts" -exec grep -l "interface ExecutionError" {} \;
-# Should only return ../types/core-types.ts
+**Tier 1 Problems**:
+- **Issue**: Goal decomposition fails
+- **Solution**: Check AI model availability, prompt quality, and context relevance.
 
-# Validate import consistency
-grep -r "import.*ExecutionError" . | grep -v "../types/index.js"
-# Should show proper imports from centralized system
+**Tier 2 Problems**:
+- **Issue**: Routine state corruption
+- **Solution**: Validate state transitions, check for race conditions, review persistence logic.
+
+**Tier 3 Problems**:
+- **Issue**: Tool execution failures
+- **Solution**: Verify external API keys, check rate limits, validate tool inputs.
+
+## Authoritative Requirements Checklist
+
+### **Functional Requirements**
+
+- **Communication**: Must use the five defined [Communication Patterns](communication-patterns.md)
+- **Error Handling**: Must implement [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md)
+- **Resource Management**: Must adhere to [Resource Management](../resource-management/README.md)
+- **Security**: Must enforce [Security Boundaries](../security/README.md)
+- **Performance**: Must meet targets in [Performance Reference](../_PERFORMANCE_REFERENCE.md)
+
+### **Implementation Checklist**
+
+**Tier 1: Coordination Intelligence**
+- [ ] Implements `SwarmStateMachine` with goal decomposition
+- [ ] Uses `CompositeToolRunner` for T1→T2 communication
+- [ ] Manages team formation and coordination
+
+**Tier 2: Process Intelligence**
+- [ ] Implements `RunStateMachine` for routine orchestration
+- [ ] Uses direct interface calls for T2→T3 communication
+- [ ] Manages routine state and context
+
+**Tier 3: Execution Intelligence**
+- [ ] Implements `UnifiedExecutor` for step execution
+- [ ] Executes tools based on selected strategy
+- [ ] Enforces resource and security constraints
+
+## Detailed Troubleshooting Framework
+
+### **Troubleshooting Decision Tree**
+
+```mermaid
+graph TD
+    Start[Integration Issue Detected] --> T1{Type Error?}
+    T1 -->|Yes| V1[Validate `core-types.ts`]
+    T1 -->|No| P1{Performance Issue?}
+    P1 -->|Yes| V2[Check `_PERFORMANCE_REFERENCE.md`]
+    P1 -->|No| E1{Error Handling Failure?}
+    E1 -->|Yes| V3[Review `error-scenarios-guide.md`]
+    E1 -->|No| R1{Resource Conflict?}
+    R1 -->|Yes| V4[Check `resource-management/README.md`]
+    R1 -->|No| S1{Security Violation?}
+    S1 -->|Yes| V5[Review `security/README.md`]
+    S1 -->|No| C1[Communication Pattern Issue?]
+    C1 -->|Yes| V6[Check `communication-patterns.md`]
+    C1 -->|No| End[Consult System Architect]
 ```
 
-**Common Fixes**:
-- Remove duplicate interface definitions
-- Update imports to use centralized type system
-- Ensure all interfaces reference [../types/core-types.ts](../types/core-types.ts)
-
-### **Performance Degradation Troubleshooting**
-
-**Symptoms**: Latency exceeding targets, throughput below expectations, timeouts
-
-**Diagnostic Procedure**:
-```typescript
-// Performance diagnostic
-const performanceDiagnostic = {
-    toolRoutingLatency: await measureToolRoutingLatency(),
-    directLatency: await measureDirectLatency(),
-    eventLatency: await measureEventLatency(),
-    bottlenecks: await identifyBottlenecks()
-};
-
-console.log('Performance Analysis:', performanceDiagnostic);
-```
-
-**Performance Targets**:
-See [Tier Communication Protocols Performance Targets](tier-communication-protocols.md#performance-targets) for detailed specifications.
-
-**Common Fixes**:
-- Apply [Pattern-Specific Optimization](communication-patterns.md#performance-optimization-strategies)
-- Optimize caching strategies
-- Adjust resource allocation
-- Enable circuit breakers for failing components
-
-### **Error Handling Troubleshooting**
-
-**Symptoms**: Unhandled errors, improper escalation, recovery failures
-
-**Diagnostic Procedure**:
-```typescript
-// Error handling diagnostic
-const errorDiagnostic = {
-    classification: await validateErrorClassification(),
-    recoveryStrategies: await validateRecoverySelection(), 
-    escalationPaths: await validateEscalationPaths(),
-    emergencyProcedures: await validateEmergencyProcedures()
-};
-```
+### **Cross-Cutting Concern Checklists**
 
 **Error Handling Requirements**:
-- All errors classified using [Error Classification Decision Tree](../resilience/error-classification-severity.md)
-- All recovery strategies selected using [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
-- All error propagation uses [Error Interfaces](../types/core-types.ts)
-
-**Common Fixes**:
-- Implement missing error classification steps
-- Add proper recovery strategy selection
-- Ensure error interfaces properly implemented
-- Validate emergency procedures activation
-
-### **Resource Coordination Troubleshooting**
-
-**Symptoms**: Resource conflicts, allocation failures, budget overruns
-
-**Diagnostic Procedure**:
-```typescript
-// Resource diagnostic
-const resourceDiagnostic = {
-    allocation: await validateResourceAllocation(),
-    conflicts: await identifyResourceConflicts(),
-    usage: await analyzeResourceUsage(),
-    emergencyProcedures: await validateResourceEmergencyProcedures()
-};
-```
+- Errors are classified by severity: `Critical`, `High`, `Medium`, `Low`
+- Recovery strategies are selected: `Immediate`, `Fallback`, `Escalation`
+- Emergency procedures follow [Emergency Scenarios](../resilience/error-scenarios-guide.md#emergency-scenarios)
 
 **Resource Management Requirements**:
-- Resource allocation follows [Resource Allocation Flow](../resource-management/resource-coordination.md#resource-allocation-flow)
+- Resource allocation follows [Resource Allocation Flow](../resource-management/README.md#resource-allocation-flow)
 - Conflicts resolved using [Resource Conflict Resolution](../resource-management/resource-conflict-resolution.md)
-- Emergency procedures use [Resource Emergency Protocols](../resource-management/resource-coordination.md#emergency-protocols)
-
-**Common Fixes**:
-- Apply resource conflict resolution algorithms
-- Implement proper resource limit enforcement
-- Activate resource emergency procedures
-- Optimize resource allocation strategies
-
-### **Security Boundary Troubleshooting**
-
-**Symptoms**: Security violations, unauthorized access, audit failures
-
-**Diagnostic Procedure**:
-```typescript
-// Security diagnostic
-const securityDiagnostic = {
-    contextPropagation: await validateSecurityContextPropagation(),
-    permissionValidation: await validatePermissionEnforcement(),
-    auditTrail: await validateAuditTrail(),
-    violationResponse: await validateViolationResponse()
-};
-```
+- Emergency procedures use [Resource Emergency Protocols](../resource-management/README.md#emergency-protocols)
 
 **Security Requirements**:
-- Security context propagates using [Security Interfaces](../types/core-types.ts)
-- Permission validation follows [Security Context Propagation](../security/security-boundaries.md#security-context-propagation-flow)
-- Audit events generated for all security operations
+- Security context is propagated across all tiers
+- Permissions are validated at each boundary
+- Audit trails are generated for all security-sensitive operations
 
-**Common Fixes**:
-- Implement proper security context propagation
-- Add missing permission validation
-- Ensure audit events properly generated
-- Validate security violation responses
-
-## Implementation Best Practices
-
-### **Development Guidelines**
-
-1. **Always Start with Types**: Use [Centralized Type System](../types/core-types.ts) as foundation
-2. **Apply Decision Trees**: Use systematic algorithms for error classification and recovery
-3. **Validate Early**: Implement validation at every tier boundary
-4. **Monitor Performance**: Continuously validate against performance targets
-5. **Test Integration**: Validate complete flows regularly
-
-### **Quality Assurance Checklist**
-
-- [ ] **Type Consistency**: No duplicate types, all imports use centralized system
-- [ ] **Performance Targets**: All patterns meet latency and throughput targets
-- [ ] **Error Handling**: Complete error classification and recovery implementation
-- [ ] **Resource Management**: Conflict-free resource allocation and emergency procedures
-- [ ] **Security Enforcement**: Proper context propagation and violation response
-- [ ] **Integration Testing**: End-to-end flows work under realistic conditions
-- [ ] **Documentation**: All implementations properly documented and validated
-
-### **Maintenance Procedures**
-
-1. **Regular Validation**: Run complete validation suite weekly
-2. **Performance Monitoring**: Continuous monitoring against performance targets
-3. **Security Audits**: Regular security validation and boundary testing
-4. **Resource Analysis**: Periodic resource allocation and conflict analysis
-5. **Error Analysis**: Regular review of error patterns and recovery effectiveness
-
-## Related Documentation
-
-- **[README.md](README.md)** - Master navigation and implementation reading order
-- **[Communication Patterns](communication-patterns.md)** - Pattern selection and decision framework
-- **[Types System](../types/core-types.ts)** - Single source of truth for all interfaces
-- **[Cross-Cutting Architecture Domains](README.md#phase-3-cross-cutting-architecture)** - Links to specialized architecture domains
-- **[Error Handling](../resilience/error-propagation.md)** - Error handling coordination framework
-- **[Resource Management](../resource-management/resource-coordination.md)** - Resource management coordination
-- **[Security Boundaries](../security/security-boundaries.md)** - Security enforcement framework
-- **[Performance & Monitoring](../monitoring/performance-characteristics.md)** - Performance requirements and optimization
-
-This integration map provides the complete framework for implementing and validating Vrooli's communication architecture systematically, ensuring reliable operation through comprehensive testing and troubleshooting procedures. 
+This integration map provides a complete framework for implementing, validating, and troubleshooting Vrooli's communication architecture, ensuring a robust and reliable system. 

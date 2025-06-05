@@ -111,7 +111,7 @@ Instead of hard-coding capabilities, **specialized agent swarms** provide:
 
 ### **Cross-Cutting Architecture**
 - **[Event-Driven Architecture](event-driven/README.md)** - Event bus and agent coordination
-- **[Strategy Evolution](strategy-evolution-mechanics.md)** - How routines improve over time
+- **[Strategy Evolution](emergent-capabilities/agent-examples/strategy-evolution-agents.md)** - How routines improve over time
 - **[Swarm Integration](swarm-execution-integration.md)** - ChatConfigObject detailed usage
 - **[Error Handling](resilience/error-scenarios-guide.md)** - Comprehensive error scenarios
 - **[Resource Management](resource-management/README.md)** - Unified resource coordination

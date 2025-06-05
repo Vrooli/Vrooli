@@ -8,7 +8,7 @@ This document is the authoritative source for defining the primary communication
 
 ## Pattern Overview
 
-Communication in Vrooli follows five primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
+Communication in Vrooli follows five primary patterns, each optimized for different coordination requirements. Performance characteristics and optimization strategies for these patterns are detailed in [Performance Characteristics Reference](../_PERFORMANCE_REFERENCE.md).
 
 | Pattern                      | Use Case                             |
 |------------------------------|--------------------------------------|
@@ -24,28 +24,28 @@ Communication in Vrooli follows five primary patterns, each optimized for differ
 - **Protocol**: Tool execution via `CompositeToolRunner` → `McpToolRunner` → `BuiltInTools`/`SwarmTools`.
 - **Implementation**: Agent tool calls routed automatically based on tool type (OpenAI vs MCP). Details in [MCP Tool Integration](implementation/mcp-integration.md).
 - **Key Tools**: `run_routine`, `send_message`, `resource_manage`, `spawn_swarm`, `update_swarm_shared_state`.
-- **Error Handling**: Coordinated through the [Error Propagation Framework](../resilience/error-propagation.md).
+- **Error Handling**: Coordinated through the [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md).
 
 ### 2. **Direct Service Interface (Tier 2 → Tier 3)**
 - **Purpose**: High-performance step execution with immediate feedback.
 - **Protocol**: Direct service method calls using [StepExecutionRequest/Result Interfaces](../types/core-types.ts) defined in the centralized type system and outlined in [Tier Interface Contracts](tier-interfaces.md).
-- **Error Handling**: Managed via the [Error Propagation Framework](../resilience/error-propagation.md), with errors typically resulting in immediate responses.
+- **Error Handling**: Managed via the [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md), with errors typically resulting in immediate responses.
 
 ### 3. **Event-Driven Messaging (All Tiers)**
 - **Purpose**: Asynchronous coordination and monitoring.
 - **Protocol**: Distributed event bus with pub-sub messaging using [Event Types](../types/core-types.ts). Detailed in the [Event Bus Protocol](../event-driven/event-bus-protocol.md).
-- **Error Handling**: Handled as per the [Event Bus Protocol](../event-driven/event-bus-protocol.md) and the overall [Error Propagation Framework](../resilience/error-propagation.md).
+- **Error Handling**: Handled as per the [Event Bus Protocol](../event-driven/event-bus-protocol.md) and the overall [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md).
 
 ### 4. **State Synchronization (All Tiers)**
 - **Purpose**: Consistent state management across distributed components.
-- **Protocol**: Multi-tier caching with eventual consistency using [RunContext and Context Management Interfaces](../types/core-types.ts). Detailed in [State Synchronization](../context-memory/state-synchronization.md).
-- **Error Handling**: Coordinated by the [State Synchronization](../context-memory/state-synchronization.md) mechanisms and the [Error Propagation Framework](../resilience/error-propagation.md).
+- **Protocol**: Multi-tier caching with eventual consistency using [RunContext and Context Management Interfaces](../types/core-types.ts). Detailed in [Context & Memory Management](../context-memory/README.md).
+- **Error Handling**: Coordinated by the [Context & Memory Management](../context-memory/README.md) mechanisms and the [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md).
 
 ### 5. **Emergency Control Channel (Tier 1 ↔ Tier 3)**
 - **Purpose**: Direct emergency control and safety enforcement bypassing normal T1→T2→T3 flow.
 - **Protocol**: Direct communication for emergency stop, resource limit enforcement, and safety policy application.
 - **Use Cases**: Resource limit violations, safety violations, emergency stops, system overload conditions.
-- **Error Handling**: Immediate response required; handled via [Emergency Response Framework](../resilience/error-propagation.md#emergency-scenarios).
+- **Error Handling**: Immediate response required; handled via [Emergency Response Framework](../resilience/error-scenarios-guide.md#emergency-scenarios).
 
 #### **Emergency Control Channel Implementation**
 
@@ -144,7 +144,7 @@ flowchart TD
 
 **Decision Support Tools**:
 When making decisions based on this matrix, refer to the authoritative documents for:
-- **Resource Conflicts**: [Resource Conflict Resolution Algorithm](../resource-management/resource-conflict-resolution.md)
+- **Resource Conflicts**: [Resource Management](../resource-management/README.md)
 - **Error Handling & Recovery**: [Error Classification Decision Tree](../resilience/error-classification-severity.md) and [Recovery Strategy Selection](../resilience/recovery-strategy-selection.md)
 - **Integration Validation**: [Integration Map and Validation Procedures](integration-map.md)
 
@@ -227,17 +227,17 @@ sequenceDiagram
 
 ## Error Handling Across Patterns
 
-Error handling for all communication patterns is managed by the [Error Propagation Framework](../resilience/error-propagation.md). This framework includes:
+Error handling for all communication patterns is managed by the [Error Scenarios & Patterns](../resilience/error-scenarios-guide.md). This framework includes:
 - Systematic error classification using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
 - Consistent recovery strategy selection via the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
 - Specific protocols for how errors are handled and propagated within each communication pattern (e.g., MCP error responses, direct interface error objects, event bus dead-lettering, state sync rollbacks).
 - **Emergency response protocols** for critical failures requiring immediate T1↔T3 coordination.
 
-Refer to [Error Propagation Across Communication Patterns](../resilience/error-propagation.md#error-handling-across-communication-patterns) for comprehensive cross-pattern error coordination details.
+Refer to [Error Propagation Across Communication Patterns](../resilience/error-scenarios-guide.md#error-handling-across-communication-patterns) for comprehensive cross-pattern error coordination details.
 
 ## Performance Optimization Strategies
 
-Global and pattern-specific performance optimization strategies, including caching, pooling, batching, and compression, are detailed in [Performance Characteristics](../monitoring/performance-characteristics.md).
+Global and pattern-specific performance optimization strategies, including caching, pooling, batching, and compression, are detailed in [Performance Characteristics Reference](../_PERFORMANCE_REFERENCE.md).
 
 ## Related Documentation
 
@@ -245,14 +245,8 @@ Global and pattern-specific performance optimization strategies, including cachi
 - **[Centralized Type System](../types/core-types.ts)**: All interface and type definitions.
 - **[Tier Interface Contracts](tier-interfaces.md)**: Specific tier-to-tier interface contracts.
 - **Authoritative Documents for Cross-Cutting Concerns**:
-    - **[Error Propagation Framework](../resilience/error-propagation.md)**
-    - **[Performance Characteristics](../monitoring/performance-characteristics.md)**
-    - **[State Synchronization](../context-memory/state-synchronization.md)**
-    - **[Resource Coordination](../resource-management/resource-coordination.md)**
-    - **[Security Boundaries](../security/security-boundaries.md)**
-- **Implementation Details**:
-    - **[MCP Tool Integration](implementation/mcp-integration.md)
-    - **[Event Bus Protocol](../event-driven/event-bus-protocol.md)
-- **Validation**: **[Integration Map and Validation Document](integration-map.md)**
+    - **[Error Scenarios & Patterns](../resilience/error-scenarios-guide.md)**
+    - **[Performance Characteristics Reference](../_PERFORMANCE_REFERENCE.md)**
+    - **[Context & Memory Management](../context-memory/README.md)**
 
 This communication pattern framework ensures that each interaction type uses the most appropriate protocol while maintaining consistency through the centralized type system and providing complete implementation guidance for rebuilding from scratch. 

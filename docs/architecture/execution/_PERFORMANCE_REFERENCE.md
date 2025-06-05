@@ -166,7 +166,7 @@
 
 - **[Performance Characteristics](monitoring/performance-characteristics.md)** - Detailed analysis and bottleneck identification
 - **[Monitoring Architecture](monitoring/README.md)** - Complete observability framework
-- **[Strategy Evolution](strategy-evolution-mechanics.md)** - How performance improves over time
+- **[Strategy Evolution](emergent-capabilities/agent-examples/strategy-evolution-agents.md)** - How performance improves over time
 - **[Resource Management](resource-management/README.md)** - Resource allocation and optimization
 
 ---

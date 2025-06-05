@@ -106,7 +106,7 @@ graph TD
 
 ## Execution Strategy Evolution
 
-> 📍 **Complete Strategy Details**: For comprehensive information about the four execution strategies (Conversational, Reasoning, Deterministic, Routing) and how routines evolve between them, see **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)**.
+> 📍 **Complete Strategy Details**: For comprehensive information about the four execution strategies (Conversational, Reasoning, Deterministic, Routing) and how routines evolve between them, see **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)**.
 
 **Conversational → Reasoning → Deterministic → Routing**
 
@@ -119,7 +119,7 @@ graph TD
 
 The key insight driving this evolution is **top-down decomposition enabled by recursive routine composition**. 
 
-> 📖 **Implementation Details**: For detailed diagrams, implementation examples, and the complete decomposition process, see **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)**.
+> 📖 **Implementation Details**: For detailed diagrams, implementation examples, and the complete decomposition process, see **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)**.
 
 ### **Key Concepts**
 

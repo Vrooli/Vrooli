@@ -39,16 +39,6 @@ The execution architecture documentation follows a **hub-and-spoke model** to mi
 
 **Usage**: Documents reference specific performance metrics from this source
 
-### **[strategy-evolution-mechanics.md](strategy-evolution-mechanics.md)**
-**Purpose**: Comprehensive guide to strategy evolution process
-**Contains**:
-- Complete four-strategy evolution path with detailed explanations
-- Agent collaboration workflows and pull request processes
-- Real-world evolution examples with concrete code
-- Implementation details for routing strategy
-
-**Usage**: Documents reference this for strategy evolution details rather than duplicating explanations
-
 ### **[event-driven/event-catalog.md](event-driven/event-catalog.md)**
 **Purpose**: Authoritative catalog of all events, payloads, and delivery guarantees
 **Contains**:
@@ -58,6 +48,22 @@ The execution architecture documentation follows a **hub-and-spoke model** to mi
 - Delivery guarantee details
 
 **Usage**: Documents link to specific event types rather than duplicating event definitions
+
+### **[core-technologies.md](core-technologies.md)**
+
+**Purpose**: Authoritative definitions of all execution architecture concepts  
+**Authority**: Definitions of routines, workflows, strategies, states, resources  
+**Links TO**: Specialized documents that provide detailed implementations  
+**Cross-References**: Core hub - most other documents link here for definitions  
+
+**Usage**: Always link to this document for concept definitions rather than redefining elsewhere
+
+### **[emergent-capabilities/agent-examples/strategy-evolution-agents.md](emergent-capabilities/agent-examples/strategy-evolution-agents.md)**
+
+**Purpose**: Technical implementation details of strategy evolution agents  
+**Authority**: Agent architecture, pattern recognition engines, collaborative review processes  
+**Links TO**: optimization agent examples, event-driven architecture  
+**Maintenance**: Update when agent collaboration workflows change
 
 ---
 
@@ -69,7 +75,7 @@ The execution architecture documentation follows a **hub-and-spoke model** to mi
 
 This implementation guide shows how to build the three-tier architecture...
 
-> 💡 **Strategy Details**: For complete strategy evolution mechanics, see **[Strategy Evolution](strategy-evolution-mechanics.md)**.
+> 💡 **Strategy Details**: For complete strategy evolution mechanics, see **[Strategy Evolution Agents](emergent-capabilities/agent-examples/strategy-evolution-agents.md)**.
 ```
 
 ### ❌ **Redundant Pattern (Avoid)**

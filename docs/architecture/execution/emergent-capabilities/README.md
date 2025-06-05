@@ -265,6 +265,7 @@ Explore adaptive routines that evolve from conversational to deterministic:
 Discover intelligent agents that provide specialized domain expertise:
 
 - **[Security Agents](agent-examples/security-agents.md)** - Adaptive threat detection and compliance monitoring
+- **[Strategy Evolution Agents](agent-examples/strategy-evolution-agents.md)** - How routines evolve from conversational to deterministic
 
 ### **🔌 [Infrastructure Capabilities](./api-bootstrapping.md)**
 Learn how to create emergent infrastructure integrations:
@@ -413,7 +414,7 @@ sequenceDiagram
 
 ## 📚 Related Documentation
 
-- **[Strategy Evolution Mechanics](../strategy-evolution-mechanics.md)** - How routines evolve from conversational to deterministic
+- **[Strategy Evolution Agents](agent-examples/strategy-evolution-agents.md)** - How routines evolve from conversational to deterministic
 - **[Event-Driven Architecture](../event-driven/README.md)** - The event system that powers emergent intelligence
 - **[Tier 1: Coordination Intelligence](../tiers/tier1-coordination-intelligence/README.md)** - How agent swarms are coordinated
 - **[MOISE+ Organizational Modeling](../tiers/tier1-coordination-intelligence/moise-comprehensive-guide.md)** - Formal frameworks for agent collaboration

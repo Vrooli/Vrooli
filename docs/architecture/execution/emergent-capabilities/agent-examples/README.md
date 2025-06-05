@@ -364,6 +364,6 @@ interface CustomAgentConfig {
 - **[Emergent Capabilities Overview](../README.md)** - Understanding emergent vs. built-in capabilities
 - **[Routine Examples](../routine-examples/README.md)** - How routines evolve and improve
 - **[Event-Driven Architecture](../../event-driven/README.md)** - The event system powering agent intelligence
-- **[Strategy Evolution Mechanics](../../strategy-evolution-mechanics.md)** - How agents propose improvements
+- **[Strategy Evolution Agents](strategy-evolution-agents.md)** - How agents propose improvements
 
 > **💡 Key Insight**: The most powerful agents aren't the ones we pre-program—they're the ones that **learn** from your team's specific patterns and continuously **evolve** to provide exactly the intelligence you need. 

@@ -59,8 +59,8 @@ For comprehensive understanding of the full execution architecture, continue wit
 - **[Context & Memory Management](../context-memory/README.md)** - Context architecture and layer management
 - **[Resource Management](../resource-management/README.md)** - Resource allocation, coordination, and state management
 - **[Security Boundaries](../security/README.md)** - Security model and permissions
-- **[Error Handling & Resilience](../resilience/README.md)** - Error propagation and recovery
-- **[Performance & Monitoring](../monitoring/README.md)** - Performance optimization and observability
+- **[Error Handling & Resilience](../resilience/error-scenarios-guide.md)** - Error propagation and recovery
+- **[Performance & Monitoring](../_PERFORMANCE_REFERENCE.md)** - Performance optimization and observability
 
 ## Communication Architecture Principles
 
@@ -70,8 +70,8 @@ The communication architecture is built upon four primary patterns, detailed in 
 2. **⚖️ Hierarchical Resource Management**: Clear resource ownership and budget inheritance, detailed in [Resource Management](../resource-management/README.md).
 3. **🔄 Event-Driven Intelligence**: Capabilities emerge from specialized agents, not hard-coded logic, as described in [Event-Driven Architecture](../event-driven/README.md).
 4. **🛡️ Security by Design**: Trust boundaries enforced at every tier transition, outlined in [Security Boundaries](../security/README.md).
-5. **📊 Graceful Degradation**: System continues operation through intelligent failure recovery, managed by the [Error Handling Framework](../resilience/README.md).
-6. **🔍 Observable by Default**: Comprehensive monitoring and audit trails, specified in [Performance & Monitoring](../monitoring/README.md).
+5. **📊 Graceful Degradation**: System continues operation through intelligent failure recovery, managed by the [Error Handling Framework](../resilience/error-scenarios-guide.md).
+6. **🔍 Observable by Default**: Comprehensive monitoring and audit trails, specified in [Performance & Monitoring](../_PERFORMANCE_REFERENCE.md).
 
 ## Core Communication Components
 
@@ -99,7 +99,7 @@ The communication architecture is built upon four primary patterns, detailed in 
 
 ### **For Troubleshooting**
 1. **Use Integration Map**: The [Integration Map](integration-map.md) provides the primary troubleshooting framework.
-2. **Apply Decision Trees**: Use systematic algorithms in [Error Handling](../resilience/README.md).
+2. **Apply Decision Trees**: Use systematic algorithms in [Error Handling](../resilience/error-scenarios-guide.md).
 3. **Review Failure Scenarios**: Consult [Failure Scenarios](../resilience/failure-scenarios/README.md) for specific issues.
 
 ## Related Documentation
@@ -110,8 +110,8 @@ The communication architecture is built upon four primary patterns, detailed in 
 - **[Context & Memory Management](../context-memory/README.md)** - Context architecture and layer management
 - **[Resource Management](../resource-management/README.md)** - Resource allocation, coordination, and state management
 - **[Security Boundaries](../security/README.md)** - Security model and permissions
-- **[Resilience & Error Handling](../resilience/README.md)** - Error propagation and recovery
-- **[Performance & Monitoring](../monitoring/README.md)** - Performance optimization
+- **[Resilience & Error Handling](../resilience/error-scenarios-guide.md)** - Error propagation and recovery
+- **[Performance & Monitoring](../_PERFORMANCE_REFERENCE.md)** - Performance optimization
 
 ## 📚 Deep Dive Documentation
 

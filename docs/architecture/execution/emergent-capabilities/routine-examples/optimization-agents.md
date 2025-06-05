@@ -301,3 +301,5 @@ graph TB
 - **Escalation Procedures**: Clear protocols for handling unexpected optimization results
 
 These optimization agent routines create a **self-improving performance ecosystem** that continuously identifies and implements efficiency improvements while maintaining system stability and reliability through intelligent risk management. 
+
+> 📊 **Performance Data**: For detailed technical implementation of the agents that drive these optimizations, see **[Strategy Evolution Agents](../agent-examples/strategy-evolution-agents.md)**. 

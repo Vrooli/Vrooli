@@ -890,7 +890,7 @@ The four-strategy execution model (Conversational → Reasoning → Deterministi
 - **[Tier 2 Architecture](README.md)** - Complete process intelligence overview
 - **[MOISE+ Integration](../tier1-coordination-intelligence/moise-comprehensive-guide.md)** - Organizational modeling and deontic logic
 - **[Event-Driven Architecture](../../event-driven/README.md)** - Event system and coordination patterns
-- **[Strategy Evolution](../../strategy-evolution-mechanics.md)** - How routines evolve across strategies
+- **[Strategy Evolution](../../emergent-capabilities/agent-examples/strategy-evolution-agents.md)** - How routines evolve across strategies
 
 ---
 
