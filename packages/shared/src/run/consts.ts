@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { API_CREDITS_MULTIPLIER } from "../consts/api.js";
 import { DOLLARS_1_CENTS, MB_1_BYTES, MINUTES_1_MS, MINUTES_5_MS, SECONDS_1_MS, SECONDS_5_MS } from "../consts/numbers.js";
 

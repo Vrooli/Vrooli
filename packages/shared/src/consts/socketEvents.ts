@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { type AITaskInfo } from "../ai/types.js";
 import { type ChatMessage, type ChatParticipant, type Notification } from "../api/types.js";
 import { type DeferredDecisionData, type RunTaskInfo } from "../run/types.js";

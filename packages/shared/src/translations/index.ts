@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import award from "./locales/en/award.json" with { type: "json" };
 import common from "./locales/en/common.json" with { type: "json" };
 import error from "./locales/en/error.json" with { type: "json" };

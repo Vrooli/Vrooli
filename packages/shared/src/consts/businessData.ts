@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export const BUSINESS_NAME = "Vrooli";
 export const EMAIL = {
     Label: "info@vrooli.com",

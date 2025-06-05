@@ -1,3 +1,4 @@
+/* c8 ignore start */
 /* eslint-disable no-magic-numbers */
 export const SECONDS_1_MS = 1000;
 export const SECONDS_5_MS = 5 * SECONDS_1_MS;

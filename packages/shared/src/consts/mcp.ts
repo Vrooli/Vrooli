@@ -1,3 +1,4 @@
+/* c8 ignore start */
 export interface MCPTool {
     /** Unique identifier used to look up the tool. */
     id: string;

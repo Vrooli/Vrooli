@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { type TranslationKeyService } from "../types.js";
 
 export enum AIServiceName {

@@ -1,4 +1,4 @@
-
+/* c8 ignore start */
 export type ObjectLimitPremium = {
     noPremium: number,
     premium: number,

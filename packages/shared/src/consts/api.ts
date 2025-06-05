@@ -1,3 +1,4 @@
+/* c8 ignore start */
 /* eslint-disable no-magic-numbers */
 import { type TranslationKeyError } from "../types.js";
 import { type ValueOf } from "./commonTypes.js";

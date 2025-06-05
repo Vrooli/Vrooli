@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { type ValueOf } from "./commonTypes.js";
 
 export const LINKS = {

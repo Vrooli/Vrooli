@@ -699,13 +699,13 @@ describe("FormBuilder", () => {
                         id: "unsupported",
                         label: "Unsupported Field",
                         fieldName: "unsupported",
-                        type: InputType.Checkbox, // Assuming Checkbox is not in InputToYupType
+                        type: InputType.Dropzone, // Dropzone is not in InputToYupType
                         yup: {
                             required: true,
                             checks: [],
                         },
                         props: {
-                            options: [], // Add required options property for CheckboxFormInputProps
+                            defaultValue: [], // Add required defaultValue property for DropzoneFormInputProps
                         },
                     },
                 ],

@@ -1,3 +1,4 @@
+/* c8 ignore start */
 import { type PaymentType } from "../api/types.js";
 
 export type SubscriptionPricesResponse = {
