@@ -1,6 +1,6 @@
 # ⚙️ Single-Step vs Multi-Step Routine Architecture
 
-The RunStateMachine orchestrates two fundamental types of routines, each serving different purposes in the automation ecosystem. This flexible architecture enables both simple atomic operations and complex orchestrated workflows.
+The `RunStateMachine` orchestrates two fundamental types of routines, each serving different purposes in the automation ecosystem. This flexible architecture enables both simple atomic operations and complex orchestrated workflows.
 
 ## 🏗️ Routine Architecture Overview
 
@@ -150,7 +150,7 @@ The architecture's most powerful feature is **unlimited recursive composition**:
 
 ## 🎯 Execution Strategy Selection
 
-The RunStateMachine intelligently selects execution strategies based on routine characteristics:
+The `RunStateMachine` intelligently selects execution strategies based on routine characteristics:
 
 ### For Multi-Step Routines
 - **Navigator selection**: Choose appropriate platform navigator (BPMN, Langchain, etc.)
@@ -168,7 +168,7 @@ This dual approach ensures that **simple operations remain fast** while **comple
 
 ## 🎯 Comprehensive Routine Examples
 
-For detailed examples of multi-step routines across different categories, see our comprehensive **[Routine Examples Collection](./routine-examples/README.md)** which includes:
+For detailed examples of multi-step routines across different categories, see our comprehensive **[Routine Examples Collection](../emergent-capabilities/routine-examples/README.md)** which includes:
 
 - **🧠 Metareasoning**: Self-reflective intelligence for avoiding pitfalls and maintaining alignment
 - **⚡ Productivity & Task Management**: Personal and team productivity optimization workflows

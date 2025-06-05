@@ -259,6 +259,7 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **[Implementation Roadmap](implementation-roadmap.md)** - Detailed phased implementation approach
 - **[Future Expansion Roadmap](future-expansion-roadmap.md)** - Long-term vision and expansion plans
 - **[Success Metrics](success-metrics.md)** - How we measure architectural success
+- **[Strategy Evolution Mechanics](strategy-evolution-mechanics.md)** - Complete guide to how routines evolve from conversational to deterministic
 
 ### ⚙️ **Tier-Specific Intelligence**
 - **[Tier 1: Coordination Intelligence](tiers/tier1-coordination-intelligence/README.md)** - Metacognitive swarm coordination
@@ -267,8 +268,8 @@ Ready to explore the details? Our documentation is organized for progressive lea
 
 ### 🌊 **Event-Driven Intelligence**
 - **[Event-Driven Architecture](event-driven/README.md)** - Complete event system overview
+- **[Event Catalog](event-driven/event-catalog.md)** - Comprehensive catalog of all events, payloads, and delivery guarantees
 - **[Event Bus Protocol](event-driven/event-bus-protocol.md)** - Technical communication specifications
-- **[Event-Driven Intelligence](event-driven/event-driven-intelligence.md)** - Intelligent event processing agents
 
 ### 🧠 **Cross-Cutting Capabilities**
 - **[AI Services](ai-services/README.md)** - Multi-provider model management and optimization
@@ -277,6 +278,7 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **[Resilience Architecture](resilience/README.md)** - Fault tolerance and error handling
 - **[Resource Management](resource-management/README.md)** - Credit tracking and resource coordination
 - **[Monitoring Architecture](monitoring/README.md)** - Performance tracking and observability
+- **[Tool Approval & Scheduling System](tool-approval-system.md)** - User control over AI agent tool execution with approval workflows and scheduling
 
 ### 📊 **System Management**
 - **[Communication Architecture](communication/README.md)** - Inter-tier communication patterns
@@ -309,6 +311,40 @@ Ready to explore the details? Our documentation is organized for progressive lea
 - **Emergent intelligence** - Capabilities that arise from agent collaboration  
 - **Knowledge compounding** - Insights that amplify across the entire system
 - **Sustainable AI** - Optimization that reduces costs while improving performance
+
+---
+
+## ❓ Common Questions & Quick Answers
+
+### **"Where can I find the complete event specifications?"**
+📍 **Answer**: [Event Catalog](event-driven/event-catalog.md) provides comprehensive tables of all events with triggers, payloads, delivery guarantees, and agent subscription patterns.
+
+### **"How exactly is MOISE+ handled in each tier?"** 
+📍 **Answer**: [MOISE+ Comprehensive Guide](tiers/tier1-coordination-intelligence/moise-comprehensive-guide.md) covers implementation across all tiers:
+- **Tier 1**: MOISE+ → Agent prompts for role-based reasoning
+- **Tier 2**: MOISE+ → Workflow constraint enforcement  
+- **Tier 3**: MOISE+ → Action-level permission validation
+
+### **"How does tool approval and scheduling work?"**
+📍 **Answer**: [Tool Approval System](tool-approval-system.md) details the complete workflow from tool requests through user approval/rejection to execution.
+
+### **"How do routines evolve from conversational to deterministic?"**
+📍 **Answer**: [Strategy Evolution Mechanics](strategy-evolution-mechanics.md) explains how optimization agents analyze usage patterns and propose improved routine versions through collaborative pull requests.
+
+### **"What's the minimal vs. agent-based infrastructure approach?"**
+📍 **Answer**: We provide **minimal, reliable infrastructure** (event bus, state machines, execution engine) and enable **specialized swarm agents** to provide advanced capabilities. See the [Emergent Capabilities](emergent-capabilities/README.md) for examples.
+
+### **"How do the three tiers communicate?"**
+📍 **Answer**: 
+- **Event-driven coordination**: [Event-Driven Architecture](event-driven/README.md)
+- **Direct interfaces**: [Communication Patterns](communication/communication-patterns.md)
+- **State sharing**: [Context & Memory Architecture](context-memory/README.md)
+
+### **"What about security, monitoring, and optimization?"**
+📍 **Answer**: These capabilities come from **intelligent agent swarms**, not hard-coded infrastructure:
+- **Security**: Deploy domain-specific security agent swarms that subscribe to relevant events
+- **Monitoring**: Performance tracking agents that analyze patterns and generate insights
+- **Optimization**: [Optimization agents](emergent-capabilities/routine-examples/optimization-agents.md) that continuously improve routines
 
 ---
 

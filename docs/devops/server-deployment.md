@@ -169,16 +169,6 @@ Type: A, Name: api, Content: production_ip, TTL: Auto, Proxy: On
 Type: CNAME, Name: www, Content: @, TTL: Auto, Proxy: On
 ```
 
-#### Worker Configuration Requirements
-
-Your server deployment must accommodate the Cloudflare Worker setup:
-
-```bash
-# Environment variables for Worker integration
-VIRTUAL_HOST=example.com,do-origin.example.com
-LETSENCRYPT_HOST=example.com,do-origin.example.com
-```
-
 #### Alternative: Basic DNS Setup (Without Workers)
 
 If not using Cloudflare Workers for OG metadata, use this simpler configuration:
@@ -398,9 +388,6 @@ LOCATION=remote
 
 # Security
 SECRETS_SOURCE=vault  # or 'file' for simple setup
-VIRTUAL_HOST=example.com
-LETSENCRYPT_HOST=example.com
-LETSENCRYPT_EMAIL=admin@example.com
 
 # Database (auto-generated secure values)
 DB_HOST=postgres
@@ -508,10 +495,6 @@ services:
 
   server:
     image: vrooli/server:prod
-    environment:
-      - VIRTUAL_HOST=example.com
-      - LETSENCRYPT_HOST=example.com
-      - LETSENCRYPT_EMAIL=admin@example.com
     env_file:
       - .env-prod
     depends_on:

@@ -265,19 +265,6 @@ TEST_TIMEOUT=30000
 
 ## Production-Specific Variables
 
-### SSL & Domain Configuration
-
-```bash
-# Domain configuration
-VIRTUAL_HOST=example.com,api.example.com
-LETSENCRYPT_HOST=example.com,api.example.com
-LETSENCRYPT_EMAIL=admin@example.com
-
-# SSL settings
-SSL_POLICY=Mozilla-Modern
-HTTPS_METHOD=redirect
-```
-
 ### Performance & Monitoring
 
 ```bash
@@ -389,11 +376,6 @@ DB_PASSWORD=<from-vault-or-secure-password>
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=<from-vault-or-secure-password>
-
-# SSL & Domain
-VIRTUAL_HOST=example.com,api.example.com
-LETSENCRYPT_HOST=example.com,api.example.com
-LETSENCRYPT_EMAIL=admin@example.com
 
 # External Services (from Vault)
 OPENAI_API_KEY=<from-vault>

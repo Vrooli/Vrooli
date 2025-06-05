@@ -8,7 +8,7 @@
 - [🧭 Navigator System](./navigators.md) - Universal interface and platform support
 - [⚙️ Routine Types](./routine-types.md) - Single-step vs multi-step execution patterns
 - [🎯 Core Responsibilities](./responsibilities.md) - Key capabilities and functions
-- [📚 Routine Examples](./routine-examples/README.md) - Comprehensive collection of multi-step routine examples
+- [📚 Routine Examples](../emergent-capabilities/routine-examples/README.md) - Comprehensive collection of multi-step routine examples
 
 ## 🎯 Overview
 

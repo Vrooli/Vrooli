@@ -1,356 +1,252 @@
 # Event Bus Communication Protocol
 
-This document defines the event-driven messaging protocol for Vrooli's three-tier execution architecture, enabling asynchronous coordination, monitoring, and real-time system intelligence.
+This document defines the **minimal, essential** event-driven messaging protocol for Vrooli's three-tier execution architecture. Following our **agent-first philosophy**, we provide simple, reliable event communication that enables specialized swarm agents to implement advanced capabilities through intelligent routines.
+
+> **🎯 Design Philosophy**: Minimal hard-coded infrastructure + powerful agent-based capabilities. The event bus provides reliable delivery and barrier synchronization. Everything else—security, monitoring, optimization, analytics—comes from specialized swarm agents subscribing to events.
 
 **Prerequisites**: 
-- Read [Communication Patterns](../communication/communication-patterns.md) to understand event-driven messaging in context
-- Review [Types System](../types/core-types.ts) for complete event type definitions
+- Read [Event-Driven Architecture](README.md) to understand the agent-first approach
+- Review [Optimization Agent Examples](../emergent-capabilities/routine-examples/optimization-agents.md) for patterns
+- See [Types System](../types/core-types.ts) for event type definitions
 
-**All event types are defined in the centralized type system** at `../types/core-types.ts`. This document focuses on event protocols, ordering guarantees, and integration patterns.
+## 🌊 Core Event Bus: Simple & Reliable
 
-```typescript
-import type {
-    EventType,
-    EventPriority,
-    EventPayload,
-    SubscriptionFilter,
-    EventSubscription,
-    EventDeliveryGuarantee,
-    BarrierSynchronizationEvent
-} from "../types/index.js";
-```
+### **Essential Event Bus Components**
 
-## Event Communication Protocol
-
-### **Event Classification and Taxonomy**
-
-The event system implements a comprehensive taxonomy for system-wide coordination:
-
-**Event Categories**: All event types use [EventType Enum](../types/core-types.ts) from the centralized type system.
-
-**Event Delivery Models**:
-- **Fire-and-Forget**: [Telemetry and monitoring events](../types/core-types.ts) with at-most-once delivery
-- **Reliable Delivery**: [Business events](../types/core-types.ts) with at-least-once delivery and retry mechanisms
-- **Barrier Synchronization**: [Safety-critical events](../types/core-types.ts) with quorum-based handshakes
-
-### **Event Communication Architecture**
+The event bus provides only the **minimal infrastructure** needed for reliable agent coordination:
 
 ```mermaid
 graph TB
-    subgraph "Event Publishers"
-        T1Events[Tier 1 Publishers<br/>🐝 Swarm state changes<br/>🎯 Goal updates<br/>👥 Team modifications]
-        T2Events[Tier 2 Publishers<br/>🔄 Routine state transitions<br/>📊 Execution progress<br/>⚠️ Run errors]
-        T3Events[Tier 3 Publishers<br/>⚡ Step completions<br/>🔧 Tool executions<br/>📊 Strategy changes]
-        SystemEvents[System Publishers<br/>💾 Infrastructure events<br/>🔐 Security incidents<br/>📊 Performance metrics]
+    subgraph "📊 Core Event Bus (Minimal Infrastructure)"
+        Publisher[Event Publisher<br/>📡 Publish to topics<br/>🔄 Delivery confirmation<br/>⚡ Barrier coordination]
+        Router[Topic Router<br/>🎯 Topic-based routing<br/>📊 Subscription matching<br/>⚡ Load balancing]
+        Subscriber[Event Subscriber<br/>📨 Receive events<br/>🔄 Acknowledge delivery<br/>⚡ Barrier participation]
     end
     
-    subgraph "Event Bus Infrastructure"
-        EventRouter[Event Router<br/>📊 Topic-based routing<br/>🔄 Load balancing<br/>⚡ Priority queuing]
-        EventStore[Event Store<br/>💾 Persistent storage<br/>🔄 Event replay<br/>📊 Audit trail]
-        EventFilter[Event Filter<br/>🎯 Subscription matching<br/>📊 Content filtering<br/>⚡ Performance optimization]
+    subgraph "🤖 Event-Driven Agents (Examples)"
+        SecurityAgents[Security Agent<br/>🔒 Custom threat detection<br/>📊 Domain-specific compliance<br/>🚨 Incident response routines]
+        MonitoringAgents[Monitoring Agent<br/>📊 Performance pattern recognition<br/>📈 Predictive analytics routines<br/>🚨 Alert generation]
+        OptimizationAgents[Optimization Agent<br/>⚡ Cost reduction routines<br/>🔄 Performance enhancement<br/>📊 Resource optimization]
     end
     
-    subgraph "Event Consumers"
-        MonitoringAgents[Monitoring Agents<br/>📊 Performance tracking<br/>📈 Trend analysis<br/>🚨 Alert generation]
-        SecurityAgents[Security Agents<br/>🔒 Threat detection<br/>📝 Audit logging<br/>🚨 Incident response]
-        OptimizationAgents[Optimization Agents<br/>⚡ Performance tuning<br/>🔄 Resource balancing<br/>📊 Predictive scaling]
-        BusinessAgents[Business Agents<br/>📊 Business logic<br/>🔄 Workflow coordination<br/>📈 Analytics processing]
-    end
+    Publisher --> Router
+    Router --> Subscriber
     
-    %% Event flow
-    T1Events --> EventRouter
-    T2Events --> EventRouter
-    T3Events --> EventRouter
-    SystemEvents --> EventRouter
+    Subscriber -.->|"Intelligent processing"| SecurityAgents
+    Subscriber -.->|"Intelligent processing"| MonitoringAgents  
+    Subscriber -.->|"Intelligent processing"| OptimizationAgents
     
-    EventRouter --> EventStore
-    EventRouter --> EventFilter
+    %% Agent feedback loops
+    SecurityAgents -.->|"Security events"| Publisher
+    MonitoringAgents -.->|"Performance events"| Publisher
+    OptimizationAgents -.->|"Optimization events"| Publisher
     
-    EventFilter --> MonitoringAgents
-    EventFilter --> SecurityAgents
-    EventFilter --> OptimizationAgents
-    EventFilter --> BusinessAgents
-    
-    %% Feedback loops
-    MonitoringAgents -.->|Optimization Events| T2Events
-    SecurityAgents -.->|Security Events| SystemEvents
-    OptimizationAgents -.->|Tuning Events| T1Events
-    
-    classDef publishers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     classDef infrastructure fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef consumers fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    classDef agents fill:#e8f5e8,stroke:#2e7d32,stroke-width:3px
     
-    class T1Events,T2Events,T3Events,SystemEvents publishers
-    class EventRouter,EventStore,EventFilter infrastructure
-    class MonitoringAgents,SecurityAgents,OptimizationAgents,BusinessAgents consumers
+    class Publisher,Router,Subscriber infrastructure
+    class SecurityAgents,MonitoringAgents,OptimizationAgents agents
 ```
 
-**Event Infrastructure Integration**: Event bus coordinates with [Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern) and [Resource Allocation](../resource-management/resource-coordination.md#resource-allocation-flow).
+**Key Insight**: The event bus is intentionally simple. All advanced capabilities—analytics, security, optimization, monitoring—are provided by **intelligent agent swarms** that teams deploy and customize for their specific needs.
 
-## Event Ordering and Delivery
+## 📡 Event Communication Essentials
 
-### **Event Ordering Guarantees**
+### **Event Delivery Models**
 
-The event system provides different ordering guarantees based on event classification:
+The event bus supports three essential delivery patterns:
 
-**Ordering Models**: All ordering types use [EventOrderingGuarantee](../types/core-types.ts) from the centralized type system.
+| Delivery Type | Use Case | Guarantee | Example Events |
+|---------------|----------|-----------|----------------|
+| **Fire-and-Forget** | Telemetry, metrics | At-most-once | `routine/step_completed`, `performance/metrics` |
+| **Reliable Delivery** | Business events | At-least-once + retry | `routine/completed`, `swarm/goal_achieved` |
+| **Barrier Sync** | Safety-critical | Quorum-based handshake | `safety/pre_action`, `emergency/stop` |
 
-- **Total Ordering**: Critical system events require global ordering
-- **Partial Ordering**: Domain events require causal ordering within scope
-- **No Ordering**: Telemetry events prioritize throughput over ordering
+### **Barrier Synchronization for Safety**
 
-### **Event Delivery Implementation**
+The **only synchronous** pattern in our event bus—used exclusively for safety-critical coordination:
 
 ```mermaid
 sequenceDiagram
     participant Publisher as Event Publisher
-    participant Router as Event Router
-    participant Store as Event Store
-    participant Filter as Event Filter
-    participant Consumer as Event Consumer
-
-    Note over Publisher,Consumer: Event Delivery with Ordering Guarantees
-
-    %% Event publication
-    Publisher->>Router: publishEvent(event)
-    Note right of Publisher: Interface: [EventPublisher](../types/core-types.ts)
-    
-    Router->>Router: Determine event classification
-    Router->>Router: Apply ordering constraints
-    
-    alt Total Ordering Required
-        Router->>Store: Write with global sequence
-        Store->>Store: Assign global order number
-        Store->>Filter: Forward with ordering constraint
-        Note right of Store: Implementation: [Total Order Protocol](../types/core-types.ts)
-    else Partial Ordering Required  
-        Router->>Store: Write with causal sequence
-        Store->>Store: Assign causal order within scope
-        Store->>Filter: Forward with causal constraint
-        Note right of Store: Implementation: [Partial Order Protocol](../types/core-types.ts)
-    else No Ordering Required
-        Router->>Filter: Direct forward
-        Note right of Router: Implementation: [Fire-and-Forget Protocol](../types/core-types.ts)
-    end
-    
-    %% Event filtering and delivery
-    Filter->>Filter: Apply subscription filters
-    Filter->>Filter: Check delivery guarantees
-    
-    alt Reliable Delivery
-        Filter->>Consumer: Deliver with ack required
-        Consumer->>Filter: Acknowledge receipt
-        Note right of Consumer: Implementation: [Reliable Delivery Protocol](../types/core-types.ts)
-    else Best-Effort Delivery
-        Filter->>Consumer: Deliver without ack
-        Note right of Filter: Implementation: [Best-Effort Protocol](../types/core-types.ts)
-    end
-```
-
-**Delivery Integration**: Event delivery coordinates with [Error Handling](../resilience/error-propagation.md#error-handling-across-patterns) for failed deliveries.
-
-## Barrier Synchronization
-
-### **Safety-Critical Event Coordination**
-
-Barrier synchronization provides synchronous coordination for safety-critical operations:
-
-**Barrier Events**: All barrier types use [BarrierSynchronizationEvent](../types/core-types.ts) from the centralized type system.
-
-**Implementation**: Barrier synchronization integrates with [Emergency Stop Protocols](../resilience/error-propagation.md#emergency-stop-protocols).
-
-### **Barrier Synchronization Protocol**
-
-```mermaid
-sequenceDiagram
-    participant Publisher as Event Publisher  
-    participant Barrier as Barrier Coordinator
+    participant Bus as Event Bus
     participant Agent1 as Safety Agent 1
     participant Agent2 as Safety Agent 2
-    participant Agent3 as Safety Agent 3
 
-    Note over Publisher,Agent3: Barrier Synchronization for Safety Events
+    Note over Publisher,Agent2: Barrier Synchronization (Safety Only)
 
-    %% Barrier initiation
-    Publisher->>Barrier: publishBarrierEvent(safety/pre_action)
-    Note right of Publisher: Interface: [BarrierSynchronizationEvent](../types/core-types.ts)
+    Publisher->>Bus: safety/pre_action (barrier event)
+    Bus->>Bus: Create barrier (timeout=2s, quorum≥1)
     
-    Barrier->>Barrier: Create barrier with timeout=2s
-    Barrier->>Barrier: Set quorum requirement
-    
-    %% Fan-out to safety agents
-    par Safety Agent Notification
-        Barrier->>Agent1: safety/pre_action event
-        Barrier->>Agent2: safety/pre_action event  
-        Barrier->>Agent3: safety/pre_action event
+    par Safety Agent Analysis
+        Bus->>Agent1: safety/pre_action
+        Bus->>Agent2: safety/pre_action
     end
     
-    %% Agent responses
-    par Agent Analysis
-        Agent1->>Agent1: Analyze safety conditions
-        Agent1->>Barrier: safety/response OK
-        
-        Agent2->>Agent2: Analyze safety conditions
-        Agent2->>Barrier: safety/response ALARM
-        Note right of Agent2: Implementation: [Safety Analysis](../types/core-types.ts)
-        
-        Agent3->>Agent3: Analyze safety conditions
-        Agent3->>Barrier: safety/response OK
+    par Agent Responses
+        Agent1->>Bus: response=OK
+        Agent2->>Bus: response=ALARM
     end
     
-    %% Barrier resolution
-    Barrier->>Barrier: Evaluate responses
-    Note right of Barrier: Implementation: [Barrier Resolution Algorithm](../types/core-types.ts)
+    Bus->>Bus: Evaluate responses
     
     alt Any ALARM Response
-        Barrier->>Publisher: BARRIER_FAILED - Emergency stop
-        Note right of Barrier: Response: [Emergency Protocol](../resilience/error-propagation.md#emergency-stop-protocols)
-    else All OK or Timeout with Quorum
-        Barrier->>Publisher: BARRIER_PASSED - Proceed
-    else Timeout without Quorum
-        Barrier->>Publisher: BARRIER_TIMEOUT - Emergency stop
+        Bus->>Publisher: BARRIER_FAILED ⇒ Emergency stop
+    else All OK
+        Bus->>Publisher: BARRIER_PASSED ⇒ Proceed
+    else Timeout
+        Bus->>Publisher: BARRIER_TIMEOUT ⇒ Emergency stop
     end
 ```
 
-**Barrier Integration**: Barrier synchronization coordinates with [Circuit Breaker Protocol](../resilience/circuit-breakers.md#circuit-breaker-protocol-and-integration).
+**Important**: Barrier synchronization is **only** used for safety-critical operations. All other coordination happens asynchronously through agent intelligence.
 
-## Event Subscription and Routing
+## 🤖 Agent-Based Intelligence Patterns
 
-### **Subscription Management**
+### **Security Through Swarm Agents**
 
-Event subscription follows pattern-based filtering for efficient event routing:
-
-**Subscription Types**: All subscription types use [EventSubscription Interface](../types/core-types.ts) from the centralized type system.
-
-**Routing Implementation**: Event routing integrates with [Performance Optimization](../monitoring/performance-characteristics.md#adaptive-performance-management).
-
-### **Event Subscription Flow**
-
-```mermaid
-graph LR
-    subgraph "Subscription Management"
-        SubscriptionRegistry[Subscription Registry<br/>📊 Active subscriptions<br/>🎯 Filter patterns<br/>⚡ Performance optimization]
-        
-        PatternMatcher[Pattern Matcher<br/>🔍 Topic matching<br/>📊 Content filtering<br/>⚡ Efficient routing]
-        
-        DeliveryManager[Delivery Manager<br/>📦 Message delivery<br/>🔄 Retry logic<br/>📊 Performance tracking]
-    end
-    
-    subgraph "Subscription Types"
-        TopicSubscription[Topic Subscription<br/>📊 Wildcard patterns<br/>�� Exact matches<br/>⚡ Efficient filtering]
-        
-        ContentSubscription[Content Subscription<br/>🔍 Payload filtering<br/>📊 Complex queries<br/>🎯 Targeted delivery]
-        
-        CompositeSubscription[Composite Subscription<br/>🔄 Multiple patterns<br/>📊 Boolean logic<br/>⚡ Optimized matching]
-    end
-    
-    subgraph "Delivery Strategies"
-        ImmediateDelivery[Immediate Delivery<br/>⚡ Real-time processing<br/>📊 Low latency<br/>🎯 Critical events]
-        
-        BatchedDelivery[Batched Delivery<br/>📦 Efficiency optimization<br/>📊 High throughput<br/>⚡ Bulk processing]
-        
-        ScheduledDelivery[Scheduled Delivery<br/>⏰ Time-based delivery<br/>📊 Resource optimization<br/>🎯 Planned processing]
-    end
-    
-    %% Subscription flow
-    SubscriptionRegistry --> PatternMatcher
-    PatternMatcher --> DeliveryManager
-    
-    %% Subscription types
-    TopicSubscription --> SubscriptionRegistry
-    ContentSubscription --> SubscriptionRegistry
-    CompositeSubscription --> SubscriptionRegistry
-    
-    %% Delivery strategies
-    DeliveryManager --> ImmediateDelivery
-    DeliveryManager --> BatchedDelivery
-    DeliveryManager --> ScheduledDelivery
-    
-    classDef management fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    classDef subscription fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
-    classDef delivery fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    
-    class SubscriptionRegistry,PatternMatcher,DeliveryManager management
-    class TopicSubscription,ContentSubscription,CompositeSubscription subscription
-    class ImmediateDelivery,BatchedDelivery,ScheduledDelivery delivery
-```
-
-**Subscription Integration**: Subscription management coordinates with [Resource Allocation](../resource-management/resource-coordination.md#resource-allocation-flow) for efficient resource usage.
-
-## Event Storage and Replay
-
-### **Event Persistence and Recovery**
-
-Event storage provides persistence, replay, and audit capabilities:
-
-**Storage Types**: All storage interfaces use [EventStorage Interface](../types/core-types.ts) from the centralized type system.
-
-**Recovery Integration**: Event replay coordinates with [State Synchronization](../context-memory/state-synchronization.md#transaction-and-consistency-protocol) for consistency.
-
-### **Event Storage Architecture**
+Instead of hard-coded security infrastructure, teams deploy specialized security swarms:
 
 ```typescript
-// Event storage using centralized interface
-interface EventStorageManager extends EventStorage {
-    // Event persistence
-    storeEvent(event: EventPayload): Promise<EventStorageResult>;
-    
-    // Event replay
-    replayEvents(filter: EventReplayFilter): AsyncGenerator<EventPayload>;
-    
-    // Event querying
-    queryEvents(query: EventQuery): Promise<EventQueryResult>;
-    
-    // Event archival
-    archiveEvents(archivalPolicy: ArchivalPolicy): Promise<ArchivalResult>;
-}
+// Example: Healthcare compliance swarm
+const hipaaComplianceSwarm = {
+  goal: "Ensure HIPAA compliance for all medical data processing",
+  agents: [
+    {
+      role: "phi_detector",
+      subscriptions: ["ai/medical_generation/*", "data/medical_access/*"],
+      routine: "detect_protected_health_information"
+    },
+    {
+      role: "audit_logger", 
+      subscriptions: ["medical/*"],
+      routine: "create_hipaa_audit_trail"
+    },
+    {
+      role: "violation_responder",
+      subscriptions: ["security/phi_exposure"],
+      routine: "immediate_containment_and_notification"
+    }
+  ]
+};
 ```
 
-**Storage Implementation**: Event storage uses [Event Persistence Types](../types/core-types.ts) for systematic storage management.
+### **Monitoring Through Agent Intelligence**
 
-## Event Handling Error Management
+Performance monitoring emerges from intelligent agent analysis:
 
-Errors that occur during event publishing, routing, subscription processing, or consumer execution are managed by the central [Error Propagation and Recovery Framework](../resilience/error-propagation.md). This includes:
-- Classification of event-related errors (e.g., `COMMUNICATION_FAILURE`, `VALIDATION_FAILED`, specific consumer logic errors) using the [Error Classification Decision Tree](../resilience/error-classification-severity.md).
-- Selection of recovery strategies (e.g., retrying event delivery, moving to a dead-letter queue, triggering circuit breakers, escalating to human intervention) using the [Recovery Strategy Selection Algorithm](../resilience/recovery-strategy-selection.md).
-- Specific protocols for handling NACKs, timeouts, poison pills, and consumer exceptions.
+```typescript
+// Example: Performance optimization swarm
+const performanceOptimizerSwarm = {
+  goal: "Continuously optimize system performance and costs",
+  agents: [
+    {
+      role: "bottleneck_detector",
+      subscriptions: ["routine/completed", "step/performance/*"],
+      routine: "identify_performance_bottlenecks"
+    },
+    {
+      role: "cost_optimizer",
+      subscriptions: ["tool/completed", "ai/model_usage/*"],
+      routine: "reduce_operational_costs"
+    },
+    {
+      role: "pattern_learner",
+      subscriptions: ["**/performance_improved"],
+      routine: "learn_optimization_patterns"
+    }
+  ]
+};
+```
 
-Refer to [Error Propagation and Recovery Framework](../resilience/error-propagation.md) for the comprehensive approach to handling all errors within the event bus system and its consumers.
+### **Quality Assurance Through Agent Swarms**
 
-## Implementation Guidelines
+Quality control happens through specialized analysis agents:
+
+```typescript
+// Example: AI output quality swarm
+const qualityAssuranceSwarm = {
+  goal: "Ensure high-quality AI outputs across all domains",
+  agents: [
+    {
+      role: "bias_detector",
+      subscriptions: ["ai/generation/*"],
+      routine: "detect_and_flag_bias_patterns"
+    },
+    {
+      role: "factual_verifier",
+      subscriptions: ["ai/factual_claims/*"],
+      routine: "verify_facts_against_knowledge_base"
+    },
+    {
+      role: "quality_improver",
+      subscriptions: ["quality/issues_detected"],
+      routine: "suggest_quality_improvements"
+    }
+  ]
+};
+```
+
+## 🔧 Implementation Guidelines
 
 ### **Event Bus Implementation**
 
-When implementing event bus functionality:
+Keep the event bus implementation **minimal and focused**:
 
-1. **Use Centralized Types**: All event operations must use [Event Interfaces](../types/core-types.ts)
-2. **Apply Ordering Guarantees**: Use [Event Ordering Types](../types/core-types.ts) for systematic ordering
-3. **Implement Delivery Guarantees**: Support all [Delivery Models](../types/core-types.ts)
-4. **Handle Barrier Synchronization**: Implement [Barrier Protocol](../types/core-types.ts) for safety-critical events
-5. **Error Integration**: Handle event errors via [Event Error Handling](../types/core-types.ts)
+```typescript
+interface MinimalEventBus {
+  // Essential publishing
+  publish(topic: string, payload: any, options?: PublishOptions): Promise<void>;
+  
+  // Essential subscribing  
+  subscribe(pattern: string, handler: EventHandler): Subscription;
+  
+  // Barrier synchronization (safety only)
+  publishBarrier(event: BarrierEvent): Promise<BarrierResult>;
+  subscribeBarrier(pattern: string, handler: BarrierHandler): Subscription;
+}
 
-### **Event Integration Implementation**
+// Avoid over-engineering
+interface PublishOptions {
+  deliveryGuarantee?: 'fire-and-forget' | 'reliable';
+  // Keep it simple - no complex routing, filtering, etc.
+}
+```
 
-When integrating with event bus:
+### **Agent Integration Patterns**
 
-1. **Event Publishing**: Use [EventPublisher Interface](../types/core-types.ts) for consistent publishing
-2. **Event Subscription**: Apply [EventSubscription Interface](../types/core-types.ts) for systematic subscription
-3. **Event Processing**: Use [EventProcessor Interface](../types/core-types.ts) for standardized processing
-4. **Error Handling**: Integrate with [Error Propagation System](../resilience/error-propagation.md#error-handling-across-patterns)
-5. **Performance Optimization**: Meet [Event Performance Requirements](../monitoring/performance-characteristics.md#performance-requirements-by-communication-pattern)
+Encourage agent-based solutions over infrastructure:
 
-## Related Documentation
+```typescript
+// ✅ Good: Agent-based monitoring
+class PerformanceMonitoringAgent {
+  async initialize() {
+    this.eventBus.subscribe('routine/completed', this.analyzePerformance);
+    this.eventBus.subscribe('step/slow_execution', this.identifyBottlenecks);
+  }
+  
+  async analyzePerformance(event) {
+    // Intelligent analysis, pattern recognition, optimization suggestions
+    const insights = await this.performanceAnalysisRoutine(event);
+    if (insights.optimizationOpportunity) {
+      await this.eventBus.publish('optimization/opportunity_detected', insights);
+    }
+  }
+}
 
-- **[Communication Patterns](../communication/communication-patterns.md)** - Event-driven messaging in communication context
-- **[Types System](../types/core-types.ts)** - Complete event type definitions and interfaces
-- **[Integration Map](../communication/integration-map.md)** - End-to-end event flows and validation
-- **[Error Propagation](../resilience/error-propagation.md)** - Event-driven error handling and emergency protocols
-- **[Resource Coordination](../resource-management/resource-coordination.md)** - Resource management event coordination
-- **[Security Boundaries](../security/security-boundaries.md)** - Security aspects of event handling
-- **[Performance Characteristics](../monitoring/performance-characteristics.md)** - Performance requirements for event processing
-- **[Circuit Breakers](../resilience/circuit-breakers.md)** - Circuit breaker integration with event system
-- **[Integration Map and Validation Document](../communication/integration-map.md)** - End-to-end event flows and validation procedures.
-- **[Error Propagation and Recovery Framework](../resilience/error-propagation.md)** - Authoritative guide for handling all errors, including those originating from the event bus.
-- **[Resource Coordination](../resource-management/resource-coordination.md)** - Resource management for event processing resources.
+// ❌ Avoid: Hard-coded infrastructure
+class ComplexPerformanceInfrastructure {
+  // Hundreds of lines of hard-coded performance monitoring logic
+  // Complex alerting rules, threshold management, etc.
+  // Instead: Let agents handle this through routines
+}
+```
 
-This document provides comprehensive event bus functionality for the communication architecture, ensuring reliable event-driven coordination through the centralized type system and integration with all architectural components. 
+## 📚 Related Documentation
+
+- **[Event-Driven Architecture](README.md)** - Core philosophy and agent-first approach
+- **[Optimization Agent Examples](../emergent-capabilities/routine-examples/optimization-agents.md)** - Patterns for agent-based capabilities
+- **[Event Catalog](event-catalog.md)** - Complete event specifications
+- **[Types System](../types/core-types.ts)** - Event type definitions
+
+> **💡 Remember**: The goal is **minimal infrastructure, maximum intelligence**. Keep the event bus simple and reliable. Let specialized swarm agents provide all the advanced capabilities through intelligent routine composition. 

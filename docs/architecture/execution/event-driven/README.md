@@ -2,49 +2,54 @@
 
 This directory contains comprehensive documentation for Vrooli's event-driven messaging system, coordination protocols, and intelligent event processing across the three-tier execution architecture.
 
-**Quick Start**: New to event-driven architecture? Start with the [Event-Driven Overview](#event-driven-overview) below, then follow the [Implementation Reading Order](#implementation-reading-order).
+**Quick Start**: New to event-driven architecture? Start with the [Event-Driven Overview](#event-driven-overview) below, then explore the [Event Catalog](event-catalog.md) for complete event specifications.
 
 ## Event-Driven Overview
 
 Vrooli's event-driven architecture represents a fundamental shift from hard-coded intelligence to **emergent, customizable capabilities**. Rather than building safety, security, performance monitoring, and optimization directly into the system, these capabilities emerge from **specialized agents and routines** that teams deploy and configure according to their specific needs.
 
+> **🎯 Core Philosophy**: Instead of hard-coding infrastructure capabilities, we provide a minimal event bus that enables **specialized agents** to subscribe to events and implement security, monitoring, optimization, and other capabilities through intelligent routines. See [Routine Examples](../emergent-capabilities/routine-examples/README.md) for examples.
+
 ```mermaid
 graph TB
-    subgraph "Event Bus Infrastructure"
-        EventBus[Distributed Event Bus<br/>🔄 Async messaging<br/>📊 Event sourcing<br/>🔍 Event replay]
+    subgraph "🌊 Minimal Event Bus Core"
+        EventBus[Event Bus<br/>📊 Topic-based routing<br/>🔄 Reliable delivery<br/>⚡ Barrier synchronization]
     end
     
     subgraph "Event Producers"
         T1Events[Tier 1 Events<br/>📋 Goal changes<br/>👥 Team updates<br/>💰 Resource allocation]
         T2Events[Tier 2 Events<br/>🔄 State transitions<br/>🌿 Branch completion<br/>⚠️ Execution errors]
         T3Events[Tier 3 Events<br/>✅ Step completion<br/>📊 Strategy changes<br/>🔧 Tool usage]
-        SystemEvents[System Events<br/>🔐 Security incidents<br/>📊 Performance metrics<br/>⚠️ Error conditions]
     end
     
-    subgraph "Event Consumers (Examples)"
-        MonitoringBots[Monitoring Bots<br/>📊 Performance tracking<br/>🚨 Alert generation<br/>📈 Trend analysis]
-        SecurityBots[Security Bots<br/>🔒 Threat detection<br/>🚨 Incident response<br/>📊 Audit logging]
-        OptimizationBots[Optimization Bots<br/>🔄 Pattern recognition<br/>📋 Routine improvements<br/>🎯 Strategy evolution]
-        QualityBots[Quality Bots<br/>✅ Output validation<br/>🔍 Bias detection<br/>📊 Quality metrics]
+    subgraph "🤖 Agent Subscribers (Examples)"
+        SecuritySwarms[Security Swarms<br/>🔒 Threat detection routines<br/>🚨 Incident response agents<br/>📊 Compliance monitoring bots]
+        MonitoringSwarms[Monitoring Swarms<br/>📊 Performance tracking agents<br/>🚨 Alert generation routines<br/>📈 Analytics bots]
+        OptimizationSwarms[Optimization Swarms<br/>🔄 Pattern recognition agents<br/>📋 Routine improvement bots<br/>🎯 Strategy evolution routines]
+        QualitySwarms[Quality Swarms<br/>✅ Output validation agents<br/>🔍 Bias detection routines<br/>📊 Quality tracking bots]
     end
     
     T1Events --> EventBus
     T2Events --> EventBus
     T3Events --> EventBus
-    SystemEvents --> EventBus
     
-    EventBus --> MonitoringBots
-    EventBus --> SecurityBots
-    EventBus --> OptimizationBots
-    EventBus --> QualityBots
+    EventBus --> SecuritySwarms
+    EventBus --> MonitoringSwarms
+    EventBus --> OptimizationSwarms
+    EventBus --> QualitySwarms
+    
+    %% Self-improvement loops
+    OptimizationSwarms -.->|"Improved routines"| SecuritySwarms
+    QualitySwarms -.->|"Quality insights"| MonitoringSwarms
+    SecuritySwarms -.->|"Security patterns"| OptimizationSwarms
     
     classDef eventBus fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
     classDef producers fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
     classDef consumers fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class EventBus eventBus
-    class T1Events,T2Events,T3Events,SystemEvents producers
-    class MonitoringBots,SecurityBots,OptimizationBots,QualityBots consumers
+    class T1Events,T2Events,T3Events producers
+    class SecuritySwarms,MonitoringSwarms,OptimizationSwarms,QualitySwarms consumers
 ```
 
 ## Implementation Reading Order
@@ -52,24 +57,24 @@ graph TB
 **Prerequisites**: Read [Main Execution Architecture](../README.md) for complete architectural context.
 
 ### **Phase 1: Foundation (Must Read First)**
-1. **[Centralized Type System](../types/core-types.ts)** - Event interface definitions
+1. **[Event Catalog](event-catalog.md)** - Complete event specifications, payloads, and delivery guarantees
 2. **[Event Bus Protocol](event-bus-protocol.md)** - Core event communication protocols
-3. **[Event Classification](event-classification.md)** - Event types and taxonomy
+3. **[Centralized Type System](../types/core-types.ts)** - Event interface definitions
 
-### **Phase 2: Core Event Processing**
-4. **[Event Routing](event-routing.md)** - Event routing and subscription mechanisms
-5. **[Event Ordering](event-ordering.md)** - Event ordering guarantees and delivery
-6. **[Event Storage](event-storage.md)** - Event persistence and replay capabilities
+### **Phase 2: Core Event Processing** 
+4. **Event Routing** - Event routing and subscription mechanisms *(Coming Soon)*
+5. **Event Ordering** - Event ordering guarantees and delivery *(Coming Soon)*
+6. **Event Storage** - Event persistence and replay capabilities *(Coming Soon)*
 
 ### **Phase 3: Intelligent Event Processing**
-7. **[Event-Driven Intelligence](event-driven-intelligence.md)** - Intelligent event consumers and agents
-8. **[Barrier Synchronization](barrier-synchronization.md)** - Safety-critical event coordination
-9. **[Event Analytics](event-analytics.md)** - Event stream analysis and insights
+7. **Event-Driven Intelligence** - Intelligent event consumers and agents *(Coming Soon)*
+8. **Barrier Synchronization** - Safety-critical event coordination *(Coming Soon)*
+9. **Event Analytics** - Event stream analysis and insights *(Coming Soon)*
 
 ### **Phase 4: Advanced Features**
-10. **[Event-Driven Security](event-security.md)** - Security event processing and response
-11. **[Event Monitoring](event-monitoring.md)** - Event system monitoring and observability
-12. **[Event Evolution](event-evolution.md)** - Event schema evolution and versioning
+10. **Event Security** - Security event processing and response *(Coming Soon)*
+11. **Event Monitoring** - Event system monitoring and observability *(Coming Soon)*
+12. **Event Evolution** - Event schema evolution and versioning *(Coming Soon)*
 
 ## The Customizable Intelligence Philosophy
 
