@@ -51,6 +51,12 @@ get_current_ip() {
 
 validate_ip() {
     local ip="$1"
+    
+    # Handle localhost as a special case
+    if [[ "$ip" == "localhost" ]]; then
+        return 0 # Valid localhost
+    fi
+    
     if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         return 0 # Valid IPv4
     elif [[ $ip =~ ^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,7}:|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$ ]]; then
@@ -85,6 +91,12 @@ check_location() {
     validate_ip "$site_ip"
     validate_url "$server_url"
 
+    # Normalize localhost to 127.0.0.1 for comparisons
+    local normalized_site_ip="$site_ip"
+    if [[ "$site_ip" == "localhost" ]]; then
+        normalized_site_ip="127.0.0.1"
+    fi
+
     local domain
 
     domain="$(extract_domain "$server_url")"
@@ -107,7 +119,7 @@ check_location() {
         flow::exit_with_error "Failed to resolve domain $domain" "$ERROR_DOMAIN_RESOLVE"
     fi
 
-    if ! echo "$domain_ips" | grep -q "^$site_ip$"; then
+    if ! echo "$domain_ips" | grep -q "^$normalized_site_ip$"; then
         flow::continue_with_error "SITE_IP does not point to the server associated with $domain. Check DNS settings." "$ERROR_INVALID_SITE_IP"
     fi
 
@@ -120,7 +132,7 @@ check_location() {
     # shellcheck disable=SC2001 # sed is appropriate here for multi-line prepending
     echo "$current_ips" | sed 's/^/  /'
 
-    if echo "$current_ips" | grep -q "^$site_ip$"; then
+    if echo "$current_ips" | grep -q "^$normalized_site_ip$"; then
         echo "remote"
         return 0 # Return success status
     else
