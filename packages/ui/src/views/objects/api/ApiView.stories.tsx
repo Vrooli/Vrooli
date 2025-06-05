@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { type Api, type ApiVersion, CodeLanguage, type Resource, type ResourceList, ResourceUsedFor, type Tag, type User, endpointsApiVersion, generatePK, getObjectUrl } from "@local/shared";
+import { CodeLanguage, ResourceUsedFor, endpointsApiVersion, generatePK, getObjectUrl, type Api, type ApiVersion, type Resource, type ResourceList, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";

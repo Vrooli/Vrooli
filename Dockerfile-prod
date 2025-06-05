@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1.4
+
+ARG PROJECT_DIR=/srv/app
+ENV PROJECT_DIR=${PROJECT_DIR}
+
+### Base stage for production: install only production dependencies and build workspace
+FROM node:18-slim AS base
+ARG PROJECT_DIR
+ENV PROJECT_DIR=${PROJECT_DIR}
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+WORKDIR ${PROJECT_DIR}
+ENV NODE_ENV=production
+
+# Enable Corepack and prepare pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy manifest files and prime cache
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy workspace package.json files for production installs
+COPY packages/server/package.json packages/server/package.json
+COPY packages/jobs/package.json packages/jobs/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/shared/package.json packages/shared/package.json
+
+# Fetch dependencies
+RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store pnpm fetch
+
+# Install dependencies (including devDependencies for build)
+RUN --mount=type=cache,id=pnpm-store,target=/usr/local/share/pnpm-store \
+    pnpm install --frozen-lockfile
+
+# Copy full source and build all packages
+COPY . .
+
+# Generate Prisma client
+RUN pnpm --filter @vrooli/prisma run generate -- --schema=packages/server/src/db/schema.prisma
+
+# Build shared utilities
+RUN pnpm --filter @vrooli/shared run build
+
+# Build UI package
+RUN pnpm --filter @vrooli/ui run build
+
+# Build jobs package
+RUN pnpm --filter @vrooli/jobs run build
+
+# Build server package: shared, compile, and copy static files
+RUN pnpm --filter @vrooli/server run build:shared \
+    && pnpm --filter @vrooli/server run build:compile \
+    && pnpm --filter @vrooli/server run copy
+
+### Production server image
+FROM base AS server
+WORKDIR ${PROJECT_DIR}
+EXPOSE ${PORT_SERVER}
+CMD ["node", "packages/server/dist/index.js"]
+
+### Production jobs image
+FROM base AS jobs
+WORKDIR ${PROJECT_DIR}
+EXPOSE ${PORT_JOBS}
+CMD ["node", "packages/jobs/dist/index.js"]
+
+### Production UI image: serve static build with nginx
+FROM nginx:alpine AS ui
+COPY --from=base ${PROJECT_DIR}/packages/ui/dist /usr/share/nginx/html
+EXPOSE ${PORT_UI} 

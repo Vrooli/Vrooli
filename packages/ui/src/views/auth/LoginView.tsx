@@ -1,5 +1,5 @@
-import { emailLogInFormValidation, type EmailLogInInput, endpointsAuth, LINKS, type Session } from "@local/shared";
 import { Box, Button } from "@mui/material";
+import { LINKS, emailLogInFormValidation, endpointsAuth, type EmailLogInInput, type Session } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,7 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { type LoginViewProps } from "../../views/types.js";
-import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
+import { AuthContainer, AuthFormContainer, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, OrDivider, OuterAuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, oAuthSpanStyle } from "./authStyles.js";
 
 type FormValues = typeof initialValues;
 

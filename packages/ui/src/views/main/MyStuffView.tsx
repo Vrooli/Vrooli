@@ -1,5 +1,5 @@
-import { type ListObject, type ModelType, type SearchType, getObjectUrlBase, validatePK } from "@local/shared";
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
+import { getObjectUrlBase, validatePK, type ListObject, type ModelType, type SearchType } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

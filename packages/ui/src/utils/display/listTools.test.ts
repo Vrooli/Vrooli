@@ -1,4 +1,4 @@
-import { DUMMY_ID } from "@local/shared";
+import { DUMMY_ID } from "@vrooli/shared";
 import { expect } from "chai";
 import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools.js";
 

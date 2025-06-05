@@ -1,29 +1,85 @@
 {
-  "name": "local",
-  "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
-  "author": "Vrooli",
-  "license": "AGPL-3.0-only",
-  "resolutions": {
-    "babel-loader": "8.1.0"
-  },
-  "version": "1.9.11",
-  "devDependencies": {
-    "@types/sinon-chai": "^4.0.0",
-    "eslint-plugin-import": "^2.31.0",
-    "i18n-unused": "^0.17.3",
-    "sinon-chai": "^4.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
-  },
-  "scripts": {
-    "i18n:check": "i18n-unused display-unused"
-  },
-  "dependencies": {
-    "is-hotkey": "^0.2.0",
-    "pino": "^9.6.0"
-  },
-  "packageManager": "pnpm@10.5.2"
+    "name": "vrooli",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "author": "Vrooli",
+    "license": "AGPL-3.0-only",
+    "resolutions": {
+        "babel-loader": "8.1.0"
+    },
+    "version": "1.9.11",
+    "devDependencies": {
+        "@types/sinon-chai": "^4.0.0",
+        "concurrently": "^8.0.1",
+        "eslint-plugin-import": "^2.31.0",
+        "i18n-unused": "^0.17.3",
+        "sinon-chai": "^4.0.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.8.3"
+    },
+    "scripts": {
+        "setup": "bash scripts/main/setup.sh",
+        "develop": "bash scripts/main/develop.sh",
+        "build": "bash scripts/main/build.sh",
+        "deploy": "bash scripts/main/deploy.sh",
+        "lint:js": "eslint . --ext .ts,.tsx",
+        "lint:shell": "shellcheck -x scripts/**/*.sh",
+        "lint": "run-s lint:js lint:shell",
+        "test:shell": "bash scripts/__tests/__runTests.sh",
+        "test:unit": "pnpm -r test",
+        "test:run": "pnpm -r test:run",
+        "test": "run-s test:shell test:unit test:run",
+        "i18n:check": "i18n-unused display-unused"
+    },
+    "packageManager": "pnpm@10.5.2",
+    "build": {
+        "appId": "com.vrooli.app",
+        "productName": "Vrooli",
+        "directories": {
+            "output": "dist/desktop",
+            "buildResources": "platforms/desktop/assets"
+        },
+        "files": [
+            "dist/desktop/main.cjs",
+            "dist/desktop/preload.cjs",
+            "platforms/desktop/src/splash.html",
+            "packages/server/dist",
+            "!packages/server/dist/**/*.map",
+            {
+                "from": "packages/server/package.json",
+                "to": "packages/server/package.json"
+            }
+        ],
+        "asarUnpack": [
+            "**/node_modules/*.node"
+        ],
+        "extraMetadata": {
+            "main": "dist/desktop/main.cjs"
+        },
+        "win": {
+            "target": "nsis",
+            "icon": "icon.ico",
+            "signAndEditExecutable": false
+        },
+        "nsis": {
+            "installerIcon": "icon.ico",
+            "uninstallerIcon": "icon.ico",
+            "uninstallDisplayName": "Vrooli",
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "menuCategory": true
+        },
+        "mac": {
+            "target": "dmg",
+            "icon": "icon.icns"
+        },
+        "linux": {
+            "target": "AppImage",
+            "icon": "icon.png"
+        }
+    }
 }

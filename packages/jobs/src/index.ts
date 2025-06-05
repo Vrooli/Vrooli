@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
-import { initSingletons, initializeRedis, logger } from "@local/server";
-import { MINUTES_30_MS } from "@local/shared";
+import { initSingletons, initializeRedis, logger } from "@vrooli/server";
+import { MINUTES_30_MS } from "@vrooli/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
 import { countBookmarks } from "./schedules/countBookmarks.js";
@@ -322,7 +322,7 @@ export function initializeAllCronJobs() {
     logger.info("🚀 Jobs are scheduled and running.");
 }
 
-if (process.env.npm_package_name === "@local/jobs") {
+if (process.env.npm_package_name === "@vrooli/jobs") {
     await initSingletons();
     initializeAllCronJobs();
 }

@@ -1,4 +1,4 @@
-import { ResourceType } from "@local/shared";
+import { ResourceType } from "@vrooli/shared";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";
 import { yupObj } from "../utils/builders/yupObj.js";

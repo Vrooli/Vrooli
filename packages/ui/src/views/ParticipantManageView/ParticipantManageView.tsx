@@ -1,12 +1,12 @@
-import { type ChatInvite, type ChatInviteShape, ChatInviteStatus, DUMMY_ID, type ListObject, noop, ParticipantManagePageTabOption, type User, validatePublicId } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { ChatInviteStatus, DUMMY_ID, ParticipantManagePageTabOption, noop, validatePublicId, type ChatInvite, type ChatInviteShape, type ListObject, type User } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons.js";
 import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";

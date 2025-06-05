@@ -1,5 +1,5 @@
-import { DbProvider, batch, logger } from "@local/server";
 import type { Prisma } from "@prisma/client";
+import { DbProvider, batch, logger } from "@vrooli/server";
 
 // Define the specific table names that this job processes
 const PROCESSED_BOOKMARK_TABLE_NAMES = [
@@ -15,7 +15,7 @@ const PROCESSED_BOOKMARK_TABLE_NAMES = [
 type ProcessableBookmarkTableName = typeof PROCESSED_BOOKMARK_TABLE_NAMES[number];
 
 // Map table names to their corresponding ModelType.
-// This assumes ModelType from "@local/shared" is a union of capitalized model names
+// This assumes ModelType from "@vrooli/shared" is a union of capitalized model names
 // like "Comment", "Issue", "User", etc.
 const TABLE_NAME_TO_MODEL_TYPE_MAP = {
     "comment": "Comment",

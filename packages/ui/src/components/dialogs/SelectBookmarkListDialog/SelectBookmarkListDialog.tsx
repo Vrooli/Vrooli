@@ -1,8 +1,8 @@
 /**
  * Displays all search options for a team
  */
-import { type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type Count, type DeleteManyInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, DeleteType, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, type Bookmark, type BookmarkCreateInput, type BookmarkFor, type BookmarkList, type BookmarkListCreateInput, type BookmarkSearchInput, type BookmarkSearchResult, type Count, type DeleteManyInput } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

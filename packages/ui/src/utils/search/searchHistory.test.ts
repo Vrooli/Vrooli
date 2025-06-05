@@ -1,4 +1,4 @@
-import { type AutocompleteOption, type Session, type SessionUser, uuid } from "@local/shared";
+import { uuid, type AutocompleteOption, type Session, type SessionUser } from "@vrooli/shared";
 import { expect } from "chai";
 import { SearchHistory } from "./searchHistory.js";
 

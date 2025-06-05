@@ -1,5 +1,5 @@
-import { getObjectUrl } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
+import { getObjectUrl } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

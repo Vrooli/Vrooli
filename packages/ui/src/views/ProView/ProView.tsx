@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, type SubscriptionPricesResponse, YEARS_1_MONTHS } from "@local/shared";
 import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Link, Typography, alpha, styled, useTheme } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, YEARS_1_MONTHS, type SubscriptionPricesResponse } from "@vrooli/shared";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

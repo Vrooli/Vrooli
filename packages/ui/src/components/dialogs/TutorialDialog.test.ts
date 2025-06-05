@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { FormStructureType, LINKS, nanoid } from "@local/shared";
+import { FormStructureType, LINKS, nanoid } from "@vrooli/shared";
 import { expect } from "chai";
-import { type TutorialSection, getCurrentElement, getCurrentStep, getNextPlace, getPrevPlace, getTutorialStepInfo, isValidPlace } from "./TutorialDialog.js";
+import { getCurrentElement, getCurrentStep, getNextPlace, getPrevPlace, getTutorialStepInfo, isValidPlace, type TutorialSection } from "./TutorialDialog.js";
 
 // Mock sections data for testing
 const mockSections: TutorialSection[] = [

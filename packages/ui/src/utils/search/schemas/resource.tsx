@@ -1,4 +1,4 @@
-import { endpointsResource, type FormSchema, InputType, ResourceSortBy, ResourceSubType, type RoutineType } from "@local/shared";
+import { InputType, ResourceSortBy, ResourceSubType, endpointsResource, type FormSchema, type RoutineType } from "@vrooli/shared";
 import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";

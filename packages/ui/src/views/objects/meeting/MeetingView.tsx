@@ -1,4 +1,4 @@
-import { endpointsMeeting, type Meeting } from "@local/shared";
+import { endpointsMeeting, type Meeting } from "@vrooli/shared";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";

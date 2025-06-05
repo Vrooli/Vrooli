@@ -1,5 +1,5 @@
-import { LINKS, type ListObject, type ModelType, getObjectUrlBase } from "@local/shared";
 import { IconButton } from "@mui/material";
+import { LINKS, getObjectUrlBase, type ListObject, type ModelType } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

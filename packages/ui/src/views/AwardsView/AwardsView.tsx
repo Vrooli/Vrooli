@@ -1,5 +1,5 @@
-import { type Award, AwardCategory, type AwardSearchInput, type AwardSearchResult, type TranslationKeyAward, awardNames, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
+import { AwardCategory, awardNames, endpointsAward, type Award, type AwardSearchInput, type AwardSearchResult, type TranslationKeyAward } from "@vrooli/shared";
 import { type TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,7 @@ const categoryList = Object.values(AwardCategory);
 const PERCENTS = 100;
 const ALMOST_THERE_PERCENT = 90;
 
-//TODO store tiers in @local/shared, so we can show tier progress and stuff
+//TODO store tiers in @vrooli/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
 const awardIconInfo = { name: "Award", type: "Common" } as const;

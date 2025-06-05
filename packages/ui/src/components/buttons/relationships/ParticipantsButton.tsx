@@ -1,5 +1,5 @@
-import { type ChatParticipantShape } from "@local/shared";
 import { AvatarGroup, Tooltip } from "@mui/material";
+import { type ChatParticipantShape } from "@vrooli/shared";
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

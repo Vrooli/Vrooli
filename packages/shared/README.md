@@ -36,7 +36,7 @@ pnpm install
 ### Importing
 
 ```typescript
-import { UserType, TaskType, formatDate, validateEmail } from '@local/shared';
+import { UserType, TaskType, formatDate, validateEmail } from '@vrooli/shared';
 ```
 
 ## Development

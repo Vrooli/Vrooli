@@ -1,5 +1,5 @@
-import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Badge, Box, type BoxProps, Button, IconButton, Slide, Typography, styled, useScrollTrigger, useTheme } from "@mui/material";
+import { AppBar, Badge, Box, Button, IconButton, Slide, Typography, styled, useScrollTrigger, useTheme, type BoxProps } from "@mui/material";
+import { BUSINESS_NAME, LINKS } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";

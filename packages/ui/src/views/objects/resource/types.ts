@@ -1,4 +1,4 @@
-import { type Resource, type ResourceShape } from "@local/shared";
+import { type Resource, type ResourceShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps } from "../../../types.js";
 
 type ResourceUpsertPropsPage = CrudPropsPage & {

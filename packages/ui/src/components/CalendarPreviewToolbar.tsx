@@ -1,8 +1,8 @@
-import { type CalendarEvent } from "@local/shared";
 import { Box, IconButton, Tooltip, styled } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { type CalendarEvent } from "@vrooli/shared";
 import React, { useCallback, useRef } from "react";
-import { Navigate, type ToolbarProps, Views } from "react-big-calendar";
+import { Navigate, Views, type ToolbarProps } from "react-big-calendar";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../icons/Icons.js";
 

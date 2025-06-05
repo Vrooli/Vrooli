@@ -1,5 +1,5 @@
-import { noop } from "@local/shared";
-import { Box, SwipeableDrawer, type SwipeableDrawerProps, styled, useTheme } from "@mui/material";
+import { Box, SwipeableDrawer, styled, useTheme, type SwipeableDrawerProps } from "@mui/material";
+import { noop } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Routes } from "../Routes.js";
@@ -8,7 +8,7 @@ import { useIsLeftHanded } from "../hooks/subscriptions.js";
 import { useMenu } from "../hooks/useMenu.js";
 import { useWindowSize } from "../hooks/useWindowSize.js";
 import { useLocation } from "../route/router.js";
-import { type LayoutComponentId, type LayoutPositionId, useLayoutStore } from "../stores/layoutStore.js";
+import { useLayoutStore, type LayoutComponentId, type LayoutPositionId } from "../stores/layoutStore.js";
 import { ViewDisplayType } from "../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";

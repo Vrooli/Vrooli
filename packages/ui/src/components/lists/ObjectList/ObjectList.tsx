@@ -1,5 +1,5 @@
-import { type Bookmark, type ListObject, type ModelType, type OrArray, type Reaction, type View, getObjectUrl, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
+import { getObjectUrl, isOfType, noop, type Bookmark, type ListObject, type ModelType, type OrArray, type Reaction, type View } from "@vrooli/shared";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lazily } from "react-lazily";
 import { type UsePressEvent } from "../../../hooks/gestures.js";

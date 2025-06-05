@@ -1,7 +1,7 @@
-import { DragDropContext, Draggable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult, Droppable } from "@hello-pangea/dnd";
-import { type Count, DUMMY_ID, type DeleteManyInput, DeleteType, LINKS, type ListObject, MyStuffPageTabOption, type Reminder, type ReminderList as ReminderListType, ResourceUsedFor, endpointsActions, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult } from "@hello-pangea/dnd";
 import { Box, IconButton, Tooltip, Typography, styled } from "@mui/material";
-import { type SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { DUMMY_ID, DeleteType, LINKS, MyStuffPageTabOption, ResourceUsedFor, endpointsActions, updateArray, type Count, type DeleteManyInput, type ListObject, type Reminder, type ReminderList as ReminderListType } from "@vrooli/shared";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";

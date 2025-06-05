@@ -1,4 +1,4 @@
-import { type BookmarkList, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type MeetingInvite, type Member, type MemberInvite, type ModelType, type NavigableObject, type Notification, type OrArray, type Reminder, type Report, type ReportResponse, type Resource, type ResourceVersion, type SearchType, type Tag, type Team, type TimeFrame, type TranslationKeyCommon, type User } from "@local/shared";
+import { type BookmarkList, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type MeetingInvite, type Member, type MemberInvite, type ModelType, type NavigableObject, type Notification, type OrArray, type Reminder, type Report, type ReportResponse, type Resource, type ResourceVersion, type SearchType, type Tag, type Team, type TimeFrame, type TranslationKeyCommon, type User } from "@vrooli/shared";
 import { type ReactNode } from "react";
 import { type UsePressEvent } from "../../hooks/gestures.js";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";

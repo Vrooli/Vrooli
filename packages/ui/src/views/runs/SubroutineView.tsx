@@ -1,5 +1,5 @@
-import { FormBuilder, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, RoutineType, type RoutineVersion, RoutineVersionConfig, type Tag, type TagShape, exists, getTranslation, noop, noopSubmit, uuidValidate } from "@local/shared";
 import { Box, Stack } from "@mui/material";
+import { FormBuilder, RoutineType, RoutineVersionConfig, exists, getTranslation, noop, noopSubmit, uuidValidate, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineVersion, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
@@ -15,7 +15,7 @@ import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../utils/display/translationTools.js";
 import { routineSingleStepInitialValues } from "../objects/routine/RoutineSingleStepUpsert.js";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, type RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../objects/routine/RoutineTypeForms.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm, type RoutineFormPropsBase } from "../objects/routine/RoutineTypeForms.js";
 import { type SubroutineViewProps } from "./types.js";
 
 const EMPTY_OBJECT = {};

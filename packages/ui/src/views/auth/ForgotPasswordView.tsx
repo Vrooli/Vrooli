@@ -1,5 +1,5 @@
-import { type EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointsAuth, LINKS, type Success } from "@local/shared";
 import { Box, Button, InputAdornment } from "@mui/material";
+import { LINKS, emailRequestPasswordChangeSchema, endpointsAuth, type EmailRequestPasswordChangeInput, type Success } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

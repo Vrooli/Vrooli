@@ -1,4 +1,4 @@
-import { type Reminder, type ReminderShape } from "@local/shared";
+import { type Reminder, type ReminderShape } from "@vrooli/shared";
 import { type CrudProps, type FormProps } from "../../../types.js";
 
 export type ReminderCrudProps = CrudProps<Reminder>

@@ -1,5 +1,5 @@
-import { type Email, endpointsAuth, endpointsUser, type Phone, profileEmailUpdateFormValidation, type ProfileEmailUpdateInput, type Session, type User } from "@local/shared";
 import { Box, Button, useTheme } from "@mui/material";
+import { endpointsAuth, endpointsUser, profileEmailUpdateFormValidation, type Email, type Phone, type ProfileEmailUpdateInput, type Session, type User } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,9 +10,9 @@ import { BottomActionsButtons } from "../../components/buttons/BottomActionsButt
 import { DeleteAccountDialog } from "../../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
+import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PhoneList } from "../../components/lists/devices/PhoneList.js";
-import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SettingsContent } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
@@ -22,7 +22,7 @@ import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { FormSection, ScrollBox } from "../../styles.js";
-import { guestSession, SessionService } from "../../utils/authentication/session.js";
+import { SessionService, guestSession } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { type SettingsAuthenticationFormProps, type SettingsAuthenticationFormValues, type SettingsAuthenticationViewProps } from "./types.js";
 

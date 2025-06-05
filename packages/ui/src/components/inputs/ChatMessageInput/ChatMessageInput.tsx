@@ -1,5 +1,5 @@
-import { type AITaskInfo, type ChatMessageShape, type ChatParticipantShape, type ListObject, LlmTask, getTranslation } from "@local/shared";
-import { Box, Chip, type ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Chip, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme, type ChipProps } from "@mui/material";
+import { LlmTask, getTranslation, type AITaskInfo, type ChatMessageShape, type ChatParticipantShape, type ListObject } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";

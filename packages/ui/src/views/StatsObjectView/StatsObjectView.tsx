@@ -1,5 +1,5 @@
-import { type ListObject } from "@local/shared";
 import { Box } from "@mui/material";
+import { type ListObject } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import { MaybeLargeDialog } from "../../components/dialogs/LargeDialog/LargeDialog.js";
 import { TopBar } from "../../components/navigation/TopBar.js";

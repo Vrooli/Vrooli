@@ -1,6 +1,6 @@
-import { endpointsSchedule, type Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { type MouseEvent, useCallback, useMemo, useState } from "react";
+import { endpointsSchedule, type Schedule } from "@vrooli/shared";
+import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { TopBar } from "../../../components/navigation/TopBar.js";

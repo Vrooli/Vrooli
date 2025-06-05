@@ -1,5 +1,5 @@
-import { MINUTES_1_MS } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
+import { MINUTES_1_MS } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";

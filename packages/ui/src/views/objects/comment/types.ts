@@ -1,4 +1,4 @@
-import { type Comment, type CommentFor, type CommentShape } from "@local/shared";
+import { type Comment, type CommentFor, type CommentShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPartial, type FormProps } from "../../../types.js";
 
 type CommentUpsertPropsBase = {

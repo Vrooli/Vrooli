@@ -1,6 +1,6 @@
-import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@local/server";
-import { PaymentStatus, PaymentType, WEEKS_1_MS, nanoid } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@vrooli/server";
+import { PaymentStatus, PaymentType, WEEKS_1_MS, nanoid } from "@vrooli/shared";
 
 // Select shape for pending payments
 const paymentSelect = {

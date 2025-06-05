@@ -1,4 +1,4 @@
-import { type Notification, type NotificationSearchInput, type NotificationSearchResult, endpointsNotification } from "@local/shared";
+import { endpointsNotification, type Notification, type NotificationSearchInput, type NotificationSearchResult } from "@vrooli/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";

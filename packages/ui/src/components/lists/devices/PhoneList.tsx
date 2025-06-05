@@ -1,5 +1,5 @@
-import { DUMMY_ID, type DeleteOneInput, DeleteType, type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { DUMMY_ID, DeleteType, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid, type DeleteOneInput, type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput } from "@vrooli/shared";
 import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

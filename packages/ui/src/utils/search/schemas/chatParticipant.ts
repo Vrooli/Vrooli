@@ -1,4 +1,4 @@
-import { ChatParticipantSortBy, type FormSchema, endpointsChatParticipant } from "@local/shared";
+import { ChatParticipantSortBy, endpointsChatParticipant, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

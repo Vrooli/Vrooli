@@ -1,5 +1,5 @@
-import { DUMMY_ID, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, ResourceUsedFor, type Session, type TranslationKeyCommon, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
+import { DUMMY_ID, ResourceUsedFor, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, type Session, type TranslationKeyCommon } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

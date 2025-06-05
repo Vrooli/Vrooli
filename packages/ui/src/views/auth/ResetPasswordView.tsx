@@ -1,5 +1,5 @@
-import { type EmailResetPasswordInput, LINKS, type Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, validatePublicId } from "@local/shared";
 import { Box, Button } from "@mui/material";
+import { LINKS, UrlTools, emailResetPasswordFormSchema, endpointsAuth, validatePublicId, type EmailResetPasswordInput, type Session } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

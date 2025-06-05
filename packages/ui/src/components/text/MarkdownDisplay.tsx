@@ -1,10 +1,10 @@
 /* eslint-disable import/extensions */
 
-import { type ListObject, nanoid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { nanoid, type ListObject } from "@vrooli/shared";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePress, type UsePressEvent } from "../../hooks/gestures.js";
 import { uiPathToApi, useLazyFetch } from "../../hooks/useFetch.js";

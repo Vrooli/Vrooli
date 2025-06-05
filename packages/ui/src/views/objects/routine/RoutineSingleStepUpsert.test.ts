@@ -1,7 +1,7 @@
-import { DUMMY_ID, type FormSchema, InputType, type RoutineVersionInputShape, type RoutineVersionOutputShape } from "@local/shared";
+import { DUMMY_ID, InputType, type FormSchema, type RoutineVersionInputShape, type RoutineVersionOutputShape } from "@vrooli/shared";
 import { expect } from "chai";
 import { type FieldHelperProps } from "formik";
-import { type UpdateSchemaElementsProps, updateSchemaElements } from "./RoutineSingleStepUpsert.js";
+import { updateSchemaElements, type UpdateSchemaElementsProps } from "./RoutineSingleStepUpsert.js";
 
 // Mock data
 const mockInputs: RoutineVersionInputShape[] = [

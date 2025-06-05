@@ -1,5 +1,5 @@
-import { type FormHeaderType, FormStructureType, type HeaderTag } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, type Palette, Popover, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Popover, TextField, Tooltip, Typography, useTheme, type Palette } from "@mui/material";
+import { FormStructureType, type FormHeaderType, type HeaderTag } from "@vrooli/shared";
 import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";

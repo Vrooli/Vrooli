@@ -1,4 +1,4 @@
-import { type FormSchema } from "@local/shared";
+import { type FormSchema } from "@vrooli/shared";
 
 export type SearchParams = {
     /** Schema to display advanced search dialog */

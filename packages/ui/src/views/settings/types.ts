@@ -1,4 +1,4 @@
-import { type LINKS, type NotificationSettingsUpdateInput, type ProfileUpdateInput, type TranslationKeyCommon } from "@local/shared";
+import { type LINKS, type NotificationSettingsUpdateInput, type ProfileUpdateInput, type TranslationKeyCommon } from "@vrooli/shared";
 import { type FormikProps } from "formik";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type ViewDisplayType, type ViewProps } from "../../types.js";

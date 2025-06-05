@@ -1,7 +1,7 @@
 // Import necessary MUI components
 import { alpha, Avatar, Box, ListItem, ListItemAvatar, ListItemButton, ListItemText, Skeleton, Stack, Typography, useTheme } from "@mui/material";
 // Keep ListItemChip for category display
-// import { NotificationCategory } from "@local/shared"; // Import category type
+// import { NotificationCategory } from "@vrooli/shared"; // Import category type
 import { useCallback, useMemo } from "react"; // Import useCallback and useMemo
 import { Icon, type IconInfo } from "../../../icons/Icons.js"; // Import Icon and IconInfo
 import { useLocation } from "../../../route/router.js"; // Import useLocation for navigation

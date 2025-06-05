@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
-import { generatePK, type Reminder, type ReminderList as ReminderListType } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
+import { generatePK, type Reminder, type ReminderList as ReminderListType } from "@vrooli/shared";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";

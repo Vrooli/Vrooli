@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { noop } from "@local/shared";
+import { noop } from "@vrooli/shared";
 import { expect } from "chai";
 import sinon from "sinon";
 import { LocalStorageLruCache, cookies, getCookie, getLocalStorageKeys, getOrSetCookie, getStorageItem, ifAllowed, setCookie } from "./localStorage.js";

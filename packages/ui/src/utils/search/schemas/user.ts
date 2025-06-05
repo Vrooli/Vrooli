@@ -1,4 +1,4 @@
-import { endpointsUser, type FormSchema, InputType, UserSortBy } from "@local/shared";
+import { InputType, UserSortBy, endpointsUser, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common.js";
 

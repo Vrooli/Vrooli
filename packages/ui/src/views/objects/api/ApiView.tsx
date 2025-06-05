@@ -1,5 +1,4 @@
 import $RefParser from "@apidevtools/json-schema-ref-parser";
-import { BookmarkFor, CodeLanguage, type ResourceList as ResourceListType, type ResourceVersion, type Tag, getTranslation } from "@local/shared";
 import {
     Avatar,
     Box,
@@ -17,8 +16,9 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import { BookmarkFor, CodeLanguage, getTranslation, type ResourceList as ResourceListType, type ResourceVersion, type Tag } from "@vrooli/shared";
 import yaml from "js-yaml";
-import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";

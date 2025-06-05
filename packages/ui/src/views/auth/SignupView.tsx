@@ -1,5 +1,5 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, type EmailSignUpInput, endpointsAuth, LINKS, type Session } from "@local/shared";
-import { alpha, Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, Link, styled, Typography, useTheme } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, Link, Typography, alpha, styled, useTheme } from "@mui/material";
+import { BUSINESS_NAME, LINKS, emailSignUpFormValidation, endpointsAuth, type EmailSignUpInput, type Session } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,7 @@ import { removeCookie } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { setupPush } from "../../utils/push.js";
 import { type SignupViewProps } from "../../views/types.js";
-import { AuthContainer, AuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, FormSection, nameStartAdornment, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, oAuthSpanStyle, OrDivider, OuterAuthFormContainer } from "./authStyles.js";
+import { AuthContainer, AuthFormContainer, FormSection, OAUTH_PROVIDERS_INFO, OAuthButton, OAuthContainer, OAuthSection, OrDivider, OuterAuthFormContainer, baseFormStyle, breadcrumbsStyle, emailStartAdornment, nameStartAdornment, oAuthSpanStyle } from "./authStyles.js";
 
 type FormInput = EmailSignUpInput & {
     agreeToTerms: boolean;

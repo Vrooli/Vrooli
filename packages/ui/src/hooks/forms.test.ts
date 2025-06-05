@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LINKS, ModelType } from "@local/shared";
+import { LINKS, ModelType } from "@vrooli/shared";
 import { expect } from "chai";
 import { asMockObject, goBack } from "./forms.js";
 

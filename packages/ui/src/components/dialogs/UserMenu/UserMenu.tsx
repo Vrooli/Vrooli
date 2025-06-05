@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER, type ActionOption, HistoryPageTabOption, LINKS, type PreActionOption, type ProfileUpdateInput, type Session, type SessionUser, type SwitchCurrentAccountInput, type User, endpointsAuth, endpointsUser, profileValidation, shapeProfile } from "@local/shared";
-import { Box, Collapse, Divider, Link, List, ListItemButton, ListItemIcon, ListItemText, type Palette, Stack, Typography, styled, useTheme } from "@mui/material";
+import { Box, Collapse, Divider, Link, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography, styled, useTheme, type Palette } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, HistoryPageTabOption, LINKS, endpointsAuth, endpointsUser, profileValidation, shapeProfile, type ActionOption, type PreActionOption, type ProfileUpdateInput, type Session, type SessionUser, type SwitchCurrentAccountInput, type User } from "@vrooli/shared";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
-import { type MenuPayloads, PubSub } from "../../../utils/pubsub.js";
+import { PubSub, type MenuPayloads } from "../../../utils/pubsub.js";
 import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
 import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
 import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";

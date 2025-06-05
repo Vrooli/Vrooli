@@ -1,6 +1,6 @@
-import { DragDropContext, Draggable, type DropResult, Droppable } from "@hello-pangea/dnd";
-import { type CheckboxFormInput, type CheckboxFormInputProps, getFormikFieldName, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { getFormikFieldName, updateArray, type CheckboxFormInput, type CheckboxFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -94,7 +94,7 @@ export default defineConfig((props) => {
         resolve: {
             alias: [
                 // Imports from the shared folder
-                { find: "@local/shared", replacement: path.resolve(__dirname, "../shared/src") },
+                { find: "@vrooli/shared", replacement: path.resolve(__dirname, "../shared/src") },
             ],
             extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
         },

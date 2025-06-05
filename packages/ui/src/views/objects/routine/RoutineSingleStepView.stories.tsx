@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, type RoutineVersion, type Run, RunStatus, type Tag, type User, endpointsRoutineVersion, endpointsRunRoutine, generatePK, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, InputType, ResourceUsedFor, RoutineType, RunStatus, endpointsRoutineVersion, endpointsRunRoutine, generatePK, getObjectUrl, type RoutineVersion, type Run, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { RoutineSingleStepView } from "./RoutineSingleStepView.js";

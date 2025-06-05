@@ -1,4 +1,4 @@
-import { endpointsRun, type FormSchema, InputType, RunSortBy, RunStatus } from "@local/shared";
+import { InputType, RunSortBy, RunStatus, endpointsRun, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

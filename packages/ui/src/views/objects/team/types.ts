@@ -1,4 +1,4 @@
-import { type Team, type TeamShape } from "@local/shared";
+import { type Team, type TeamShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type TeamUpsertPropsPage = CrudPropsPage;

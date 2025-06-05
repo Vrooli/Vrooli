@@ -1,11 +1,11 @@
-import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
+import { LINKS } from "@vrooli/shared";
 import { lazily } from "react-lazily";
 import { Page } from "./components/Page/Page.js";
 import { ScrollToTop } from "./components/ScrollToTop.js";
 import { FullPageSpinner } from "./components/Spinners.js";
 import { type NavbarProps } from "./components/navigation/types.js";
-import { Route, type RouteProps, Switch } from "./route/router.js";
+import { Route, Switch, type RouteProps } from "./route/router.js";
 import { useLayoutStore } from "./stores/layoutStore.js";
 import { type PageProps, type ViewDisplayType } from "./types.js";
 import { BotUpsert } from "./views/objects/bot/BotUpsert.js";

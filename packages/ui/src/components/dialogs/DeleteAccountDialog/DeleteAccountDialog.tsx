@@ -1,5 +1,5 @@
-import { type DeleteAccountInput, endpointsActions, LINKS, type Session, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { LINKS, endpointsActions, userDeleteOneSchema as validationSchema, type DeleteAccountInput, type Session } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

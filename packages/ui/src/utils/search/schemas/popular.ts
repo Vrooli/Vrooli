@@ -1,4 +1,4 @@
-import { endpointsFeed, type FormSchema, PopularSortBy } from "@local/shared";
+import { PopularSortBy, endpointsFeed, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

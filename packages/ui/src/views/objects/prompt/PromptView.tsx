@@ -1,4 +1,3 @@
-import { BookmarkFor, CommentFor, type ResourceList as ResourceListType, type StandardShape, type StandardVersion, type Tag, endpointsStandardVersion, getTranslation } from "@local/shared";
 import {
     Box,
     Button,
@@ -12,8 +11,9 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
+import { BookmarkFor, CommentFor, endpointsStandardVersion, getTranslation, type ResourceList as ResourceListType, type StandardShape, type StandardVersion, type Tag } from "@vrooli/shared";
 import { Formik } from "formik";
-import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";

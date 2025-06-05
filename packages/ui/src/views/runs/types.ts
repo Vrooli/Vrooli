@@ -1,4 +1,4 @@
-import { type DeferredDecisionData, type ResolvedDecisionDataChooseMultiple, type ResolvedDecisionDataChooseOne, type RoutineVersion } from "@local/shared";
+import { type DeferredDecisionData, type ResolvedDecisionDataChooseMultiple, type ResolvedDecisionDataChooseOne, type RoutineVersion } from "@vrooli/shared";
 import { type FormikProps } from "formik";
 import { type RefObject } from "react";
 import { type ViewProps } from "../../types.js";

@@ -1,6 +1,6 @@
-import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@local/server";
-import { nanoid } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@vrooli/server";
+import { nanoid } from "@vrooli/shared";
 
 const commonSelect = {
     id: true,

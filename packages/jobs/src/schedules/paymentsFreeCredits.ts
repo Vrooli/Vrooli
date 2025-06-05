@@ -1,6 +1,6 @@
-import { batch, BusService, logger, Notify, SocketService, type BillingEvent } from "@local/server";
-import { API_CREDITS_PREMIUM } from "@local/shared";
 import { CreditEntryType, CreditSourceSystem, type Prisma } from "@prisma/client";
+import { batch, BusService, logger, Notify, SocketService, type BillingEvent } from "@vrooli/server";
+import { API_CREDITS_PREMIUM } from "@vrooli/shared";
 
 const MAX_MONTHS_ACCRUED = 6;
 /**

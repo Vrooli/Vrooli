@@ -1,4 +1,4 @@
-import { type HttpMethod, type ServerResponse, type TranslationKeyCommon, type TranslationKeyError, exists } from "@local/shared";
+import { exists, type HttpMethod, type ServerResponse, type TranslationKeyCommon, type TranslationKeyError } from "@vrooli/shared";
 import i18next from "i18next";
 import { useCallback } from "react";
 import { ELEMENT_IDS } from "../utils/consts.js";

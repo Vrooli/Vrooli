@@ -2,8 +2,8 @@
  * Dialog for sharing an object with multiple options: link sharing, QR code,
  * and direct object export.
  */
-import { getObjectUrl } from "@local/shared";
 import { Box, Fade, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Tooltip, Typography, useTheme, Zoom } from "@mui/material";
+import { getObjectUrl } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";

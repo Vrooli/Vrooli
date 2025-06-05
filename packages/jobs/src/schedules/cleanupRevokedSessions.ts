@@ -1,6 +1,6 @@
-import { DbProvider, batch, logger } from "@local/server";
-import { DAYS_90_MS, ModelType } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { DbProvider, batch, logger } from "@vrooli/server";
+import { DAYS_90_MS, ModelType } from "@vrooli/shared";
 
 const REVOKED_SESSION_TIMEOUT = DAYS_90_MS;
 

@@ -1,5 +1,5 @@
-import { ReportStatus } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
+import { ReportStatus } from "@vrooli/shared";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
@@ -7,7 +7,7 @@ import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { DateDisplay } from "../../text/DateDisplay.js";
-import { ListItemChip, type ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { ListItemChip, ObjectListItemBase, type ListItemStyleColor } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { type ReportListItemProps } from "../types.js";
 
 function statusToColor(status: ReportStatus | undefined): ListItemStyleColor {

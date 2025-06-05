@@ -1,5 +1,5 @@
-import { type DeleteOneInput, DeleteType, DUMMY_ID, type Email, type EmailCreateInput, emailValidation, endpointsActions, endpointsEmail, type SendVerificationEmailInput, type Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { DUMMY_ID, DeleteType, emailValidation, endpointsActions, endpointsEmail, uuid, type DeleteOneInput, type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
 import { useFormik } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

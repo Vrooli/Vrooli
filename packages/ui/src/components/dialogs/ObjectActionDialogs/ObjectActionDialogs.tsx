@@ -1,4 +1,4 @@
-import { type BookmarkFor, type ReportFor } from "@local/shared";
+import { type BookmarkFor, type ReportFor } from "@vrooli/shared";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { StatsObjectView } from "../../../views/StatsObjectView/StatsObjectView.js";
 import { ReportUpsert } from "../../../views/objects/report/ReportUpsert.js";

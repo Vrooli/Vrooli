@@ -32,10 +32,10 @@ jobs:
 
       - name: Run Tests in Workspaces
         run: |
-          pnpm workspace @local/shared test && \
-          pnpm workspace @local/server test && \
-          pnpm workspace @local/jobs test && \
-          pnpm workspace @local/ui test
+          pnpm workspace @vrooli/shared test && \
+          pnpm workspace @vrooli/server test && \
+          pnpm workspace @vrooli/jobs test && \
+          pnpm workspace @vrooli/ui test
 
       - name: Run Bash Script Tests
         run: ./scripts/tests/__runTests.sh

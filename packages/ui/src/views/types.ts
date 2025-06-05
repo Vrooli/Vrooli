@@ -1,4 +1,4 @@
-import { type ChatShape, type ListObject, type MemberInviteShape } from "@local/shared";
+import { type ChatShape, type ListObject, type MemberInviteShape } from "@vrooli/shared";
 import { type ReactNode } from "react";
 import { type ViewProps } from "../types.js";
 

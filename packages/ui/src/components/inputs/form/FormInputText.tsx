@@ -1,7 +1,7 @@
-import { type TextFormInput, type TextFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Slider, Typography } from "@mui/material";
+import { getFormikFieldName, type TextFormInput, type TextFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
-import { type ChangeEvent, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
 import { RichInputBase } from "../RichInput/RichInput.js";

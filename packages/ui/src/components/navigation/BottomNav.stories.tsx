@@ -1,5 +1,5 @@
-import { LINKS } from "@local/shared";
 import { type Meta, type StoryObj } from "@storybook/react";
+import { LINKS } from "@vrooli/shared";
 import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { clearMockedLocationForStorybook, mockLocationForStorybook } from "../../route/useLocation.js";
 import { BottomNav } from "./BottomNav.js";

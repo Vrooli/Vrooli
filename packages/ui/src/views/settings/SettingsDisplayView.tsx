@@ -1,5 +1,5 @@
-import { endpointsUser, type ProfileUpdateInput, profileValidation, type User } from "@local/shared";
-import { Box, Button, Grid, styled, Typography, useTheme } from "@mui/material";
+import { Box, Button, Grid, Typography, styled, useTheme } from "@mui/material";
+import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";

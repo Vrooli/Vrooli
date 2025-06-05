@@ -1,4 +1,4 @@
-import { type AutocompleteOption, type ListObject, type SearchType, type TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
+import { addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray, type AutocompleteOption, type ListObject, type SearchType, type TimeFrame } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { type SearchQueryVariablesInput } from "../components/lists/types.js";
 import { SessionContext } from "../contexts/session.js";

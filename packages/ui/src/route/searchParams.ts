@@ -1,4 +1,4 @@
-import { type ParseSearchParamsResult, parseSearchParams } from "@local/shared";
+import { parseSearchParams, type ParseSearchParamsResult } from "@vrooli/shared";
 import { type SetLocation } from "./types.js";
 
 

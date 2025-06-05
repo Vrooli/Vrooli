@@ -1,5 +1,5 @@
-import { type DeleteOneInput, endpointsActions, endpointsWallet, type Success, updateArray, type Wallet, type WalletUpdateInput } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { endpointsActions, endpointsWallet, updateArray, type DeleteOneInput, type Success, type Wallet, type WalletUpdateInput } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

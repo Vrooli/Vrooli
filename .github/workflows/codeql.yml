@@ -39,10 +39,10 @@ jobs:
 
       - name: Build TypeScript
         run: |
-          pnpm workspace @local/shared build && \
-          pnpm workspace @local/server build && \
-          pnpm workspace @local/jobs build && \
-          pnpm workspace @local/ui build
+          pnpm workspace @vrooli/shared build && \
+          pnpm workspace @vrooli/server build && \
+          pnpm workspace @vrooli/jobs build && \
+          pnpm workspace @vrooli/ui build
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e4262713b504983e61c7728f5452be240d3e2b99 # v3.23.0

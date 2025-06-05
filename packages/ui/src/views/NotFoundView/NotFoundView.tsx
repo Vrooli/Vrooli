@@ -1,5 +1,5 @@
-import { LINKS } from "@local/shared";
-import { Box, Button, Container, Stack, type SxProps, type Theme, Typography } from "@mui/material";
+import { Box, Button, Container, Stack, Typography, type SxProps, type Theme } from "@mui/material";
+import { LINKS } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import Bunny404 from "../../assets/img/Bunny404.svg";
 import { TopBar } from "../../components/navigation/TopBar.js";

@@ -1,5 +1,5 @@
-import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
+import { LINKS } from "@vrooli/shared";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

@@ -15,8 +15,8 @@ ci::do_keys_exist() {
     # Check existence of staging and production key pairs; report if missing or partial
     local any_missing=0
     for env in staging production; do
-        local priv_var="${env^^}_CI_SSH_PRIV_KEY_FILE"
-        local pub_var="${env^^}_CI_SSH_PUB_KEY_FILE"
+        local priv_var="var_${env^^}_CI_SSH_PRIV_KEY_FILE"
+        local pub_var="var_${env^^}_CI_SSH_PUB_KEY_FILE"
         local priv_file="${!priv_var}"
         local pub_file="${!pub_var}"
         if [[ -f "$priv_file" && -f "$pub_file" ]]; then
@@ -39,8 +39,8 @@ ci::generate_key_pair() {
     log::header "Generating SSH key pairs for CI (staging & production)"
 
     for env in staging production; do
-        local priv_var="${env^^}_CI_SSH_PRIV_KEY_FILE"
-        local pub_var="${env^^}_CI_SSH_PUB_KEY_FILE"
+        local priv_var="var_${env^^}_CI_SSH_PRIV_KEY_FILE"
+        local pub_var="var_${env^^}_CI_SSH_PUB_KEY_FILE"
         local priv_file="${!priv_var}"
         local pub_file="${!pub_var}"
 

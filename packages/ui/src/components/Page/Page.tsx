@@ -1,5 +1,5 @@
-import { LINKS, UrlTools } from "@local/shared";
-import { Box, type BoxProps, styled, useTheme } from "@mui/material";
+import { Box, styled, useTheme, type BoxProps } from "@mui/material";
+import { LINKS, UrlTools } from "@vrooli/shared";
 import { useContext, useEffect, useMemo } from "react";
 import { SessionContext } from "../../contexts/session.js";
 import { Redirect, useLocation } from "../../route/router.js";

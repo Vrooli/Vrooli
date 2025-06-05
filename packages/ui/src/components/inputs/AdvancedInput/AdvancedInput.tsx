@@ -1,16 +1,16 @@
 /* eslint-disable no-magic-numbers */
-import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
-import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, type IconButtonProps, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme, type IconButtonProps } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { type CSSProperties } from "@mui/styles";
+import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@vrooli/shared";
 import { useField } from "formik";
-import React, { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useDropzone } from "react-dropzone";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
-import { Icon, IconCommon, type IconInfo, IconRoutine } from "../../../icons/Icons.js";
-import { type AITaskDisplay, AITaskDisplayState } from "../../../types.js";
+import { Icon, IconCommon, IconRoutine, type IconInfo } from "../../../icons/Icons.js";
+import { AITaskDisplayState, type AITaskDisplay } from "../../../types.js";
 import { randomString } from "../../../utils/codes.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
@@ -25,7 +25,7 @@ import { AdvancedInputMarkdown } from "./AdvancedInputMarkdown.js";
 import { AdvancedInputToolbar, TOOLBAR_CLASS_NAME, defaultActiveStates } from "./AdvancedInputToolbar.js";
 import { ContextDropdown, type ListObject } from "./ContextDropdown.js";
 import { AdvancedInputLexical } from "./lexical/AdvancedInputLexical.js";
-import { AdvancedInputAction, type AdvancedInputActiveStates, type AdvancedInputBaseProps, type AdvancedInputFeatures, type AdvancedInputProps, type ContextItem, DEFAULT_FEATURES, type ExternalApp, type TranslatedAdvancedInputProps, advancedInputTextareaClassName } from "./utils.js";
+import { AdvancedInputAction, DEFAULT_FEATURES, advancedInputTextareaClassName, type AdvancedInputActiveStates, type AdvancedInputBaseProps, type AdvancedInputFeatures, type AdvancedInputProps, type ContextItem, type ExternalApp, type TranslatedAdvancedInputProps } from "./utils.js";
 
 // Add supported external apps here
 const externalApps: ExternalApp[] = [

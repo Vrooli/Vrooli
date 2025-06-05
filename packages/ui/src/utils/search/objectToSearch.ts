@@ -1,5 +1,5 @@
-import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, type SearchType, type SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, type TranslationKeyCommon, UserPageTabOption, VisibilityType, type YouInflated } from "@local/shared";
 import { type Palette } from "@mui/material";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";

@@ -1,6 +1,6 @@
-import { type TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { parseSearchParams, type TranslationKeyCommon } from "@vrooli/shared";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "../route/router.js";
 import { addSearchParams } from "../route/searchParams.js";

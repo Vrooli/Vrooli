@@ -1,4 +1,4 @@
-import { endpointsTeam, type FormSchema, TeamSortBy } from "@local/shared";
+import { TeamSortBy, endpointsTeam, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common.js";
 

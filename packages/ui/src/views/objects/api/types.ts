@@ -1,4 +1,4 @@
-import { type ApiVersion, type ApiVersionShape } from "@local/shared";
+import { type ApiVersion, type ApiVersionShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type ApiUpsertPropsPage = CrudPropsPage;

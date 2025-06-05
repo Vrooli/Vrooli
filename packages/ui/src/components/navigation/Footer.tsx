@@ -1,5 +1,5 @@
-import { LINKS, SOCIALS, type TranslationKeyCommon } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { LINKS, SOCIALS, type TranslationKeyCommon } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import { Icon, IconCommon, type IconInfo } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";

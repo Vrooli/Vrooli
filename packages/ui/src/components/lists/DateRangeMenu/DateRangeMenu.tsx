@@ -1,5 +1,5 @@
-import { fromDatetimeLocal, toDatetimeLocal } from "@local/shared";
 import { Box, Button, Grid, Popover } from "@mui/material";
+import { fromDatetimeLocal, toDatetimeLocal } from "@vrooli/shared";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useStableObject } from "../../../hooks/useStableObject.js";

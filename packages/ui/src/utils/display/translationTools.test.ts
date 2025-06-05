@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { generatePK, type CommonKey, type Session } from "@local/shared";
+import { generatePK, type CommonKey, type Session } from "@vrooli/shared";
 import { expect } from "chai";
 import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";

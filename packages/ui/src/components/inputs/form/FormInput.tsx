@@ -1,7 +1,7 @@
-import { InputType, preventFormSubmit } from "@local/shared";
-import { Box, IconButton, Stack, TextField, Tooltip, Typography, type TypographyProps, styled, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, TextField, Tooltip, Typography, styled, useTheme, type TypographyProps } from "@mui/material";
+import { InputType, preventFormSubmit } from "@vrooli/shared";
 import { useFormikContext } from "formik";
-import { type ComponentType, Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";

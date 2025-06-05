@@ -1,5 +1,5 @@
-import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
 import { IconButton, InputAdornment, Tooltip, styled, useTheme } from "@mui/material";
+import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";

@@ -1,4 +1,4 @@
-import { type AITaskInfo, type LlmTask, MINUTES_10_MS, nanoid } from "@local/shared";
+import { MINUTES_10_MS, nanoid, type AITaskInfo, type LlmTask } from "@vrooli/shared";
 import { getExistingAIConfig } from "../../api/ai.js";
 import { type SetLocation } from "../../route/types.js";
 

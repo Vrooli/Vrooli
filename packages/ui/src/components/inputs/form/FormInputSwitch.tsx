@@ -1,5 +1,5 @@
-import { type SwitchFormInput, type SwitchFormInputProps, getFormikFieldName } from "@local/shared";
 import { Box, Button, FormControlLabel, Switch, TextField, Typography, useTheme } from "@mui/material";
+import { getFormikFieldName, type SwitchFormInput, type SwitchFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";

@@ -1,4 +1,4 @@
-import { type LanguageFormInput, getFormikFieldName } from "@local/shared";
+import { getFormikFieldName, type LanguageFormInput } from "@vrooli/shared";
 import { useField } from "formik";
 import { LanguageInput } from "../LanguageInput/LanguageInput.js";
 import { type FormInputProps } from "./types.js";

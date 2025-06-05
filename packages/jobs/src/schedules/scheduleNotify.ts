@@ -1,6 +1,6 @@
-import { CacheService, Notify, type ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe } from "@local/server";
-import { type ModelType, type Schedule, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { CacheService, Notify, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, type ScheduleSubscriptionContext } from "@vrooli/server";
+import { calculateOccurrences, uppercaseFirstLetter, type ModelType, type Schedule } from "@vrooli/shared";
 
 const MINUTES_IN_HOUR = 60;
 const SECONDS_IN_MINUTE = 60;

@@ -1,5 +1,5 @@
-import { type ListObject, validatePK } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
+import { validatePK, type ListObject } from "@vrooli/shared";
 import { Field } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

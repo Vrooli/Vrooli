@@ -111,6 +111,7 @@ storybook-static
 # rollup.js default build output
 dist/
 test-dist/
+*.map
 
 # Gatsby files
 .cache/
@@ -166,6 +167,7 @@ data/postgres*
 data/redis/
 data/stats/
 data/uploads/
+data/schema-hash
 
 #Backups
 backups/
@@ -183,8 +185,7 @@ packages/ui/public/sitemaps/
 **/*.0x/
 
 # JWT keys
-jwt_pub.pem
-jwt_priv.pem
+*.pem
 
 # Vault keys
 .vault*

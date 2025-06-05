@@ -1,4 +1,4 @@
-import { type Chat, type ChatSearchInput, type ChatSearchResult, ChatSortBy, endpointsChat } from "@local/shared";
+import { ChatSortBy, endpointsChat, type Chat, type ChatSearchInput, type ChatSearchResult } from "@vrooli/shared";
 import { useContext, useEffect } from "react";
 import { create } from "zustand";
 import { fetchData } from "../api/fetchData.js";

@@ -1,4 +1,4 @@
-import { endpointsReport, type FormSchema, ReportSortBy } from "@local/shared";
+import { ReportSortBy, endpointsReport, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

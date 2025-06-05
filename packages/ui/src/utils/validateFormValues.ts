@@ -1,4 +1,4 @@
-import { type YupModel, validateAndGetYupErrors } from "@local/shared";
+import { validateAndGetYupErrors, type YupModel } from "@vrooli/shared";
 import { type FormErrors } from "../types.js";
 
 type TransformFunction<T, U, IsCreate extends boolean> = (values: T, existing: U, isCreate: IsCreate) =>

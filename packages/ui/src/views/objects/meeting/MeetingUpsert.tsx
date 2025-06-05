@@ -1,5 +1,5 @@
-import { DUMMY_ID, endpointsMeeting, type Meeting, type MeetingCreateInput, type MeetingShape, type MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, type Schedule, type Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
+import { DUMMY_ID, endpointsMeeting, meetingValidation, noopSubmit, orDefault, shapeMeeting, type Meeting, type MeetingCreateInput, type MeetingShape, type MeetingUpdateInput, type Schedule, type Session } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,11 +1,11 @@
-import { type TranslationFuncCommon, type TranslationKeyCommon } from "@local/shared";
-import { Box, type BoxProps, type Breakpoints, Button, IconButton, type IconButtonProps, List, ListItem, ListItemIcon, type ListItemProps, ListItemText, type Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Popover, Tooltip, Typography, styled, useTheme, type BoxProps, type Breakpoints, type IconButtonProps, type ListItemProps, type Palette } from "@mui/material";
+import { type TranslationFuncCommon, type TranslationKeyCommon } from "@vrooli/shared";
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { Icon, IconCommon, type IconInfo, IconText } from "../../../icons/Icons.js";
+import { Icon, IconCommon, IconText, type IconInfo } from "../../../icons/Icons.js";
 import { type Dimensions } from "../../../types.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { type AdvancedInputAction, type AdvancedInputActiveStates } from "./utils.js";

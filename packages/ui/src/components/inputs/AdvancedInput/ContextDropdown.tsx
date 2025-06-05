@@ -1,6 +1,6 @@
-import { ResourceUsedFor, getObjectUrl } from "@local/shared";
 import { Box, IconButton, InputAdornment, List, ListItem, Popover, TextField, Typography } from "@mui/material";
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ResourceUsedFor, getObjectUrl } from "@vrooli/shared";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";

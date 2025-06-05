@@ -1,4 +1,4 @@
-import { type OwnerShape, type RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
+import { VisibilityType, uuidValidate, type OwnerShape, type RoutineVersion } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog.js";

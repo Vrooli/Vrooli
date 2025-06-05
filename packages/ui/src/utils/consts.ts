@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, SERVER_VERSION, type ValueOf } from "@local/shared";
+import { InputType, SERVER_VERSION, type ValueOf } from "@vrooli/shared";
 import { ViewDisplayType } from "../types.js";
 
 export const Forms = {

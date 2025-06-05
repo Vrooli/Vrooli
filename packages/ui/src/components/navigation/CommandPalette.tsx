@@ -1,5 +1,5 @@
-import { type ActionOption, type ListObject, type AutocompleteOption as SearchResult, type ShortcutOption, VisibilityType, getObjectUrl } from "@local/shared";
 import { Box, ButtonBase, DialogContent, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
+import { VisibilityType, getObjectUrl, type ActionOption, type ListObject, type AutocompleteOption as SearchResult, type ShortcutOption } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";

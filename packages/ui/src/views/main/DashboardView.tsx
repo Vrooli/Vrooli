@@ -1,5 +1,5 @@
-import { type CalendarEvent, type ChatParticipantShape, DAYS_30_MS, DUMMY_ID, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule, calculateOccurrences, endpointsFeed, getObjectUrl, uuid } from "@local/shared";
 import { Box, IconButton, Typography, styled } from "@mui/material";
+import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, getObjectUrl, uuid, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";

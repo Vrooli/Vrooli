@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type RoutineVersion } from "@local/shared";
+import { type RoutineVersion } from "@vrooli/shared";
 import { type BuildAction } from "../../../utils/consts.js";
 
 type Node = any;

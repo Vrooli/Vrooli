@@ -1,5 +1,5 @@
-import { noop } from "@local/shared";
 import { Box, IconButton, Input, InputAdornment, Paper, TextField, useTheme } from "@mui/material";
+import { noop } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDebounce } from "../../../hooks/useDebounce.js";

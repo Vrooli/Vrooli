@@ -1,5 +1,5 @@
-import { BUSINESS_NAME, LINKS, type ListObject, type ModelType, getObjectUrlBase } from "@local/shared";
 import { Box, IconButton, Typography, styled, useTheme } from "@mui/material";
+import { BUSINESS_NAME, LINKS, getObjectUrlBase, type ListObject, type ModelType } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

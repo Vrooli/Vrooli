@@ -1,5 +1,5 @@
-import { type FormInformationalType, FormStructureType, LINKS, SEEDED_PUBLIC_IDS, SearchPageTabOption, type TutorialViewSearchParams, UrlTools, getObjectUrl, nanoid } from "@local/shared";
-import { Box, Button, Dialog, IconButton, LinearProgress, List, ListItem, ListItemText, ListSubheader, Menu, MenuItem, MobileStepper, Paper, type PaperProps, Stack, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, Dialog, IconButton, LinearProgress, List, ListItem, ListItemText, ListSubheader, Menu, MenuItem, MobileStepper, Paper, Stack, Typography, styled, useTheme, type PaperProps } from "@mui/material";
+import { FormStructureType, LINKS, SEEDED_PUBLIC_IDS, SearchPageTabOption, UrlTools, getObjectUrl, nanoid, type FormInformationalType, type TutorialViewSearchParams } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { useLocation } from "../../route/router.js";
 import { addSearchParams, removeSearchParams } from "../../route/searchParams.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { TUTORIAL_HIGHLIGHT, addHighlight, removeHighlights } from "../../utils/display/documentTools.js";
-import { type MenuPayloads, PubSub } from "../../utils/pubsub.js";
+import { PubSub, type MenuPayloads } from "../../utils/pubsub.js";
 import { routineTypes } from "../../utils/search/schemas/resource.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";

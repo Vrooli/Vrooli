@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@local/shared";
 import { Box, Button, Dialog, DialogContent, IconButton, Typography, keyframes, styled } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";

@@ -1,5 +1,5 @@
-import { type SliderFormInput, type SliderFormInputProps, getFormikFieldName } from "@local/shared";
 import { Box, Button, Slider, Typography, useTheme } from "@mui/material";
+import { getFormikFieldName, type SliderFormInput, type SliderFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";

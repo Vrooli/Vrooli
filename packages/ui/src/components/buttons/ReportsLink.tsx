@@ -1,5 +1,5 @@
-import { getObjectSlug, getObjectUrlBase } from "@local/shared";
 import { IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { getObjectSlug, getObjectUrlBase } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

@@ -1,6 +1,6 @@
-import { endpointsUser, type ProfileUpdateInput, profileValidation, type User } from "@local/shared";
-import { Box, styled, Typography } from "@mui/material";
-import { Formik, type FormikHelpers, type FormikProps, useField } from "formik";
+import { Box, Typography, styled } from "@mui/material";
+import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
+import { Formik, useField, type FormikHelpers, type FormikProps } from "formik";
 import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";

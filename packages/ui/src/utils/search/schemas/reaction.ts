@@ -1,4 +1,4 @@
-import { endpointsReaction, type FormSchema, ReactionSortBy } from "@local/shared";
+import { ReactionSortBy, endpointsReaction, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

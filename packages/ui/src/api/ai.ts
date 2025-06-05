@@ -1,4 +1,4 @@
-import { type AIServicesInfo, type AITaskConfigJSON, DAYS_1_MS, type LlmServiceModel, type ModelInfo, type TranslationKeyService } from "@local/shared";
+import { DAYS_1_MS, type AIServicesInfo, type AITaskConfigJSON, type LlmServiceModel, type ModelInfo, type TranslationKeyService } from "@vrooli/shared";
 import { apiUrlBase } from "../utils/consts.js";
 
 const AI_TASK_CONFIG_CACHE_KEY = "AI_CONFIG_CACHE";

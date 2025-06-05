@@ -1,6 +1,6 @@
-import { DbProvider, logger } from "@local/server";
-import { generatePK, ResourceType } from "@local/shared";
-import { type PeriodType, Prisma } from "@prisma/client";
+import { Prisma, type PeriodType } from "@prisma/client";
+import { DbProvider, logger } from "@vrooli/server";
+import { ResourceType, generatePK } from "@vrooli/shared";
 
 /**
  * Creates periodic site-wide stats

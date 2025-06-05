@@ -1,5 +1,5 @@
-import { type IntegerFormInput, type IntegerFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Typography, useTheme } from "@mui/material";
+import { getFormikFieldName, type IntegerFormInput, type IntegerFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

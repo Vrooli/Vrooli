@@ -1,6 +1,6 @@
 /* c8 ignore start */
-import { type ChatMessageShape, type Comment, type CommentThread, type NavigableObject, type StreamErrorPayload } from "@local/shared";
 import { type LinearProgressProps } from "@mui/material";
+import { type ChatMessageShape, type Comment, type CommentThread, type NavigableObject, type StreamErrorPayload } from "@vrooli/shared";
 import { type ReactNode } from "react";
 import { type PageTab } from "../hooks/useTabs.js";
 import { type SxType } from "../types.js";

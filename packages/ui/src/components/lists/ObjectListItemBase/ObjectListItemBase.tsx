@@ -1,9 +1,9 @@
-import { type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type Member, type MemberInvite, type ReactionFor, getObjectUrl, isOfType, nanoid } from "@local/shared";
-import { AvatarGroup, Box, type BoxProps, Chip, type ChipProps, type ListItemProps, ListItemText, type Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
+import { AvatarGroup, Box, Chip, ListItemText, Stack, Tooltip, styled, useTheme, type BoxProps, type ChipProps, type ListItemProps, type Palette } from "@mui/material";
+import { getObjectUrl, isOfType, nanoid, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type Member, type MemberInvite, type ReactionFor } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
-import { type UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { usePress, type UsePressEvent } from "../../../hooks/gestures.js";
 import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "../../../styles.js";

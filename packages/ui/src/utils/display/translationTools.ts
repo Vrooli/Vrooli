@@ -1,8 +1,8 @@
 /* eslint-disable import/extensions */
-import { generatePK, type Session, type TranslationKeyCommon, type TranslationKeyError } from "@local/shared";
+import { generatePK, type Session, type TranslationKeyCommon, type TranslationKeyError } from "@vrooli/shared";
 import { type FieldHelperProps, type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
-import { type ObjectSchema, ValidationError } from "yup";
+import { ValidationError, type ObjectSchema } from "yup";
 import { type FormErrors } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 

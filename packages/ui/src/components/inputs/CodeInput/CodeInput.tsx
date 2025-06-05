@@ -1,17 +1,17 @@
 /* eslint-disable import/extensions */
-import { CodeLanguage, Status, type TranslationKeyLangs, isEqual } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { CodeLanguage, Status, isEqual, type TranslationKeyLangs } from "@vrooli/shared";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HelpButton } from "../../buttons/HelpButton.js";
 import { StatusButton } from "../../buttons/StatusButton.js";
 import { SelectorBase } from "../../inputs/Selector/Selector.js";
-// import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+// import { isJson } from "@vrooli/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import React from "react";
 import { SessionContext } from "../../../contexts/session.js";
 import { useDebounce } from "../../../hooks/useDebounce.js";
-import { Icon, IconCommon, type IconInfo, IconText } from "../../../icons/Icons.js";
+import { Icon, IconCommon, IconText, type IconInfo } from "../../../icons/Icons.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { type CodeInputBaseProps, type CodeInputProps } from "../types.js";

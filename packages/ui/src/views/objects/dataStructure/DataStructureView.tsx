@@ -1,5 +1,5 @@
-import { CommentFor, type ResourceListShape, type StandardShape, type StandardVersion, type TagShape, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { CommentFor, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit, type ResourceListShape, type StandardShape, type StandardVersion, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

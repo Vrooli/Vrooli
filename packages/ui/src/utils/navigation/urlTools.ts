@@ -1,4 +1,4 @@
-import { handleRegex, LINKS, validatePublicId } from "@local/shared";
+import { handleRegex, LINKS, validatePublicId } from "@vrooli/shared";
 import { getLastPathnamePart } from "../../route/getLastPathnamePart.js";
 import { type SetLocation } from "../../route/types.js";
 

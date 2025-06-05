@@ -1,4 +1,4 @@
-import { type FormInputType, type FormSchema, InputType, type OrArray, type ParseSearchParamsResult, type Tag, type UrlPrimitive } from "@local/shared";
+import { InputType, type FormInputType, type FormSchema, type OrArray, type ParseSearchParamsResult, type Tag, type UrlPrimitive } from "@vrooli/shared";
 
 /**
  * Prepares an array of form items to be encoded into a URL search parameter.

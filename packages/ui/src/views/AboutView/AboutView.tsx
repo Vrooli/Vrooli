@@ -1,5 +1,5 @@
-import { SOCIALS } from "@local/shared";
 import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
+import { SOCIALS } from "@vrooli/shared";
 import { cloneElement, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import MattProfilePic from "../../assets/img/profile-matt.webp";

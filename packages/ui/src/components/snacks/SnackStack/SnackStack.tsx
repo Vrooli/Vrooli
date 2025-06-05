@@ -1,5 +1,5 @@
-import { nanoid } from "@local/shared";
-import { Box, type BoxProps, styled } from "@mui/material";
+import { Box, styled, type BoxProps } from "@mui/material";
+import { nanoid } from "@vrooli/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateSnackMessage } from "../../../utils/display/translationTools.js";

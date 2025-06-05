@@ -1,5 +1,5 @@
-import { type OwnerShape, type User, exists, getTranslation, noop } from "@local/shared";
 import { Tooltip } from "@mui/material";
+import { exists, getTranslation, noop, type OwnerShape, type User } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

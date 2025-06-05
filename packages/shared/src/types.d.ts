@@ -9,7 +9,7 @@ import type service from "./translations/locales/en/service.json" with { type: "
 // import validate from "./translations/locales/en/validate.json" with { type: "json" };
 import "yup";
 
-declare module "@local/shared";
+declare module "@vrooli/shared";
 // eslint-disable-next-line import/extensions
 export * from ".";
 

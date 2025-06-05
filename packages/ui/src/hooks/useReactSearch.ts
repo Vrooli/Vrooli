@@ -1,4 +1,4 @@
-import { parseSearchParams } from "@local/shared";
+import { parseSearchParams } from "@vrooli/shared";
 import { useCallback, useEffect, useState } from "react";
 
 type Primitive = string | number | boolean | object | null | undefined;

@@ -1,5 +1,5 @@
-import { type ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { IconButton } from "@mui/material";
+import { ModelType, getObjectUrlBase, type ListObject } from "@vrooli/shared";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";

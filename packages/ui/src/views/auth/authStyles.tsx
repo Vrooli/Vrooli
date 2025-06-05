@@ -1,5 +1,5 @@
-import { OAUTH_PROVIDERS, getOAuthInitRoute } from "@local/shared";
 import { Box, Button, Divider, InputAdornment, keyframes, styled } from "@mui/material";
+import { OAUTH_PROVIDERS, getOAuthInitRoute } from "@vrooli/shared";
 import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight } from "../../styles.js";
 

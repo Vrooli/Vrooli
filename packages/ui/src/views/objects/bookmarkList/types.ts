@@ -1,4 +1,4 @@
-import { type BookmarkList, type BookmarkListShape } from "@local/shared";
+import { type BookmarkList, type BookmarkListShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type BookmarkListUpsertPropsPage = CrudPropsPage;

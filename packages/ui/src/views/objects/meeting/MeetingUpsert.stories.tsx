@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, type Meeting, MeetingInviteStatus, endpointsMeeting, generatePK, generatePublicId, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, MeetingInviteStatus, endpointsMeeting, generatePK, generatePublicId, getObjectUrl, type Meeting } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { MeetingUpsert } from "./MeetingUpsert.js";

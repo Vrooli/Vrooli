@@ -1,4 +1,4 @@
-import { CommentSortBy, type FormSchema, endpointsComment } from "@local/shared";
+import { CommentSortBy, endpointsComment, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common.js";
 

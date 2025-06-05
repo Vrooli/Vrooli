@@ -1,4 +1,4 @@
-import { stringifySearchParams } from "@local/shared";
+import { stringifySearchParams } from "@vrooli/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type SetLocation } from "./types.js";
 

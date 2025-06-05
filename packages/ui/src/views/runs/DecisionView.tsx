@@ -1,5 +1,5 @@
-import { type DecisionOption } from "@local/shared";
-import { ListItem, type ListItemProps, Stack, Typography, styled, useTheme } from "@mui/material";
+import { ListItem, Stack, Typography, styled, useTheme, type ListItemProps } from "@mui/material";
+import { type DecisionOption } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "../../styles.js";
 import { type DecisionViewProps } from "./types.js";

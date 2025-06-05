@@ -1,4 +1,4 @@
-import { LINKS, type ListObject, ModelType, type NavigableObject, type OrArray, type TranslationKeyCommon, getObjectUrl } from "@local/shared";
+import { LINKS, ModelType, getObjectUrl, type ListObject, type NavigableObject, type OrArray, type TranslationKeyCommon } from "@vrooli/shared";
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";

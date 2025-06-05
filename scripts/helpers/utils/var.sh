@@ -33,7 +33,7 @@ export var_PRODUCTION_JWT_PRIV_KEY_FILE="$var_ROOT_DIR/jwt_priv_production.pem"
 export var_PRODUCTION_JWT_PUB_KEY_FILE="$var_ROOT_DIR/jwt_pub_production.pem"
 
 # Remote server
-export var_REMOTE_ROOT_DIR="/root/StartupFromScratch"
+export var_REMOTE_ROOT_DIR="/root/Vrooli"
 export var_REMOTE_DEST_DIR="$var_REMOTE_ROOT_DIR/dist"
 
 # Package directories/files

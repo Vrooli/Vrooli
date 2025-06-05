@@ -1,5 +1,5 @@
-import { LINKS, type ModelType, ResourceUsedFor } from "@local/shared";
 import { Avatar, type Palette } from "@mui/material";
+import { LINKS, ResourceUsedFor, type ModelType } from "@vrooli/shared";
 import { Icon, IconFavicon, type IconInfo } from "../../icons/Icons.js";
 import { getCookiePartialData } from "../../utils/localStorage.js";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";

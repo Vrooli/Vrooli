@@ -1,5 +1,5 @@
-import { type ListObject, ReactionFor } from "@local/shared";
 import { Box, Typography, styled } from "@mui/material";
+import { ReactionFor, type ListObject } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../icons/Icons.js";
 import { getCounts, getYou } from "../../utils/display/listTools.js";

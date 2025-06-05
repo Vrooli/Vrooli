@@ -1,9 +1,9 @@
 /**
  * Search list for a single object type
  */
-import { type ListObject, type NavigableObject, funcTrue } from "@local/shared";
 import { Box } from "@mui/material";
-import { type ReactNode, useCallback, useMemo } from "react";
+import { funcTrue, type ListObject, type NavigableObject } from "@vrooli/shared";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useInfiniteScroll } from "../../../hooks/gestures.js";
 import { useLocation } from "../../../route/router.js";

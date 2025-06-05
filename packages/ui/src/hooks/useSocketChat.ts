@@ -1,4 +1,4 @@
-import { type ChatMessageShape, type ChatParticipantShape, type ChatShape, type ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, type Session, type StreamErrorPayload } from "@local/shared";
+import { DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, type ChatMessageShape, type ChatParticipantShape, type ChatShape, type ChatSocketEventPayloads, type Session, type StreamErrorPayload } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { SocketService } from "../api/socket.js";
 import { SessionContext } from "../contexts/session.js";

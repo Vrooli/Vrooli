@@ -1,4 +1,4 @@
-import { type HttpMethod, type ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
+import { stringifySearchParams, type HttpMethod, type ParseSearchParamsResult } from "@vrooli/shared";
 import { apiUrlBase, restBase } from "../utils/consts.js";
 import { invalidateAIConfigCache } from "./ai.js";
 import { type ServerResponseWithTimestamp } from "./types.js";

@@ -1,5 +1,5 @@
-import { type LinkUrlFormInput, type LinkUrlFormInputProps, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, TextField, useTheme } from "@mui/material";
+import { getFormikFieldName, type LinkUrlFormInput, type LinkUrlFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";

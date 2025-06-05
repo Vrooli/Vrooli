@@ -1,5 +1,5 @@
-import { type ProfileUpdateInput, type User, endpointsUser } from "@local/shared";
-import { Box, type BoxProps, Typography, useTheme } from "@mui/material";
+import { Box, Typography, useTheme, type BoxProps } from "@mui/material";
+import { endpointsUser, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

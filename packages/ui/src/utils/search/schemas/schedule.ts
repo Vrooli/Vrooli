@@ -1,4 +1,4 @@
-import { endpointsSchedule, type FormSchema, ScheduleSortBy } from "@local/shared";
+import { ScheduleSortBy, endpointsSchedule, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

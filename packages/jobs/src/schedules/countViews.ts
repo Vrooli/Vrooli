@@ -1,7 +1,7 @@
-import { DbProvider, batch, logger } from "@local/server";
-import { type ModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
 import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
+import { DbProvider, batch, logger } from "@vrooli/server";
+import { camelCase, uppercaseFirstLetter, type ModelType } from "@vrooli/shared";
 
 const { PrismaClient } = pkg;
 

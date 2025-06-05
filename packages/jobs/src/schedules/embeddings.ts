@@ -7,9 +7,9 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { DbProvider, type EmbeddableType, batch, logger } from "@local/server";
-import { type ModelType, RunStatus } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
+import { RunStatus, type ModelType } from "@vrooli/shared";
 import { EmbeddingService } from "../../../server/src/services/embedding.js";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
@@ -103,7 +103,7 @@ async function updateEmbedding(
     id: string,
     embeddings: number[],
 ): Promise<void> {
-    const { ModelMap } = await import("@local/server");
+    const { ModelMap } = await import("@vrooli/server");
 
     // Define the type for keys constructed from EmbeddableType and isTranslatableTable logic
     type ConstructedModelKey = EmbeddableType | `${EmbeddableType}Translation`;

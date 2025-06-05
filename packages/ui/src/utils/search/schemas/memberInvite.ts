@@ -1,4 +1,4 @@
-import { endpointsMemberInvite, type FormSchema, MemberInviteSortBy } from "@local/shared";
+import { MemberInviteSortBy, endpointsMemberInvite, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

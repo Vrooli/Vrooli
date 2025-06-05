@@ -1,5 +1,5 @@
-import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@local/shared";
 import { PeriodType } from "@prisma/client";
+import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@vrooli/shared";
 import { logResourceStats } from "./resource.js";
 import { logSiteStats } from "./site.js";
 import { logTeamStats } from "./team.js";

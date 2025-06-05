@@ -1,6 +1,6 @@
-import { batch, batchGroup, DbProvider, logger } from "@local/server";
-import { generatePK } from "@local/shared";
 import { type PeriodType, type Prisma } from "@prisma/client";
+import { batch, batchGroup, DbProvider, logger } from "@vrooli/server";
+import { generatePK } from "@vrooli/shared";
 
 // Select shape for user stats batching
 const userStatsSelect = { id: true } as const;

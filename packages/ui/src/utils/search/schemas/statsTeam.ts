@@ -1,4 +1,4 @@
-import { endpointsStatsTeam, type FormSchema, StatsTeamSortBy } from "@local/shared";
+import { StatsTeamSortBy, endpointsStatsTeam, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, type CodeVersion, type Resource, ResourceUsedFor, type Tag, type User, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
 import { type Meta } from "@storybook/react";
+import { CodeLanguage, CodeType, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterView } from "./DataConverterView.js";

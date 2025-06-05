@@ -1,4 +1,4 @@
-import { stringifySearchParams } from "@local/shared";
+import { stringifySearchParams } from "@vrooli/shared";
 import { expect } from "chai";
 import { openLink } from "./openLink.js";
 

@@ -1,5 +1,5 @@
-import { type Bookmark, type BookmarkCreateInput, type BookmarkList, deleteArrayIndex, endpointsBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, IconButton } from "@mui/material";
+import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, uuid, type Bookmark, type BookmarkCreateInput, type BookmarkList } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

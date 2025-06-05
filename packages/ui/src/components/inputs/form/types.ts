@@ -1,4 +1,4 @@
-import { type FormHeaderType, type FormImageType, type FormInputType, type FormQrCodeType, type FormTipType, type FormVideoType } from "@local/shared";
+import { type FormHeaderType, type FormImageType, type FormInputType, type FormQrCodeType, type FormTipType, type FormVideoType } from "@vrooli/shared";
 
 export interface FormDividerProps {
     isEditing: boolean;

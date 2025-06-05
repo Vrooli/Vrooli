@@ -1,8 +1,8 @@
-import type { PrismaDelegate } from "@local/server";
-import { DbProvider, ModelMap, Trigger, batch, findFirstRel, logger } from "@local/server";
-import type { ModelType } from "@local/shared";
-import { ReportStatus, ReportSuggestedAction, WEEKS_1_MS, uppercaseFirstLetter } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import type { PrismaDelegate } from "@vrooli/server";
+import { DbProvider, ModelMap, Trigger, batch, findFirstRel, logger } from "@vrooli/server";
+import type { ModelType } from "@vrooli/shared";
+import { ReportStatus, ReportSuggestedAction, WEEKS_1_MS, uppercaseFirstLetter } from "@vrooli/shared";
 
 // Constants for calculating when a moderation action for a report should be accepted
 // Minimum reputation sum of users who have suggested a specific moderation action

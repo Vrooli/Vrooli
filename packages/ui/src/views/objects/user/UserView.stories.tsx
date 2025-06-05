@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { type User, type UserTranslation, endpointsUser, generatePK, getObjectUrl } from "@local/shared";
+import { endpointsUser, generatePK, getObjectUrl, type User, type UserTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { UserView } from "./UserView.js";

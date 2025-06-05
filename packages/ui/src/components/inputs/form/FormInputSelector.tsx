@@ -1,6 +1,6 @@
-import { DragDropContext, Draggable, type DropResult, Droppable } from "@hello-pangea/dnd";
-import { type SelectorFormInput, type SelectorFormInputOption, type SelectorFormInputProps, getFormikFieldName } from "@local/shared";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { Button, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
+import { getFormikFieldName, type SelectorFormInput, type SelectorFormInputOption, type SelectorFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { IconCommon } from "../../../icons/Icons.js";

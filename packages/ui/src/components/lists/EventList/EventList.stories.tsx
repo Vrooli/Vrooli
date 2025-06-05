@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
-import { type CalendarEvent, generatePK, type Meeting, type Run, type Schedule, ScheduleRecurrenceType, uuid } from "@local/shared";
 import { Box, Button, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
+import { ScheduleRecurrenceType, generatePK, uuid, type CalendarEvent, type Meeting, type Run, type Schedule } from "@vrooli/shared";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";

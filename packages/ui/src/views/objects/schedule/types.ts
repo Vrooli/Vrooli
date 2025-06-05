@@ -1,4 +1,4 @@
-import { type Schedule, type ScheduleShape, type TranslationKeyCommon } from "@local/shared";
+import { type Schedule, type ScheduleShape, type TranslationKeyCommon } from "@vrooli/shared";
 import { type IconInfo } from "../../../icons/Icons.js";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 

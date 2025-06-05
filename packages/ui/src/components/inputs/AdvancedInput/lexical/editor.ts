@@ -2,7 +2,7 @@
 // NOTE: Much of this file is taken from the lexical package, which is licensed under the MIT license. 
 // We have copied the code here for customization purposes, such as replacing the default code block component
 
-import { nanoid } from "@local/shared";
+import { nanoid } from "@vrooli/shared";
 import { FULL_RECONCILE, NO_DIRTY_NODES } from "./consts.js";
 import { addRootElementEvents, removeRootElementEvents } from "./events.js";
 import { flushRootMutations, initMutationObserver } from "./mutations.js";

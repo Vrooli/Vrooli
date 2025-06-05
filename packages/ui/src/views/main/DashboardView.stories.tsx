@@ -1,4 +1,4 @@
-import { LINKS } from "@local/shared";
+import { LINKS } from "@vrooli/shared";
 import { signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { DashboardView } from "./DashboardView.js";
 

@@ -1,5 +1,5 @@
-import { Status } from "@local/shared";
 import { Stack, Tooltip, Typography } from "@mui/material";
+import { Status } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { usePopover } from "../../hooks/usePopover.js";
 import { Icon } from "../../icons/Icons.js";

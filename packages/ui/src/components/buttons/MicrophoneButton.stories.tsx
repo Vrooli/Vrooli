@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/extensions
-import { noop } from "@local/shared";
 import { action } from "@storybook/addon-actions";
+import { noop } from "@vrooli/shared";
 import React from "react";
 import { MicrophoneButton, TranscriptDialog } from "./MicrophoneButton.js";
 

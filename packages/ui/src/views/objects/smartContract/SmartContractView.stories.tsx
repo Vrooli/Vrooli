@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { type Code, CodeLanguage, CodeType, type CodeVersion, type CodeVersionTranslation, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl } from "@local/shared";
+import { CodeLanguage, CodeType, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl, type Code, type CodeVersion, type CodeVersionTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SmartContractView } from "./SmartContractView.js";

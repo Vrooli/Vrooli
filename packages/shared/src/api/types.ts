@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type BaseConfigObject, type TeamConfigObject } from "@local/shared";
+import { type BaseConfigObject, type TeamConfigObject } from "@vrooli/shared";
 import { type RunConfig } from "../run/types.js";
 import { type BotConfigObject } from "../shape/configs/bot.js";
 import { type MessageConfigObject } from "../shape/configs/message.js";

@@ -1,5 +1,5 @@
-import { type DropzoneFormInput, type DropzoneFormInputProps } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { type DropzoneFormInput, type DropzoneFormInputProps } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";

@@ -1,4 +1,4 @@
-import { type CodeVersion, type CodeVersionShape } from "@local/shared";
+import { type CodeVersion, type CodeVersionShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type SmartContractUpsertPropsPage = CrudPropsPage;

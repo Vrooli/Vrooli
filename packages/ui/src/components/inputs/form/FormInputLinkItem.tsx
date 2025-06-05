@@ -1,5 +1,5 @@
-import { type LinkItemFormInput, type LinkItemFormInputProps, type LinkItemType, type TranslationFuncCommon, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import { getFormikFieldName, type LinkItemFormInput, type LinkItemFormInputProps, type LinkItemType, type TranslationFuncCommon } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

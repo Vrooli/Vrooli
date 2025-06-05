@@ -1,6 +1,6 @@
-import { BookmarkFor, type Comment, type CommentFor, type DeleteOneInput, DeleteType, type NavigableObject, ReactionFor, type ReportFor, type Success, endpointsActions, getObjectUrl, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { BookmarkFor, DeleteType, ReactionFor, endpointsActions, getObjectUrl, getTranslation, updateArray, type Comment, type CommentFor, type DeleteOneInput, type NavigableObject, type ReportFor, type Success } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";

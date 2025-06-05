@@ -1,6 +1,6 @@
 // Used to display popular/search results of a particular object type
-import { endpointsReminder, type Reminder, type ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { endpointsReminder, shapeReminder, type Reminder, type ReminderUpdateInput } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";

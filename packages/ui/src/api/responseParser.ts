@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, type ServerError, type ServerErrorTranslated, type ServerErrorUntranslated, type ServerResponse, type TranslationKeyError, exists } from "@local/shared";
+import { DEFAULT_LANGUAGE, exists, type ServerError, type ServerErrorTranslated, type ServerErrorUntranslated, type ServerResponse, type TranslationKeyError } from "@vrooli/shared";
 import i18next from "i18next";
 import { PubSub } from "../utils/pubsub.js";
 

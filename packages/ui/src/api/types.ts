@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type ServerResponse } from "@local/shared";
+import { type ServerResponse } from "@vrooli/shared";
 
 export type ServerResponseWithTimestamp<T = any> = ServerResponse<T> & { __fetchTimestamp: number };
 

@@ -1,5 +1,5 @@
-import { parseSearchParams } from "@local/shared";
-import { type AnchorHTMLAttributes, cloneElement, createContext, createElement, Fragment, type FunctionComponent, isValidElement, type ReactNode, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef } from "react";
+import { parseSearchParams } from "@vrooli/shared";
+import { Fragment, Suspense, cloneElement, createContext, createElement, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useRef, type AnchorHTMLAttributes, type FunctionComponent, type ReactNode } from "react";
 import makeMatcher, { type DefaultParams, type Match, type MatcherFn } from "./matcher.js";
 import { type SetLocationOptions } from "./types.js";
 import locationHook, { type HookNavigationOptions, type Pathname, type UseLocationHook, type UseLocationResult } from "./useLocation.js";

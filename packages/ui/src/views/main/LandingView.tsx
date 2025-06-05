@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
-import { LINKS, PaymentType, SOCIALS } from "@local/shared";
-import { Box, type BoxProps, Button, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
-import { type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Box, Button, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme, type BoxProps } from "@mui/material";
+import { LINKS, PaymentType, SOCIALS } from "@vrooli/shared";
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AiDrivenConvo from "../../assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "../../assets/img/CollaborativeRoutines.webp";
 import Earth from "../../assets/img/Earth.svg";

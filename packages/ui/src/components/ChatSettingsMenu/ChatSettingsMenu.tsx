@@ -1,8 +1,8 @@
 // Create a new ChatSettingsMenu component to consolidate chat/model settings
 
-import type { ChatInviteShape, ListObject, ResourceVersion } from "@local/shared";
-import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } from "@local/shared";
 import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import type { ChatInviteShape, ListObject, ResourceVersion } from "@vrooli/shared";
+import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } from "@vrooli/shared";
 import { Form, Formik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,6 +1,6 @@
-import { BookmarkFor, LINKS, type ListObject, type ResourceList as ResourceListType, type Team, TeamPageTabOption, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { BookmarkFor, LINKS, TeamPageTabOption, getTranslation, uuidValidate, type ListObject, type ResourceList as ResourceListType, type Team } from "@vrooli/shared";
+import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";

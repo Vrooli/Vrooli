@@ -1,5 +1,5 @@
-import { stringifySearchParams } from "@local/shared";
 import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material";
+import { stringifySearchParams } from "@vrooli/shared";
 import { Component } from "react";
 import BunnyCrash from "../../assets/img/BunnyCrash.svg";
 import { IconCommon } from "../../icons/Icons.js";

@@ -1,5 +1,5 @@
-import { type DeleteOneInput, DeleteType, type PushDevice, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success, endpointsActions, endpointsPushDevice, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, TextField, Tooltip, styled, useTheme } from "@mui/material";
+import { DeleteType, endpointsActions, endpointsPushDevice, updateArray, type DeleteOneInput, type PushDevice, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

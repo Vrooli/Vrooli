@@ -1,9 +1,9 @@
-import { type ChatMessage, DUMMY_ID } from "@local/shared";
 import { renderHook } from "@testing-library/react";
+import { DUMMY_ID, type ChatMessage } from "@vrooli/shared";
 import { expect } from "chai";
 import { act } from "react";
 import sinon from "sinon";
-import { type MessageNode, MessageTree, type MinimumChatMessage, useMessageTree } from "./messages.js";
+import { MessageTree, useMessageTree, type MessageNode, type MinimumChatMessage } from "./messages.js";
 
 const MessageTreeProperty = {
     map: "map",

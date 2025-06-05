@@ -1,4 +1,4 @@
-import { type RoutineVersion, type RoutineVersionShape } from "@local/shared";
+import { type RoutineVersion, type RoutineVersionShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 export type RoutineMultiStepCrudProps = CrudPropsPage;

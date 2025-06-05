@@ -1,5 +1,5 @@
-import { exists } from "@local/shared";
-import { Box, type BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
+import { Box, Button, Grid, styled, useTheme, type BoxProps } from "@mui/material";
+import { exists } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "../../hooks/useErrorPopover.js";

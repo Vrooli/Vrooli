@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { type FormSchema, InputType, type UrlPrimitive } from "@local/shared";
+import { InputType, type FormSchema, type UrlPrimitive } from "@vrooli/shared";
 import { expect } from "chai";
 import { arrayToSearch, convertFormikForSearch, convertSearchForFormik, inputTypeToSearch, nonEmptyString, nonZeroNumber, searchToArray, searchToInputType, stringToTagObject, tagObjectToString, validBoolean, validPrimitive } from "./inputToSearch.js";
 

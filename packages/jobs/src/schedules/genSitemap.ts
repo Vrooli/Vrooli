@@ -1,5 +1,5 @@
-import { DbProvider, ModelMap, type PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
-import { LINKS, ResourceSubType, ResourceType, type SitemapEntryContent, generateSitemap, generateSitemapIndex } from "@local/shared";
+import { DbProvider, ModelMap, UI_URL_REMOTE, logger, type PrismaDelegate } from "@vrooli/server";
+import { LINKS, ResourceSubType, ResourceType, generateSitemap, generateSitemapIndex, type SitemapEntryContent } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

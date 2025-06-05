@@ -1,4 +1,4 @@
-import { type HttpMethod, type ServerResponse } from "@local/shared";
+import { type HttpMethod, type ServerResponse } from "@vrooli/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";

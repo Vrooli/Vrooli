@@ -1,5 +1,5 @@
-import { type ModelType, type OwnerShape, type Session } from "@local/shared";
 import { Box, styled } from "@mui/material";
+import { type ModelType, type OwnerShape, type Session } from "@vrooli/shared";
 import { useMemo } from "react";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS, RelationshipButtonType } from "../../../utils/consts.js";

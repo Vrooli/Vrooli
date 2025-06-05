@@ -1,4 +1,4 @@
-import { BookmarkSortBy, type FormSchema, endpointsBookmark } from "@local/shared";
+import { BookmarkSortBy, endpointsBookmark, type FormSchema } from "@vrooli/shared";
 import i18next from "i18next";
 import { toParams } from "./base.js";
 import { searchFormLayout, yesNoDontCare } from "./common.js";

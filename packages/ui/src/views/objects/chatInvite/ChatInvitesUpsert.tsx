@@ -1,5 +1,5 @@
-import { type ChatInvite, type ChatInviteCreateInput, type ChatInviteShape, type ChatInviteUpdateInput, chatInviteValidation, endpointsChatInvite, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
+import { chatInviteValidation, endpointsChatInvite, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors, type ChatInvite, type ChatInviteCreateInput, type ChatInviteShape, type ChatInviteUpdateInput } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { endpointsRun, type Run } from "@local/shared";
+import { endpointsRun, type Run } from "@vrooli/shared";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TopBar } from "../../../components/navigation/TopBar.js";

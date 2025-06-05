@@ -1,5 +1,5 @@
-import { getObjectUrl, getTranslation } from "@local/shared";
 import { Tooltip, Typography, useTheme } from "@mui/material";
+import { getObjectUrl, getTranslation } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { SessionContext } from "../../contexts/session.js";
 import { useLocation } from "../../route/router.js";

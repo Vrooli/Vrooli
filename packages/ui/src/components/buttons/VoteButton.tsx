@@ -1,11 +1,11 @@
-import { getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { getReactionScore, removeModifiers } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
 import { useVoter } from "../../hooks/objectActions.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { type ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
+import { ObjectActionComplete, type ActionCompletePayloads } from "../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { type VoteButtonProps } from "./types.js";
 

@@ -1,5 +1,5 @@
-import { DUMMY_ID, type DefinedArrayElement, type RoutineVersion, type RoutineVersionShape, type Session, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid } from "@local/shared";
 import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/material";
+import { DUMMY_ID, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid, type DefinedArrayElement, type RoutineVersion, type RoutineVersionShape, type Session } from "@vrooli/shared";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
 import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";

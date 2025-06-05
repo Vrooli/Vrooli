@@ -1,5 +1,5 @@
-import { type FormTipType } from "@local/shared";
-import { Box, Button, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, type Palette, Popover, TextField, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Popover, TextField, Typography, styled, useTheme, type Palette } from "@mui/material";
+import { type FormTipType } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";

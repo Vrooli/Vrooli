@@ -1,6 +1,6 @@
-import { type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, generatePK, MINUTES_10_MS } from "@local/shared";
 import { Box } from "@mui/material";
 import { action } from "@storybook/addon-actions";
+import { MINUTES_10_MS, generatePK, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads } from "@vrooli/shared";
 import { useCallback, useEffect, useState } from "react";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";

@@ -1,4 +1,4 @@
-import { type AutocompleteOption, type Session } from "@local/shared";
+import { type AutocompleteOption, type Session } from "@vrooli/shared";
 import { getCurrentUser } from "../authentication/session.js";
 import { getLocalStorageKeys } from "../localStorage.js";
 import { PubSub } from "../pubsub.js";

@@ -4,7 +4,7 @@ services:
   ui:
     build:
       context: .
-      dockerfile: ./packages/ui/Dockerfile-prod
+      dockerfile: ./Dockerfile-prod
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: ui
@@ -21,18 +21,13 @@ services:
       VITE_GOOGLE_ADSENSE_PUBLISHER_ID: "${GOOGLE_ADSENSE_PUBLISHER_ID}"
       VITE_GOOGLE_TRACKING_ID: "${GOOGLE_TRACKING_ID}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
-      VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PATH: "/"
-      VIRTUAL_PORT: ${PORT_UI:-3000}
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
       - ${PORT_UI:-3000}:${PORT_UI:-3000}
     networks:
-      - proxy
       - app
     volumes:
       - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
+      - ./scripts/package/ui:${PROJECT_DIR:-/srv/app}/scripts/package/ui:z
     healthcheck:
       test:
         - CMD-SHELL
@@ -45,11 +40,11 @@ services:
     depends_on:
       server:
         condition: service_healthy
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/ui.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/ui/start.sh"
   server:
     build:
       context: .
-      dockerfile: ./packages/server/Dockerfile-prod
+      dockerfile: ./Dockerfile-prod
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: server
@@ -89,20 +84,14 @@ services:
       TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
       TWILIO_PHONE_NUMBER: "${TWILIO_PHONE_NUMBER}"
       UI_URL: "${UI_URL}"
-      VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_API:-5329}
-      VIRTUAL_PATH: "/api"
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
       - ${PORT_API:-5329}:${PORT_API:-5329}
     networks:
-      - proxy
       - app
     volumes:
       - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
       - ./data/uploads:${PROJECT_DIR:-/srv/app}/data/uploads:z
-      - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
+      - ./scripts/package/server:${PROJECT_DIR:-/srv/app}/scripts/package/server:z
     depends_on:
       redis:
         condition: service_healthy
@@ -114,11 +103,11 @@ services:
       interval: 20s
       timeout: 5s
       retries: 15
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/server.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/server/start.sh"
   jobs:
     build:
       context: .
-      dockerfile: ./packages/jobs/Dockerfile
+      dockerfile: ./Dockerfile-prod
       args:
         PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
     container_name: jobs
@@ -158,11 +147,6 @@ services:
       TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN}"
       TWILIO_PHONE_NUMBER: "${TWILIO_PHONE_NUMBER}"
       UI_URL: "${UI_URL}"
-      VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PORT: ${PORT_API:-5329}
-      VIRTUAL_PATH: "/api"
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     networks:
       - app
     volumes:
@@ -171,10 +155,11 @@ services:
       - ./packages/shared:${PROJECT_DIR:-/srv/app}/packages/shared:z
       - ./packages/ui/dist:${PROJECT_DIR:-/srv/app}/packages/ui/dist:z
       - ./data/logs:${PROJECT_DIR:-/srv/app}/data/logs:z
+      - ./scripts/package/jobs:${PROJECT_DIR:-/srv/app}/scripts/package/jobs:z
     depends_on:
       server:
         condition: service_healthy
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/jobs.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/jobs/start.sh"
   postgres:
     image: pgvector/pgvector:pg15 
     restart: always
@@ -211,7 +196,7 @@ services:
       - ./scripts:${PROJECT_DIR:-/srv/app}/scripts
     expose:
       - ${PORT_REDIS:-6379}
-    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/redis.sh"
+    command: /bin/sh -c "${PROJECT_DIR:-/srv/app}/scripts/package/redis/start.sh"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -244,7 +229,4 @@ services:
       start_period: 60s # Give it time to download/load the model
 
 networks:
-  proxy:
-    name: nginx-proxy
-    external: true
   app:

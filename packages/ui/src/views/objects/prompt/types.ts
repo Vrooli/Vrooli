@@ -1,4 +1,4 @@
-import { type StandardVersion, type StandardVersionShape } from "@local/shared";
+import { type StandardVersion, type StandardVersionShape } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type FormProps, type ObjectViewProps } from "../../../types.js";
 
 type PromptUpsertPropsPage = CrudPropsPage;

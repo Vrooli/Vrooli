@@ -1,4 +1,4 @@
-import { type Email, type Phone, type PushDevice, type Wallet } from "@local/shared";
+import { type Email, type Phone, type PushDevice, type Wallet } from "@vrooli/shared";
 
 export interface EmailListProps {
     handleUpdate: (emails: Email[]) => unknown;

@@ -1,6 +1,6 @@
-import { DbProvider, batch, logger } from "@local/server";
-import { generatePK, getReactionScore } from "@local/shared";
 import { type Prisma } from "@prisma/client";
+import { DbProvider, batch, logger } from "@vrooli/server";
+import { generatePK, getReactionScore } from "@vrooli/shared";
 
 // Define the specific table names that this job processes
 const PROCESSED_REACTION_TABLE_NAMES = [

@@ -1,7 +1,7 @@
-import { nanoid } from "@local/shared";
+import { nanoid } from "@vrooli/shared";
 import { useEffect, useRef, useState } from "react";
 import { useReward } from "react-rewards";
-import { type CelebrationType, PubSub } from "../../utils/pubsub.js";
+import { PubSub, type CelebrationType } from "../../utils/pubsub.js";
 
 const DEFAULT_DURATION_MS = 5000;
 const DEFAULT_CELEBRATION_TYPE: CelebrationType = "confetti";

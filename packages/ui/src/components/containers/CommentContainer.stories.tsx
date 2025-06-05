@@ -1,5 +1,5 @@
-import { type Comment, CommentFor, type CommentThread, type CommentTranslation, endpointsComment, generatePK } from "@local/shared";
 import { Box, Paper, useTheme } from "@mui/material";
+import { CommentFor, endpointsComment, generatePK, type Comment, type CommentThread, type CommentTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";

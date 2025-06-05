@@ -1,4 +1,4 @@
-import { type ListObject } from "@local/shared";
+import { type ListObject } from "@vrooli/shared";
 import { useCallback, useRef, useState } from "react";
 import { type UsePressEvent } from "./gestures.js";
 

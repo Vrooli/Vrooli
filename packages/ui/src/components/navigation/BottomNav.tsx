@@ -1,5 +1,5 @@
-import { LINKS } from "@local/shared";
 import { Badge, BottomNavigation, BottomNavigationAction, styled, useTheme } from "@mui/material";
+import { LINKS } from "@vrooli/shared";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";

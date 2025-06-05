@@ -74,4 +74,4 @@ jobs:
         run: |
           # Run the deploy script remotely on the production server via SSH
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.VPS_DEPLOY_USER }}@${{ secrets.VPS_DEPLOY_HOST }} \
-            'bash ~/StartupFromScratch/scripts/main/deploy.sh --environment production --source docker --yes yes'
+            'bash ~/Vrooli/scripts/main/deploy.sh --environment production --source docker --yes yes'

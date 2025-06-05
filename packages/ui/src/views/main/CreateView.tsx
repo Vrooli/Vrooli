@@ -1,5 +1,5 @@
-import { LINKS, ResourceSubType, type TranslationKeyCommon } from "@local/shared";
-import { Box, Dialog, type DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
+import { Box, Dialog, IconButton, Stack, Typography, styled, type DialogProps } from "@mui/material";
+import { LINKS, ResourceSubType, type TranslationKeyCommon } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
@@ -12,8 +12,8 @@ import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { type ViewProps } from "../../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
-import { type CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
-import { type RoutineTypeOption, routineTypes } from "../../utils/search/schemas/resource.js";
+import { getCookie, setCookie, type CreateType } from "../../utils/localStorage.js";
+import { routineTypes, type RoutineTypeOption } from "../../utils/search/schemas/resource.js";
 
 type CreateInfo = {
     objectType: CreateType;

@@ -1,8 +1,8 @@
-import { DragDropContext, Draggable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult, Droppable } from "@hello-pangea/dnd";
-import { type Count, DUMMY_ID, type DeleteManyInput, DeleteType, type ListObject, type Resource, type ResourceListFor, type ResourceList as ResourceListType, ResourceUsedFor, type TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult } from "@hello-pangea/dnd";
 import { Box, Button, IconButton, Tooltip, Typography, styled } from "@mui/material";
+import { DUMMY_ID, DeleteType, ResourceUsedFor, endpointsActions, updateArray, type Count, type DeleteManyInput, type ListObject, type Resource, type ResourceListFor, type ResourceList as ResourceListType, type TranslationKeyCommon } from "@vrooli/shared";
 import { useField } from "formik";
-import { type SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts/session.js";

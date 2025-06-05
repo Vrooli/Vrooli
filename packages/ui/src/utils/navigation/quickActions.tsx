@@ -1,4 +1,4 @@
-import { type ActionOption, endpointsUser, HistoryPageTabOption, LINKS, type PreActionOption, type ProfileUpdateInput, SearchPageTabOption, type Session, type User } from "@local/shared";
+import { HistoryPageTabOption, LINKS, SearchPageTabOption, endpointsUser, type ActionOption, type PreActionOption, type ProfileUpdateInput, type Session, type User } from "@vrooli/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
 import { Icon, type IconInfo } from "../../icons/Icons.js";
 import { getCurrentUser } from "../authentication/session.js";

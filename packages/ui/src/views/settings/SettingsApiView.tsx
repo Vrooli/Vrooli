@@ -1,5 +1,5 @@
-import { type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, ApiKeyPermission, type ApiKeyUpdateInput, type DeleteOneInput, DeleteType, FormStructureType, type Success, type User, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop } from "@local/shared";
 import { Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel, IconButton, MenuItem, Radio, RadioGroup, Select, Stack, Typography, useTheme } from "@mui/material";
+import { ApiKeyPermission, DeleteType, FormStructureType, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

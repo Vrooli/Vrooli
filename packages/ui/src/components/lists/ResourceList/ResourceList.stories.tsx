@@ -1,6 +1,6 @@
-import { LINKS, type Resource, type ResourceList as ResourceListType, ResourceUsedFor } from "@local/shared";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import type { Meta } from "@storybook/react";
+import { LINKS, ResourceUsedFor, type Resource, type ResourceList as ResourceListType } from "@vrooli/shared";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";

@@ -1,5 +1,5 @@
-import { endpointsMemberInvite, type MemberInvite, type MemberInviteCreateInput, type MemberInviteShape, type MemberInviteUpdateInput, memberInviteValidation, noop, noopSubmit, shapeMemberInvite, validateAndGetYupErrors } from "@local/shared";
 import { Box, Checkbox, FormControlLabel, Typography, useTheme } from "@mui/material";
+import { endpointsMemberInvite, memberInviteValidation, noop, noopSubmit, shapeMemberInvite, validateAndGetYupErrors, type MemberInvite, type MemberInviteCreateInput, type MemberInviteShape, type MemberInviteUpdateInput } from "@vrooli/shared";
 import { Field, Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

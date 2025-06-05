@@ -1,6 +1,6 @@
-import { type CalendarEvent, type Count, type DeleteManyInput, LINKS, type ListObject, type Resource, ResourceUsedFor, endpointsActions, getObjectUrl } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, styled } from "@mui/material";
-import { type SyntheticEvent, forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { LINKS, ResourceUsedFor, endpointsActions, getObjectUrl, type CalendarEvent, type Count, type DeleteManyInput, type ListObject, type Resource } from "@vrooli/shared";
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts/session.js";
 import { useBulkObjectActions } from "../../../hooks/objectActions.js";

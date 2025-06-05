@@ -1,5 +1,5 @@
-import { isOfType } from "@local/shared";
 import { Typography } from "@mui/material";
+import { isOfType } from "@vrooli/shared";
 import { Field, useField } from "formik";
 import { type EditTextComponent, type EditableTextProps, type PropsByComponentType } from "../containers/types.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";

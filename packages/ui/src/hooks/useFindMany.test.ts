@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from "@local/shared";
+import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from "@vrooli/shared";
 import { expect } from "chai";
 import { searchTypeToParams } from "../utils/search/objectToSearch.js";
 import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from "./useFindMany.js";

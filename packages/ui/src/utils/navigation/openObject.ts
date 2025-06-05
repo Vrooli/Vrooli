@@ -1,7 +1,7 @@
 /**
  * Navigate to various objects and object search pages
  */
-import { type NavigableObject, getObjectSearchParams, getObjectSlug, getObjectUrl, getObjectUrlBase, handleRegex, isOfType, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
+import { getObjectSearchParams, getObjectSlug, getObjectUrl, getObjectUrlBase, handleRegex, isOfType, urlRegex, urlRegexDev, walletAddressRegex, type NavigableObject } from "@vrooli/shared";
 import { type SetLocation } from "../../route/types.js";
 import { ResourceType } from "../consts.js";
 import { setCookiePartialData } from "../localStorage.js";

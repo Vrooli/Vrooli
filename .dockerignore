@@ -1,6 +1,7 @@
 # Dependencies - don't exclude workspace node_modules during build to preserve workspace resolution
 **/node_modules
 !node_modules/@local
+!node_modules/@vrooli
 
 # Source control
 **/.git

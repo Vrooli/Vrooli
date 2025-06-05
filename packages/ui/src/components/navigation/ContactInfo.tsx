@@ -1,5 +1,5 @@
-import { LINKS, SOCIALS, type TranslationKeyCommon } from "@local/shared";
 import { Box, Divider, Link, Tooltip, Typography, styled } from "@mui/material";
+import { LINKS, SOCIALS, type TranslationKeyCommon } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import { Icon, type IconInfo } from "../../icons/Icons.js";
 import { noSelect } from "../../styles.js";

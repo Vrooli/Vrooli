@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, type ProjectVersion, type ProjectVersionDirectory, type Resource, ResourceUsedFor, type Tag, type User, endpointsProjectVersion, generatePK, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, ResourceUsedFor, endpointsProjectVersion, generatePK, getObjectUrl, type ProjectVersion, type ProjectVersionDirectory, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ProjectCrud } from "./ProjectCrud.js";

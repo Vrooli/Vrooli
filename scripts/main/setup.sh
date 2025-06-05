@@ -167,6 +167,9 @@ setup::main() {
     # Schedule backups if production environment file exists
     if ! flow::is_yes "$IS_CI" && env::prod_file_exists; then
         "${MAIN_DIR}/backup.sh"
+        log::success "🎉 Setup and backup completed successfully!"
+    else
+        log::success "🎉 Setup completed successfully!"
     fi
 }
 

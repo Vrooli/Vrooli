@@ -1,5 +1,5 @@
-import { isOfType } from "@local/shared";
 import { Typography, useTheme } from "@mui/material";
+import { isOfType } from "@vrooli/shared";
 import { Field, useField } from "formik";
 import { useMemo } from "react";
 import { linkColors } from "../../styles.js";

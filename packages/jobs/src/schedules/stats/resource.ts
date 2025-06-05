@@ -1,6 +1,6 @@
-import { DbProvider, batch, batchGroup, logger } from "@local/server";
-import { generatePK } from "@local/shared";
 import { type PeriodType, type Prisma } from "@prisma/client";
+import { DbProvider, batch, batchGroup, logger } from "@vrooli/server";
+import { generatePK } from "@vrooli/shared";
 
 // Select shape for resource version batching
 const resourceVersionSelect = {

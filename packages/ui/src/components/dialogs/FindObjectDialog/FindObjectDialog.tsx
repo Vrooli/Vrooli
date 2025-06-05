@@ -1,5 +1,5 @@
-import { type AutocompleteOption, type FindByIdInput, type FindVersionInput, type FormInputBase, type ListObject, type SearchType, funcFalse, getObjectUrl } from "@local/shared";
 import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { funcFalse, getObjectUrl, type AutocompleteOption, type FindByIdInput, type FindVersionInput, type FormInputBase, type ListObject, type SearchType } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";

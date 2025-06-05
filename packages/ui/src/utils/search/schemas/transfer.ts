@@ -1,4 +1,4 @@
-import { endpointsTransfer, type FormSchema, TransferSortBy } from "@local/shared";
+import { TransferSortBy, endpointsTransfer, type FormSchema } from "@vrooli/shared";
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 

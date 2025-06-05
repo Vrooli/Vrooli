@@ -1,8 +1,8 @@
 /* eslint-disable no-magic-numbers */
-import { type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, DUMMY_ID, type User, uuid, uuidToBase36 } from "@local/shared";
 import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { DUMMY_ID, uuid, uuidToBase36, type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, type User } from "@vrooli/shared";
 import { expect } from "chai";
 import { HttpResponse, http } from "msw";
 import { signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";

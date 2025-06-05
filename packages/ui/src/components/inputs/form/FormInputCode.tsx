@@ -1,4 +1,4 @@
-import { type CodeFormInput } from "@local/shared";
+import { type CodeFormInput } from "@vrooli/shared";
 import { useMemo } from "react";
 import { CodeInput } from "../../inputs/CodeInput/CodeInput.js";
 import { type FormInputProps } from "./types.js";

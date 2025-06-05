@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { type Schedule, type ScheduleException, type ScheduleRecurrence, ScheduleRecurrenceType, endpointsSchedule, generatePK, getObjectUrl } from "@local/shared";
+import { ScheduleRecurrenceType, endpointsSchedule, generatePK, getObjectUrl, type Schedule, type ScheduleException, type ScheduleRecurrence } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ScheduleUpsert } from "./ScheduleUpsert.js";

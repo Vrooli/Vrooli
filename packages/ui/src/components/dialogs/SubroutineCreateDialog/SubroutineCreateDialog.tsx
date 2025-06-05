@@ -1,5 +1,5 @@
-import { type TranslationKeyCommon } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
+import { type TranslationKeyCommon } from "@vrooli/shared";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type IconInfo } from "../../../icons/Icons.js";

@@ -1,6 +1,6 @@
-import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
-import { type ChangeEvent, useCallback } from "react";
+import { convertToDot, valueFromDot } from "@vrooli/shared";
+import { useCallback, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import privacyMarkdown from "../../assets/policy/privacy.md";
 import { PageContainer } from "../../components/Page/Page.js";
@@ -9,12 +9,12 @@ import { Footer } from "../../components/navigation/Footer.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { useMarkdown } from "../../hooks/useMarkdown.js";
-import { type PageTab, useTabs } from "../../hooks/useTabs.js";
+import { useTabs, type PageTab } from "../../hooks/useTabs.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { type ViewProps } from "../../types.js";
 import { BUSINESS_DATA } from "../../utils/consts.js";
-import { PolicyTabOption, type PolicyTabsInfo, type TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
+import { PolicyTabOption, policyTabParams, type PolicyTabsInfo, type TabParamBase } from "../../utils/search/objectToSearch.js";
 
 function injectBusinessData(markdown: string) {
     const business_fields = Object.keys(convertToDot(BUSINESS_DATA));

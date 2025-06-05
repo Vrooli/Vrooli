@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { LINKS, type Session, type TranslationKeyCommon } from "@local/shared";
+import { LINKS, type Session, type TranslationKeyCommon } from "@vrooli/shared";
 import { type IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 

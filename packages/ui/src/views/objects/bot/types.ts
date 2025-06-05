@@ -1,4 +1,4 @@
-import { type BotShape, type User } from "@local/shared";
+import { type BotShape, type User } from "@vrooli/shared";
 import { type CrudPropsDialog, type CrudPropsPage, type CrudPropsPartial, type FormProps } from "../../../types.js";
 
 type BotUpsertPropsPage = CrudPropsPage;

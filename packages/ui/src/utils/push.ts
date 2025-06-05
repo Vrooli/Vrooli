@@ -1,4 +1,4 @@
-import { endpointsPushDevice, type PushDevice, type PushDeviceCreateInput } from "@local/shared";
+import { endpointsPushDevice, type PushDevice, type PushDeviceCreateInput } from "@vrooli/shared";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { requestNotificationPermission, subscribeUserToPush } from "../serviceWorkerRegistration.js";

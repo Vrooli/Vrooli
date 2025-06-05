@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
+import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@vrooli/shared";
 import { type IconInfo } from "../../../icons/Icons.js";
 import { type AITaskDisplay } from "../../../types.js";
 

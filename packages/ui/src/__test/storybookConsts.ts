@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { generatePK, type Session, type SessionUser } from "@local/shared";
+import { generatePK, type Session, type SessionUser } from "@vrooli/shared";
 import { DEFAULT_THEME } from "../utils/display/theme.js";
 
 export const API_URL = "http://localhost:5329/api";

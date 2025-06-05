@@ -1,6 +1,6 @@
-import { BookmarkFor, type ChatShape, DUMMY_ID, LINKS, type ListObject, type User, UserPageTabOption, getObjectUrl, getTranslation, noop, validatePK } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { type MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { BookmarkFor, DUMMY_ID, LINKS, UserPageTabOption, getObjectUrl, getTranslation, noop, validatePK, type ChatShape, type ListObject, type User } from "@vrooli/shared";
+import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../../api/ai.js";
 import BannerDefault from "../../../assets/img/BannerDefault.webp";

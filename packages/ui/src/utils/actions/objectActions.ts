@@ -1,4 +1,4 @@
-import { type Bookmark, BookmarkFor, CommentFor, type CopyResult, CopyType, DeleteType, type ListObject, ReactionFor, ReportFor, type Session, type Success, type TranslationKeyCommon, getReactionScore } from "@local/shared";
+import { BookmarkFor, CommentFor, CopyType, DeleteType, ReactionFor, ReportFor, getReactionScore, type Bookmark, type CopyResult, type ListObject, type Session, type Success, type TranslationKeyCommon } from "@vrooli/shared";
 import { type ListMenuItemData } from "../../components/dialogs/types.js";
 import { type IconInfo } from "../../icons/Icons.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";

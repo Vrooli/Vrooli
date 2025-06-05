@@ -1,5 +1,5 @@
-import { LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Stack, Typography, useTheme } from "@mui/material";
+import { LINKS, PaymentType } from "@vrooli/shared";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";

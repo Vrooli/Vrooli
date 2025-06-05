@@ -1,5 +1,5 @@
-import { type ModelType, type ParseSearchParamsResult, type YouInflated, isEqual, parseSearchParams } from "@local/shared";
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isEqual, parseSearchParams, type ModelType, type ParseSearchParamsResult, type YouInflated } from "@vrooli/shared";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ServerResponseParser } from "../api/responseParser.js";
 import { type FetchInputOptions } from "../api/types.js";
 import { type PartialWithType } from "../types.js";

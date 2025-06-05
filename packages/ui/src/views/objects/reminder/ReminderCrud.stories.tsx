@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { type Reminder, endpointsReminder, generatePK, getObjectUrl } from "@local/shared";
+import { endpointsReminder, generatePK, getObjectUrl, type Reminder } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ReminderCrud } from "./ReminderCrud.js";

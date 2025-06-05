@@ -1,5 +1,5 @@
-import { type ListObject, type Routine } from "@local/shared";
 import { type BoxProps } from "@mui/material";
+import { type ListObject, type Routine } from "@vrooli/shared";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type SxType } from "../../types.js";
 import { type DisplayAdornment } from "../../utils/display/listTools.js";

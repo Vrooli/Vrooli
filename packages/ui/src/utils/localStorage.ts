@@ -1,4 +1,4 @@
-import { type AITaskInfo, type NavigableObject, type ProjectVersion, type RoutineVersion, type TaskContextInfo, getObjectSlug, isObject, mergeDeep } from "@local/shared";
+import { getObjectSlug, isObject, mergeDeep, type AITaskInfo, type NavigableObject, type ProjectVersion, type RoutineVersion, type TaskContextInfo } from "@vrooli/shared";
 import { chatMatchHash } from "./codes.js";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
 import { getDeviceInfo } from "./display/device.js";

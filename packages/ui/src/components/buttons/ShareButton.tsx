@@ -1,5 +1,5 @@
-import { type ListObject } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
+import { type ListObject } from "@vrooli/shared";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

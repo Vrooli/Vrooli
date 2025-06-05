@@ -1,6 +1,6 @@
-import { ApiKey, CodeLanguage, StripeEndpoint, User, generatePK } from '@local/shared';
 import { CssBaseline, GlobalStyles, ThemeProvider, createTheme } from '@mui/material';
 import type { Preview } from '@storybook/react';
+import { ApiKey, CodeLanguage, StripeEndpoint, User, generatePK } from '@vrooli/shared';
 import { HttpResponse, http } from 'msw';
 import { initialize, mswLoader } from 'msw-storybook-addon';
 import React, { useCallback, useEffect, useState } from 'react';
