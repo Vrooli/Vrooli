@@ -77,13 +77,25 @@ setup::parse_arguments() {
 }
 
 setup::main() {
-    setup::parse_arguments "$@"
-    # Validate target and canonicalize
-    if ! canonical=$(match_target "$TARGET"); then
-        args::usage "$DESCRIPTION"
-        exit "$ERROR_USAGE"
+    # Only parse arguments if this script is being run directly, not sourced
+    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+        setup::parse_arguments "$@"
+        # Validate target and canonicalize
+        if ! canonical=$(match_target "$TARGET"); then
+            args::usage "$DESCRIPTION"
+            exit "$ERROR_USAGE"
+        fi
+        export TARGET="$canonical"
+    else
+        # If sourced, set default values for variables that would normally be parsed
+        export CLEAN="${CLEAN:-no}"
+        export IS_CI="${IS_CI:-no}"
+        export SUDO_MODE="${SUDO_MODE:-error}"
+        export YES="${YES:-no}"
+        export LOCATION="${LOCATION:-}"
+        export ENVIRONMENT="${ENVIRONMENT:-development}"
     fi
-    export TARGET="$canonical"
+    
     log::header "🔨 Starting project setup for $(match_target "$TARGET")..."
 
     # Prepare the system
@@ -164,8 +176,8 @@ setup::main() {
 
     log::success "✅ Setup complete. You can now run 'pnpm run develop' or 'bash scripts/main/develop.sh'"
 
-    # Schedule backups if production environment file exists
-    if ! flow::is_yes "$IS_CI" && env::prod_file_exists; then
+    # Schedule backups only if in production environment (not just if prod file exists)
+    if ! flow::is_yes "$IS_CI" && env::in_production; then
         "${MAIN_DIR}/backup.sh"
         log::success "🎉 Setup and backup completed successfully!"
     else

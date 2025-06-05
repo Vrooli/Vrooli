@@ -10,12 +10,22 @@ source "${DEVELOP_TARGET_DIR}/../../utils/flow.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/log.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/env.sh"
 
 dockerOnly::start_development_docker_only() {
     local detached=${DETACHED:-No}
 
     log::header "🚀 Starting Docker only development environment..."
     cd "$var_ROOT_DIR"
+
+    # Ensure environment variables are loaded for docker-compose
+    # The main setup script should have already called env::load_secrets() and env::construct_derived_secrets()
+    # but let's make sure the derived secrets are available in this subprocess
+    if [[ -z "${DB_URL:-}" || -z "${REDIS_URL:-}" ]]; then
+        log::info "Constructing derived secrets for docker-compose..."
+        env::construct_derived_secrets
+    fi
 
     dockerOnly::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."

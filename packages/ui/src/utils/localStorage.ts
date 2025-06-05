@@ -201,7 +201,7 @@ export function getLocalStorageKeys({
     suffix = "",
 }: GetLocalStorageKeysProps): string[] {
     const keys: string[] = [];
-    for (let i = 0; i < localStorageObj?.length ?? 0; i++) {
+    for (let i = 0; i < (localStorageObj?.length ?? 0); i++) {
         const key = localStorageObj?.key(i);
         if (key && key.startsWith(prefix) && key.endsWith(suffix)) {
             keys.push(key);

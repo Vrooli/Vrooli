@@ -96,7 +96,7 @@ export default defineConfig((props) => {
                 // Imports from the shared folder
                 { find: "@vrooli/shared", replacement: path.resolve(__dirname, "../shared/src") },
             ],
-            extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
+            extensions: [".js", ".jsx", ".ts", ".tsx", ".json", ".d.ts"],
         },
         build: {
             chunkSizeWarningLimit: 1000,
