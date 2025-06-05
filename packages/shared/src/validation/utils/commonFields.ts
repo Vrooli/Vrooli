@@ -61,7 +61,7 @@ export const id = yup
     .removeEmptyString() // Use the custom method as it's chained on a StringSchema
     .test(
         "id-validation",
-        "Must be a valid ID (UUID or Snowflake ID)",
+        "Must be a valid ID (Snowflake ID)",
         (value) => value === null || value === undefined || validatePK(value as string),
     );
 
