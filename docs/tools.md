@@ -14,18 +14,18 @@ vim .env-dev
 ## Setup full project based on environment variables:
 ```bash
 chmod +x ./scripts/*
-pnpm cache clean && ./scripts/setup.sh
+pnpm cache clean && ./scripts/main/setup.sh
 ```
-**Read /scripts/setup.sh for available flags**
+**Read /scripts/main/setup.sh for available flags**
 
 ## Start the development environment:
 ```bash
 # Normal start or restart
-./scripts/develop.sh
+./scripts/main/develop.sh
 # Rebuild and restart. Useful when you change config files like package.json
-./scripts/develop.sh --build
+./scripts/main/develop.sh --build
 # Force restart. Redownloads and rebuilds containers, keeping only volumes
-./scripts/develop.sh --build --force-recreate
+./scripts/main/develop.sh --build --force-recreate
 ```
 
 
@@ -35,15 +35,15 @@ pnpm cache clean && ./scripts/setup.sh
 
 ## Build for deployment:
 ```bash
-./scripts/develop.sh
+./scripts/main/develop.sh
 ```
-**Read /scripts/develop.sh for available flags**
+**Read /scripts/main/develop.sh for available flags**
 
 ## Deploy (typically run in remote server), after sending the build to it:
 ```bash
-./scripts/deploy.sh
+./scripts/main/deploy.sh
 ```
-**Read /scripts/deploy.sh for available flags**
+**Read /scripts/main/deploy.sh for available flags**
 
 
 # Testing commands
