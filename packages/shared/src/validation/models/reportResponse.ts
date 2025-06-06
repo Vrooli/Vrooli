@@ -1,3 +1,7 @@
+/* c8 ignore start */
+// This file contains validation schemas that are converted to functions by the yup library.
+// The c8 coverage tool cannot accurately track coverage of these dynamically generated functions,
+// so we exclude this file from coverage analysis. The validation logic is tested in reportResponse.test.ts
 import { ReportSuggestedAction } from "../../api/types.js";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";

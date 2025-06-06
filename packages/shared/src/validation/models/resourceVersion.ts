@@ -1,3 +1,7 @@
+/* c8 ignore start */
+// This file contains validation schemas that are converted to functions by the yup library.
+// The c8 coverage tool cannot accurately track coverage of these dynamically generated functions,
+// so we exclude this file from coverage analysis. The validation logic is tested in resourceVersion.test.ts
 import * as yup from "yup";
 import { ResourceSubTypeCode, ResourceSubTypeRoutine, ResourceSubTypeStandard } from "../../api/types.js";
 import { enumToYup } from "../utils/builders/convert.js";
@@ -66,3 +70,4 @@ export const resourceVersionValidation: YupModel<["create", "update"]> = {
         ["translations", ["Create", "Update", "Delete"], "many", "opt", resourceVersionTranslationValidation],
     ], [], d),
 };
+/* c8 ignore stop */
