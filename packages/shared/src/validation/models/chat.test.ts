@@ -30,47 +30,65 @@ describe("chatValidation", () => {
             });
 
             it("should handle complex nested invites creation", async () => {
+                const data = {
+                    id: "123456789012345678",
+                    invitesCreate: [
+                        {
+                            id: "223456789012345678",
+                            message: "Invite 1",
+                            userConnect: "323456789012345678",
+                        },
+                        {
+                            id: "223456789012345679",
+                            message: "Invite 2",
+                            userConnect: "323456789012345679",
+                        },
+                    ],
+                };
                 const result = await testValidation(
                     createSchema,
-                    {
-                        id: "123456789012345678",
-                        invites: {
-                            create: [
-                                {
-                                    id: "223456789012345678",
-                                    message: "Invite 1",
-                                    user: { connect: { id: "323456789012345678" } },
-                                },
-                                {
-                                    id: "223456789012345679",
-                                    message: "Invite 2",
-                                    user: { connect: { id: "323456789012345679" } },
-                                },
-                            ],
-                        },
-                    },
+                    data,
                     true,
                 );
-                expect(result.invites.create).to.have.length(2);
+                expect(result).to.have.property("invitesCreate");
+                expect(result.invitesCreate).to.have.length(2);
             });
 
             it("should validate nested message creation", async () => {
-                const result = await testValidation(
-                    createSchema,
-                    {
-                        id: "123456789012345678",
-                        messages: {
-                            create: [{
-                                id: "223456789012345678",
-                                content: "Test message",
-                                user: { connect: { id: "323456789012345678" } },
-                            }],
+                const data = {
+                    id: "123456789012345678",
+                    messagesCreate: [{
+                        id: "223456789012345678",
+                        config: {
+                            __version: "1.0.0",
+                            resources: [],
                         },
-                    },
-                    true,
-                );
-                expect(result.messages.create).to.have.length(1);
-                expect(result.messages.create[0].content).to.equal("Test message");
+                        chatConnect: "123456789012345678",
+                        userConnect: "323456789012345678",
+                        translationsCreate: [{
+                            id: "333456789012345678",
+                            language: "en",
+                            text: "Test message",
+                        }],
+                    }],
+                };
+                
+                try {
+                    const result = await createSchema.validate(data, { 
+                        abortEarly: false,
+                        stripUnknown: true,
+                    });
+                    expect(result).to.have.property("messagesCreate");
+                    expect(result.messagesCreate).to.have.length(1);
+                    expect(result.messagesCreate[0].translationsCreate[0].text).to.equal("Test message");
+                } catch (error: any) {
+                    console.error("Direct validation error:", {
+                        message: error.message,
+                        errors: error.errors,
+                        inner: error.inner?.map((e: any) => ({ path: e.path, message: e.message, type: e.type })),
+                    });
+                    throw error;
+                }
             });
 
             it("should reject invalid nested relations", async () => {
@@ -86,30 +104,28 @@ describe("chatValidation", () => {
                     createSchema,
                     {
                         id: "123456789012345678",
-                        team: {
-                            connect: { id: "423456789012345678" },
-                        },
+                        teamConnect: "423456789012345678",
                     },
                     true,
                 );
-                expect(result.team.connect.id).to.equal("423456789012345678");
+                expect(result.teamConnect).to.equal("423456789012345678");
             });
 
             it("should handle omitFields for nested relations", async () => {
                 const schemaWithOmit = chatValidation.create({ 
-                    omitFields: ["invites", "messages"] 
+                    omitFields: ["invitesCreate", "messagesCreate"] 
                 });
                 const result = await testValidation(
                     schemaWithOmit,
                     {
                         id: "123456789012345678",
-                        invites: { create: [{ id: "invalid" }] }, // Should be ignored
-                        messages: { create: [{ id: "invalid" }] }, // Should be ignored
+                        invitesCreate: [{ id: "invalid" }], // Should be ignored
+                        messagesCreate: [{ id: "invalid" }], // Should be ignored
                     },
                     true,
                 );
-                expect(result).to.not.have.property("invites");
-                expect(result).to.not.have.property("messages");
+                expect(result).to.not.have.property("invitesCreate");
+                expect(result).to.not.have.property("messagesCreate");
             });
         });
 
@@ -130,22 +146,35 @@ describe("chatValidation", () => {
             it("should handle participant deletion", async () => {
                 const result = await testValidation(
                     updateSchema,
-                    chatFixtures.edgeCases.onlyParticipantDelete.update,
+                    {
+                        id: "123456789012345678",
+                        participantsDelete: ["523456789012345678"],
+                    },
                     true,
                 );
-                expect(result.participants.delete).to.have.length(1);
+                expect(result.participantsDelete).to.have.length(1);
             });
 
             it("should validate complex update operations", async () => {
-                const result = await testValidation(
-                    updateSchema,
-                    chatFixtures.complete.update,
-                    true,
-                );
-                expect(result).to.have.property("invites");
-                expect(result.invites).to.have.property("create");
-                expect(result.invites).to.have.property("update");
-                expect(result.invites).to.have.property("delete");
+                try {
+                    const result = await updateSchema.validate(chatFixtures.complete.update, { 
+                        abortEarly: false,
+                        stripUnknown: true,
+                    });
+                    expect(result).to.have.property("invitesCreate");
+                    expect(result).to.have.property("invitesUpdate");
+                    expect(result).to.have.property("invitesDelete");
+                    expect(result).to.have.property("messagesCreate");
+                    expect(result).to.have.property("messagesUpdate");
+                    expect(result).to.have.property("messagesDelete");
+                } catch (error: any) {
+                    console.error("Update validation error:", {
+                        message: error.message,
+                        errors: error.errors,
+                        inner: error.inner?.map((e: any) => ({ path: e.path, message: e.message, type: e.type })),
+                    });
+                    throw error;
+                }
             });
 
             it("should reject update without id", async () => {
@@ -164,21 +193,17 @@ describe("chatValidation", () => {
                     updateSchema,
                     {
                         id: "123456789012345678",
-                        invites: {
-                            create: [],
-                            update: [],
-                            delete: [],
-                        },
-                        participants: {
-                            delete: [],
-                        },
+                        invitesCreate: [],
+                        invitesUpdate: [],
+                        invitesDelete: [],
+                        participantsDelete: [],
                     },
                     true,
                 );
-                expect(result.invites.create).to.be.an("array").with.length(0);
-                expect(result.invites.update).to.be.an("array").with.length(0);
-                expect(result.invites.delete).to.be.an("array").with.length(0);
-                expect(result.participants.delete).to.be.an("array").with.length(0);
+                expect(result.invitesCreate).to.be.an("array").with.length(0);
+                expect(result.invitesUpdate).to.be.an("array").with.length(0);
+                expect(result.invitesDelete).to.be.an("array").with.length(0);
+                expect(result.participantsDelete).to.be.an("array").with.length(0);
             });
 
             it("should validate nested translation operations", async () => {
@@ -198,7 +223,7 @@ describe("chatValidation", () => {
                     chatFixtures.edgeCases.multipleTranslations.create,
                     true,
                 );
-                expect(result.translations.create).to.have.length(3);
+                expect(result.translationsCreate).to.have.length(3);
             });
 
             it("should validate max length fields", async () => {
@@ -208,7 +233,7 @@ describe("chatValidation", () => {
                     chatFixtures.edgeCases.maxLengthFields.create,
                     true,
                 );
-                expect(result.translations.create[0].name).to.have.length(255);
+                expect(result.translationsCreate[0].name).to.have.length(50);
             });
 
             it("should handle empty translation arrays", async () => {
@@ -218,7 +243,7 @@ describe("chatValidation", () => {
                     chatFixtures.edgeCases.emptyTranslations.create,
                     true,
                 );
-                expect(result.translations.create).to.be.an("array").with.length(0);
+                expect(result.translationsCreate).to.be.an("array").with.length(0);
             });
         });
 
@@ -295,6 +320,7 @@ describe("chatTranslationValidation", () => {
             const result = await testValidation(
                 createSchema,
                 {
+                    id: "123456789012345678",
                     language: "en",
                     name: "Chat",
                     unknownField: "should be removed",
@@ -332,6 +358,7 @@ describe("chatTranslationValidation", () => {
             const result = await testValidation(
                 updateSchema,
                 {
+                    id: "123456789012345678",
                     language: "en",
                     description: "Updated description only",
                 },

@@ -30,75 +30,89 @@ export const chatFixtures: ModelTestFixtures = {
         create: {
             id: validIds.chatId2,
             openToAnyoneWithInvite: true,
-            invites: {
-                create: [{
-                    id: validIds.inviteId1,
-                    message: "Join our chat!",
-                    user: { connect: { id: validIds.userId1 } },
-                }],
-            },
-            messages: {
-                create: [{
-                    id: validIds.messageId1,
-                    content: "Hello world!",
-                    user: { connect: { id: validIds.userId1 } },
-                }],
-            },
-            team: {
-                connect: { id: validIds.teamId1 },
-            },
-            translations: {
-                create: [{
+            invitesCreate: [{
+                id: validIds.inviteId1,
+                message: "Join our chat!",
+                chatConnect: validIds.chatId2,
+                userConnect: validIds.userId1,
+            }],
+            messagesCreate: [{
+                id: validIds.messageId1,
+                config: {
+                    __version: "1.0.0",
+                    resources: [],
+                },
+                chatConnect: validIds.chatId2,
+                userConnect: validIds.userId1,
+                translationsCreate: [{
+                    id: "1023456789012345678",
                     language: "en",
-                    name: "Project Discussion",
-                    description: "Chat for discussing project updates",
+                    text: "Hello world!",
                 }],
-            },
+            }],
+            teamConnect: validIds.teamId1,
+            translationsCreate: [{
+                id: "723456789012345678",
+                language: "en",
+                name: "Project Discussion",
+                description: "Chat for discussing project updates",
+            }],
         },
         update: {
             id: validIds.chatId2,
             openToAnyoneWithInvite: false,
-            invites: {
-                create: [{
-                    id: validIds.inviteId2,
-                    message: "Welcome to the team chat",
-                    user: { connect: { id: validIds.userId2 } },
-                }],
-                update: [{
-                    id: validIds.inviteId1,
-                    message: "Updated invite message",
-                }],
-                delete: [validIds.inviteId1],
-            },
-            messages: {
-                create: [{
-                    id: validIds.messageId2,
-                    content: "New message",
-                    user: { connect: { id: validIds.userId2 } },
-                }],
-                update: [{
-                    id: validIds.messageId1,
-                    content: "Updated message content",
-                }],
-                delete: [validIds.messageId1],
-            },
-            participants: {
-                delete: [validIds.participantId1, validIds.participantId2],
-            },
-            translations: {
-                create: [{
-                    language: "es",
-                    name: "Discusión del Proyecto",
-                    description: "Chat para discutir actualizaciones del proyecto",
-                }],
-                update: [{
-                    id: validIds.chatId3,
+            invitesCreate: [{
+                id: validIds.inviteId2,
+                message: "Welcome to the team chat",
+                chatConnect: validIds.chatId2,
+                userConnect: validIds.userId2,
+            }],
+            invitesUpdate: [{
+                id: validIds.inviteId1,
+                message: "Updated invite message",
+            }],
+            invitesDelete: [validIds.inviteId1],
+            messagesCreate: [{
+                id: validIds.messageId2,
+                config: {
+                    __version: "1.0.0",
+                    resources: [],
+                },
+                chatConnect: validIds.chatId2,
+                userConnect: validIds.userId2,
+                translationsCreate: [{
+                    id: "1123456789012345678",
                     language: "en",
-                    name: "Updated Project Discussion",
-                    description: "Updated chat description",
+                    text: "New message",
                 }],
-                delete: [validIds.chatId3],
-            },
+            }],
+            messagesUpdate: [{
+                id: validIds.messageId1,
+                config: {
+                    __version: "1.0.0",
+                    resources: [],
+                },
+                translationsCreate: [{
+                    id: "1223456789012345678",
+                    language: "en",
+                    text: "Updated message content",
+                }],
+            }],
+            messagesDelete: [validIds.messageId1],
+            participantsDelete: [validIds.participantId1, validIds.participantId2],
+            translationsCreate: [{
+                id: "823456789012345678",
+                language: "es",
+                name: "Discusión del Proyecto",
+                description: "Chat para discutir actualizaciones del proyecto",
+            }],
+            translationsUpdate: [{
+                id: validIds.chatId3,
+                language: "en",
+                name: "Updated Project Discussion",
+                description: "Updated chat description",
+            }],
+            translationsDelete: [validIds.chatId3],
         },
     },
     invalid: {
@@ -171,53 +185,49 @@ export const chatFixtures: ModelTestFixtures = {
         emptyTranslations: {
             create: {
                 id: validIds.chatId1,
-                translations: {
-                    create: [],
-                },
+                translationsCreate: [],
             },
         },
         multipleTranslations: {
             create: {
                 id: validIds.chatId1,
-                translations: {
-                    create: [
-                        {
-                            language: "en",
-                            name: "English Chat",
-                            description: "English description",
-                        },
-                        {
-                            language: "fr",
-                            name: "Chat Français",
-                            description: "Description française",
-                        },
-                        {
-                            language: "de",
-                            name: "Deutscher Chat",
-                            description: "Deutsche Beschreibung",
-                        },
-                    ],
-                },
+                translationsCreate: [
+                    {
+                        id: "923456789012345678",
+                        language: "en",
+                        name: "English Chat",
+                        description: "English description",
+                    },
+                    {
+                        id: "923456789012345679",
+                        language: "fr",
+                        name: "Chat Français",
+                        description: "Description française",
+                    },
+                    {
+                        id: "923456789012345680",
+                        language: "de",
+                        name: "Deutscher Chat",
+                        description: "Deutsche Beschreibung",
+                    },
+                ],
             },
         },
         onlyParticipantDelete: {
             update: {
                 id: validIds.chatId1,
-                participants: {
-                    delete: [validIds.participantId1],
-                },
+                participantsDelete: [validIds.participantId1],
             },
         },
         maxLengthFields: {
             create: {
                 id: validIds.chatId1,
-                translations: {
-                    create: [{
-                        language: "en",
-                        name: testValues.longString(255), // Assuming max length
-                        description: testValues.longString(2048), // Assuming reasonable description length
-                    }],
-                },
+                translationsCreate: [{
+                    id: "923456789012345681",
+                    language: "en",
+                    name: testValues.longString(50), // Max length for name field
+                    description: testValues.longString(2048), // Assuming reasonable description length
+                }],
             },
         },
     },

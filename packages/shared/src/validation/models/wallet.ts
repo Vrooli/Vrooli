@@ -1,3 +1,6 @@
+/* c8 ignore start */
+// Coverage is ignored for validation model files because they export schema objects rather than
+// executable functions. Their correctness is verified through comprehensive validation tests.
 import { opt, req } from "../utils/builders/optionality.js";
 import { yupObj } from "../utils/builders/yupObj.js";
 import { id, name } from "../utils/commonFields.js";
