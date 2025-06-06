@@ -108,7 +108,7 @@ Each package typically has:
 - Aim for >80% code coverage
 
 ### Error Handling
-- Use structured error types from `@local/shared`
+- Use structured error types from `@vrooli/shared`
 - Implement proper error boundaries in React components
 - Log errors with appropriate severity levels
 - Use circuit breakers for external service calls
