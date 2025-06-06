@@ -86,7 +86,7 @@ describe("resourceVersionValidation", () => {
             });
 
             it("should accept valid version labels", async () => {
-                const validVersions = ["1.0.0", "2.1.3", "0.1.0-beta", "1.0.0-alpha.1"];
+                const validVersions = ["1.0.0", "2.1.3", "1.0.0-beta", "1.0.0-alpha.1"];
 
                 for (const versionLabel of validVersions) {
                     const data = {
@@ -169,12 +169,12 @@ describe("resourceVersionValidation", () => {
                 );
             });
 
-            it("should reject invalid config JSON", async () => {
+            it("should reject invalid config format", async () => {
                 await testValidation(
                     createSchema,
                     resourceVersionFixtures.invalid.invalidConfig.create,
                     false,
-                    /valid JSON/i,
+                    /must be a.*object.*type/i,
                 );
             });
 
@@ -210,17 +210,17 @@ describe("resourceVersionValidation", () => {
                     {
                         data: resourceVersionFixtures.edgeCases.codeVersion.create,
                         shouldPass: true,
-                        description: "Function subtype",
+                        description: "CodeDataConverter subtype",
                     },
                     {
                         data: resourceVersionFixtures.edgeCases.routineVersion.create,
                         shouldPass: true,
-                        description: "Generate subtype",
+                        description: "RoutineGenerate subtype",
                     },
                     {
                         data: resourceVersionFixtures.edgeCases.standardVersion.create,
                         shouldPass: true,
-                        description: "Prompt subtype",
+                        description: "StandardPrompt subtype",
                     },
                 ];
 
@@ -301,9 +301,10 @@ describe("resourceVersionValidation", () => {
         describe("version creation scenarios", () => {
             it("should handle different resource subtypes", async () => {
                 const subtypes = [
-                    "Api", "DataConverter", "Form", "Generate", "Informational", 
-                    "LLMCallDirectly", "LLMCallFunction", "SingleStep", 
-                    "Function", "Prompt"
+                    "RoutineInternalAction", "RoutineApi", "RoutineCode", "RoutineData", 
+                    "RoutineGenerate", "RoutineInformational", "RoutineMultiStep", 
+                    "RoutineSmartContract", "RoutineWeb", "CodeDataConverter", 
+                    "CodeSmartContract", "StandardDataStructure", "StandardPrompt"
                 ];
 
                 for (const resourceSubType of subtypes) {
@@ -589,9 +590,9 @@ describe("resourceVersionValidation", () => {
         });
 
         it("should handle all resource subtypes", async () => {
-            const codeSubtypes = ["Function"];
-            const routineSubtypes = ["Api", "DataConverter", "Form", "Generate", "Informational", "LLMCallDirectly", "LLMCallFunction", "SingleStep"];
-            const standardSubtypes = ["Prompt"];
+            const codeSubtypes = ["CodeDataConverter", "CodeSmartContract"];
+            const routineSubtypes = ["RoutineInternalAction", "RoutineApi", "RoutineCode", "RoutineData", "RoutineGenerate", "RoutineInformational", "RoutineMultiStep", "RoutineSmartContract", "RoutineWeb"];
+            const standardSubtypes = ["StandardDataStructure", "StandardPrompt"];
 
             const allSubtypes = [...codeSubtypes, ...routineSubtypes, ...standardSubtypes];
 

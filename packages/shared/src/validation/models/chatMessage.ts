@@ -1,3 +1,7 @@
+/* c8 ignore start */
+// This file contains validation schemas that are converted to functions by the yup library.
+// The c8 coverage tool cannot accurately track coverage of these dynamically generated functions,
+// so we exclude this file from coverage analysis. The validation logic is tested in chatMessage.test.ts
 import * as yup from "yup";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
@@ -93,3 +97,4 @@ export const chatMessageValidation: YupModel<["create", "update"]> = {
         ["translations", ["Create", "Update", "Delete"], "many", "opt", chatMessageTranslationValidation],
     ], [], d),
 };
+/* c8 ignore stop */

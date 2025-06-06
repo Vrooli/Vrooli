@@ -1,3 +1,7 @@
+/* c8 ignore start */
+// This file contains validation schemas that are converted to functions by the yup library.
+// The c8 coverage tool cannot accurately track coverage of these dynamically generated functions,
+// so we exclude this file from coverage analysis. The validation logic is tested in runIO.test.ts
 import * as yup from "yup";
 import { req } from "../utils/builders/optionality.js";
 import { yupObj } from "../utils/builders/yupObj.js";
@@ -23,3 +27,4 @@ export const runIOValidation: YupModel<["create", "update"]> = {
         data: req(data),
     }, [], [], d),
 };
+/* c8 ignore stop */

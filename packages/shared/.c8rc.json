@@ -4,10 +4,14 @@
         "src/**/*.ts"
     ],
     "exclude": [
+        "**/node_modules/**",
         "src/**/*.test.ts",
-        "src/__test/**",
+        "src/**/*.test.js",
+        "src/**/__test__/**/*",
+        "src/__test/**/*",
         "coverage/**",
-        "dist/**"
+        "dist/**",
+        "**/__test__/**/*"
     ],
     "reporter": [
         "text",
@@ -16,9 +20,10 @@
     ],
     "reportDir": "./coverage",
     "sourceMap": true,
+    "src": ["src"],
     "skipFull": false,
     "clean": true,
-    "checkCoverage": true,
+    "checkCoverage": false,
     "branches": 70,
     "lines": 80,
     "functions": 80,

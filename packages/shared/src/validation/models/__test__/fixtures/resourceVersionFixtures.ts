@@ -12,12 +12,12 @@ const validIds = {
     id8: "123456789012345685",
 };
 
-// Valid public IDs for testing (8-character alphanumeric)
+// Valid public IDs for testing (10-12 character alphanumeric)
 const validPublicIds = {
-    pub1: "abc12345",
-    pub2: "def67890",
-    pub3: "ghi13579",
-    pub4: "jkl24680",
+    pub1: "abc1234567", // 10 chars
+    pub2: "def6789012", // 10 chars  
+    pub3: "ghi1357924", // 10 chars
+    pub4: "jkl2468013", // 10 chars
 };
 
 // Shared resourceVersion test fixtures
@@ -44,12 +44,12 @@ export const resourceVersionFixtures: ModelTestFixtures = {
             id: validIds.id1,
             publicId: validPublicIds.pub1,
             codeLanguage: "typescript",
-            config: JSON.stringify({ theme: "dark", autoSave: true }),
+            config: { theme: "dark", autoSave: true },
             isAutomatable: true,
             isComplete: true,
             isInternal: false,
             isPrivate: false,
-            resourceSubType: "Api",
+            resourceSubType: "RoutineApi",
             versionLabel: "2.1.0",
             versionNotes: "Major update with new features and bug fixes.",
             rootConnect: validIds.id2,
@@ -89,7 +89,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         update: {
             id: validIds.id1,
             codeLanguage: "javascript",
-            config: JSON.stringify({ theme: "light", autoSave: false }),
+            config: { theme: "light", autoSave: false },
             isAutomatable: false,
             isComplete: true,
             isInternal: true,
@@ -152,7 +152,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
                 id: 123, // Should be string
                 publicId: 456, // Should be string
                 codeLanguage: 789, // Should be string
-                config: "not-valid-json", // Should be valid JSON string
+                config: "not-an-object", // Should be object
                 isAutomatable: "true", // Should be boolean
                 isComplete: "false", // Should be boolean
                 isInternal: "yes", // Should be boolean
@@ -165,7 +165,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
             update: {
                 id: validIds.id1,
                 codeLanguage: 123, // Should be string
-                config: ["not", "json"], // Should be JSON string
+                config: "not-an-object", // Should be object
                 isAutomatable: "maybe", // Should be boolean
                 isComplete: "yes", // Should be boolean
                 isInternal: 1, // Should be boolean
@@ -271,7 +271,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         invalidConfig: {
             create: {
                 id: validIds.id1,
-                config: "not-valid-json-string",
+                config: "not-an-object",
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,
                 translationsCreate: [
@@ -287,7 +287,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 versionLabel: "1.0.0",
-                versionNotes: "x".repeat(2049), // Too long
+                versionNotes: "x".repeat(4093), // Too long (exceeds 4092)
                 rootConnect: validIds.id2,
                 translationsCreate: [
                     {
@@ -319,7 +319,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 codeLanguage: "python",
-                resourceSubType: "Function",
+                resourceSubType: "CodeDataConverter",
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,
                 translationsCreate: [
@@ -334,7 +334,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         routineVersion: {
             create: {
                 id: validIds.id1,
-                resourceSubType: "Generate",
+                resourceSubType: "RoutineGenerate",
                 isAutomatable: true,
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,
@@ -350,7 +350,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         standardVersion: {
             create: {
                 id: validIds.id1,
-                resourceSubType: "Prompt",
+                resourceSubType: "StandardPrompt",
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,
                 translationsCreate: [
@@ -425,11 +425,11 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         withConfiguration: {
             create: {
                 id: validIds.id1,
-                config: JSON.stringify({
+                config: {
                     version: "2.0",
                     features: ["automation", "validation"],
                     settings: { timeout: 30000, retries: 3 }
-                }),
+                },
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,
                 translationsCreate: [
@@ -546,7 +546,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
         updateConfiguration: {
             update: {
                 id: validIds.id1,
-                config: JSON.stringify({ mode: "production" }),
+                config: { mode: "production" },
                 isComplete: true,
             },
         },
