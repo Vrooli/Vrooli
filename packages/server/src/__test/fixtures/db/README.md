@@ -5,7 +5,7 @@
 We use a two-layer fixture system to handle the different data shapes needed for testing:
 
 1. **Database Fixtures** (`packages/server/src/__test/fixtures/`) - Prisma-shaped data for seeding test databases
-2. **Validation Fixtures** (`packages/shared/src/validation/models/__test__/fixtures/`) - API input/output shapes for testing validation and endpoints
+2. **Validation Fixtures** (`packages/shared/src/validation/models/__test/fixtures/`) - API input/output shapes for testing validation and endpoints
 
 ## Why Two Types of Fixtures?
 
@@ -41,7 +41,7 @@ beforeEach(async () => {
 
 ### 2. API Testing (Test Cases)
 ```typescript
-import { chatTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/chatFixtures.js";
+import { chatTestDataFactory } from "@vrooli/shared/src/validation/models/__test/fixtures/chatFixtures.js";
 
 it("creates a chat", async () => {
     // Use validation fixtures for API input
@@ -108,7 +108,7 @@ const chat = await seedTestChat(prisma, {
 
 ## Validation Fixtures
 
-Located in `packages/shared/src/validation/models/__test__/fixtures/`
+Located in `packages/shared/src/validation/models/__test/fixtures/`
 
 ### Features
 - Follow API input/output shapes
@@ -247,7 +247,7 @@ export class ModelDbFactory {
 
 ### 2. Create Validation Fixture
 ```typescript
-// packages/shared/src/validation/models/__test__/fixtures/modelFixtures.ts
+// packages/shared/src/validation/models/__test/fixtures/modelFixtures.ts
 export const modelFixtures: ModelTestFixtures = {
     minimal: {
         create: { /* minimal valid input */ },
