@@ -4,6 +4,11 @@
  */
 
 export * from "./chatFixtures.js";
+export * from "./chatInviteFixtures.js";
+export * from "./chatMessageFixtures.js";
+export * from "./chatParticipantFixtures.js";
+export * from "./meetingInviteFixtures.js";
+export * from "./memberInviteFixtures.js";
 export * from "./userFixtures.js";
 export * from "./commentFixtures.js";
 export * from "./bookmarkFixtures.js";

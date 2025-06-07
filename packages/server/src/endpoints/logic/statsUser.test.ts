@@ -1,8 +1,6 @@
 import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, uuid } from "@vrooli/shared";
 import { PeriodType } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -222,15 +220,15 @@ async function extractStattedObjectInfoFromStats(result: RecursivePartial<StatsU
 }
 
 describe("EndpointsStatsUser", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorStub: any;
+    let loggerInfoStub: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+        loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
@@ -277,12 +275,12 @@ describe("EndpointsStatsUser", () => {
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorStub.mockRestore();
+        loggerInfoStub.mockRestore();
     });
 
     describe("findMany", () => {
@@ -306,9 +304,9 @@ describe("EndpointsStatsUser", () => {
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
-                expect(result).to.not.be.null;
+                expect(result).not.toBeNull();
                 const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
-                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
+                expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
 
             it("properly filters by periodType", async () => {
@@ -333,8 +331,8 @@ describe("EndpointsStatsUser", () => {
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
                 const resultStatIds = result.edges!.map(edge => edge!.node!.id);
 
-                expect(result).to.not.be.null;
-                expect(expectedStatIds.sort()).to.deep.equal(resultStatIds.sort());
+                expect(result).not.toBeNull();
+                expect(expectedStatIds.sort()).toEqual(resultStatIds.sort());
             });
 
             it("API key with public permission returns public user/bot stats", async () => {
@@ -358,7 +356,7 @@ describe("EndpointsStatsUser", () => {
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
                 const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
-                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
+                expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
 
             it("not logged in returns only public user/bot stats", async () => {
@@ -379,9 +377,9 @@ describe("EndpointsStatsUser", () => {
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
-                expect(result).to.not.be.null;
+                expect(result).not.toBeNull();
                 const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
-                expect(resultStattedIds.sort()).to.deep.equal(expectedStattedIds.sort(), `Received IDs for: ${resultStattedNames.join(", ")}`);
+                expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
         });
 
@@ -399,7 +397,7 @@ describe("EndpointsStatsUser", () => {
                     await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
@@ -413,7 +411,7 @@ describe("EndpointsStatsUser", () => {
                     await statsUser.findMany({ input: input as StatsUserSearchInput }, { req, res }, statsUser_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
         });

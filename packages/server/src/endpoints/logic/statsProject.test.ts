@@ -1,8 +1,6 @@
 import { StatPeriodType, type StatsProjectSearchInput, uuid } from "@vrooli/shared";
 import { PeriodType, type project as ProjectModelPrisma } from "@prisma/client"; // Correct import
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -133,15 +131,15 @@ const privateProjectStats2 = {
 };
 
 describe("EndpointsStatsProject", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorStub: any;
+    let loggerInfoStub: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+        loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
@@ -187,12 +185,12 @@ describe("EndpointsStatsProject", () => {
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorStub.mockRestore();
+        loggerInfoStub.mockRestore();
     });
 
     describe("findMany", () => {
@@ -207,16 +205,17 @@ describe("EndpointsStatsProject", () => {
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 1 should see public projects and their own private project
-                expect(resultIds).to.include(statsProjectData1.id);
-                expect(resultIds).to.include(statsProjectData2.id);
-                expect(resultIds).to.include(privateProjectStats1.id);
+                expect(resultIds).toContain(statsProjectData1.id);
+                expect(resultIds).toContain(statsProjectData2.id);
+                expect(resultIds).toContain(privateProjectStats1.id);
                 // User 1 should NOT see user 2's private project stats
-                expect(resultIds).to.not.include(privateProjectStats2.id);
+                expect(resultIds).not.toContain(privateProjectStats2.id);
             });
 
             it("filters by periodType", async () => {
@@ -226,12 +225,13 @@ describe("EndpointsStatsProject", () => {
                 const input: StatsProjectSearchInput = { periodType: StatPeriodType.Monthly };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsProjectData1.id);
-                expect(resultIds).to.include(statsProjectData2.id);
-                expect(resultIds).to.include(privateProjectStats1.id);
+                expect(resultIds).toContain(statsProjectData1.id);
+                expect(resultIds).toContain(statsProjectData2.id);
+                expect(resultIds).toContain(privateProjectStats1.id);
             });
 
             it("filters by time range", async () => {
@@ -247,12 +247,13 @@ describe("EndpointsStatsProject", () => {
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsProjectData1.id); // Should include Jan stats
-                expect(resultIds).to.not.include(statsProjectData2.id); // Should exclude Feb stats
-                expect(resultIds).to.not.include(privateProjectStats1.id); // Should exclude Mar stats
+                expect(resultIds).toContain(statsProjectData1.id); // Should include Jan stats
+                expect(resultIds).not.toContain(statsProjectData2.id); // Should exclude Feb stats
+                expect(resultIds).not.toContain(privateProjectStats1.id); // Should exclude Mar stats
             });
 
             it("API key - public permissions returns only public projects", async () => {
@@ -267,14 +268,15 @@ describe("EndpointsStatsProject", () => {
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                expect(resultIds).to.include(statsProjectData1.id);
-                expect(resultIds).to.include(statsProjectData2.id);
-                expect(resultIds).to.not.include(privateProjectStats1.id);
-                expect(resultIds).to.not.include(privateProjectStats2.id);
+                expect(resultIds).toContain(statsProjectData1.id);
+                expect(resultIds).toContain(statsProjectData2.id);
+                expect(resultIds).not.toContain(privateProjectStats1.id);
+                expect(resultIds).not.toContain(privateProjectStats2.id);
             });
 
             it("not logged in returns only public projects", async () => {
@@ -287,14 +289,15 @@ describe("EndpointsStatsProject", () => {
                 // Assuming readManyHelper allows public access for projects when not logged in
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                expect(resultIds).to.include(statsProjectData1.id);
-                expect(resultIds).to.include(statsProjectData2.id);
-                expect(resultIds).to.not.include(privateProjectStats1.id);
-                expect(resultIds).to.not.include(privateProjectStats2.id);
+                expect(resultIds).toContain(statsProjectData1.id);
+                expect(resultIds).toContain(statsProjectData2.id);
+                expect(resultIds).not.toContain(privateProjectStats1.id);
+                expect(resultIds).not.toContain(privateProjectStats2.id);
             });
         });
 
@@ -312,7 +315,7 @@ describe("EndpointsStatsProject", () => {
                     await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
@@ -326,7 +329,7 @@ describe("EndpointsStatsProject", () => {
                     await statsProject.findMany({ input: input as StatsProjectSearchInput }, { req, res }, statsProject_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
@@ -341,8 +344,8 @@ describe("EndpointsStatsProject", () => {
                 };
                 const result = await statsProject.findMany({ input }, { req, res }, statsProject_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result.edges!.length).to.equal(0);
+                expect(result).not.toBeNull();
+                expect(result.edges!.length).toEqual(0);
                 expect(result.edges!.every(edge => edge?.node?.id !== privateProjectStats2.id)).to.be.true;
             });
         });

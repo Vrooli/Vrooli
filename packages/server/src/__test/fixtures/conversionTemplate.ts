@@ -14,7 +14,7 @@
  *    import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
  *    
  *    // Import validation fixtures for API input testing
- *    import { [model]TestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/[model]Fixtures.js";
+ *    import { [model]TestDataFactory } from "@vrooli/shared/src/validation/models/__test/fixtures/[model]Fixtures.js";
  * 
  * 3. Replace beforeAll logger stubs:
  *    OLD:
@@ -137,7 +137,7 @@ import { ModelDbFactory, seedModels } from "../../__test/fixtures/modelFixtures.
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { modelTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/modelFixtures.js";
+import { modelTestDataFactory } from "@vrooli/shared/src/validation/models/__test/fixtures/modelFixtures.js";
 
 describe("EndpointsModel", () => {
     let testUsers: any[];

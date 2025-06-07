@@ -1,8 +1,6 @@
 // Tests for the ReportResponse endpoint (findOne, findMany, createOne, updateOne)
 import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -22,13 +20,13 @@ let report1: any;
 let response1: any;
 
 describe("EndpointsReportResponse", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorStub: any;
+    let loggerInfoStub: any;
 
     beforeAll(() => {
         // stub logger
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+        loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
     beforeEach(async () => {
@@ -68,8 +66,8 @@ describe("EndpointsReportResponse", () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorStub.mockRestore();
+        loggerInfoStub.mockRestore();
     });
 
     describe("findOne", () => {
@@ -78,8 +76,8 @@ describe("EndpointsReportResponse", () => {
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const input: FindByIdInput = { id: response1.id };
             const result = await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
-            expect(result.id).to.equal(response1.id);
-            expect(result.details).to.equal("Admin response");
+            expect(result.id).toEqual(response1.id);
+            expect(result.details).toEqual("Admin response");
         });
 
         it("API key with public read can find response", async () => {
@@ -88,7 +86,7 @@ describe("EndpointsReportResponse", () => {
             const { req, res } = await mockApiSession(token, perms, loggedInUserNoPremiumData);
             const input: FindByIdInput = { id: response1.id };
             const result = await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
-            expect(result.id).to.equal(response1.id);
+            expect(result.id).toEqual(response1.id);
         });
 
         it("throws for non-admin user", async () => {
@@ -111,7 +109,7 @@ describe("EndpointsReportResponse", () => {
             const input: ReportResponseSearchInput = { take: 10, reportId: report1.id };
             const result = await reportResponse.findMany({ input }, { req, res }, reportResponse_findMany);
             const ids = result.edges!.map(e => e!.node!.id);
-            expect(ids).to.include(response1.id);
+            expect(ids).toContain(response1.id);
         });
 
         it("throws for non-admin user", async () => {
@@ -139,8 +137,8 @@ describe("EndpointsReportResponse", () => {
                 actionSuggested: ReportSuggestedAction.NonIssue, // Use enum
             };
             const result = await reportResponse.createOne({ input }, { req, res }, reportResponse_createOne);
-            expect(result.id).to.equal(newResponseId);
-            expect(result.details).to.equal("New admin response");
+            expect(result.id).toEqual(newResponseId);
+            expect(result.details).toEqual("New admin response");
         });
 
         it("throws for non-admin user", async () => {
@@ -162,8 +160,8 @@ describe("EndpointsReportResponse", () => {
             const { req, res } = await mockAuthenticatedSession(adminUser);
             const input: ReportResponseUpdateInput = { id: response1.id, details: "Updated admin response" };
             const result = await reportResponse.updateOne({ input }, { req, res }, reportResponse_updateOne);
-            expect(result.id).to.equal(response1.id);
-            expect(result.details).to.equal("Updated admin response");
+            expect(result.id).toEqual(response1.id);
+            expect(result.details).toEqual("Updated admin response");
         });
 
         it("throws for non-admin user", async () => {

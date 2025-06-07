@@ -1,8 +1,6 @@
 import { StatPeriodType, type StatsRoutineSearchInput, uuid } from "@vrooli/shared";
 import { PeriodType, type routine as RoutineModelPrisma } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -100,15 +98,15 @@ const privateRoutineStats2 = {
 };
 
 describe("EndpointsStatsRoutine", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorStub: any;
+    let loggerInfoStub: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+        loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
@@ -153,12 +151,12 @@ describe("EndpointsStatsRoutine", () => {
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorStub.mockRestore();
+        loggerInfoStub.mockRestore();
     });
 
     describe("findMany", () => {
@@ -174,16 +172,17 @@ describe("EndpointsStatsRoutine", () => {
                 // Assuming statsRoutine_findMany exists and is typed correctly
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 1 should see public routines and their own private routine
-                expect(resultIds).to.include(statsRoutineData1.id);
-                expect(resultIds).to.include(statsRoutineData2.id);
-                expect(resultIds).to.include(privateRoutineStats1.id);
+                expect(resultIds).toContain(statsRoutineData1.id);
+                expect(resultIds).toContain(statsRoutineData2.id);
+                expect(resultIds).toContain(privateRoutineStats1.id);
                 // User 1 should NOT see user 2's private routine stats
-                expect(resultIds).to.not.include(privateRoutineStats2.id);
+                expect(resultIds).not.toContain(privateRoutineStats2.id);
             });
 
             it("filters by periodType", async () => {
@@ -193,12 +192,13 @@ describe("EndpointsStatsRoutine", () => {
                 const input: StatsRoutineSearchInput = { periodType: StatPeriodType.Monthly };
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsRoutineData1.id);
-                expect(resultIds).to.include(statsRoutineData2.id);
-                expect(resultIds).to.include(privateRoutineStats1.id);
+                expect(resultIds).toContain(statsRoutineData1.id);
+                expect(resultIds).toContain(statsRoutineData2.id);
+                expect(resultIds).toContain(privateRoutineStats1.id);
             });
 
             it("filters by time range", async () => {
@@ -214,12 +214,13 @@ describe("EndpointsStatsRoutine", () => {
                 };
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsRoutineData1.id); // Should include Jan stats
-                expect(resultIds).to.not.include(statsRoutineData2.id); // Should exclude Feb stats
-                expect(resultIds).to.not.include(privateRoutineStats1.id); // Should exclude Mar stats
+                expect(resultIds).toContain(statsRoutineData1.id); // Should include Jan stats
+                expect(resultIds).not.toContain(statsRoutineData2.id); // Should exclude Feb stats
+                expect(resultIds).not.toContain(privateRoutineStats1.id); // Should exclude Mar stats
             });
 
             it("API key - public permissions (likely returns only public routines)", async () => {
@@ -234,15 +235,16 @@ describe("EndpointsStatsRoutine", () => {
                 };
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // Expect only public routine stats, as readManyHelper likely enforces ownership for private ones even with ReadPublic key
-                expect(resultIds).to.include(statsRoutineData1.id);
-                expect(resultIds).to.include(statsRoutineData2.id);
-                expect(resultIds).to.not.include(privateRoutineStats1.id);
-                expect(resultIds).to.not.include(privateRoutineStats2.id);
+                expect(resultIds).toContain(statsRoutineData1.id);
+                expect(resultIds).toContain(statsRoutineData2.id);
+                expect(resultIds).not.toContain(privateRoutineStats1.id);
+                expect(resultIds).not.toContain(privateRoutineStats2.id);
             });
 
             it("not logged in (likely returns empty or only public, depending on readManyHelper)", async () => {
@@ -259,15 +261,16 @@ describe("EndpointsStatsRoutine", () => {
                 // Let's assume public routines ARE viewable by logged-out users via readManyHelper.
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // Expect only public routine stats
-                expect(resultIds).to.include(statsRoutineData1.id);
-                expect(resultIds).to.include(statsRoutineData2.id);
-                expect(resultIds).to.not.include(privateRoutineStats1.id);
-                expect(resultIds).to.not.include(privateRoutineStats2.id);
+                expect(resultIds).toContain(statsRoutineData1.id);
+                expect(resultIds).toContain(statsRoutineData2.id);
+                expect(resultIds).not.toContain(privateRoutineStats1.id);
+                expect(resultIds).not.toContain(privateRoutineStats2.id);
             });
 
         });
@@ -290,7 +293,7 @@ describe("EndpointsStatsRoutine", () => {
                     expect.fail("Expected an error to be thrown due to invalid date");
                 } catch (error) {
                     // Error expected, specific error type check depends on readManyHelper/Prisma validation
-                    expect(error).to.be.instanceOf(Error); // Basic check
+                    expect(error).toBeInstanceOf(Error); // Basic check
                 }
             });
 
@@ -308,7 +311,7 @@ describe("EndpointsStatsRoutine", () => {
                     expect.fail("Expected an error to be thrown due to invalid periodType");
                 } catch (error) {
                     // Error expected, likely a validation error from Zod or Prisma within readManyHelper
-                    expect(error).to.be.instanceOf(Error); // Basic check
+                    expect(error).toBeInstanceOf(Error); // Basic check
                 }
             });
 
@@ -325,12 +328,13 @@ describe("EndpointsStatsRoutine", () => {
 
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 // No results should match the query, as user1 cannot see user2's private routine
-                expect(result.edges!.length).to.equal(0);
+                expect(result.edges!.length).toEqual(0);
                 // Double-check no edge contains the private stat ID
-                expect(result.edges!.every(edge => edge?.node?.id !== privateRoutineStats2.id)).to.be.true;
+                expect(result.edges!.every(edge => edge?.node?.id !== privateRoutineStats2.id)).toBe(true);
             });
         });
     });

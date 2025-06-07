@@ -1,8 +1,6 @@
 import { StatPeriodType, type StatsTeamSearchInput, uuid } from "@vrooli/shared";
 import { PeriodType, type team as TeamModelPrisma } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -99,15 +97,15 @@ const statsTeamData3 = {
 };
 
 describe("EndpointsStatsTeam", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorStub: any;
+    let loggerInfoStub: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+        loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
@@ -166,12 +164,12 @@ describe("EndpointsStatsTeam", () => {
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorStub.mockRestore();
+        loggerInfoStub.mockRestore();
     });
 
     describe("findMany", () => {
@@ -186,15 +184,16 @@ describe("EndpointsStatsTeam", () => {
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 1 should see stats for public team 1 and their private team 2
-                expect(resultIds).to.include(statsTeamData1.id);
-                expect(resultIds).to.include(statsTeamData2.id);
+                expect(resultIds).toContain(statsTeamData1.id);
+                expect(resultIds).toContain(statsTeamData2.id);
                 // User 1 should NOT see stats for private team 3
-                expect(resultIds).to.not.include(statsTeamData3.id);
+                expect(resultIds).not.toContain(statsTeamData3.id);
             });
 
             it("returns correct stats for a different logged in user (user 2)", async () => {
@@ -207,15 +206,16 @@ describe("EndpointsStatsTeam", () => {
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 2 should see stats for public team 1 and their private team 3
-                expect(resultIds).to.include(statsTeamData1.id);
-                expect(resultIds).to.include(statsTeamData3.id);
+                expect(resultIds).toContain(statsTeamData1.id);
+                expect(resultIds).toContain(statsTeamData3.id);
                 // User 2 should NOT see stats for private team 2
-                expect(resultIds).to.not.include(statsTeamData2.id);
+                expect(resultIds).not.toContain(statsTeamData2.id);
             });
 
             it("returns only public stats for a user not in any private teams (user 3)", async () => {
@@ -225,14 +225,15 @@ describe("EndpointsStatsTeam", () => {
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 3 should only see stats for public team 1
-                expect(resultIds).to.include(statsTeamData1.id);
-                expect(resultIds).to.not.include(statsTeamData2.id);
-                expect(resultIds).to.not.include(statsTeamData3.id);
+                expect(resultIds).toContain(statsTeamData1.id);
+                expect(resultIds).not.toContain(statsTeamData2.id);
+                expect(resultIds).not.toContain(statsTeamData3.id);
             });
 
             it("filters by periodType", async () => {
@@ -242,11 +243,12 @@ describe("EndpointsStatsTeam", () => {
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsTeamData1.id); // Jan
-                expect(resultIds).to.include(statsTeamData2.id); // Feb
+                expect(resultIds).toContain(statsTeamData1.id); // Jan
+                expect(resultIds).toContain(statsTeamData2.id); // Feb
                 // Mar stats (team 3) shouldn't be visible to user 1 anyway
             });
 
@@ -263,12 +265,13 @@ describe("EndpointsStatsTeam", () => {
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).to.include(statsTeamData1.id); // Jan stats for public team 1
-                expect(resultIds).to.not.include(statsTeamData2.id); // Feb stats for private team 2
-                expect(resultIds).to.not.include(statsTeamData3.id); // Mar stats for private team 3
+                expect(resultIds).toContain(statsTeamData1.id); // Jan stats for public team 1
+                expect(resultIds).not.toContain(statsTeamData2.id); // Feb stats for private team 2
+                expect(resultIds).not.toContain(statsTeamData3.id); // Mar stats for private team 3
             });
 
             it("API key - public permissions returns only public team stats", async () => {
@@ -283,14 +286,15 @@ describe("EndpointsStatsTeam", () => {
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // Only public team stats should be returned
-                expect(resultIds).to.include(statsTeamData1.id);
-                expect(resultIds).to.not.include(statsTeamData2.id);
-                expect(resultIds).to.not.include(statsTeamData3.id);
+                expect(resultIds).toContain(statsTeamData1.id);
+                expect(resultIds).not.toContain(statsTeamData2.id);
+                expect(resultIds).not.toContain(statsTeamData3.id);
             });
 
             it("not logged in returns only public team stats", async () => {
@@ -303,13 +307,14 @@ describe("EndpointsStatsTeam", () => {
                 // Assuming readManyHelper allows public access for teams
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                expect(resultIds).to.include(statsTeamData1.id);
-                expect(resultIds).to.not.include(statsTeamData2.id);
-                expect(resultIds).to.not.include(statsTeamData3.id);
+                expect(resultIds).toContain(statsTeamData1.id);
+                expect(resultIds).not.toContain(statsTeamData2.id);
+                expect(resultIds).not.toContain(statsTeamData3.id);
             });
         });
 
@@ -327,7 +332,7 @@ describe("EndpointsStatsTeam", () => {
                     await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
@@ -341,7 +346,7 @@ describe("EndpointsStatsTeam", () => {
                     await statsTeam.findMany({ input: input as StatsTeamSearchInput }, { req, res }, statsTeam_findMany);
                     expect.fail("Expected an error");
                 } catch (error) {
-                    expect(error).to.be.instanceOf(Error);
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
@@ -356,7 +361,7 @@ describe("EndpointsStatsTeam", () => {
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
-                expect(result).to.not.be.null;
+                expect(result).not.toBeNull();
                 expect(result.edges!.length).to.equal(0);
                 expect(result.edges!.every(edge => edge?.node?.id !== statsTeamData3.id)).to.be.true;
             });

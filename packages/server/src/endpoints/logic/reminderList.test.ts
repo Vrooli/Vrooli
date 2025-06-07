@@ -133,12 +133,12 @@ describe("EndpointsReminderList", () => {
             });
 
             it("API key with write permissions can update reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input: ReminderListUpdateInput = { id: reminderListUser1Id };
+                const input: ReminderListUpdateInput = { id: reminderListUser1.id };
 
                 const result = await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
 
@@ -149,38 +149,37 @@ describe("EndpointsReminderList", () => {
 
         describe("invalid", () => {
             it("cannot update another user's reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: ReminderListUpdateInput = { id: reminderListUser2Id };
+                const input: ReminderListUpdateInput = { id: reminderListUser2.id };
 
-                try {
+                await expect(async () => {
                     await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
 
             it("not logged in user cannot update reminder list", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
-                const input: ReminderListUpdateInput = { id: reminderListUser1Id };
+                const input: ReminderListUpdateInput = { id: reminderListUser1.id };
 
-                try {
+                await expect(async () => {
                     await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
 
             it("cannot update non-existent reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
 
-                const input: ReminderListUpdateInput = { id: uuid() };
+                const input: ReminderListUpdateInput = { id: "non-existent-id" };
 
-                try {
+                await expect(async () => {
                     await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
         });
     });
