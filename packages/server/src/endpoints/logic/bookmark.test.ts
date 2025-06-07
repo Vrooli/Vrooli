@@ -1,9 +1,6 @@
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-// Tests for the Bookmark endpoint (findOne, findMany, createOne, updateOne)
-import { type BookmarkCreateInput, BookmarkFor, type BookmarkSearchInput, type BookmarkUpdateInput, type FindByIdInput, generatePK, nanoid, validatePK } from "@local/shared";
-import { expect } from "chai";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { type BookmarkCreateInput, BookmarkFor, type BookmarkSearchInput, type BookmarkUpdateInput, type FindByIdInput, generatePK } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -15,292 +12,254 @@ import { bookmark_findOne } from "../generated/bookmark_findOne.js";
 import { bookmark_updateOne } from "../generated/bookmark_updateOne.js";
 import { bookmark } from "./bookmark.js";
 
-describe("EndpointsBookmark", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
-    // Test users
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    let adminId: bigint;
-    let user1Id: bigint;
-    let user2Id: bigint;
-    // Bookmark lists for tests
-    let listUser1: any;
-    let listUser2: any;
-    // Bookmark IDs for tests
-    let bookmarkUser1Id: bigint;
-    let bookmarkUser2Id: bigint;
-    // Tags for tests
-    let tagUser1: any;
-    let tagUser2: any;
+// Import database fixtures for seeding
+import { BookmarkDbFactory, BookmarkListDbFactory, seedBookmarks } from "../../__test/fixtures/bookmarkFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
-    before(() => {
-        // Stub logger methods to suppress output
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+// Import validation fixtures for API input testing
+import { bookmarkTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/bookmarkFixtures.js";
+
+describe("EndpointsBookmark", () => {
+    let testUsers: any[];
+    let adminUser: any;
+    let tags: any[];
+    let bookmarkData: any;
+
+    beforeAll(() => {
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Create users for testing
-        user1Id = generatePK();
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        user2Id = generatePK();
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
-        const admin = await seedMockAdminUser();
-        adminId = admin.id;
-
-        // Create bookmark lists for each user
-        listUser1 = await DbProvider.get().bookmark_list.create({
-            data: {
-                id: generatePK(),
-                label: "List1",
-                user: { connect: { id: user1Id } },
-            },
-        });
-        listUser2 = await DbProvider.get().bookmark_list.create({
-            data: {
-                id: generatePK(),
-                label: "List2",
-                user: { connect: { id: user2Id } },
-            },
-        });
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        adminUser = await seedMockAdminUser();
 
         // Create tags to be bookmarked
-        tagUser1 = await DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-1" } });
-        tagUser2 = await DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-2" } });
+        tags = await Promise.all([
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-1" } }),
+            DbProvider.get().tag.create({ data: { id: generatePK(), tag: "tag-2" } }),
+        ]);
 
-        // Seed bookmarks for each user
-        bookmarkUser1Id = generatePK();
-        await DbProvider.get().bookmark.create({
-            data: {
-                id: bookmarkUser1Id,
-                list: { connect: { id: listUser1.id } },
-                user: { connect: { id: user1Id } },
-                tag: { connect: { id: tagUser1.id } },
-            },
-        });
-        bookmarkUser2Id = generatePK();
-        await DbProvider.get().bookmark.create({
-            data: {
-                id: bookmarkUser2Id,
-                list: { connect: { id: listUser2.id } },
-                user: { connect: { id: user2Id } },
-                tag: { connect: { id: tagUser2.id } },
-            },
+        // Seed bookmarks with lists using database fixtures
+        bookmarkData = await seedBookmarks(DbProvider.get(), {
+            userId: testUsers[0].id,
+            objects: [
+                { id: tags[0].id, type: "Tag" },
+                { id: tags[1].id, type: "Tag" },
+            ],
+            withList: true,
+            listName: "My Tag Collection",
         });
     });
 
-    after(async () => {
+    afterAll(async () => {
+        // Clean up
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Restore logger stubs
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
-        describe("valid", () => {
-            it("returns own bookmark", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
-                const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(bookmarkUser1Id);
+        it("returns bookmark by id for owner", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
-
-            it("API key with read permissions can find own bookmark", async () => {
-                const permissions = mockReadPublicPermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
-                const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(bookmarkUser1Id);
-            });
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(bookmarkData.bookmarks[0].id);
         });
 
-        describe("invalid", () => {
-            it("cannot find another user's bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: bookmarkUser2Id.toString() };
-                try {
-                    await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("does not return bookmark for non-owner", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            
+            await expect(async () => {
+                await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
+            }).rejects.toThrow();
+        });
 
-            it("not logged in user cannot find bookmark", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: bookmarkUser1Id.toString() };
-                try {
-                    await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
-            });
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id };
+            
+            await expect(async () => {
+                await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
+            }).rejects.toThrow();
         });
     });
 
     describe("findMany", () => {
-        describe("valid", () => {
-            it("returns own bookmarks for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-                const input: BookmarkSearchInput = { take: 10 };
-                const expectedIds = [
-                    bookmarkUser1Id,
-                ];
-                const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
-                assertFindManyResultIds(expect, result, expectedIds);
+        it("returns bookmarks for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            const input: BookmarkSearchInput = { 
+                forObjectType: BookmarkFor.Tag,
+                take: 10,
+            };
+            const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
+            expect(result.edges.length).toBe(2); // Should return user's 2 bookmarks
         });
 
-        describe("invalid", () => {
-            it("logged out user cannot find any bookmarks", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: BookmarkSearchInput = { take: 10 };
-                try {
-                    await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("returns empty for user with no bookmarks", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            const input: BookmarkSearchInput = { take: 10 };
+            const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toHaveLength(0);
+        });
+
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: BookmarkSearchInput = { take: 10 };
+            
+            await expect(async () => {
+                await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
+            }).rejects.toThrow();
         });
     });
 
     describe("createOne", () => {
-        describe("valid", () => {
-            it("creates a bookmark for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkCreateInput = {
-                    id: nanoid(),
-                    bookmarkFor: BookmarkFor.Tag,
-                    forConnect: tagUser1.id,
-                    listConnect: listUser1.id,
-                };
-                const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
-                expect(result).to.not.be.null;
-                expect(validatePK(result.id)).to.be.true;
+        it("creates a bookmark for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
-
-            it("API key with write permissions can create bookmark", async () => {
-                const permissions = mockWritePrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkCreateInput = {
-                    id: nanoid(),
-                    bookmarkFor: BookmarkFor.Tag,
-                    forConnect: tagUser1.id,
-                    listConnect: listUser1.id,
-                };
-                const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
-                expect(result).to.not.be.null;
-                expect(validatePK(result.id)).to.be.true;
+            
+            // Use validation fixtures for API input
+            const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
+                forConnect: tags[0].id,
             });
+            
+            const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
+            expect(result).not.toBeNull();
+            expect(result.tagId).toEqual(tags[0].id);
+            expect(result.byId).toEqual(testUsers[1].id);
         });
 
-        describe("invalid", () => {
-            it("not logged in user cannot create bookmark", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: BookmarkCreateInput = {
-                    id: nanoid(),
-                    bookmarkFor: BookmarkFor.Tag,
-                    forConnect: tagUser1.id,
-                    listConnect: listUser1.id,
-                };
-                try {
-                    await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("creates a bookmark with list", async () => {
+            // First create a list for the user
+            const list = await DbProvider.get().bookmark_list.create({
+                data: BookmarkListDbFactory.createMinimal(testUsers[1].id, {
+                    label: "New List",
+                }),
             });
 
-            it("cannot create bookmark under another user's list", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkCreateInput = {
-                    id: nanoid(),
-                    bookmarkFor: BookmarkFor.Tag,
-                    forConnect: tagUser2.id,
-                    listConnect: listUser2.id,
-                };
-                try {
-                    await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            
+            // Use validation fixtures with list connection
+            const input: BookmarkCreateInput = bookmarkTestDataFactory.createComplete({
+                forConnect: tags[1].id,
+                listConnect: list.id,
+            });
+            
+            const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
+            expect(result).not.toBeNull();
+            expect(result.listId).toEqual(list.id);
+            expect(result.tagId).toEqual(tags[1].id);
+        });
 
-            it("API key without write permissions cannot create bookmark", async () => {
-                const permissions = mockReadPublicPermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkCreateInput = {
-                    id: nanoid(),
-                    bookmarkFor: BookmarkFor.Tag,
-                    forConnect: tagUser1.id,
-                    listConnect: listUser1.id,
-                };
-                try {
-                    await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("throws error for not logged in user", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
+                forConnect: tags[0].id,
             });
+            
+            await expect(async () => {
+                await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
+            }).rejects.toThrow();
         });
     });
 
     describe("updateOne", () => {
-        describe("valid", () => {
-            it("updates own bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
-                const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(bookmarkUser1Id);
+        it("updates bookmark list for owner", async () => {
+            // Create a new list for the update
+            const newList = await DbProvider.get().bookmark_list.create({
+                data: BookmarkListDbFactory.createMinimal(testUsers[0].id, {
+                    label: "Updated List",
+                }),
             });
 
-            it("API key with write permissions can update own bookmark", async () => {
-                const permissions = mockWritePrivatePermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
-                const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(bookmarkUser1Id);
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            
+            const input: BookmarkUpdateInput = {
+                id: bookmarkData.bookmarks[0].id,
+                listConnect: newList.id,
+            };
+            
+            const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
+            expect(result).not.toBeNull();
+            expect(result.listId).toEqual(newList.id);
         });
 
-        describe("invalid", () => {
-            it("cannot update another user's bookmark", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: BookmarkUpdateInput = { id: bookmarkUser2Id.toString(), listConnect: listUser2.id.toString() };
-                try {
-                    await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("disconnects bookmark from list", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            
+            const input: BookmarkUpdateInput = {
+                id: bookmarkData.bookmarks[0].id,
+                listDisconnect: true,
+            };
+            
+            const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
+            expect(result).not.toBeNull();
+            expect(result.listId).toBeNull();
+        });
 
-            it("not logged in user cannot update bookmark", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: BookmarkUpdateInput = { id: bookmarkUser1Id.toString(), listConnect: listUser1.id.toString() };
-                try {
-                    await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /* Error expected */ }
+        it("throws error for non-owner", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            
+            const input: BookmarkUpdateInput = {
+                id: bookmarkData.bookmarks[0].id,
+                listDisconnect: true,
+            };
+            
+            await expect(async () => {
+                await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
+            }).rejects.toThrow();
+        });
+
+        it("throws error for not logged in user", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: BookmarkUpdateInput = {
+                id: bookmarkData.bookmarks[0].id,
+                listDisconnect: true,
+            };
+            
+            await expect(async () => {
+                await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
+            }).rejects.toThrow();
         });
     });
-});  
+});

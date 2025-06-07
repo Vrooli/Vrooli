@@ -1,4 +1,4 @@
-import { type CopyInput, type CopyResult, type Count, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, type Success, lowercaseFirstLetter } from "@local/shared";
+import { type CopyInput, type CopyResult, type Count, type DeleteAccountInput, type DeleteAllInput, type DeleteManyInput, type DeleteOneInput, DeleteType, type Success, lowercaseFirstLetter } from "@vrooli/shared";
 import { copyHelper } from "../../actions/copies.js";
 import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes.js";
 import { PasswordAuthService } from "../../auth/email.js";

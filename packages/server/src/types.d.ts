@@ -1,5 +1,5 @@
-import { type ApiKeyPermission, type ModelType, type SessionUser } from "@local/shared";
-import { type PartialApiInfo } from "./api/types.js";
+import { type ApiKeyPermission, type ModelType, type SessionUser } from "@vrooli/shared";
+import { type PartialApiInfo } from "./builders/types.js";
 import { type Context } from "./middleware/context.js";
 
 declare module "@local/server";

@@ -1,4 +1,4 @@
-import { type ReactInput, type ReactionSearchInput, type ReactionSearchResult, type Success } from "@local/shared";
+import { type ReactInput, type ReactionSearchInput, type ReactionSearchResult, type Success } from "@vrooli/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { ReactionModel } from "../../models/base/reaction.js";

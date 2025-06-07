@@ -1,5 +1,6 @@
 /* c8 ignore start */
-import { type BaseConfigObject, type TeamConfigObject } from "@vrooli/shared";
+import { type BaseConfigObject } from "../shape/configs/base.js";
+import { type TeamConfigObject } from "../shape/configs/team.js";
 import { type RunConfig } from "../run/types.js";
 import { type BotConfigObject } from "../shape/configs/bot.js";
 import { type MessageConfigObject } from "../shape/configs/message.js";
@@ -177,7 +178,8 @@ export enum AwardCategory {
     ReportEnd = "ReportEnd",
     Reputation = "Reputation",
     RoutineCreate = "RoutineCreate",
-    Run = "Run",
+    RunProject = "RunProject",
+    RunRoutine = "RunRoutine",
     SmartContractCreate = "SmartContractCreate",
     StandardCreate = "StandardCreate",
     Streak = "Streak",
@@ -3055,6 +3057,35 @@ export enum TaskType {
     Llm = "Llm",
     Run = "Run",
     Sandbox = "Sandbox"
+}
+
+export enum LlmTask {
+    ApiAdd = "ApiAdd",
+    ApiFind = "ApiFind",
+    ApiUpdate = "ApiUpdate",
+    BotAdd = "BotAdd",
+    BotUpdate = "BotUpdate",
+    DataConverterAdd = "DataConverterAdd",
+    DataConverterUpdate = "DataConverterUpdate",
+    NoteAdd = "NoteAdd",
+    NoteUpdate = "NoteUpdate",
+    ProjectAdd = "ProjectAdd",
+    ProjectUpdate = "ProjectUpdate",
+    ReminderAdd = "ReminderAdd",
+    ReminderUpdate = "ReminderUpdate",
+    RoutineAdd = "RoutineAdd",
+    RoutineFind = "RoutineFind",
+    RoutineUpdate = "RoutineUpdate",
+    RunStart = "RunStart",
+    ScheduleAdd = "ScheduleAdd",
+    ScheduleUpdate = "ScheduleUpdate",
+    SmartContractAdd = "SmartContractAdd",
+    SmartContractUpdate = "SmartContractUpdate",
+    StandardAdd = "StandardAdd",
+    StandardUpdate = "StandardUpdate",
+    Start = "Start",
+    TeamAdd = "TeamAdd",
+    TeamUpdate = "TeamUpdate"
 }
 
 export type Team = DbObject<"Team"> & {

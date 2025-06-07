@@ -1,5 +1,5 @@
-import { SEEDED_IDS, type SessionUser, uuid } from "@local/shared";
-import { expect } from "chai";
+import { SEEDED_IDS, type SessionUser, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
 import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
@@ -36,7 +36,7 @@ describe("EndpointsUser", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -64,7 +64,7 @@ describe("EndpointsUser", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

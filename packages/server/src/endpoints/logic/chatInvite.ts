@@ -1,4 +1,4 @@
-import { type ChatInvite, type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteSearchResult, type ChatInviteUpdateInput, type FindByIdInput, validatePK } from "@local/shared";
+import { type ChatInvite, type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteSearchResult, type ChatInviteUpdateInput, type FindByIdInput, validatePK } from "@vrooli/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";

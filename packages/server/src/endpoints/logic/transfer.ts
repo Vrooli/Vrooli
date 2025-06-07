@@ -1,4 +1,4 @@
-import { type FindByIdInput, type Transfer, type TransferDenyInput, type TransferRequestReceiveInput, type TransferRequestSendInput, type TransferSearchInput, type TransferSearchResult, type TransferUpdateInput } from "@local/shared";
+import { type FindByIdInput, type Transfer, type TransferDenyInput, type TransferRequestReceiveInput, type TransferRequestSendInput, type TransferSearchInput, type TransferSearchResult, type TransferUpdateInput } from "@vrooli/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";

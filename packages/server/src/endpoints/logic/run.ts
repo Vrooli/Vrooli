@@ -1,4 +1,4 @@
-import { type FindByIdInput, type Run, type RunCreateInput, type RunSearchInput, type RunSearchResult, type RunUpdateInput, VisibilityType } from "@local/shared";
+import { type FindByIdInput, type Run, type RunCreateInput, type RunSearchInput, type RunSearchResult, type RunUpdateInput, VisibilityType } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

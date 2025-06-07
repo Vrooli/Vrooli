@@ -1,6 +1,6 @@
-import { StatPeriodType, type StatsRoutineSearchInput, uuid } from "@local/shared";
+import { StatPeriodType, type StatsRoutineSearchInput, uuid } from "@vrooli/shared";
 import { PeriodType, type routine as RoutineModelPrisma } from "@prisma/client";
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -103,7 +103,7 @@ describe("EndpointsStatsRoutine", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -153,7 +153,7 @@ describe("EndpointsStatsRoutine", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

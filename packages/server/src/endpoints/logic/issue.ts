@@ -1,4 +1,4 @@
-import { type FindByPublicIdInput, type Issue, type IssueCloseInput, type IssueCreateInput, type IssueSearchInput, type IssueSearchResult, type IssueUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Issue, type IssueCloseInput, type IssueCreateInput, type IssueSearchInput, type IssueSearchResult, type IssueUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

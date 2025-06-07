@@ -1,4 +1,4 @@
-import { type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@local/shared";
+import { type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { RequestService } from "../../auth/request.js";

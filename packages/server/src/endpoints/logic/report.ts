@@ -1,4 +1,4 @@
-import { type FindByPublicIdInput, type Report, type ReportCreateInput, type ReportSearchInput, type ReportSearchResult, type ReportUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Report, type ReportCreateInput, type ReportSearchInput, type ReportSearchResult, type ReportUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

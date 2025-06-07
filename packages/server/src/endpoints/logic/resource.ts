@@ -1,4 +1,4 @@
-import { type FindByPublicIdInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionSearchResult, type ResourceVersionUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionSearchResult, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

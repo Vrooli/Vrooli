@@ -190,8 +190,8 @@ const compilerOptions: TJS.CompilerOptions = {
         "dom.iterable",
     ],
     paths: {
-        "@local/shared": ["packages/shared/src"],      // Path from monorepoRoot
-        "@local/shared/*": ["packages/shared/src/*"],   // Path from monorepoRoot
+        "@vrooli/shared": ["packages/shared/src"],      // Path from monorepoRoot
+        "@vrooli/shared/*": ["packages/shared/src/*"],   // Path from monorepoRoot
     },
     // TypeRoots relative to monorepoRoot, derived from shared/tsconfig.json
     typeRoots: [

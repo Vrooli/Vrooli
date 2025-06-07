@@ -1,4 +1,4 @@
-import { type ChatParticipant, type ChatParticipantSearchInput, type ChatParticipantSearchResult, type ChatParticipantUpdateInput, type FindByIdInput } from "@local/shared";
+import { type ChatParticipant, type ChatParticipantSearchInput, type ChatParticipantSearchResult, type ChatParticipantUpdateInput, type FindByIdInput } from "@vrooli/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";

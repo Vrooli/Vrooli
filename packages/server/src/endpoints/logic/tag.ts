@@ -1,4 +1,4 @@
-import { type FindByIdInput, type Tag, type TagCreateInput, type TagSearchInput, type TagSearchResult, type TagUpdateInput } from "@local/shared";
+import { type FindByIdInput, type Tag, type TagCreateInput, type TagSearchInput, type TagSearchResult, type TagUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

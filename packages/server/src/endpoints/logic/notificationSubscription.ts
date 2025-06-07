@@ -1,4 +1,4 @@
-import { type FindByIdInput, type NotificationSubscription, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionSearchResult, type NotificationSubscriptionUpdateInput } from "@local/shared";
+import { type FindByIdInput, type NotificationSubscription, type NotificationSubscriptionCreateInput, type NotificationSubscriptionSearchInput, type NotificationSubscriptionSearchResult, type NotificationSubscriptionUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

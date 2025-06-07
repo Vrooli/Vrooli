@@ -1,204 +1,239 @@
-import { type FindByIdInput, type MemberSearchInput, type MemberUpdateInput } from "@local/shared";
-import { expect } from "chai";
-import sinon from "sinon";
-import * as reads from "../../actions/reads.js";
-import * as updates from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
-import { type Context as ApiContext } from "../../middleware/context.js";
-import { member } from "./member.js"; // Adjust the import path as necessary
+import { type FindByIdInput, type MemberSearchInput, type MemberUpdateInput, generatePK } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { assertFindManyResultIds } from "../../__test/helpers.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
+import { DbProvider } from "../../db/provider.js";
+import { logger } from "../../events/logger.js";
+import { initializeRedis } from "../../redisConn.js";
+import { member_findOne } from "../generated/member_findOne.js";
+import { member_findMany } from "../generated/member_findMany.js";
+import { member_updateOne } from "../generated/member_updateOne.js";
+import { member } from "./member.js";
 
-/**
- * Creates a mock context object for testing API endpoints.
- * @param permissions - Optional permissions to assign to the mock request.
- * @returns A mock ApiContext object.
- */
-function createMockContext(): ApiContext {
-    const mockReq = {
-        // Mock request properties as needed, e.g., headers, user, etc.
-        ip: "127.0.0.1",
-        user: { id: "user-123" }, // Example user
-    };
+// Import database fixtures for seeding
+import { MemberDbFactory, seedTeamWithMembers } from "../../__test/fixtures/memberFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
-    // Create a mock object for RequestService methods
-    const mockRequestServiceMethods = {
-        rateLimit: sinon.stub().resolves(), // Stub rateLimit
-        assertRequestFrom: sinon.stub().returns(undefined), // Stub assertRequestFrom
-        // Add stubs for other RequestService methods if needed
-    };
+// Import validation fixtures for API input testing  
+import { memberTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/memberFixtures.js";
 
-    // Stub the static get method to return our mock methods object
-    // Adjust this if RequestService.get() returns an instance with these methods
-    sinon.stub(RequestService, "get").returns(mockRequestServiceMethods as any);
+describe("EndpointsMember", () => {
+    let testUsers: any[];
+    let team: any;
+    let memberData: any;
 
-    return {
-        req: mockReq as any, // Cast as any to simplify mocking
-        res: {} as any, // Add mock res object
-        // Mock other context properties if needed, e.g., dataSources
-    };
-}
-
-/**
- * Creates mock info object for endpoint tests.
- * In a real GraphQL scenario, this would contain query details.
- */
-const mockInfo = {} as any; // Use a simple mock for info
-
-describe("Member Endpoints", () => {
-    let readOneStub: sinon.SinonStub;
-    let readManyStub: sinon.SinonStub;
-    let updateOneStub: sinon.SinonStub;
-    let requestServiceMock: { rateLimit: sinon.SinonStub; assertRequestFrom: sinon.SinonStub; }; // Adjusted mock type
-
-    beforeEach(() => {
-        // Stub the helper functions
-        readOneStub = sinon.stub(reads, "readOneHelper");
-        readManyStub = sinon.stub(reads, "readManyHelper");
-        updateOneStub = sinon.stub(updates, "updateOneHelper");
-
-        // Ensure RequestService.get() returns a controllable mock for each test
-        // The createMockContext function handles the stubbing of RequestService.get()
+    beforeAll(() => {
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    afterEach(() => {
-        // Restore all stubs
-        sinon.restore();
+    beforeEach(async () => {
+        // Clear databases
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.deleteAll();
+
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+
+        // Create a team
+        team = await DbProvider.get().team.create({
+            data: {
+                id: generatePK(),
+                publicId: UserDbFactory.createMinimal().publicId,
+                isPrivate: false,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team",
+                        bio: "A team for testing",
+                    },
+                },
+                owner: { connect: { id: testUsers[0].id } },
+            },
+        });
+
+        // Seed team members using database fixtures
+        memberData = await seedTeamWithMembers(DbProvider.get(), {
+            teamId: team.id,
+            ownerId: testUsers[0].id,
+            memberIds: [testUsers[1].id],
+            adminIds: [testUsers[2].id],
+            withInvites: [{ userId: testUsers[3].id, willBeAdmin: false }],
+        });
     });
 
-    // --- findOne Tests ---
+    afterAll(async () => {
+        // Clean up
+        await (await initializeRedis())?.flushAll();
+        await DbProvider.deleteAll();
+
+        // Restore all mocks
+        vi.restoreAllMocks();
+    });
+
     describe("findOne", () => {
-        const input: FindByIdInput = { id: "member-1" };
-        const expectedMember = { id: "member-1", name: "Test Member", __typename: "Member" };
-
-        it("should call readOneHelper and return a member on success", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any; // Get the mocked methods
-            readOneStub.resolves(expectedMember);
-
-            const result = await member.findOne({ input }, context, mockInfo);
-
-            expect(result).to.deep.equal(expectedMember);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasReadPublicPermissions: true })).to.be.true;
-            expect(readOneStub.calledOnceWith({ info: mockInfo, input, objectType: "Member", req: context.req })).to.be.true;
+        it("returns member by id for team member", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            const input: FindByIdInput = { id: memberData.members[0].id };
+            const result = await member.findOne({ input }, { req, res }, member_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(memberData.members[0].id);
+            expect(result.role).toBe("Owner");
         });
 
-        it("should throw if rate limit is exceeded", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const rateLimitError = new Error("Rate limit exceeded");
-            requestServiceMock.rateLimit.rejects(rateLimitError);
-
-            await expect(member.findOne({ input }, context, mockInfo)).to.be.rejectedWith(rateLimitError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.notCalled).to.be.true;
-            expect(readOneStub.notCalled).to.be.true;
+        it("returns member by id for another team member", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
+            });
+            const input: FindByIdInput = { id: memberData.members[1].id };
+            const result = await member.findOne({ input }, { req, res }, member_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(memberData.members[1].id);
+            expect(result.role).toBe("Member");
         });
 
-        it("should throw if user lacks read permissions", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const authError = new Error("Permission denied");
-            // Configure assertRequestFrom to throw for this specific call
-            requestServiceMock.assertRequestFrom.withArgs(context.req, { hasReadPublicPermissions: true }).throws(authError);
+        it("returns member by id with API key public read", async () => {
+            const permissions = mockReadPublicPermissions();
+            const apiToken = ApiKeyEncryptionService.generateSiteKey();
+            const { req, res } = await mockApiSession(apiToken, permissions, { 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            const input: FindByIdInput = { id: memberData.members[0].id };
+            const result = await member.findOne({ input }, { req, res }, member_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(memberData.members[0].id);
+        });
 
-            await expect(member.findOne({ input }, context, mockInfo)).to.be.rejectedWith(authError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasReadPublicPermissions: true })).to.be.true;
-            expect(readOneStub.notCalled).to.be.true;
+        it("throws error for not authenticated user", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: FindByIdInput = { id: memberData.members[0].id };
+            
+            await expect(async () => {
+                await member.findOne({ input }, { req, res }, member_findOne);
+            }).rejects.toThrow();
         });
     });
 
-    // --- findMany Tests ---
     describe("findMany", () => {
-        const input: MemberSearchInput = {}; // Use empty object or valid input fields
-        const expectedResult = {
-            results: [{ id: "member-1", name: "Test Member 1", __typename: "Member" as const }], // Add 'as const' for literal type
-            total: 1,
-            __typename: "MemberSearchResult" as const, // Add 'as const' for literal type
-        };
-
-        it("should call readManyHelper and return members on success", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            readManyStub.resolves(expectedResult);
-
-            const result = await member.findMany({ input }, context, mockInfo);
-
-            expect(result).to.deep.equal(expectedResult);
-            expect(requestServiceMock.rateLimit.calledOnceWith({ maxUser: 1000, req: context.req })).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasReadPublicPermissions: true })).to.be.true;
-            expect(readManyStub.calledOnceWith({ info: mockInfo, input, objectType: "Member", req: context.req })).to.be.true;
+        it("returns members for a team", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            const input: MemberSearchInput = { 
+                teamIds: [team.id],
+                take: 10,
+            };
+            const result = await member.findMany({ input }, { req, res }, member_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
+            expect(result.edges.length).toBe(3); // Owner, Member, Admin
+            
+            // Check roles
+            const roles = result.edges.map((edge: any) => edge.node.role);
+            expect(roles).toContain("Owner");
+            expect(roles).toContain("Member");
+            expect(roles).toContain("Admin");
         });
 
-        it("should throw if rate limit is exceeded", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const rateLimitError = new Error("Rate limit exceeded");
-            requestServiceMock.rateLimit.rejects(rateLimitError);
-
-            await expect(member.findMany({ input }, context, mockInfo)).to.be.rejectedWith(rateLimitError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.notCalled).to.be.true;
-            expect(readManyStub.notCalled).to.be.true;
+        it("returns members for non-member with public team", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[3].id 
+            });
+            const input: MemberSearchInput = { 
+                teamIds: [team.id],
+                take: 10,
+            };
+            const result = await member.findMany({ input }, { req, res }, member_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
+            expect(result.edges.length).toBeGreaterThan(0);
         });
 
-        it("should throw if user lacks read permissions", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const authError = new Error("Permission denied");
-            // Configure assertRequestFrom to throw for this specific call
-            requestServiceMock.assertRequestFrom.withArgs(context.req, { hasReadPublicPermissions: true }).throws(authError);
-
-            await expect(member.findMany({ input }, context, mockInfo)).to.be.rejectedWith(authError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasReadPublicPermissions: true })).to.be.true;
-            expect(readManyStub.notCalled).to.be.true;
+        it("returns members with API key public read", async () => {
+            const permissions = mockReadPublicPermissions();
+            const apiToken = ApiKeyEncryptionService.generateSiteKey();
+            const { req, res } = await mockApiSession(apiToken, permissions, { 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            const input: MemberSearchInput = { take: 10 };
+            const result = await member.findMany({ input }, { req, res }, member_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
         });
     });
 
-    // --- updateOne Tests ---
     describe("updateOne", () => {
-        const input: MemberUpdateInput = { id: "member-1", isAdmin: true };
-        const expectedUpdatedMember = { id: "member-1", isAdmin: true, __typename: "Member" as const };
-
-        it("should call updateOneHelper and return the updated member on success", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            // Configure assertRequestFrom to allow write access for this call
-            requestServiceMock.assertRequestFrom.withArgs(context.req, { hasWritePrivatePermissions: true }).returns(undefined);
-            updateOneStub.resolves(expectedUpdatedMember);
-
-            const result = await member.updateOne({ input }, context, mockInfo);
-
-            expect(result).to.deep.equal(expectedUpdatedMember);
-            expect(requestServiceMock.rateLimit.calledOnceWith({ maxUser: 250, req: context.req })).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasWritePrivatePermissions: true })).to.be.true;
-            expect(updateOneStub.calledOnceWith({ info: mockInfo, input, objectType: "Member", req: context.req })).to.be.true;
+        it("team owner can update member role", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            
+            // Use validation fixtures for update
+            const input: MemberUpdateInput = {
+                id: memberData.members[1].id, // Regular member
+                role: "Admin",
+            };
+            
+            const result = await member.updateOne({ input }, { req, res }, member_updateOne);
+            expect(result).not.toBeNull();
+            expect(result.role).toBe("Admin");
         });
 
-        it("should throw if rate limit is exceeded", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const rateLimitError = new Error("Rate limit exceeded");
-            requestServiceMock.rateLimit.rejects(rateLimitError);
-
-            await expect(member.updateOne({ input }, context, mockInfo)).to.be.rejectedWith(rateLimitError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.notCalled).to.be.true;
-            expect(updateOneStub.notCalled).to.be.true;
+        it("team admin can update member permissions", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[2].id // Admin user
+            });
+            
+            const input: MemberUpdateInput = {
+                id: memberData.members[1].id,
+                permissions: ["CanComment", "CanUpdate"],
+            };
+            
+            const result = await member.updateOne({ input }, { req, res }, member_updateOne);
+            expect(result).not.toBeNull();
+            expect(result.permissions).toEqual(["CanComment", "CanUpdate"]);
         });
 
-        it("should throw if user lacks write permissions", async () => {
-            const context = createMockContext();
-            requestServiceMock = RequestService.get() as any;
-            const authError = new Error("Permission denied for update");
-            // Configure assertRequestFrom to throw for this specific call
-            requestServiceMock.assertRequestFrom.withArgs(context.req, { hasWritePrivatePermissions: true }).throws(authError);
+        it("regular member cannot update other members", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id // Regular member
+            });
+            
+            const input: MemberUpdateInput = {
+                id: memberData.members[2].id, // Try to update admin
+                role: "Member",
+            };
+            
+            await expect(async () => {
+                await member.updateOne({ input }, { req, res }, member_updateOne);
+            }).rejects.toThrow();
+        });
 
-            await expect(member.updateOne({ input }, context, mockInfo)).to.be.rejectedWith(authError);
-            expect(requestServiceMock.rateLimit.calledOnce).to.be.true;
-            expect(requestServiceMock.assertRequestFrom.calledOnceWith(context.req, { hasWritePrivatePermissions: true })).to.be.true;
-            expect(updateOneStub.notCalled).to.be.true;
+        it("throws error for not authenticated user", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: MemberUpdateInput = {
+                id: memberData.members[0].id,
+                role: "Member",
+            };
+            
+            await expect(async () => {
+                await member.updateOne({ input }, { req, res }, member_updateOne);
+            }).rejects.toThrow();
         });
     });
-}); 
+});

@@ -19,11 +19,7 @@
         "post-build": "run-s post-build-copy post-build-fix-imports",
         "post-build-copy": "copyfiles -u 1 \"src/**/*.json\" dist",
         "post-build-fix-imports": "sh ../../scripts/fixImports.sh with dist",
-        "type-check": "tsc --noEmit",
-        "_legacy-build-tests": "rimraf dist && cross-env NODE_ENV=test swc src -d dist --source-maps=true --source-root=../src && pnpm run post-build",
-        "_legacy-test": "run-s build-tests test:run",
-        "_legacy-test:run": "dotenv -e ../../.env-test -- mocha --node-option=experimental-json-modules --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
-        "_legacy-coverage:run": "cross-env NODE_ENV=test NODE_OPTIONS=\"--enable-source-maps\" c8 --config .c8rc.json dotenv -e ../../.env-test -- mocha --node-option=experimental-json-modules --file \"dist/__test/setup.js\" \"dist/**/*.test.js\""
+        "type-check": "tsc --noEmit"
     },
     "dependencies": {
         "bpmn-moddle": "^9.0.1",

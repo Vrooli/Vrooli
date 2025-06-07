@@ -1,5 +1,5 @@
-import { type ReminderListCreateInput, type ReminderListUpdateInput, uuid } from "@local/shared";
-import { expect } from "chai";
+import { type ReminderListCreateInput, type ReminderListUpdateInput, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -23,7 +23,7 @@ describe("EndpointsReminderList", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -67,7 +67,7 @@ describe("EndpointsReminderList", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

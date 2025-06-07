@@ -1,4 +1,4 @@
-import { type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput } from "@local/shared";
+import { type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";

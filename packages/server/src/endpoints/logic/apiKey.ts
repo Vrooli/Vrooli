@@ -1,4 +1,4 @@
-import { type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyUpdateInput, type ApiKeyValidateInput } from "@local/shared";
+import { type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyUpdateInput, type ApiKeyValidateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";

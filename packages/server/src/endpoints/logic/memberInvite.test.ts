@@ -1,5 +1,5 @@
-import { type FindByIdInput, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteUpdateInput, uuid } from "@local/shared";
-import { expect } from "chai";
+import { type FindByIdInput, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteUpdateInput, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -29,7 +29,7 @@ describe("EndpointsMemberInvite", () => {
     let team1: any;
     let team2: any;
 
-    before(() => {
+    beforeAll(() => {
         // Suppress logger output during tests
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
@@ -75,7 +75,7 @@ describe("EndpointsMemberInvite", () => {
         await DbProvider.get().member_invite.create({ data: { id: invite2Id, message: "Invite Two", team: { connect: { id: team2.id } }, user: { connect: { id: user1Id } } } });
     });
 
-    after(async () => {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

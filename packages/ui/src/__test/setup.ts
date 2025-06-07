@@ -26,11 +26,36 @@ function setupDOM() {
     (global as ExtendedGlobal).localStorage = dom.window.localStorage;
     (global as ExtendedGlobal).sessionStorage = dom.window.sessionStorage;
 
+    // Mock matchMedia
+    const matchMediaMock = (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => {},
+    });
+    Object.defineProperty(dom.window, 'matchMedia', {
+        writable: true,
+        value: matchMediaMock,
+    });
+    (global as ExtendedGlobal).matchMedia = matchMediaMock;
+
     // Mock sprite imports
     global.commonSpriteHref = "mocked-common-sprite.svg";
     global.routineSpriteHref = "mocked-routine-sprite.svg";
     global.serviceSpriteHref = "mocked-service-sprite.svg";
     global.textSpriteHref = "mocked-text-sprite.svg";
+
+    // Mock process.env
+    if (!global.process) {
+        global.process = {} as any;
+    }
+    if (!global.process.env) {
+        global.process.env = {};
+    }
 
     // Attempt to copy other window properties to global,
     // but skip any that are read-only.
@@ -69,17 +94,13 @@ function teardownDOM() {
     }
 }
 
-before(function setup() {
-    // eslint-disable-next-line no-magic-numbers
-    this.timeout(10_000);
+import { beforeAll, afterAll } from "vitest";
 
+beforeAll(() => {
     setupDOM();
 });
 
-after(async function teardown() {
-    // eslint-disable-next-line no-magic-numbers
-    this.timeout(10_000);
-
+afterAll(async () => {
     // First disconnect any sockets
     const SocketService = (await import("../api/socket.js")).SocketService;
     SocketService.get().disconnect();

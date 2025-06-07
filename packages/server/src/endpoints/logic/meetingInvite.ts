@@ -1,4 +1,4 @@
-import { type FindByIdInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteSearchInput, type MeetingInviteSearchResult, type MeetingInviteUpdateInput, validatePK } from "@local/shared";
+import { type FindByIdInput, type MeetingInvite, type MeetingInviteCreateInput, type MeetingInviteSearchInput, type MeetingInviteSearchResult, type MeetingInviteUpdateInput, validatePK } from "@vrooli/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";

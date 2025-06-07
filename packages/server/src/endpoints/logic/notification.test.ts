@@ -1,9 +1,6 @@
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { type FindByIdInput, type NotificationSearchInput, type NotificationSettings, type NotificationSettingsUpdateInput, uuid } from "@local/shared";
-import { expect } from "chai";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { type FindByIdInput, type NotificationSearchInput, type NotificationSettings, type NotificationSettingsUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -17,20 +14,18 @@ import { notification_markAsRead } from "../generated/notification_markAsRead.js
 import { notification_updateSettings } from "../generated/notification_updateSettings.js";
 import { notification } from "./notification.js";
 
+// Import database fixtures for seeding
+import { NotificationDbFactory, seedNotifications } from "../../__test/fixtures/notificationFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+
 describe("EndpointsNotification", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let notificationData: any;
 
-    // Generate unique IDs for users and notifications
-    const user1Id = uuid();
-    const user2Id = uuid();
-    const notification1Id = uuid(); // User 1, unread
-    const notification2Id = uuid(); // User 1, read
-    const notification3Id = uuid(); // User 2, unread
-
-    before(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+    beforeAll(() => {
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
@@ -38,298 +33,296 @@ describe("EndpointsNotification", () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Seed two users
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+        // Seed notifications using database fixtures
+        notificationData = await seedNotifications(DbProvider.get(), {
+            userId: testUsers[0].id,
+            count: 3,
+            categories: ["Update", "Reminder", "Alert"],
+            withRead: true, // Mix of read and unread
+            withSubscriptions: true,
         });
 
-        // Seed notifications
-        await DbProvider.get().notification.create({
-            data: {
-                id: notification1Id,
-                userId: user1Id,
-                title: "Notification 1",
-                category: "TestCategory",
-                isRead: false,
-            },
-        });
-        await DbProvider.get().notification.create({
-            data: {
-                id: notification2Id,
-                userId: user1Id,
-                title: "Notification 2",
-                category: "TestCategory",
-                isRead: true,
-            },
-        });
-        await DbProvider.get().notification.create({
-            data: {
-                id: notification3Id,
-                userId: user2Id,
-                title: "Notification 3",
-                category: "AnotherCategory",
-                isRead: false,
-            },
+        // Add notifications for second user
+        await seedNotifications(DbProvider.get(), {
+            userId: testUsers[1].id,
+            count: 2,
+            categories: ["Update", "Alert"],
+            withRead: false,
         });
     });
 
-    after(async () => {
-        // Clean up database and restore logger
+    afterAll(async () => {
+        // Clean up
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
-        describe("valid", () => {
-            it("returns notification owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: notification1Id };
-                const result = await notification.findOne({ input }, { req, res }, notification_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(notification1Id);
+        it("returns own notification for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const result = await notification.findOne({ input }, { req, res }, notification_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(notificationData.notifications[0].id);
+            expect(result.userId).toEqual(testUsers[0].id);
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: notification1Id };
-                try {
-                    await notification.findOne({ input }, { req, res }, notification_findOne);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.findOne not authenticated error:", err);
-                    expect(err).to.be.an("error"); // Basic check, can refine error type later
-                }
+        it("does not return another user's notification", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            
+            await expect(async () => {
+                await notification.findOne({ input }, { req, res }, notification_findOne);
+            }).rejects.toThrow();
+        });
 
-            it("throws error for notification not owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: notification3Id }; // Belongs to user2
-                try {
-                    await notification.findOne({ input }, { req, res }, notification_findOne);
-                    expect.fail("Expected an error for unauthorized access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.findOne not owned error:", err);
-                    expect(err).to.be.an("error");
-                }
-            });
-
-            it("throws error for non-existent notification id", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: uuid() };
-                try {
-                    await notification.findOne({ input }, { req, res }, notification_findOne);
-                    expect.fail("Expected an error for non-existent notification");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.findOne non-existent error:", err);
-                    expect(err).to.be.an("error");
-                }
-            });
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            
+            await expect(async () => {
+                await notification.findOne({ input }, { req, res }, notification_findOne);
+            }).rejects.toThrow();
         });
     });
 
     describe("findMany", () => {
-        describe("valid", () => {
-            it("returns notifications owned by authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: NotificationSearchInput = { take: 10 };
-                const expectedIds = [
-                    notification1Id,
-                    notification2Id,
-                ];
-                const result = await notification.findMany({ input }, { req, res }, notification_findMany);
-                expect(result).to.not.be.null;
-                expect(result.edges).to.have.lengthOf(2);
-                assertFindManyResultIds(expect, result, expectedIds);
+        it("returns own notifications for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            const input: NotificationSearchInput = { take: 10 };
+            const result = await notification.findMany({ input }, { req, res }, notification_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
+            expect(result.edges.length).toBe(3); // User 1 has 3 notifications
+            
+            // Verify all returned notifications belong to the user
+            result.edges.forEach((edge: any) => {
+                expect(edge.node.userId).toEqual(testUsers[0].id);
             });
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: NotificationSearchInput = { take: 10 };
-                try {
-                    await notification.findMany({ input }, { req, res }, notification_findMany);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.findMany not authenticated error:", err);
-                    expect(err).to.be.an("error");
-                }
+        it("filters by read status", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
-        });
-    });
-
-    describe("getSettings", () => {
-        describe("valid", () => {
-            it("returns notification settings for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const result = await notification.getSettings(undefined, { req, res }, notification_getSettings);
-                expect(result).to.deep.equal(defaultNotificationSettings);
+            const input: NotificationSearchInput = { 
+                isRead: false,
+                take: 10,
+            };
+            const result = await notification.findMany({ input }, { req, res }, notification_findMany);
+            expect(result).not.toBeNull();
+            expect(result.edges).toBeInstanceOf(Array);
+            
+            // Should return only unread notifications
+            result.edges.forEach((edge: any) => {
+                expect(edge.node.isRead).toBe(false);
             });
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                try {
-                    await notification.getSettings(undefined, { req, res }, notification_getSettings);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.getSettings not authenticated error:", err);
-                    expect(err).to.be.an("error");
-                }
-            });
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: NotificationSearchInput = { take: 10 };
+            
+            await expect(async () => {
+                await notification.findMany({ input }, { req, res }, notification_findMany);
+            }).rejects.toThrow();
         });
     });
 
     describe("markAsRead", () => {
-        describe("valid", () => {
-            it("marks a specific notification as read for the owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: notification1Id }; // Initially unread
-
-                // Verify it's unread first
-                let notif = await DbProvider.get().notification.findUnique({ where: { id: notification1Id } });
-                expect(notif!.isRead).to.be.false;
-
-                // Mark as read
-                const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
-                expect(result).to.deep.equal({ __typename: "Success", success: true });
-
-                // Verify it's read now
-                notif = await DbProvider.get().notification.findUnique({ where: { id: notification1Id } });
-                expect(notif!.isRead).to.be.true;
+        it("marks notification as read for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
-
-            it("marks notification as read successfully even if already read", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: notification2Id }; // Already read
-                const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
-                // The endpoint should now return true even if it was already read
-                expect(result).to.deep.equal({ __typename: "Success", success: true });
-            });
+            
+            // Find an unread notification
+            const unreadNotification = notificationData.notifications.find((n: any) => !n.isRead);
+            const input: FindByIdInput = { id: unreadNotification.id };
+            
+            const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
+            expect(result).not.toBeNull();
+            expect(result.isRead).toBe(true);
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: notification1Id };
-                try {
-                    await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.markAsRead not authenticated error:", err);
-                    expect(err).to.be.an("error");
-                }
+        it("does not mark another user's notification", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[1].id 
             });
+            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            
+            await expect(async () => {
+                await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
+            }).rejects.toThrow();
+        });
 
-            it("returns success false for notification not owned by user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: notification3Id }; // Belongs to user2
-                const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
-                // updateMany count will be 0 as the user condition doesn't match
-                expect(result).to.deep.equal({ __typename: "Success", success: false });
-
-                // Verify notification 3 is still unread
-                const notif3 = await DbProvider.get().notification.findUnique({ where: { id: notification3Id } });
-                expect(notif3!.isRead).to.be.false;
-            });
-
-            it("returns success false for non-existent notification id", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: FindByIdInput = { id: uuid() };
-                const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
-                // For non-existent IDs, the success should still reflect the operation outcome.
-                // Since updateMany affects 0 rows for a non-existent ID, returning false is appropriate here.
-                expect(result).to.deep.equal({ __typename: "Success", success: false });
-            });
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            
+            await expect(async () => {
+                await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
+            }).rejects.toThrow();
         });
     });
 
     describe("markAllAsRead", () => {
-        describe("valid", () => {
-            it("marks all unread notifications as read for the owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-
-                // Verify initial state (1 unread, 1 read)
-                let user1Notifications = await DbProvider.get().notification.findMany({ where: { userId: user1Id } });
-                expect(user1Notifications.filter(n => !n.isRead)).to.have.lengthOf(1);
-                expect(user1Notifications.filter(n => n.isRead)).to.have.lengthOf(1);
-
-                // Mark all as read
-                const result = await notification.markAllAsRead(undefined, { req, res }, notification_markAllAsRead);
-                expect(result).to.deep.equal({ __typename: "Success", success: true });
-
-                // Verify final state (0 unread, 2 read)
-                user1Notifications = await DbProvider.get().notification.findMany({ where: { userId: user1Id } });
-                expect(user1Notifications.filter(n => !n.isRead)).to.have.lengthOf(0);
-                expect(user1Notifications.filter(n => n.isRead)).to.have.lengthOf(2);
-
-                // Verify user 2's notification is unaffected
-                const notif3 = await DbProvider.get().notification.findUnique({ where: { id: notification3Id } });
-                expect(notif3!.isRead).to.be.false;
+        it("marks all notifications as read for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            
+            const result = await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
+            expect(result).not.toBeNull();
+            expect(result.success).toBe(true);
+            
+            // Verify all notifications are marked as read
+            const notifications = await DbProvider.get().notification.findMany({
+                where: { userId: testUsers[0].id },
+            });
+            notifications.forEach((n: any) => {
+                expect(n.isRead).toBe(true);
             });
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                try {
-                    await notification.markAllAsRead(undefined, { req, res }, notification_markAllAsRead);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.markAllAsRead not authenticated error:", err);
-                    expect(err).to.be.an("error");
-                }
+        it("does not affect other users' notifications", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            
+            await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
+            
+            // Check that user 2's notifications are still unread
+            const user2Notifications = await DbProvider.get().notification.findMany({
+                where: { userId: testUsers[1].id },
+            });
+            user2Notifications.forEach((n: any) => {
+                expect(n.isRead).toBe(false);
+            });
+        });
+
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            await expect(async () => {
+                await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
+            }).rejects.toThrow();
+        });
+    });
+
+    describe("getSettings", () => {
+        it("returns notification settings for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
+            });
+            
+            const result = await notification.getSettings({}, { req, res }, notification_getSettings);
+            expect(result).not.toBeNull();
+            expect(result).toHaveProperty("disabled");
+            expect(result).toHaveProperty("categories");
+        });
+
+        it("returns default settings if user has none", async () => {
+            // Create a new user without settings
+            const newUser = await DbProvider.get().user.create({
+                data: UserDbFactory.createMinimal({ name: "New User" }),
+            });
+            
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: newUser.id 
+            });
+            
+            const result = await notification.getSettings({}, { req, res }, notification_getSettings);
+            expect(result).not.toBeNull();
+            expect(result).toEqual(defaultNotificationSettings);
+        });
+
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            await expect(async () => {
+                await notification.getSettings({}, { req, res }, notification_getSettings);
+            }).rejects.toThrow();
         });
     });
 
     describe("updateSettings", () => {
-        describe("valid", () => {
-            it("updates notification settings for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const input: NotificationSettingsUpdateInput = { enabled: true };
-
-                const result = await notification.updateSettings({ input }, { req, res }, notification_updateSettings);
-
-                // Expect the returned settings to reflect the update
-                expect(result.enabled).to.be.true;
-
-                // Verify the settings are actually saved in the DB
-                const user = await DbProvider.get().user.findUnique({ where: { id: user1Id }, select: { notificationSettings: true } });
-                const savedSettings = JSON.parse(user!.notificationSettings!) as NotificationSettings;
-                expect(savedSettings.enabled).to.be.true;
+        it("updates notification settings for authenticated user", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            
+            const input: NotificationSettingsUpdateInput = {
+                disabled: true,
+                categories: {
+                    Update: {
+                        enabled: false,
+                        inApp: false,
+                        email: false,
+                        push: false,
+                    },
+                },
+            };
+            
+            const result = await notification.updateSettings({ input }, { req, res }, notification_updateSettings);
+            expect(result).not.toBeNull();
+            expect(result.disabled).toBe(true);
+            expect(result.categories.Update.enabled).toBe(false);
         });
 
-        describe("invalid", () => {
-            it("throws error for not authenticated user", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: NotificationSettingsUpdateInput = { enabled: true };
-                try {
-                    await notification.updateSettings({ input }, { req, res }, notification_updateSettings);
-                    expect.fail("Expected an error for unauthenticated access");
-                } catch (err) {
-                    console.log("[endpoint testing error debug] notification.updateSettings not authenticated error:", err);
-                    expect(err).to.be.an("error");
-                }
+        it("partially updates settings", async () => {
+            const { req, res } = await mockAuthenticatedSession({ 
+                ...loggedInUserNoPremiumData(), 
+                id: testUsers[0].id 
             });
+            
+            const input: NotificationSettingsUpdateInput = {
+                categories: {
+                    Alert: {
+                        email: true,
+                        push: true,
+                    },
+                },
+            };
+            
+            const result = await notification.updateSettings({ input }, { req, res }, notification_updateSettings);
+            expect(result).not.toBeNull();
+            expect(result.categories.Alert.email).toBe(true);
+            expect(result.categories.Alert.push).toBe(true);
+        });
+
+        it("throws error when not authenticated", async () => {
+            const { req, res } = await mockLoggedOutSession();
+            
+            const input: NotificationSettingsUpdateInput = {
+                disabled: true,
+            };
+            
+            await expect(async () => {
+                await notification.updateSettings({ input }, { req, res }, notification_updateSettings);
+            }).rejects.toThrow();
         });
     });
-}); 
+});

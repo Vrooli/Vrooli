@@ -15,7 +15,7 @@
  *    features; the cache just needs low-latency GET/SET with TTLs.
  *  • Separating concerns keeps both classes smaller & easier to test.
  * ------------------------------------------------------------------ */
-import { LRUCache, MINUTES_15_S, SECONDS_1_MS } from "@local/shared";
+import { LRUCache, MINUTES_15_S, SECONDS_1_MS } from "@vrooli/shared";
 import IORedis, { type Cluster, type Redis } from "ioredis";
 import { logger } from "./events/logger.js";
 import { type ServiceHealth } from "./services/health.js";

@@ -1,4 +1,4 @@
-import { type FindByPublicIdInput, type Team, type TeamCreateInput, type TeamSearchInput, type TeamSearchResult, type TeamUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Team, type TeamCreateInput, type TeamSearchInput, type TeamSearchResult, type TeamUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

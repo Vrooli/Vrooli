@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import sinon from "sinon";
 import { logger } from "./events/logger.js";
 import { createRedisClient, initializeRedis, withRedis } from "./redisConn.js";
@@ -7,12 +7,12 @@ describe("Redis Integration Tests", function redisIntegrationTests() {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
 
-    after(() => {
+    afterAll(() => {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

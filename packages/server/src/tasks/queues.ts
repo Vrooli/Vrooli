@@ -1,5 +1,5 @@
 // queues/index.ts
-import { type Success } from "@local/shared";
+import { type Success } from "@vrooli/shared";
 import { type Job, type JobsOptions } from "bullmq";
 import type IORedis from "ioredis";
 import { logger } from "../events/logger.js";

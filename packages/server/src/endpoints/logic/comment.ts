@@ -1,4 +1,4 @@
-import { type Comment, type CommentCreateInput, type CommentSearchInput, type CommentSearchResult, type CommentUpdateInput, type FindByIdInput } from "@local/shared";
+import { type Comment, type CommentCreateInput, type CommentSearchInput, type CommentSearchResult, type CommentUpdateInput, type FindByIdInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

@@ -1,5 +1,5 @@
-import { type FindByIdInput, generatePK, generatePublicId, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput } from "@local/shared";
-import { expect } from "chai";
+import { type FindByIdInput, generatePK, generatePublicId, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
@@ -26,7 +26,7 @@ describe("EndpointsReport", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         // Stub logger to avoid noise
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
@@ -81,7 +81,7 @@ describe("EndpointsReport", () => {
         seededReport2 = await DbProvider.get().report.create({ data: data2 });
     });
 
-    after(async () => {
+    afterAll(async () => {
         // Cleanup
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();

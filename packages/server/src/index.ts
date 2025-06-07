@@ -1,4 +1,4 @@
-import { initIdGenerator } from "@local/shared";
+import { initIdGenerator } from "@vrooli/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";

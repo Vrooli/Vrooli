@@ -1,4 +1,4 @@
-import { type FindByIdInput, type Notification, type NotificationSearchInput, type NotificationSearchResult, type NotificationSettings, type NotificationSettingsUpdateInput, type Success, VisibilityType } from "@local/shared";
+import { type FindByIdInput, type Notification, type NotificationSearchInput, type NotificationSearchResult, type NotificationSettings, type NotificationSettingsUpdateInput, type Success, VisibilityType } from "@vrooli/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";

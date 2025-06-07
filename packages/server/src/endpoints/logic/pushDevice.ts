@@ -1,4 +1,4 @@
-import { type PushDevice, type PushDeviceCreateInput, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@local/shared";
+import { type PushDevice, type PushDeviceCreateInput, type PushDeviceTestInput, type PushDeviceUpdateInput, type Success } from "@vrooli/shared";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { DbProvider } from "../../db/provider.js";

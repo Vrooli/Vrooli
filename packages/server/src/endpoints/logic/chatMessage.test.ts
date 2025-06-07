@@ -1,5 +1,5 @@
-import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK, generatePublicId } from "@local/shared";
-import { expect } from "chai";
+import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK, generatePublicId } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -187,7 +187,7 @@ describe("EndpointsChatMessage", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -455,7 +455,7 @@ describe("EndpointsChatMessage", () => {
         await DbProvider.get().chat_message.delete({ where: { id: gapMsgA.id } });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

@@ -1,4 +1,4 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ToolCallRecord } from "@local/shared";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ToolCallRecord } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
@@ -202,7 +202,7 @@ export interface SwarmApprovedToolExecutionRequestEvent {
     conversationId: string;
     sessionUser: SessionUser;
     payload: {
-        pendingToolCall: PendingToolCallEntry; // Using PendingToolCallEntry from @local/shared
+        pendingToolCall: PendingToolCallEntry; // Using PendingToolCallEntry from @vrooli/shared
     };
 }
 

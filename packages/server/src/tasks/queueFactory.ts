@@ -29,7 +29,7 @@
  *   - https://guides.lib.berkeley.edu/how-to-write-good-documentation
  *   - https://github.com/resources/articles/software-development/tools-and-techniques-for-effective-code-documentation
  */
-import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS, type Success } from "@local/shared";
+import { DAYS_1_S, MINUTES_1_MS, SECONDS_10_MS, type Success } from "@vrooli/shared";
 import { type Job, type JobsOptions, Queue, QueueEvents, Worker, type WorkerOptions } from "bullmq";
 import IORedis from "ioredis";
 import { logger } from "../events/logger.js";

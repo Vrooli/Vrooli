@@ -1,4 +1,4 @@
-import { type FindByIdInput, type Reminder, type ReminderCreateInput, type ReminderSearchInput, type ReminderSearchResult, type ReminderUpdateInput, VisibilityType } from "@local/shared";
+import { type FindByIdInput, type Reminder, type ReminderCreateInput, type ReminderSearchInput, type ReminderSearchResult, type ReminderUpdateInput, VisibilityType } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

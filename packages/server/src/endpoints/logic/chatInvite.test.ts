@@ -1,5 +1,5 @@
-import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, uuid } from "@local/shared";
-import { expect } from "chai";
+import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -29,7 +29,7 @@ describe("EndpointsChatInvite", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         // Suppress logger output during tests
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
@@ -105,7 +105,7 @@ describe("EndpointsChatInvite", () => {
         const seededInvites = await DbProvider.get().chat_invite.findMany();
     });
 
-    after(async () => {
+    afterAll(async () => {
         // Clean up and restore logger
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();

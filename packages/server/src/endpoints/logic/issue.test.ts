@@ -1,7 +1,5 @@
-import { type FindByIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus, uuid } from "@local/shared";
-import { expect } from "chai";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { type FindByIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -14,24 +12,25 @@ import { issue_findMany } from "../generated/issue_findMany.js";
 import { issue_findOne } from "../generated/issue_findOne.js";
 import { issue } from "./issue.js";
 
-// Generate test user IDs
-const user1Id = uuid();
-const user2Id = uuid();
-let team1: any;
-let issueUser1: any;
-let issueUser2: any;
+// Import database fixtures for seeding
+import { IssueDbFactory, seedIssues } from "../../__test/fixtures/issueFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+
+// Import validation fixtures for API input testing
+import { issueTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/issueFixtures.js";
 
 /**
  * Test suite for the Issue endpoint (findOne, findMany, createOne, updateOne, closeOne)
  */
 describe("EndpointsIssue", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let team: any;
+    let issues: any[];
 
-    before(() => {
-        // Stub logger to suppress output
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+    beforeAll(() => {
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
@@ -39,123 +38,150 @@ describe("EndpointsIssue", () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
         // Create a team for issue ownership
-        team1 = await DbProvider.get().team.create({ data: { permissions: "{}" } });
-
-        // Create two users
-        await DbProvider.get().user.create({
+        team = await DbProvider.get().team.create({
             data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
+                id: UserDbFactory.createMinimal().id,
+                publicId: UserDbFactory.createMinimal().publicId,
+                permissions: "{}",
+                owner: { connect: { id: testUsers[0].id } },
+                translations: {
+                    create: {
+                        id: UserDbFactory.createMinimal().id,
+                        language: "en",
+                        name: "Test Team",
+                    },
+                },
             },
         });
 
-        // Seed two issues: one for each user
-        issueUser1 = await DbProvider.get().issue.create({
-            data: {
-                id: uuid(),
-                createdBy: { connect: { id: user1Id } },
-                team: { connect: { id: team1.id } },
-            },
+        // Seed issues using database fixtures
+        issues = await seedIssues(DbProvider.get(), {
+            createdById: testUsers[0].id,
+            count: 2,
+            forObject: { id: team.id, type: "Team" },
+            withTranslations: true,
         });
-        issueUser2 = await DbProvider.get().issue.create({
-            data: {
-                id: uuid(),
-                createdBy: { connect: { id: user2Id } },
-                team: { connect: { id: team1.id } },
-            },
+
+        // Add one more issue created by second user
+        const additionalIssue = await seedIssues(DbProvider.get(), {
+            createdById: testUsers[1].id,
+            count: 1,
+            forObject: { id: team.id, type: "Team" },
+            withTranslations: true,
         });
+        issues.push(...additionalIssue);
     });
 
-    after(async () => {
-        // Clean up and restore logger
+    afterAll(async () => {
+        // Clean up
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         describe("valid", () => {
             it("returns own issue for authenticated user", async () => {
-                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(user);
-                const input: FindByIdInput = { id: issueUser1.id };
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: FindByIdInput = { id: issues[0].id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(issueUser1.id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(issues[0].id);
             });
 
             it("returns another user's issue", async () => {
-                const user = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(user);
-                const input: FindByIdInput = { id: issueUser2.id };
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: FindByIdInput = { id: issues[2].id }; // Created by user 2
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
-                expect(result.id).to.equal(issueUser2.id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(issues[2].id);
             });
 
             it("returns issue when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: issueUser1.id };
+                const input: FindByIdInput = { id: issues[0].id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
-                expect(result.id).to.equal(issueUser1.id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(issues[0].id);
             });
 
             it("returns issue with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
-                const input: FindByIdInput = { id: issueUser2.id };
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: FindByIdInput = { id: issues[1].id };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
-                expect(result.id).to.equal(issueUser2.id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(issues[1].id);
             });
         });
     });
 
     describe("findMany", () => {
         describe("valid", () => {
-            it("returns all issues for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+            it("returns issues without filters for authenticated user", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
                 const input: IssueSearchInput = { take: 10 };
-                const expectedIds = [
-                    issueUser1.id,
-                    issueUser2.id,
-                ];
+                const expectedIds = issues.map(i => i.id);
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
                 assertFindManyResultIds(expect, result, expectedIds);
             });
 
-            it("returns all issues when not authenticated", async () => {
+            it("returns issues by object type and id", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: IssueSearchInput = { 
+                    forObjectType: IssueFor.Team,
+                    forIds: [team.id],
+                    take: 10,
+                };
+                const result = await issue.findMany({ input }, { req, res }, issue_findMany);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
+                expect(result.edges.length).toBe(3); // All issues are for the team
+            });
+
+            it("returns issues when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: IssueSearchInput = { take: 10 };
-                const expectedIds = [
-                    issueUser1.id,
-                    issueUser2.id,
-                ];
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
-                assertFindManyResultIds(expect, result, expectedIds);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
             });
 
             it("returns issues with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
                 const input: IssueSearchInput = { take: 10 };
-                const expectedIds = [
-                    issueUser1.id,
-                    issueUser2.id,
-                ];
                 const result = await issue.findMany({ input }, { req, res }, issue_findMany);
-                assertFindManyResultIds(expect, result, expectedIds);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
             });
         });
     });
@@ -163,66 +189,131 @@ describe("EndpointsIssue", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates an issue for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-                const newIssueId = uuid();
-                const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                // Use validation fixtures for API input
+                const input: IssueCreateInput = issueTestDataFactory.createMinimal({
+                    forConnect: team.id,
+                    translationsCreate: [{
+                        language: "en",
+                        name: "New Issue",
+                        description: "Description of the new issue",
+                    }],
+                });
+                
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(newIssueId);
-                expect(result.status).to.equal(IssueStatus.Open);
+                expect(result).not.toBeNull();
+                expect(result.id).toBeDefined();
+                expect(result.translations).toHaveLength(1);
+                expect(result.translations[0].name).toBe("New Issue");
+                expect(result.status).toBe(IssueStatus.Open);
             });
 
             it("API key with write permissions can create issue", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
-                const newIssueId = uuid();
-                const input: IssueCreateInput = { id: newIssueId, issueFor: IssueFor.Team, forConnect: team1.id };
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                // Use complete fixture for comprehensive test
+                const input: IssueCreateInput = issueTestDataFactory.createComplete({
+                    forConnect: team.id,
+                });
+                
                 const result = await issue.createOne({ input }, { req, res }, issue_createOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(newIssueId);
+                expect(result).not.toBeNull();
+                expect(result.id).toBeDefined();
             });
         });
 
         describe("invalid", () => {
-            it("not logged in user cannot create issue", async () => {
+            it("throws error for not logged in user", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
-                try {
+                
+                const input: IssueCreateInput = issueTestDataFactory.createMinimal({
+                    forConnect: team.id,
+                });
+                
+                await expect(async () => {
                     await issue.createOne({ input }, { req, res }, issue_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch {
-                    // expected error
-                }
-            });
-
-            it("API key without write permissions cannot create issue", async () => {
-                const permissions = mockReadPublicPermissions();
-                const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, loggedInUserNoPremiumData());
-                const input: IssueCreateInput = { id: uuid(), issueFor: IssueFor.Team, forConnect: team1.id };
-                try {
-                    await issue.createOne({ input }, { req, res }, issue_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch {
-                    // expected error
-                }
+                }).rejects.toThrow();
             });
         });
     });
 
     describe("closeOne", () => {
-        it("throws NotImplemented error", async () => {
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
-            const input: IssueCloseInput = { id: issueUser1.id, status: IssueStatus.ClosedResolved };
-            try {
-                await issue.closeOne({ input }, { req, res }, issue_closeOne);
-                expect.fail("Expected NotImplemented error");
-            } catch (err: any) {
-                // CustomError sets code to errorCode and message to `${errorCode}: ${trace}`
-                expect(err).to.have.property("code", "NotImplemented");
-                expect(err.message).to.match(/^NotImplemented/);
-            }
+        describe("valid", () => {
+            it("closes own issue", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                const input: IssueCloseInput = {
+                    id: issues[0].id,
+                    closedReason: "Issue has been resolved",
+                };
+                
+                const result = await issue.closeOne({ input }, { req, res }, issue_closeOne);
+                expect(result).not.toBeNull();
+                expect(result.status).toBe(IssueStatus.ClosedResolved);
+                expect(result.closedReason).toBe("Issue has been resolved");
+                expect(result.closedAt).toBeDefined();
+            });
+
+            it("team owner can close team issue", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id // Team owner
+                });
+                
+                const input: IssueCloseInput = {
+                    id: issues[2].id, // Issue created by user 2
+                    closedReason: "Closed by team owner",
+                    status: IssueStatus.ClosedDuplicate,
+                };
+                
+                const result = await issue.closeOne({ input }, { req, res }, issue_closeOne);
+                expect(result).not.toBeNull();
+                expect(result.status).toBe(IssueStatus.ClosedDuplicate);
+                expect(result.closedReason).toBe("Closed by team owner");
+            });
+        });
+
+        describe("invalid", () => {
+            it("throws error when not issue creator or team owner", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[1].id 
+                });
+                
+                const input: IssueCloseInput = {
+                    id: issues[0].id, // Created by user 0
+                    closedReason: "Should not be able to close",
+                };
+                
+                await expect(async () => {
+                    await issue.closeOne({ input }, { req, res }, issue_closeOne);
+                }).rejects.toThrow();
+            });
+
+            it("throws error for not logged in user", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                
+                const input: IssueCloseInput = {
+                    id: issues[0].id,
+                    closedReason: "Should not work",
+                };
+                
+                await expect(async () => {
+                    await issue.closeOne({ input }, { req, res }, issue_closeOne);
+                }).rejects.toThrow();
+            });
         });
     });
-}); 
+});

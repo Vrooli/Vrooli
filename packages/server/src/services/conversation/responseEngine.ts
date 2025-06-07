@@ -1,5 +1,5 @@
 /* eslint-disable func-style */
-import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, TeamConfig, generatePK, nanoid, type BotConfigObject, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type TeamConfigObject, type ToolCallRecord, type ToolFunctionCall } from "@local/shared";
+import { ChatConfig, DEFAULT_LANGUAGE, MINUTES_5_MS, McpSwarmToolName, McpToolName, MessageConfig, PendingToolCallStatus, SECONDS_1_MS, TeamConfig, generatePK, nanoid, type BotConfigObject, type ChatConfigObject, type PendingToolCallEntry, type SessionUser, type TeamConfigObject, type ToolCallRecord, type ToolFunctionCall } from "@vrooli/shared";
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import * as fs from "fs/promises";
 import type OpenAI from "openai";

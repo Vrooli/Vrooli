@@ -1,4 +1,4 @@
-import { type BookmarkList, type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListSearchResult, type BookmarkListUpdateInput, type FindByIdInput, VisibilityType } from "@local/shared";
+import { type BookmarkList, type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListSearchResult, type BookmarkListUpdateInput, type FindByIdInput, VisibilityType } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";

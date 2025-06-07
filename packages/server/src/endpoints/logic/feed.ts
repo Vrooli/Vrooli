@@ -1,4 +1,4 @@
-import { type HomeResult, type PageInfo, type Popular, type PopularSearchInput, type PopularSearchResult, ReminderSortBy, ResourceSortBy, ScheduleSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { type HomeResult, type PageInfo, type Popular, type PopularSearchInput, type PopularSearchResult, ReminderSortBy, ResourceSortBy, ScheduleSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@vrooli/shared";
 import { readManyAsFeedHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { SessionService } from "../../auth/session.js";

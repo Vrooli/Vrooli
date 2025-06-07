@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER } from "@local/shared";
+import { API_CREDITS_MULTIPLIER } from "@vrooli/shared";
 import { randomUUID } from "crypto";
 import { CustomError } from "../../events/error.js";
 import { calculateMaxCredits } from "./credits.js";

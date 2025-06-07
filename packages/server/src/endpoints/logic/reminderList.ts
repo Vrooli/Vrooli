@@ -1,4 +1,4 @@
-import { type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput } from "@local/shared";
+import { type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";

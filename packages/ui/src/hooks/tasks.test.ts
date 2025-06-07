@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
+
+// Mock the device module before importing anything that uses it
+vi.mock("../utils/display/device.js");
+vi.mock("../utils/display/chatTools.js");
+
 import { renderHook } from "@testing-library/react";
 import { LlmTask, TaskStatus, nanoid, noop, type LlmTaskInfo } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { act } from "react";
 import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
@@ -295,20 +300,21 @@ describe("useChatTasks", () => {
 
     beforeAll(() => {
         // Mock console.error to avoid cluttering test output
-        console.error = jest.fn();
+        console.error = vi.fn();
     });
 
     let originalPubSubMethods;
     beforeEach(() => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         originalPubSubMethods = { ...PubSub };
         Object.assign(PubSub, PubSubMock);
         PubSubMock.resetMock();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {
         Object.assign(PubSub, originalPubSubMethods);
+        vi.restoreAllMocks();
     });
 
     describe("initial state", () => {

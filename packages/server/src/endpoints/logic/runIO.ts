@@ -1,4 +1,4 @@
-import { type RunIOSearchInput, type RunIOSearchResult } from "@local/shared";
+import { type RunIOSearchInput, type RunIOSearchResult } from "@vrooli/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";

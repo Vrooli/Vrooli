@@ -1,4 +1,4 @@
-import { type FindByPublicIdInput, type Member, type MemberSearchInput, type MemberSearchResult, type MemberUpdateInput } from "@local/shared";
+import { type FindByPublicIdInput, type Member, type MemberSearchInput, type MemberSearchResult, type MemberUpdateInput } from "@vrooli/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";

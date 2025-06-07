@@ -1,5 +1,5 @@
-import { type FindByIdInput, type ReminderCreateInput, type ReminderSearchInput, type ReminderUpdateInput, uuid } from "@local/shared";
-import { expect } from "chai";
+import { type FindByIdInput, type ReminderCreateInput, type ReminderSearchInput, type ReminderUpdateInput, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
@@ -49,7 +49,7 @@ describe("EndpointsReminder", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -107,7 +107,7 @@ describe("EndpointsReminder", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

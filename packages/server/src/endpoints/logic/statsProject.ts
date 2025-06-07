@@ -1,4 +1,4 @@
-import { type StatsProjectSearchInput, type StatsProjectSearchResult, VisibilityType } from "@local/shared";
+import { type StatsProjectSearchInput, type StatsProjectSearchResult, VisibilityType } from "@vrooli/shared";
 import { readManyHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";

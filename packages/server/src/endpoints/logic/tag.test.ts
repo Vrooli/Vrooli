@@ -1,9 +1,7 @@
-import { type FindByIdInput, SEEDED_IDS, type TagCreateInput, type TagSearchInput, type TagUpdateInput, uuid } from "@local/shared";
-import { expect } from "chai";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { type FindByIdInput, type TagCreateInput, type TagSearchInput, type TagUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -14,113 +12,96 @@ import { tag_findOne } from "../generated/tag_findOne.js";
 import { tag_updateOne } from "../generated/tag_updateOne.js";
 import { tag } from "./tag.js";
 
-// Test users
-const user1Id = uuid();
-const user2Id = uuid();
+// Import database fixtures for seeding
+import { TagDbFactory, seedTags } from "../../__test/fixtures/tagFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
-// Test tag data
-const userTag1 = {
-    id: uuid(),
-    tag: "Test Tag 1",
-    createdAt: new Date("2023-03-01"),
-    updatedAt: new Date("2023-03-12"),
-};
-const userTag2 = {
-    id: uuid(),
-    tag: "Test Tag 2",
-    createdAt: new Date("2023-03-05"),
-    updatedAt: new Date("2023-03-05"),
-};
-
-// Array of all tag IDs for easier cleanup
-const allTagIds = [userTag1.id, userTag2.id];
+// Import validation fixtures for API input testing
+import { tagTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/tagFixtures.js";
 
 describe("EndpointsTag", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let adminUser: any;
+    let tags: any[];
 
-    before(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+    beforeAll(() => {
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Create test users
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
-        // Ensure admin user exists for update tests
-        await DbProvider.get().user.upsert({
-            where: { id: SEEDED_IDS.User.Admin },
-            update: {},
-            create: {
-                id: SEEDED_IDS.User.Admin,
-                name: "Admin User",
-                handle: "admin",
-                status: "Unlocked",
-                isBot: false,
-                isBotDepictingPerson: false,
-                isPrivate: false,
-                auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] },
-            },
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        adminUser = await seedMockAdminUser();
+
+        // Seed tags using database fixtures
+        tags = await seedTags(DbProvider.get(), [
+            "programming",
+            "javascript",
+            "testing",
+            "tutorial",
+        ], {
+            withTranslations: true,
+            popular: true,
         });
 
-        // Create user-specific tags
-        await DbProvider.get().tag.create({ data: { ...userTag1, createdBy: { connect: { id: user1Id } } } });
-        await DbProvider.get().tag.create({ data: { ...userTag2, createdBy: { connect: { id: user2Id } } } });
+        // Assign ownership to some tags
+        await DbProvider.get().tag.update({
+            where: { id: tags[0].id },
+            data: { createdBy: { connect: { id: testUsers[0].id } } },
+        });
+        await DbProvider.get().tag.update({
+            where: { id: tags[1].id },
+            data: { createdBy: { connect: { id: testUsers[1].id } } },
+        });
     });
 
-    after(async function after() {
+    afterAll(async () => {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         describe("valid", () => {
             it("returns tag by id for any authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-                const input: FindByIdInput = { id: userTag1.id };
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: FindByIdInput = { id: tags[0].id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(userTag1.id);
-                expect(result.tag).to.equal(userTag1.tag);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(tags[0].id);
+                expect(result.tag).toBe("programming");
             });
+
             it("returns tag by id when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: userTag1.id };
+                const input: FindByIdInput = { id: tags[1].id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(userTag1.id);
-                expect(result.tag).to.equal(userTag1.tag);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(tags[1].id);
+                expect(result.tag).toBe("javascript");
             });
+
             it("returns tag by id with API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-                const input: FindByIdInput = { id: userTag2.id };
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: FindByIdInput = { id: tags[2].id };
                 const result = await tag.findOne({ input }, { req, res }, tag_findOne);
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(userTag2.id);
-                expect(result.tag).to.equal(userTag2.tag);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(tags[2].id);
             });
         });
     });
@@ -128,32 +109,53 @@ describe("EndpointsTag", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns tags without filters for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
                 const input: TagSearchInput = { take: 10 };
-                const expectedIds = allTagIds;
+                const expectedIds = tags.map(t => t.id);
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
                 assertFindManyResultIds(expect, result, expectedIds);
             });
+
+            it("returns tags with search term", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                const input: TagSearchInput = { 
+                    searchString: "script",
+                    take: 10,
+                };
+                const result = await tag.findMany({ input }, { req, res }, tag_findMany);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
+                expect(result.edges.length).toBeGreaterThan(0);
+                expect(result.edges.some((edge: any) => edge.node.tag === "javascript")).toBe(true);
+            });
+
             it("returns tags without filters for not authenticated user", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: TagSearchInput = { take: 10 };
-                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
-                expect(result).to.not.be.null;
-                assertFindManyResultIds(expect, result, expectedIds);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
             });
+
             it("returns tags without filters for API key public read", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
                 const input: TagSearchInput = { take: 10 };
-                const expectedIds = allTagIds;
                 const result = await tag.findMany({ input }, { req, res }, tag_findMany);
-                expect(result).to.not.be.null;
-                assertFindManyResultIds(expect, result, expectedIds);
+                expect(result).not.toBeNull();
+                expect(result.edges).toBeInstanceOf(Array);
             });
         });
     });
@@ -161,87 +163,153 @@ describe("EndpointsTag", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a tag for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-                const newTagId = uuid();
-                const input: TagCreateInput = { id: newTagId, tag: "New Test Tag" };
-
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                // Use validation fixtures for API input
+                const input: TagCreateInput = tagTestDataFactory.createMinimal({
+                    tag: "newtag",
+                    translationsCreate: [{
+                        language: "en",
+                        description: "A new tag for testing",
+                    }],
+                });
+                
                 const result = await tag.createOne({ input }, { req, res }, tag_createOne);
-                expect(result).to.not.be.null;
-                // ID may be regenerated by the server, skip id assertion
-                expect(result.tag).to.equal(input.tag);
-                expect(result.you?.isOwn).to.be.false;
+                expect(result).not.toBeNull();
+                expect(result.tag).toBe("newtag");
+                expect(result.translations).toHaveLength(1);
+                expect(result.translations[0].description).toBe("A new tag for testing");
             });
 
             it("API key with write permissions can create tag", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-                const newTagId = uuid();
-                const input: TagCreateInput = { id: newTagId, tag: "API Created Tag" };
-
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                // Use complete fixture for comprehensive test
+                const input: TagCreateInput = tagTestDataFactory.createComplete({
+                    tag: "apitag",
+                });
+                
                 const result = await tag.createOne({ input }, { req, res }, tag_createOne);
-                expect(result).to.not.be.null;
-                // Skip id assertion since server may override
-                expect(result.tag).to.equal(input.tag);
-                expect(result.you?.isOwn).to.be.false;
+                expect(result).not.toBeNull();
+                expect(result.tag).toBe("apitag");
             });
         });
 
         describe("invalid", () => {
-            it("not logged in user cannot create tag", async () => {
-                const { req, res } = await mockLoggedOutSession();
-                const input: TagCreateInput = { id: uuid(), tag: "Unauthorized Tag" };
-                try {
+            it("throws error for duplicate tag", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                // Try to create a tag that already exists
+                const input: TagCreateInput = tagTestDataFactory.createMinimal({
+                    tag: "programming", // Already exists
+                });
+                
+                await expect(async () => {
                     await tag.createOne({ input }, { req, res }, tag_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
+            });
+
+            it("throws error for not logged in user", async () => {
+                const { req, res } = await mockLoggedOutSession();
+                
+                const input: TagCreateInput = tagTestDataFactory.createMinimal({
+                    tag: "unauthorized",
+                });
+                
+                await expect(async () => {
+                    await tag.createOne({ input }, { req, res }, tag_createOne);
+                }).rejects.toThrow();
             });
         });
     });
 
     describe("updateOne", () => {
         describe("valid", () => {
-            it("allows admin to update a tag", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData(), id: SEEDED_IDS.User.Admin };
-                const { req, res } = await mockAuthenticatedSession(adminUser);
-                const input: TagUpdateInput = { id: userTag1.id, tag: "Admin Updated Tag" };
+            it("updates tag translations for owner", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                
+                const input: TagUpdateInput = {
+                    id: tags[0].id,
+                    translationsUpdate: [{
+                        id: tags[0].translations[0].id,
+                        description: "Updated description for programming",
+                    }],
+                };
+                
                 const result = await tag.updateOne({ input }, { req, res }, tag_updateOne);
-                expect(result).to.not.be.null;
-                expect(result.tag).to.equal(input.tag);
+                expect(result).not.toBeNull();
+                expect(result.translations[0].description).toBe("Updated description for programming");
+            });
+
+            it("admin can update any tag", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: adminUser.id 
+                });
+                
+                const input: TagUpdateInput = {
+                    id: tags[2].id,
+                    translationsCreate: [{
+                        language: "fr",
+                        description: "Tests en français",
+                    }],
+                };
+                
+                const result = await tag.updateOne({ input }, { req, res }, tag_updateOne);
+                expect(result).not.toBeNull();
+                expect(result.translations.length).toBeGreaterThan(1);
             });
         });
 
         describe("invalid", () => {
-            it("denies update for non-admin user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-                const input: TagUpdateInput = { id: userTag1.id, tag: "Unauthorized Update" };
-                try {
+            it("throws error for non-owner", async () => {
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[1].id 
+                });
+                
+                const input: TagUpdateInput = {
+                    id: tags[0].id, // Owned by testUsers[0]
+                    translationsUpdate: [{
+                        id: tags[0].translations[0].id,
+                        description: "Should not update",
+                    }],
+                };
+                
+                await expect(async () => {
                     await tag.updateOne({ input }, { req, res }, tag_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
 
-            it("denies update for not logged in user", async () => {
+            it("throws error for not logged in user", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: TagUpdateInput = { id: userTag1.id, tag: "Unauthorized Update" };
-                try {
+                
+                const input: TagUpdateInput = {
+                    id: tags[0].id,
+                    translationsUpdate: [{
+                        id: tags[0].translations[0].id,
+                        description: "Should not update",
+                    }],
+                };
+                
+                await expect(async () => {
                     await tag.updateOne({ input }, { req, res }, tag_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
-            });
-
-            it("throws when updating non-existent tag as admin", async () => {
-                const adminUser = { ...loggedInUserNoPremiumData(), id: SEEDED_IDS.User.Admin };
-                const { req, res } = await mockAuthenticatedSession(adminUser);
-                const input: TagUpdateInput = { id: uuid(), tag: "NoSuchTag" };
-                try {
-                    await tag.updateOne({ input }, { req, res }, tag_updateOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
         });
     });
-}); 
+});

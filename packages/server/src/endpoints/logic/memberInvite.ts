@@ -1,4 +1,4 @@
-import { type FindByIdInput, generatePublicId, type MemberInvite, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteSearchResult, type MemberInviteUpdateInput, validatePK } from "@local/shared";
+import { type FindByIdInput, generatePublicId, type MemberInvite, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteSearchResult, type MemberInviteUpdateInput, validatePK } from "@vrooli/shared";
 import { createManyHelper, createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";

@@ -1,4 +1,4 @@
-import { type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput } from "@local/shared";
+import { type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { setupPhoneVerificationCode, validatePhoneVerificationCode } from "../../auth/phone.js";
 import { RequestService } from "../../auth/request.js";
