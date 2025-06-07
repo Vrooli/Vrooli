@@ -5,6 +5,7 @@ import {
     type ResourceUsage,
     nanoid,
 } from "@vrooli/shared";
+import { EventBus } from "../../cross-cutting/events/eventBus.js";
 
 /**
  * Budget reservation for a step execution
@@ -22,11 +23,15 @@ export interface BudgetReservation {
 interface ResourceAllocation {
     reservationId: string;
     stepId: string;
+    userId?: string;
+    swarmId?: string;
     allocated: AvailableResources;
     used: ResourceUsage;
     reserved: ResourceUsage;
     startTime: number;
     endTime?: number;
+    status: 'active' | 'completed' | 'exceeded';
+    warnings: string[];
 }
 
 /**
@@ -44,29 +49,54 @@ interface ResourceAllocation {
  * - Real-time usage tracking
  * - Hierarchical limit enforcement
  * - Graceful degradation when limits approached
+ * - User-specific resource tracking
+ * - Event-driven monitoring
  */
 export class ResourceManager {
     private readonly allocations: Map<string, ResourceAllocation>;
+    private readonly userCredits: Map<string, number>;
     private readonly logger: Logger;
+    private readonly eventBus?: EventBus;
     
     // Global resource pools (would be loaded from config/database in production)
     private globalCredits = 1000000; // Total credits available
     private globalRateLimits: Map<string, RateLimit> = new Map();
+    
+    // Configuration
+    private readonly config = {
+        defaultUserCredits: 10000,
+        warningThreshold: 0.8,
+        criticalThreshold: 0.95,
+    };
+    
+    // Metrics
+    private metrics = {
+        totalReservations: 0,
+        approvedReservations: 0,
+        rejectedReservations: 0,
+        totalCreditsUsed: 0,
+    };
 
-    constructor(logger: Logger) {
+    constructor(logger: Logger, eventBus?: EventBus) {
         this.logger = logger;
+        this.eventBus = eventBus;
         this.allocations = new Map();
+        this.userCredits = new Map();
         this.initializeRateLimits();
     }
 
     /**
      * Reserves budget for step execution
+     * Supports both legacy (2 params) and enhanced (4 params) usage
      */
     async reserveBudget(
         available: AvailableResources,
         constraints: ExecutionConstraints,
+        userId?: string,
+        swarmId?: string,
     ): Promise<BudgetReservation> {
         const reservationId = nanoid();
+        this.metrics.totalReservations++;
 
         // Check credit limits
         if (constraints.maxCost && available.credits < constraints.maxCost) {
@@ -104,20 +134,55 @@ export class ResourceManager {
             };
         }
 
+        // Check user credits if userId provided
+        if (userId) {
+            const userCreditsCheck = this.checkUserCredits(userId, constraints);
+            if (!userCreditsCheck.allowed) {
+                this.metrics.rejectedReservations++;
+                return {
+                    approved: false,
+                    reservationId,
+                    allocation: available,
+                    reason: userCreditsCheck.reason,
+                };
+            }
+        }
+
         // Reserve resources
         const allocation: ResourceAllocation = {
             reservationId,
             stepId: "", // Will be set later
+            userId,
+            swarmId,
             allocated: available,
             reserved: this.estimateResourceUsage(constraints),
             used: {},
             startTime: Date.now(),
+            status: 'active',
+            warnings: [],
         };
 
         this.allocations.set(reservationId, allocation);
+        this.metrics.approvedReservations++;
+
+        // Emit reservation event if event bus available
+        if (this.eventBus) {
+            await this.eventBus.emit({
+                type: 'resource.reserved',
+                timestamp: new Date(),
+                data: {
+                    reservationId,
+                    userId,
+                    swarmId,
+                    credits: available.credits,
+                    timeLimit: available.timeLimit,
+                },
+            });
+        }
 
         this.logger.debug("[ResourceManager] Budget reserved", {
             reservationId,
+            userId,
             credits: available.credits,
             timeLimit: available.timeLimit,
         });
@@ -127,6 +192,16 @@ export class ResourceManager {
             reservationId,
             allocation: available,
         };
+    }
+
+    /**
+     * Sets the stepId for a reservation (called after reservation is approved)
+     */
+    setStepId(reservationId: string, stepId: string): void {
+        const allocation = this.allocations.get(reservationId);
+        if (allocation) {
+            allocation.stepId = stepId;
+        }
     }
 
     /**
@@ -148,13 +223,47 @@ export class ResourceManager {
         // Update usage
         allocation.used = this.mergeResourceUsage(allocation.used, usage);
 
-        // Check if usage exceeds reservation
-        if (this.isUsageExceeded(allocation)) {
-            this.logger.warn("[ResourceManager] Usage exceeded reservation", {
-                stepId,
-                used: allocation.used,
-                reserved: allocation.reserved,
-            });
+        // Check thresholds
+        const usageRatio = this.calculateUsageRatio(allocation);
+        
+        if (usageRatio >= this.config.criticalThreshold) {
+            allocation.status = 'exceeded';
+            allocation.warnings.push(`Critical usage: ${Math.round(usageRatio * 100)}%`);
+            
+            // Emit critical event if event bus available
+            if (this.eventBus) {
+                await this.eventBus.emit({
+                    type: 'resource.critical',
+                    timestamp: new Date(),
+                    data: {
+                        stepId,
+                        reservationId: allocation.reservationId,
+                        usageRatio,
+                        used: allocation.used,
+                        reserved: allocation.reserved,
+                    },
+                });
+            }
+        } else if (usageRatio >= this.config.warningThreshold) {
+            allocation.warnings.push(`High usage: ${Math.round(usageRatio * 100)}%`);
+            
+            // Emit warning event if event bus available
+            if (this.eventBus) {
+                await this.eventBus.emit({
+                    type: 'resource.warning',
+                    timestamp: new Date(),
+                    data: {
+                        stepId,
+                        reservationId: allocation.reservationId,
+                        usageRatio,
+                    },
+                });
+            }
+        }
+
+        // Update user credits if userId available
+        if (allocation.userId && usage.cost) {
+            this.updateUserCredits(allocation.userId, usage.cost);
         }
     }
 
@@ -175,10 +284,12 @@ export class ResourceManager {
         // Update final usage
         allocation.used = actualUsage;
         allocation.endTime = Date.now();
+        allocation.status = 'completed';
 
         // Deduct from global credits
         if (actualUsage.cost) {
             this.globalCredits -= actualUsage.cost;
+            this.metrics.totalCreditsUsed += actualUsage.cost;
         }
 
         // Update rate limit counters
@@ -186,16 +297,38 @@ export class ResourceManager {
             this.updateRateLimitCounters(actualUsage);
         }
 
-        // Calculate final report
+        // Calculate final report with efficiency metric
+        const executionTime = allocation.endTime - allocation.startTime;
+        const efficiency = this.calculateEfficiency(allocation);
+        
         const report: ResourceUsage = {
             ...actualUsage,
-            computeTime: allocation.endTime - allocation.startTime,
+            computeTime: executionTime,
+            efficiency,
         };
+
+        // Emit completion event if event bus available
+        if (this.eventBus) {
+            await this.eventBus.emit({
+                type: 'resource.completed',
+                timestamp: new Date(),
+                data: {
+                    reservationId,
+                    userId: allocation.userId,
+                    duration: executionTime,
+                    cost: report.cost,
+                    efficiency,
+                    warnings: allocation.warnings,
+                },
+            });
+        }
 
         this.logger.info("[ResourceManager] Finalized usage", {
             reservationId,
-            duration: report.computeTime,
+            duration: executionTime,
             cost: report.cost,
+            efficiency,
+            warnings: allocation.warnings,
         });
 
         // Clean up allocation after a delay
@@ -323,6 +456,124 @@ export class ResourceManager {
         }
 
         return false;
+    }
+
+    /**
+     * Releases a reservation without finalizing (for cancellations)
+     */
+    async releaseReservation(reservationId: string): Promise<void> {
+        const allocation = this.allocations.get(reservationId);
+        if (!allocation) {
+            return;
+        }
+
+        allocation.status = 'exceeded';
+        allocation.endTime = Date.now();
+        
+        // Return credits if not used
+        if (allocation.userId && allocation.reserved.cost) {
+            const creditsToReturn = allocation.reserved.cost - (allocation.used.cost || 0);
+            if (creditsToReturn > 0) {
+                this.returnUserCredits(allocation.userId, creditsToReturn);
+            }
+        }
+        
+        // Clean up immediately
+        this.allocations.delete(reservationId);
+        
+        this.logger.debug("[ResourceManager] Reservation released", {
+            reservationId,
+        });
+    }
+
+    /**
+     * Gets current metrics for monitoring
+     */
+    getMetrics(): {
+        activeAllocations: number;
+        totalReservations: number;
+        approvedReservations: number;
+        rejectedReservations: number;
+        totalCreditsUsed: number;
+        globalCreditsRemaining: number;
+    } {
+        const activeAllocations = Array.from(this.allocations.values())
+            .filter(a => a.status === 'active').length;
+        
+        return {
+            activeAllocations,
+            totalReservations: this.metrics.totalReservations,
+            approvedReservations: this.metrics.approvedReservations,
+            rejectedReservations: this.metrics.rejectedReservations,
+            totalCreditsUsed: this.metrics.totalCreditsUsed,
+            globalCreditsRemaining: this.globalCredits,
+        };
+    }
+
+    /**
+     * Private helper methods
+     */
+    private checkUserCredits(
+        userId: string,
+        constraints: ExecutionConstraints,
+    ): { allowed: boolean; reason?: string } {
+        const userCredits = this.userCredits.get(userId) || this.config.defaultUserCredits;
+        const estimatedCost = constraints.maxCost || 0.1;
+        
+        if (userCredits < estimatedCost) {
+            return {
+                allowed: false,
+                reason: `Insufficient user credits: ${userCredits} < ${estimatedCost}`,
+            };
+        }
+        
+        // Reserve credits
+        this.userCredits.set(userId, userCredits - estimatedCost);
+        
+        return { allowed: true };
+    }
+
+    private updateUserCredits(userId: string, cost: number): void {
+        const currentCredits = this.userCredits.get(userId) || this.config.defaultUserCredits;
+        // Credits were already reserved, so we just track actual vs reserved
+        // In a real system, we'd reconcile the difference
+    }
+
+    private returnUserCredits(userId: string, amount: number): void {
+        const currentCredits = this.userCredits.get(userId) || this.config.defaultUserCredits;
+        this.userCredits.set(userId, currentCredits + amount);
+    }
+
+    private calculateUsageRatio(allocation: ResourceAllocation): number {
+        const ratios: number[] = [];
+        
+        if (allocation.reserved.cost && allocation.used.cost) {
+            ratios.push(allocation.used.cost / allocation.reserved.cost);
+        }
+        
+        if (allocation.reserved.tokens && allocation.used.tokens) {
+            ratios.push(allocation.used.tokens / allocation.reserved.tokens);
+        }
+        
+        if (allocation.reserved.computeTime && allocation.used.computeTime) {
+            ratios.push(allocation.used.computeTime / allocation.reserved.computeTime);
+        }
+        
+        return ratios.length > 0 ? Math.max(...ratios) : 0;
+    }
+
+    private calculateEfficiency(allocation: ResourceAllocation): number {
+        // Calculate efficiency score (0-1)
+        const usageRatio = this.calculateUsageRatio(allocation);
+        const timeEfficiency = allocation.reserved.computeTime && allocation.endTime
+            ? (allocation.endTime - allocation.startTime) / allocation.reserved.computeTime
+            : 1;
+        
+        // Ideal efficiency is using ~80% of reserved resources
+        const targetRatio = 0.8;
+        const efficiencyScore = 1 - Math.abs(usageRatio - targetRatio);
+        
+        return Math.max(0, Math.min(1, efficiencyScore * timeEfficiency));
     }
 
     private updateRateLimitCounters(usage: ResourceUsage): void {

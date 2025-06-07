@@ -1069,6 +1069,23 @@ export class DeterministicStrategy implements ExecutionStrategy {
             }
         }
         
+        // Use ValidationEngine if available for additional validation
+        if (this.validationEngine) {
+            try {
+                const engineValidation = await this.validationEngine.validateOutputs(
+                    outputs,
+                    {}, // No specific schema for strict validation
+                );
+                if (!engineValidation.valid) {
+                    errors.push(...engineValidation.errors);
+                }
+            } catch (error) {
+                this.logger.warn("[DeterministicStrategy] ValidationEngine error", {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        
         return {
             isValid: errors.length === 0,
             errors,

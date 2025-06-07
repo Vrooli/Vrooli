@@ -29,7 +29,7 @@ import type {
     StrategyType,
     EventSource,
 } from "@vrooli/shared";
-import { v4 as uuidv4 } from "uuid";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Default telemetry configuration
@@ -70,7 +70,7 @@ export class TelemetryShim {
     private readonly buffer: MonitoringEvent[] = [];
     private readonly source: EventSource;
     private flushTimer?: NodeJS.Timeout;
-    private correlationId: string = uuidv4();
+    private correlationId: string = generatePK().toString();
     
     // Performance tracking
     private emitCount = 0;
@@ -384,7 +384,7 @@ export class TelemetryShim {
 
             // Create event
             const event: T = {
-                id: uuidv4(),
+                id: generatePK().toString(),
                 type: `${category}.${payload.type}`,
                 timestamp: new Date(),
                 source: this.source,

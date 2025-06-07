@@ -17,7 +17,7 @@ import type {
 import { logger } from "../../../../events/logger.js";
 import { TelemetryShim } from "../monitoring/telemetryShim.js";
 import { RedisEventBus } from "../events/eventBus.js";
-import { v4 as uuidv4 } from "uuid";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * AI security validation configuration

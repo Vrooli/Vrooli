@@ -7,6 +7,8 @@ import {
 import { ConversationalStrategy } from "./conversationalStrategy.js";
 import { DeterministicStrategy } from "./deterministicStrategy.js";
 import { ReasoningStrategy } from "./reasoningStrategy.js";
+import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import { ValidationEngine } from "../engine/validationEngine.js";
 
 /**
  * StrategyFactory - Creates and manages execution strategies
@@ -21,14 +23,36 @@ export class StrategyFactory {
     private readonly logger: Logger;
     private readonly strategies: Map<StrategyType, ExecutionStrategy>;
     private readonly strategyUsage: Map<StrategyType, number>;
+    private toolOrchestrator?: ToolOrchestrator;
+    private validationEngine?: ValidationEngine;
 
-    constructor(logger: Logger) {
+    constructor(logger: Logger, toolOrchestrator?: ToolOrchestrator, validationEngine?: ValidationEngine) {
         this.logger = logger;
         this.strategies = new Map();
         this.strategyUsage = new Map();
+        this.toolOrchestrator = toolOrchestrator;
+        this.validationEngine = validationEngine;
         
         // Initialize all available strategies
         this.initializeStrategies();
+    }
+
+    /**
+     * Set the shared services for dependency injection
+     */
+    setSharedServices(toolOrchestrator: ToolOrchestrator, validationEngine: ValidationEngine): void {
+        this.toolOrchestrator = toolOrchestrator;
+        this.validationEngine = validationEngine;
+        
+        // Update existing strategies with shared services
+        for (const strategy of this.strategies.values()) {
+            if ('setToolOrchestrator' in strategy && typeof strategy.setToolOrchestrator === 'function') {
+                strategy.setToolOrchestrator(toolOrchestrator);
+            }
+            if ('setValidationEngine' in strategy && typeof strategy.setValidationEngine === 'function') {
+                strategy.setValidationEngine(validationEngine);
+            }
+        }
     }
 
     /**
@@ -37,10 +61,14 @@ export class StrategyFactory {
     private initializeStrategies(): void {
         this.logger.info("[StrategyFactory] Initializing execution strategies");
         
-        // Create strategy instances
-        this.registerStrategy(new ConversationalStrategy(this.logger));
-        this.registerStrategy(new DeterministicStrategy(this.logger));
-        this.registerStrategy(new ReasoningStrategy(this.logger));
+        // Create strategy instances with optional shared services
+        const conversationalStrategy = new ConversationalStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
+        const deterministicStrategy = new DeterministicStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
+        const reasoningStrategy = new ReasoningStrategy(this.logger);
+        
+        this.registerStrategy(conversationalStrategy);
+        this.registerStrategy(deterministicStrategy);
+        this.registerStrategy(reasoningStrategy);
         
         this.logger.info("[StrategyFactory] Strategies initialized", {
             available: Array.from(this.strategies.keys()),

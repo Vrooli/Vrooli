@@ -23,7 +23,7 @@ import type {
 import { logger } from "../../../../events/logger.js";
 import { TelemetryShim } from "../monitoring/telemetryShim.js";
 import { RedisEventBus } from "../events/eventBus.js";
-import { v4 as uuidv4 } from "uuid";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Security audit configuration
@@ -169,7 +169,7 @@ export class SecurityAuditLogger {
         },
     ): Promise<SecurityAudit> {
         const audit: SecurityAudit = {
-            id: uuidv4(),
+            id: generatePK().toString(),
             timestamp: new Date(),
             actor,
             action,
@@ -273,7 +273,7 @@ export class SecurityAuditLogger {
         },
     ): Promise<SecurityIncident> {
         const incident: SecurityIncident = {
-            id: uuidv4(),
+            id: generatePK().toString(),
             timestamp: new Date(),
             type,
             severity,
@@ -363,7 +363,7 @@ export class SecurityAuditLogger {
         },
     ): Promise<ThreatDetection> {
         const threat: ThreatDetection = {
-            id: uuidv4(),
+            id: generatePK().toString(),
             timestamp: new Date(),
             type,
             confidence,
@@ -592,7 +592,7 @@ export class SecurityAuditLogger {
 
     private async emitAuditEvent(audit: SecurityAudit): Promise<void> {
         await this.eventBus.publish({
-            id: uuidv4(),
+            id: generatePK().toString(),
             type: "security.audit.logged",
             timestamp: new Date(),
             source: {
@@ -611,7 +611,7 @@ export class SecurityAuditLogger {
 
     private async emitIncidentEvent(incident: SecurityIncident): Promise<void> {
         await this.eventBus.publish({
-            id: uuidv4(),
+            id: generatePK().toString(),
             type: "security.incident.created",
             timestamp: new Date(),
             source: {
@@ -630,7 +630,7 @@ export class SecurityAuditLogger {
 
     private async emitThreatDetectionEvent(threat: ThreatDetection): Promise<void> {
         await this.eventBus.publish({
-            id: uuidv4(),
+            id: generatePK().toString(),
             type: "security.threat.detected",
             timestamp: new Date(),
             source: {
@@ -671,7 +671,7 @@ export class SecurityAuditLogger {
 
                 // Emit pattern detection event
                 await this.eventBus.publish({
-                    id: uuidv4(),
+                    id: generatePK().toString(),
                     type: "security.pattern.detected",
                     timestamp: new Date(),
                     source: {
@@ -867,7 +867,7 @@ export class SecurityAuditLogger {
 
         if (audit.result === "failure") {
             recommendations.push({
-                id: uuidv4(),
+                id: generatePK().toString(),
                 priority: RecommendationPriority.HIGH,
                 category: "security",
                 description: "Investigate failed security operation",

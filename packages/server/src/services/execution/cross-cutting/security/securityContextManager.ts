@@ -21,7 +21,7 @@ import type {
 import { logger } from "../../../../events/logger.js";
 import { TelemetryShim } from "../monitoring/telemetryShim.js";
 import { RedisEventBus } from "../events/eventBus.js";
-import { v4 as uuidv4 } from "uuid";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Security context management configuration
@@ -894,7 +894,7 @@ export class SecurityContextManager {
         payload: Record<string, unknown>,
     ): Promise<void> {
         await this.eventBus.publish({
-            id: uuidv4(),
+            id: generatePK().toString(),
             type: `security.context.${eventType}`,
             timestamp: new Date(),
             source: {
@@ -902,7 +902,7 @@ export class SecurityContextManager {
                 component: "SecurityContextManager",
                 service: "security",
             },
-            correlationId: payload.requestId as string || uuidv4(),
+            correlationId: payload.requestId as string || generatePK().toString(),
             payload,
             metadata: {
                 category: "security",

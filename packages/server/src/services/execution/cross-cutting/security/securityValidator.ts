@@ -22,7 +22,7 @@ import type {
 import { logger } from "../../../../events/logger.js";
 import { TelemetryShim } from "../monitoring/telemetryShim.js";
 import { RedisEventBus } from "../events/eventBus.js";
-import { v4 as uuidv4 } from "uuid";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Security validation configuration
@@ -185,7 +185,7 @@ export class SecurityValidator {
             return {
                 valid: false,
                 violations: [{
-                    id: uuidv4(),
+                    id: generatePK().toString(),
                     timestamp: new Date(),
                     guardRailId: "system-error",
                     ruleId: "validation-error",
@@ -290,7 +290,7 @@ export class SecurityValidator {
         
         if (this.compareSecurityLevels(context.level, requiredLevel) < 0) {
             const violation: GuardRailViolation = {
-                id: uuidv4(),
+                id: generatePK().toString(),
                 timestamp: new Date(),
                 guardRailId: "security-level",
                 ruleId: "insufficient-security-level",
@@ -321,7 +321,7 @@ export class SecurityValidator {
 
         if (!hasPermission) {
             const violation: GuardRailViolation = {
-                id: uuidv4(),
+                id: generatePK().toString(),
                 timestamp: new Date(),
                 guardRailId: "tier-permissions",
                 ruleId: "insufficient-permissions",
@@ -357,7 +357,7 @@ export class SecurityValidator {
                 
                 if (violated) {
                     const violation: GuardRailViolation = {
-                        id: uuidv4(),
+                        id: generatePK().toString(),
                         timestamp: new Date(),
                         guardRailId: guardRail.id,
                         ruleId: rule.id,
@@ -396,7 +396,7 @@ export class SecurityValidator {
             
             if (decision.effect === "deny") {
                 const violation: GuardRailViolation = {
-                    id: uuidv4(),
+                    id: generatePK().toString(),
                     timestamp: new Date(),
                     guardRailId: "access-policy",
                     ruleId: policy.id,
@@ -494,7 +494,7 @@ export class SecurityValidator {
     ): Promise<void> {
         // Emit validation event
         await this.eventBus.publish({
-            id: uuidv4(),
+            id: generatePK().toString(),
             type: "security.validation.completed",
             timestamp: new Date(),
             source: {
@@ -529,7 +529,7 @@ export class SecurityValidator {
         // Emit violation events
         for (const violation of validation.violations) {
             await this.eventBus.publish({
-                id: uuidv4(),
+                id: generatePK().toString(),
                 type: "security.violation.detected",
                 timestamp: new Date(),
                 source: {

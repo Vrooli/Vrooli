@@ -1,0 +1,287 @@
+import { expect } from 'chai';
+import sinon from 'sinon';
+import { ResourceManager } from '../resourceManager.js';
+import { EventBus } from '../../../cross-cutting/events/eventBus.js';
+import { createMockLogger } from '../../../../__test__/fixtures/loggerFixtures.js';
+import { nanoid } from '@vrooli/shared';
+
+describe('ResourceManager', function() {
+    let logger: any;
+    let eventBus: EventBus;
+    let resourceManager: ResourceManager;
+    let sandbox: sinon.SinonSandbox;
+
+    beforeEach(function() {
+        sandbox = sinon.createSandbox();
+        logger = createMockLogger(sandbox);
+        eventBus = new EventBus(logger);
+        resourceManager = new ResourceManager(logger, eventBus);
+    });
+
+    afterEach(function() {
+        sandbox.restore();
+    });
+
+    describe('reserveBudget', function() {
+        it('should approve reservation when resources are sufficient', async function() {
+            const available = {
+                models: [{ provider: 'openai', model: 'gpt-4', capabilities: ['chat'], cost: 0.01, available: true }],
+                tools: [],
+                apis: [],
+                credits: 1000,
+                timeLimit: 60000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+                maxTime: 30000,
+                maxTokens: 1000,
+            };
+
+            const result = await resourceManager.reserveBudget(available, constraints);
+
+            expect(result.approved).to.be.true;
+            expect(result.reservationId).to.exist;
+            expect(result.allocation).to.deep.equal(available);
+        });
+
+        it('should reject reservation when credits insufficient', async function() {
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 5,
+                timeLimit: 60000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+            };
+
+            const result = await resourceManager.reserveBudget(available, constraints);
+
+            expect(result.approved).to.be.false;
+            expect(result.reason).to.include('Insufficient credits');
+        });
+
+        it('should track user-specific credits when userId provided', async function() {
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 100,
+            };
+
+            const constraints = {
+                maxCost: 10,
+            };
+
+            const userId = 'user-123';
+            const result = await resourceManager.reserveBudget(available, constraints, userId);
+
+            expect(result.approved).to.be.true;
+            
+            // Try to reserve more than user has
+            const bigConstraints = { maxCost: 20000 };
+            const result2 = await resourceManager.reserveBudget(available, bigConstraints, userId);
+            
+            expect(result2.approved).to.be.false;
+            expect(result2.reason).to.include('Insufficient user credits');
+        });
+
+        it('should emit reservation event when event bus available', async function() {
+            const emitSpy = sandbox.spy(eventBus, 'emit');
+            
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 1000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+            };
+
+            const userId = 'user-123';
+            const swarmId = 'swarm-456';
+            
+            await resourceManager.reserveBudget(available, constraints, userId, swarmId);
+
+            expect(emitSpy.calledOnce).to.be.true;
+            const emitCall = emitSpy.getCall(0);
+            expect(emitCall.args[0]).to.deep.include({
+                type: 'resource.reserved',
+            });
+            expect(emitCall.args[0].data).to.include({
+                userId,
+                swarmId,
+                credits: 1000,
+            });
+        });
+    });
+
+    describe('trackUsage', function() {
+        it('should track usage and emit warnings at thresholds', async function() {
+            const emitSpy = sandbox.spy(eventBus, 'emit');
+            
+            // First reserve budget
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 1000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+                maxTokens: 1000,
+            };
+
+            const reservation = await resourceManager.reserveBudget(available, constraints);
+            expect(reservation.approved).to.be.true;
+            
+            // Set step ID
+            const stepId = 'step-123';
+            resourceManager.setStepId(reservation.reservationId, stepId);
+
+            // Track usage at 85% (should trigger warning)
+            await resourceManager.trackUsage(stepId, {
+                cost: 8.5,
+                tokens: 850,
+            });
+
+            // Check warning event was emitted
+            const warningEvent = emitSpy.getCalls().find(call => 
+                call.args[0].type === 'resource.warning'
+            );
+            expect(warningEvent).to.exist;
+            expect(warningEvent.args[0].data.usageRatio).to.be.greaterThan(0.8);
+
+            // Track usage at 98% (should trigger critical)
+            await resourceManager.trackUsage(stepId, {
+                cost: 1.3, // Total 9.8
+                tokens: 130, // Total 980
+            });
+
+            // Check critical event was emitted
+            const criticalEvent = emitSpy.getCalls().find(call => 
+                call.args[0].type === 'resource.critical'
+            );
+            expect(criticalEvent).to.exist;
+            expect(criticalEvent.args[0].data.usageRatio).to.be.greaterThan(0.95);
+        });
+    });
+
+    describe('finalizeUsage', function() {
+        it('should calculate efficiency and emit completion event', async function() {
+            const emitSpy = sandbox.spy(eventBus, 'emit');
+            
+            // Reserve budget
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 1000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+                maxTokens: 1000,
+                maxTime: 30000,
+            };
+
+            const reservation = await resourceManager.reserveBudget(available, constraints);
+            
+            // Finalize with 80% usage (optimal)
+            const finalUsage = {
+                cost: 8,
+                tokens: 800,
+                computeTime: 24000,
+                apiCalls: 4,
+            };
+
+            const report = await resourceManager.finalizeUsage(
+                reservation.reservationId,
+                finalUsage
+            );
+
+            // Check efficiency calculation
+            expect(report.efficiency).to.exist;
+            expect(report.efficiency).to.be.greaterThan(0.8);
+            expect(report.computeTime).to.be.greaterThan(0);
+
+            // Check completion event
+            const completionEvent = emitSpy.getCalls().find(call => 
+                call.args[0].type === 'resource.completed'
+            );
+            expect(completionEvent).to.exist;
+            expect(completionEvent.args[0].data).to.include({
+                cost: 8,
+            });
+        });
+    });
+
+    describe('releaseReservation', function() {
+        it('should release reservation and return unused credits', async function() {
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 1000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+            };
+
+            const userId = 'user-123';
+            const reservation = await resourceManager.reserveBudget(
+                available, 
+                constraints, 
+                userId
+            );
+
+            // Release without using any resources
+            await resourceManager.releaseReservation(reservation.reservationId);
+
+            // User should be able to reserve again with full credits
+            const result2 = await resourceManager.reserveBudget(
+                available, 
+                constraints, 
+                userId
+            );
+            
+            expect(result2.approved).to.be.true;
+        });
+    });
+
+    describe('getMetrics', function() {
+        it('should return current resource metrics', async function() {
+            // Make some reservations
+            const available = {
+                models: [],
+                tools: [],
+                apis: [],
+                credits: 1000,
+            };
+
+            const constraints = {
+                maxCost: 10,
+            };
+
+            await resourceManager.reserveBudget(available, constraints);
+            await resourceManager.reserveBudget(available, constraints);
+            
+            const metrics = resourceManager.getMetrics();
+            
+            expect(metrics).to.include({
+                activeAllocations: 2,
+                totalReservations: 2,
+                approvedReservations: 2,
+                rejectedReservations: 0,
+            });
+            expect(metrics.globalCreditsRemaining).to.be.greaterThan(0);
+        });
+    });
+});

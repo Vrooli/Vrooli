@@ -39,8 +39,8 @@ export class ConversationalStrategy implements ExecutionStrategy {
 
     private readonly logger: Logger;
     private readonly llmService: LLMIntegrationService;
-    private readonly toolOrchestrator: ToolOrchestrator;
-    private readonly validationEngine: ValidationEngine;
+    private toolOrchestrator?: ToolOrchestrator;
+    private validationEngine?: ValidationEngine;
     
     // Performance tracking (new capability)
     private performanceHistory: Array<{
@@ -56,11 +56,29 @@ export class ConversationalStrategy implements ExecutionStrategy {
     private static readonly CONVERSATION_CONTEXT_WINDOW = 5;
     private static readonly TURN_TIMEOUT_MS = 60000; // 1 minute per turn
 
-    constructor(logger: Logger) {
+    constructor(
+        logger: Logger,
+        toolOrchestrator?: ToolOrchestrator,
+        validationEngine?: ValidationEngine,
+    ) {
         this.logger = logger;
         this.llmService = new LLMIntegrationService(logger);
-        this.toolOrchestrator = new ToolOrchestrator(logger);
-        this.validationEngine = new ValidationEngine(logger);
+        this.toolOrchestrator = toolOrchestrator;
+        this.validationEngine = validationEngine;
+    }
+
+    /**
+     * Set the tool orchestrator (for dependency injection)
+     */
+    setToolOrchestrator(orchestrator: ToolOrchestrator): void {
+        this.toolOrchestrator = orchestrator;
+    }
+
+    /**
+     * Set the validation engine (for dependency injection)
+     */
+    setValidationEngine(engine: ValidationEngine): void {
+        this.validationEngine = engine;
     }
 
     /**
@@ -855,22 +873,59 @@ export class ConversationalStrategy implements ExecutionStrategy {
     }
     
     /**
-     * Handle tool execution (placeholder for integration)
+     * Handle tool execution using the shared ToolOrchestrator
      */
     private async handleToolExecution(
         response: ConversationalResponse,
         context: StrategyExecutionContext,
     ): Promise<ConversationalResponse> {
-        // Placeholder: Integrate with ToolOrchestrator
         this.logger.debug("[ConversationalStrategy] Tool execution requested", {
             toolCalls: response.toolCalls?.length || 0,
         });
         
-        // For now, return response with tool execution message
+        if (!this.toolOrchestrator) {
+            this.logger.warn("[ConversationalStrategy] No tool orchestrator available, skipping tool execution");
+            return response;
+        }
+
+        if (!response.toolCalls || response.toolCalls.length === 0) {
+            return response;
+        }
+
+        const toolResults: string[] = [];
+        let additionalTokensUsed = 0;
+
+        for (const toolCall of response.toolCalls) {
+            try {
+                this.logger.info("[ConversationalStrategy] Executing tool", {
+                    toolName: toolCall.name,
+                    stepId: context.stepId,
+                });
+
+                const result = await this.toolOrchestrator.executeTool(
+                    toolCall.name,
+                    toolCall.parameters || {},
+                );
+
+                toolResults.push(`Tool ${toolCall.name}: ${JSON.stringify(result)}`);
+                
+                // Estimate token usage for tool result
+                additionalTokensUsed += Math.ceil(JSON.stringify(result).length / 4);
+            } catch (error) {
+                this.logger.error("[ConversationalStrategy] Tool execution failed", {
+                    toolName: toolCall.name,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                toolResults.push(`Tool ${toolCall.name}: Error - ${error instanceof Error ? error.message : "Unknown error"}`);
+            }
+        }
+
+        // Incorporate tool results into the response
         return {
             ...response,
-            content: response.content + "\n\n[Tool execution completed]",
-            reasoning: response.reasoning + " (with tool assistance)",
+            content: response.content + "\n\nTool Results:\n" + toolResults.join("\n"),
+            reasoning: response.reasoning + " (enhanced with tool execution results)",
+            tokensUsed: response.tokensUsed + additionalTokensUsed,
         };
     }
     
@@ -881,12 +936,38 @@ export class ConversationalStrategy implements ExecutionStrategy {
         outputs: Record<string, unknown>,
         context: StrategyExecutionContext,
     ): Promise<Record<string, unknown>> {
-        // Placeholder: Integrate with ValidationEngine
         this.logger.debug("[ConversationalStrategy] Validating outputs", {
             outputKeys: Object.keys(outputs),
         });
         
-        return outputs; // Return as-is for now
+        if (!this.validationEngine) {
+            this.logger.warn("[ConversationalStrategy] No validation engine available, skipping validation");
+            return outputs;
+        }
+
+        try {
+            const validationResult = await this.validationEngine.validateOutputs(
+                outputs,
+                context.config.expectedOutputs || {},
+            );
+
+            if (validationResult.valid) {
+                this.logger.debug("[ConversationalStrategy] Outputs validated successfully");
+                return validationResult.sanitizedOutputs || outputs;
+            } else {
+                this.logger.warn("[ConversationalStrategy] Output validation failed", {
+                    errors: validationResult.errors,
+                });
+                // Return original outputs but log validation errors
+                return outputs;
+            }
+        } catch (error) {
+            this.logger.error("[ConversationalStrategy] Validation error", {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Return original outputs on validation error
+            return outputs;
+        }
     }
     
     /**

@@ -5,14 +5,14 @@
 ### Test Frameworks in Use
 The execution service currently uses **THREE different testing frameworks**:
 
-1. **Jest** - Used in `__tests__` directories (13 files)
+1. **Jest** - Used in `__test__` directories (13 files)
 2. **Vitest** - Used in `tier3/strategies/reasoning/__tests__` and `tier3/strategies/__tests__` (7 files)
 3. **Mocha/Chai/Sinon** - Used in `__test__` directories (3 files)
 
 ### Directory Structure Issues
 
 #### Directories Found:
-- `/src/services/execution/__tests__/` - Jest-based tests with jest.config.js
+- `/src/services/execution/__test__/` - Jest-based tests with jest.config.js
 - `/src/services/execution/tier3/strategies/__test__/` - Mocha-based tests
 - `/src/services/execution/tier3/strategies/__tests__/` - Vitest-based tests
 - `/src/services/execution/tier3/strategies/reasoning/__tests__/` - Vitest-based tests
@@ -22,7 +22,7 @@ The execution service currently uses **THREE different testing frameworks**:
 
 ### Jest Files (Need Migration)
 ```
-__tests__/
+__test__/
 ├── conversationalStrategyIntegration.test.ts
 ├── deterministicAdapter.test.ts
 ├── deterministicStrategy.enhanced.test.ts

@@ -69,13 +69,20 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         this.rollingHistory = rollingHistory;
 
         // Initialize components
-        this.strategySelector = new StrategySelector(config.strategyFactory, logger);
-        this.resourceManager = new ResourceManager(logger);
-        this.ioProcessor = new IOProcessor(logger);
         this.toolOrchestrator = new ToolOrchestrator(eventBus, logger, toolRegistry);
         this.validationEngine = new ValidationEngine(logger);
+        this.resourceManager = new ResourceManager(logger, eventBus);
+        this.ioProcessor = new IOProcessor(logger);
         this.telemetryShim = new TelemetryShim(eventBus, config.telemetryEnabled);
         this.contextExporter = new ContextExporter(eventBus, logger);
+        
+        // Initialize strategy selector with enhanced configuration
+        const strategyFactoryConfig = {
+            ...config.strategyFactory,
+            toolOrchestrator: this.toolOrchestrator,
+            validationEngine: this.validationEngine,
+        };
+        this.strategySelector = new StrategySelector(strategyFactoryConfig, logger, this.toolOrchestrator, this.validationEngine);
     }
 
     /**
@@ -115,6 +122,14 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 runContext.usageHints,
             );
 
+            // Inject shared services into the strategy if it supports them
+            if ('setToolOrchestrator' in strategy && typeof strategy.setToolOrchestrator === 'function') {
+                strategy.setToolOrchestrator(this.toolOrchestrator);
+            }
+            if ('setValidationEngine' in strategy && typeof strategy.setValidationEngine === 'function') {
+                strategy.setValidationEngine(this.validationEngine);
+            }
+
             this.logger.debug(`[UnifiedExecutor] Selected strategy: ${strategy.type}`, {
                 stepId,
                 strategyName: strategy.name,
@@ -131,6 +146,8 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             const budgetReservation = await this.resourceManager.reserveBudget(
                 stepContext.resources,
                 stepContext.constraints,
+                (stepContext as any).userId,
+                (stepContext as any).swarmId,
             );
 
             // Emit resource allocation telemetry
@@ -144,10 +161,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             }
 
             if (!budgetReservation.approved) {
-                const error = "Resource limit exceeded";
+                const error = budgetReservation.reason || "Resource limit exceeded";
                 await this.telemetryShim.emitLimitExceeded(stepId, stepContext.constraints);
                 return this.createErrorResult(error, strategy.type, startTime);
             }
+
+            // Set the stepId on the reservation
+            this.resourceManager.setStepId(budgetReservation.reservationId, stepId);
 
             // 3. Build input payload
             const preparedInputs = await this.ioProcessor.buildInputPayload(

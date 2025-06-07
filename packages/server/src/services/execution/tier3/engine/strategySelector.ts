@@ -9,6 +9,8 @@ import {
 import { ConversationalStrategy } from "../strategies/conversationalStrategy.js";
 import { ReasoningStrategy } from "../strategies/reasoningStrategy.js";
 import { DeterministicStrategy } from "../strategies/deterministicStrategy.js";
+import { ToolOrchestrator } from "./toolOrchestrator.js";
+import { ValidationEngine } from "./validationEngine.js";
 
 /**
  * Usage hints provided by Tier 2 for strategy selection
@@ -37,10 +39,19 @@ export class StrategySelector {
     private readonly strategies: Map<StrategyType, ExecutionStrategy>;
     private readonly config: StrategyFactoryConfig;
     private readonly logger: Logger;
+    private readonly toolOrchestrator?: ToolOrchestrator;
+    private readonly validationEngine?: ValidationEngine;
 
-    constructor(config: StrategyFactoryConfig, logger: Logger) {
+    constructor(
+        config: StrategyFactoryConfig, 
+        logger: Logger,
+        toolOrchestrator?: ToolOrchestrator,
+        validationEngine?: ValidationEngine,
+    ) {
         this.config = config;
         this.logger = logger;
+        this.toolOrchestrator = toolOrchestrator;
+        this.validationEngine = validationEngine;
         this.strategies = new Map();
 
         // Initialize available strategies
@@ -132,17 +143,17 @@ export class StrategySelector {
     private createStrategy(type: StrategyType): ExecutionStrategy {
         switch (type) {
             case StrategyTypeEnum.CONVERSATIONAL:
-                return new ConversationalStrategy(this.logger);
+                return new ConversationalStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
             
             case StrategyTypeEnum.REASONING:
                 return new ReasoningStrategy(this.logger);
             
             case StrategyTypeEnum.DETERMINISTIC:
-                return new DeterministicStrategy(this.logger);
+                return new DeterministicStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
             
             default:
                 this.logger.warn(`[StrategySelector] Unknown strategy type: ${type}, falling back to conversational`);
-                return new ConversationalStrategy(this.logger);
+                return new ConversationalStrategy(this.logger, this.toolOrchestrator, this.validationEngine);
         }
     }
 

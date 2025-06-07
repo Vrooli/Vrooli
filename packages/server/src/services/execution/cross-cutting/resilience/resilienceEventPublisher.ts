@@ -23,7 +23,7 @@ import {
 } from "@vrooli/shared";
 import type { TelemetryShim } from "../monitoring/telemetryShim.js";
 import type { RedisEventBus } from "../events/eventBus.js";
-import { v4 as uuidv4 } from "uuid";
+import { uuid } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
 
 /**
@@ -129,7 +129,7 @@ export class ResilienceEventPublisher {
                 : this.createEmptyLearningData();
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.ERROR_DETECTED,
                 severity: classification.severity,
@@ -183,7 +183,7 @@ export class ResilienceEventPublisher {
                 : this.createEmptyLearningData();
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.ERROR_CLASSIFIED,
                 severity: classification.severity,
@@ -231,7 +231,7 @@ export class ResilienceEventPublisher {
                 : this.createEmptyLearningData();
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.RECOVERY_INITIATED,
                 severity: classification.severity,
@@ -272,7 +272,7 @@ export class ResilienceEventPublisher {
                 : this.createEmptyLearningData();
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.RECOVERY_COMPLETED,
                 severity: classification.severity,
@@ -325,7 +325,7 @@ export class ResilienceEventPublisher {
                 : this.createEmptyLearningData();
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.RECOVERY_FAILED,
                 severity: classification.severity,
@@ -408,7 +408,7 @@ export class ResilienceEventPublisher {
             };
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.CIRCUIT_BREAKER_OPENED,
                 severity: classification.severity,
@@ -488,7 +488,7 @@ export class ResilienceEventPublisher {
             };
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.CIRCUIT_BREAKER_CLOSED,
                 severity: classification.severity,
@@ -567,7 +567,7 @@ export class ResilienceEventPublisher {
             };
 
             const event: ResilienceEvent = {
-                id: uuidv4(),
+                id: uuid(),
                 timestamp: new Date(),
                 type: EventType.PATTERN_DETECTED,
                 severity: pattern.severity,
