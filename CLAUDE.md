@@ -1,169 +1,104 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides essential guidance to Claude Code (claude.ai/code) when working with this repository.
 
-## Project Overview
+## ⚡ Critical Rules - READ FIRST
+1. **Imports**: Always use `.js` extensions in TypeScript imports (e.g., `import { foo } from "./bar.js"`)
+2. **Testing**: Use testcontainers for Redis/PostgreSQL - NEVER mock core infrastructure
+3. **Emergent Features**: Don't code security/optimization/learning features - these emerge from agents
+4. **Files**: Always prefer editing existing files over creating new ones
+5. **Dependencies**: Never install packages without explicit permission
+6. **Documentation**: Read `/docs/` files at session start for context
 
-Vrooli is a collaborative platform for creating, sharing, and running automated procedures. It features a three-tier AI architecture for autonomous operations, process management, and execution.
+## 🏗️ Architecture Overview
+**Three-Tier AI System:**
+- **Tier 1**: Coordination Intelligence (strategic planning, resource allocation)
+- **Tier 2**: Process Intelligence (task orchestration, routine navigation)  
+- **Tier 3**: Execution Intelligence (direct task execution, tool integration)
+- **Event Bus**: Redis-based communication between tiers
 
-## Technology Stack
-
-- **Frontend**: React + TypeScript, Material-UI, Vite, PWA-enabled
-- **Backend**: Node.js + TypeScript, Express, PostgreSQL (with pgvector), Redis, Prisma ORM
-- **Infrastructure**: Docker, Kubernetes with Helm, HashiCorp Vault
-- **AI Integration**: Multi-provider support (OpenAI, Anthropic, Mistral, Google), MCP protocol
-- **Package Manager**: pnpm with workspaces
-- **Testing**: Mocha + Chai + Sinon, c8 for coverage
-- **Scripts**: Bash-based automation in `/scripts/`
-
-## Development Commands
-
-### Setup and Environment
-```bash
-# Initial setup (installs dependencies, configures environment)
-./scripts/main/setup.sh --target docker
-
-# Start development environment with Docker (detached mode)
-./scripts/main/develop.sh --target docker --detached yes
-
-# Start development environment with Docker (interactive mode)
-./scripts/main/develop.sh --target docker --detached no
-
-# Start specific services only
-./scripts/main/develop.sh --target docker --services "server ui redis postgresql"
+## 📁 Key Locations
+```
+/packages/
+  /ui/            # React frontend (PWA)
+  /server/        # Express backend with AI tiers
+  /shared/        # Shared types and utilities
+  /jobs/          # Background job processing
+  
+Key Files:
+- Types: packages/shared/src/api/types.ts
+- Endpoints: packages/server/src/endpoints/logic/
+- Tests: __test directories (NOT __tests)
+- AI Tiers: packages/server/src/services/execution/tier[1-3]/
 ```
 
-### Building and Testing
+## 🚀 Quick Start Commands
 ```bash
-# Build all packages
-pnpm run build
+# Start development environment
+./scripts/main/develop.sh --target docker --detached yes
 
-# Run tests for a specific package
-cd packages/[package-name] && pnpm test
-
-# Run all tests with coverage
-pnpm run test:coverage
-
-# Lint all packages
-pnpm run lint
+# Run tests
+cd packages/server && pnpm test
 
 # Type checking
 pnpm run typecheck
 
-# Run a single test file
-cd packages/[package-name] && pnpm test -- path/to/test.test.ts
+# Database commands
+cd packages/server && pnpm prisma generate  # After schema changes
+cd packages/server && pnpm prisma studio    # Visual database editor
 ```
 
-### Common Package Scripts
-Each package typically has:
-- `pnpm dev` - Start development server
-- `pnpm build` - Build for production
-- `pnpm test` - Run tests
-- `pnpm lint` - Run linter
-- `pnpm typecheck` - Run TypeScript type checking
+## ❌ Common Pitfalls
+- DON'T remove `.js` extensions from imports
+- DON'T mock Redis or PostgreSQL in tests
+- DON'T implement emergent capabilities as code
+- DON'T use `__tests` directory (use `__test`)
+- DON'T skip reading memory files at session start
 
-## Architecture Overview
+## 🎯 Task Management Commands
+These commands can be invoked by using the keywords listed for each:
 
-### Three-Tier AI Architecture
-1. **Tier 1 - Coordination Intelligence**: Strategic planning, resource allocation, swarm management
-2. **Tier 2 - Process Intelligence**: Task decomposition, routine navigation, execution monitoring
-3. **Tier 3 - Execution Intelligence**: Direct task execution, tool integration, context management
+### **Organize Next Task**
+**Keywords:** _"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
+- Process the first unstructured task in `/docs/tasks/backlog.md`
+- Explore codebase, clarify requirements, split complex tasks
+- Follow task template and move to staged tasks when ready
 
-### Key Patterns
-- **Event-Driven Communication**: Redis-based event bus for inter-service communication
-- **Resource Management**: Coordinated resource allocation across tiers
-- **Error Handling**: Structured error propagation with circuit breakers
-- **State Management**: Distributed state with Redis caching
+### **Start Next Task**
+**Keywords:** _"start next task," "pick task," "begin task," "go," "work next," "start working"_
+- Select highest-priority task from backlog
+- Draft implementation plan and wait for confirmation
+- Set status to IN_PROGRESS, mark DONE only after explicit confirmation
 
-### Project Structure
-```
-/packages/
-  /ui/            # React frontend application
-  /server/        # Express backend API
-  /shared/        # Shared types and utilities
-  /jobs/          # Background job processing
-  /auth/          # Authentication service
-  /agents/        # AI agent implementations
-/scripts/         # Bash automation scripts
-/docs/           # Comprehensive documentation
-/k8s/            # Kubernetes/Helm configurations
-```
+### **Update Task Status**
+**Keywords:** _"update task statuses," "refresh tasks," "task progress update," "update backlog"_
+- Review and update task statuses (TODO/IN_PROGRESS/BLOCKED/DONE)
+- Update progress indicators and identify blockers
 
-## Key Development Guidelines
+### **Research**
+**Keywords:** _"research," "investigate," "explore topic," "find info on," "deep dive"_
+- Perform in-depth research on specified topics
+- Document findings in `/docs/scratch/` for reference
+- Present summarized results with key links
 
-### Database Operations
-- Use Prisma migrations for schema changes: `cd packages/server && pnpm prisma migrate dev`
-- Access Prisma Studio: `cd packages/server && pnpm prisma studio`
-- Generate Prisma client after schema changes: `cd packages/server && pnpm prisma generate`
+### **Suggest New Tasks**
+**Keywords:** _"suggest new tasks," "find new tasks," "discover tasks," "analyze for tasks," "task discovery"_
+- Analyze `/README.md`, `/docs/tasks/backlog.md`, and `/docs/tasks/active.md`
+- Identify gaps, improvements, and opportunities
+- Suggest 10 potential tasks with brief descriptions
+- Wait for user selection before adding to backlog
 
-### Environment Variables
-- Development: `.env` files in package directories
-- Production: Managed via HashiCorp Vault
-- Never commit sensitive data; use Vault for secrets
+## 📚 Session Start Checklist
+1. [ ] Read `/docs/context.md` for project overview
+2. [ ] Read `/docs/tasks/active.md` for current work
+3. [ ] Check git status for uncommitted changes
+4. [ ] Review `/docs/scratch/` for previous session notes
 
-### Testing Approach
-- Write tests alongside code in `__tests__` directories
-- Use descriptive test names following pattern: `should [expected behavior] when [condition]`
-- Mock external dependencies using Sinon
-- Aim for >80% code coverage
+## 🔧 Quick Error Reference
+| Error | Solution |
+|-------|----------|
+| *Add error* | *Add solution* |
 
-### Error Handling
-- Use structured error types from `@vrooli/shared`
-- Implement proper error boundaries in React components
-- Log errors with appropriate severity levels
-- Use circuit breakers for external service calls
+---
 
-### Import Requirements
-- **IMPORTANT**: All TypeScript imports MUST include the `.js` extension (e.g., `import { foo } from "./bar.js"`)
-- This is a hard requirement for the testing framework to work correctly
-- Do NOT remove `.js` extensions from imports, even if TypeScript complains
-- The build system is configured to handle `.js` extensions in TypeScript files
-
-### Performance Considerations
-- Implement pagination for list endpoints
-- Use Redis caching for frequently accessed data
-- Optimize database queries with proper indexes
-- Use React.memo and useMemo for expensive computations
-
-## Common Tasks
-
-### Adding a New API Endpoint
-1. Define types in `packages/shared/src/api/`
-2. Add validation schema in `packages/shared/src/validation/`
-3. Implement endpoint in `packages/server/src/endpoints/`
-4. Add tests in corresponding `__tests__` directory
-5. Update API documentation if needed
-
-### Working with AI Services
-1. AI providers configured in `packages/server/src/services/llm/`
-2. Use the LLM service abstraction for provider-agnostic calls
-3. Implement rate limiting and cost tracking
-4. Handle provider-specific errors gracefully
-
-### Debugging
-- Server logs: Check Docker container logs or terminal output
-- Frontend debugging: Use React Developer Tools
-- Database queries: Enable Prisma query logging with `DEBUG=prisma:query`
-- Network issues: Check Redis connection and event bus
-
-## Script Utilities
-
-The `/scripts/` directory contains comprehensive bash scripts:
-- Use `--help` flag with any script for documentation
-- Scripts support various targets (docker, k8s, local)
-- Environment detection and validation built-in
-- Automatic dependency installation when needed
-
-## Security Notes
-- All external URLs must be validated before use
-- Implement proper authentication/authorization checks
-- Sanitize user inputs, especially for database queries
-- Use prepared statements/parameterized queries
-- Follow OWASP guidelines for web security
-
-## Performance Optimization
-- Database queries should use appropriate indexes
-- Implement request caching where appropriate
-- Use connection pooling for database connections
-- Optimize bundle sizes with code splitting
-- Monitor memory usage in background jobs
+**For detailed documentation, development guidelines, and comprehensive examples, see [/docs/README.md](/docs/README.md)**
