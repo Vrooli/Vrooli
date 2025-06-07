@@ -1,9 +1,7 @@
-import { type FindVersionInput, type ScheduleCreateInput, ScheduleRecurrenceType, type ScheduleSearchInput, type ScheduleUpdateInput, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
+import { type FindVersionInput, type ScheduleCreateInput, ScheduleRecurrenceType, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -14,141 +12,97 @@ import { schedule_findOne } from "../generated/schedule_findOne.js";
 import { schedule_updateOne } from "../generated/schedule_updateOne.js";
 import { schedule } from "./schedule.js";
 
-// Test users
-const user1Id = uuid();
-const user2Id = uuid();
+// Import database fixtures for seeding
+import { ScheduleDbFactory, seedSchedules } from "../../__test/fixtures/scheduleFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
-// Test schedule data
-let scheduleUser1: any;
-let scheduleUser2: any;
-
-const scheduleUser1Data = {
-    id: uuid(),
-    startTime: new Date("2024-01-10T09:00:00Z"),
-    endTime: new Date("2024-01-10T10:00:00Z"),
-    timezone: "UTC",
-    createdAt: new Date("2024-01-01T00:00:00Z"),
-    updatedAt: new Date("2024-01-01T00:00:00Z"),
-};
-
-const scheduleUser2Data = {
-    id: uuid(),
-    startTime: new Date("2024-01-11T14:00:00Z"),
-    endTime: new Date("2024-01-11T15:30:00Z"),
-    timezone: "America/New_York",
-    createdAt: new Date("2024-01-02T00:00:00Z"),
-    updatedAt: new Date("2024-01-02T00:00:00Z"),
-};
+// Import validation fixtures for API input testing
+import { scheduleTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/scheduleFixtures.js";
 
 describe("EndpointsSchedule", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let scheduleUser1: any;
+    let scheduleUser2: any;
+    let teamUser1: any;
+    let teamUser2: any;
+    let meetingUser1: any;
+    let meetingUser2: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
+        // Reset Redis and database tables
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
-        // Create test users
-        await DbProvider.get().user.create({
+        // Create teams and meetings for schedule testing
+        teamUser1 = await DbProvider.get().team.create({
             data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
-
-        // Create schedulable objects owned by the users
-        // User 1 Setup
-        const teamUser1 = await DbProvider.get().team.create({
-            data: {
+                id: UserDbFactory.createMinimal().id,
+                publicId: UserDbFactory.createMinimal().publicId,
                 permissions: "{}",
-                createdById: user1Id,
-            },
-        });
-        const meetingUser1 = await DbProvider.get().meeting.create({
-            data: {
-                team: {
-                    connect: {
-                        id: teamUser1.id,
-                    },
-                },
-                attendees: {
+                owner: { connect: { id: testUsers[0].id } },
+                translations: {
                     create: {
-                        user: {
-                            connect: {
-                                id: user1Id,
-                            },
-                        },
+                        id: UserDbFactory.createMinimal().id,
+                        language: "en",
+                        name: "Test Team 1",
+                    },
+                },
+            },
+        });
+        
+        meetingUser1 = await DbProvider.get().meeting.create({
+            data: {
+                id: UserDbFactory.createMinimal().id,
+                publicId: UserDbFactory.createMinimal().publicId,
+                team: { connect: { id: teamUser1.id } },
+                createdBy: { connect: { id: testUsers[0].id } },
+                translations: {
+                    create: {
+                        id: UserDbFactory.createMinimal().id,
+                        language: "en",
+                        name: "Test Meeting 1",
                     },
                 },
             },
         });
 
-        // User 2 Setup
-        const teamUser2 = await DbProvider.get().team.create({
+        // Create second team and meeting for user 2
+        teamUser2 = await DbProvider.get().team.create({
             data: {
+                id: UserDbFactory.createMinimal().id,
+                publicId: UserDbFactory.createMinimal().publicId,
                 permissions: "{}",
-                createdById: user2Id,
-            },
-        });
-        const roleUser2 = await DbProvider.get().role.create({
-            data: {
-                name: "admin",
-                permissions: "{}",
-                team: {
-                    connect: {
-                        id: teamUser2.id,
-                    },
-                },
-            },
-        });
-        await DbProvider.get().member.create({
-            data: {
-                permissions: "{}",
-                user: {
-                    connect: {
-                        id: user2Id,
-                    },
-                },
-                roles: {
-                    connect: {
-                        id: roleUser2.id,
-                    },
-                },
-                team: {
-                    connect: {
-                        id: teamUser2.id,
-                    },
-                },
-            },
-        });
-        const meetingUser2 = await DbProvider.get().meeting.create({
-            data: {
-                attendees: {
+                owner: { connect: { id: testUsers[1].id } },
+                translations: {
                     create: {
-                        user: {
-                            connect: {
-                                id: user2Id,
-                            },
-                        },
+                        id: UserDbFactory.createMinimal().id,
+                        language: "en",
+                        name: "Test Team 2",
                     },
                 },
-                team: {
-                    connect: {
-                        id: teamUser2.id,
+            },
+        });
+        
+        meetingUser2 = await DbProvider.get().meeting.create({
+            data: {
+                id: UserDbFactory.createMinimal().id,
+                publicId: UserDbFactory.createMinimal().publicId,
+                team: { connect: { id: teamUser2.id } },
+                createdBy: { connect: { id: testUsers[1].id } },
+                translations: {
+                    create: {
+                        id: UserDbFactory.createMinimal().id,
+                        language: "en",
+                        name: "Test Meeting 2",
                     },
                 },
             },
@@ -229,7 +183,7 @@ describe("EndpointsSchedule", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: FindVersionInput = { id: uuid() }; // Non-existent ID
+                const input: FindVersionInput = { id: "non-existent-id" };
 
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
@@ -356,26 +310,25 @@ describe("EndpointsSchedule", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const newScheduleId = uuid();
-                const startTime = new Date("2024-02-01T10:00:00Z");
-                const endTime = new Date("2024-02-01T11:00:00Z");
-                const input: ScheduleCreateInput = {
-                    id: newScheduleId,
-                    startTime,
-                    endTime,
+                // Use validation fixtures for API input
+                const input: ScheduleCreateInput = scheduleTestDataFactory.createMinimal({
+                    startTime: new Date("2024-02-01T10:00:00Z"),
+                    endTime: new Date("2024-02-01T11:00:00Z"),
                     timezone: "Europe/London",
-                };
+                });
 
                 const creationResult = await schedule.createOne({ input }, { req, res }, schedule_createOne);
 
-                expect(creationResult).to.not.be.null;
-                expect(creationResult.id).to.equal(newScheduleId);
-                expect(creationResult.timezone).to.equal(input.timezone);
+                expect(creationResult).not.toBeNull();
+                expect(creationResult.id).toBeDefined();
+                expect(creationResult.timezone).toBe("Europe/London");
 
-                // Verify creation in DB (basic fields)
-                const createdSchedule = await DbProvider.get().schedule.findUnique({ where: { id: newScheduleId } });
-                expect(createdSchedule).to.not.be.null;
-                expect(createdSchedule?.timezone).to.equal(input.timezone);
+                // Verify creation in DB
+                const createdSchedule = await DbProvider.get().schedule.findUnique({ 
+                    where: { id: creationResult.id } 
+                });
+                expect(createdSchedule).not.toBeNull();
+                expect(createdSchedule?.timezone).toBe("Europe/London");
                 // Cannot reliably check userId via API result, ownership tested by access control tests.
             });
 
@@ -385,22 +338,23 @@ describe("EndpointsSchedule", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const newScheduleId = uuid();
-                const input: ScheduleCreateInput = {
-                    id: newScheduleId,
+                // Use validation fixtures for API input
+                const input: ScheduleCreateInput = scheduleTestDataFactory.createComplete({
                     startTime: new Date("2024-02-02T12:00:00Z"),
                     endTime: new Date("2024-02-02T13:00:00Z"),
                     timezone: "UTC",
-                };
+                });
 
                 const result = await schedule.createOne({ input }, { req, res }, schedule_createOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(newScheduleId);
-                // Verify ownership implicitly via successful creation & access control tests
-                const createdSchedule = await DbProvider.get().schedule.findUnique({ where: { id: newScheduleId } });
-                expect(createdSchedule).to.not.be.null;
-                expect(createdSchedule?.timezone).to.equal(input.timezone); // Check a basic field
+                expect(result).not.toBeNull();
+                expect(result.id).toBeDefined();
+                // Verify creation in DB
+                const createdSchedule = await DbProvider.get().schedule.findUnique({ 
+                    where: { id: result.id } 
+                });
+                expect(createdSchedule).not.toBeNull();
+                expect(createdSchedule?.timezone).toBe("UTC"); // Check a basic field
             });
         });
 
@@ -430,12 +384,12 @@ describe("EndpointsSchedule", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input: ScheduleCreateInput = {
-                    id: uuid(),
+                // Use validation fixtures for API input
+                const input: ScheduleCreateInput = scheduleTestDataFactory.createMinimal({
                     startTime: new Date("2024-02-04T10:00:00Z"),
                     endTime: new Date("2024-02-04T11:00:00Z"),
                     timezone: "UTC",
-                };
+                });
 
                 try {
                     await schedule.createOne({ input }, { req, res }, schedule_createOne);

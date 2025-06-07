@@ -1,8 +1,6 @@
-import { type ReminderListCreateInput, type ReminderListUpdateInput, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, before, beforeEach, describe, it } from "mocha";
-import sinon from "sinon";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { type ReminderListCreateInput, type ReminderListUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -11,99 +9,82 @@ import { reminderList_createOne } from "../generated/reminderList_createOne.js";
 import { reminderList_updateOne } from "../generated/reminderList_updateOne.js";
 import { reminderList } from "./reminderList.js";
 
-// Test users
-const user1Id = uuid();
-const user2Id = uuid();
+// Import database fixtures for seeding
+import { ReminderListDbFactory } from "../../__test/fixtures/reminderFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
-// ReminderList IDs for tests
-const reminderListUser1Id = uuid();
-const reminderListUser2Id = uuid();
+// Import validation fixtures for API input testing
+import { reminderListTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/reminderListFixtures.js";
 
 describe("EndpointsReminderList", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let reminderListUser1: any;
+    let reminderListUser2: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
+        // Reset Redis and database tables
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Create test users
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
-        // Create ReminderLists for users
-        await DbProvider.get().reminder_list.create({
-            data: {
-                id: reminderListUser1Id,
-                createdAt: new Date("2023-03-01"),
-                updatedAt: new Date("2023-03-01"),
-                user: { connect: { id: user1Id } },
-            },
+        // Create reminder lists using database fixtures
+        reminderListUser1 = await DbProvider.get().reminderList.create({
+            data: ReminderListDbFactory.createMinimal(testUsers[0].id),
         });
-        await DbProvider.get().reminder_list.create({
-            data: {
-                id: reminderListUser2Id,
-                createdAt: new Date("2023-03-05"),
-                updatedAt: new Date("2023-03-05"),
-                user: { connect: { id: user2Id } },
-            },
+        reminderListUser2 = await DbProvider.get().reminderList.create({
+            data: ReminderListDbFactory.createMinimal(testUsers[1].id),
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
+        // Clean up
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        // Restore logger stubs
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a reminder list for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
 
-                const newListId = uuid();
-                const input: ReminderListCreateInput = { id: newListId };
+                // Use validation fixtures for API input
+                const input: ReminderListCreateInput = reminderListTestDataFactory.createMinimal({});
 
                 const creationResult = await reminderList.createOne({ input }, { req, res }, reminderList_createOne);
 
-                expect(creationResult).to.not.be.null;
-                expect(creationResult.id).to.equal(newListId);
+                expect(creationResult).not.toBeNull();
+                expect(creationResult.id).toBeDefined();
+                expect(creationResult.created_by).toEqual(testUsers[0].id);
             });
 
             it("API key with write permissions can create reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
-
-                const newListId = uuid();
-                const input: ReminderListCreateInput = { id: newListId };
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
+                // Use validation fixtures for API input
+                const input: ReminderListCreateInput = reminderListTestDataFactory.createComplete({});
 
                 const result = await reminderList.createOne({ input }, { req, res }, reminderList_createOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(newListId);
+                expect(result).not.toBeNull();
+                expect(result.id).toBeDefined();
             });
         });
 
@@ -111,26 +92,26 @@ describe("EndpointsReminderList", () => {
             it("not logged in user cannot create reminder list", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
-                const input: ReminderListCreateInput = { id: uuid() };
+                const input: ReminderListCreateInput = reminderListTestDataFactory.createMinimal({});
 
-                try {
+                await expect(async () => {
                     await reminderList.createOne({ input }, { req, res }, reminderList_createOne);
-                    expect.fail("Expected an error to be thrown");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
 
             it("API key without write permissions cannot create reminder list", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
+                const { req, res } = await mockApiSession(apiToken, permissions, { 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
 
-                const input: ReminderListCreateInput = { id: uuid() };
+                const input: ReminderListCreateInput = reminderListTestDataFactory.createMinimal({});
 
-                try {
+                await expect(async () => {
                     await reminderList.createOne({ input }, { req, res }, reminderList_createOne);
-                    expect.fail("Expected an error to be thrown - write permission required");
-                } catch (error) { /** Error expected */ }
+                }).rejects.toThrow();
             });
         });
     });
@@ -138,15 +119,17 @@ describe("EndpointsReminderList", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates a reminder list for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
 
-                const input: ReminderListUpdateInput = { id: reminderListUser1Id };
+                const input: ReminderListUpdateInput = { id: reminderListUser1.id };
 
                 const result = await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(reminderListUser1Id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(reminderListUser1.id);
             });
 
             it("API key with write permissions can update reminder list", async () => {
@@ -159,8 +142,8 @@ describe("EndpointsReminderList", () => {
 
                 const result = await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(reminderListUser1Id);
+                expect(result).not.toBeNull();
+                expect(result.id).toEqual(reminderListUser1.id);
             });
         });
 

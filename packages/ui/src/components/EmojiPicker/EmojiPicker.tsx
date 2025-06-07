@@ -1120,7 +1120,7 @@ export function EmojiPicker({
     function supportsNativeEmojiPicker() {
         // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
         // return "showPicker" in HTMLInputElement.prototype; // Currently doesn't work on any browser. For now, showPicker only supports, dates, colors, etc. Basically everything except emojis.
-        return disableNative === true ?? false;
+        return disableNative === true;
     }
 
     function handleButtonClick(event: React.MouseEvent<Element>) {

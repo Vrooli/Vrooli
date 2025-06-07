@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Grid, InputAdornment, Typography, useTheme } from "@mui/material";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, apiVersionTranslationValidation, apiVersionValidation, endpointsApiVersion, noopSubmit, orDefault, shapeApiVersion, type ApiShape, type ApiVersion, type ApiVersionCreateInput, type ApiVersionShape, type ApiVersionUpdateInput, type Session } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, resourceVersionTranslationValidation, resourceVersionValidation, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, ResourceSubType, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,28 +38,29 @@ import { type ApiFormProps, type ApiUpsertProps } from "./types.js";
 
 function apiInitialValues(
     session: Session | undefined,
-    existing?: Partial<ApiVersion> | null | undefined,
-): ApiVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "ApiVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
-        callLink: "",
+        config: {
+            __version: "1.0",
+            resources: [],
+            callLink: existing?.config?.callLink || "",
+            schema: {
+                language: existing?.config?.schema?.language || CodeLanguage.Yaml,
+                text: existing?.config?.schema?.text || "",
+            },
+            documentationLink: existing?.config?.documentationLink || "",
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: false,
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-            listFor: {
-                __typename: "ApiVersion" as const,
-                id: DUMMY_ID,
-            },
-        },
-        schemaLanguage: CodeLanguage.Yaml,
-        schemaText: "",
+        resourceSubType: ResourceSubType.RoutineApi,
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Api" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
@@ -67,7 +68,7 @@ function apiInitialValues(
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "ApiVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             details: "",
@@ -77,8 +78,8 @@ function apiInitialValues(
     };
 }
 
-function transformApiVersionValues(values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) {
-    return isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
+function transformResourceVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const exampleCodeJson = `{
@@ -485,21 +486,21 @@ function ApiForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: apiVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const [hasDocUrl, setHasDocUrl] = useState(false);
     const toggleHasDocUrlTrue = useCallback(() => setHasDocUrl(!hasDocUrl), [hasDocUrl]);
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
-        return { __typename: "ApiVersion", id: values.id } as const;
+        return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<ApiVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "ApiVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -507,19 +508,19 @@ function ApiForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsApiVersion.createOne,
-        endpointUpdate: endpointsApiVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ApiVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
-    const onSubmit = useSubmitHelper<ApiVersionCreateInput | ApiVersionUpdateInput, ApiVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
-        inputs: transformApiVersionValues(values, existing, isCreate),
+        inputs: transformResourceVersionValues(values, existing, isCreate),
         isCreate,
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
@@ -617,7 +618,7 @@ function ApiForm({
                                 <Box display="flex" flexDirection="column" gap={4}>
                                     <RelationshipList
                                         isEditing={true}
-                                        objectType={"Api"}
+                                        objectType={"Resource"}
                                     />
                                     <TranslatedAdvancedInput
                                         features={nameInputFeatures}
@@ -751,7 +752,7 @@ export function ApiUpsert({
     const session = useContext(SessionContext);
     const [{ pathname }] = useLocation();
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ApiVersion, ApiVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
         overrideObject,
@@ -759,12 +760,12 @@ export function ApiUpsert({
         transform: (data) => apiInitialValues(session, data),
     });
 
-    async function validateValues(values: ApiVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformResourceVersionValues, resourceVersionValidation);
     }
 
     const versions = useMemo(function versionsMemo() {
-        return (existing?.root as ApiShape)?.versions?.map(v => v.versionLabel) ?? [];
+        return (existing?.root as ResourceShape)?.versions?.map(v => v.versionLabel) ?? [];
     }, [existing]);
 
     return (

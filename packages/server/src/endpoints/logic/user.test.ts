@@ -1,126 +1,103 @@
-import { SEEDED_IDS, type SessionUser, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import { after, describe, it } from "mocha";
-import sinon from "sinon";
+import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { cudHelper } from "../../actions/cuds.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
-import { type PrismaCreate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { initializeRedis } from "../../redisConn.js";
 import { user_findOne } from "../generated/user_findOne.js";
+import { user_findMany } from "../generated/user_findMany.js";
+import { user_updateOne } from "../generated/user_updateOne.js";
 import { user } from "./user.js";
 
-const validUser1 = {
-    id: uuid(),
-    name: "Test User",
-    handle: "test-user-" + Math.floor(Math.random() * 1000),
-    status: "Unlocked",
-    isBot: false,
-    isBotDepictingPerson: false,
-    isPrivate: false,
-    auths: [{
-        provider: "Password",
-        hashed_password: "dummy-hash",
-    }],
-};
-const validUser2 = {
-    ...validUser1,
-    id: uuid(),
-    handle: "test-user-" + Math.floor(Math.random() * 1000),
-};
+// Import database fixtures for seeding
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+
+// Import validation fixtures for API input testing
+import { userTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/userFixtures.js";
 
 describe("EndpointsUser", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let testUsers: any[];
+    let privateUser: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        // Use Vitest spies to suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    beforeEach(async function beforeEach() {
+    beforeEach(async () => {
+        // Reset Redis and database tables
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        await cudHelper({
-            info: { id: true },
-            inputData: [
-                {
-                    action: "Create",
-                    input: validUser1 as PrismaCreate,
-                    objectType: "User",
-                },
-                {
-                    action: "Create",
-                    input: validUser2 as PrismaCreate,
-                    objectType: "User",
-                },
-            ],
-            userData: { id: SEEDED_IDS.User.Admin } as SessionUser,
-            adminFlags: { disableAllChecks: true },
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+        // Create a private user for specific tests
+        privateUser = await DbProvider.get().user.create({
+            data: UserDbFactory.createMinimal({
+                name: "Private User",
+                handle: "private-user-" + Math.floor(Math.random() * 1000),
+                isPrivate: true,
+            }),
         });
     });
 
-    afterAll(async function afterAll() {
+    afterAll(async () => {
+        // Clean up
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         describe("valid", () => {
             it("own profile", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
+                });
 
-                const input = { id: testUser.id };
+                const input: FindByIdOrHandleInput = { id: testUsers[0].id };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("id", testUser.id);
-                expect(result).to.have.property("name", validUser1.name);
-                expect(result).to.have.property("handle", validUser1.handle);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(testUsers[0].id);
+                expect(result.name).toBe(testUsers[0].name);
+                expect(result.handle).toBe(testUsers[0].handle);
             });
 
             it("own private profile", async () => {
-                // First update the user to be private
-                await DbProvider.get().user.update({
-                    where: { id: validUser1.id },
-                    data: { isPrivate: true },
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: privateUser.id 
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input = { id: testUser.id };
+                const input: FindByIdOrHandleInput = { id: privateUser.id };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("id", testUser.id);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(privateUser.id);
+                expect(result.isPrivate).toBe(true);
             });
 
             it("public profile", async () => {
-                // Ensure user2 is public
-                await DbProvider.get().user.update({
-                    where: { id: validUser2.id },
-                    data: { isPrivate: false },
+                const { req, res } = await mockAuthenticatedSession({ 
+                    ...loggedInUserNoPremiumData(), 
+                    id: testUsers[0].id 
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: validUser1.id };
-                const { req, res } = await mockAuthenticatedSession(testUser);
-
-                const input = { id: validUser2.id };
+                const input: FindByIdOrHandleInput = { id: testUsers[1].id };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("id", validUser2.id);
-                expect(result).to.have.property("name", validUser2.name);
-                expect(result).to.have.property("handle", validUser2.handle);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(testUsers[1].id);
+                expect(result.name).toBe(testUsers[1].name);
+                expect(result.handle).toBe(testUsers[1].handle);
             });
 
             it("API key - public permissions", async () => {
@@ -135,7 +112,7 @@ describe("EndpointsUser", () => {
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("id", validUser2.id);
                 expect(result).to.have.property("name", validUser2.name);
-                expect(result).to.have.property("handle", validUser2.handle);
+                expect(result.handle).toBe(testUsers[1].handle);
             });
 
             it("not logged in", async () => {
@@ -147,7 +124,7 @@ describe("EndpointsUser", () => {
                 expect(result).to.not.be.null;
                 expect(result).to.have.property("id", validUser2.id);
                 expect(result).to.have.property("name", validUser2.name);
-                expect(result).to.have.property("handle", validUser2.handle);
+                expect(result.handle).toBe(testUsers[1].handle);
             });
         });
 

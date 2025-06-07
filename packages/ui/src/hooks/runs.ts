@@ -99,6 +99,10 @@ export function processRunTaskUpdate(
     });
 }
 
+// Convenience wrappers for specific run types
+export const useUpsertRunProject = useUpsertRun;
+export const useUpsertRunRoutine = useUpsertRun;
+
 export function useSocketRun({
     applyRunUpdate,
     runId,

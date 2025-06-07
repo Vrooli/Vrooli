@@ -1,5 +1,5 @@
 import { Chip, type Palette } from "@mui/material";
-import { BookmarkFor, CommentFor, CopyType, DUMMY_ID, DeleteType, ReactionFor, ReportFor, ResourceType, exists, getTranslation, isOfType, valueFromDot, type AutocompleteOption, type Bookmark, type Chat, type ChatInvite, type ChatParticipant, type DotNotation, type ListObject, type Meeting, type Member, type MemberInvite, type Reaction, type Resource, type ResourceVersion, type Run, type User, type View, type YouInflated } from "@vrooli/shared";
+import { BookmarkFor, CommentFor, CopyType, DUMMY_ID, DeleteType, ReactionFor, ReportFor, exists, getTranslation, isOfType, valueFromDot, type AutocompleteOption, type Bookmark, type Chat, type ChatInvite, type ChatParticipant, type DotNotation, type ListObject, type Meeting, type Member, type MemberInvite, type Reaction, type Resource, type ResourceVersion, type Run, type User, type View, type YouInflated } from "@vrooli/shared";
 import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/resource.js";
 import { displayDate, firstString } from "./stringTools.js";
@@ -337,7 +337,7 @@ export function getDisplay(
         }
     }
     // If a Routine, add adornment for routine type
-    if ((object as Partial<Resource>).resourceType === ResourceType.Routine || (object as Partial<ResourceVersion>).resourceSubType?.startsWith("Routine")) {
+    if ((object as Partial<ResourceVersion>).resourceSubType?.startsWith("Routine") || (object as Partial<Resource>).versions?.some(v => v.resourceSubType?.startsWith("Routine"))) {
         const resourceSubType = (object as Partial<ResourceVersion>).resourceSubType ?? (object as Partial<Resource>).versions?.find(v => v.isLatest)?.resourceSubType;
         const routineTypeInfo = resourceSubType ? routineTypes.find(t => t.type === resourceSubType) : undefined;
         if (routineTypeInfo) {
