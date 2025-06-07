@@ -555,7 +555,7 @@ describe("teamValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = teamValidation.create({ omitFields: [] });
-
+        const updateSchema = teamValidation.update({ omitFields: [] });
 
         it("should handle minimal team creation", async () => {
             await testValidation(

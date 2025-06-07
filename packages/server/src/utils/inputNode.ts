@@ -1,4 +1,4 @@
-import { type ModelType } from "@local/shared";
+import { type ModelType } from "@vrooli/shared";
 import { type QueryAction } from "./types.js";
 
 /**

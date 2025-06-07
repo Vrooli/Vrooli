@@ -1,4 +1,4 @@
-import { validatePK } from "@local/shared";
+import { validatePK } from "@vrooli/shared";
 import { shapeHelper, type ShapeHelperOutput, type ShapeHelperProps } from "../../builders/shapeHelper.js";
 import { type RelationshipType } from "../../builders/types.js";
 

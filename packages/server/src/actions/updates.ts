@@ -1,4 +1,4 @@
-import { type SessionUser } from "@local/shared";
+import { type SessionUser } from "@vrooli/shared";
 import { SessionService } from "../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
 import { CustomError } from "../events/error.js";

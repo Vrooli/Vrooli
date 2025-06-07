@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { apiKeyExternalValidation } from "./apiKeyExternal.js";
 import { apiKeyExternalFixtures } from "./__test__/fixtures/apiKeyExternalFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
-import { API_KEY_EXTERNAL_MAX_LENGTH, NAME_MAX_LENGTH } from "./utils/validationConstants.js";
+import { API_KEY_EXTERNAL_MAX_LENGTH, NAME_MAX_LENGTH } from "../utils/validationConstants.js";
 
 describe("apiKeyExternalValidation", () => {
     // Run standard validation tests using shared fixtures

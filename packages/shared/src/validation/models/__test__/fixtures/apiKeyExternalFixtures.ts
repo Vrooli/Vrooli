@@ -1,5 +1,5 @@
-import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
-import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH, NAME_MAX_LENGTH } from "../../utils/validationConstants.js";
+import { type ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH, NAME_MAX_LENGTH } from "../../../utils/validationConstants.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {

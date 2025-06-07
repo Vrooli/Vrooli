@@ -1,4 +1,4 @@
-import { type DotNotation } from "@local/shared";
+import { type DotNotation } from "@vrooli/shared";
 import { type Displayer, type ModelLogic, type ModelLogicType } from "../models/types.js";
 
 /**

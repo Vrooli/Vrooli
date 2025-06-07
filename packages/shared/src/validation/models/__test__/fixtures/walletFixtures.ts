@@ -1,5 +1,5 @@
 import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
-import { NAME_MAX_LENGTH } from "../../utils/validationConstants.js";
+import { NAME_MAX_LENGTH } from "../../../utils/validationConstants.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {

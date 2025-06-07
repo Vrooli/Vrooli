@@ -1,4 +1,4 @@
-import { SEEDED_TAGS } from "@local/shared";
+import { SEEDED_TAGS } from "@vrooli/shared";
 
 // Tags cannot be imported, so we'll just define their basic data here.
 export const data: [string, string][] = [

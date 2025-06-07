@@ -1,4 +1,4 @@
-import { DUMMY_ID, type ModelType, type SessionUser } from "@local/shared";
+import { DUMMY_ID, type ModelType, type SessionUser } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";

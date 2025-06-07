@@ -1,6 +1,6 @@
 // Tests for the ReportResponse endpoint (findOne, findMany, createOne, updateOne)
-import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@local/shared";
-import { expect } from "chai";
+import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, before, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -25,7 +25,7 @@ describe("EndpointsReportResponse", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         // stub logger
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
@@ -63,7 +63,7 @@ describe("EndpointsReportResponse", () => {
         });
     });
 
-    after(async () => {
+    afterAll(async () => {
         // Cleanup and restore
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();

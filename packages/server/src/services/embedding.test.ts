@@ -1,4 +1,4 @@
-import { VisibilityType } from "@local/shared";
+import { VisibilityType } from "@vrooli/shared";
 import { expect } from "chai";
 import { RedisClientMock } from "../../__mocks__/redis.js";
 import { SearchEmbeddingsCache } from "./cache.js";

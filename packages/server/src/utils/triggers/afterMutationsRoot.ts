@@ -1,4 +1,4 @@
-import { type ModelType, type SessionUser } from "@local/shared";
+import { type ModelType, type SessionUser } from "@vrooli/shared";
 import { CustomError } from "../../events/error.js";
 import { Trigger } from "../../events/trigger.js";
 import { TransferModel } from "../../models/base/transfer.js";

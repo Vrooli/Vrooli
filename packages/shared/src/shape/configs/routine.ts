@@ -529,7 +529,8 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
     };
 }
 
-export const defaultConfigFormInputMap = () => ({
+export function defaultConfigFormInputMap() {
+    return {
     [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
@@ -538,10 +539,12 @@ export const defaultConfigFormInputMap = () => ({
     [ResourceSubType.RoutineInformational]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
-    [ResourceSubType.RoutineWeb]: () => defaultSchemaInput(),
-});
+        [ResourceSubType.RoutineWeb]: () => defaultSchemaInput(),
+    };
+}
 
-export const defaultConfigFormOutputMap = () => ({
+export function defaultConfigFormOutputMap() {
+    return {
     [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
@@ -550,8 +553,9 @@ export const defaultConfigFormOutputMap = () => ({
     [ResourceSubType.RoutineInformational]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
-    [ResourceSubType.RoutineWeb]: () => defaultSchemaOutput(),
-});
+        [ResourceSubType.RoutineWeb]: () => defaultSchemaOutput(),
+    };
+}
 
 // function isValidFormSchema(schema: any): schema is FormSchema {
 //     if (typeof schema !== "object" || schema === null) return false;

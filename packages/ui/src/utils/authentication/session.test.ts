@@ -1,5 +1,5 @@
 import { uuid, type Session, type SessionUser } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, afterAll } from "vitest";
 import { checkIfLoggedIn, getCurrentUser } from "./session.js";
 
 describe("getCurrentUser", () => {
@@ -64,7 +64,7 @@ describe("checkIfLoggedIn", () => {
         jest.clearAllMocks();
         global.localStorage.clear();
     });
-    after(() => {
+    afterAll(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });

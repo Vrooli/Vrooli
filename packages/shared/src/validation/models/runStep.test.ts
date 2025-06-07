@@ -741,7 +741,7 @@ describe("runRoutineStepValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = runRoutineStepValidation.create({ omitFields: [] });
-
+        const updateSchema = runRoutineStepValidation.update({ omitFields: [] });
 
         it("should handle minimal step creation", async () => {
             await testValidation(

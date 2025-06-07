@@ -570,7 +570,7 @@ describe("resourceVersionValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = resourceVersionValidation.create({ omitFields: [] });
-
+        const updateSchema = resourceVersionValidation.update({ omitFields: [] });
 
         it("should handle minimal version creation", async () => {
             await testValidation(

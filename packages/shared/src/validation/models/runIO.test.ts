@@ -581,7 +581,7 @@ describe("runIOValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = runIOValidation.create({ omitFields: [] });
-
+        const updateSchema = runIOValidation.update({ omitFields: [] });
 
         it("should handle minimal IO creation", async () => {
             await testValidation(

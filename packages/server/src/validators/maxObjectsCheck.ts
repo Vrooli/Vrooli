@@ -11,7 +11,7 @@
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
  */
-import { type ModelType, type ObjectLimit, type ObjectLimitOwner, type ObjectLimitPremium, type ObjectLimitPrivacy, type SessionUser } from "@local/shared";
+import { type ModelType, type ObjectLimit, type ObjectLimitOwner, type ObjectLimitPremium, type ObjectLimitPrivacy, type SessionUser } from "@vrooli/shared";
 import { type PrismaDelegate } from "../builders/types.js";
 import { getVisibilityFunc } from "../builders/visibilityBuilder.js";
 import { DbProvider } from "../db/provider.js";

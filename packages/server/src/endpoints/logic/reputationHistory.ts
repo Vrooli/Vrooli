@@ -1,4 +1,4 @@
-import { type FindByIdInput, type ReputationHistory, type ReputationHistorySearchInput, type ReputationHistorySearchResult } from "@local/shared";
+import { type FindByIdInput, type ReputationHistory, type ReputationHistorySearchInput, type ReputationHistorySearchResult } from "@vrooli/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";

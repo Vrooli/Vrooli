@@ -1,4 +1,4 @@
-import { type ModelType, type SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@local/shared";
+import { type ModelType, type SessionUser, generatePK, lowercaseFirstLetter, validatePK } from "@vrooli/shared";
 import { type CudHelperParams } from "../actions/types.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";

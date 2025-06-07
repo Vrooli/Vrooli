@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { uuid } from "@local/shared";
-import { expect } from "chai";
+import { uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
@@ -14,7 +14,7 @@ describe("fetchAndMapPlaceholder", () => {
     const premiumId = uuid();
     const teamId = uuid();
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
         await DbProvider.deleteAll();
         await DbProvider.get().user.create({
@@ -40,7 +40,7 @@ describe("fetchAndMapPlaceholder", () => {
         placeholderToIdMap = {};
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
     });
 
@@ -124,7 +124,7 @@ describe("replacePlaceholdersInMap", () => {
     const teamId = uuid();
     const noteId = uuid();
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
@@ -156,7 +156,7 @@ describe("replacePlaceholdersInMap", () => {
         placeholderToIdMap = {};
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
     });
 
@@ -249,7 +249,7 @@ describe("replacePlaceholdersInInputsById", () => {
     const premiumId = uuid();
     const teamId = uuid();
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
@@ -274,7 +274,7 @@ describe("replacePlaceholdersInInputsById", () => {
         placeholderToIdMap = {};
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
     });
 
@@ -357,7 +357,7 @@ describe("replacePlaceholdersInInputsByType", () => {
     const premiumId = uuid();
     const teamId = uuid();
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
@@ -382,7 +382,7 @@ describe("replacePlaceholdersInInputsByType", () => {
         placeholderToIdMap = {};
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
     });
 
@@ -495,7 +495,7 @@ describe("convertPlaceholders", () => {
     const premiumId = uuid();
     const teamId = uuid();
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
         await DbProvider.get().user.create({
             data: {
@@ -529,7 +529,7 @@ describe("convertPlaceholders", () => {
         inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
     });
 
@@ -829,12 +829,12 @@ describe("determineModelType", () => {
         },
     };
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
 
-    after(() => {
+    afterAll(() => {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });
@@ -888,7 +888,7 @@ describe("processCreateOrUpdate", () => {
     let loggerInfoStub: sinon.SinonStub;
     let idsByAction, idsByType, inputsById, inputsByType, parentNode, closestWithId;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -903,7 +903,7 @@ describe("processCreateOrUpdate", () => {
         closestWithId = { __typename: "RoutineVersion", id: "parentId", path: "" };
     });
 
-    after(() => {
+    afterAll(() => {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });
@@ -1024,7 +1024,7 @@ describe("processConnectDisconnectOrDelete", () => {
     let loggerInfoStub: sinon.SinonStub;
     let idsByAction, idsByType, inputsById, inputsByType, parentNode, closestWithId;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -1038,7 +1038,7 @@ describe("processConnectDisconnectOrDelete", () => {
         closestWithId = { __typename: "RoutineVersion", id: "parentId", path: "" };
     });
 
-    after(() => {
+    afterAll(() => {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });
@@ -1693,7 +1693,7 @@ describe("inputToMaps", () => {
     const initialInputsById = {};
     const initialInputsByType = {};
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -1712,7 +1712,7 @@ describe("inputToMaps", () => {
         closestWithId = { __typename: "Resource", id: "grandparentId", path: "version" };
     });
 
-    after(() => {
+    afterAll(() => {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
     });

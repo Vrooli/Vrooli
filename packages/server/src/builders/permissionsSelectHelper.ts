@@ -1,4 +1,4 @@
-import { ModelType } from "@local/shared";
+import { ModelType } from "@vrooli/shared";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { type PermissionsMap } from "../models/types.js";

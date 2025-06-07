@@ -1,4 +1,4 @@
-import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK, type Schedule, type ScheduleRecurrence } from "@local/shared";
+import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK, type Schedule, type ScheduleRecurrence } from "@vrooli/shared";
 import ical, { type CalendarResponse, type DateWithTimeZone, type VCalendar, type VEvent } from "node-ical";
 import { type RequestFile } from "../types.js";
 

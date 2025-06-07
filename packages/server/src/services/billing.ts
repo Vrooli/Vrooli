@@ -1,5 +1,5 @@
 // billing/handleBillingEvent.ts
-import { generatePK } from "@local/shared";
+import { generatePK } from "@vrooli/shared";
 import { CreditEntryType, Prisma } from "@prisma/client";
 import { DbProvider } from "../db/provider.js";
 import { type BillingEvent, BusService, BusWorker, type EventBus } from "./bus.js";

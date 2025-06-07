@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, profileEmailUpdateValidation, type BotCreateInput, type BotUpdateInput, type ExportCalendarResult, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, type ProfileUpdateInput, type ScheduleCreateInput, type ScheduleSearchInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@local/shared";
+import { AUTH_PROVIDERS, profileEmailUpdateValidation, type BotCreateInput, type BotUpdateInput, type ExportCalendarResult, type FindByPublicIdInput, type ImportCalendarInput, type ProfileEmailUpdateInput, type ProfileUpdateInput, type ScheduleCreateInput, type ScheduleSearchInput, type Success, type User, type UserSearchInput, type UserSearchResult } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { cudHelper } from "../../actions/cuds.js";
 import { readManyHelper, readOneHelper } from "../../actions/reads.js";

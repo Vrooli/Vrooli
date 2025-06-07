@@ -1,4 +1,4 @@
-import { type ModelType, pascalCase, validatePK } from "@local/shared";
+import { type ModelType, pascalCase, validatePK } from "@vrooli/shared";
 import { isRelationshipObject } from "../builders/isOfType.js";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";

@@ -1,4 +1,4 @@
-import { exists, isObject } from "@local/shared";
+import { exists, isObject } from "@vrooli/shared";
 import fs from "fs";
 import pkg from "lodash";
 import { logger } from "../events/logger.js";

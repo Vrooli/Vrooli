@@ -453,7 +453,7 @@ describe("resourceVersionRelationValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = resourceVersionRelationValidation.create({ omitFields: [] });
-
+        const updateSchema = resourceVersionRelationValidation.update({ omitFields: [] });
 
         it("should handle minimal relation creation", async () => {
             await testValidation(

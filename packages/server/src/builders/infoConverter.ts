@@ -3,7 +3,7 @@
  * This is needed to properly format data, query additional fields that can't be included in the initial query 
  * (or are in another database perhaps), handle unions, etc.
  */
-import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, isObject, omit, setDotNotationValue, type ModelType, type OrArray, type SessionUser } from "@local/shared";
+import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, exists, getDotNotationValue, isObject, omit, setDotNotationValue, type ModelType, type OrArray, type SessionUser } from "@vrooli/shared";
 import pkg from "lodash";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";

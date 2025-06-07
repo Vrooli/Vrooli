@@ -1,4 +1,4 @@
-import { validatePK } from "@local/shared";
+import { validatePK } from "@vrooli/shared";
 
 /**
  * Filters out any invalid handles from an array of handles.

@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { expect } from "chai";
+import { describe, it, expect, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import { useUndoRedo } from "./useUndoRedo.js";
 
@@ -29,7 +29,7 @@ describe("useUndoRedo", () => {
     });
 
     // Add a describe-level after hook to ensure cleanup
-    after(() => {
+    afterAll(() => {
         // Ensure all timers are cleaned up
         if (clock) {
             clock.restore();

@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MINUTES_15_S, VisibilityType, WEEKS_1_S } from "@local/shared";
+import { DEFAULT_LANGUAGE, MINUTES_15_S, VisibilityType, WEEKS_1_S } from "@vrooli/shared";
 import OpenAI, { APIError } from "openai";
 import stopword from "stopword";
 import { hashString } from "../auth/codes.js";

@@ -1,4 +1,4 @@
-import { type ModelType, type OrArray, isObject } from "@local/shared";
+import { type ModelType, type OrArray, isObject } from "@vrooli/shared";
 import pkg from "lodash";
 import { isRelationshipObject } from "./isOfType.js";
 import { type PartialApiInfo } from "./types.js";
