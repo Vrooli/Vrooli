@@ -15,8 +15,19 @@ import {
     RunState as RunStateEnum,
     RunEventType as RunEventTypeEnum,
     generatePk,
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
+    type ExecutionResult,
+    type ExecutionStatus,
+    type ExecutionId,
+    type RoutineExecutionInput,
+    type TierCapabilities,
+    type StepExecutionInput,
+    type ResourceAllocation,
+    type WorkflowDefinition,
+    StrategyType,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import { type IRunStateStore } from "../state/runStateStore.js";
 import { NavigatorRegistry } from "../navigation/navigatorRegistry.js";
 import { ContextManager } from "../context/contextManager.js";
@@ -26,6 +37,8 @@ import { CheckpointManager } from "../persistence/checkpointManager.js";
 import { PerformanceMonitor } from "../intelligence/performanceMonitor.js";
 import { PathOptimizer } from "../intelligence/pathOptimizer.js";
 import { MOISEGate } from "../validation/moiseGate.js";
+import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
+import { TelemetryShim } from "../../tier3/engine/telemetryShim.js";
 
 /**
  * Run initialization parameters
@@ -56,11 +69,14 @@ export interface RunInitParams {
  * 
  * This creates an unprecedented universal automation ecosystem where workflows
  * from different platforms can share and execute each other's routines.
+ * 
+ * Implements TierCommunicationInterface for standardized inter-tier communication.
  */
-export class TierTwoRunStateMachine {
+export class TierTwoRunStateMachine implements TierCommunicationInterface {
     private readonly logger: Logger;
     private readonly eventBus: EventBus;
     private readonly stateStore: IRunStateStore;
+    private readonly tier3Executor: TierCommunicationInterface;
     private readonly navigatorRegistry: NavigatorRegistry;
     private readonly contextManager: ContextManager;
     private readonly branchCoordinator: BranchCoordinator;
@@ -69,6 +85,8 @@ export class TierTwoRunStateMachine {
     private readonly performanceMonitor: PerformanceMonitor;
     private readonly pathOptimizer: PathOptimizer;
     private readonly moiseGate: MOISEGate;
+    private readonly telemetryShim: TelemetryShim;
+    private readonly rollingHistory?: RollingHistory;
 
     // Active runs
     private readonly activeRuns: Map<string, Run> = new Map();
@@ -78,10 +96,14 @@ export class TierTwoRunStateMachine {
         logger: Logger,
         eventBus: EventBus,
         stateStore: IRunStateStore,
+        tier3Executor: TierCommunicationInterface,
+        rollingHistory?: RollingHistory,
     ) {
         this.logger = logger;
         this.eventBus = eventBus;
         this.stateStore = stateStore;
+        this.tier3Executor = tier3Executor;
+        this.rollingHistory = rollingHistory;
 
         // Initialize components
         this.navigatorRegistry = new NavigatorRegistry(logger);
@@ -92,6 +114,7 @@ export class TierTwoRunStateMachine {
         this.performanceMonitor = new PerformanceMonitor(eventBus, logger);
         this.pathOptimizer = new PathOptimizer(logger);
         this.moiseGate = new MOISEGate(logger);
+        this.telemetryShim = new TelemetryShim(eventBus, true);
 
         // Subscribe to tier 3 events
         this.subscribeToExecutionEvents();
@@ -103,11 +126,26 @@ export class TierTwoRunStateMachine {
     async createRun(params: RunInitParams): Promise<Run> {
         const runId = generatePk();
         
-        this.logger.info(`[RunStateMachine] Creating new run`, {
+        this.logger.info("[RunStateMachine] Creating new run", {
             runId,
             routineId: params.routineId,
             userId: params.userId,
         });
+
+        // Track in rolling history
+        if (this.rollingHistory) {
+            this.rollingHistory.addEvent({
+                timestamp: new Date(),
+                type: 'tier2.run.created',
+                tier: 'tier2',
+                component: 'run-state-machine',
+                data: {
+                    runId,
+                    routineId: params.routineId,
+                    userId: params.userId,
+                },
+            });
+        }
 
         try {
             // Load routine
@@ -197,13 +235,23 @@ export class TierTwoRunStateMachine {
                 },
             });
 
+            // Emit telemetry for run start
+            await this.telemetryShim.emitStepStarted(runId, {
+                stepType: 'routine_orchestration',
+                strategy: StrategyType.CONVERSATIONAL,
+                estimatedResources: {
+                    credits: config.maxCost?.toString() || '100',
+                    time: config.maxTime,
+                },
+            });
+
             // Transition to LOADING state
             await this.transitionState(run, RunStateEnum.LOADING);
 
             return run;
 
         } catch (error) {
-            this.logger.error(`[RunStateMachine] Failed to create run`, {
+            this.logger.error("[RunStateMachine] Failed to create run", {
                 runId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -220,7 +268,7 @@ export class TierTwoRunStateMachine {
             throw new Error(`Run ${runId} not found`);
         }
 
-        this.logger.info(`[RunStateMachine] Starting run`, { runId });
+        this.logger.info("[RunStateMachine] Starting run", { runId });
 
         try {
             // Validate run can be started
@@ -233,7 +281,7 @@ export class TierTwoRunStateMachine {
 
             // Start execution loop
             this.executeRunLoop(run).catch(error => {
-                this.logger.error(`[RunStateMachine] Run loop error`, {
+                this.logger.error("[RunStateMachine] Run loop error", {
                     runId,
                     error: error instanceof Error ? error.message : String(error),
                 });
@@ -241,7 +289,7 @@ export class TierTwoRunStateMachine {
             });
 
         } catch (error) {
-            this.logger.error(`[RunStateMachine] Failed to start run`, {
+            this.logger.error("[RunStateMachine] Failed to start run", {
                 runId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -262,7 +310,7 @@ export class TierTwoRunStateMachine {
             throw new Error(`Cannot pause run in state ${run.state}`);
         }
 
-        this.logger.info(`[RunStateMachine] Pausing run`, { runId });
+        this.logger.info("[RunStateMachine] Pausing run", { runId });
 
         await this.transitionState(run, RunStateEnum.PAUSED);
 
@@ -286,7 +334,7 @@ export class TierTwoRunStateMachine {
             throw new Error(`Cannot resume run in state ${run.state}`);
         }
 
-        this.logger.info(`[RunStateMachine] Resuming run`, { runId });
+        this.logger.info("[RunStateMachine] Resuming run", { runId });
 
         await this.transitionState(run, RunStateEnum.RUNNING);
 
@@ -298,7 +346,7 @@ export class TierTwoRunStateMachine {
 
         // Resume execution loop
         this.executeRunLoop(run).catch(error => {
-            this.logger.error(`[RunStateMachine] Run loop error on resume`, {
+            this.logger.error("[RunStateMachine] Run loop error on resume", {
                 runId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -315,7 +363,7 @@ export class TierTwoRunStateMachine {
             throw new Error(`Run ${runId} not found`);
         }
 
-        this.logger.info(`[RunStateMachine] Cancelling run`, { runId });
+        this.logger.info("[RunStateMachine] Cancelling run", { runId });
 
         await this.transitionState(run, RunStateEnum.CANCELLED);
 
@@ -341,7 +389,7 @@ export class TierTwoRunStateMachine {
             try {
                 // Check resource limits
                 if (await this.checkResourceLimits(run)) {
-                    this.logger.warn(`[RunStateMachine] Resource limits exceeded`, {
+                    this.logger.warn("[RunStateMachine] Resource limits exceeded", {
                         runId: run.id,
                     });
                     await this.suspendRun(run, "Resource limits exceeded");
@@ -351,6 +399,21 @@ export class TierTwoRunStateMachine {
                 // Create checkpoint if needed
                 if (await this.shouldCreateCheckpoint(run)) {
                     await this.checkpointManager.createCheckpoint(run);
+                    
+                    // Track checkpoint creation
+                    if (this.rollingHistory) {
+                        this.rollingHistory.addEvent({
+                            timestamp: new Date(),
+                            type: 'tier2.checkpoint.created',
+                            tier: 'tier2',
+                            component: 'checkpoint-manager',
+                            data: {
+                                runId: run.id,
+                                location: run.progress.currentLocation,
+                                completedSteps: run.progress.completedSteps,
+                            },
+                        });
+                    }
                 }
 
                 // Get current location
@@ -376,6 +439,21 @@ export class TierTwoRunStateMachine {
 
                 // Handle branching
                 if (nextLocations.length > 1) {
+                    // Track branch execution
+                    if (this.rollingHistory) {
+                        this.rollingHistory.addEvent({
+                            timestamp: new Date(),
+                            type: 'tier2.branch.started',
+                            tier: 'tier2',
+                            component: 'branch-coordinator',
+                            data: {
+                                runId: run.id,
+                                branchCount: nextLocations.length,
+                                parallel: run.config.parallelization,
+                            },
+                        });
+                    }
+                    
                     await this.executeBranches(run, nextLocations, navigator);
                 } else {
                     await this.executeStep(run, nextLocations[0], navigator);
@@ -387,7 +465,7 @@ export class TierTwoRunStateMachine {
                 }
 
             } catch (error) {
-                this.logger.error(`[RunStateMachine] Error in run loop`, {
+                this.logger.error("[RunStateMachine] Error in run loop", {
                     runId: run.id,
                     error: error instanceof Error ? error.message : String(error),
                 });
@@ -418,7 +496,7 @@ export class TierTwoRunStateMachine {
         const stepInfo = navigator.getStepInfo(location);
         const stepId = stepInfo.id;
 
-        this.logger.debug(`[RunStateMachine] Executing step`, {
+        this.logger.debug("[RunStateMachine] Executing step", {
             runId: run.id,
             stepId,
             location,
@@ -432,10 +510,18 @@ export class TierTwoRunStateMachine {
         );
 
         if (!permitted) {
-            this.logger.warn(`[RunStateMachine] Step not permitted by MOISE+`, {
+            this.logger.warn("[RunStateMachine] Step not permitted by MOISE+", {
                 runId: run.id,
                 stepId,
             });
+            
+            // Emit telemetry for permission denial
+            await this.telemetryShim.emitSecurityViolation(stepId, {
+                violationType: 'moise_permission_denied',
+                severity: 'medium',
+                details: 'Step execution blocked by MOISE+ permission system',
+            });
+            
             await this.skipStep(run, location, "Permission denied");
             return;
         }
@@ -489,8 +575,24 @@ export class TierTwoRunStateMachine {
                 metadata: { result },
             });
 
+            // Track step completion
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier2.step.completed',
+                    tier: 'tier2',
+                    component: 'step-executor',
+                    data: {
+                        runId: run.id,
+                        stepId,
+                        location,
+                        outputs: Object.keys(result.outputs || {}),
+                    },
+                });
+            }
+
         } catch (error) {
-            this.logger.error(`[RunStateMachine] Step execution failed`, {
+            this.logger.error("[RunStateMachine] Step execution failed", {
                 runId: run.id,
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
@@ -516,6 +618,22 @@ export class TierTwoRunStateMachine {
                 stepId,
                 metadata: { error: error instanceof Error ? error.message : String(error) },
             });
+
+            // Track step failure
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier2.step.failed',
+                    tier: 'tier2',
+                    component: 'step-executor',
+                    data: {
+                        runId: run.id,
+                        stepId,
+                        error: error instanceof Error ? error.message : String(error),
+                        errorType: error instanceof Error ? error.constructor.name : 'Error',
+                    },
+                });
+            }
 
             // Handle based on recovery strategy
             if (run.config.recoveryStrategy === "skip") {
@@ -585,7 +703,7 @@ export class TierTwoRunStateMachine {
         
         await this.stateStore.updateRunState(run.id, newState);
         
-        this.logger.info(`[RunStateMachine] State transition`, {
+        this.logger.info("[RunStateMachine] State transition", {
             runId: run.id,
             oldState,
             newState,
@@ -653,7 +771,7 @@ export class TierTwoRunStateMachine {
         await this.transitionState(run, RunStateEnum.SUSPENDED);
         run.error = reason;
         
-        this.logger.warn(`[RunStateMachine] Run suspended`, {
+        this.logger.warn("[RunStateMachine] Run suspended", {
             runId: run.id,
             reason,
         });
@@ -663,15 +781,45 @@ export class TierTwoRunStateMachine {
         run.completedAt = new Date();
         await this.transitionState(run, RunStateEnum.COMPLETED);
 
+        const duration = run.completedAt.getTime() - (run.startedAt?.getTime() || 0);
+        
         await this.emitRunEvent({
             type: RunEventTypeEnum.RUN_COMPLETED,
             timestamp: new Date(),
             runId: run.id,
             metadata: {
-                duration: run.completedAt.getTime() - (run.startedAt?.getTime() || 0),
+                duration,
                 stepsCompleted: run.progress.completedSteps,
             },
         });
+
+        // Emit telemetry for run completion
+        await this.telemetryShim.emitStepCompleted(run.id, {
+            strategy: StrategyType.CONVERSATIONAL,
+            duration,
+            resourceUsage: {
+                stepsCompleted: run.progress.completedSteps,
+                stepsFailed: run.progress.failedSteps,
+                stepsSkipped: run.progress.skippedSteps,
+            },
+        });
+
+        // Track run completion
+        if (this.rollingHistory) {
+            this.rollingHistory.addEvent({
+                timestamp: new Date(),
+                type: 'tier2.run.completed',
+                tier: 'tier2',
+                component: 'run-state-machine',
+                data: {
+                    runId: run.id,
+                    duration,
+                    stepsCompleted: run.progress.completedSteps,
+                    stepsFailed: run.progress.failedSteps,
+                    stepsSkipped: run.progress.skippedSteps,
+                },
+            });
+        }
 
         this.cleanupRun(run);
     }
@@ -704,7 +852,7 @@ export class TierTwoRunStateMachine {
             await this.checkpointManager.restoreCheckpoint(run, checkpoint);
             return true;
         } catch (error) {
-            this.logger.error(`[RunStateMachine] Failed to recover from checkpoint`, {
+            this.logger.error("[RunStateMachine] Failed to recover from checkpoint", {
                 runId: run.id,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -745,7 +893,7 @@ export class TierTwoRunStateMachine {
         // Subscribe to Tier 3 execution results
         this.eventBus.subscribe("execution.outputs", async (event) => {
             // Handle step completion from Tier 3
-            this.logger.debug(`[RunStateMachine] Received execution output`, event);
+            this.logger.debug("[RunStateMachine] Received execution output", event);
         });
 
         // Subscribe to performance events
@@ -753,5 +901,298 @@ export class TierTwoRunStateMachine {
             // Feed to performance monitor
             await this.performanceMonitor.recordMetric(event);
         });
+    }
+
+    // ===== TierCommunicationInterface Implementation =====
+    
+    private readonly activeExecutions = new Map<ExecutionId, {
+        status: ExecutionStatus;
+        startTime: Date;
+        runId: string;
+    }>();
+
+    /**
+     * Execute a request via the standard tier communication interface
+     * This is the primary method for Tier 1 to delegate routine execution to Tier 2
+     */
+    async execute<TInput extends RoutineExecutionInput, TOutput>(
+        request: TierExecutionRequest<TInput>
+    ): Promise<ExecutionResult<TOutput>> {
+        const { context, input, allocation, options } = request;
+        const executionId = context.executionId;
+
+        // Track execution
+        this.activeExecutions.set(executionId, {
+            status: ExecutionStatus.RUNNING,
+            startTime: new Date(),
+            runId: generatePk(),
+        });
+
+        try {
+            this.logger.info("[RunStateMachine] Starting tier execution", {
+                executionId,
+                routineId: input.routineId,
+                stepCount: input.workflow.steps.length,
+            });
+
+            // Track execution in rolling history
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier2.execution.started',
+                    tier: 'tier2',
+                    component: 'run-state-machine',
+                    data: {
+                        executionId,
+                        routineId: input.routineId,
+                        stepCount: input.workflow.steps.length,
+                        parameters: Object.keys(input.parameters),
+                    },
+                });
+            }
+
+            // Create run parameters from the request
+            const runParams: RunInitParams = {
+                routineId: input.routineId,
+                userId: context.userId,
+                inputs: input.parameters,
+                config: {
+                    maxSteps: input.workflow.steps.length,
+                    timeoutMs: allocation.maxDurationMs,
+                    memoryLimitMB: allocation.maxMemoryMB,
+                },
+                parentRunId: context.parentExecutionId,
+                swarmId: context.swarmId,
+            };
+
+            // Create and initialize the run
+            const run = await this.createRun(runParams);
+            // Add missing properties for tier communication
+            (run as any).userId = context.userId;
+            (run as any).swarmId = context.swarmId;
+
+            // Execute the workflow using our existing orchestration
+            const result = await this.executeWorkflow(run, input.workflow, allocation);
+
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.COMPLETED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+                runId: run.id,
+            });
+
+            this.logger.info("[RunStateMachine] Tier execution completed", {
+                executionId,
+                runId: run.id,
+                success: true,
+            });
+
+            // Track execution completion
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier2.execution.completed',
+                    tier: 'tier2',
+                    component: 'run-state-machine',
+                    data: {
+                        executionId,
+                        runId: run.id,
+                        success: true,
+                        duration: executionResult.duration,
+                        stepsExecuted: executionResult.resourcesUsed.stepsExecuted,
+                    },
+                });
+            }
+
+            // Return execution result
+            const executionResult: ExecutionResult<TOutput> = {
+                success: true,
+                result: result as TOutput,
+                outputs: result as Record<string, unknown>,
+                resourcesUsed: {
+                    creditsUsed: allocation.maxCredits, // Will be updated with actual usage
+                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    memoryUsedMB: 0,
+                    stepsExecuted: input.workflow.steps.length,
+                },
+                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                context,
+                metadata: {
+                    strategy: 'routine_orchestration',
+                    version: '2.0.0',
+                    performance: {
+                        runId: run.id,
+                        stepsExecuted: input.workflow.steps.length,
+                    },
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: 0.95, // High confidence for successful routine execution
+                performanceScore: 0.85,
+            };
+
+            return executionResult;
+
+        } catch (error) {
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.FAILED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+                runId: this.activeExecutions.get(executionId)?.runId || 'unknown',
+            });
+
+            this.logger.error("[RunStateMachine] Tier execution failed", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            // Return error result
+            const errorResult: ExecutionResult<TOutput> = {
+                success: false,
+                error: {
+                    code: 'TIER2_EXECUTION_FAILED',
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    tier: 'tier2',
+                    type: error instanceof Error ? error.constructor.name : 'Error',
+                },
+                resourcesUsed: {
+                    creditsUsed: '0',
+                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    memoryUsedMB: 0,
+                    stepsExecuted: 0,
+                },
+                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                context,
+                metadata: {
+                    strategy: 'routine_orchestration',
+                    version: '2.0.0',
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: 0.0,
+                performanceScore: 0.0,
+            };
+
+            return errorResult;
+        }
+    }
+
+    /**
+     * Execute workflow by delegating steps to Tier 3
+     */
+    private async executeWorkflow(
+        run: Run,
+        workflow: WorkflowDefinition,
+        allocation: ResourceAllocation
+    ): Promise<unknown> {
+        const results = new Map<string, unknown>();
+        
+        // Execute steps based on dependencies
+        for (const step of workflow.steps) {
+            try {
+                // Create step execution request for Tier 3
+                const stepRequest: TierExecutionRequest<StepExecutionInput> = {
+                    context: {
+                        executionId: generatePk(),
+                        parentExecutionId: run.id,
+                        swarmId: run.swarmId || 'default',
+                        userId: run.userId,
+                        timestamp: new Date(),
+                        correlationId: run.id,
+                        stepId: step.id,
+                        routineId: run.routineId,
+                        stepType: step.name,
+                    },
+                    input: {
+                        stepId: step.id,
+                        stepType: step.name,
+                        toolName: step.toolName,
+                        parameters: step.parameters,
+                        strategy: step.strategy,
+                    },
+                    allocation: {
+                        maxCredits: (parseInt(allocation.maxCredits) / workflow.steps.length).toString(),
+                        maxDurationMs: step.timeout || 30000,
+                        maxMemoryMB: Math.floor(allocation.maxMemoryMB / workflow.steps.length),
+                        maxConcurrentSteps: 1,
+                    },
+                };
+
+                // Delegate to Tier 3
+                const stepResult = await this.tier3Executor.execute(stepRequest);
+                
+                if (stepResult.success) {
+                    results.set(step.id, stepResult.result);
+                    this.logger.debug("[RunStateMachine] Step completed", {
+                        runId: run.id,
+                        stepId: step.id,
+                        success: true,
+                    });
+                } else {
+                    throw new Error(`Step ${step.id} failed: ${stepResult.error?.message}`);
+                }
+
+            } catch (error) {
+                this.logger.error("[RunStateMachine] Step execution failed", {
+                    runId: run.id,
+                    stepId: step.id,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                throw error;
+            }
+        }
+
+        // Return final results (could be last step result or aggregated)
+        const finalResults = Array.from(results.values());
+        return finalResults.length === 1 ? finalResults[0] : finalResults;
+    }
+
+    /**
+     * Get execution status for monitoring
+     */
+    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
+        const execution = this.activeExecutions.get(executionId);
+        return execution?.status || ExecutionStatus.COMPLETED;
+    }
+
+    /**
+     * Cancel a running execution
+     */
+    async cancelExecution(executionId: ExecutionId): Promise<void> {
+        const execution = this.activeExecutions.get(executionId);
+        if (execution) {
+            this.activeExecutions.set(executionId, {
+                ...execution,
+                status: ExecutionStatus.CANCELLED,
+            });
+
+            // Cancel the associated run if it exists
+            const run = this.activeRuns.get(execution.runId);
+            if (run) {
+                await this.cancelRun(run.id);
+            }
+
+            this.logger.info("[RunStateMachine] Execution cancelled", { executionId });
+        }
+    }
+
+    /**
+     * Get tier capabilities for discovery
+     */
+    async getCapabilities(): Promise<TierCapabilities> {
+        return {
+            tier: 'tier2',
+            supportedInputTypes: ['RoutineExecutionInput'],
+            supportedStrategies: ['routine_orchestration', 'parallel_execution', 'sequential_execution'],
+            maxConcurrency: 50,
+            estimatedLatency: {
+                p50: 5000,
+                p95: 30000,
+                p99: 60000,
+            },
+            resourceLimits: {
+                maxCredits: '100000',
+                maxDurationMs: 3600000, // 1 hour
+                maxMemoryMB: 4096,
+            },
+        };
     }
 }

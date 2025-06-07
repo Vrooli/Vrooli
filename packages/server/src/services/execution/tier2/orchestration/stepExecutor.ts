@@ -6,7 +6,7 @@ import {
     type ExecutionContext,
     type StrategyExecutionResult,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 
 /**
  * Step execution parameters

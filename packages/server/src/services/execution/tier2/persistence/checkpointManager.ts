@@ -181,7 +181,7 @@ export class CheckpointManager {
 
         // Sort by timestamp (newest first)
         checkpoints.sort((a, b) => 
-            b.timestamp.getTime() - a.timestamp.getTime()
+            b.timestamp.getTime() - a.timestamp.getTime(),
         );
 
         return checkpoints[0];
@@ -198,7 +198,7 @@ export class CheckpointManager {
         
         // Sort by timestamp (newest first)
         checkpoints.sort((a, b) => 
-            b.timestamp.getTime() - a.timestamp.getTime()
+            b.timestamp.getTime() - a.timestamp.getTime(),
         );
 
         // Apply limit if specified
@@ -233,7 +233,7 @@ export class CheckpointManager {
 
         // Sort by timestamp (oldest first)
         checkpoints.sort((a, b) => 
-            a.timestamp.getTime() - b.timestamp.getTime()
+            a.timestamp.getTime() - b.timestamp.getTime(),
         );
 
         // Remove old checkpoints
@@ -285,7 +285,7 @@ export class CheckpointManager {
      */
     private async serializeContext(
         context: RunContext,
-        compress: boolean = false,
+        compress = false,
     ): Promise<string> {
         const json = JSON.stringify(context);
         

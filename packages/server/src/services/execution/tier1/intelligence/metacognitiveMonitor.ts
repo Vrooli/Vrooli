@@ -73,6 +73,15 @@ export class MetacognitiveMonitor {
     private readonly biasDetectionThreshold: number = 0.7;
     private readonly reflectionInterval: number = 300000; // 5 minutes
     private reflectionTimer?: NodeJS.Timer;
+    
+    // Configuration constants  
+    private readonly GOAL_WEIGHT = 0.4;
+    private readonly RESOURCE_WEIGHT = 0.2;
+    private readonly TEAM_WEIGHT = 0.2;
+    private readonly ADAPTATION_WEIGHT = 0.1;
+    private readonly LEARNING_WEIGHT = 0.1;
+    private readonly VARIETY_THRESHOLD = 0.3;
+    private readonly FAILURE_RATE_THRESHOLD = 0.3;
 
     constructor(eventBus: EventBus, logger: Logger) {
         this.eventBus = eventBus;
@@ -223,11 +232,11 @@ export class MetacognitiveMonitor {
         
         // Overall effectiveness
         const overallEffectiveness = (
-            goalProgress * 0.4 +
-            resourceEfficiency * 0.2 +
-            teamCohesion * 0.2 +
-            adaptationRate * 0.1 +
-            learningRate * 0.1
+            goalProgress * this.GOAL_WEIGHT +
+            resourceEfficiency * this.RESOURCE_WEIGHT +
+            teamCohesion * this.TEAM_WEIGHT +
+            adaptationRate * this.ADAPTATION_WEIGHT +
+            learningRate * this.LEARNING_WEIGHT
         );
         
         return {
@@ -248,7 +257,7 @@ export class MetacognitiveMonitor {
         
         // Confirmation bias - tendency to stick with initial strategies
         const uniqueDecisionTypes = new Set(decisions.map(d => d.decision.split("(")[0]));
-        if (uniqueDecisionTypes.size < decisions.length * 0.3) {
+        if (uniqueDecisionTypes.size < decisions.length * this.VARIETY_THRESHOLD) {
             biases.push({
                 type: "confirmation",
                 severity: "medium",
@@ -260,7 +269,8 @@ export class MetacognitiveMonitor {
         // Overconfidence bias - high confidence despite failures
         const outcomes = this.decisionOutcomes.get(input.swarmId) || new Map();
         const failureRate = 1 - this.calculateSuccessRate(outcomes);
-        if (failureRate > 0.3 && decisions.length > 10) {
+        const MIN_DECISIONS_FOR_BIAS_CHECK = 10;
+        if (failureRate > this.FAILURE_RATE_THRESHOLD && decisions.length > MIN_DECISIONS_FOR_BIAS_CHECK) {
             biases.push({
                 type: "overconfidence",
                 severity: "high",
@@ -353,7 +363,7 @@ export class MetacognitiveMonitor {
             if (bias.severity === "high" || bias.severity === "medium") {
                 adaptations.push({
                     type: "process",
-                    action: `mitigate_bias(${bias.type})",
+                    action: `mitigate_bias(${bias.type})`,
                     rationale: bias.description,
                     urgency: bias.severity === "high" ? "high" : "medium",
                     expectedImprovement: 0.2,
@@ -467,19 +477,13 @@ export class MetacognitiveMonitor {
 
     private calculateSelfAwareness(swarmId: string): number {
         // Based on accuracy of self-assessments
-        const metrics = this.getPerformanceMetrics(swarmId);
         const history = this.performanceHistory.get(swarmId) || [];
         
         if (history.length === 0) return 0.5;
         
-        // Compare self-assessment to actual performance
+        // Simplified self-awareness calculation
         const latestPerformance = history[history.length - 1];
-        const accuracy = 1 - Math.abs(
-            latestPerformance.overallEffectiveness - 
-            (metrics as any).decisionQuality
-        );
-        
-        return accuracy;
+        return latestPerformance.overallEffectiveness;
     }
 
     private calculateSimilarity(set1: string[], set2: string[]): number {
@@ -509,8 +513,11 @@ export class MetacognitiveMonitor {
         // Find dominant patterns
         const total = decisions.length;
         for (const [type, count] of frequency) {
-            if (count / total > 0.4) {
-                patterns.push(`Heavy reliance on ${type} decisions (${Math.round(count / total * 100)}%)`);
+            const RELIANCE_THRESHOLD = 0.4;
+            const PERCENTAGE_MULTIPLIER = 100;
+            if (count / total > RELIANCE_THRESHOLD) {
+                const percentage = Math.round(count / total * PERCENTAGE_MULTIPLIER);
+                patterns.push("Heavy reliance on " + type + " decisions (" + percentage + "%)");
             }
         }
         

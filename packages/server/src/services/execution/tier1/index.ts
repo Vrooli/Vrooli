@@ -6,6 +6,9 @@
  * Orient, Decide, Act) for high-level decision making and adaptation.
  */
 
+// Main coordinator
+export { TierOneCoordinator } from "./TierOneCoordinator.js";
+
 // Core coordination
 export { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
 
@@ -19,6 +22,8 @@ export { MetacognitiveMonitor } from "./intelligence/metacognitiveMonitor.js";
 
 // State management
 export { type ISwarmStateStore, InMemorySwarmStateStore } from "./state/swarmStateStore.js";
+export { RedisSwarmStateStore } from "./state/redisSwarmStateStore.js";
+export { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 
 // Re-export types
 export type {

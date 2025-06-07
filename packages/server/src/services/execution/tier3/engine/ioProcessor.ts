@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { RunContext } from "../context/runContext.js";
+import { type RunContext } from "../context/runContext.js";
 
 /**
  * IOProcessor - Handles input/output processing for step execution

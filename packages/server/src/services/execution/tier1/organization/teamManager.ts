@@ -10,7 +10,7 @@ import {
     SwarmEventType as SwarmEventTypeEnum,
     generatePk,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 
 /**
  * Team performance metrics
@@ -234,7 +234,7 @@ export class TeamManager {
     async getConsensus(
         swarmId: string,
         propositions: string[],
-        timeout: number = 30000,
+        timeout = 30000,
     ): Promise<ConsensusResult> {
         const team = await this.getTeam(swarmId);
         const request: ConsensusRequest = {
@@ -445,7 +445,7 @@ export class TeamManager {
 
             // Check capabilities
             const hasRequired = criteria.requiredCapabilities.every(cap =>
-                agent.capabilities.includes(cap)
+                agent.capabilities.includes(cap),
             );
             
             if (!hasRequired) {
@@ -480,7 +480,7 @@ export class TeamManager {
         for (const capability of requiredCapabilities) {
             const agent = agents.find(a => 
                 a.capabilities.includes(capability) &&
-                !selectedAgents.includes(a)
+                !selectedAgents.includes(a),
             );
             
             if (agent) {
@@ -536,7 +536,7 @@ export class TeamManager {
         }
         
         const coverage = requiredCapabilities.filter(cap => 
-            teamCapabilities.has(cap)
+            teamCapabilities.has(cap),
         ).length / requiredCapabilities.length;
         
         const avgPerformance = totalPerformance / agents.length;

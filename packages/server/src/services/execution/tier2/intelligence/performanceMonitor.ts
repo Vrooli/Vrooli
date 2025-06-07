@@ -5,7 +5,7 @@ import {
     type RunEventType,
     RunEventType as RunEventTypeEnum,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 
 /**
  * Performance metric
@@ -136,7 +136,7 @@ export class PerformanceMonitor {
 
             const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
             const stdDev = Math.sqrt(
-                durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length
+                durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length,
             );
 
             // Identify bottlenecks (steps with high duration or high variance)

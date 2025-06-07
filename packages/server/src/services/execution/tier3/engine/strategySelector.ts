@@ -74,7 +74,7 @@ export class StrategySelector {
         );
 
         if (policyOverride) {
-            this.logger.info(`[StrategySelector] Policy override applied`, {
+            this.logger.info("[StrategySelector] Policy override applied", {
                 stepId,
                 declared: declaredStrategy,
                 override: policyOverride,
@@ -91,7 +91,7 @@ export class StrategySelector {
             );
 
             if (optimizedStrategy !== declaredStrategy) {
-                this.logger.info(`[StrategySelector] Adaptive optimization applied`, {
+                this.logger.info("[StrategySelector] Adaptive optimization applied", {
                     stepId,
                     declared: declaredStrategy,
                     optimized: optimizedStrategy,
@@ -179,7 +179,7 @@ export class StrategySelector {
     ): Promise<StrategyType | null> {
         // Security violations
         if (this.hasSecurityViolation(declaredStrategy, context)) {
-            this.logger.warn(`[StrategySelector] Security violation detected`, {
+            this.logger.warn("[StrategySelector] Security violation detected", {
                 stepId: context.stepId,
                 strategy: declaredStrategy,
             });

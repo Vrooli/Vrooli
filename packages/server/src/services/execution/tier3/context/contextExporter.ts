@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import { type ResourceUsage, type StrategyType } from "@vrooli/shared";
 
 /**
@@ -175,18 +175,18 @@ export class ContextExporter {
         // Resource usage event for Tier 1 (Coordination)
         if (context.resourceUsage && Object.keys(context.resourceUsage).length > 0) {
             promises.push(
-                this.publishResourceUsageEvent(context.stepId, context.resourceUsage)
+                this.publishResourceUsageEvent(context.stepId, context.resourceUsage),
             );
         }
 
         // Strategy decision event for learning systems
         promises.push(
-            this.publishStrategyDecisionEvent(context.stepId, context.strategy, context.outputs)
+            this.publishStrategyDecisionEvent(context.stepId, context.strategy, context.outputs),
         );
 
         // Output generation event for Tier 2 (Process)
         promises.push(
-            this.publishOutputEvent(context.stepId, context.outputs)
+            this.publishOutputEvent(context.stepId, context.outputs),
         );
 
         await Promise.all(promises).catch(error => {
@@ -276,7 +276,7 @@ export class ContextExporter {
         return complexity;
     }
 
-    private getObjectComplexity(obj: unknown, depth: number = 0, maxDepth: number = 5): number {
+    private getObjectComplexity(obj: unknown, depth = 0, maxDepth = 5): number {
         if (depth > maxDepth) return 1;
 
         let complexity = 1;

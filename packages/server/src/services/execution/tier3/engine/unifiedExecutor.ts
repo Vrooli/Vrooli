@@ -8,16 +8,26 @@ import {
     type UnifiedExecutorConfig,
     type AvailableResources,
     type ExecutionConstraints,
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
+    type ExecutionResult,
+    type ExecutionStatus,
+    type ExecutionId,
+    type StepExecutionInput,
+    type TierCapabilities,
+    type ResourceAllocation,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import { StrategySelector } from "./strategySelector.js";
 import { ResourceManager } from "./resourceManager.js";
 import { IOProcessor } from "./ioProcessor.js";
 import { ToolOrchestrator } from "./toolOrchestrator.js";
 import { ValidationEngine } from "./validationEngine.js";
 import { TelemetryShim } from "./telemetryShim.js";
-import { RunContext } from "../context/runContext.js";
+import { type RunContext } from "../context/runContext.js";
 import { ContextExporter } from "../context/contextExporter.js";
+import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
+import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
 
 /**
  * UnifiedExecutor - The heart of Tier 3 Execution Intelligence
@@ -32,8 +42,10 @@ import { ContextExporter } from "../context/contextExporter.js";
  * - Tool orchestration through MCP protocol
  * - Output validation with schema enforcement
  * - Telemetry emission for monitoring and learning
+ * 
+ * Implements TierCommunicationInterface for standardized inter-tier communication.
  */
-export class UnifiedExecutor {
+export class UnifiedExecutor implements TierCommunicationInterface {
     private readonly strategySelector: StrategySelector;
     private readonly resourceManager: ResourceManager;
     private readonly ioProcessor: IOProcessor;
@@ -43,20 +55,24 @@ export class UnifiedExecutor {
     private readonly contextExporter: ContextExporter;
     private readonly eventBus: EventBus;
     private readonly logger: Logger;
+    private readonly rollingHistory?: RollingHistory;
 
     constructor(
         config: UnifiedExecutorConfig,
         eventBus: EventBus,
         logger: Logger,
+        toolRegistry?: IntegratedToolRegistry,
+        rollingHistory?: RollingHistory,
     ) {
         this.eventBus = eventBus;
         this.logger = logger;
+        this.rollingHistory = rollingHistory;
 
         // Initialize components
         this.strategySelector = new StrategySelector(config.strategyFactory, logger);
         this.resourceManager = new ResourceManager(logger);
         this.ioProcessor = new IOProcessor(logger);
-        this.toolOrchestrator = new ToolOrchestrator(eventBus, logger);
+        this.toolOrchestrator = new ToolOrchestrator(eventBus, logger, toolRegistry);
         this.validationEngine = new ValidationEngine(logger);
         this.telemetryShim = new TelemetryShim(eventBus, config.telemetryEnabled);
         this.contextExporter = new ContextExporter(eventBus, logger);
@@ -79,10 +95,17 @@ export class UnifiedExecutor {
         const startTime = Date.now();
         const stepId = stepContext.stepId;
 
-        this.logger.info(`[UnifiedExecutor] Starting step execution`, {
+        this.logger.info("[UnifiedExecutor] Starting step execution", {
             stepId,
             stepType: stepContext.stepType,
             routineId: runContext.routineId,
+        });
+
+        // Emit telemetry for step start
+        await this.telemetryShim.emitStepStarted(stepId, {
+            stepType: stepContext.stepType,
+            strategy: stepContext.config?.strategy || StrategyType.CONVERSATIONAL,
+            estimatedResources: stepContext.resources,
         });
 
         try {
@@ -97,11 +120,28 @@ export class UnifiedExecutor {
                 strategyName: strategy.name,
             });
 
+            // Emit strategy selection telemetry
+            await this.telemetryShim.emitStrategySelected(stepId, {
+                declared: stepContext.config?.strategy || StrategyType.CONVERSATIONAL,
+                selected: strategy.type,
+                reason: "Based on context and usage hints",
+            });
+
             // 2. Reserve budget for this step
             const budgetReservation = await this.resourceManager.reserveBudget(
                 stepContext.resources,
                 stepContext.constraints,
             );
+
+            // Emit resource allocation telemetry
+            if (budgetReservation.approved) {
+                await this.telemetryShim.emitResourceAllocated(stepId, {
+                    credits: parseInt(budgetReservation.allocation.credits || "0"),
+                    timeLimit: stepContext.constraints?.maxTime,
+                    tools: budgetReservation.allocation.tools?.length || 0,
+                    models: budgetReservation.allocation.models || [],
+                });
+            }
 
             if (!budgetReservation.approved) {
                 const error = "Resource limit exceeded";
@@ -128,6 +168,13 @@ export class UnifiedExecutor {
                 executionResult.result,
                 stepContext.config.outputSchema,
             );
+
+            // Emit output generation telemetry
+            await this.telemetryShim.emitOutputGenerated(stepId, {
+                outputKeys: Object.keys(validatedOutput.data || {}),
+                size: JSON.stringify(validatedOutput.data || {}).length,
+                validationPassed: validatedOutput.valid,
+            });
 
             if (!validatedOutput.valid) {
                 const error = `Output validation failed: ${validatedOutput.errors.join(", ")}`;
@@ -176,7 +223,7 @@ export class UnifiedExecutor {
             };
 
         } catch (error) {
-            this.logger.error(`[UnifiedExecutor] Step execution failed`, {
+            this.logger.error("[UnifiedExecutor] Step execution failed", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
@@ -212,7 +259,37 @@ export class UnifiedExecutor {
             context.stepId,
             resourceAllocation.tools,
             this.resourceManager,
+            {
+                runId: context.runId,
+                swarmId: context.swarmId,
+                conversationId: context.conversationId,
+                user: context.userId ? { id: context.userId, languages: ["en"] } : undefined,
+            },
         );
+
+        // Set up tool call telemetry
+        const originalExecuteTool = this.toolOrchestrator.executeTool?.bind(this.toolOrchestrator);
+        if (originalExecuteTool) {
+            this.toolOrchestrator.executeTool = async (toolName: string, params: any) => {
+                const toolStartTime = Date.now();
+                try {
+                    const result = await originalExecuteTool(toolName, params);
+                    await this.telemetryShim.emitToolCall(context.stepId, {
+                        toolName,
+                        duration: Date.now() - toolStartTime,
+                        success: true,
+                    });
+                    return result;
+                } catch (error) {
+                    await this.telemetryShim.emitToolCall(context.stepId, {
+                        toolName,
+                        duration: Date.now() - toolStartTime,
+                        success: false,
+                    });
+                    throw error;
+                }
+            };
+        }
 
         // Execute with strategy
         const result = await strategy.execute(executionContext);
@@ -295,5 +372,249 @@ export class UnifiedExecutor {
      */
     getResourceManager(): ResourceManager {
         return this.resourceManager;
+    }
+
+    // ===== TierCommunicationInterface Implementation =====
+    
+    private readonly activeExecutions = new Map<ExecutionId, {
+        status: ExecutionStatus;
+        startTime: Date;
+        promise?: Promise<ExecutionResult>;
+    }>();
+
+    /**
+     * Execute a request via the standard tier communication interface
+     * This is the primary method for Tier 2 to delegate step execution to Tier 3
+     */
+    async execute<TInput extends StepExecutionInput, TOutput>(
+        request: TierExecutionRequest<TInput>
+    ): Promise<ExecutionResult<TOutput>> {
+        const { context, input, allocation, options } = request;
+        const executionId = context.executionId;
+
+        // Track execution
+        this.activeExecutions.set(executionId, {
+            status: ExecutionStatus.RUNNING,
+            startTime: new Date(),
+        });
+
+        try {
+            this.logger.info("[UnifiedExecutor] Starting tier execution", {
+                executionId,
+                stepId: input.stepId,
+                stepType: input.stepType,
+                strategy: input.strategy,
+            });
+
+            // Track execution in rolling history if available
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier3.execution.started',
+                    tier: 'tier3',
+                    component: 'unified-executor',
+                    data: {
+                        executionId,
+                        stepId: input.stepId,
+                        stepType: input.stepType,
+                        strategy: input.strategy,
+                    },
+                });
+            }
+
+            // Build enhanced context for step execution
+            const stepContext: ExecutionContext = {
+                ...context,
+                stepId: input.stepId,
+                stepType: input.stepType,
+                inputs: input.parameters,
+                config: {
+                    strategy: input.strategy,
+                    toolName: input.toolName,
+                    ...context.config,
+                },
+                resources: context.resources,
+                constraints: {
+                    maxCredits: parseInt(allocation.maxCredits),
+                    maxTime: allocation.maxDurationMs,
+                    ...context.constraints,
+                },
+            };
+
+            // Create a simplified run context for this execution
+            const runContext: RunContext = {
+                routineId: context.routineId || 'unknown',
+                executionId,
+                usageHints: {},
+                variables: new Map(),
+                state: {},
+            };
+
+            // Execute the step using our existing method
+            const strategyResult = await this.executeStep(stepContext, runContext);
+
+            // Convert StrategyExecutionResult to ExecutionResult
+            const executionResult: ExecutionResult<TOutput> = {
+                success: strategyResult.success,
+                result: strategyResult.result as TOutput,
+                outputs: strategyResult.result as Record<string, unknown>,
+                resourcesUsed: {
+                    creditsUsed: allocation.maxCredits, // Will be updated with actual usage
+                    durationMs: strategyResult.metadata?.executionTime || 0,
+                    memoryUsedMB: 0,
+                    stepsExecuted: 1,
+                    tokens: strategyResult.metadata?.resourceUsage?.tokens,
+                    apiCalls: strategyResult.metadata?.resourceUsage?.apiCalls,
+                    computeTime: strategyResult.metadata?.executionTime || 0,
+                    cost: strategyResult.metadata?.resourceUsage?.cost,
+                },
+                duration: strategyResult.metadata?.executionTime || 0,
+                context: stepContext,
+                metadata: {
+                    strategy: strategyResult.metadata?.strategyType,
+                    version: "3.0.0",
+                    performance: {
+                        executionTime: strategyResult.metadata?.executionTime,
+                        resourceUsage: strategyResult.metadata?.resourceUsage,
+                        confidence: strategyResult.metadata?.confidence,
+                    },
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: strategyResult.metadata?.confidence,
+                performanceScore: strategyResult.feedback?.performanceScore,
+            };
+
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.COMPLETED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+            });
+
+            this.logger.info("[UnifiedExecutor] Tier execution completed", {
+                executionId,
+                success: executionResult.success,
+                duration: executionResult.duration,
+            });
+
+            // Track completion in rolling history
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier3.execution.completed',
+                    tier: 'tier3',
+                    component: 'unified-executor',
+                    data: {
+                        executionId,
+                        success: executionResult.success,
+                        duration: executionResult.duration,
+                        resourcesUsed: executionResult.resourcesUsed,
+                        confidence: executionResult.confidence,
+                        performanceScore: executionResult.performanceScore,
+                    },
+                });
+            }
+
+            return executionResult;
+
+        } catch (error) {
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.FAILED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+            });
+
+            this.logger.error("[UnifiedExecutor] Tier execution failed", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            // Track failure in rolling history
+            if (this.rollingHistory) {
+                this.rollingHistory.addEvent({
+                    timestamp: new Date(),
+                    type: 'tier3.execution.failed',
+                    tier: 'tier3',
+                    component: 'unified-executor',
+                    data: {
+                        executionId,
+                        error: error instanceof Error ? error.message : String(error),
+                        errorType: error instanceof Error ? error.constructor.name : 'Error',
+                    },
+                });
+            }
+
+            // Return error result
+            const errorResult: ExecutionResult<TOutput> = {
+                success: false,
+                error: {
+                    code: 'TIER3_EXECUTION_FAILED',
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    tier: 'tier3',
+                    type: error instanceof Error ? error.constructor.name : 'Error',
+                },
+                resourcesUsed: {
+                    creditsUsed: '0',
+                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    memoryUsedMB: 0,
+                    stepsExecuted: 0,
+                },
+                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                context,
+                metadata: {
+                    strategy: input.strategy,
+                    version: "3.0.0",
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: 0.0,
+                performanceScore: 0.0,
+            };
+
+            return errorResult;
+        }
+    }
+
+    /**
+     * Get execution status for monitoring
+     */
+    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
+        const execution = this.activeExecutions.get(executionId);
+        return execution?.status || ExecutionStatus.COMPLETED;
+    }
+
+    /**
+     * Cancel a running execution
+     */
+    async cancelExecution(executionId: ExecutionId): Promise<void> {
+        const execution = this.activeExecutions.get(executionId);
+        if (execution) {
+            this.activeExecutions.set(executionId, {
+                ...execution,
+                status: ExecutionStatus.CANCELLED,
+            });
+
+            this.logger.info("[UnifiedExecutor] Execution cancelled", { executionId });
+        }
+    }
+
+    /**
+     * Get tier capabilities for discovery
+     */
+    async getCapabilities(): Promise<TierCapabilities> {
+        return {
+            tier: 'tier3',
+            supportedInputTypes: ['StepExecutionInput'],
+            supportedStrategies: ['conversational', 'reasoning', 'deterministic'],
+            maxConcurrency: 100,
+            estimatedLatency: {
+                p50: 1000,
+                p95: 5000,
+                p99: 10000,
+            },
+            resourceLimits: {
+                maxCredits: '10000',
+                maxDurationMs: 300000,
+                maxMemoryMB: 1024,
+            },
+        };
     }
 }

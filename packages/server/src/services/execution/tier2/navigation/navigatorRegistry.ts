@@ -61,7 +61,7 @@ export class NavigatorRegistry {
 
         this.navigators.set(type, navigator);
         
-        this.logger.info(`[NavigatorRegistry] Registered navigator`, {
+        this.logger.info("[NavigatorRegistry] Registered navigator", {
             type,
             version: navigator.version,
         });

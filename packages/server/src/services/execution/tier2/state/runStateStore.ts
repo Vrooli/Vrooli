@@ -3,14 +3,14 @@
  * Manages persistent state for routine execution
  */
 
-import { Redis } from "ioredis";
+import { type Redis } from "ioredis";
 import { 
     RunState, 
-    RunContext,
-    Location,
-    Checkpoint,
-    BranchExecution,
-    StepExecution
+    type RunContext,
+    type Location,
+    type Checkpoint,
+    type BranchExecution,
+    type StepExecution,
 } from "@vrooli/shared";
 import { getRedisConnection } from "../../../../redisConn.js";
 import { logger } from "../../../../events/logger.js";

@@ -85,6 +85,17 @@ export class StrategyEngine {
     private readonly strategyPatterns: Map<string, StrategyPattern> = new Map();
     private readonly decisionHistory: StrategicDecision[] = [];
     private readonly maxHistorySize: number = 100;
+    
+    // Configuration constants
+    private readonly MAX_DECISIONS_RETURNED = 5;
+    private readonly PERFORMANCE_THRESHOLD = 0.7;
+    private readonly CONFIDENCE_THRESHOLD = 0.3;
+    private readonly EFFECTIVENESS_THRESHOLD = 0.8;
+    private readonly HISTORY_LIMIT = 10;
+    private readonly TIME_LIMIT_DEFAULT_MS = 300000; // 5 minutes
+    private readonly IMPROVEMENT_WEIGHT = 0.1;
+    private readonly NEGATIVE_IMPROVEMENT = -0.1;
+    private readonly DEFAULT_CONFIDENCE = 0.75;
 
     constructor(logger: Logger) {
         this.logger = logger;
@@ -132,7 +143,7 @@ export class StrategyEngine {
             return {
                 assessment: "Unable to fully analyze situation",
                 facts: {},
-                confidence: 0.3,
+                confidence: this.CONFIDENCE_THRESHOLD,
             };
         }
     }
@@ -174,9 +185,9 @@ export class StrategyEngine {
             const rankedDecisions = this.rankDecisions(decisions, input.constraints);
             
             // Record decisions for learning
-            this.recordDecisions(rankedDecisions.slice(0, 5));
+            this.recordDecisions(rankedDecisions.slice(0, this.MAX_DECISIONS_RETURNED));
 
-            return rankedDecisions.slice(0, 5); // Return top 5
+            return rankedDecisions.slice(0, this.MAX_DECISIONS_RETURNED);
 
         } catch (error) {
             this.logger.error("[StrategyEngine] Decision generation failed", {
@@ -237,16 +248,16 @@ export class StrategyEngine {
 
         // Find corresponding strategic decision
         const strategicDecision = this.decisionHistory.find(
-            d => d.action === decision.decision
+            d => d.action === decision.decision,
         );
 
         if (strategicDecision) {
             // Update pattern success rates
             const pattern = this.findPatternByAction(strategicDecision.action);
             if (pattern) {
-                const weight = outcome === "success" ? 0.1 : -0.1;
+                const weight = outcome === "success" ? this.IMPROVEMENT_WEIGHT : this.NEGATIVE_IMPROVEMENT;
                 pattern.successRate = Math.max(0, Math.min(1, 
-                    pattern.successRate + weight
+                    pattern.successRate + weight,
                 ));
                 pattern.lastUsed = new Date();
             }
@@ -295,8 +306,8 @@ Analyze the current situation and provide:
         const progress = input.progress.tasksCompleted / Math.max(input.progress.tasksTotal, 1);
         
         return {
-            assessment: progress > 0.7 ? "Nearing completion" : 
-                       progress > 0.3 ? "Making steady progress" : "Early stages",
+            assessment: progress > this.PERFORMANCE_THRESHOLD ? "Nearing completion" : 
+                       progress > this.CONFIDENCE_THRESHOLD ? "Making steady progress" : "Early stages",
             opportunities: [
                 "Parallelize remaining tasks",
                 "Optimize resource allocation",
@@ -309,7 +320,7 @@ Analyze the current situation and provide:
                 "Focus on critical path tasks",
                 "Monitor resource usage closely",
             ],
-            confidence: 0.75,
+            confidence: this.DEFAULT_CONFIDENCE,
         };
     }
 
@@ -321,10 +332,10 @@ Analyze the current situation and provide:
         // Extract key facts from observations
         if (observations.agentReports) {
             facts.activeAgents = observations.agentReports.filter(
-                (r: any) => r.status === "active"
+                (r: any) => r.status === "active",
             ).length;
             facts.averageProgress = observations.agentReports.reduce(
-                (sum: number, r: any) => sum + (r.progress || 0), 0
+                (sum: number, r: any) => sum + (r.progress || 0), 0,
             ) / Math.max(observations.agentReports.length, 1);
         }
         
@@ -342,7 +353,7 @@ Analyze the current situation and provide:
         const insights: string[] = [];
         
         // Generate insights based on facts and history
-        if (facts.resourceUtilization as number > 0.8) {
+        if (facts.resourceUtilization as number > this.EFFECTIVENESS_THRESHOLD) {
             insights.push("High resource utilization may constrain future operations");
         }
         
@@ -466,7 +477,7 @@ Analyze the current situation and provide:
         if (this.decisionHistory.length > this.maxHistorySize) {
             this.decisionHistory.splice(
                 0,
-                this.decisionHistory.length - this.maxHistorySize
+                this.decisionHistory.length - this.maxHistorySize,
             );
         }
     }
@@ -508,7 +519,7 @@ Analyze the current situation and provide:
             const actionType = decision.action.split("(")[0];
             actionFrequency.set(
                 actionType,
-                (actionFrequency.get(actionType) || 0) + 1
+                (actionFrequency.get(actionType) || 0) + 1,
             );
         }
         

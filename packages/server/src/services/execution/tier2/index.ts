@@ -6,6 +6,9 @@
  * branch coordination, and performance optimization.
  */
 
+// Main orchestrator
+export { TierTwoOrchestrator } from "./TierTwoOrchestrator.js";
+
 // Core orchestration
 export { RunStateMachine } from "./orchestration/runStateMachine.js";
 export { BranchCoordinator } from "./orchestration/branchCoordinator.js";

@@ -83,6 +83,13 @@ export class ResourceManager {
     private readonly allocationStrategy: AllocationStrategy = "adaptive";
     private readonly optimizationInterval: number = 60000; // 1 minute
     private optimizationTimer?: NodeJS.Timer;
+    
+    // Configuration constants
+    private readonly DEFAULT_TIME_LIMIT_MS = 3600000; // 1 hour
+    private readonly EFFICIENCY_THRESHOLD = 0.2;
+    private readonly ALLOCATION_RATIO = 0.3;
+    private readonly HIGH_UTILIZATION_THRESHOLD = 0.8;
+    private readonly UTILIZATION_PENALTY = 0.7;
 
     constructor(logger: Logger) {
         this.logger = logger;
@@ -159,7 +166,7 @@ export class ResourceManager {
 
         if (pool.available < amount) {
             throw new Error(
-                `Insufficient ${type}: requested ${amount}, available ${pool.available}`
+                `Insufficient ${type}: requested ${amount}, available ${pool.available}`,
             );
         }
 
@@ -324,7 +331,7 @@ export class ResourceManager {
                 if (!pool) continue;
                 
                 // Check for over-allocation
-                if (amount > pool.total * 0.3) { // Using more than 30% of total
+                if (amount > pool.total * this.ALLOCATION_RATIO) { // Using more than 30% of total
                     optimizations.push({
                         type: "throttle",
                         target: entity,
@@ -426,10 +433,10 @@ export class ResourceManager {
                 if (!pool) return request.amount;
                 
                 const utilizationRate = pool.reserved / pool.total;
-                if (utilizationRate > 0.8) {
+                if (utilizationRate > this.HIGH_UTILIZATION_THRESHOLD) {
                     // High utilization - reduce allocation
-                    return request.amount * 0.7;
-                } else if (utilizationRate < 0.3) {
+                    return request.amount * this.UTILIZATION_PENALTY;
+                } else if (utilizationRate < this.ALLOCATION_RATIO) {
                     // Low utilization - allow full allocation
                     return request.amount;
                 } else {

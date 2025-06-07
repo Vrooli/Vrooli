@@ -1,4 +1,4 @@
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import {
     type ResourceUsage,
     type StrategyType,
@@ -56,7 +56,7 @@ export class TelemetryShim {
     private readonly eventBus: EventBus;
     private readonly enabled: boolean;
 
-    constructor(eventBus: EventBus, enabled: boolean = true) {
+    constructor(eventBus: EventBus, enabled = true) {
         this.eventBus = eventBus;
         this.enabled = enabled;
     }
@@ -318,7 +318,7 @@ export class TelemetryShim {
                     events: channelEvents,
                 }).catch(error => {
                     console.error(`[TelemetryShim] Failed to emit batch to ${channel}`, error);
-                })
+                }),
             );
         }
 

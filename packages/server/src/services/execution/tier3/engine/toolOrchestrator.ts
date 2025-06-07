@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import { type ResourceManager } from "./resourceManager.js";
 import {
     type ToolResource,
@@ -7,20 +7,12 @@ import {
     type ToolExecutionResult,
     type RetryPolicy,
 } from "@vrooli/shared";
-
-/**
- * MCP tool definition
- */
-export interface MCPTool {
-    name: string;
-    description: string;
-    inputSchema: {
-        type: "object";
-        properties: Record<string, unknown>;
-        required?: string[];
-    };
-    handler?: (args: Record<string, unknown>) => Promise<unknown>;
-}
+import { 
+    IntegratedToolRegistry, 
+    convertToolResourceToTool,
+    type IntegratedToolContext,
+} from "../../integration/mcp/toolRegistry.js";
+import { type Tool } from "../../../mcp/types.js";
 
 /**
  * Tool approval status
@@ -34,17 +26,6 @@ export interface ToolApprovalStatus {
     expiresAt?: Date;
 }
 
-/**
- * Tool execution context
- */
-interface ToolExecutionContext {
-    stepId: string;
-    toolName: string;
-    parameters: Record<string, unknown>;
-    resourceManager: ResourceManager;
-    retryPolicy?: RetryPolicy;
-    approvalStatus?: ToolApprovalStatus;
-}
 
 /**
  * ToolOrchestrator - MCP-based tool execution and coordination
@@ -68,21 +49,24 @@ export class ToolOrchestrator {
     private readonly eventBus: EventBus;
     private readonly logger: Logger;
     
-    // Tool registry
-    private readonly tools: Map<string, MCPTool> = new Map();
-    private readonly pendingApprovals: Map<string, ToolApprovalStatus> = new Map();
+    // MCP tool infrastructure
+    private readonly toolRegistry: IntegratedToolRegistry;
     
     // Current execution context
     private currentStepId?: string;
+    private currentRunId?: string;
+    private currentSwarmId?: string;
+    private currentConversationId?: string;
     private currentTools?: ToolResource[];
     private resourceManager?: ResourceManager;
+    private currentUser?: any;
 
-    constructor(eventBus: EventBus, logger: Logger) {
+    constructor(eventBus: EventBus, logger: Logger, toolRegistry?: IntegratedToolRegistry) {
         this.eventBus = eventBus;
         this.logger = logger;
         
-        // Initialize built-in tools
-        this.initializeBuiltInTools();
+        // Use provided registry or get default instance
+        this.toolRegistry = toolRegistry || IntegratedToolRegistry.getInstance(logger);
     }
 
     /**
@@ -92,14 +76,37 @@ export class ToolOrchestrator {
         stepId: string,
         availableTools: ToolResource[],
         resourceManager: ResourceManager,
+        context: {
+            runId?: string;
+            swarmId?: string;
+            conversationId?: string;
+            user?: any;
+        },
     ): void {
         this.currentStepId = stepId;
+        this.currentRunId = context.runId;
+        this.currentSwarmId = context.swarmId;
+        this.currentConversationId = context.conversationId;
         this.currentTools = availableTools;
         this.resourceManager = resourceManager;
+        this.currentUser = context.user;
+        
+        // Register dynamic tools from available resources
+        for (const toolResource of availableTools) {
+            const tool = convertToolResourceToTool(toolResource);
+            this.toolRegistry.registerDynamicTool(tool, {
+                runId: context.runId,
+                swarmId: context.swarmId,
+                scope: context.runId ? "run" : context.swarmId ? "swarm" : "global",
+            });
+        }
 
         this.logger.debug("[ToolOrchestrator] Configured for execution", {
             stepId,
             toolCount: availableTools.length,
+            runId: context.runId,
+            swarmId: context.swarmId,
+            hasUser: !!context.user,
         });
     }
 
@@ -116,32 +123,44 @@ export class ToolOrchestrator {
         });
 
         try {
-            // Validate tool availability
-            const tool = await this.validateToolAvailability(toolName);
-            
-            // Check approval requirements
-            const approvalStatus = await this.checkApprovalRequirements(toolName);
-            if (!approvalStatus.approved) {
-                return this.createErrorResult(
-                    `Tool ${toolName} requires approval: ${approvalStatus.reason}`,
-                    Date.now() - startTime,
-                );
-            }
-
-            // Create execution context
-            const context: ToolExecutionContext = {
+            // Create integrated tool context
+            const context: IntegratedToolContext = {
                 stepId: this.currentStepId!,
-                toolName,
-                parameters,
-                resourceManager: this.resourceManager!,
-                retryPolicy,
-                approvalStatus,
+                runId: this.currentRunId,
+                swarmId: this.currentSwarmId,
+                conversationId: this.currentConversationId,
+                user: this.currentUser || { id: "system", languages: ["en"] },
+                logger: this.logger,
+                metadata: {
+                    timeout,
+                    retryPolicy,
+                },
             };
 
-            // Execute with retry logic
-            const result = await this.executeWithRetry(tool, context);
+            // Check resource quota before execution
+            if (this.resourceManager) {
+                const quotaCheck = await this.resourceManager.checkQuota(
+                    toolName,
+                    this.estimateToolCost(toolName),
+                );
 
-            // Track resource usage
+                if (!quotaCheck.allowed) {
+                    return this.createErrorResult(
+                        `Resource quota exceeded: ${quotaCheck.reason}`,
+                        Date.now() - startTime,
+                    );
+                }
+            }
+
+            // Execute through integrated registry with retry support
+            let result: ToolExecutionResult;
+            if (retryPolicy) {
+                result = await this.executeWithRetry(request, context);
+            } else {
+                result = await this.toolRegistry.executeTool(request, context);
+            }
+
+            // Track telemetry
             await this.trackToolUsage(toolName, result, Date.now() - startTime);
 
             return result;
@@ -162,26 +181,17 @@ export class ToolOrchestrator {
     /**
      * Lists available tools with MCP format
      */
-    async listTools(): Promise<MCPTool[]> {
-        const availableTools: MCPTool[] = [];
+    async listTools(): Promise<Tool[]> {
+        const context: IntegratedToolContext = {
+            stepId: this.currentStepId || "list",
+            runId: this.currentRunId,
+            swarmId: this.currentSwarmId,
+            conversationId: this.currentConversationId,
+            user: this.currentUser || { id: "system", languages: ["en"] },
+            logger: this.logger,
+        };
 
-        // Add registered tools
-        for (const [name, tool] of this.tools) {
-            if (this.isToolAvailable(name)) {
-                availableTools.push(tool);
-            }
-        }
-
-        // Add dynamic tools from current context
-        if (this.currentTools) {
-            for (const toolResource of this.currentTools) {
-                if (!this.tools.has(toolResource.name)) {
-                    availableTools.push(this.convertToMCPTool(toolResource));
-                }
-            }
-        }
-
-        return availableTools;
+        return await this.toolRegistry.listAvailableTools(context);
     }
 
     /**
@@ -191,7 +201,7 @@ export class ToolOrchestrator {
         toolName: string;
         variant?: string;
         operation?: string;
-    }): Promise<MCPTool> {
+    }): Promise<Tool> {
         const { toolName, variant, operation } = params;
 
         this.logger.debug("[ToolOrchestrator] Defining tool schema", {
@@ -200,14 +210,44 @@ export class ToolOrchestrator {
             operation,
         });
 
-        // Generate compressed schema based on parameters
-        const compressedSchema = await this.generateCompressedSchema(
-            toolName,
-            variant,
-            operation,
-        );
+        // Use the integrated registry's defineTool functionality
+        const context: IntegratedToolContext = {
+            stepId: this.currentStepId || "define",
+            runId: this.currentRunId,
+            swarmId: this.currentSwarmId,
+            conversationId: this.currentConversationId,
+            user: this.currentUser || { id: "system", languages: ["en"] },
+            logger: this.logger,
+        };
 
-        return compressedSchema;
+        const result = await this.toolRegistry.executeTool({
+            toolName: "define_tool",
+            parameters: {
+                toolName,
+                variant,
+                op: operation,
+            },
+        }, context);
+
+        if (result.success && result.output) {
+            // Parse the schema from the result
+            try {
+                const schema = JSON.parse(result.output as string);
+                return {
+                    name: `${toolName}_${variant}_${operation}`.toLowerCase(),
+                    description: schema.description,
+                    inputSchema: schema,
+                };
+            } catch (error) {
+                this.logger.error("[ToolOrchestrator] Failed to parse define_tool result", {
+                    error,
+                    output: result.output,
+                });
+                throw new Error("Failed to parse tool schema");
+            }
+        }
+
+        throw new Error(result.error || "Failed to define tool");
     }
 
     /**
@@ -216,18 +256,23 @@ export class ToolOrchestrator {
     async registerPendingApproval(
         toolName: string,
         parameters: Record<string, unknown>,
-        timeout: number = 600000, // 10 minutes default
+        timeout = 600000, // 10 minutes default
     ): Promise<string> {
-        const approvalId = `approval_${Date.now()}_${toolName}`;
-        
-        const approval: ToolApprovalStatus = {
-            toolName,
-            approved: false,
-            reason: "Awaiting user approval",
-            expiresAt: new Date(Date.now() + timeout),
+        const context: IntegratedToolContext = {
+            stepId: this.currentStepId!,
+            runId: this.currentRunId,
+            swarmId: this.currentSwarmId,
+            conversationId: this.currentConversationId,
+            user: this.currentUser || { id: "system", languages: ["en"] },
+            logger: this.logger,
         };
 
-        this.pendingApprovals.set(approvalId, approval);
+        const approvalId = await this.toolRegistry.registerPendingApproval(
+            toolName,
+            parameters,
+            context,
+            timeout,
+        );
 
         // Emit approval request event
         await this.eventBus.publish("tool.approval_required", {
@@ -235,6 +280,7 @@ export class ToolOrchestrator {
             toolName,
             parameters,
             stepId: this.currentStepId,
+            runId: this.currentRunId,
             timeout,
         });
 
@@ -249,171 +295,26 @@ export class ToolOrchestrator {
         approved: boolean,
         approvedBy?: string,
     ): Promise<void> {
-        const approval = this.pendingApprovals.get(approvalId);
-        if (!approval) {
-            throw new Error(`Approval ${approvalId} not found`);
-        }
-
-        approval.approved = approved;
-        approval.approvedBy = approvedBy;
-        approval.approvedAt = new Date();
-        approval.reason = approved ? "User approved" : "User rejected";
+        this.toolRegistry.processApproval(approvalId, approved, approvedBy);
 
         // Emit approval processed event
         await this.eventBus.publish("tool.approval_processed", {
             approvalId,
             approved,
-            toolName: approval.toolName,
+            approvedBy,
             stepId: this.currentStepId,
+            runId: this.currentRunId,
         });
     }
 
     /**
      * Private helper methods
      */
-    private initializeBuiltInTools(): void {
-        // Core MCP tools
-        this.registerTool({
-            name: "define_tool",
-            description: "Dynamically define tool schemas for specific resource operations",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    toolName: { type: "string", description: "Base tool name" },
-                    variant: { type: "string", description: "Resource variant" },
-                    operation: { type: "string", enum: ["find", "add", "update", "delete"] },
-                },
-                required: ["toolName"],
-            },
-            handler: async (args) => this.defineTool(args as any),
-        });
-
-        this.registerTool({
-            name: "resource_manage",
-            description: "Universal CRUD operations for Vrooli resources",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    operation: { type: "string", enum: ["find", "add", "update", "delete"] },
-                    resourceType: { type: "string" },
-                    data: { type: "object" },
-                },
-                required: ["operation", "resourceType"],
-            },
-        });
-
-        this.registerTool({
-            name: "send_message",
-            description: "Send messages to team members or users",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    recipients: { type: "array", items: { type: "string" } },
-                    message: { type: "string" },
-                    metadata: { type: "object" },
-                },
-                required: ["recipients", "message"],
-            },
-        });
-
-        this.registerTool({
-            name: "run_routine",
-            description: "Execute a Vrooli routine",
-            inputSchema: {
-                type: "object",
-                properties: {
-                    routineId: { type: "string" },
-                    inputs: { type: "object" },
-                    mode: { type: "string", enum: ["sync", "async"] },
-                },
-                required: ["routineId"],
-            },
-        });
-    }
-
-    private registerTool(tool: MCPTool): void {
-        this.tools.set(tool.name, tool);
-        this.logger.debug(`[ToolOrchestrator] Registered tool: ${tool.name}`);
-    }
-
-    private async validateToolAvailability(toolName: string): Promise<MCPTool> {
-        // Check registered tools
-        let tool = this.tools.get(toolName);
-        if (tool) return tool;
-
-        // Check current context tools
-        if (this.currentTools) {
-            const toolResource = this.currentTools.find(t => t.name === toolName);
-            if (toolResource) {
-                tool = this.convertToMCPTool(toolResource);
-                this.tools.set(toolName, tool); // Cache for this execution
-                return tool;
-            }
-        }
-
-        throw new Error(`Tool ${toolName} not available`);
-    }
-
-    private convertToMCPTool(resource: ToolResource): MCPTool {
-        return {
-            name: resource.name,
-            description: resource.description,
-            inputSchema: {
-                type: "object",
-                properties: resource.parameters || {},
-            },
-        };
-    }
-
-    private async checkApprovalRequirements(
-        toolName: string,
-    ): Promise<ToolApprovalStatus> {
-        // Check if tool requires approval
-        const requiresApproval = this.toolRequiresApproval(toolName);
-        
-        if (!requiresApproval) {
-            return {
-                toolName,
-                approved: true,
-                reason: "No approval required",
-            };
-        }
-
-        // Check for existing approval
-        for (const approval of this.pendingApprovals.values()) {
-            if (approval.toolName === toolName && approval.approved) {
-                // Check if approval hasn't expired
-                if (!approval.expiresAt || approval.expiresAt > new Date()) {
-                    return approval;
-                }
-            }
-        }
-
-        return {
-            toolName,
-            approved: false,
-            reason: "Tool requires user approval",
-        };
-    }
-
-    private toolRequiresApproval(toolName: string): boolean {
-        // High-risk tools that always require approval
-        const highRiskTools = [
-            "run_routine",
-            "spawn_swarm",
-            "resource_manage",
-            "execute_code",
-            "access_file",
-        ];
-
-        return highRiskTools.includes(toolName);
-    }
-
     private async executeWithRetry(
-        tool: MCPTool,
-        context: ToolExecutionContext,
+        request: ToolExecutionRequest,
+        context: IntegratedToolContext,
     ): Promise<ToolExecutionResult> {
-        const { retryPolicy } = context;
+        const { retryPolicy } = request;
         let lastError: Error | undefined;
         let retries = 0;
 
@@ -424,25 +325,21 @@ export class ToolOrchestrator {
 
         while (retries <= maxRetries) {
             try {
-                // Check resource quota before execution
-                const quotaCheck = await context.resourceManager.checkQuota(
-                    context.toolName,
-                    this.estimateToolCost(context.toolName),
-                );
-
-                if (!quotaCheck.allowed) {
-                    throw new Error(`Resource quota exceeded: ${quotaCheck.reason}`);
-                }
-
-                // Execute tool
-                const result = await this.executeToolHandler(tool, context);
+                const result = await this.toolRegistry.executeTool(request, context);
                 
-                return {
-                    success: true,
-                    output: result,
-                    duration: Date.now() - Date.now(), // Will be calculated properly
-                    retries,
-                };
+                if (result.success) {
+                    return {
+                        ...result,
+                        retries,
+                    };
+                }
+                
+                // If it's a non-retryable error, return immediately
+                if (this.isNonRetryableError(result.error)) {
+                    return result;
+                }
+                
+                throw new Error(result.error);
 
             } catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
@@ -455,8 +352,8 @@ export class ToolOrchestrator {
                         maxDelay,
                     );
                     
-                    this.logger.warn(`[ToolOrchestrator] Tool execution failed, retrying`, {
-                        toolName: context.toolName,
+                    this.logger.warn("[ToolOrchestrator] Tool execution failed, retrying", {
+                        toolName: request.toolName,
                         retry: retries + 1,
                         delay,
                         error: lastError.message,
@@ -478,88 +375,20 @@ export class ToolOrchestrator {
         };
     }
 
-    private async executeToolHandler(
-        tool: MCPTool,
-        context: ToolExecutionContext,
-    ): Promise<unknown> {
-        if (tool.handler) {
-            // Execute built-in handler
-            return await tool.handler(context.parameters);
-        }
-
-        // Execute via MCP protocol
-        // TODO: Implement actual MCP execution
-        this.logger.info(`[ToolOrchestrator] Executing MCP tool: ${tool.name}`, {
-            parameters: context.parameters,
-        });
-
-        // Simulate execution for now
-        return {
-            status: "success",
-            result: `Executed ${tool.name} with MCP protocol`,
-        };
-    }
-
-    private isToolAvailable(toolName: string): boolean {
-        // Check if tool is in current context
-        if (this.currentTools) {
-            return this.currentTools.some(t => t.name === toolName);
-        }
+    private isNonRetryableError(error?: string): boolean {
+        if (!error) return false;
         
-        // Built-in tools are always available
-        return this.tools.has(toolName);
-    }
-
-    private async generateCompressedSchema(
-        toolName: string,
-        variant?: string,
-        operation?: string,
-    ): Promise<MCPTool> {
-        // Generate schema based on tool, variant, and operation
-        const baseSchema: MCPTool = {
-            name: `${toolName}_${variant}_${operation}`.toLowerCase(),
-            description: `${operation} operation for ${variant} resources`,
-            inputSchema: {
-                type: "object",
-                properties: {},
-                required: [],
-            },
-        };
-
-        // Add operation-specific properties
-        switch (operation) {
-            case "find":
-                baseSchema.inputSchema.properties = {
-                    filters: { type: "object", description: "Search filters" },
-                    limit: { type: "number", description: "Maximum results" },
-                    offset: { type: "number", description: "Result offset" },
-                };
-                break;
-                
-            case "add":
-                baseSchema.inputSchema.properties = {
-                    data: { type: "object", description: `${variant} data to create` },
-                };
-                baseSchema.inputSchema.required = ["data"];
-                break;
-                
-            case "update":
-                baseSchema.inputSchema.properties = {
-                    id: { type: "string", description: `${variant} ID` },
-                    updates: { type: "object", description: "Fields to update" },
-                };
-                baseSchema.inputSchema.required = ["id", "updates"];
-                break;
-                
-            case "delete":
-                baseSchema.inputSchema.properties = {
-                    id: { type: "string", description: `${variant} ID to delete` },
-                };
-                baseSchema.inputSchema.required = ["id"];
-                break;
-        }
-
-        return baseSchema;
+        const nonRetryablePatterns = [
+            "requires approval",
+            "not found",
+            "invalid parameters",
+            "insufficient permissions",
+            "quota exceeded",
+        ];
+        
+        return nonRetryablePatterns.some(pattern => 
+            error.toLowerCase().includes(pattern)
+        );
     }
 
     private estimateToolCost(toolName: string): number {

@@ -4,8 +4,15 @@ import {
     type ExecutionStrategy,
     type StrategyExecutionResult,
     type ResourceUsage,
+    type StrategyFeedback,
+    type StrategyPerformance,
     StrategyType,
 } from "@vrooli/shared";
+import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
+import { LegacyInputHandler } from "./reasoning/legacyInputHandler.js";
+import { FourPhaseExecutor } from "./reasoning/fourPhaseExecutor.js";
+import { LegacyOutputGenerator } from "./reasoning/legacyOutputGenerator.js";
+import { LegacyCostEstimator } from "./reasoning/legacyCostEstimator.js";
 
 /**
  * Reasoning framework types
@@ -68,102 +75,111 @@ export class ReasoningStrategy implements ExecutionStrategy {
     readonly version = "2.0.0";
 
     private readonly logger: Logger;
+    private readonly llmService: LLMIntegrationService;
+    
+    // LEGACY INTEGRATION: Modular components for legacy patterns
+    private readonly inputHandler: LegacyInputHandler;
+    private readonly phaseExecutor: FourPhaseExecutor;
+    private readonly outputGenerator: LegacyOutputGenerator;
+    private readonly costEstimator: LegacyCostEstimator;
+    
+    // Configuration constants
+    private readonly COMPLEXITY_MULTIPLIER = 500;
+    private readonly CONFIDENCE_THRESHOLD = 0.7;
+    private readonly SCORING_FACTOR = 0.2;
+    private readonly PENALTY_FACTOR = 0.1;
+    private readonly CONSTRAINT_COMPLEXITY = 0.5;
+    private readonly BASE_SCORE = 0.6;
 
     constructor(logger: Logger) {
         this.logger = logger;
+        this.llmService = new LLMIntegrationService(logger);
+        
+        // LEGACY INTEGRATION: Initialize modular components
+        this.inputHandler = new LegacyInputHandler(logger);
+        this.phaseExecutor = new FourPhaseExecutor(logger);
+        this.outputGenerator = new LegacyOutputGenerator(logger);
+        this.costEstimator = new LegacyCostEstimator();
     }
 
     /**
-     * Executes a step using structured reasoning approach
+     * LEGACY INTEGRATION: Enhanced execution using 4-phase pattern from legacy ReasoningStrategy
+     * 
+     * Phases extracted from legacy implementation:
+     * 1. Analyze (analyzeRoutine) - Understand task requirements and complexity
+     * 2. Plan (planExecution) - Create structured execution approach
+     * 3. Execute (executeWithReasoning) - Perform reasoning with AI assistance
+     * 4. Refine (refineResults) - Validate and enhance outputs
      */
     async execute(context: ExecutionContext): Promise<StrategyExecutionResult> {
         const startTime = Date.now();
         const stepId = context.stepId;
+        let creditsUsed = 0;
+        let toolCallsCount = 0;
 
-        this.logger.info(`[ReasoningStrategy] Starting execution`, {
+        this.logger.info("[ReasoningStrategy] Starting 4-phase reasoning execution", {
             stepId,
             stepType: context.stepType,
         });
 
         try {
-            // 1. Select appropriate reasoning framework
-            const framework = this.selectReasoningFramework(context);
+            // LEGACY INTEGRATION: Check for missing inputs and generate intelligently
+            const processedContext = await this.inputHandler.handleMissingInputs(context);
+            
+            // LEGACY PHASE 1: Analyze task (extracted from analyzeRoutine)
+            const analysisResult = await this.phaseExecutor.analyzeTask(processedContext);
+            creditsUsed += analysisResult.creditsUsed;
+            toolCallsCount += analysisResult.toolCallsCount;
 
-            // 2. Build knowledge base from context
-            const knowledgeBase = await this.buildKnowledgeBase(context);
-
-            // 3. Execute reasoning framework
-            const reasoningResult = await this.executeReasoningFramework(
-                framework,
-                context,
-                knowledgeBase,
+            // LEGACY PHASE 2: Plan reasoning approach (extracted from planExecution)
+            const planningResult = await this.phaseExecutor.planReasoningApproach(
+                processedContext, 
+                analysisResult.insights
             );
+            creditsUsed += planningResult.creditsUsed;
+            toolCallsCount += planningResult.toolCallsCount;
 
-            // 4. Validate reasoning quality
-            const validationResults = await this.validateReasoning(
-                reasoningResult,
-                framework,
+            // LEGACY PHASE 3: Execute reasoning logic (extracted from executeWithReasoning)
+            const executionResult = await this.phaseExecutor.executeReasoningLogic(
+                processedContext,
+                planningResult.executionPlan
             );
+            creditsUsed += executionResult.creditsUsed;
+            toolCallsCount += executionResult.toolCallsCount;
 
-            // 5. Format outputs according to context requirements
-            const formattedOutputs = this.formatReasoningOutputs(
-                reasoningResult,
-                validationResults,
-                context,
+            // LEGACY PHASE 4: Refine and validate (extracted from refineResults)
+            const refinementResult = await this.phaseExecutor.refineAndValidate(
+                processedContext,
+                executionResult,
+                planningResult.executionPlan
             );
+            creditsUsed += refinementResult.creditsUsed;
+            toolCallsCount += refinementResult.toolCallsCount;
 
-            // Calculate resource usage
-            const resourceUsage = this.calculateResourceUsage(
-                framework,
-                reasoningResult,
+            // LEGACY INTEGRATION: Create success result with legacy metadata patterns
+            return this.outputGenerator.createLegacyCompatibleSuccessResult(
+                refinementResult.outputs,
+                creditsUsed,
+                toolCallsCount,
                 Date.now() - startTime,
+                analysisResult,
+                planningResult,
+                refinementResult
             );
-
-            return {
-                success: true,
-                result: formattedOutputs,
-                metadata: {
-                    strategyType: this.type,
-                    executionTime: Date.now() - startTime,
-                    resourceUsage,
-                    confidence: reasoningResult.confidence,
-                    fallbackUsed: false,
-                },
-                feedback: {
-                    outcome: "success",
-                    performanceScore: this.calculatePerformanceScore(
-                        reasoningResult,
-                        validationResults,
-                    ),
-                    improvements: this.suggestImprovements(
-                        reasoningResult,
-                        validationResults,
-                    ),
-                },
-            };
 
         } catch (error) {
-            this.logger.error(`[ReasoningStrategy] Execution failed`, {
+            this.logger.error("[ReasoningStrategy] 4-phase execution failed", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Reasoning failed",
-                metadata: {
-                    strategyType: this.type,
-                    executionTime: Date.now() - startTime,
-                    resourceUsage: { computeTime: Date.now() - startTime },
-                    confidence: 0,
-                    fallbackUsed: false,
-                },
-                feedback: {
-                    outcome: "failure",
-                    performanceScore: 0,
-                    issues: [error instanceof Error ? error.message : "Unknown error"],
-                },
-            };
+            // LEGACY INTEGRATION: Enhanced error handling
+            return this.outputGenerator.createLegacyCompatibleErrorResult(
+                error as Error,
+                creditsUsed,
+                toolCallsCount,
+                Date.now() - startTime
+            );
         }
     }
 
@@ -189,26 +205,17 @@ export class ReasoningStrategy implements ExecutionStrategy {
     }
 
     /**
-     * Estimates resource requirements
+     * LEGACY INTEGRATION: Resource estimation using legacy cost model converted to ResourceUsage
      */
     estimateResources(context: ExecutionContext): ResourceUsage {
-        // Reasoning tasks need moderate resources
-        const baseTokens = 2000;
-        const complexityMultiplier = this.estimateComplexity(context) * 500;
-        
-        return {
-            tokens: baseTokens + complexityMultiplier,
-            apiCalls: 2, // Usually needs fact retrieval + reasoning
-            computeTime: 20000, // 20 seconds
-            cost: 0.05, // Moderate cost
-        };
+        return this.costEstimator.estimateResources(context);
     }
 
     /**
      * Learning method
      */
     learn(feedback: import("@vrooli/shared").StrategyFeedback): void {
-        this.logger.info(`[ReasoningStrategy] Learning from feedback`, {
+        this.logger.info("[ReasoningStrategy] Learning from feedback", {
             outcome: feedback.outcome,
             performance: feedback.performanceScore,
         });
@@ -232,7 +239,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
     }
 
     /**
-     * Private helper methods
+     * LEGACY INTEGRATION: Reasoning framework selection (preserved for new architecture compatibility)
      */
     private selectReasoningFramework(context: ExecutionContext): ReasoningFramework {
         const stepType = context.stepType.toLowerCase();
@@ -256,7 +263,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
         return this.createLogicalFramework(context);
     }
 
-    private createLogicalFramework(context: ExecutionContext): ReasoningFramework {
+    private createLogicalFramework(_context: ExecutionContext): ReasoningFramework {
         return {
             type: "logical",
             steps: [
@@ -285,7 +292,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
         };
     }
 
-    private createAnalyticalFramework(context: ExecutionContext): ReasoningFramework {
+    private createAnalyticalFramework(_context: ExecutionContext): ReasoningFramework {
         return {
             type: "analytical",
             steps: [
@@ -414,7 +421,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
         const reasoning: string[] = [];
         const evidence: Evidence[] = [];
         const assumptions: string[] = [];
-        let workingMemory = new Map(knowledgeBase);
+        const workingMemory = new Map(knowledgeBase);
 
         // Execute each step in the framework
         for (const step of framework.steps) {
@@ -456,7 +463,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
                          workingMemory.get("verdict") ||
                          workingMemory.get("insights");
 
-        const confidence = (workingMemory.get("confidence") as number) || 0.7;
+        const confidence = (workingMemory.get("confidence") as number) || this.CONFIDENCE_THRESHOLD;
 
         return {
             conclusion,
@@ -485,9 +492,281 @@ export class ReasoningStrategy implements ExecutionStrategy {
         inputs: Record<string, unknown>,
         context: ExecutionContext,
     ): Promise<Record<string, unknown>> {
-        // TODO: Implement actual reasoning logic
-        // For now, return simulated results based on step type
+        this.logger.debug("[ReasoningStrategy] Executing reasoning step", {
+            stepType: step.type,
+            description: step.description,
+        });
 
+        try {
+            // Build a reasoning prompt for the LLM
+            const prompt = this.buildReasoningPrompt(step, inputs, context);
+
+            // Prepare LLM request
+            const llmRequest = {
+                model: context.config.model as string || "gpt-4o-mini",
+                messages: [
+                    {
+                        role: "user" as const,
+                        content: prompt,
+                    },
+                ],
+                systemMessage: "You are an analytical reasoning assistant. Provide structured, logical analysis with clear justification for your conclusions.",
+                maxTokens: 1000,
+                temperature: 0.3, // Low temperature for consistent reasoning
+            };
+
+            // Get available resources
+            const availableResources = {
+                maxCredits: context.resources?.credits || 5000,
+                maxTokens: 1000,
+                maxTime: 15000,
+                tools: context.resources?.tools || [],
+            };
+
+            // Get user data
+            const userData = context.userId ? {
+                id: context.userId,
+                name: context.config.userName as string,
+            } : undefined;
+
+            // Execute LLM reasoning
+            const response = await this.llmService.executeRequest(
+                llmRequest,
+                availableResources,
+                userData,
+            );
+
+            // Parse the response into structured outputs
+            return this.parseReasoningResponse(response.content, step);
+
+        } catch (error) {
+            this.logger.warn("[ReasoningStrategy] LLM reasoning failed, using fallback", {
+                stepType: step.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            // Fallback to simulated reasoning
+            return this.getSimulatedReasoningResult(step, inputs);
+        }
+    }
+
+    private buildReasoningPrompt(
+        step: ReasoningStep,
+        inputs: Record<string, unknown>,
+        context: ExecutionContext,
+    ): string {
+        const parts: string[] = [];
+
+        // Add step description and goal
+        parts.push(`Task: ${step.description}`);
+        parts.push(`Goal: ${step.type.replace(/_/g, " ")}`);
+
+        // Add available inputs
+        parts.push("Available Information:");
+        for (const [key, value] of Object.entries(inputs)) {
+            if (value !== undefined && value !== null) {
+                parts.push(`- ${key}: ${JSON.stringify(value)}`);
+            }
+        }
+
+        // Add context if relevant
+        if (context.inputs && Object.keys(context.inputs).length > 0) {
+            parts.push("Original Context:");
+            for (const [key, value] of Object.entries(context.inputs)) {
+                parts.push(`- ${key}: ${JSON.stringify(value)}`);
+            }
+        }
+
+        // Add specific instructions based on step type
+        parts.push(this.getStepSpecificInstructions(step));
+
+        // Request structured output
+        parts.push("Provide your analysis in a structured format with clear reasoning.");
+
+        return parts.join("\n\n");
+    }
+
+    private getStepSpecificInstructions(step: ReasoningStep): string {
+        switch (step.type) {
+            case "identify_premises":
+                return "Instructions:\n1. Identify the key premises from the available information\n2. List any assumptions being made\n3. Note any missing information that might be needed";
+
+            case "apply_rules":
+                return "Instructions:\n1. Apply logical rules to the premises\n2. Make valid inferences\n3. Avoid logical fallacies";
+
+            case "draw_conclusion":
+                return "Instructions:\n1. Synthesize the inferences into a clear conclusion\n2. Assess your confidence level (0.0-1.0)\n3. Justify your reasoning";
+
+            case "gather_data":
+                return "Instructions:\n1. Extract relevant data points\n2. Assess the relevance of each data point\n3. Identify any data quality issues";
+
+            case "analyze_patterns":
+                return "Instructions:\n1. Look for patterns in the data\n2. Identify any anomalies or outliers\n3. Assess the significance of patterns found";
+
+            default:
+                return "Instructions:\nAnalyze the information systematically and provide clear, logical reasoning.";
+        }
+    }
+
+    private parseReasoningResponse(content: string, step: ReasoningStep): Record<string, unknown> {
+        try {
+            // Try to extract structured information from the response
+            const result: Record<string, unknown> = {};
+
+            // Basic parsing for different step types
+            switch (step.type) {
+                case "identify_premises": {
+                    const premises = this.extractListFromText(content, ["premise", "given", "fact"]);
+                    const assumptions = this.extractListFromText(content, ["assumption", "assume", "presuming"]);
+                    result.premises = premises;
+                    result.assumptions = assumptions;
+                    break;
+                }
+
+                case "apply_rules": {
+                    const inferences = this.extractListFromText(content, ["inference", "therefore", "conclude", "implies"]);
+                    result.inferences = inferences;
+                    break;
+                }
+
+                case "draw_conclusion": {
+                    result.conclusion = this.extractConclusion(content);
+                    result.confidence = this.extractConfidence(content);
+                    break;
+                }
+
+                case "gather_data": {
+                    result.data_points = this.extractDataPoints(content);
+                    break;
+                }
+
+                case "analyze_patterns": {
+                    const patterns = this.extractListFromText(content, ["pattern", "trend", "consistent"]);
+                    const anomalies = this.extractListFromText(content, ["anomaly", "outlier", "unusual", "exception"]);
+                    result.patterns = patterns;
+                    result.anomalies = anomalies;
+                    break;
+                }
+
+                default:
+                    result.result = content;
+                    result.reasoning = content;
+            }
+
+            return result;
+
+        } catch (error) {
+            this.logger.warn("[ReasoningStrategy] Failed to parse reasoning response", {
+                stepType: step.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            // Return the raw content if parsing fails
+            return { result: content, reasoning: content };
+        }
+    }
+
+    private extractListFromText(text: string, keywords: string[]): string[] {
+        const items: string[] = [];
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            
+            // Look for bullet points or numbered lists
+            if (trimmed.match(/^[-*•]\s+/) || trimmed.match(/^\d+\.\s+/)) {
+                const content = trimmed.replace(/^[-*•]\s+/, "").replace(/^\d+\.\s+/, "");
+                
+                // Check if this item relates to our keywords
+                const lowerContent = content.toLowerCase();
+                if (keywords.some(keyword => lowerContent.includes(keyword)) || items.length === 0) {
+                    items.push(content);
+                }
+            }
+        }
+
+        return items.length > 0 ? items : [text.trim()];
+    }
+
+    private extractConclusion(text: string): string {
+        // Look for conclusion indicators
+        const conclusionPatterns = [
+            /conclusion:?\s*(.+)/i,
+            /therefore,?\s*(.+)/i,
+            /in conclusion,?\s*(.+)/i,
+            /the result is:?\s*(.+)/i,
+        ];
+
+        for (const pattern of conclusionPatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                return match[1].trim();
+            }
+        }
+
+        // Fallback: use the last sentence or paragraph
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        return sentences[sentences.length - 1]?.trim() || text.trim();
+    }
+
+    private extractConfidence(text: string): number {
+        // Look for confidence indicators
+        const confidencePatterns = [
+            /confidence:?\s*([0-9.]+)/i,
+            /([0-9.]+)\s*confidence/i,
+            /([0-9]{1,3})%/,
+        ];
+
+        for (const pattern of confidencePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                const value = parseFloat(match[1]);
+                return value > 1 ? value / 100 : value; // Convert percentage if needed
+            }
+        }
+
+        // Heuristic based on language
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes("certain") || lowerText.includes("definite")) {
+            return 0.9;
+        } else if (lowerText.includes("likely") || lowerText.includes("probable")) {
+            return 0.7;
+        } else if (lowerText.includes("possible") || lowerText.includes("might")) {
+            return 0.5;
+        } else if (lowerText.includes("uncertain") || lowerText.includes("unclear")) {
+            return 0.3;
+        }
+
+        return 0.7; // Default confidence
+    }
+
+    private extractDataPoints(text: string): Array<{ key: string; value: unknown; relevance: number }> {
+        const dataPoints: Array<{ key: string; value: unknown; relevance: number }> = [];
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            
+            // Look for key-value patterns
+            const kvMatch = trimmed.match(/(.+?):\s*(.+)/);
+            if (kvMatch) {
+                dataPoints.push({
+                    key: kvMatch[1].trim(),
+                    value: kvMatch[2].trim(),
+                    relevance: 0.8, // Default relevance
+                });
+            }
+        }
+
+        return dataPoints.length > 0 ? dataPoints : [{
+            key: "analysis",
+            value: text.trim(),
+            relevance: 0.7,
+        }];
+    }
+
+    private getSimulatedReasoningResult(step: ReasoningStep, inputs: Record<string, unknown>): Record<string, unknown> {
+        // Fallback to original simulation logic
         switch (step.type) {
             case "identify_premises":
                 return {
@@ -661,21 +940,21 @@ export class ReasoningStrategy implements ExecutionStrategy {
         result: ReasoningResult,
         validations: ValidationResult[],
     ): number {
-        let score = 0.6; // Base score
+        let score = this.BASE_SCORE; // Base score
 
         // Confidence contribution
-        score += result.confidence * 0.2;
+        score += result.confidence * this.SCORING_FACTOR;
 
         // Validation contribution
         const validationScore = validations.filter(v => v.passed).length / validations.length;
-        score += validationScore * 0.1;
+        score += validationScore * this.PENALTY_FACTOR;
 
         // Evidence quality contribution
         if (result.evidence.length > 0) {
             const avgEvidenceConfidence = result.evidence.reduce(
-                (sum, e) => sum + e.confidence, 0
+                (sum, e) => sum + e.confidence, 0,
             ) / result.evidence.length;
-            score += avgEvidenceConfidence * 0.1;
+            score += avgEvidenceConfidence * this.PENALTY_FACTOR;
         }
 
         return Math.min(1, score);
@@ -694,7 +973,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
         }
 
         // Check confidence
-        if (result.confidence < 0.7) {
+        if (result.confidence < this.CONFIDENCE_THRESHOLD) {
             improvements.push("Gather more evidence to increase confidence");
         }
 
@@ -710,15 +989,17 @@ export class ReasoningStrategy implements ExecutionStrategy {
         let complexity = 1;
 
         // More inputs = more complex
-        complexity += Object.keys(context.inputs).length * 0.1;
+        complexity += Object.keys(context.inputs).length * this.PENALTY_FACTOR;
 
         // More constraints = more complex
         if (context.constraints.requiredConfidence) {
-            complexity += 0.5;
+            complexity += this.CONSTRAINT_COMPLEXITY;
         }
 
         // Historical context adds complexity
-        complexity += Math.min(context.history.recentSteps.length * 0.1, 0.5);
+        const HISTORY_COMPLEXITY_WEIGHT = 0.1;
+        const MAX_HISTORY_COMPLEXITY = 0.5;
+        complexity += Math.min(context.history.recentSteps.length * HISTORY_COMPLEXITY_WEIGHT, MAX_HISTORY_COMPLEXITY);
 
         return Math.min(complexity, 3); // Cap at 3x
     }

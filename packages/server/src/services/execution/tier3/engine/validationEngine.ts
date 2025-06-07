@@ -220,7 +220,7 @@ export class ValidationEngine {
 
             if (!valid) {
                 const errors = validate.errors?.map(err => 
-                    `${err.instancePath} ${err.message}`
+                    `${err.instancePath} ${err.message}`,
                 ) || ["Schema validation failed"];
 
                 return {
@@ -364,8 +364,8 @@ export class ValidationEngine {
         obj: any,
         path: string,
         issues: string[],
-        maxStringLength: number = 10000,
-        maxArrayLength: number = 1000,
+        maxStringLength = 10000,
+        maxArrayLength = 1000,
     ): void {
         if (typeof obj === "string" && obj.length > maxStringLength) {
             issues.push(`String too long at ${path} (${obj.length} chars)`);

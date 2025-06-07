@@ -50,7 +50,7 @@ export class ResourceManager {
     private readonly logger: Logger;
     
     // Global resource pools (would be loaded from config/database in production)
-    private globalCredits: number = 1000000; // Total credits available
+    private globalCredits = 1000000; // Total credits available
     private globalRateLimits: Map<string, RateLimit> = new Map();
 
     constructor(logger: Logger) {
@@ -92,7 +92,7 @@ export class ResourceManager {
         const requiredModels = this.extractRequiredModels(constraints);
         const availableModels = available.models.filter(m => m.available);
         const hasRequiredModels = requiredModels.every(req => 
-            availableModels.some(avail => avail.model === req)
+            availableModels.some(avail => avail.model === req),
         );
 
         if (!hasRequiredModels) {
@@ -116,7 +116,7 @@ export class ResourceManager {
 
         this.allocations.set(reservationId, allocation);
 
-        this.logger.debug(`[ResourceManager] Budget reserved`, {
+        this.logger.debug("[ResourceManager] Budget reserved", {
             reservationId,
             credits: available.credits,
             timeLimit: available.timeLimit,
@@ -150,7 +150,7 @@ export class ResourceManager {
 
         // Check if usage exceeds reservation
         if (this.isUsageExceeded(allocation)) {
-            this.logger.warn(`[ResourceManager] Usage exceeded reservation`, {
+            this.logger.warn("[ResourceManager] Usage exceeded reservation", {
                 stepId,
                 used: allocation.used,
                 reserved: allocation.reserved,
@@ -192,7 +192,7 @@ export class ResourceManager {
             computeTime: allocation.endTime - allocation.startTime,
         };
 
-        this.logger.info(`[ResourceManager] Finalized usage`, {
+        this.logger.info("[ResourceManager] Finalized usage", {
             reservationId,
             duration: report.computeTime,
             cost: report.cost,
@@ -238,7 +238,7 @@ export class ResourceManager {
      */
     configureChildAllocation(
         parentAllocation: AvailableResources,
-        allocationRatio: number = 0.3,
+        allocationRatio = 0.3,
     ): AvailableResources {
         return {
             models: parentAllocation.models,

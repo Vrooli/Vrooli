@@ -15,6 +15,9 @@
  * - Telemetry: Performance and safety event emission
  */
 
+// Main executor
+export { TierThreeExecutor } from "./TierThreeExecutor.js";
+
 // Core executor
 export { UnifiedExecutor } from "./engine/unifiedExecutor.js";
 export type { UnifiedExecutorConfig } from "@vrooli/shared";

@@ -3,18 +3,20 @@
  * Provides reliable event-driven communication between tiers
  */
 
-import { Redis } from "ioredis";
-import { 
+import type { Redis } from "ioredis";
+import type { 
     IEventBus, 
     BaseEvent, 
     EventSubscription, 
     EventQuery,
+} from "@vrooli/shared";
+import {
     EventFilterUtils,
     EventValidator,
-    EventSanitizer
-} from "@local/shared";
-import { logger } from "../../../../events/logger";
-import { getRedisConnection } from "../../../../redisConn";
+    EventSanitizer,
+} from "@vrooli/shared";
+import { logger } from "../../../../events/logger.js";
+import { getRedisConnection } from "../../../../redisConn.js";
 
 /**
  * Redis-based event bus implementation
@@ -32,7 +34,13 @@ export class RedisEventBus implements IEventBus {
     private readonly CONSUMER_GROUP = "execution-consumers";
     private readonly CONSUMER_NAME = `consumer-${process.pid}`;
     
-    constructor() {}
+    // Timing constants
+    private readonly BLOCK_TIMEOUT_MS = 1000; // 1 second block timeout
+    private readonly CONSUMER_BATCH_SIZE = 10; // Events per batch
+    
+    constructor() {
+        // Initialize event bus
+    }
     
     async start(): Promise<void> {
         if (this.running) {
@@ -92,7 +100,7 @@ export class RedisEventBus implements IEventBus {
         const validation = this.validator.validate(event);
         if (!validation.valid) {
             throw new Error(
-                `Invalid event: ${validation.errors.map(e => e.message).join(", ")}`
+                `Invalid event: ${validation.errors.map(e => e.message).join(", ")}`,
             );
         }
         
@@ -105,7 +113,7 @@ export class RedisEventBus implements IEventBus {
             this.STREAM_KEY,
             "*",
             "event",
-            eventData
+            eventData,
         );
         
         logger.debug("Event published", { 
@@ -130,8 +138,8 @@ export class RedisEventBus implements IEventBus {
         if (invalid.length > 0) {
             throw new Error(
                 `Invalid events: ${invalid.map(r => 
-                    r.validation.errors.map(e => e.message).join(", ")
-                ).join("; ")}`
+                    r.validation.errors.map(e => e.message).join(", "),
+                ).join("; ")}`,
             );
         }
         
@@ -145,7 +153,7 @@ export class RedisEventBus implements IEventBus {
                 this.STREAM_KEY,
                 "*",
                 "event",
-                eventData
+                eventData,
             );
         }
         
@@ -216,7 +224,7 @@ export class RedisEventBus implements IEventBus {
             startTime === "-" ? "-" : startTime.getTime().toString(),
             endTime === "+" ? "+" : endTime.getTime().toString(),
             "COUNT",
-            query.limit || 100
+            query.limit || 100,
         );
         
         // Parse events and apply filters
@@ -266,10 +274,10 @@ export class RedisEventBus implements IEventBus {
             try {
                 // Read new events
                 const entries = await this.subscriber.xread(
-                    "BLOCK", 1000, // Block for 1 second
+                    "BLOCK", this.BLOCK_TIMEOUT_MS.toString(),
                     "STREAMS",
                     this.STREAM_KEY,
-                    lastId
+                    lastId,
                 );
                 
                 if (!entries || entries.length === 0) {
@@ -317,7 +325,7 @@ export class RedisEventBus implements IEventBus {
                 this.STREAM_KEY,
                 this.CONSUMER_GROUP,
                 "$",
-                "MKSTREAM"
+                "MKSTREAM",
             );
             logger.info("Consumer group created", { group: this.CONSUMER_GROUP });
         } catch (error: any) {
@@ -347,11 +355,11 @@ export class RedisEventBus implements IEventBus {
                     "GROUP",
                     this.CONSUMER_GROUP,
                     this.CONSUMER_NAME,
-                    "BLOCK", 1000,
-                    "COUNT", 10,
+                    "BLOCK", this.BLOCK_TIMEOUT_MS.toString(),
+                    "COUNT", this.CONSUMER_BATCH_SIZE.toString(),
                     "STREAMS",
                     this.STREAM_KEY,
-                    ">"
+                    ">",
                 );
                 
                 if (!entries || entries.length === 0) {
@@ -373,7 +381,7 @@ export class RedisEventBus implements IEventBus {
                             await this.subscriber.xack(
                                 this.STREAM_KEY,
                                 this.CONSUMER_GROUP,
-                                id
+                                id,
                             );
                         }
                     } catch (error) {
@@ -399,7 +407,7 @@ export class RedisEventBus implements IEventBus {
                         eventId: event.id,
                         error,
                     });
-                })
+                }),
             );
         }
         

@@ -9,7 +9,7 @@ import {
     RunEventType as RunEventTypeEnum,
     generatePk,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/eventBus.js";
 import { type StepExecutor } from "./stepExecutor.js";
 
 /**
@@ -141,7 +141,7 @@ export class BranchCoordinator {
 
         // Start all branches
         const branchPromises = branches.map(branch => 
-            this.executeSingleBranch(run, branch, navigator, stepExecutor)
+            this.executeSingleBranch(run, branch, navigator, stepExecutor),
         );
 
         // Wait for all to complete
