@@ -12,12 +12,12 @@ const validIds = {
     id8: "123456789012345685",
 };
 
-// Valid public IDs for testing (8-character alphanumeric)
+// Valid public IDs for testing (10-12 character alphanumeric)
 const validPublicIds = {
-    pub1: "abc12345",
-    pub2: "def67890",
-    pub3: "ghi13579",
-    pub4: "jkl24680",
+    pub1: "abc1234567",
+    pub2: "def6789012",
+    pub3: "ghi1357913",
+    pub4: "jkl2468024",
 };
 
 // Shared resource test fixtures

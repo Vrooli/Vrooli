@@ -11,9 +11,12 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { id } from "../utils/commonFields.js";
 import { maxStrErr, minStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { COMMENT_TEXT_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const createdFor = enumToYup(CommentFor);
-const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
+function createdFor() {
+    return enumToYup(CommentFor);
+}
+const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(COMMENT_TEXT_MAX_LENGTH, maxStrErr);
 
 export const commentTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -27,7 +30,7 @@ export const commentTranslationValidation: YupModel<["create", "update"]> = tran
 export const commentValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        createdFor: req(createdFor),
+        createdFor: req(createdFor()),
     }, [
         ["for", ["Connect"], "one", "req"],
         ["parent", ["Connect"], "one", "opt"],

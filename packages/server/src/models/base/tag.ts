@@ -1,4 +1,4 @@
-import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
+import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";

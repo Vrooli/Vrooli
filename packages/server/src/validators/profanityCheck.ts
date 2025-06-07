@@ -1,4 +1,4 @@
-import { type ModelType } from "@local/shared";
+import { type ModelType } from "@vrooli/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";

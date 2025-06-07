@@ -1,4 +1,4 @@
-import { type PullRequest, type PullRequestTranslation, type PullRequestYou } from "@local/shared";
+import { type PullRequest, type PullRequestTranslation, type PullRequestYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

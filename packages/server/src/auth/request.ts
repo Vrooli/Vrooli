@@ -1,4 +1,4 @@
-import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, type SessionUser } from "@local/shared";
+import { ApiKeyPermission, DAYS_1_S, DEFAULT_LANGUAGE, type SessionUser } from "@vrooli/shared";
 import { type Request } from "express";
 import fs from "fs";
 import { type Cluster, type Redis } from "ioredis";

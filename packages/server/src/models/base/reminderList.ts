@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, reminderListValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, reminderListValidation } from "@vrooli/shared";
 import i18next from "i18next";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

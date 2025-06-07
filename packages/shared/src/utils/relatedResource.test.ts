@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink, type ResourceVersionLike } from "./relatedResource.js";
 
 describe("RelatedResourceUtils", () => {

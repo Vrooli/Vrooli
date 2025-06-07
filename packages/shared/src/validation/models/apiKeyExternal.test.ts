@@ -1,8 +1,8 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { apiKeyExternalValidation } from "./apiKeyExternal.js";
 import { apiKeyExternalFixtures } from "./__test__/fixtures/apiKeyExternalFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { API_KEY_EXTERNAL_MAX_LENGTH, NAME_MAX_LENGTH } from "./utils/validationConstants.js";
 
 describe("apiKeyExternalValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -36,7 +36,7 @@ describe("apiKeyExternalValidation", () => {
                         description: "bearer token format",
                     },
                     {
-                        data: { ...apiKeyExternalFixtures.minimal.create, key: "a".repeat(255) },
+                        data: { ...apiKeyExternalFixtures.minimal.create, key: "a".repeat(API_KEY_EXTERNAL_MAX_LENGTH) },
                         shouldPass: true,
                         description: "maximum length key",
                     },
@@ -144,7 +144,7 @@ describe("apiKeyExternalValidation", () => {
                         description: "detailed name with symbols",
                     },
                     {
-                        data: { ...apiKeyExternalFixtures.minimal.create, name: "a".repeat(50) },
+                        data: { ...apiKeyExternalFixtures.minimal.create, name: "a".repeat(NAME_MAX_LENGTH) },
                         shouldPass: true,
                         description: "maximum length name",
                     },

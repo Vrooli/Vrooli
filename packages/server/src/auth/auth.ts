@@ -1,5 +1,5 @@
-import type { SessionUser } from "@local/shared";
-import { type ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS } from "@local/shared";
+import type { SessionUser } from "@vrooli/shared";
+import { type ApiKeyPermission, COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS } from "@vrooli/shared";
 import cookie from "cookie";
 import type { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";

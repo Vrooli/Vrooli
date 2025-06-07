@@ -1,4 +1,4 @@
-import { ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -14,33 +14,41 @@ const validIds = {
 };
 
 // Helper to create valid message config
-const createValidConfig = (overrides = {}) => ({
-    __version: "1.0.0",
-    resources: [],
-    ...overrides,
-});
+function createValidConfig(overrides = {}) {
+    return {
+        __version: "1.0.0",
+        resources: [],
+        ...overrides,
+    };
+}
 
 // Helper for tool function calls
-const createToolCall = (overrides = {}) => ({
-    id: validIds.toolCallId1,
-    function: {
-        name: "test_function",
-        arguments: JSON.stringify({ param: "value" }),
-    },
-    ...overrides,
-});
+function createToolCall(overrides = {}) {
+    return {
+        id: validIds.toolCallId1,
+        function: {
+            name: "test_function",
+            arguments: JSON.stringify({ param: "value" }),
+        },
+        ...overrides,
+    };
+}
 
 // Helper for successful tool result
-const createSuccessResult = (output = "success output") => ({
-    success: true,
-    output,
-});
+function createSuccessResult(output = "success output") {
+    return {
+        success: true,
+        output,
+    };
+}
 
 // Helper for error tool result
-const createErrorResult = (code = "ERROR_CODE", message = "Error message") => ({
-    success: false,
-    error: { code, message },
-});
+function createErrorResult(code = "ERROR_CODE", message = "Error message") {
+    return {
+        success: false,
+        error: { code, message },
+    };
+}
 
 // Shared chatMessage test fixtures
 export const chatMessageFixtures: ModelTestFixtures = {

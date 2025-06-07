@@ -1,4 +1,4 @@
-import { type VersionYou } from "@local/shared";
+import { type VersionYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const versionYou: ApiPartial<VersionYou> = {

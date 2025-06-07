@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { DEFAULT_LANGUAGE, type SessionUser, generatePK } from "@local/shared";
-import { expect } from "chai";
+import { DEFAULT_LANGUAGE, type SessionUser, generatePK } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { type Request } from "express";
 import type { Cluster, Redis } from "ioredis";
 import sinon from "sinon";
@@ -17,14 +17,14 @@ describe("RequestService", () => {
     let loggerInfoStub: sinon.SinonStub;
     let redisClient: Redis | Cluster | null = null;
 
-    before(async function before() {
+    beforeAll(async function beforeAll() {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
 
         redisClient = await CacheService.get().raw();
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         loggerErrorStub.restore();
         loggerInfoStub.restore();
 

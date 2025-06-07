@@ -1,4 +1,4 @@
-import { type Success, type TaskStatus, type TaskStatusInfo } from "@local/shared";
+import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
 import { QueueService } from "../queues.js";
 import { QueueTaskType, type SandboxTask } from "../taskTypes.js";
 

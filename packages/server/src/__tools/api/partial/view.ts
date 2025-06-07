@@ -1,4 +1,4 @@
-import { type View } from "@local/shared";
+import { type View } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

@@ -1,4 +1,5 @@
-import { ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH, NAME_MAX_LENGTH } from "../../utils/validationConstants.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -118,9 +119,9 @@ export const apiKeyExternalFixtures: ModelTestFixtures = {
         maxLengthStrings: {
             create: {
                 id: validIds.id1,
-                key: "a".repeat(255), // Exactly at max length
-                name: "a".repeat(50), // At name max length
-                service: "a".repeat(128), // Exactly at max length
+                key: "a".repeat(API_KEY_EXTERNAL_MAX_LENGTH), // Exactly at max length
+                name: "a".repeat(NAME_MAX_LENGTH), // At name max length
+                service: "a".repeat(API_KEY_SERVICE_MAX_LENGTH), // Exactly at max length
             },
         },
         differentServices: {

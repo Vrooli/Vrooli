@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { DUMMY_ID, type ChatMessage } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { act } from "react";
 import sinon from "sinon";
 import { MessageTree, useMessageTree, type MessageNode, type MinimumChatMessage } from "./messages.js";
@@ -874,7 +874,7 @@ describe("useMessageTree", () => {
     let consoleErrorStub: sinon.SinonStub;
     let consoleWarnStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
         consoleWarnStub = sinon.stub(console, "warn");
     });
@@ -884,7 +884,7 @@ describe("useMessageTree", () => {
         consoleWarnStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
         consoleWarnStub.restore();
     });

@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import * as yup from "yup";
 import { opt, req } from "./builders/optionality.js";
 import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, bigIntString, bool, config, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, minVersionTest, newEndTime, newStartTime, originalStartTime, publicId, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields.js";

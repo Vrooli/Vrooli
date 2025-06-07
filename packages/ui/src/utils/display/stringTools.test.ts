@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { displayDate, firstString, fontSizeToPixels, generateContext } from "./stringTools.js";
 
 describe("firstString", () => {
@@ -58,7 +58,7 @@ describe("displayDate", () => {
     const originalDate = global.Date;
     const originalNavigator = global.navigator;
 
-    before(() => {
+    beforeAll(() => {
         // Mock the current date
         const mockCurrentDate = new Date("2022-01-01T10:00:00Z");
         const RealDate = Date;
@@ -81,7 +81,7 @@ describe("displayDate", () => {
         Object.defineProperty(global.navigator, "language", { value: "en-US", configurable: true });
     });
 
-    after(() => {
+    afterAll(() => {
         // Restore the original Date and navigator objects
         global.Date = originalDate;
         global.navigator = originalNavigator;
@@ -227,14 +227,14 @@ describe("displayDate", () => {
 describe("fontSizeToPixels", () => {
     const originalGetComputedStyle = window.getComputedStyle;
 
-    before(() => {
+    beforeAll(() => {
         // Define a mock for getComputedStyle that returns a consistent fontSize
         window.getComputedStyle = () => ({
             fontSize: "16px",
         } as CSSStyleDeclaration);
     });
 
-    after(() => {
+    afterAll(() => {
         // Restore the original getComputedStyle function
         window.getComputedStyle = originalGetComputedStyle;
     });

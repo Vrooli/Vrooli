@@ -1,6 +1,6 @@
-import { expect } from "chai";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { stub } from "sinon";
-import { noopSubmit } from "./noop.js";
+import { noopSubmit, noop, noopAsync, funcTrue, funcFalse, preventFormSubmit } from "./noop.js";
 
 describe("noop utilities", () => {
     describe("noopSubmit", () => {
@@ -129,6 +129,179 @@ describe("noop utilities", () => {
             expect(setSubmittingStub.calledTwice).to.be.true;
             expect(consoleWarnStub.firstCall.args[1]).to.deep.equal(values1);
             expect(consoleWarnStub.secondCall.args[1]).to.deep.equal(values2);
+        });
+    });
+
+    describe("noop", () => {
+        let consoleWarnSpy: any;
+
+        beforeEach(() => {
+            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+                // Mock implementation
+            });
+        });
+
+        afterEach(() => {
+            consoleWarnSpy.mockRestore();
+        });
+
+        it("should call console.warn with 'Noop called'", () => {
+            noop();
+            expect(consoleWarnSpy).toHaveBeenCalledWith("Noop called");
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it("should be callable multiple times", () => {
+            noop();
+            noop();
+            noop();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
+            expect(consoleWarnSpy).toHaveBeenCalledWith("Noop called");
+        });
+
+        it("should return undefined", () => {
+            const result = noop();
+            expect(result).toBeUndefined();
+        });
+    });
+
+    describe("noopAsync", () => {
+        let consoleWarnSpy: any;
+
+        beforeEach(() => {
+            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+                // Mock implementation
+            });
+        });
+
+        afterEach(() => {
+            consoleWarnSpy.mockRestore();
+        });
+
+        it("should be an async function", () => {
+            const result = noopAsync();
+            expect(result).toBeInstanceOf(Promise);
+        });
+
+        it("should call console.warn with 'NoopAsync called'", async () => {
+            await noopAsync();
+            expect(consoleWarnSpy).toHaveBeenCalledWith("NoopAsync called");
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it("should resolve to undefined", async () => {
+            const result = await noopAsync();
+            expect(result).toBeUndefined();
+        });
+
+        it("should be callable multiple times", async () => {
+            await noopAsync();
+            await noopAsync();
+            expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+            expect(consoleWarnSpy).toHaveBeenCalledWith("NoopAsync called");
+        });
+    });
+
+    describe("funcTrue", () => {
+        it("should always return true", () => {
+            expect(funcTrue()).toBe(true);
+            expect(funcTrue()).toBe(true);
+            expect(funcTrue()).toBe(true);
+        });
+
+        it("should return boolean type", () => {
+            const result = funcTrue();
+            expect(typeof result).toBe("boolean");
+        });
+
+        it("should be idempotent", () => {
+            const results = Array.from({ length: 100 }, () => funcTrue());
+            expect(results.every(result => result === true)).toBe(true);
+        });
+    });
+
+    describe("funcFalse", () => {
+        it("should always return false", () => {
+            expect(funcFalse()).toBe(false);
+            expect(funcFalse()).toBe(false);
+            expect(funcFalse()).toBe(false);
+        });
+
+        it("should return boolean type", () => {
+            const result = funcFalse();
+            expect(typeof result).toBe("boolean");
+        });
+
+        it("should be idempotent", () => {
+            const results = Array.from({ length: 100 }, () => funcFalse());
+            expect(results.every(result => result === false)).toBe(true);
+        });
+    });
+
+    describe("preventFormSubmit", () => {
+        let consoleLogSpy: any;
+        let mockEvent: any;
+
+        beforeEach(() => {
+            consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
+                // Mock implementation
+            });
+            mockEvent = {
+                preventDefault: vi.fn(),
+                stopPropagation: vi.fn(),
+            };
+        });
+
+        afterEach(() => {
+            consoleLogSpy.mockRestore();
+        });
+
+        it("should call console.log with 'in preventFormSubmit'", () => {
+            preventFormSubmit(mockEvent);
+            expect(consoleLogSpy).toHaveBeenCalledWith("in preventFormSubmit");
+            expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it("should call preventDefault on the event", () => {
+            preventFormSubmit(mockEvent);
+            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+        });
+
+        it("should call stopPropagation on the event", () => {
+            preventFormSubmit(mockEvent);
+            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+        });
+
+        it("should call both preventDefault and stopPropagation", () => {
+            preventFormSubmit(mockEvent);
+            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
+        });
+
+        it("should handle multiple calls", () => {
+            preventFormSubmit(mockEvent);
+            preventFormSubmit(mockEvent);
+            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(2);
+            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(2);
+            expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it("should work with real DOM event-like objects", () => {
+            const realEvent = {
+                preventDefault: vi.fn(),
+                stopPropagation: vi.fn(),
+                type: "submit",
+                target: {},
+            };
+
+            preventFormSubmit(realEvent);
+            expect(realEvent.preventDefault).toHaveBeenCalledTimes(1);
+            expect(realEvent.stopPropagation).toHaveBeenCalledTimes(1);
+        });
+
+        it("should return undefined", () => {
+            const result = preventFormSubmit(mockEvent);
+            expect(result).toBeUndefined();
         });
     });
 });

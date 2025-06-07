@@ -1,4 +1,4 @@
-import { type NotificationSettings, type NotificationSettingsUpdateInput } from "@local/shared";
+import { type NotificationSettings, type NotificationSettingsUpdateInput } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { DbProvider } from "../db/provider.js";
 import { parseJsonOrDefault } from "../utils/objectTools.js";

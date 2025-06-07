@@ -1,4 +1,4 @@
-import { type SessionUser } from "@local/shared";
+import { type SessionUser } from "@vrooli/shared";
 
 type ConnectOwnerInput = {
     userConnect?: string | null | undefined;

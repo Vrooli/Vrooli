@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { resourceVersionRelationValidation } from "./resourceVersionRelation.js";
 import { resourceVersionRelationFixtures } from "./__test__/fixtures/resourceVersionRelationFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -374,7 +373,7 @@ describe("resourceVersionRelationValidation", () => {
 
     describe("id validation", () => {
         const createSchema = resourceVersionRelationValidation.create({ omitFields: [] });
-        const updateSchema = resourceVersionRelationValidation.update({ omitFields: [] });
+
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [
@@ -454,7 +453,7 @@ describe("resourceVersionRelationValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = resourceVersionRelationValidation.create({ omitFields: [] });
-        const updateSchema = resourceVersionRelationValidation.update({ omitFields: [] });
+
 
         it("should handle minimal relation creation", async () => {
             await testValidation(

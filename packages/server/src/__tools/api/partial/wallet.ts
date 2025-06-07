@@ -1,4 +1,4 @@
-import { type Wallet, type WalletComplete, type WalletInit } from "@local/shared";
+import { type Wallet, type WalletComplete, type WalletInit } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

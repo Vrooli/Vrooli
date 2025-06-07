@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { apiKeyValidation } from "./apiKey.js";
 import { apiKeyFixtures, apiKeyTestDataFactory } from "./__test__/fixtures/apiKeyFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -388,7 +388,7 @@ describe("apiKeyValidation", () => {
             const data = apiKeyTestDataFactory.createComplete();
             expect(data).to.have.all.keys(
                 "id", "disabled", "limitHard", "limitSoft", 
-                "name", "stopAtLimit", "absoluteMax", "permissions"
+                "name", "stopAtLimit", "absoluteMax", "permissions",
             );
         });
 

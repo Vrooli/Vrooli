@@ -1,4 +1,4 @@
-import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@local/shared";
+import { type ChatMessage, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, ChatMessageSortBy, chatMessageValidation, DEFAULT_LANGUAGE, generatePK, MaxObjects, type TaskContextInfo, validatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { type Request } from "express";
 import { SessionService } from "../../auth/session.js";

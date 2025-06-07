@@ -1,4 +1,4 @@
-import { type Wallet, type WalletUpdateInput } from "@local/shared";
+import { type Wallet, type WalletUpdateInput } from "@vrooli/shared";
 import { updateOneHelper } from "../../actions/updates.js";
 import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";

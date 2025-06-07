@@ -1,4 +1,4 @@
-import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type TeamConfigObject, type User } from "@local/shared";
+import { BotConfig, ChatConfig, LRUCache, MINUTES_1_S, type ChatConfigObject, type TeamConfigObject, type User } from "@vrooli/shared";
 import { type Prisma, type user } from "@prisma/client";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";

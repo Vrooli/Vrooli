@@ -1,4 +1,4 @@
-// import { AUTH_ROUTE_PREFIX, OAUTH_PROVIDERS, getOAuthCallbackRoute, getOAuthInitRoute } from "@local/shared";
+// import { AUTH_ROUTE_PREFIX, OAUTH_PROVIDERS, getOAuthCallbackRoute, getOAuthInitRoute } from "@vrooli/shared";
 // import pkg from "@prisma/client";
 // import { Request, Response } from "express";
 // import passport from "passport";

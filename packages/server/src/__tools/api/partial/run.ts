@@ -1,4 +1,4 @@
-import { type Run, type RunYou } from "@local/shared";
+import { type Run, type RunYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

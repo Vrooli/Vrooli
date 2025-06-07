@@ -1,4 +1,4 @@
-import { ApiKeyPermission, HttpStatus } from "@local/shared";
+import { ApiKeyPermission, HttpStatus } from "@vrooli/shared";
 import { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type ServerResult } from "@modelcontextprotocol/sdk/types.js";
 import { type Express } from "express";

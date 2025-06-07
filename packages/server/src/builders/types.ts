@@ -1,4 +1,4 @@
-import { type ModelType, type OrArray, type PageInfo, type TimeFrame, type VisibilityType } from "@local/shared";
+import { type ModelType, type OrArray, type PageInfo, type TimeFrame, type VisibilityType } from "@vrooli/shared";
 import { type RequestService } from "../auth/request.js";
 
 /**

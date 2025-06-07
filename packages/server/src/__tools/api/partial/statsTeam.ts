@@ -1,4 +1,4 @@
-import { type StatsTeam } from "@local/shared";
+import { type StatsTeam } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const statsTeam: ApiPartial<StatsTeam> = {

@@ -1,4 +1,4 @@
-import { type CopyResult } from "@local/shared";
+import { type CopyResult } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

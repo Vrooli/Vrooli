@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { teamValidation, teamTranslationValidation } from "./team.js";
 import { teamFixtures } from "./__test__/fixtures/teamFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -463,7 +462,7 @@ describe("teamValidation", () => {
 
     describe("id validation", () => {
         const createSchema = teamValidation.create({ omitFields: [] });
-        const updateSchema = teamValidation.update({ omitFields: [] });
+
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [
@@ -556,7 +555,7 @@ describe("teamValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = teamValidation.create({ omitFields: [] });
-        const updateSchema = teamValidation.update({ omitFields: [] });
+
 
         it("should handle minimal team creation", async () => {
             await testValidation(

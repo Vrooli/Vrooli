@@ -1,4 +1,4 @@
-import { MaxObjects, MeetingInviteSortBy, MeetingInviteStatus, meetingInviteValidation, validatePK } from "@local/shared";
+import { MaxObjects, MeetingInviteSortBy, MeetingInviteStatus, meetingInviteValidation, validatePK } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

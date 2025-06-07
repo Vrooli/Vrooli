@@ -1,4 +1,4 @@
-import { i18nConfig } from "@local/shared";
+import { i18nConfig } from "@vrooli/shared";
 import i18next from "i18next";
 import { ModelMap } from "../models/base/index.js";
 import { AIServiceRegistry } from "../services/conversation/registry.js";

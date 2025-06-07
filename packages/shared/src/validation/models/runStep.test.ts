@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { runRoutineStepValidation } from "./runStep.js";
 import { runStepFixtures } from "./__test__/fixtures/runStepFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -647,7 +646,7 @@ describe("runRoutineStepValidation", () => {
 
     describe("id validation", () => {
         const createSchema = runRoutineStepValidation.create({ omitFields: [] });
-        const updateSchema = runRoutineStepValidation.update({ omitFields: [] });
+
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [
@@ -742,7 +741,7 @@ describe("runRoutineStepValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = runRoutineStepValidation.create({ omitFields: [] });
-        const updateSchema = runRoutineStepValidation.update({ omitFields: [] });
+
 
         it("should handle minimal step creation", async () => {
             await testValidation(

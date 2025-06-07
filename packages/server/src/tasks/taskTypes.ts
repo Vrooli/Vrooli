@@ -5,7 +5,7 @@
  * Using discriminated union types to ensure tasks are properly shaped based on their type.
  */
 
-import { type RunConfig, type RunProgress, type RunTriggeredFrom, type SessionUser, type TaskContextInfo, type TaskStatus } from "@local/shared";
+import { type RunConfig, type RunProgress, type RunTriggeredFrom, type SessionUser, type TaskContextInfo, type TaskStatus } from "@vrooli/shared";
 import { type ExportConfig, type ImportConfig, type ImportData } from "../builders/importExport.js";
 import { type BaseTaskData } from "./queueFactory.js";
 

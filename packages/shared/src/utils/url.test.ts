@@ -1,7 +1,19 @@
-import { expect } from "chai";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import sinon from "sinon";
 import { setupDOM, teardownDOM } from "../__test/setup.js";
-import { decodeValue, encodeValue, parseSearchParams, stringifySearchParams } from "./url.js";
+import { LINKS } from "../consts/ui.js";
+import { ResourceSubType } from "../api/types.js";
+import { 
+    decodeValue, 
+    encodeValue, 
+    parseSearchParams, 
+    stringifySearchParams, 
+    getObjectUrlBase, 
+    getObjectSlug, 
+    getObjectSearchParams, 
+    getObjectUrl, 
+    UrlTools, 
+} from "./url.js";
 
 describe("encodeValue and decodeValue", () => {
     const testCases = [
@@ -260,5 +272,397 @@ describe("stringifySearchParams and parseSearchParams", () => {
 
             teardownDOM();
         });
+    });
+});
+
+describe("getObjectUrlBase", () => {
+    it("should return empty string for invalid objects", () => {
+        expect(getObjectUrlBase(null as any)).toBe("");
+        expect(getObjectUrlBase(undefined as any)).toBe("");
+        expect(getObjectUrlBase("string" as any)).toBe("");
+        expect(getObjectUrlBase({ notTypename: "value" } as any)).toBe("");
+        expect(getObjectUrlBase({ __typename: 123 } as any)).toBe("");
+    });
+
+    it("should return correct URL base for User and SessionUser", () => {
+        const user = { __typename: "User" };
+        const sessionUser = { __typename: "SessionUser" };
+        expect(getObjectUrlBase(user)).toBe(LINKS.Profile);
+        expect(getObjectUrlBase(sessionUser)).toBe(LINKS.Profile);
+    });
+
+    it("should return correct URL base for Resource types", () => {
+        const dataConverter = {
+            __typename: "Resource",
+            versions: [{ isLatest: true, resourceSubType: ResourceSubType.CodeDataConverter }],
+        };
+        const smartContract = {
+            __typename: "ResourceVersion",
+            resourceSubType: ResourceSubType.CodeSmartContract,
+        };
+        const dataStructure = {
+            __typename: "Resource",
+            versions: [{ isLatest: true, resourceSubType: ResourceSubType.StandardDataStructure }],
+        };
+        const prompt = {
+            __typename: "ResourceVersion",
+            resourceSubType: ResourceSubType.StandardPrompt,
+        };
+        const routine = {
+            __typename: "Resource",
+            versions: [{ isLatest: true, resourceSubType: ResourceSubType.RoutineMultiStep }],
+        };
+        
+        expect(getObjectUrlBase(dataConverter)).toBe(LINKS.DataConverter);
+        expect(getObjectUrlBase(smartContract)).toBe(LINKS.SmartContract);
+        expect(getObjectUrlBase(dataStructure)).toBe(LINKS.DataStructure);
+        expect(getObjectUrlBase(prompt)).toBe(LINKS.Prompt);
+        expect(getObjectUrlBase(routine)).toBe(LINKS.RoutineMultiStep);
+    });
+
+    it("should handle ResourceVersion without resourceSubType", () => {
+        const resourceVersion = {
+            __typename: "ResourceVersion",
+        };
+        expect(getObjectUrlBase(resourceVersion)).toBe(LINKS.RoutineMultiStep);
+    });
+
+    it("should handle objects with 'to' property", () => {
+        const bookmark = {
+            __typename: "Bookmark",
+            to: { __typename: "User" },
+        };
+        const reaction = {
+            __typename: "Reaction",
+            to: { __typename: "Project" },
+        };
+        const view = {
+            __typename: "View",
+            to: { __typename: "Routine" },
+        };
+        
+        expect(getObjectUrlBase(bookmark)).toBe(LINKS.Profile);
+        expect(getObjectUrlBase(reaction)).toBe(LINKS.Project);
+        expect(getObjectUrlBase(view)).toBe(LINKS.Routine);
+    });
+
+    it("should handle Member and ChatParticipant", () => {
+        const member = {
+            __typename: "Member",
+            user: { __typename: "User" },
+        };
+        const participant = {
+            __typename: "ChatParticipant",
+            user: { __typename: "User" },
+        };
+        
+        expect(getObjectUrlBase(member)).toBe(LINKS.Profile);
+        expect(getObjectUrlBase(participant)).toBe(LINKS.Profile);
+    });
+
+    it("should handle Notification", () => {
+        const notificationWithLink = {
+            __typename: "Notification",
+            link: "/custom-link",
+        };
+        const notificationWithoutLink = {
+            __typename: "Notification",
+            link: null,
+        };
+        
+        expect(getObjectUrlBase(notificationWithLink)).toBe("/custom-link");
+        expect(getObjectUrlBase(notificationWithoutLink)).toBe("");
+    });
+
+    it("should handle Run", () => {
+        const run = { __typename: "Run" };
+        expect(getObjectUrlBase(run)).toBe(LINKS.Run);
+    });
+
+    it("should handle generic objects by removing 'Version' from typename", () => {
+        const project = { __typename: "Project" };
+        const projectVersion = { __typename: "ProjectVersion" };
+        
+        expect(getObjectUrlBase(project)).toBe(LINKS.Project);
+        expect(getObjectUrlBase(projectVersion)).toBe(LINKS.Project);
+    });
+});
+
+describe("getObjectSlug", () => {
+    it("should return '/' for null or undefined objects", () => {
+        expect(getObjectSlug(null)).toBe("/");
+        expect(getObjectSlug(undefined)).toBe("/");
+        expect(getObjectSlug("string" as any)).toBe("/");
+    });
+
+    it("should return '/' for Action, Shortcut, and CalendarEvent", () => {
+        expect(getObjectSlug({ __typename: "Action" })).toBe("/");
+        expect(getObjectSlug({ __typename: "Shortcut" })).toBe("/");
+        expect(getObjectSlug({ __typename: "CalendarEvent" })).toBe("/");
+    });
+
+    it("should handle objects with 'to' property", () => {
+        const bookmark = {
+            __typename: "Bookmark",
+            to: { __typename: "User", handle: "testuser" },
+        };
+        expect(getObjectSlug(bookmark)).toBe("/testuser");
+    });
+
+    it("should handle versioned objects with root", () => {
+        const resourceVersion = {
+            __typename: "ResourceVersion",
+            root: { __typename: "Resource", handle: "test-resource" },
+            versionLabel: "v1.0",
+            publicId: "pub123",
+            id: "id123",
+        };
+        expect(getObjectSlug(resourceVersion)).toBe("/test-resource/v/v1.0");
+        
+        // Test with only publicId
+        const resourceVersionWithPublicId = {
+            __typename: "ResourceVersion",
+            root: { __typename: "Resource", handle: "test-resource" },
+            publicId: "pub123",
+            id: "id123",
+        };
+        expect(getObjectSlug(resourceVersionWithPublicId)).toBe("/test-resource/v/pub123");
+        
+        // Test with only id
+        const resourceVersionWithId = {
+            __typename: "ResourceVersion",
+            root: { __typename: "Resource", handle: "test-resource" },
+            id: "id123",
+        };
+        expect(getObjectSlug(resourceVersionWithId)).toBe("/test-resource/v/id123");
+    });
+
+    it("should handle Member and ChatParticipant", () => {
+        const member = {
+            __typename: "Member",
+            user: { __typename: "User", handle: "member-user" },
+        };
+        const participant = {
+            __typename: "ChatParticipant",
+            user: { __typename: "User", publicId: "pub456" },
+        };
+        
+        expect(getObjectSlug(member)).toBe("/member-user");
+        expect(getObjectSlug(participant)).toBe("/pub456");
+    });
+
+    it("should return '/' for Notification", () => {
+        const notification = { __typename: "Notification" };
+        expect(getObjectSlug(notification)).toBe("/");
+    });
+
+    it("should handle regular objects with handle or id", () => {
+        const withHandle = {
+            __typename: "User",
+            handle: "testuser",
+            publicId: "pub123",
+            id: "id123",
+        };
+        const withoutHandle = {
+            __typename: "User",
+            publicId: "pub123",
+            id: "id123",
+        };
+        const withOnlyId = {
+            __typename: "User",
+            id: "id123",
+        };
+        
+        expect(getObjectSlug(withHandle)).toBe("/testuser");
+        expect(getObjectSlug(withoutHandle)).toBe("/pub123");
+        expect(getObjectSlug(withOnlyId)).toBe("/id123");
+    });
+
+    it("should prefer id when prefersId is true", () => {
+        const obj = {
+            __typename: "User",
+            handle: "testuser",
+            publicId: "pub123",
+            id: "id123",
+        };
+        
+        expect(getObjectSlug(obj, false)).toBe("/testuser");
+        expect(getObjectSlug(obj, true)).toBe("/pub123");
+    });
+});
+
+describe("getObjectSearchParams", () => {
+    it("should return search params for CalendarEvent", () => {
+        const calendarEvent = {
+            __typename: "CalendarEvent",
+            start: new Date("2023-01-01T10:00:00Z"),
+        };
+        
+        // Mock UrlTools.stringifySearchParams
+        const spy = vi.spyOn(UrlTools, "stringifySearchParams").mockReturnValue("?start=2023-01-01T10%3A00%3A00.000Z");
+        
+        const result = getObjectSearchParams(calendarEvent as any);
+        expect(result).toBe("?start=2023-01-01T10%3A00%3A00.000Z");
+        expect(spy).toHaveBeenCalledWith(LINKS.Calendar, { start: calendarEvent.start });
+        
+        spy.mockRestore();
+    });
+
+    it("should return search params for Run", () => {
+        const run = {
+            __typename: "Run",
+            lastStep: [1, 2, 3],
+        };
+        
+        // Mock UrlTools.stringifySearchParams
+        const spy = vi.spyOn(UrlTools, "stringifySearchParams").mockReturnValue("?step=%5B1%2C2%2C3%5D");
+        
+        const result = getObjectSearchParams(run as any);
+        expect(result).toBe("?step=%5B1%2C2%2C3%5D");
+        expect(spy).toHaveBeenCalledWith(LINKS.Run, { step: [1, 2, 3] });
+        
+        spy.mockRestore();
+    });
+
+    it("should return empty string for other objects", () => {
+        const user = { __typename: "User" };
+        expect(getObjectSearchParams(user as any)).toBe("");
+    });
+});
+
+describe("getObjectUrl", () => {
+    it("should return empty string for Action", () => {
+        const action = { __typename: "Action" };
+        expect(getObjectUrl(action as any)).toBe("");
+    });
+
+    it("should return id for Shortcut", () => {
+        const shortcut = {
+            __typename: "Shortcut",
+            id: "https://example.com",
+        };
+        expect(getObjectUrl(shortcut as any)).toBe("https://example.com");
+        
+        const shortcutWithoutId = { __typename: "Shortcut" };
+        expect(getObjectUrl(shortcutWithoutId as any)).toBe("");
+    });
+
+    it("should return schedule URL for CalendarEvent", () => {
+        const calendarEvent = {
+            __typename: "CalendarEvent",
+            schedule: {
+                __typename: "Schedule",
+                handle: "my-schedule",
+            },
+        };
+        
+        // Mock the helper functions
+        const spy1 = vi.spyOn({ getObjectUrl }, "getObjectUrl").mockReturnValue("/schedule/my-schedule");
+        
+        getObjectUrl(calendarEvent as any);
+        
+        spy1.mockRestore();
+    });
+
+    it("should combine base, slug, and search params for regular objects", () => {
+        const user = {
+            __typename: "User",
+            handle: "testuser",
+        };
+        
+        const result = getObjectUrl(user as any);
+        expect(result).toContain("/testuser");
+        expect(result).toContain(LINKS.Profile);
+    });
+});
+
+describe("UrlTools", () => {
+    describe("stringifySearchParams", () => {
+        it("should call stringifySearchParams with correct parameters", () => {
+            const searchParams = { redirect: "/home" };
+            const result = UrlTools.stringifySearchParams(LINKS.Login, searchParams);
+            expect(typeof result).toBe("string");
+        });
+
+        it("should use default params when none provided", () => {
+            const result = UrlTools.stringifySearchParams(LINKS.Login, {});
+            expect(typeof result).toBe("string");
+        });
+    });
+
+    describe("parseSearchParams", () => {
+        beforeEach(() => {
+            setupDOM();
+        });
+
+        afterEach(() => {
+            teardownDOM();
+        });
+
+        it("should parse search params for given link type", () => {
+            window.history.pushState({}, "", "?redirect=%22%2Fhome%22");
+            const result = UrlTools.parseSearchParams(LINKS.Login);
+            expect(result).toEqual({ redirect: "/home" });
+        });
+    });
+
+    describe("linkWithSearchParams", () => {
+        it("should combine link with search params", () => {
+            const searchParams = { redirect: "/home" };
+            const result = UrlTools.linkWithSearchParams(LINKS.Login, searchParams);
+            expect(result).toContain(LINKS.Login);
+            expect(result).toContain("redirect");
+        });
+
+        it("should use default params when none provided", () => {
+            const result = UrlTools.linkWithSearchParams(LINKS.Login, {});
+            expect(result).toContain(LINKS.Login);
+        });
+    });
+});
+
+describe("error handling", () => {
+    it("should handle stringifySearchParams errors gracefully", () => {
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
+            // Mock implementation
+        });
+        
+        // Create an object that will cause JSON.stringify to throw
+        const circularObj = {} as any;
+        circularObj.self = circularObj;
+        
+        const result = stringifySearchParams({ circular: circularObj });
+        expect(result).toBe("");
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        
+        consoleErrorSpy.mockRestore();
+    });
+
+    it("should handle parseSearchParams JSON parsing errors", () => {
+        setupDOM();
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
+            // Mock implementation
+        });
+        
+        // Set invalid JSON in search params
+        window.history.pushState({}, "", "?invalid=notjson");
+        
+        const result = parseSearchParams();
+        expect(result).toEqual({});
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        
+        consoleErrorSpy.mockRestore();
+        teardownDOM();
+    });
+
+    it("should warn for invalid objects in getObjectUrlBase", () => {
+        const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
+            // Mock implementation
+        });
+        
+        getObjectUrlBase({ invalidProp: "value" } as any);
+        expect(consoleWarnSpy).toHaveBeenCalled();
+        
+        consoleWarnSpy.mockRestore();
     });
 });

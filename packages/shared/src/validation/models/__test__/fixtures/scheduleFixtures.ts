@@ -1,4 +1,4 @@
-import { ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -269,9 +269,9 @@ export const scheduleFixtures: ModelTestFixtures = {
                 startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
                 exceptionsCreate: Array.from({ length: 10 }, (_, i) => ({
                     id: `10000000000000000${i}`,
-                    originalStartTime: new Date(`2025-${String(i + 1).padStart(2, '0')}-15T09:00:00Z`),
-                    newStartTime: new Date(`2025-${String(i + 1).padStart(2, '0')}-16T10:00:00Z`),
-                    newEndTime: new Date(`2025-${String(i + 1).padStart(2, '0')}-16T17:00:00Z`),
+                    originalStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-15T09:00:00Z`),
+                    newStartTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T10:00:00Z`),
+                    newEndTime: new Date(`2025-${String(i + 1).padStart(2, "0")}-16T17:00:00Z`),
                     scheduleConnect: validIds.id1,
                 })),
             },

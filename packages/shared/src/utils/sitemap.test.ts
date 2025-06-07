@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { generateSitemap, generateSitemapIndex, type SitemapEntryContent, type SitemapEntryMain } from "./sitemap.js";
 
 describe("generateSitemap", () => {

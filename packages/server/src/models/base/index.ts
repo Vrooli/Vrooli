@@ -1,4 +1,4 @@
-import { ModelType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, lowercaseFirstLetter } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

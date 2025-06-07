@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { renderHook } from "@testing-library/react";
 import { LlmTask, TaskStatus, nanoid, noop, type LlmTaskInfo } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { act } from "react";
 import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub.js";
 import { taskToTaskInfo } from "../utils/display/chatTools.js";
@@ -293,7 +293,7 @@ function validateContextsForTask(data: UseChatTaskReturn, taskId: string, labels
 
 describe("useChatTasks", () => {
 
-    before(() => {
+    beforeAll(() => {
         // Mock console.error to avoid cluttering test output
         console.error = jest.fn();
     });

@@ -334,7 +334,7 @@ export const shapePullRequestTranslation: ShapeModel<PullRequestTranslationShape
     update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "text")),
 };
 export const shapePullRequest: ShapeModel<PullRequestShape, PullRequestCreateInput, PullRequestUpdateInput> = {
-    create: (d) => ({}) as any,
+    create: (_d) => ({}) as any,
     update: (o, u) => shapeUpdate(u, {}) as any,
 };
 
@@ -421,7 +421,7 @@ export type ReportResponseShape = Pick<ReportResponse, "id"> & {
     __typename: "ReportResponse";
 }
 export const shapeReportResponse: ShapeModel<ReportResponseShape, ReportResponseCreateInput, ReportResponseUpdateInput> = {
-    create: (d) => ({}) as any,
+    create: (_d) => ({}) as any,
     update: (o, u) => shapeUpdate(u, {}) as any,
 };
 

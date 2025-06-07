@@ -52,6 +52,14 @@ export function addHttps(value: string | undefined): string {
 /**
  * Converts a TypeScript enum to a yup oneOf array
  */
-export function enumToYup(enumObj: { [x: string]: any }) {
-    return yup.string().trim().removeEmptyString().oneOf(Object.values(enumObj));
+export function enumToYup(enumObj: { [x: string]: any } | (() => { [x: string]: any })) {
+    // If enumObj is a function, call it to get the enum
+    const actualEnum = typeof enumObj === 'function' ? enumObj() : enumObj;
+    
+    // Handle undefined enum gracefully (can happen with circular dependencies)
+    if (!actualEnum) {
+        console.warn("enumToYup called with undefined enum. This may be due to circular dependencies.");
+        return yup.string().trim().removeEmptyString();
+    }
+    return yup.string().trim().removeEmptyString().oneOf(Object.values(actualEnum));
 }

@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { scheduleExceptionValidation } from "./scheduleException.js";
 import { scheduleExceptionFixtures } from "./__test__/fixtures/scheduleExceptionFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";

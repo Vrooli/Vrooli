@@ -1,4 +1,4 @@
-import { ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -77,7 +77,7 @@ export const memberFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => null, // No create operation
+    create: (_base: any) => null, // No create operation
     update: (base: any) => ({
         ...base,
         id: base.id || validIds.id1,

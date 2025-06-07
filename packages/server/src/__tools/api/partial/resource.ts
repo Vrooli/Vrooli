@@ -1,4 +1,4 @@
-import { type Resource, type ResourceYou } from "@local/shared";
+import { type Resource, type ResourceYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

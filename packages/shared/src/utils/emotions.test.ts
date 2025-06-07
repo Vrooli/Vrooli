@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { getReactionScore, removeModifiers } from "./emotions.js";
 
 describe("Emoji Reactions Utility Functions", () => {

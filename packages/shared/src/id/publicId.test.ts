@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { ALPHABET, generatePublicId, validatePublicId } from "./publicId.js";
 
 /**

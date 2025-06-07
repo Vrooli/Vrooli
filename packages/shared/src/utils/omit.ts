@@ -1,6 +1,6 @@
-const isUnsafeKey = (key: string) => {
+function isUnsafeKey(key: string) {
     return key === "__proto__" || key === "constructor" || key === "prototype";
-};
+}
 
 /**
  * Omit an array of keys from an object. Supports dot notation.
@@ -8,12 +8,12 @@ const isUnsafeKey = (key: string) => {
  * @param keysToOmit The keys to omit
  * @returns The object with the omitted keys
  */
-export const omit = <T extends Record<string, any>>(obj: T, keysToOmit: string[]): Partial<T> => {
+export function omit<T extends Record<string, any>>(obj: T, keysToOmit: string[]): Partial<T> {
     // Make a shallow copy of the original object
     const result = { ...obj };
 
     // Helper function to delete nested keys
-    const deleteKey = (obj: any, path: string[]) => {
+    function deleteKey(obj: any, path: string[]) {
         let current = obj;
         for (let i = 0; i < path.length - 1; i++) {
             const keyPart = path[i];
@@ -24,7 +24,7 @@ export const omit = <T extends Record<string, any>>(obj: T, keysToOmit: string[]
         if (lastKey && !isUnsafeKey(lastKey)) {
             delete current[lastKey];
         }
-    };
+    }
 
     // Loop through each key in the keysToOmit array
     for (const key of keysToOmit) {
@@ -46,4 +46,4 @@ export const omit = <T extends Record<string, any>>(obj: T, keysToOmit: string[]
 
     // Return the modified object
     return result;
-};
+}

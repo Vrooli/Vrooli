@@ -1,4 +1,4 @@
-import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
+import { MaxObjects, ReminderSortBy, reminderValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

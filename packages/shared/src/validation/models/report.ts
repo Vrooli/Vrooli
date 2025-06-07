@@ -10,7 +10,7 @@ import { type YupModel } from "../utils/types.js";
 export const reportValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        createdForType: req(reportCreatedFor),
+        createdForType: req(reportCreatedFor()),
         details: opt(details),
         language: req(language),
         reason: req(reportReason),

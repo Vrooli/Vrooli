@@ -11,15 +11,18 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, config, description, details, id, instructions, name, publicId, versionLabel, versionNotes } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { CODE_LANGUAGE_MAX_LENGTH } from "../utils/validationConstants.js";
 import { resourceValidation } from "./resource.js";
 import { resourceVersionRelationValidation } from "./resourceVersionRelation.js";
 
-const resourceSubType = enumToYup({
-    ...ResourceSubTypeCode,
-    ...ResourceSubTypeRoutine,
-    ...ResourceSubTypeStandard,
-});
-const codeLanguage = yup.string().trim().removeEmptyString().max(128, maxStrErr);
+function resourceSubType() {
+    return enumToYup({
+        ...ResourceSubTypeCode,
+        ...ResourceSubTypeRoutine,
+        ...ResourceSubTypeStandard,
+    });
+}
+const codeLanguage = yup.string().trim().removeEmptyString().max(CODE_LANGUAGE_MAX_LENGTH, maxStrErr);
 
 export const resourceVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -46,7 +49,7 @@ export const resourceVersionValidation: YupModel<["create", "update"]> = {
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
-        resourceSubType: opt(resourceSubType),
+        resourceSubType: opt(resourceSubType()),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
     }, [

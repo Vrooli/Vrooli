@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import sinon from "sinon";
 import { OpenAIModel } from "../../ai/services.js";
 import { type User } from "../../api/types.js";
@@ -35,7 +35,7 @@ const validUserWithBotSettings: Pick<User, "botSettings"> = {
 describe("BotConfig", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -43,7 +43,7 @@ describe("BotConfig", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 

@@ -1,8 +1,7 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { bookmarkListValidation } from "./bookmarkList.js";
 import { bookmarkListFixtures } from "./__test__/fixtures/bookmarkListFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch, testValues } from "./__test__/validationTestUtils.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("bookmarkListValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -49,7 +48,7 @@ describe("bookmarkListValidation", () => {
                         label: "x".repeat(129),
                     },
                     false,
-                    /Maximum/
+                    /1 character over the limit/,
                 );
             });
 
@@ -69,7 +68,7 @@ describe("bookmarkListValidation", () => {
                         label: "",
                     },
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
         });
@@ -91,7 +90,7 @@ describe("bookmarkListValidation", () => {
                             ...bookmarkListFixtures.minimal.create,
                             id: validId,
                         },
-                        true
+                        true,
                     );
                 }
             });
@@ -113,7 +112,7 @@ describe("bookmarkListValidation", () => {
                             ...bookmarkListFixtures.minimal.create,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -127,7 +126,7 @@ describe("bookmarkListValidation", () => {
                 await testValidation(
                     createSchema,
                     bookmarkListFixtures.edgeCases.multipleBookmarks.create,
-                    true
+                    true,
                 );
             });
 
@@ -135,7 +134,7 @@ describe("bookmarkListValidation", () => {
                 await testValidation(
                     updateSchema,
                     bookmarkListFixtures.edgeCases.updateWithAllBookmarkOperations.update,
-                    true
+                    true,
                 );
             });
         });

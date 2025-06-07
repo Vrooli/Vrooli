@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { IssueFor } from "../../api/types.js";
 import { issueValidation } from "./issue.js";
 import { issueFixtures } from "./__test__/fixtures/issueFixtures.js";
@@ -70,7 +69,7 @@ describe("issueValidation", () => {
                     createSchema,
                     issueFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -91,7 +90,7 @@ describe("issueValidation", () => {
                     createSchema,
                     issueFixtures.invalid.missingForConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -99,7 +98,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.invalid.invalidForConnect.create,
-                    false
+                    false,
                 );
             });
 
@@ -110,7 +109,7 @@ describe("issueValidation", () => {
                         data,
                         shouldPass: true,
                         description: `IssueFor: ${data.issueFor}`,
-                    }))
+                    })),
                 );
             });
         });
@@ -123,13 +122,13 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     issueFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -137,7 +136,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.complete.create,
-                    true
+                    true,
                 );
             });
 
@@ -145,7 +144,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     updateSchema,
                     issueFixtures.complete.update,
-                    true
+                    true,
                 );
             });
 
@@ -153,7 +152,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.edgeCases.translationWithoutDescription.create,
-                    true
+                    true,
                 );
             });
 
@@ -161,7 +160,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.edgeCases.multipleTranslations.create,
-                    true
+                    true,
                 );
             });
 
@@ -169,7 +168,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     updateSchema,
                     issueFixtures.edgeCases.updateWithAllTranslationOperations.update,
-                    true
+                    true,
                 );
             });
 
@@ -179,14 +178,14 @@ describe("issueValidation", () => {
                     createSchema,
                     issueFixtures.invalid.invalidTranslationName.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
 
                 // Name is optional in update translation
                 await testValidation(
                     updateSchema,
                     issueFixtures.edgeCases.updateOptionalTranslationName.update,
-                    true
+                    true,
                 );
             });
 
@@ -194,7 +193,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     createSchema,
                     issueFixtures.edgeCases.longNameAndDescription.create,
-                    true
+                    true,
                 );
             });
         });
@@ -217,7 +216,7 @@ describe("issueValidation", () => {
                             ...issueFixtures.minimal.create,
                             id: validId,
                         },
-                        true
+                        true,
                     );
 
                     await testValidation(
@@ -226,7 +225,7 @@ describe("issueValidation", () => {
                             ...issueFixtures.minimal.update,
                             id: validId,
                         },
-                        true
+                        true,
                     );
                 }
             });
@@ -248,7 +247,7 @@ describe("issueValidation", () => {
                             ...issueFixtures.minimal.create,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
 
                     await testValidation(
@@ -257,7 +256,7 @@ describe("issueValidation", () => {
                             ...issueFixtures.minimal.update,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -267,14 +266,14 @@ describe("issueValidation", () => {
                     createSchema,
                     issueFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
 
                 await testValidation(
                     updateSchema,
                     issueFixtures.invalid.missingRequired.update,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
         });
@@ -286,7 +285,7 @@ describe("issueValidation", () => {
                 await testValidation(
                     updateSchema,
                     issueFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 

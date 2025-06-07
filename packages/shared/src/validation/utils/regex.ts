@@ -1,3 +1,4 @@
+/* c8 ignore start - regex constants are tested through validation functions, but c8 cannot detect this */
 /** 
  * Regular expression for validating links.
  * URL (taken from here: https://stackoverflow.com/a/9284473/10240279)

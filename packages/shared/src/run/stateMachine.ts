@@ -6,6 +6,9 @@ import { getTranslation } from "../translations/translationTools.js";
 import { BranchManager } from "./branch.js";
 import { DEFAULT_LOOP_DELAY_MULTIPLIER, DEFAULT_MAX_LOOP_DELAY_MS, DEFAULT_MAX_RUN_CREDITS, DEFAULT_ON_BRANCH_FAILURE, LATEST_RUN_CONFIG_VERSION, MAX_MAIN_LOOP_ITERATIONS, MAX_PARALLEL_BRANCHES } from "./consts.js";
 import { SubroutineContextManager } from "./context.js";
+
+// Default execution time limit (5 minutes)
+const DEFAULT_MAX_TIME_MS = 300000;
 import { type SubroutineExecutor } from "./executor.js";
 import { RunLimitsManager } from "./limits.js";
 import { type RunLoader } from "./loader.js";
@@ -901,7 +904,7 @@ export class RunStateMachine {
             throw new Error(`Branch location data not found for branch ${branch.branchId}`);
         }
 
-        const { location, object: routine, subroutine, subcontext } = branchLocationData;
+        const { location: _location, object: routine, subroutine: _subroutine, subcontext } = branchLocationData;
 
         try {
             // Build ExecutionContext from current run state
@@ -992,7 +995,7 @@ export class RunStateMachine {
         // Create execution limits from run config
         const executionLimits = {
             maxCredits: BigInt(run.config.limits.maxCredits || "1000"),
-            maxTimeMs: run.config.limits.maxTime || 300000, // 5 minutes default
+            maxTimeMs: run.config.limits.maxTime || DEFAULT_MAX_TIME_MS,
             maxToolCalls: 100, // Default limit
             maxReasoningSteps: 10, // Default limit
             strictLimits: false,

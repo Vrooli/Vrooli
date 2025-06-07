@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { HttpStatus, type SessionUser, nanoid } from "@local/shared";
+import { HttpStatus, type SessionUser, nanoid } from "@vrooli/shared";
 import http from "http"; // Import http for internal service call
 import sharp from "sharp";
 import { type UploadConfig } from "../endpoints/rest.js";

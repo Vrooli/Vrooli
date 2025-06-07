@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { reportValidation } from "./report.js";
 import { reportFixtures } from "./__test__/fixtures/reportFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -484,7 +483,6 @@ describe("reportValidation", () => {
 
     describe("id validation", () => {
         const createSchema = reportValidation.create({ omitFields: [] });
-        const updateSchema = reportValidation.update({ omitFields: [] });
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [

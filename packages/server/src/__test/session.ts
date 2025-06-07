@@ -1,4 +1,4 @@
-import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, nanoid, SEEDED_PUBLIC_IDS } from "@local/shared";
+import { AccountStatus, ApiKeyPermission, DAYS_1_MS, generatePK, generatePublicId, nanoid, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { type Request, type Response } from "express";
 import { AuthService, AuthTokensService } from "../auth/auth.js";
 import { type UserDataForPasswordAuth } from "../auth/email.js";

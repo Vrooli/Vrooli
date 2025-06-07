@@ -10,12 +10,14 @@ import { id } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 import { bookmarkListValidation } from "./bookmarkList.js";
 
-const bookmarkFor = enumToYup(BookmarkFor);
+function bookmarkFor() {
+    return enumToYup(BookmarkFor);
+}
 
 export const bookmarkValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        bookmarkFor: req(bookmarkFor),
+        bookmarkFor: req(bookmarkFor()),
     }, [
         ["for", ["Connect"], "one", "req"],
         ["list", ["Connect", "Create"], "one", "opt", bookmarkListValidation, ["bookmarks"]],

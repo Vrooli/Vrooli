@@ -1,4 +1,4 @@
-import { type ReputationHistory } from "@local/shared";
+import { type ReputationHistory } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const reputationHistory: ApiPartial<ReputationHistory> = {

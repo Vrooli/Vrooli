@@ -1,4 +1,4 @@
-import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, type TranslationKeyAward, awardNames } from "@local/shared";
+import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, type TranslationKeyAward, awardNames } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";

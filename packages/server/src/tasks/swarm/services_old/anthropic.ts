@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicModel, anthropicServiceInfo, LlmServiceId } from "@local/shared";
+import { AnthropicModel, anthropicServiceInfo, LlmServiceId } from "@vrooli/shared";
 import { CustomError } from "../../../events/error.js";
 import { logger } from "../../../events/logger.js";
 import { AIServiceErrorType, AIServiceRegistry } from "../../../services/conversation/registry.js";

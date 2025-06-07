@@ -1,4 +1,4 @@
-import { type ModelType } from "@local/shared";
+import { type ModelType } from "@vrooli/shared";
 import { type PrismaCreate, type PrismaSelect, type PrismaUpdate } from "../builders/types.js";
 import { type InputNode } from "./inputNode.js";
 

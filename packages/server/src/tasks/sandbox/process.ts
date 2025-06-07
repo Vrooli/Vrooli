@@ -1,4 +1,4 @@
-import { CodeLanguage, CodeVersionConfig, type ResourceVersion } from "@local/shared";
+import { CodeLanguage, CodeVersionConfig, type ResourceVersion } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { readOneHelper } from "../../actions/reads.js";
 import { CustomError } from "../../events/error.js";

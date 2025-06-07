@@ -1,5 +1,4 @@
-import { expect } from "chai";
-import { describe } from "mocha";
+import { describe, it, expect } from "vitest";
 import sinon from "sinon";
 import { type ResourceVersion } from "../../api/types.js";
 import { CodeLanguage } from "../../consts/index.js";
@@ -14,7 +13,7 @@ const DEFAULT_TEST_CONTENT = "function main() { return 'test'; }";
 describe("CodeVersionConfig", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(async () => {
+    beforeAll(async () => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -22,7 +21,7 @@ describe("CodeVersionConfig", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 

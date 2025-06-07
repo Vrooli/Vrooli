@@ -21,7 +21,7 @@ export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
     static parse(
         version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
-        opts?: { useFallbacks?: boolean },
+        _opts?: { useFallbacks?: boolean },
     ): NoteVersionConfig {
         return super.parseBase<NoteVersionConfigObject, NoteVersionConfig>(
             version.config,

@@ -1,4 +1,5 @@
-import { ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { API_KEY_PERMISSIONS_MAX_LENGTH, NAME_MAX_LENGTH, TEST_FIELD_TOO_LONG_MULTIPLIER } from "../../utils/validationConstants.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -86,7 +87,7 @@ export const apiKeyFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 limitHard: "1000000",
-                name: "a".repeat(51), // Exceeds 50 char limit
+                name: "a".repeat(NAME_MAX_LENGTH + TEST_FIELD_TOO_LONG_MULTIPLIER), // Exceeds max char limit
                 stopAtLimit: true,
                 absoluteMax: 100000,
             },
@@ -201,7 +202,7 @@ export const apiKeyFixtures: ModelTestFixtures = {
                 name: "Test API Key",
                 stopAtLimit: true,
                 absoluteMax: 100000,
-                permissions: "a".repeat(4096), // Exactly 4096 characters
+                permissions: "a".repeat(API_KEY_PERMISSIONS_MAX_LENGTH), // Exactly at max length
             },
         },
         bigIntAsString: {

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, uuid } from "@local/shared";
-import { expect } from "chai";
+import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import jwt from "jsonwebtoken";
@@ -19,12 +19,12 @@ describe("AuthTokensService", () => {
     let loggerErrorStub: sinon.SinonStub;
     let loggerInfoStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
 
-    beforeEach(async function before() {
+    beforeEach(async function beforeEach() {
         await DbProvider.deleteAll();
         // Create test user and auth for all tests
         testUser = await DbProvider.get().user.create({
@@ -43,7 +43,7 @@ describe("AuthTokensService", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await DbProvider.deleteAll();
 
         loggerErrorStub.restore();

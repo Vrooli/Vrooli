@@ -1,4 +1,4 @@
-import { type ReportResponse, type ReportResponseYou } from "@local/shared";
+import { type ReportResponse, type ReportResponseYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

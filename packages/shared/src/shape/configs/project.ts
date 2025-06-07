@@ -21,7 +21,7 @@ export class ProjectVersionConfig extends BaseConfig<ProjectVersionConfigObject>
     static parse(
         version: Pick<ResourceVersion, "config">,
         logger: PassableLogger,
-        opts?: { useFallbacks?: boolean },
+        _opts?: { useFallbacks?: boolean },
     ): ProjectVersionConfig {
         return super.parseBase<ProjectVersionConfigObject, ProjectVersionConfig>(
             version.config,

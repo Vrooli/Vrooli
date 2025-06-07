@@ -1,4 +1,4 @@
-import { MaxObjects, MemberInviteSortBy, MemberInviteStatus, memberInviteValidation, validatePK } from "@local/shared";
+import { MaxObjects, MemberInviteSortBy, MemberInviteStatus, memberInviteValidation, validatePK } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

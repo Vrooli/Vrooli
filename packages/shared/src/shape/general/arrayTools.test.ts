@@ -1,5 +1,4 @@
-import { expect } from "chai";
-import { describe, it } from "mocha";
+import { describe, it, expect } from "vitest";
 import {
     addToArray,
     updateArray,

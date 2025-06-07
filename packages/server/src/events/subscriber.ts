@@ -1,4 +1,4 @@
-import { type SessionUser, type SubscribableObject } from "@local/shared";
+import { type SessionUser, type SubscribableObject } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate } from "../builders/types.js";

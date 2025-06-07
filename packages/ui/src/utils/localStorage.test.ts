@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { noop } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import { LocalStorageLruCache, cookies, getCookie, getLocalStorageKeys, getOrSetCookie, getStorageItem, ifAllowed, setCookie } from "./localStorage.js";
 
@@ -9,7 +9,7 @@ describe("getLocalStorageKeys", () => {
         jest.clearAllMocks();
         global.localStorage.clear();
     });
-    after(() => {
+    afterAll(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });
@@ -76,7 +76,7 @@ describe("getLocalStorageKeys", () => {
 describe("LocalStorageLruCache", () => {
     let consoleWarnStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleWarnStub = sinon.stub(console, "warn");
     });
 
@@ -85,7 +85,7 @@ describe("LocalStorageLruCache", () => {
         global.localStorage.clear();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleWarnStub.restore();
         global.localStorage.clear();
     });
@@ -260,7 +260,7 @@ describe("LocalStorageLruCache", () => {
 });
 
 describe("cookies (local storage)", () => {
-    before(() => {
+    beforeAll(() => {
         jest.spyOn(console, "warn").mockImplementation(noop);
     });
     beforeEach(() => {
@@ -273,7 +273,7 @@ describe("cookies (local storage)", () => {
             targeting: true,
         });
     });
-    after(() => {
+    afterAll(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });

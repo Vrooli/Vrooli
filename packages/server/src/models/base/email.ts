@@ -1,4 +1,4 @@
-import { emailValidation, generatePK, MaxObjects } from "@local/shared";
+import { emailValidation, generatePK, MaxObjects } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";

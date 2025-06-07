@@ -1,4 +1,4 @@
-import { MaxObjects, MemberSortBy } from "@local/shared";
+import { MaxObjects, MemberSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { oneIsPublic } from "../../utils/oneIsPublic.js";

@@ -1,6 +1,6 @@
-import { PaymentType } from "@local/shared";
+import { PaymentType } from "@vrooli/shared";
 import type Bull from "bull";
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import * as yup from "yup";
 import { logger } from "../../events/logger.js";
@@ -22,7 +22,7 @@ describe("Email Queue Tests", () => {
     let queueAddStub;
     const originalSiteEmailUsername = process.env.SITE_EMAIL_USERNAME;
 
-    before(() => {
+    beforeAll(() => {
         // Stub logger methods to prevent console output during tests
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
@@ -31,7 +31,7 @@ describe("Email Queue Tests", () => {
         process.env.SITE_EMAIL_USERNAME = "admin@example.com";
     });
 
-    after(() => {
+    afterAll(() => {
         // Restore all stubs and original env variables
         loggerErrorStub.restore();
         loggerInfoStub.restore();

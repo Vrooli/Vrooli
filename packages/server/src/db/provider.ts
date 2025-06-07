@@ -1,4 +1,4 @@
-import { MINUTES_5_MS, SEEDED_PUBLIC_IDS } from "@local/shared";
+import { MINUTES_5_MS, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import pkg from "@prisma/client";
 import { logger } from "../events/logger.js";
 

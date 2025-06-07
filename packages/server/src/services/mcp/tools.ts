@@ -1,5 +1,5 @@
-import type { ResourceVersionCreateInput, SessionUser, SwarmSubTask } from "@local/shared";
-import { DEFAULT_LANGUAGE, DeleteType, McpToolName, ResourceSubType, ResourceType, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@local/shared";
+import type { ResourceVersionCreateInput, SessionUser, SwarmSubTask } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, DeleteType, McpToolName, ResourceSubType, ResourceType, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "path";

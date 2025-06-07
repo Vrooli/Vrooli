@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { ResourceSubType, ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { RoutineVersionConfig, type FormInputConfigObject, type FormOutputConfigObject, type RoutineVersionConfigObject } from "../shape/index.js";

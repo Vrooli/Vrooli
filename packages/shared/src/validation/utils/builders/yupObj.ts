@@ -58,6 +58,13 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
     let schema = yup.object().shape(filteredFields);
     // Create tests for each requireOneGroup
     requireOneGroups.forEach(([field1, field2, isOneRequired]) => {
+        // Skip constraint if either field is omitted from the schema
+        const field1InSchema = filteredFields[field1] !== undefined;
+        const field2InSchema = filteredFields[field2] !== undefined;
+        if (!field1InSchema || !field2InSchema) {
+            return; // Skip this constraint entirely when either field is omitted
+        }
+        
         schema = schema.test(
             `exclude-${field1}-${field2}`,
             `Only one of the following fields can be present: ${field1}, ${field2}`,
@@ -81,8 +88,19 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
                 }
 
                 // Check if fields actually exist in the value object
-                const result = isOneRequired ? fieldCounts === 1 : fieldCounts <= 1;
-                return result;
+                // If no fields are present and one is required, it might mean the relationship 
+                // is being handled automatically by a parent, so we should pass the test
+                if (isOneRequired) {
+                    // If both fields are missing from the schema, the relationship is being handled automatically
+                    const bothFieldsMissingFromSchema = ![field1, field2].some((field) => 
+                        this.schema?.fields?.[field] !== undefined);
+                    if (bothFieldsMissingFromSchema) {
+                        return true; // Pass the test when relationship is handled automatically
+                    }
+                    return fieldCounts === 1;
+                } else {
+                    return fieldCounts <= 1;
+                }
             },
         );
     });

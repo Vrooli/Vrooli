@@ -1,5 +1,5 @@
 import { uuid, type AutocompleteOption, type Session, type SessionUser } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, afterAll } from "vitest";
 import { SearchHistory } from "./searchHistory.js";
 
 const userId = uuid();
@@ -29,7 +29,7 @@ describe("SearchHistory", () => {
         localStorage.clear();
     });
 
-    after(() => {
+    afterAll(() => {
         localStorage.clear();
     });
 

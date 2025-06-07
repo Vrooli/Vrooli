@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import * as yup from "yup";
 import { opt, optArr, req, reqArr } from "./optionality.js";
 

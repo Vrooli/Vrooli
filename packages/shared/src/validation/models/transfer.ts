@@ -10,13 +10,15 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { id, message } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 
-const transferObjectType = enumToYup(TransferObjectType);
+function transferObjectType() {
+    return enumToYup(TransferObjectType);
+}
 
 export function transferRequestSendValidation(d: YupMutateParams) {
     return yupObj({
         id: req(id),
         message: opt(message),
-        objectType: req(transferObjectType),
+        objectType: req(transferObjectType()),
     }, [
         ["object", ["Connect"], "one", "req"],
         ["toTeam", ["Connect"], "one", "opt"],
@@ -28,7 +30,7 @@ export function transferRequestReceiveValidation(d: YupMutateParams) {
     return yupObj({
         id: req(id),
         message: opt(message),
-        objectType: req(transferObjectType),
+        objectType: req(transferObjectType()),
     }, [
         ["object", ["Connect"], "one", "req"],
         ["toTeam", ["Connect"], "one", "opt"],

@@ -1,4 +1,4 @@
-import { type Notification, type NotificationSettings, type NotificationSettingsCategory } from "@local/shared";
+import { type Notification, type NotificationSettings, type NotificationSettingsCategory } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

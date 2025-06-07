@@ -1,13 +1,13 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { findSelection } from "./utils.js";
 
 // Mock the console.warn to test warning outputs
 const originalConsoleWarn = console.warn;
-before(() => {
+beforeAll(() => {
     console.warn = jest.fn();
 });
 
-after(() => {
+afterAll(() => {
     console.warn = originalConsoleWarn;
 });
 

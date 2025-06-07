@@ -11,10 +11,15 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { id } from "../utils/commonFields.js";
 import { maxStrErr, minStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { PULL_REQUEST_TEXT_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const pullRequestTo = enumToYup(PullRequestToObjectType);
-const pullRequestStatus = enumToYup(PullRequestStatus);
-const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
+function pullRequestTo() {
+    return enumToYup(PullRequestToObjectType);
+}
+function pullRequestStatus() {
+    return enumToYup(PullRequestStatus);
+}
+const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(PULL_REQUEST_TEXT_MAX_LENGTH, maxStrErr);
 
 export const pullRequestTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -28,7 +33,7 @@ export const pullRequestTranslationValidation: YupModel<["create", "update"]> = 
 export const pullRequestValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        toObjectType: req(pullRequestTo),
+        toObjectType: req(pullRequestTo()),
     }, [
         ["to", ["Connect"], "one", "req"],
         ["from", ["Connect"], "one", "req"],
@@ -36,7 +41,7 @@ export const pullRequestValidation: YupModel<["create", "update"]> = {
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
-        status: opt(pullRequestStatus),
+        status: opt(pullRequestStatus()),
     }, [
         ["translations", ["Delete", "Create", "Update"], "many", "opt", pullRequestTranslationValidation],
     ], [], d),

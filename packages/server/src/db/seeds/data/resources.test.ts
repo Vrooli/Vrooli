@@ -1,5 +1,5 @@
-import { CodeVersionConfig } from "@local/shared";
-import { expect } from "chai";
+import { CodeVersionConfig } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { SandboxChildProcessManager } from "../../../tasks/sandbox/sandboxWorkerManager.js";
 import { data } from "./resources.js";
 
@@ -23,7 +23,7 @@ describe("Seeded Code Tests", () => {
                     let testResults: Awaited<ReturnType<CodeVersionConfig["runTestCases"]>>;
 
                     // Run all test cases before the individual assertions
-                    before(async () => {
+                    beforeAll(async () => {
                         manager = new SandboxChildProcessManager({ idleTimeoutMs: IDLE_TIMEOUT_MS, jobTimeoutMs: JOB_TIMEOUT_MS });
                         const config = new CodeVersionConfig({
                             data: version.shape.data,
@@ -33,7 +33,7 @@ describe("Seeded Code Tests", () => {
                         testResults = await config.runTestCases(manager.runUserCode.bind(manager));
                     });
 
-                    after(async () => {
+                    afterAll(async () => {
                         await manager.terminate();
                     });
 

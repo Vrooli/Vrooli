@@ -1,4 +1,4 @@
-import { ApiKeyPermission } from "@local/shared";
+import { ApiKeyPermission } from "@vrooli/shared";
 import { expect } from "chai";
 import { ApiKeyEncryptionService } from "../auth/apiKeyEncryption.js";
 import { type UserDataForPasswordAuth } from "../auth/email.js";

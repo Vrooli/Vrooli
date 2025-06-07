@@ -1,4 +1,4 @@
-import { ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {

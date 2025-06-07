@@ -1,4 +1,4 @@
-import { type Schedule } from "@local/shared";
+import { type Schedule } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

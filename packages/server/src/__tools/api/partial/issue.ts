@@ -1,4 +1,4 @@
-import { type Issue, type IssueTranslation, type IssueYou } from "@local/shared";
+import { type Issue, type IssueTranslation, type IssueYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

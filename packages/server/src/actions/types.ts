@@ -1,4 +1,4 @@
-import { type CopyInput, type DeleteManyInput, type DeleteOneInput, type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, type ModelType, type SessionUser, type VisibilityType } from "@local/shared";
+import { type CopyInput, type DeleteManyInput, type DeleteOneInput, type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, type ModelType, type SessionUser, type VisibilityType } from "@vrooli/shared";
 import { type RequestService } from "../auth/request.js";
 import { type CountInputBase, type PartialApiInfo } from "../builders/types.js";
 import { type EmbeddableType } from "../services/embedding.js";

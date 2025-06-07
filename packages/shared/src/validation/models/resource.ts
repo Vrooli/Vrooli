@@ -11,7 +11,9 @@ import { type YupModel } from "../utils/types.js";
 import { resourceVersionValidation } from "./resourceVersion.js";
 import { tagValidation } from "./tag.js";
 
-const resourceType = enumToYup(ResourceType);
+function resourceType() {
+    return enumToYup(ResourceType);
+}
 
 export const resourceValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
@@ -20,13 +22,13 @@ export const resourceValidation: YupModel<["create", "update"]> = {
         isInternal: opt(bool),
         isPrivate: opt(bool),
         permissions: opt(permissions),
-        resourceType: req(resourceType),
+        resourceType: req(resourceType()),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
         ["ownedByTeam", ["Connect"], "one", "opt"],
         ["parent", ["Connect"], "one", "opt"],
         ["tags", ["Connect", "Create"], "many", "opt", tagValidation],
-        ["versions", ["Create"], "many", "req", resourceVersionValidation, ["root"]],
+        ["versions", ["Create"], "many", "req", resourceVersionValidation, ["rootConnect", "rootCreate"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", true]], d),
     update: (d) => yupObj({
         id: req(id),

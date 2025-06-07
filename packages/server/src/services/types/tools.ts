@@ -1,4 +1,4 @@
-import type { BlackboardItem, ChatConfigObject, McpToolName, ModelType, ResourceSubType, SwarmPolicy, SwarmResource, SwarmSubTask, TeamConfigObject, ResourceType as TypeOfResource } from "@local/shared";
+import type { BlackboardItem, ChatConfigObject, McpToolName, ModelType, ResourceSubType, SwarmPolicy, SwarmResource, SwarmSubTask, TeamConfigObject, ResourceType as TypeOfResource } from "@vrooli/shared";
 
 /** A graph or sequence of routines */
 type RoutineMultiStep = ResourceSubType.RoutineMultiStep;

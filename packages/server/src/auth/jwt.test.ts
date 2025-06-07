@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { COOKIE, MINUTES_15_MS, SECONDS_1_MS } from "@local/shared";
-import { expect } from "chai";
+import { COOKIE, MINUTES_15_MS, SECONDS_1_MS } from "@vrooli/shared";
+import { describe, it, expect, beforeAll } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
@@ -10,7 +10,7 @@ import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS }
 describe("JsonWebToken", () => {
     let originalNodeEnv: string | undefined;
 
-    before(() => {
+    beforeAll(() => {
         originalNodeEnv = process.env.NODE_ENV;
     });
     afterEach(() => {

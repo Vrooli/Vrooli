@@ -1,4 +1,4 @@
-import { type ResourceVersion, type ResourceVersionTranslation, type ResourceVersionYou } from "@local/shared";
+import { type ResourceVersion, type ResourceVersionTranslation, type ResourceVersionYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

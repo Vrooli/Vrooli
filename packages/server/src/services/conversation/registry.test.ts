@@ -1,4 +1,4 @@
-import { AnthropicModel, MistralModel, OpenAIModel } from "@local/shared";
+import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
 import { expect } from "chai";
 import sinon from "sinon";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry.js";

@@ -1,4 +1,4 @@
-import { type MemberInvite, type MemberInviteYou } from "@local/shared";
+import { type MemberInvite, type MemberInviteYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

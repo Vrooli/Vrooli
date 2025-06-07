@@ -1,4 +1,4 @@
-import { type ModelType, calculateVersionsFromString } from "@local/shared";
+import { type ModelType, calculateVersionsFromString } from "@vrooli/shared";
 import { type PrismaDelegate } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { ModelMap } from "../../models/base/index.js";

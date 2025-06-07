@@ -9,12 +9,15 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, id, intPositiveOrZero, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { RUN_DATA_MAX_LENGTH } from "../utils/validationConstants.js";
 import { runIOValidation } from "./runIO.js";
 import { runRoutineStepValidation } from "./runStep.js";
 import { scheduleValidation } from "./schedule.js";
 
-const data = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
-const runStatus = enumToYup(RunStatus);
+const data = yup.string().trim().removeEmptyString().max(RUN_DATA_MAX_LENGTH, maxStrErr);
+function runStatus() {
+    return enumToYup(RunStatus);
+}
 
 export const runValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
@@ -23,7 +26,7 @@ export const runValidation: YupModel<["create", "update"]> = {
         contextSwitches: opt(intPositiveOrZero),
         data: opt(data),
         isPrivate: opt(bool),
-        status: req(runStatus),
+        status: req(runStatus()),
         name: req(name),
         timeElapsed: opt(intPositiveOrZero),
     }, [

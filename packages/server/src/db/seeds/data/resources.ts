@@ -1,4 +1,4 @@
-import { CodeLanguage, CodeVersionConfig, DEFAULT_LANGUAGE, FormElement, FormStructureType, InputType, nanoid, ResourceSubType, ResourceType, RoutineVersionConfig, SEEDED_PUBLIC_IDS, SEEDED_TAGS, StandardVersionConfig } from "@local/shared";
+import { CodeLanguage, CodeVersionConfig, DEFAULT_LANGUAGE, FormElement, FormStructureType, InputType, nanoid, ResourceSubType, ResourceType, RoutineVersionConfig, SEEDED_PUBLIC_IDS, SEEDED_TAGS, StandardVersionConfig } from "@vrooli/shared";
 import { ResourceImportData } from "../../../builders/importExport.js";
 
 const VERSION = "1.0.0" as const;

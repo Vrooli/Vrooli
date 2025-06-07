@@ -1,4 +1,4 @@
-import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
+import { type BotCreateInput, type BotUpdateInput, generatePublicId, getTranslation, MaxObjects, type ProfileUpdateInput, UserSortBy, userValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { DbProvider } from "../../db/provider.js";
 import { CacheService } from "../../redisConn.js";

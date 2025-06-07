@@ -1,4 +1,4 @@
-import { ResourceSubType } from "@local/shared";
+import { ResourceSubType } from "@vrooli/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 

@@ -8,9 +8,10 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { id } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { LABEL_MAX_LENGTH } from "../utils/validationConstants.js";
 import { bookmarkValidation } from "./bookmark.js";
 
-const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
+const label = yup.string().trim().removeEmptyString().max(LABEL_MAX_LENGTH, maxStrErr);
 
 export const bookmarkListValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

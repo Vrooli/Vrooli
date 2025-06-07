@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { arraysEqual, difference, flatten, uniqBy } from "./arrays.js";
 
 function numberComparator(a: number, b: number) { return a === b; }

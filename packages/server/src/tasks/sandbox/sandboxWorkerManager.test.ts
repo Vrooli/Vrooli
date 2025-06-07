@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { CodeLanguage } from "@local/shared";
+import { CodeLanguage } from "@vrooli/shared";
 import { expect } from "chai";
 import sinon from "sinon";
 import { MB } from "./consts.js";

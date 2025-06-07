@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { type Success, type TaskStatus, type TaskStatusInfo } from "@local/shared";
+import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
 import type { ActiveTaskRegistryLimits } from "../activeTaskRegistry.js";
 import { QueueService } from "../queues.js";
 import { type SwarmTask } from "../taskTypes.js";

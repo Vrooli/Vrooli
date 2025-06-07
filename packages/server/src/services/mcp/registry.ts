@@ -1,4 +1,4 @@
-import { McpToolName } from "@local/shared";
+import { McpToolName } from "@vrooli/shared";
 import type { Logger } from "winston";
 import { RequestService } from "../../auth/request.js";
 import defineToolSchemaJson from "../schemas/DefineTool/schema.json" with { type: "json" };

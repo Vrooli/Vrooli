@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, type ModelType, type SessionUser, type TransferObjectType, type TransferRequestReceiveInput, type TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, type ModelType, type SessionUser, type TransferObjectType, type TransferRequestReceiveInput, type TransferRequestSendInput, TransferSortBy, transferValidation } from "@vrooli/shared";
 import i18next from "i18next";
 import { noNull } from "../../builders/noNull.js";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";

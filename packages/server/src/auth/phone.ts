@@ -1,4 +1,4 @@
-import { API_CREDITS_FREE, BUSINESS_NAME, MINUTES_15_S, MINUTES_2_S, generatePK } from "@local/shared";
+import { API_CREDITS_FREE, BUSINESS_NAME, MINUTES_15_S, MINUTES_2_S, generatePK } from "@vrooli/shared";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { QueueService } from "../tasks/queues.js";

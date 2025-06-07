@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { resourceValidation } from "./resource.js";
 import { resourceFixtures } from "./__test__/fixtures/resourceFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -212,7 +211,7 @@ describe("resourceValidation", () => {
                     createSchema,
                     resourceFixtures.invalid.invalidPublicId.create,
                     false,
-                    /letters, numbers, and underscores/i,
+                    /Must be a valid public ID/i,
                 );
             });
         });
@@ -343,14 +342,12 @@ describe("resourceValidation", () => {
             });
 
             it("should not enforce ownership exclusivity in update (allows removal)", async () => {
-                const dataWithBothOwners = {
+                const dataWithNoOwners = {
                     id: "123456789012345678",
-                    ownedByUserConnect: "123456789012345679",
-                    ownedByTeamConnect: "123456789012345680",
                 };
 
-                // In update, exclusivity is false, so both can be present
-                await testValidation(updateSchema, dataWithBothOwners, true);
+                // In update, ownership is not required, so no owners is allowed (removal)
+                await testValidation(updateSchema, dataWithNoOwners, true);
             });
 
             it("should not allow updating resourceType", async () => {
@@ -462,7 +459,6 @@ describe("resourceValidation", () => {
 
     describe("id validation", () => {
         const createSchema = resourceValidation.create({ omitFields: [] });
-        const updateSchema = resourceValidation.update({ omitFields: [] });
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [

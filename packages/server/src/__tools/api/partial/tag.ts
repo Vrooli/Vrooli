@@ -1,4 +1,4 @@
-import { type Tag, type TagTranslation, type TagYou } from "@local/shared";
+import { type Tag, type TagTranslation, type TagYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

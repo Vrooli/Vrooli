@@ -1,4 +1,4 @@
-import { apiKeyExternalValidation, generatePK, MaxObjects } from "@local/shared";
+import { apiKeyExternalValidation, generatePK, MaxObjects } from "@vrooli/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

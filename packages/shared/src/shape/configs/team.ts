@@ -1,9 +1,7 @@
 import { type Team } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, type BaseConfigObject } from "./base.js";
-import { type StringifyMode } from "./utils.js";
 
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 /**
  * Represents all data that can be stored in a team's stringified config.

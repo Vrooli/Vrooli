@@ -1,4 +1,4 @@
-import { ApiKeyPermission, DUMMY_ID, type ModelType, VisibilityType } from "@local/shared";
+import { ApiKeyPermission, DUMMY_ID, type ModelType, VisibilityType } from "@vrooli/shared";
 import { RequestService } from "../auth/request.js";
 import { CustomError } from "../events/error.js";
 import { type GenericModelLogic, ModelMap } from "../models/base/index.js";

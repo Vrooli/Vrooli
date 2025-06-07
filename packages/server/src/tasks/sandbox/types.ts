@@ -1,4 +1,4 @@
-import { type CodeLanguage } from "@local/shared";
+import { type CodeLanguage } from "@vrooli/shared";
 import type { SandboxTask } from "../taskTypes.js";
 
 export type RunUserCodeInput = Pick<SandboxTask, "input" | "shouldSpreadInput"> & {

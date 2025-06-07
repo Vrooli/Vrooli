@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { scheduleValidation } from "./schedule.js";
 import { scheduleFixtures } from "./__test__/fixtures/scheduleFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -82,7 +81,7 @@ describe("scheduleValidation", () => {
                     createSchema,
                     { 
                         id: "123456789012345678",
-                        timezone: "A".repeat(65) 
+                        timezone: "A".repeat(65), 
                     },
                     false,
                     /over the limit/,

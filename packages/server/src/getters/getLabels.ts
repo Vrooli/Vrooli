@@ -1,4 +1,4 @@
-import { type ModelType, validatePK } from "@local/shared";
+import { type ModelType, validatePK } from "@vrooli/shared";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";

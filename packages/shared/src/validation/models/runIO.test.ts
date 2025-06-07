@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { runIOValidation } from "./runIO.js";
 import { runIOFixtures } from "./__test__/fixtures/runIOFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -499,7 +498,7 @@ describe("runIOValidation", () => {
 
     describe("id validation", () => {
         const createSchema = runIOValidation.create({ omitFields: [] });
-        const updateSchema = runIOValidation.update({ omitFields: [] });
+
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [
@@ -582,7 +581,7 @@ describe("runIOValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = runIOValidation.create({ omitFields: [] });
-        const updateSchema = runIOValidation.update({ omitFields: [] });
+
 
         it("should handle minimal IO creation", async () => {
             await testValidation(

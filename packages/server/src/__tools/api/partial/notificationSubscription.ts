@@ -1,4 +1,4 @@
-import { type NotificationSubscription } from "@local/shared";
+import { type NotificationSubscription } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

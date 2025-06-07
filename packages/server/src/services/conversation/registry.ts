@@ -1,4 +1,4 @@
-import { LlmServiceId, MINUTES_15_MS, aiServicesInfo } from "@local/shared";
+import { LlmServiceId, MINUTES_15_MS, aiServicesInfo } from "@vrooli/shared";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { type AIService } from "./services.js";

@@ -1,7 +1,7 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { chatValidation, chatTranslationValidation } from "./chat.js";
 import { chatFixtures, chatTestDataFactory, chatTranslationFixtures } from "./__test__/fixtures/chatFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
 
 describe("chatValidation", () => {
     // Run standard test suite
@@ -113,7 +113,7 @@ describe("chatValidation", () => {
 
             it("should handle omitFields for nested relations", async () => {
                 const schemaWithOmit = chatValidation.create({ 
-                    omitFields: ["invitesCreate", "messagesCreate"] 
+                    omitFields: ["invitesCreate", "messagesCreate"], 
                 });
                 const result = await testValidation(
                     schemaWithOmit,

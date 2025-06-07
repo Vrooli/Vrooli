@@ -1,4 +1,5 @@
-import { ModelTestFixtures, TestDataFactory, testValues } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { NAME_MAX_LENGTH } from "../../utils/validationConstants.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -70,7 +71,7 @@ export const walletFixtures: ModelTestFixtures = {
         maxLengthName: {
             update: {
                 id: validIds.id1,
-                name: "a".repeat(50), // Exactly 50 characters
+                name: "a".repeat(NAME_MAX_LENGTH), // Exactly at max length
             },
         },
         nameWithSpecialChars: {

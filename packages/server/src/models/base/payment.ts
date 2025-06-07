@@ -1,4 +1,4 @@
-import { MaxObjects, PaymentSortBy } from "@local/shared";
+import { MaxObjects, PaymentSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { PaymentFormat } from "../formats.js";

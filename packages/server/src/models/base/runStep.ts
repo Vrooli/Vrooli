@@ -1,4 +1,4 @@
-import { MaxObjects, runRoutineStepValidation } from "@local/shared";
+import { MaxObjects, runRoutineStepValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

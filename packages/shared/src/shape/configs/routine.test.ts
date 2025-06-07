@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import sinon from "sinon";
 import { McpToolName } from "../../consts/mcp.js";
 import { validatePublicId } from "../../id/publicId.js";
@@ -15,7 +15,7 @@ describe("CallDataActionConfig", () => {
     let ioMapping: SubroutineIOMapping;
     let userLanguages: string[];
 
-    before(async () => {
+    beforeAll(async () => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -56,7 +56,7 @@ describe("CallDataActionConfig", () => {
         userLanguages = ["en", "es"];
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -563,7 +563,7 @@ describe("CallDataCodeConfig", () => {
     let consoleErrorStub: sinon.SinonStub;
     let config: CallDataCodeConfig;
 
-    before(async () => {
+    beforeAll(async () => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -575,7 +575,7 @@ describe("CallDataCodeConfig", () => {
         });
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 

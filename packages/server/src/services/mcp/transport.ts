@@ -1,4 +1,4 @@
-import { HttpStatus } from "@local/shared";
+import { HttpStatus } from "@vrooli/shared";
 import { type Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import type * as http from "http";

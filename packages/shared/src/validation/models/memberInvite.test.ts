@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { memberInviteValidation } from "./memberInvite.js";
 import { memberInviteFixtures } from "./__test__/fixtures/memberInviteFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -23,13 +22,13 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -37,26 +36,26 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.complete.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.complete.update,
-                    true
+                    true,
                 );
             });
 
             it("should trim whitespace from message", async () => {
                 const result = await createSchema.validate(
-                    memberInviteFixtures.edgeCases.whitespaceMessage.create
+                    memberInviteFixtures.edgeCases.whitespaceMessage.create,
                 );
                 expect(result.message).to.equal("Invitation message with whitespace");
             });
 
             it("should handle empty string message", async () => {
                 const result = await createSchema.validate(
-                    memberInviteFixtures.edgeCases.emptyMessage.create
+                    memberInviteFixtures.edgeCases.emptyMessage.create,
                 );
                 // Empty string should be removed by removeEmptyString()
                 expect(result.message).to.be.undefined;
@@ -66,7 +65,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.edgeCases.longMessage.create,
-                    true
+                    true,
                 );
             });
 
@@ -77,7 +76,7 @@ describe("memberInviteValidation", () => {
                         ...memberInviteFixtures.minimal.create,
                         message: 123,
                     },
-                    false
+                    false,
                 );
 
                 await testValidation(
@@ -86,7 +85,7 @@ describe("memberInviteValidation", () => {
                         ...memberInviteFixtures.minimal.create,
                         message: false,
                     },
-                    false
+                    false,
                 );
             });
         });
@@ -99,13 +98,13 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -137,7 +136,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.create,
                             willBeAdmin: invalidValue,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -146,13 +145,13 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.edgeCases.adminWithoutPermissions.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.edgeCases.nonAdminWithPermissions.create,
-                    true
+                    true,
                 );
             });
         });
@@ -165,13 +164,13 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -189,7 +188,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.edgeCases.emptyPermissions.create,
-                    true
+                    true,
                 );
             });
 
@@ -197,7 +196,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.edgeCases.complexPermissions.create,
-                    true
+                    true,
                 );
             });
 
@@ -216,7 +215,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.create,
                             willHavePermissions: invalidValue,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -230,7 +229,7 @@ describe("memberInviteValidation", () => {
                     createSchema,
                     memberInviteFixtures.invalid.missingTeamConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -239,7 +238,7 @@ describe("memberInviteValidation", () => {
                     createSchema,
                     memberInviteFixtures.invalid.missingUserConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -247,7 +246,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.invalid.invalidTeamConnect.create,
-                    false
+                    false,
                 );
             });
 
@@ -255,7 +254,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     memberInviteFixtures.invalid.invalidUserConnect.create,
-                    false
+                    false,
                 );
             });
         });
@@ -278,7 +277,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.create,
                             id: validId,
                         },
-                        true
+                        true,
                     );
 
                     await testValidation(
@@ -287,7 +286,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.update,
                             id: validId,
                         },
-                        true
+                        true,
                     );
                 }
             });
@@ -309,7 +308,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.create,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
 
                     await testValidation(
@@ -318,7 +317,7 @@ describe("memberInviteValidation", () => {
                             ...memberInviteFixtures.minimal.update,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -328,14 +327,14 @@ describe("memberInviteValidation", () => {
                     createSchema,
                     memberInviteFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
 
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.invalid.missingRequired.update,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
         });
@@ -347,7 +346,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.edgeCases.updateWithoutConnections.update,
-                    true
+                    true,
                 );
             });
 
@@ -355,7 +354,7 @@ describe("memberInviteValidation", () => {
                 await testValidation(
                     updateSchema,
                     memberInviteFixtures.complete.update,
-                    true
+                    true,
                 );
             });
 

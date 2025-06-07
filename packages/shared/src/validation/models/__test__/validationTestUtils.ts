@@ -27,7 +27,7 @@ export interface ModelTestFixtures<TCreate = any, TUpdate = any> {
         [key: string]: any; // Allow model-specific invalid scenarios
     };
     // Edge cases specific to the model
-    edgeCases?: {
+    edgeCases: {
         [key: string]: any;
     };
 }
@@ -57,11 +57,11 @@ export async function testValidation(
         if (expectedError) {
             if (expectedError instanceof RegExp) {
                 // Check both the main message and individual errors
-                const allErrorText = `${error.message} ${error.errors?.join(' ') || ''}`;
+                const allErrorText = `${error.message} ${error.errors?.join(" ") || ""}`;
                 expect(allErrorText).to.match(expectedError);
             } else {
                 // Check both the main message and individual errors
-                const allErrorText = `${error.message} ${error.errors?.join(' ') || ''}`;
+                const allErrorText = `${error.message} ${error.errors?.join(" ") || ""}`;
                 expect(allErrorText).to.include(expectedError);
             }
         }
@@ -207,9 +207,9 @@ export function runStandardValidationTests<TCreate, TUpdate>(
         describe("omitFields functionality", () => {
             it("should omit top-level fields", async () => {
                 const schema = validationModel.create?.({ 
-                    omitFields: Object.keys(fixtures.complete.create).slice(2) 
+                    omitFields: Object.keys(fixtures.complete.create).slice(2), 
                 }) || validationModel.update({ 
-                    omitFields: Object.keys(fixtures.complete.update).slice(2) 
+                    omitFields: Object.keys(fixtures.complete.update).slice(2), 
                 });
                 
                 const data = validationModel.create ? 

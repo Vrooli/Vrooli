@@ -1,4 +1,4 @@
-import { RoutineType, type RoutineVersion } from "@local/shared";
+import { RoutineType, type RoutineVersion } from "@vrooli/shared";
 import { generateInputAndOutputMessage, generateInputOnlyMessage, generateOutputOnlyMessage, generateTaskMessage } from "./process.js";
 
 // Helper function to create a mock RoutineVersion

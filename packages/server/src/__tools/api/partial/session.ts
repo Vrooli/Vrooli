@@ -1,4 +1,4 @@
-import { type Session } from "@local/shared";
+import { type Session } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

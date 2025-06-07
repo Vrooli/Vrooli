@@ -3,4 +3,6 @@
  * @param value The value to check.
  * @returns True if the value is not null and not undefined, false otherwise.
  */
-export const exists = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined;
+export function exists<T>(value: T | null | undefined): value is T {
+    return value !== null && value !== undefined;
+}

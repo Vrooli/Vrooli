@@ -1,4 +1,4 @@
-import { type Comment, type CommentSearchResult, type CommentThread, type CommentTranslation, type CommentYou } from "@local/shared";
+import { type Comment, type CommentSearchResult, type CommentThread, type CommentTranslation, type CommentYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

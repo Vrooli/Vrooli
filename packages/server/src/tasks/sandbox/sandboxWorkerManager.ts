@@ -1,4 +1,4 @@
-import { CodeLanguage } from "@local/shared";
+import { CodeLanguage } from "@vrooli/shared";
 import { type ChildProcess, fork } from "child_process";
 import fs from "fs";
 import path from "path";

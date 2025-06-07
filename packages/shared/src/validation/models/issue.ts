@@ -10,7 +10,9 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { description, id, name } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 
-const issueFor = enumToYup(IssueFor);
+function issueFor() {
+    return enumToYup(IssueFor);
+}
 
 export const issueTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({
@@ -26,7 +28,7 @@ export const issueTranslationValidation: YupModel<["create", "update"]> = transR
 export const issueValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        issueFor: req(issueFor),
+        issueFor: req(issueFor()),
     }, [
         ["for", ["Connect"], "one", "req"],
         ["translations", ["Create"], "many", "opt", issueTranslationValidation],

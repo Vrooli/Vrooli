@@ -1,4 +1,4 @@
-import { ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory } from "../validationTestUtils.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -19,6 +19,9 @@ export const chatParticipantFixtures: ModelTestFixtures = {
         create: {}, // No create operation defined
         update: {
             id: validIds.id2,
+            extraField1: "test1", // Will be stripped by omitFields
+            extraField2: "test2", // Will be stripped by omitFields  
+            extraField3: "test3", // Will be stripped by omitFields
         },
     },
     invalid: {

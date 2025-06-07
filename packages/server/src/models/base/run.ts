@@ -1,4 +1,4 @@
-import { MaxObjects, RunSortBy, runValidation } from "@local/shared";
+import { MaxObjects, RunSortBy, runValidation } from "@vrooli/shared";
 import { RunStatus, type RunStepStatus } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";

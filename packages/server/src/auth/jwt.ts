@@ -1,4 +1,4 @@
-import { COOKIE, MINUTES_15_MS, SECONDS_1_MS, YEARS_1_MS } from "@local/shared";
+import { COOKIE, MINUTES_15_MS, SECONDS_1_MS, YEARS_1_MS } from "@vrooli/shared";
 import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { logger } from "../events/logger.js";

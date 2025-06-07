@@ -1,4 +1,4 @@
-import { MaxObjects, NotificationSortBy } from "@local/shared";
+import { MaxObjects, NotificationSortBy } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { NotificationFormat } from "../formats.js";

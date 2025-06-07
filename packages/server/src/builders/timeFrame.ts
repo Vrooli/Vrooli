@@ -1,4 +1,4 @@
-import { SECONDS_1_MS, type TimeFrame } from "@local/shared";
+import { SECONDS_1_MS, type TimeFrame } from "@vrooli/shared";
 
 type TimeFrameWhereQuery = {
     [fieldName: string]: {

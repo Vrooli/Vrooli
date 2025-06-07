@@ -1,4 +1,4 @@
-import { isObject } from "@local/shared";
+import { isObject } from "@vrooli/shared";
 
 /**
  * Filters excluded fields from an object

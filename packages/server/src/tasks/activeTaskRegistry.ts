@@ -1,4 +1,4 @@
-import { SECONDS_1_MS } from "@local/shared";
+import { SECONDS_1_MS } from "@vrooli/shared";
 import { logger } from "../events/logger.js";
 import { Notify } from "../notify/notify.js";
 

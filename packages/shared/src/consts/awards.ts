@@ -18,12 +18,11 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
     CommentCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     IssueCreate: [1, 5, 10, 25, 50, 100, 250],
     NoteCreate: [1, 5, 10, 25, 50, 100],
-    PostCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     ProjectCreate: [1, 5, 10, 25, 50, 100],
     ReportEnd: [1, 5, 10, 25, 50, 100],
     ReportContribute: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     RunRoutine: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
-    RunProject: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
+    RunProject: [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 10000],
     RoutineCreate: [1, 5, 10, 25, 50, 100, 250, 500, 1000],
     StandardCreate: [1, 5, 10, 25, 50],
     OrganizationCreate: [1, 2, 5, 10],
@@ -135,13 +134,6 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ObjectReact_Body", bodyVariables: { count: level }, level };
     },
-    PostCreate: (count, findNext = false) => {
-        // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const p = "PostCreate";
-        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "PostCreate_Body", bodyVariables: { count: level }, level };
-    },
     ProjectCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]
         const p = "ProjectCreate";
@@ -184,19 +176,19 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ReputationPoints_Body", bodyVariables: { count: level }, level };
     },
+    RunProject: (count, findNext = false) => {
+        // [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 10000]
+        const p = "RunProject";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)], [2500, title(p, 2500)], [10000, title(p, 10000)]], count, findNext);
+        if (!name) return { name: null, body: null, level: 0 };
+        return { name, body: "RunProject_Body", bodyVariables: { count: level }, level };
+    },
     RunRoutine: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
         const p = "RunRoutine";
         const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)], [2500, title(p, 2500)], [10000, title(p, 10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "RunRoutine_Body", bodyVariables: { count: level }, level };
-    },
-    RunProject: (count, findNext = false) => {
-        // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const p = "RunProject";
-        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
-        if (!name) return { name: null, body: null, level: 0 };
-        return { name, body: "RunProject_Body", bodyVariables: { count: level }, level };
     },
     RoutineCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000

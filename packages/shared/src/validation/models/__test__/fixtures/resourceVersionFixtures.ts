@@ -428,7 +428,7 @@ export const resourceVersionFixtures: ModelTestFixtures = {
                 config: {
                     version: "2.0",
                     features: ["automation", "validation"],
-                    settings: { timeout: 30000, retries: 3 }
+                    settings: { timeout: 30000, retries: 3 },
                 },
                 versionLabel: "1.0.0",
                 rootConnect: validIds.id2,

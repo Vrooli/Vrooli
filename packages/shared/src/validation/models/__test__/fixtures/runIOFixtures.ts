@@ -35,13 +35,13 @@ export const runIOFixtures: ModelTestFixtures = {
                 properties: {
                     name: { type: "string" },
                     value: { type: "number" },
-                    enabled: { type: "boolean" }
+                    enabled: { type: "boolean" },
                 },
                 values: {
                     name: "test input",
                     value: 42,
-                    enabled: true
-                }
+                    enabled: true,
+                },
             }),
             nodeInputName: "complexInput",
             nodeName: "DataProcessorNode",
@@ -59,8 +59,8 @@ export const runIOFixtures: ModelTestFixtures = {
                 output: "processed successfully",
                 metadata: {
                     timestamp: "2023-01-01T00:00:00Z",
-                    duration: 1500
-                }
+                    duration: 1500,
+                },
             }),
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
@@ -319,9 +319,9 @@ export const runIOFixtures: ModelTestFixtures = {
                         processed: true,
                         output: "new result",
                         metadata: {
-                            updatedAt: "2023-12-01T10:30:00Z"
-                        }
-                    }
+                            updatedAt: "2023-12-01T10:30:00Z",
+                        },
+                    },
                 }),
             },
         },

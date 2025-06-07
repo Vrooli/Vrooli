@@ -10,9 +10,12 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { id, intPositiveOrOne, intPositiveOrZero, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { NODE_ID_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const nodeId = yup.string().trim().removeEmptyString().max(128, maxStrErr);
-const runStepStatus = enumToYup(RunStepStatus);
+const nodeId = yup.string().trim().removeEmptyString().max(NODE_ID_MAX_LENGTH, maxStrErr);
+function runStepStatus() {
+    return enumToYup(RunStepStatus);
+}
 
 export const runRoutineStepValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
@@ -22,7 +25,7 @@ export const runRoutineStepValidation: YupModel<["create", "update"]> = {
         name: req(name),
         nodeId: req(nodeId),
         order: req(intPositiveOrZero),
-        status: opt(runStepStatus),
+        status: opt(runStepStatus()),
         resourceInId: req(id),
         timeElapsed: opt(intPositiveOrZero),
     }, [
@@ -32,7 +35,7 @@ export const runRoutineStepValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         id: req(id),
         contextSwitches: opt(intPositiveOrOne),
-        status: opt(runStepStatus),
+        status: opt(runStepStatus()),
         timeElapsed: opt(intPositiveOrZero),
     }, [], [], d),
 };

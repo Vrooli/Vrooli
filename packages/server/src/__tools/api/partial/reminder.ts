@@ -1,4 +1,4 @@
-import { type Reminder } from "@local/shared";
+import { type Reminder } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

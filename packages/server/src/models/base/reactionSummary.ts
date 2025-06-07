@@ -1,4 +1,4 @@
-import { MaxObjects } from "@local/shared";
+import { MaxObjects } from "@vrooli/shared";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { ReactionSummaryFormat } from "../formats.js";
 import { type ReactionSummaryModelLogic } from "./types.js";

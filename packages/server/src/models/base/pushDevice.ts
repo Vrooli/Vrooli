@@ -1,4 +1,4 @@
-import { MaxObjects, pushDeviceValidation } from "@local/shared";
+import { MaxObjects, pushDeviceValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";

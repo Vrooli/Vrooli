@@ -6,6 +6,7 @@
  * that format matches the fields below, there should be no errors.
  */
 import * as yup from "yup";
+import "./yupAugmentations.js"; // Import yup augmentations first
 import { ReportFor } from "../../api/types.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { validatePK } from "../../id/snowflake.js";
@@ -15,6 +16,29 @@ import { enumToYup } from "./builders/convert.js";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";
 import { meetsMinVersion } from "./versions.js";
+import {
+    BIO_MAX_LENGTH,
+    DESCRIPTION_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
+    HANDLE_MAX_LENGTH,
+    HANDLE_MIN_LENGTH,
+    HELP_TEXT_MAX_LENGTH,
+    HEX_COLOR_MAX_LENGTH,
+    HEX_COLOR_MIN_LENGTH,
+    IMAGE_FILE_MAX_LENGTH,
+    LANGUAGE_CODE_MAX_LENGTH,
+    LANGUAGE_CODE_MIN_LENGTH,
+    NAME_MAX_LENGTH,
+    NAME_MIN_LENGTH,
+    PUSH_NOTIFICATION_KEY_MAX_LENGTH,
+    REFERENCING_MAX_LENGTH,
+    TAG_MAX_LENGTH,
+    TAG_MIN_LENGTH,
+    TIMEZONE_FIELD_MAX_LENGTH,
+    URL_MAX_LENGTH,
+    VERSION_LABEL_MAX_LENGTH,
+    VERSION_NOTES_MAX_LENGTH,
+} from "./validationConstants.js";
 
 /**
  * Test for minimum version
@@ -30,22 +54,6 @@ export function minVersionTest(minVersion: string): [string, string, (value: str
         },
     ];
 }
-
-yup.addMethod(yup.string, "removeEmptyString", function transformRemoveEmptyString() {
-    return this.transform((value: unknown) => {
-        return typeof value === "string" && value.trim() !== "" ? value : undefined;
-    });
-});
-
-yup.addMethod(yup.bool, "toBool", function transformToBool() {
-    return this.transform((value: unknown) => {
-        if (typeof value === "boolean") return value;
-        if (typeof value === "string") return value.trim() === "true" || value.trim() === "yes" || value.trim() === "1";
-        if (typeof value === "number") return value === 1;
-        return false;
-    });
-});
-
 
 // db fields
 export const id = yup
@@ -73,16 +81,16 @@ export const publicId = yup.string().trim().removeEmptyString().test(
 );
 
 // protocol fields
-export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
-export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
-export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
-export const imageFile = yup.string().trim().removeEmptyString().max(256, maxStrErr);
+export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(EMAIL_MAX_LENGTH, maxStrErr);
+export const handle = yup.string().trim().removeEmptyString().min(HANDLE_MIN_LENGTH, minStrErr).max(HANDLE_MAX_LENGTH, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
+export const hexColor = yup.string().trim().removeEmptyString().min(HEX_COLOR_MIN_LENGTH, minStrErr).max(HEX_COLOR_MAX_LENGTH, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");
+export const imageFile = yup.string().trim().removeEmptyString().max(IMAGE_FILE_MAX_LENGTH, maxStrErr);
 export const pushNotificationKeys = yup.object({
-    p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
-    auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
+    p256dh: yup.string().trim().removeEmptyString().max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr).required(reqErr),
+    auth: yup.string().trim().removeEmptyString().max(PUSH_NOTIFICATION_KEY_MAX_LENGTH, maxStrErr).required(reqErr),
 }).default(undefined).nullable();
 export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
-    return yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
+    return yup.string().trim().removeEmptyString().max(URL_MAX_LENGTH, maxStrErr).test(
         "link",
         "Must be a URL",
         (value: string | undefined) => {
@@ -137,7 +145,7 @@ export const int = yup.number().min(MIN_INT, minNumErr).max(MAX_INT, maxNumErr).
 export const index = intPositiveOrZero;
 
 // dates
-export const timezone = yup.string().trim().removeEmptyString().max(64, maxStrErr);
+export const timezone = yup.string().trim().removeEmptyString().max(TIMEZONE_FIELD_MAX_LENGTH, maxStrErr);
 export const startTime = yup.date();
 export const endTime = yup.date()
     .test(
@@ -200,17 +208,17 @@ export const newEndTime = yup.date()
 export const endDate = yup.date();
 
 // strings
-export const bio = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
-export const description = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
-export const helpText = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
-export const referencing = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
-export const language = yup.string().trim().removeEmptyString().min(2, minStrErr).max(3, maxStrErr); // Language code
-export const name = yup.string().trim().removeEmptyString().min(3, minStrErr).max(50, maxStrErr);
-export const tag = yup.string().trim().removeEmptyString().min(2, minStrErr).max(64, maxStrErr);
+export const bio = yup.string().trim().removeEmptyString().max(BIO_MAX_LENGTH, maxStrErr);
+export const description = yup.string().trim().removeEmptyString().max(DESCRIPTION_MAX_LENGTH, maxStrErr);
+export const helpText = yup.string().trim().removeEmptyString().max(HELP_TEXT_MAX_LENGTH, maxStrErr);
+export const referencing = yup.string().trim().removeEmptyString().max(REFERENCING_MAX_LENGTH, maxStrErr);
+export const language = yup.string().trim().removeEmptyString().min(LANGUAGE_CODE_MIN_LENGTH, minStrErr).max(LANGUAGE_CODE_MAX_LENGTH, maxStrErr); // Language code
+export const name = yup.string().trim().removeEmptyString().min(NAME_MIN_LENGTH, minStrErr).max(NAME_MAX_LENGTH, maxStrErr);
+export const tag = yup.string().trim().removeEmptyString().min(TAG_MIN_LENGTH, minStrErr).max(TAG_MAX_LENGTH, maxStrErr);
 export function versionLabel({ minVersion = "0.0.1" }: { minVersion?: string }) {
-    return yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+    return yup.string().trim().removeEmptyString().max(VERSION_LABEL_MAX_LENGTH, maxStrErr).test(...minVersionTest(minVersion));
 }
-export const versionNotes = yup.string().trim().removeEmptyString().max(4092, maxStrErr);
+export const versionNotes = yup.string().trim().removeEmptyString().max(VERSION_NOTES_MAX_LENGTH, maxStrErr);
 export const idArray = yup.array().of(id.required(reqErr));
 export const tagArray = yup.array().of(tag.required(reqErr));
 export const nodeCondition = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
@@ -229,4 +237,6 @@ export const phoneNumber = yup.string().trim().removeEmptyString().max(16, maxSt
 export const config = yup.object();
 
 // enums
-export const reportCreatedFor = enumToYup(ReportFor);
+export function reportCreatedFor() {
+    return enumToYup(ReportFor);
+}

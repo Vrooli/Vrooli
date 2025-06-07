@@ -1,4 +1,4 @@
-import { MaxObjects } from "@local/shared";
+import { MaxObjects } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
 import { SessionFormat } from "../formats.js";

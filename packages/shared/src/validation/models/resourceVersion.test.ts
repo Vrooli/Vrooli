@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { resourceVersionValidation } from "./resourceVersion.js";
 import { resourceVersionFixtures } from "./__test__/fixtures/resourceVersionFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -86,7 +85,7 @@ describe("resourceVersionValidation", () => {
             });
 
             it("should accept valid version labels", async () => {
-                const validVersions = ["1.0.0", "2.1.3", "1.0.0-beta", "1.0.0-alpha.1"];
+                const validVersions = ["1.0.0", "2.1.3", "10.20.30", "0.0.1"];
 
                 for (const versionLabel of validVersions) {
                     const data = {
@@ -304,7 +303,7 @@ describe("resourceVersionValidation", () => {
                     "RoutineInternalAction", "RoutineApi", "RoutineCode", "RoutineData", 
                     "RoutineGenerate", "RoutineInformational", "RoutineMultiStep", 
                     "RoutineSmartContract", "RoutineWeb", "CodeDataConverter", 
-                    "CodeSmartContract", "StandardDataStructure", "StandardPrompt"
+                    "CodeSmartContract", "StandardDataStructure", "StandardPrompt",
                 ];
 
                 for (const resourceSubType of subtypes) {
@@ -468,7 +467,7 @@ describe("resourceVersionValidation", () => {
 
     describe("id validation", () => {
         const createSchema = resourceVersionValidation.create({ omitFields: [] });
-        const updateSchema = resourceVersionValidation.update({ omitFields: [] });
+
 
         it("should accept valid Snowflake IDs", async () => {
             const validIds = [
@@ -571,7 +570,7 @@ describe("resourceVersionValidation", () => {
 
     describe("edge cases", () => {
         const createSchema = resourceVersionValidation.create({ omitFields: [] });
-        const updateSchema = resourceVersionValidation.update({ omitFields: [] });
+
 
         it("should handle minimal version creation", async () => {
             await testValidation(

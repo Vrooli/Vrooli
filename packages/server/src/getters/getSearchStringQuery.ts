@@ -1,4 +1,4 @@
-import { type ModelType } from "@local/shared";
+import { type ModelType } from "@vrooli/shared";
 import { isRelationshipObject } from "../builders/isOfType.js";
 import { ModelMap } from "../models/base/index.js";
 import { type SearchStringQuery, type SearchStringQueryParams } from "../models/types.js";

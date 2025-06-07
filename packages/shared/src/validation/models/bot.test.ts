@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { botValidation, botTranslationValidation } from "./bot.js";
 import { 
     botFixtures, 
@@ -227,7 +227,7 @@ describe("botValidation", () => {
         describe("omitFields functionality", () => {
             it("should omit specified fields", async () => {
                 const schema = botValidation.create({ 
-                    omitFields: ["handle", "isPrivate", "bannerImage", "profileImage"] 
+                    omitFields: ["handle", "isPrivate", "bannerImage", "profileImage"], 
                 });
                 const data = botTestDataFactory.createComplete();
                 const result = await schema.validate(data, { stripUnknown: true });

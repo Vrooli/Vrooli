@@ -1,7 +1,7 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { phoneValidation } from "./phone.js";
 import { phoneFixtures, phoneTestDataFactory } from "./__test__/fixtures/phoneFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("phoneValidation", () => {
     // Run standard test suite (but only for create since update isn't supported)

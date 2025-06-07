@@ -1,4 +1,4 @@
-import { type AwardCategory, type BookmarkFor, type ChatMessage, type CopyType, type IssueStatus, type ModelType, type PullRequestStatus, type ReactionFor, type ReportStatus } from "@local/shared";
+import { type AwardCategory, type BookmarkFor, type ChatMessage, type CopyType, type IssueStatus, type ModelType, type PullRequestStatus, type ReactionFor, type ReportStatus } from "@vrooli/shared";
 import { PasswordAuthService } from "../auth/email.js";
 import { DbProvider } from "../db/provider.js";
 import { Notify, isObjectSubscribable } from "../notify/notify.js";

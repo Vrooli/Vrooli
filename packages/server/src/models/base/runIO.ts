@@ -1,4 +1,4 @@
-import { MaxObjects, RunIOSortBy, runIOValidation } from "@local/shared";
+import { MaxObjects, RunIOSortBy, runIOValidation } from "@vrooli/shared";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";

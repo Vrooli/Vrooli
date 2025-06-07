@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { SubscribableObject } from "../../api/types.js";
 import { notificationSubscriptionValidation } from "./notificationSubscription.js";
 import { notificationSubscriptionFixtures } from "./__test__/fixtures/notificationSubscriptionFixtures.js";
@@ -70,7 +69,7 @@ describe("notificationSubscriptionValidation", () => {
                     createSchema,
                     notificationSubscriptionFixtures.invalid.missingObjectType.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -89,7 +88,7 @@ describe("notificationSubscriptionValidation", () => {
                         data,
                         shouldPass: true,
                         description: `ObjectType: ${data.objectType}`,
-                    }))
+                    })),
                 );
             });
         });
@@ -102,13 +101,13 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     createSchema,
                     notificationSubscriptionFixtures.edgeCases.withoutSilent.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.edgeCases.updateWithoutSilent.update,
-                    true
+                    true,
                 );
             });
 
@@ -141,7 +140,7 @@ describe("notificationSubscriptionValidation", () => {
                             ...notificationSubscriptionFixtures.minimal.create,
                             silent: invalidValue,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -150,7 +149,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.edgeCases.updateSilentOnly.update,
-                    true
+                    true,
                 );
             });
         });
@@ -163,7 +162,7 @@ describe("notificationSubscriptionValidation", () => {
                     createSchema,
                     notificationSubscriptionFixtures.invalid.missingObjectConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -171,7 +170,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     createSchema,
                     notificationSubscriptionFixtures.invalid.invalidObjectConnect.create,
-                    false
+                    false,
                 );
             });
 
@@ -182,7 +181,7 @@ describe("notificationSubscriptionValidation", () => {
                         data,
                         shouldPass: true,
                         description: `ObjectType: ${data.objectType} with ID: ${data.objectConnect}`,
-                    }))
+                    })),
                 );
             });
         });
@@ -205,7 +204,7 @@ describe("notificationSubscriptionValidation", () => {
                             ...notificationSubscriptionFixtures.minimal.create,
                             id: validId,
                         },
-                        true
+                        true,
                     );
 
                     await testValidation(
@@ -214,7 +213,7 @@ describe("notificationSubscriptionValidation", () => {
                             ...notificationSubscriptionFixtures.minimal.update,
                             id: validId,
                         },
-                        true
+                        true,
                     );
                 }
             });
@@ -236,7 +235,7 @@ describe("notificationSubscriptionValidation", () => {
                             ...notificationSubscriptionFixtures.minimal.create,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
 
                     await testValidation(
@@ -245,7 +244,7 @@ describe("notificationSubscriptionValidation", () => {
                             ...notificationSubscriptionFixtures.minimal.update,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -255,14 +254,14 @@ describe("notificationSubscriptionValidation", () => {
                     createSchema,
                     notificationSubscriptionFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
 
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.invalid.missingRequired.update,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
         });
@@ -274,7 +273,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -282,7 +281,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.edgeCases.updateSilentOnly.update,
-                    true
+                    true,
                 );
             });
 
@@ -290,7 +289,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     updateSchema,
                     notificationSubscriptionFixtures.edgeCases.updateWithoutSilent.update,
-                    true
+                    true,
                 );
             });
 
@@ -336,7 +335,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     createSchema,
                     notificationSubscriptionFixtures.minimal.create,
-                    true
+                    true,
                 );
             });
 
@@ -344,7 +343,7 @@ describe("notificationSubscriptionValidation", () => {
                 await testValidation(
                     createSchema,
                     notificationSubscriptionFixtures.complete.create,
-                    true
+                    true,
                 );
             });
         });

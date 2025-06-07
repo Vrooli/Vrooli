@@ -164,6 +164,7 @@ data/redis/
 data/stats/
 data/uploads/
 data/schema-hash
+data/backup*
 
 #Backups
 backups/

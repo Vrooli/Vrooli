@@ -9,12 +9,14 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { details, id, language } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 
-const actionSuggested = enumToYup(ReportSuggestedAction);
+function actionSuggested() {
+    return enumToYup(ReportSuggestedAction);
+}
 
 export const reportResponseValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        actionSuggested: req(actionSuggested),
+        actionSuggested: req(actionSuggested()),
         details: opt(details),
         language: opt(language),
     }, [
@@ -22,7 +24,7 @@ export const reportResponseValidation: YupModel<["create", "update"]> = {
     ], [], d),
     update: (d) => yupObj({
         id: req(id),
-        actionSuggested: opt(actionSuggested),
+        actionSuggested: opt(actionSuggested()),
         details: opt(details),
         language: opt(language),
     }, [], [], d),

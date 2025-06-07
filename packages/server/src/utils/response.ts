@@ -1,4 +1,4 @@
-import { HttpStatus, SERVER_VERSION, type ServerError, type ServerResponse } from "@local/shared";
+import { HttpStatus, SERVER_VERSION, type ServerError, type ServerResponse } from "@vrooli/shared";
 import { type Response } from "express";
 
 const FALLBACK_HTTP_STATUS_ERROR = HttpStatus.InternalServerError;

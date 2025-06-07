@@ -2,7 +2,7 @@
  * Handles giving reputation to users when some action is performed.
  */
 
-import { DAYS_1_S, generatePK, type ModelType } from "@local/shared";
+import { DAYS_1_S, generatePK, type ModelType } from "@vrooli/shared";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { CacheService } from "../redisConn.js";

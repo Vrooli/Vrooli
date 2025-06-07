@@ -1,4 +1,4 @@
-import { type StatsResource } from "@local/shared";
+import { type StatsResource } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const statsResource: ApiPartial<StatsResource> = {

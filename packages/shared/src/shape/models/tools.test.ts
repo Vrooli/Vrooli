@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import sinon from "sinon";
 import { DUMMY_ID } from "../../id/index.js";
 import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, shouldConnect, updateOwner, updatePrims, updateRel, updateTranslationPrims, updateVersion } from "./tools.js";
@@ -129,7 +129,7 @@ describe("createVersion", () => {
 describe("createPrims", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -137,7 +137,7 @@ describe("createPrims", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 

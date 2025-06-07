@@ -1,4 +1,4 @@
-import { generatePublicId, getTranslation, type IssueFor, type IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects, type ModelType } from "@local/shared";
+import { generatePublicId, getTranslation, type IssueFor, type IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects, type ModelType } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";

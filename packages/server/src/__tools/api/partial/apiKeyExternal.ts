@@ -1,4 +1,4 @@
-import { type ApiKeyExternal } from "@local/shared";
+import { type ApiKeyExternal } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const apiKeyExternal: ApiPartial<ApiKeyExternal> = {

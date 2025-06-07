@@ -1,4 +1,4 @@
-import { type PushDevice } from "@local/shared";
+import { type PushDevice } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const pushDevice: ApiPartial<PushDevice> = {

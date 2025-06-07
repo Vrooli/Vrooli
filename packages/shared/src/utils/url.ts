@@ -1,6 +1,6 @@
-import { type Bookmark, type ChatParticipant, type Member, type ModelType, type Notification, type Reaction, type Resource, ResourceSubType, type ResourceVersion, type Schedule, type Session, type View } from "../api/types.js";
+import { type Bookmark, type ChatParticipant, type Member, type ModelType, type Notification, type Reaction, type Resource, ResourceSubType, type ResourceVersion, type Run, type Schedule, type Session, type View } from "../api/types.js";
 import { LINKS } from "../consts/ui.js";
-import { type Run, type TranslationKeyCommon } from "../types.js";
+import { type TranslationKeyCommon } from "../types.js";
 import { isOfType } from "./objects.js";
 
 export type UrlPrimitive = string | number | boolean | object;
@@ -398,7 +398,7 @@ export class UrlTools {
         return stringifySearchParams(searchParams);
     }
 
-    static parseSearchParams<T extends SearchParamsType>(link: T): SearchParamsPayloads[T] {
+    static parseSearchParams<T extends SearchParamsType>(_link: T): SearchParamsPayloads[T] {
         return parseSearchParams() as SearchParamsPayloads[T];
     }
 

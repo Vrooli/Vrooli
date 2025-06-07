@@ -1,4 +1,4 @@
-import { type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventHandler, type SocketEventPayloads } from "@local/shared";
+import { type ReservedSocketEvents, type RoomSocketEvents, type SocketEvent, type SocketEventHandler, type SocketEventPayloads } from "@vrooli/shared";
 import { createAdapter } from "@socket.io/redis-adapter";
 import IORedis, { type Cluster, type Redis } from "ioredis";
 import { Server, type Socket } from "socket.io";

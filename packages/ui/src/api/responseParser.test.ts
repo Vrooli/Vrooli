@@ -1,7 +1,7 @@
 import i18next from "i18next";
 // import { PubSub } from "../utils/pubsub.js"; TODO pubsub mock not working. Likely due to being a singleton class
 import { type ServerResponse } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach } from "vitest";
 import { ServerResponseParser } from "./responseParser.js";
 
 jest.mock("i18next");

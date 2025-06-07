@@ -1,4 +1,4 @@
-import { generatePK, MaxObjects, phoneValidation } from "@local/shared";
+import { generatePK, MaxObjects, phoneValidation } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";

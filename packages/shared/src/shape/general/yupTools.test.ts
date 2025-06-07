@@ -1,5 +1,4 @@
-import { expect } from "chai";
-import { describe, it } from "mocha";
+import { describe, it, expect } from "vitest";
 import * as yup from "yup";
 import { isYupValidationError, validateAndGetYupErrors } from "./yupTools.js";
 

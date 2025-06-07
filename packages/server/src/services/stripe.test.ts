@@ -1,5 +1,5 @@
-import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint, uuid } from "@local/shared";
-import { expect } from "chai";
+import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint, uuid } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import type Stripe from "stripe";
 import StripeMock from "../__test/stripe.js";
@@ -26,7 +26,7 @@ describe("getPaymentType", () => {
         resetModulesStub = sinon.stub();
     });
 
-    after(() => {
+    afterAll(() => {
         process.env.NODE_ENV = originalEnv;
     });
 
@@ -215,7 +215,7 @@ describe("Redis Price Operations", () => {
         await closeRedis();
     });
 
-    after(() => {
+    afterAll(() => {
         process.env.NODE_ENV = originalEnv; // Restore the original NODE_ENV
     });
 
@@ -317,11 +317,11 @@ describe("isInCorrectEnvironment Tests", () => {
     // Helper function to run tests in both environments
     function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
-            before(() => {
+            beforeAll(() => {
                 process.env.NODE_ENV = env;
             });
 
-            after(() => {
+            afterAll(() => {
                 // Restore the original NODE_ENV after each suite
                 process.env.NODE_ENV = originalEnv;
             });
@@ -350,11 +350,11 @@ describe("isValidSubscriptionSession", () => {
     // Helper function to run tests in both environments
     function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
-            before(() => {
+            beforeAll(() => {
                 process.env.NODE_ENV = env;
             });
 
-            after(() => {
+            afterAll(() => {
                 // Restore the original NODE_ENV after each suite
                 process.env.NODE_ENV = originalEnv;
             });
@@ -417,11 +417,11 @@ describe("isValidCreditsPurchaseSession", () => {
     // Helper function to run tests in both environments
     function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
-            before(() => {
+            beforeAll(() => {
                 process.env.NODE_ENV = env;
             });
 
-            after(() => {
+            afterAll(() => {
                 // Restore the original NODE_ENV after each suite
                 process.env.NODE_ENV = originalEnv;
             });
@@ -1111,7 +1111,7 @@ describe("handleCustomerSourceExpiring", () => {
     let emailQueue;
     const user1Id = uuid();
 
-    before(async () => {
+    beforeAll(async () => {
         emailQueue = new Bull("emailQueue");
         await setupEmailQueue();
     });
@@ -1180,7 +1180,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
     const user1Id = uuid();
     const user2Id = uuid();
 
-    before(async () => {
+    beforeAll(async () => {
         emailQueue = new Bull("email");
         await setupEmailQueue();
     });
@@ -1260,7 +1260,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     const user1Id = uuid();
     const user2Id = uuid();
 
-    before(async () => {
+    beforeAll(async () => {
         emailQueue = new Bull("email");
         await setupEmailQueue();
     });
@@ -1356,7 +1356,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     let res;
     let emailQueue;
 
-    before(async () => {
+    beforeAll(async () => {
         emailQueue = new Bull("emailQueue");
         await setupEmailQueue(); // Assuming this sets up your email queue for testing
     });
@@ -1590,7 +1590,7 @@ describe("handleInvoicePaymentFailed", () => {
     let res;
     let emailQueue;
 
-    before(async () => {
+    beforeAll(async () => {
         emailQueue = new Bull("emailQueue");
         await setupEmailQueue();
     });

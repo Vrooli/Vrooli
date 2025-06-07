@@ -1,4 +1,4 @@
-import { uuid } from "@local/shared";
+import { uuid } from "@vrooli/shared";
 import type Stripe from "stripe";
 import { type RecursivePartial } from "../types.js";
 

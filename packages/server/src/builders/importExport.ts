@@ -1,4 +1,4 @@
-import { ApiVersionConfig, type ApiVersionConfigObject, type BaseConfigObject, CodeVersionConfig, type CodeVersionConfigObject, ModelType, NoteVersionConfig, type NoteVersionConfigObject, type Owner, ProjectVersionConfig, type ProjectVersionConfigObject, type Resource, type ResourceShape, ResourceType, type ResourceVersionShape, RoutineVersionConfig, type RoutineVersionConfigObject, type SessionUser, StandardVersionConfig, type StandardVersionConfigObject, mergeDeep, shapeResource } from "@local/shared";
+import { ApiVersionConfig, type ApiVersionConfigObject, type BaseConfigObject, CodeVersionConfig, type CodeVersionConfigObject, ModelType, NoteVersionConfig, type NoteVersionConfigObject, type Owner, ProjectVersionConfig, type ProjectVersionConfigObject, type Resource, type ResourceShape, ResourceType, type ResourceVersionShape, RoutineVersionConfig, type RoutineVersionConfigObject, type SessionUser, StandardVersionConfig, type StandardVersionConfigObject, mergeDeep, shapeResource } from "@vrooli/shared";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { createOneHelper } from "../actions/creates.js";

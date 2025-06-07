@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { CommentFor } from "../../api/types.js";
 import { commentValidation } from "./comment.js";
 import { commentFixtures } from "./__test__/fixtures/commentFixtures.js";

@@ -1,4 +1,4 @@
-import { type HomeResult, type Popular } from "@local/shared";
+import { type HomeResult, type Popular } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

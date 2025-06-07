@@ -1,4 +1,4 @@
-import { MaxObjects, walletValidation } from "@local/shared";
+import { MaxObjects, walletValidation } from "@vrooli/shared";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";

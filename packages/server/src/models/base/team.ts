@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePK, generatePublicId, getTranslation, teamValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, generatePK, generatePublicId, getTranslation, teamValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { getLabels } from "../../getters/getLabels.js";

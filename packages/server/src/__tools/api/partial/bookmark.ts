@@ -1,4 +1,4 @@
-import { type Bookmark } from "@local/shared";
+import { type Bookmark } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

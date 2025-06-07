@@ -9,13 +9,15 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, id } from "../utils/commonFields.js";
 import { type YupModel } from "../utils/types.js";
 
-const subscribableObject = enumToYup(SubscribableObject);
+function subscribableObject() {
+    return enumToYup(SubscribableObject);
+}
 
 export const notificationSubscriptionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         silent: opt(bool),
-        objectType: req(subscribableObject),
+        objectType: req(subscribableObject()),
     }, [
         ["object", ["Connect"], "one", "req"],
     ], [], d),

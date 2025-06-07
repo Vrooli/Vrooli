@@ -1,4 +1,4 @@
-import { exists, mergeDeep } from "@local/shared";
+import { exists, mergeDeep } from "@vrooli/shared";
 import { type ApiPartial, type DeepPartialBooleanWithFragments, type MaybeLazyAsync, type NonMaybe, type SelectionType } from "./types.js";
 
 function simpleHash(str: string): string {

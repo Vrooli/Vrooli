@@ -1,4 +1,4 @@
-import { type ModelType, type SessionUser, validatePK } from "@local/shared";
+import { type ModelType, type SessionUser, validatePK } from "@vrooli/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { type PrismaDelegate, type PrismaSelect } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";

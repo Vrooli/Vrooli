@@ -1,4 +1,4 @@
-import { type Phone } from "@local/shared";
+import { type Phone } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const phone: ApiPartial<Phone> = {

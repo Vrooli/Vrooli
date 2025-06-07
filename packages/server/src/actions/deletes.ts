@@ -1,4 +1,4 @@
-import { type Count, type SessionUser, type Success } from "@local/shared";
+import { type Count, type SessionUser, type Success } from "@vrooli/shared";
 import { SessionService } from "../auth/session.js";
 import { cudHelper } from "./cuds.js";
 import { type DeleteManyHelperProps, type DeleteOneHelperProps } from "./types.js";

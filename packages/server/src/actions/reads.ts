@@ -1,4 +1,4 @@
-import { type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, ModelType, type PageInfo, type TimeFrame, ViewFor, camelCase, validatePK, validatePublicId } from "@local/shared";
+import { type FindByIdInput, type FindByPublicIdInput, type FindVersionInput, ModelType, type PageInfo, type TimeFrame, ViewFor, camelCase, validatePK, validatePublicId } from "@vrooli/shared";
 import { SessionService } from "../auth/session.js";
 import { combineQueries } from "../builders/combineQueries.js";
 import { InfoConverter, addSupplementalFields } from "../builders/infoConverter.js";

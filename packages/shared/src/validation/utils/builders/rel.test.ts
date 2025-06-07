@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import * as yup from "yup";
 import { type YupModel } from "../types.js";
 import { rel } from "./rel.js";

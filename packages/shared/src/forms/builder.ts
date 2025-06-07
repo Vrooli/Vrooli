@@ -217,8 +217,8 @@ export class FormBuilder {
         routineType: ResourceSubTypeRoutine,
         run?: Pick<Run, "io">,
     ): Record<string, never> {
-        const formInputSchema = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
-        const formOutputSchema = config.formOutput?.schema ?? defaultConfigFormOutputMap[routineType]().schema;
+        const formInputSchema = config.formInput?.schema ?? defaultConfigFormInputMap()[routineType]().schema;
+        const formOutputSchema = config.formOutput?.schema ?? defaultConfigFormOutputMap()[routineType]().schema;
 
         const inputInitialValues = FormBuilder.generateInitialValues(formInputSchema?.elements, FormBuilder.INPUT_PREFIX);
         const outputInitialValues = FormBuilder.generateInitialValues(formOutputSchema?.elements, FormBuilder.OUTPUT_PREFIX);
@@ -378,8 +378,8 @@ export class FormBuilder {
         routineType: ResourceSubTypeRoutine,
     ) {
         // Use the routine's formInput and formOutput schema, falling back to defaults if needed
-        const formInput = config.formInput?.schema ?? defaultConfigFormInputMap[routineType]().schema;
-        const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap[routineType]().schema;
+        const formInput = config.formInput?.schema ?? defaultConfigFormInputMap()[routineType]().schema;
+        const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap()[routineType]().schema;
 
         // Generate the Yup schemas for inputs and outputs with the respective prefixes
         const inputSchema = (this.generateYupSchema(formInput, this.INPUT_PREFIX) || Yup.object());

@@ -1,4 +1,4 @@
-import { type Email } from "@local/shared";
+import { type Email } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const email: ApiPartial<Email> = {

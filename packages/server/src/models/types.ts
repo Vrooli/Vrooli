@@ -1,4 +1,4 @@
-import { type DotNotation, type ModelType, type ObjectLimit, type SessionUser, type YupMutateParams } from "@local/shared";
+import { type DotNotation, type ModelType, type ObjectLimit, type SessionUser, type YupMutateParams } from "@vrooli/shared";
 import { type AnyObjectSchema } from "yup";
 import { type PartialApiInfo } from "../builders/types.js";
 import { type PromiseOrValue } from "../types.js";

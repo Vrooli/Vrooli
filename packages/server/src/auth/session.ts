@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, generatePK, type Session, type SessionUser } from "@local/shared";
+import { DEFAULT_LANGUAGE, generatePK, type Session, type SessionUser } from "@vrooli/shared";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";

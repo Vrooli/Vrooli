@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import moment from "moment";
 import sinon from "sinon";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api/types.js";
@@ -9,7 +9,7 @@ import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccu
 describe("validateTimeFrame", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -17,7 +17,7 @@ describe("validateTimeFrame", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -438,7 +438,7 @@ async function testJump({
 describe("jumpToFirstRelevantDailyOccurrence", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -446,7 +446,7 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -574,7 +574,7 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
 describe("jumpToFirstRelevantWeeklyOccurrence", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -582,7 +582,7 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -706,7 +706,7 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
 describe("jumpToFirstRelevantMonthlyOccurrence", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -714,7 +714,7 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -794,7 +794,7 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
 describe("jumpToFirstRelevantYearlyOccurrence", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -802,7 +802,7 @@ describe("jumpToFirstRelevantYearlyOccurrence", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 
@@ -1198,7 +1198,7 @@ async function testCalculateOccurrences({
 describe("calculateOccurrences", () => {
     let consoleErrorStub: sinon.SinonStub;
 
-    before(() => {
+    beforeAll(() => {
         consoleErrorStub = sinon.stub(console, "error");
     });
 
@@ -1206,7 +1206,7 @@ describe("calculateOccurrences", () => {
         consoleErrorStub.resetHistory();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleErrorStub.restore();
     });
 

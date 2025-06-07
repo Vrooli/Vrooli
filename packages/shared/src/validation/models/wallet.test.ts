@@ -1,7 +1,7 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { walletValidation } from "./wallet.js";
 import { walletFixtures, walletTestDataFactory } from "./__test__/fixtures/walletFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("walletValidation", () => {
     // Run standard test suite (only update since create isn't supported)

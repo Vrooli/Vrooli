@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { addHttps, toDouble, toPosDouble, toPosInt } from "./convert.js";
 
 describe("Positive Double Conversion Tests", () => {

@@ -1,4 +1,4 @@
-import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@local/shared";
+import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
 import { type CreditEntryType, type CreditSourceSystem } from "@prisma/client";
 import IORedis, { type Redis } from "ioredis";
 import { EventEmitter } from "node:events";

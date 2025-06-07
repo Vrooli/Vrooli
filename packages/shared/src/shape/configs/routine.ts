@@ -529,7 +529,7 @@ function defaultSchemaOutputGenerate(): FormOutputConfigObject {
     };
 }
 
-export const defaultConfigFormInputMap = {
+export const defaultConfigFormInputMap = () => ({
     [ResourceSubType.RoutineInternalAction]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaInput(),
@@ -539,9 +539,9 @@ export const defaultConfigFormInputMap = {
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaInput(),
     [ResourceSubType.RoutineWeb]: () => defaultSchemaInput(),
-};
+});
 
-export const defaultConfigFormOutputMap = {
+export const defaultConfigFormOutputMap = () => ({
     [ResourceSubType.RoutineInternalAction]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineApi]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineCode]: () => defaultSchemaOutput(),
@@ -551,7 +551,7 @@ export const defaultConfigFormOutputMap = {
     [ResourceSubType.RoutineMultiStep]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineSmartContract]: () => defaultSchemaOutput(),
     [ResourceSubType.RoutineWeb]: () => defaultSchemaOutput(),
-};
+});
 
 // function isValidFormSchema(schema: any): schema is FormSchema {
 //     if (typeof schema !== "object" || schema === null) return false;

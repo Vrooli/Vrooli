@@ -1,5 +1,5 @@
-import { AwardCategory, generatePK } from "@local/shared";
-import { expect } from "chai";
+import { AwardCategory, generatePK } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { after, describe, it } from "mocha";
 import sinon from "sinon";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
@@ -19,7 +19,7 @@ describe("EndpointsAward", () => {
     let userAward1: any;
     let userAward2: any;
 
-    before(() => {
+    beforeAll(() => {
         loggerErrorStub = sinon.stub(logger, "error");
         loggerInfoStub = sinon.stub(logger, "info");
     });
@@ -77,7 +77,7 @@ describe("EndpointsAward", () => {
         });
     });
 
-    after(async function after() {
+    afterAll(async function afterAll() {
         await (await initializeRedis())?.flushAll();
         await DbProvider.deleteAll();
 

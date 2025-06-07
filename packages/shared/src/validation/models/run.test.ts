@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { RunStatus, RunStepStatus } from "../../api/types.js";
 import { runValidation } from "./run.js";
 import { runFixtures, runTestDataFactory } from "./__test__/fixtures/runFixtures.js";
@@ -91,7 +91,7 @@ describe("runValidation", () => {
             });
 
             it("should require resourceVersionConnect relationship", async () => {
-                const { resourceVersionConnect, ...dataWithoutResource } = runFixtures.minimal.create;
+                const { resourceVersionConnect: _resourceVersionConnect, ...dataWithoutResource } = runFixtures.minimal.create;
                 await testValidation(
                     createSchema,
                     dataWithoutResource,
@@ -269,7 +269,7 @@ describe("runValidation", () => {
                 });
                 
                 const result = await schema.validate(runFixtures.complete.create, { 
-                    stripUnknown: true 
+                    stripUnknown: true, 
                 });
                 expect(result).to.not.have.property("ioCreate");
                 expect(result).to.not.have.property("stepsCreate");

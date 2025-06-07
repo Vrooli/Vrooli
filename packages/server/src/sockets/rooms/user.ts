@@ -1,4 +1,4 @@
-import { JOIN_USER_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "@local/shared";
+import { JOIN_USER_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "@vrooli/shared";
 import { type Socket } from "socket.io";
 import { AuthTokensService } from "../../auth/auth.js";
 import { RequestService } from "../../auth/request.js";

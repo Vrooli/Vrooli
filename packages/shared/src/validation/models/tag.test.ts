@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { tagValidation, tagTranslationValidation } from "./tag.js";
 import { tagFixtures, tagTestDataFactory } from "./__test__/fixtures/tagFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -46,7 +46,7 @@ describe("tagValidation", () => {
 
         it("should handle nested omitFields with dot notation", async () => {
             const schema = tagValidation.update({ 
-                omitFields: ["translationsCreate", "translationsDelete"] 
+                omitFields: ["translationsCreate", "translationsDelete"], 
             });
             const data = {
                 id: "123456789012345690",
@@ -126,7 +126,7 @@ describe("tagTranslationValidation", () => {
                 updateSchema,
                 { 
                     id: "123456789012345694", 
-                    language: "en" 
+                    language: "en", 
                 },
                 true,
             );
@@ -140,7 +140,7 @@ describe("tagTranslationValidation", () => {
                 { 
                     id: "123456789012345695", 
                     language: "en",
-                    description: "Updated description"
+                    description: "Updated description",
                 },
                 true,
             );

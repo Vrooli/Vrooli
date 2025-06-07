@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { chatInviteValidation } from "./chatInvite.js";
 import { chatInviteFixtures } from "./__test__/fixtures/chatInviteFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -46,26 +45,26 @@ describe("chatInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     chatInviteFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     chatInviteFixtures.edgeCases.updateWithoutMessage.update,
-                    true
+                    true,
                 );
             });
 
             it("should trim whitespace from message", async () => {
                 const result = await createSchema.validate(
-                    chatInviteFixtures.edgeCases.whitespaceMessage.create
+                    chatInviteFixtures.edgeCases.whitespaceMessage.create,
                 );
                 expect(result.message).to.equal("Invitation message with whitespace");
             });
 
             it("should handle empty string message", async () => {
                 const result = await createSchema.validate(
-                    chatInviteFixtures.edgeCases.emptyMessage.create
+                    chatInviteFixtures.edgeCases.emptyMessage.create,
                 );
                 // Empty string should be removed by removeEmptyString()
                 expect(result.message).to.be.undefined;
@@ -78,7 +77,7 @@ describe("chatInviteValidation", () => {
                         ...chatInviteFixtures.minimal.create,
                         message: 123,
                     },
-                    false
+                    false,
                 );
 
                 await testValidation(
@@ -87,7 +86,7 @@ describe("chatInviteValidation", () => {
                         ...chatInviteFixtures.minimal.create,
                         message: false,
                     },
-                    false
+                    false,
                 );
             });
         });
@@ -100,7 +99,7 @@ describe("chatInviteValidation", () => {
                     createSchema,
                     chatInviteFixtures.invalid.missingChatConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -109,7 +108,7 @@ describe("chatInviteValidation", () => {
                     createSchema,
                     chatInviteFixtures.invalid.missingUserConnect.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -117,7 +116,7 @@ describe("chatInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     chatInviteFixtures.invalid.invalidChatConnect.create,
-                    false
+                    false,
                 );
             });
 
@@ -125,7 +124,7 @@ describe("chatInviteValidation", () => {
                 await testValidation(
                     createSchema,
                     chatInviteFixtures.invalid.invalidUserConnect.create,
-                    false
+                    false,
                 );
             });
         });
@@ -148,7 +147,7 @@ describe("chatInviteValidation", () => {
                             ...chatInviteFixtures.minimal.create,
                             id: validId,
                         },
-                        true
+                        true,
                     );
 
                     await testValidation(
@@ -157,7 +156,7 @@ describe("chatInviteValidation", () => {
                             ...chatInviteFixtures.minimal.update,
                             id: validId,
                         },
-                        true
+                        true,
                     );
                 }
             });
@@ -179,7 +178,7 @@ describe("chatInviteValidation", () => {
                             ...chatInviteFixtures.minimal.create,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
 
                     await testValidation(
@@ -188,7 +187,7 @@ describe("chatInviteValidation", () => {
                             ...chatInviteFixtures.minimal.update,
                             id: invalidId,
                         },
-                        false
+                        false,
                     );
                 }
             });
@@ -201,7 +200,7 @@ describe("chatInviteValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatInviteFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -209,13 +208,13 @@ describe("chatInviteValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatInviteFixtures.complete.update,
-                    true
+                    true,
                 );
             });
 
             it("should handle empty message in update", async () => {
                 const result = await updateSchema.validate(
-                    chatInviteFixtures.edgeCases.updateWithEmptyMessage.update
+                    chatInviteFixtures.edgeCases.updateWithEmptyMessage.update,
                 );
                 expect(result.message).to.be.undefined;
             });

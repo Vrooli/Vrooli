@@ -100,11 +100,11 @@ export function createPrims<T, K extends keyof T>(
         return {} as CreatePrimsResult<T, K>;
     }
 
-    let hasId = false;
+    let _hasId = false;
     // Create prims
     const prims = fields.reduce((acc, field) => {
         const key = Array.isArray(field) ? field[0] : field;
-        if (key === "id") hasId = true;
+        if (key === "id") _hasId = true;
         const value = Array.isArray(field) ? field[1](object[key]) : object[key];
         if (value !== undefined) return { ...acc, [key]: value };
         return acc;

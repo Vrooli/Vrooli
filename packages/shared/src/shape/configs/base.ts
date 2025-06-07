@@ -1,7 +1,6 @@
 import { type PassableLogger } from "../../consts/commonTypes.js";
-import { LATEST_CONFIG_VERSION, type StringifyMode } from "./utils.js";
+import { LATEST_CONFIG_VERSION } from "./utils.js";
 
-const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
 
 export enum ResourceUsedFor {
     Community = "Community",

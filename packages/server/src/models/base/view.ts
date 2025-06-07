@@ -1,4 +1,4 @@
-import { type Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, type ModelType, type SessionUser, ViewFor, ViewSortBy, generatePK, lowercaseFirstLetter } from "@local/shared";
+import { type Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, type ModelType, type SessionUser, ViewFor, ViewSortBy, generatePK, lowercaseFirstLetter } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { onlyValidIds } from "../../builders/onlyValid.js";

@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { pushDeviceValidation } from "./pushDevice.js";
 import { pushDeviceFixtures } from "./__test__/fixtures/pushDeviceFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
@@ -350,7 +349,6 @@ describe("pushDeviceValidation", () => {
     });
 
     describe("id validation", () => {
-        const createSchema = pushDeviceValidation.create({ omitFields: [] });
         const updateSchema = pushDeviceValidation.update({ omitFields: [] });
 
         it("should accept valid Snowflake IDs in update", async () => {

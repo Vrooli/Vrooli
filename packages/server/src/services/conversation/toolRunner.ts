@@ -1,4 +1,4 @@
-import { McpSwarmToolName, McpToolName } from "@local/shared";
+import { McpSwarmToolName, McpToolName } from "@vrooli/shared";
 import type OpenAI from "openai";
 import type { Logger } from "winston";
 import { BuiltInTools, type SwarmTools } from "../mcp/tools.js";

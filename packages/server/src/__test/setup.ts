@@ -1,4 +1,4 @@
-import { initIdGenerator } from "@local/shared";
+import { initIdGenerator } from "@vrooli/shared";
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import * as http from "http";

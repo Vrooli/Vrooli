@@ -1,4 +1,4 @@
-import { type ChatMessage, type ChatMessageSearchTreeResult, type ChatMessageYou } from "@local/shared";
+import { type ChatMessage, type ChatMessageSearchTreeResult, type ChatMessageYou } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 import { rel } from "../utils.js";
 

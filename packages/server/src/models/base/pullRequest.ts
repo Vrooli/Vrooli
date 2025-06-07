@@ -1,4 +1,4 @@
-import { generatePublicId, MaxObjects, type ModelType, type PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, type PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { generatePublicId, MaxObjects, type ModelType, type PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, type PullRequestToObjectType, pullRequestValidation } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { noNull } from "../../builders/noNull.js";

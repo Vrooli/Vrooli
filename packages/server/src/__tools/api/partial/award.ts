@@ -1,4 +1,4 @@
-import { type Award } from "@local/shared";
+import { type Award } from "@vrooli/shared";
 import { type ApiPartial } from "../types.js";
 
 export const award: ApiPartial<Award> = {

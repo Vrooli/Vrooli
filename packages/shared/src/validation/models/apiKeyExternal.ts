@@ -8,9 +8,10 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bool, id, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const key = yup.string().trim().removeEmptyString().max(255, maxStrErr);
-const service = yup.string().trim().removeEmptyString().max(128, maxStrErr);
+const key = yup.string().trim().removeEmptyString().max(API_KEY_EXTERNAL_MAX_LENGTH, maxStrErr);
+const service = yup.string().trim().removeEmptyString().max(API_KEY_SERVICE_MAX_LENGTH, maxStrErr);
 
 export const apiKeyExternalValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

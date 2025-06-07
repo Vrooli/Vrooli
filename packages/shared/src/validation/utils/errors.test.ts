@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
 
 describe("Yup-related functions", () => {

@@ -1,4 +1,4 @@
-import { MaxObjects, scheduleExceptionValidation } from "@local/shared";
+import { MaxObjects, scheduleExceptionValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

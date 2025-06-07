@@ -1,4 +1,4 @@
-import { lowercaseFirstLetter } from "@local/shared";
+import { lowercaseFirstLetter } from "@vrooli/shared";
 import { shapeHelper, type ShapeHelperProps } from "../../builders/shapeHelper.js";
 
 type OwnerShapeHelperProps<

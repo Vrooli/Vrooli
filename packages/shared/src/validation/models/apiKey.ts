@@ -7,9 +7,10 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bigIntString, bool, id, name } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { API_KEY_ABSOLUTE_MAX_LIMIT, API_KEY_PERMISSIONS_MAX_LENGTH } from "../utils/validationConstants.js";
 
-const absoluteMax = yup.number().integer().min(0).max(1000000);
-const permissions = yup.string().trim().max(4096, maxStrErr);
+const absoluteMax = yup.number().integer().min(0).max(API_KEY_ABSOLUTE_MAX_LIMIT);
+const permissions = yup.string().trim().max(API_KEY_PERMISSIONS_MAX_LENGTH, maxStrErr);
 
 export const apiKeyValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

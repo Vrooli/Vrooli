@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import sinon from "sinon";
 import { LRUCache } from "./lruCache.js";
 
@@ -7,7 +7,7 @@ describe("LRUCache", () => {
     let consoleWarnStub: sinon.SinonStub;
     let clock: sinon.SinonFakeTimers;
 
-    before(() => {
+    beforeAll(() => {
         consoleWarnStub = sinon.stub(console, "warn");
     });
 
@@ -22,7 +22,7 @@ describe("LRUCache", () => {
         clock.restore();
     });
 
-    after(() => {
+    afterAll(() => {
         consoleWarnStub.restore();
     });
 

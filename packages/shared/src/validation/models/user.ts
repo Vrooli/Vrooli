@@ -8,6 +8,7 @@ import { yupObj } from "../utils/builders/yupObj.js";
 import { bio, bool, config, email, handle, id, imageFile, name, password, publicId, theme } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
 import { type YupModel } from "../utils/types.js";
+import { PASSWORD_VERIFICATION_CODE_MAX_LENGTH, TIMEZONE_MAX_LENGTH } from "../utils/validationConstants.js";
 import { botValidation } from "./bot.js";
 import { emailValidation } from "./email.js";
 
@@ -16,8 +17,8 @@ import { emailValidation } from "./email.js";
  */
 export const emailLogInSchema = yup.object().shape({
     email: opt(email),
-    password: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
-    verificationCode: opt(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    password: opt(yup.string().trim().removeEmptyString().max(PASSWORD_VERIFICATION_CODE_MAX_LENGTH, maxStrErr)),
+    verificationCode: opt(yup.string().trim().removeEmptyString().max(PASSWORD_VERIFICATION_CODE_MAX_LENGTH, maxStrErr)),
 });
 
 export const userTranslationValidation: YupModel<["create", "update"]> = transRel({
@@ -86,7 +87,7 @@ export const userValidation: YupModel<["create", "update"]> = {
  * Schema for traditional email/password log in FORM.
  */
 export const userDeleteOneSchema = yup.object().shape({
-    password: req(yup.string().removeEmptyString().max(128, maxStrErr)),
+    password: req(yup.string().removeEmptyString().max(PASSWORD_VERIFICATION_CODE_MAX_LENGTH, maxStrErr)),
     deletePublicData: req(bool),
 });
 
@@ -104,7 +105,7 @@ export const emailResetPasswordFormSchema = yup.object().shape({
 export const emailResetPasswordSchema = yup.object().shape({
     id: opt(id),
     publicId: opt(publicId),
-    code: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    code: req(yup.string().trim().removeEmptyString().max(PASSWORD_VERIFICATION_CODE_MAX_LENGTH, maxStrErr)),
     newPassword: req(password),
 }).test(
     "id-or-publicid-required",
@@ -113,7 +114,7 @@ export const emailResetPasswordSchema = yup.object().shape({
 );
 
 export const validateSessionSchema = yup.object().shape({
-    timeZone: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    timeZone: req(yup.string().trim().removeEmptyString().max(TIMEZONE_MAX_LENGTH, maxStrErr)),
 });
 
 export const switchCurrentAccountSchema = yup.object().shape({

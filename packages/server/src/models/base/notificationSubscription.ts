@@ -1,4 +1,4 @@
-import { MaxObjects, type ModelType, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
+import { MaxObjects, type ModelType, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { subscribableMapper } from "../../events/subscriber.js";

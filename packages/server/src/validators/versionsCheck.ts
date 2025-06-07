@@ -1,4 +1,4 @@
-import { ModelType, type SessionUser } from "@local/shared";
+import { ModelType, type SessionUser } from "@vrooli/shared";
 import { type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";

@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, MaxObjects, StatsSiteSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsSiteSortBy } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";

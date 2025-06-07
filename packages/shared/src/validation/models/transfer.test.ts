@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { transferValidation, transferRequestSendValidation, transferRequestReceiveValidation } from "./transfer.js";
 import { transferFixtures, transferRequestSendFixtures, transferRequestReceiveFixtures } from "./__test__/fixtures/transferFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";

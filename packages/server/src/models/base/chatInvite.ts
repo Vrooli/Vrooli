@@ -1,4 +1,4 @@
-import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, validatePK } from "@local/shared";
+import { ChatInviteSortBy, ChatInviteStatus, chatInviteValidation, MaxObjects, validatePK } from "@vrooli/shared";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";

@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { chatParticipantValidation } from "./chatParticpant.js";
 import { chatParticipantFixtures } from "./__test__/fixtures/chatParticipantFixtures.js";
 import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
@@ -21,7 +20,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.minimal.update,
-                true
+                true,
             );
         });
 
@@ -29,7 +28,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.complete.update,
-                true
+                true,
             );
         });
 
@@ -38,7 +37,7 @@ describe("chatParticipantValidation", () => {
                 updateSchema,
                 chatParticipantFixtures.invalid.missingRequired.update,
                 false,
-                /required/i
+                /required/i,
             );
         });
 
@@ -46,7 +45,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.invalid.invalidTypes.update,
-                false
+                false,
             );
         });
 
@@ -54,7 +53,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.invalid.invalidId.update,
-                false
+                false,
             );
         });
 
@@ -62,7 +61,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.invalid.emptyId.update,
-                false
+                false,
             );
         });
 
@@ -70,7 +69,7 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.invalid.nullId.update,
-                false
+                false,
             );
         });
 
@@ -78,14 +77,14 @@ describe("chatParticipantValidation", () => {
             await testValidation(
                 updateSchema,
                 chatParticipantFixtures.invalid.undefinedId.update,
-                false
+                false,
             );
         });
 
         it("should strip unknown fields", async () => {
             const result = await updateSchema.validate(
                 chatParticipantFixtures.edgeCases.extraFields.update,
-                { stripUnknown: true }
+                { stripUnknown: true },
             );
             
             expect(result).to.have.property("id");
@@ -99,7 +98,7 @@ describe("chatParticipantValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatParticipantFixtures.edgeCases.maxLengthId.update,
-                    true
+                    true,
                 );
             });
 
@@ -107,7 +106,7 @@ describe("chatParticipantValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatParticipantFixtures.edgeCases.minLengthId.update,
-                    true
+                    true,
                 );
             });
 
@@ -124,7 +123,7 @@ describe("chatParticipantValidation", () => {
                     await testValidation(
                         updateSchema,
                         { id: validId },
-                        true
+                        true,
                     );
                 }
             });
@@ -143,7 +142,7 @@ describe("chatParticipantValidation", () => {
                     await testValidation(
                         updateSchema,
                         { id: invalidId },
-                        false
+                        false,
                     );
                 }
             });

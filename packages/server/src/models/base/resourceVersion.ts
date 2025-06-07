@@ -1,4 +1,4 @@
-import { LATEST_CONFIG_VERSION, MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@local/shared";
+import { LATEST_CONFIG_VERSION, MaxObjects, ResourceVersionSortBy, generatePublicId, getTranslation, resourceVersionValidation } from "@vrooli/shared";
 import type { Prisma } from "@prisma/client";
 import { noNull } from "../../builders/noNull.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";

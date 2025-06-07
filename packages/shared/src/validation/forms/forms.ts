@@ -2,6 +2,7 @@ import * as yup from "yup";
 import { opt, optArr, req } from "../utils/builders/optionality.js";
 import { description, email, id, name, password } from "../utils/commonFields.js";
 import { maxStrErr } from "../utils/errors.js";
+import { PASSWORD_VERIFICATION_CODE_MAX_LENGTH } from "../utils/validationConstants.js";
 
 export const nodeEndFormValidation = yup.object().shape({
     wasSuccessful: opt(yup.boolean()),
@@ -11,7 +12,7 @@ export const nodeEndFormValidation = yup.object().shape({
 
 export const emailLogInFormValidation = yup.object().shape({
     email: req(email),
-    password: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    password: req(yup.string().trim().removeEmptyString().max(PASSWORD_VERIFICATION_CODE_MAX_LENGTH, maxStrErr)),
 });
 
 export const emailSignUpFormValidation = yup.object().shape({

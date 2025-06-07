@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
 
-import type { MessageConfigObject } from "@local/shared";
+import type { MessageConfigObject } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { DbProvider } from "../../db/provider.js";
 import { ChatContextCache, TokenCounter } from "./messageStore.js";

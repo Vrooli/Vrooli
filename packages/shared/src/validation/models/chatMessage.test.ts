@@ -1,8 +1,7 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it } from "vitest";
 import { chatMessageValidation, messageConfigObjectValidationSchema } from "./chatMessage.js";
 import { chatMessageFixtures } from "./__test__/fixtures/chatMessageFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
 
 describe("chatMessageValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -24,7 +23,7 @@ describe("chatMessageValidation", () => {
                     createSchema,
                     chatMessageFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -32,7 +31,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatMessageFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -41,7 +40,7 @@ describe("chatMessageValidation", () => {
                     createSchema,
                     chatMessageFixtures.invalid.invalidConfig.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -49,7 +48,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.invalid.invalidTypes.create,
-                    false
+                    false,
                 );
             });
 
@@ -57,7 +56,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.edgeCases.complexConfig.create,
-                    true
+                    true,
                 );
             });
         });
@@ -69,7 +68,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.minimal.create,
-                    true
+                    true,
                 );
             });
 
@@ -77,7 +76,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.edgeCases.zeroVersionIndex.create,
-                    true
+                    true,
                 );
             });
 
@@ -85,7 +84,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.edgeCases.maxVersionIndex.create,
-                    true
+                    true,
                 );
             });
 
@@ -93,7 +92,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.invalid.invalidVersionIndex.create,
-                    false
+                    false,
                 );
             });
 
@@ -101,7 +100,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.invalid.invalidTypes.create,
-                    false
+                    false,
                 );
             });
         });
@@ -114,7 +113,7 @@ describe("chatMessageValidation", () => {
                     createSchema,
                     chatMessageFixtures.invalid.missingRequired.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
         });
@@ -126,7 +125,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.minimal.create,
-                    true
+                    true,
                 );
             });
 
@@ -134,7 +133,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.complete.create,
-                    true
+                    true,
                 );
             });
         });
@@ -147,13 +146,13 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.minimal.create,
-                    true
+                    true,
                 );
 
                 await testValidation(
                     updateSchema,
                     chatMessageFixtures.minimal.update,
-                    true
+                    true,
                 );
             });
 
@@ -161,7 +160,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.complete.create,
-                    true
+                    true,
                 );
             });
 
@@ -169,7 +168,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     updateSchema,
                     chatMessageFixtures.complete.update,
-                    true
+                    true,
                 );
             });
 
@@ -178,7 +177,7 @@ describe("chatMessageValidation", () => {
                     createSchema,
                     chatMessageFixtures.invalid.invalidTranslationText.create,
                     false,
-                    /required/i
+                    /required/i,
                 );
             });
 
@@ -186,7 +185,7 @@ describe("chatMessageValidation", () => {
                 await testValidation(
                     createSchema,
                     chatMessageFixtures.edgeCases.maxLengthText.create,
-                    true
+                    true,
                 );
             });
 
@@ -195,7 +194,7 @@ describe("chatMessageValidation", () => {
                     createSchema,
                     chatMessageFixtures.edgeCases.textTooLong.create,
                     false,
-                    /over the limit/i
+                    /over the limit/i,
                 );
             });
         });
@@ -211,7 +210,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     resources: [],
                 },
                 false,
-                /required/i
+                /required/i,
             );
         });
 
@@ -222,7 +221,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     __version: "1.0.0",
                 },
                 false,
-                /required/i
+                /required/i,
             );
         });
 
@@ -233,7 +232,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     __version: "1.0.0",
                     resources: [],
                 },
-                true
+                true,
             );
         });
     });
@@ -254,7 +253,7 @@ describe("messageConfigObjectValidationSchema", () => {
                         ...baseConfig,
                         role,
                     },
-                    true
+                    true,
                 );
             }
         });
@@ -266,7 +265,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     role: "invalid_role",
                 },
-                false
+                false,
             );
         });
 
@@ -277,7 +276,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     turnId: null,
                 },
-                true
+                true,
             );
         });
 
@@ -288,7 +287,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     turnId: 123,
                 },
-                true
+                true,
             );
         });
 
@@ -299,7 +298,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     turnId: 123.45,
                 },
-                false
+                false,
             );
         });
     });
@@ -325,7 +324,7 @@ describe("messageConfigObjectValidationSchema", () => {
                         },
                     ],
                 },
-                true
+                true,
             );
         });
 
@@ -348,7 +347,7 @@ describe("messageConfigObjectValidationSchema", () => {
                         },
                     ],
                 },
-                true
+                true,
             );
         });
 
@@ -374,7 +373,7 @@ describe("messageConfigObjectValidationSchema", () => {
                         },
                     ],
                 },
-                true
+                true,
             );
         });
 
@@ -399,7 +398,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ],
                 },
                 false,
-                /Tool result must be consistent/
+                /Tool result must be consistent/,
             );
         });
 
@@ -419,7 +418,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ],
                 },
                 false,
-                /required/i
+                /required/i,
             );
         });
     });
@@ -437,7 +436,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     contextHints: ["hint1", "hint2"],
                 },
-                true
+                true,
             );
         });
 
@@ -448,7 +447,7 @@ describe("messageConfigObjectValidationSchema", () => {
                     ...baseConfig,
                     respondingBots: ["@all", "bot1"],
                 },
-                true
+                true,
             );
         });
 
@@ -462,7 +461,7 @@ describe("messageConfigObjectValidationSchema", () => {
                         { id: "2", type: "image" },
                     ],
                 },
-                true
+                true,
             );
         });
     });
