@@ -1,5 +1,5 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkFor, LINKS, TeamPageTabOption, getTranslation, uuidValidate, type ListObject, type ResourceList as ResourceListType, type Team } from "@vrooli/shared";
+import { BookmarkFor, LINKS, TeamPageTabOption, getTranslation, validatePK, type ListObject, type ResourceList as ResourceListType, type Team } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
@@ -92,7 +92,7 @@ export function TeamView({
     } = useTabs({ id: "team-tabs", tabParams: teamTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
-        canSearch: () => uuidValidate(team?.id),
+        canSearch: () => validatePK(team?.id),
         controlsUrl: display === "Page",
         searchType,
         take: 20,

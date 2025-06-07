@@ -1,5 +1,5 @@
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { DUMMY_ID, DeleteType, emailValidation, endpointsActions, endpointsEmail, uuid, type DeleteOneInput, type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, emailValidation, endpointsActions, endpointsEmail, generatePK, type DeleteOneInput, type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
 import { useFormik } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -124,7 +124,7 @@ export function EmailList({
             if (!formik.isValid || loadingAdd) return;
             fetchLazyWrapper<EmailCreateInput, Email>({
                 fetch: addMutation,
-                inputs: { ...values, id: uuid() },
+                inputs: { ...values, id: generatePK() },
                 onSuccess: (data) => {
                     PubSub.get().publish("snack", { messageKey: "CompleteVerificationInEmail", severity: "Info" });
                     handleUpdate([...list, data]);

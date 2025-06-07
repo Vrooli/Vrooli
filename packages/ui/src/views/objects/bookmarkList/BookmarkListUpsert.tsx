@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { DUMMY_ID, DeleteType, bookmarkListValidation, endpointsActions, endpointsBookmarkList, noopSubmit, shapeBookmarkList, uuid, type Bookmark, type BookmarkList, type BookmarkListCreateInput, type BookmarkListShape, type BookmarkListUpdateInput, type BookmarkShape, type DeleteOneInput, type ListObject, type Session, type Success } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, bookmarkListValidation, endpointsActions, endpointsBookmarkList, generatePK, noopSubmit, shapeBookmarkList, type Bookmark, type BookmarkList, type BookmarkListCreateInput, type BookmarkListShape, type BookmarkListUpdateInput, type BookmarkShape, type DeleteOneInput, type ListObject, type Session, type Success } from "@vrooli/shared";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -76,7 +76,7 @@ function BookmarkListForm({
     const addNewBookmark = useCallback((to: BookmarkShape) => {
         bookmarksHelpers.setValue([...bookmarksField.value, {
             __typename: "Bookmark" as const,
-            id: uuid(),
+            id: generatePK(),
             to,
             list: { __typename: "BookmarkList", id: values.id },
         } as any]);

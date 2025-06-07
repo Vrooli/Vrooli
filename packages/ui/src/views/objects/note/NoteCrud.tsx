@@ -1,5 +1,6 @@
 import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
-import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion, type DeleteOneInput, type ListObject, type NoteVersion, type NoteVersionCreateInput, type NoteVersionShape, type NoteVersionUpdateInput, type OwnerShape, type Session, type Success } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, resourceVersionTranslationValidation, resourceVersionValidation, orDefault, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type OwnerShape, type Session, type Success } from "@vrooli/shared";
+import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,25 +42,30 @@ const sideActionButtonsExclude = [ObjectAction.Delete, ObjectAction.Edit] as con
 
 function noteInitialValues(
     session: Session | undefined,
-    existing?: Partial<NoteVersion> | null | undefined,
-): NoteVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "NoteVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
+        config: {
+            __version: "1.0",
+            resources: [],
+            ...existing?.config,
+        },
         isPrivate: true,
         versionLabel: existing?.versionLabel ?? "1.0.0",
         ...existing,
         root: {
-            __typename: "Note" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
+            resourceType: ResourceType.Note,
             isPrivate: true,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" } as OwnerShape,
-            parent: null,
             tags: [],
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "NoteVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
@@ -74,8 +80,8 @@ function noteInitialValues(
     };
 }
 
-function transformNoteVersionValues(values: NoteVersionShape, existing: NoteVersionShape, isCreate: boolean) {
-    return isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
+function transformResourceVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const OuterFormBox = styled(Box)(() => ({
@@ -113,11 +119,11 @@ function NoteForm({
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<NoteVersion>({
+    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "NoteVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -125,19 +131,19 @@ function NoteForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsNoteVersion.createOne,
-        endpointUpdate: endpointsNoteVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "NoteVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
-    const onSubmit = useSubmitHelper<NoteVersionCreateInput | NoteVersionUpdateInput, NoteVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
-        inputs: transformNoteVersionValues(values, existing, isCreate),
+        inputs: transformResourceVersionValues(values, existing, isCreate),
         isCreate,
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
@@ -150,12 +156,12 @@ function NoteForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: noteVersionTranslationValidation.read({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.read({ env: process.env.NODE_ENV }),
     });
 
     const actionData = useObjectActions({
         object: existing as ListObject,
-        objectType: "NoteVersion",
+        objectType: "ResourceVersion",
         setLocation,
         setObject: handleUpdate,
     });
@@ -169,7 +175,7 @@ function NoteForm({
                 inputs: { id: values.id, objectType: DeleteType.Note },
                 successCondition: (data) => data.success,
                 successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { name: getDisplay(values as ListObject).title ?? t("Note", { count: 1 }) } }),
-                onSuccess: () => { handleDeleted(values as NoteVersion); },
+                onSuccess: () => { handleDeleted(values as ResourceVersion); },
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
         }
@@ -271,7 +277,7 @@ function NoteForm({
                     <FormContainer>
                         <RelationshipList
                             isEditing={!disabled}
-                            objectType={"Note"}
+                            objectType={"Resource"}
                             sx={relationshipListStyle}
                         />
                         <FormSection>
@@ -403,17 +409,17 @@ export function NoteCrud({
 }: NoteCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NoteVersion, NoteVersionShape>({
-        ...endpointsNoteVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "NoteVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (data) => noteInitialValues(session, data),
     });
 
-    async function validateValues(values: NoteVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformNoteVersionValues, noteVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformResourceVersionValues, resourceVersionValidation);
     }
 
     return (

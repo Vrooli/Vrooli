@@ -1,5 +1,6 @@
 import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
-import { CodeLanguage, CodeType, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion, type CodeShape, type CodeVersion, type CodeVersionCreateInput, type CodeVersionShape, type CodeVersionUpdateInput, type Session } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, ResourceSubType, SearchPageTabOption, endpointsResource, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, type Resource, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
+import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,29 +36,35 @@ import { type SmartContractFormProps, type SmartContractUpsertProps } from "./ty
 
 export function smartContractInitialValues(
     session: Session | undefined,
-    existing?: Partial<CodeVersion> | undefined,
-): CodeVersionShape {
+    existing?: Partial<ResourceVersion> | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "CodeVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
         calledByRoutineVersionsCount: 0,
         codeLanguage: CodeLanguage.Solidity,
-        codeType: CodeType.SmartContract,
-        content: "",
+        resourceSubType: ResourceSubType.CodeSmartContract,
+        config: {
+            __version: "1.0",
+            resources: [],
+            content: "",
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: false,
         resourceList: {
             __typename: "ResourceList" as const,
             id: DUMMY_ID,
             listFor: {
-                __typename: "CodeVersion" as const,
+                __typename: "ResourceVersion" as const,
                 id: DUMMY_ID,
             },
         },
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Code" as const,
+            __typename: "Resource" as const,
+            resourceType: ResourceType.Code,
             id: DUMMY_ID,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
@@ -66,7 +73,7 @@ export function smartContractInitialValues(
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "CodeVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
@@ -76,8 +83,8 @@ export function smartContractInitialValues(
     };
 }
 
-function transformCodeVersionValues(values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) {
-    return isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
+function transformCodeVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const examplePlutusContract = `
@@ -193,18 +200,18 @@ function SmartContractForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: codeVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
-        return { __typename: "CodeVersion", id: values.id } as const;
+        return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<CodeVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "CodeVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -212,11 +219,11 @@ function SmartContractForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsCodeVersion.createOne,
-        endpointUpdate: endpointsCodeVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "CodeVersion" });
 
@@ -258,7 +265,7 @@ function SmartContractForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<CodeVersionCreateInput | CodeVersionUpdateInput, CodeVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
@@ -269,7 +276,7 @@ function SmartContractForm({
     });
 
     const [codeLanguageField, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
-    const [contentField, , contentHelpers] = useField<string>("content");
+    const [contentField, , contentHelpers] = useField<string>("config.content");
     const showExample = useCallback(function showExampleCallback() {
         // Determine example to show based on current language
         const exampleCode = codeLanguageField.value === CodeLanguage.Haskell ? examplePlutusContract : exampleSolidityContract;
@@ -307,7 +314,7 @@ function SmartContractForm({
                                 <Box display="flex" flexDirection="column" gap={4}>
                                     <RelationshipList
                                         isEditing={true}
-                                        objectType={"Code"}
+                                        objectType={"Resource"}
                                     />
                                     <ResourceListInput
                                         horizontal
@@ -364,7 +371,7 @@ function SmartContractForm({
                                 <CodeInput
                                     disabled={false}
                                     limitTo={codeLimitTo}
-                                    name="content"
+                                    name="config.content"
                                 />
                             </Box>
                         </Grid>
@@ -398,21 +405,21 @@ export function SmartContractUpsert({
 }: SmartContractUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<CodeVersion, CodeVersionShape>({
-        ...endpointsCodeVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "CodeVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => smartContractInitialValues(session, existing),
     });
 
-    async function validateValues(values: CodeVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, resourceVersionValidation);
     }
 
     const versions = useMemo(function versionsMemo() {
-        return (existing?.root as CodeShape)?.versions?.map(v => v.versionLabel) ?? [];
+        return (existing?.root as Resource)?.versions?.map(v => v.versionLabel) ?? [];
     }, [existing]);
 
     return (

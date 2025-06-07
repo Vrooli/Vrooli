@@ -1,5 +1,7 @@
 import { type Palette } from "@mui/material";
-import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, ResourceType, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
+import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
+// Import ResourceType directly from api module to avoid namespace conflict
+import { ResourceType } from "@vrooli/shared/api/types";
 import { type IconInfo } from "../../icons/Icons.js";
 import { type SearchParams } from "./schemas/base.js";
 import { bookmarkSearchParams } from "./schemas/bookmark.js";
@@ -103,7 +105,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceType: ResourceSubType.RoutineMultiStep,
+            latestVersionResourceSubType: ResourceSubType.RoutineMultiStep,
             resourceType: ResourceType.Routine,
         } as const),
     },
@@ -114,7 +116,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceTypes: Object.values(ResourceSubTypeRoutine).filter(type => type.toString() !== ResourceSubType.RoutineMultiStep.toString()) as unknown as ResourceSubType[],
+            latestVersionResourceSubTypes: Object.values(ResourceSubTypeRoutine).filter(type => type.toString() !== ResourceSubType.RoutineMultiStep.toString()) as unknown as ResourceSubType[],
             resourceType: ResourceType.Routine,
         } as const),
     },
@@ -159,7 +161,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceType: ResourceSubType.StandardPrompt,
+            latestVersionResourceSubType: ResourceSubType.StandardPrompt,
             resourceType: ResourceType.Standard,
         } as const),
     },
@@ -170,7 +172,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceType: ResourceSubType.StandardDataStructure,
+            latestVersionResourceSubType: ResourceSubType.StandardDataStructure,
             resourceType: ResourceType.Standard,
         } as const),
     },
@@ -188,7 +190,7 @@ export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["P
         searchType: "Resource",
         where: () => ({
             isInternal: false,
-            latestVersionResourceType: ResourceSubType.CodeDataConverter,
+            latestVersionResourceSubType: ResourceSubType.CodeDataConverter,
             resourceType: ResourceType.Code,
         } as const),
     },

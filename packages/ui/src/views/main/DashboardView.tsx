@@ -1,5 +1,5 @@
 import { Box, IconButton, Typography, styled } from "@mui/material";
-import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, getObjectUrl, uuid, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
+import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, generatePK, getObjectUrl, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";
@@ -107,7 +107,7 @@ export function DashboardView({
     const [participants, setParticipants] = useState<ChatParticipantShape[]>([
         {
             __typename: "ChatParticipant",
-            id: uuid(),
+            id: generatePK(),
             user: { ...VALYXA_INFO, __typename: "User" },
             // chat property is usually added by the backend or context
         } as ChatParticipantShape, // Type assertion needed as 'chat' is missing
@@ -200,7 +200,7 @@ export function DashboardView({
                 );
                 const events: CalendarEvent[] = occurrences.map(occurrence => ({
                     __typename: "CalendarEvent",
-                    id: uuid(),
+                    id: generatePK(),
                     title: getDisplay(schedule, languages).title,
                     start: occurrence.start,
                     end: occurrence.end,

@@ -1,5 +1,6 @@
 import { Box, useTheme } from "@mui/material";
-import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion, type DeleteOneInput, type ListObject, type ProjectShape, type ProjectVersion, type ProjectVersionCreateInput, type ProjectVersionDirectoryShape, type ProjectVersionShape, type ProjectVersionUpdateInput, type Session, type Success } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionDirectoryShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session, type Success } from "@vrooli/shared";
+import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,42 +34,43 @@ import { type ProjectCrudProps, type ProjectFormProps } from "./types.js";
 
 function projectInitialValues(
     session: Session | undefined,
-    existing?: Partial<ProjectVersion> | null | undefined,
-): ProjectVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "ProjectVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
+        config: {
+            __version: "1.0",
+            resources: [],
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: true,
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-        },
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Project" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
+            resourceType: ResourceType.Project,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-            parent: null,
             tags: [],
             ...existing?.root,
         },
-        directories: orDefault<ProjectVersionDirectoryShape[]>(existing?.directories, [{
-            __typename: "ProjectVersionDirectory" as const,
+        directories: orDefault<ResourceVersionDirectoryShape[]>(existing?.directories, [{
+            __typename: "ResourceVersionDirectory" as const,
             id: DUMMY_ID,
             isRoot: true,
             childApiVersions: [],
             childCodeVersions: [],
             childNoteVersions: [],
-            childProjectVersions: [],
+            childResourceVersions: [],
             childRoutineVersions: [],
             childStandardVersions: [],
             childTeams: [],
         }]),
         translations: orDefault(existing?.translations, [{
-            __typename: "ProjectVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             name: "",
@@ -77,8 +79,8 @@ function projectInitialValues(
     };
 }
 
-function transformProjectVersionValues(values: ProjectVersionShape, existing: ProjectVersionShape, isCreate: boolean) {
-    return isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
+function transformResourceVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const formSectionStyle = { overflowX: "hidden" } as const;
@@ -114,17 +116,17 @@ function ProjectForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: projectVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     // For now, we'll only deal with one directory listing
     const [directoryField, , directoryHelpers] = useField("directories[0]");
 
-    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<ProjectVersion>({
+    const { handleCancel, handleCompleted, handleDeleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "ProjectVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -132,13 +134,13 @@ function ProjectForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsProjectVersion.createOne,
-        endpointUpdate: endpointsProjectVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ProjectVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
@@ -149,7 +151,7 @@ function ProjectForm({
                 inputs: { id: values.id, objectType: DeleteType.Project },
                 successCondition: (data) => data.success,
                 successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { name: getDisplay(values as ListObject).title ?? t("Project", { count: 1 }) } }),
-                onSuccess: () => { handleDeleted(values as ProjectVersion); },
+                onSuccess: () => { handleDeleted(values as ResourceVersion); },
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
         }
@@ -187,11 +189,11 @@ function ProjectForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
-        inputs: transformProjectVersionValues(values, existing, isCreate),
+        inputs: transformResourceVersionValues(values, existing, isCreate),
         isCreate,
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
@@ -223,7 +225,7 @@ function ProjectForm({
                 <FormContainer>
                     <RelationshipList
                         isEditing={!disabled}
-                        objectType={"Project"}
+                        objectType={"Resource"}
                     />
                     <FormSection sx={formSectionStyle}>
                         <LanguageInput
@@ -328,21 +330,21 @@ export function ProjectCrud({
 }: ProjectCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ProjectVersion, ProjectVersionShape>({
-        ...endpointsProjectVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "ProjectVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => projectInitialValues(session, existing),
     });
 
-    async function validateValues(values: ProjectVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformResourceVersionValues, resourceVersionValidation);
     }
 
     const versions = useMemo(function versionsMemo() {
-        return (existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? [];
+        return (existing?.root as ResourceShape)?.versions?.map(v => v.versionLabel) ?? [];
     }, [existing]);
 
     return (

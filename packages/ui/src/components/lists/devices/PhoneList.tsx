@@ -1,5 +1,5 @@
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { DUMMY_ID, DeleteType, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid, type DeleteOneInput, type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput } from "@vrooli/shared";
+import { DUMMY_ID, DeleteType, endpointsActions, endpointsPhone, phoneValidation, updateArray, generatePK, type DeleteOneInput, type Phone, type PhoneCreateInput, type SendVerificationTextInput, type Success, type ValidateVerificationTextInput } from "@vrooli/shared";
 import { useFormik } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -207,7 +207,7 @@ export function PhoneList({
             console.log("going to submit", values, typeof values.phoneNumber, values.phoneNumber);
             fetchLazyWrapper<PhoneCreateInput, Phone>({
                 fetch: addMutation,
-                inputs: { ...values, id: uuid() },
+                inputs: { ...values, id: generatePK() },
                 onSuccess: (data) => {
                     handleUpdate([...list, data]);
                     formik.resetForm();

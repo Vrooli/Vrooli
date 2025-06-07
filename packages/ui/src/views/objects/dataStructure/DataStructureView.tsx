@@ -1,5 +1,5 @@
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
-import { CommentFor, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit, type ResourceListShape, type StandardShape, type StandardVersion, type TagShape } from "@vrooli/shared";
+import { CommentFor, endpointsResource, exists, getTranslation, noop, noopSubmit, type ResourceListShape, type Resource, type ResourceVersion, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,9 +37,9 @@ export function DataStructureView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useManagedObject<StandardVersion>({
-        ...endpointsStandardVersion.findOne,
-        objectType: "StandardVersion",
+    const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useManagedObject<ResourceVersion>({
+        ...endpointsResource.findOne,
+        objectType: "ResourceVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -60,7 +60,7 @@ export function DataStructureView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "StandardVersion",
+        objectType: "ResourceVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setStandardVersion,

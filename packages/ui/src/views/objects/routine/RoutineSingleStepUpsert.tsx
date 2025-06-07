@@ -1,6 +1,18 @@
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
-import { DUMMY_ID, LINKS, LlmTask, RoutineType, RoutineVersionConfig, SearchPageTabOption, endpointsRoutineVersion, noop, noopSubmit, orDefault, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, stringifyObject, uuid, uuidValidate, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type FormInputBase, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type RoutineShape, type RoutineVersion, type RoutineVersionCreateInput, type RoutineVersionInputShape, type RoutineVersionOutputShape, type RoutineVersionShape, type RoutineVersionUpdateInput, type Session } from "@vrooli/shared";
+import { DUMMY_ID, LINKS, LlmTask, ResourceSubType, RoutineVersionConfig, SearchPageTabOption, endpointsResource, generatePK, noop, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, stringifyObject, validatePK, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type FormInputBase, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type Resource, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionInputShape, type ResourceVersionOutputShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
+import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik, useField, type FieldHelperProps } from "formik";
+
+// Mapping from old RoutineType enum to new ResourceSubType values
+const RoutineType = {
+    Action: ResourceSubType.RoutineInternalAction,
+    Api: ResourceSubType.RoutineApi,
+    Code: ResourceSubType.RoutineCode,
+    Data: ResourceSubType.RoutineData,
+    Generate: ResourceSubType.RoutineGenerate,
+    Informational: ResourceSubType.RoutineInformational,
+    SmartContract: ResourceSubType.RoutineSmartContract,
+} as const;
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSubmitHelper } from "../../../api/fetchWrapper.js";
@@ -37,21 +49,28 @@ import { type RoutineSingleStepFormProps, type RoutineSingleStepUpsertProps } fr
 
 export function routineSingleStepInitialValues(
     session: Session | undefined,
-    existing?: Partial<RoutineVersion> | null | undefined,
-): RoutineVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "RoutineVersion" as const,
-        id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
+        __typename: "ResourceVersion" as const,
+        id: generatePK(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
         inputs: [],
         isComplete: false,
         isPrivate: false,
         outputs: [],
-        routineType: RoutineType.Informational,
         versionLabel: "1.0.0",
+        resourceSubType: ResourceSubType.RoutineInformational,
         ...existing,
+        config: {
+            __version: "1.0",
+            resources: [],
+            routineType: RoutineType.Informational,
+            ...existing?.config,
+        },
         root: {
-            __typename: "Routine" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
+            resourceType: ResourceType.Routine,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
             parent: null,
@@ -59,16 +78,16 @@ export function routineSingleStepInitialValues(
             tags: [],
             ...existing?.root,
         },
-        resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
+        resourceList: orDefault<ResourceVersionShape["resourceList"]>(existing?.resourceList, {
             __typename: "ResourceList" as const,
             id: DUMMY_ID,
             listFor: {
-                __typename: "RoutineVersion" as const,
+                __typename: "ResourceVersion" as const,
                 id: DUMMY_ID,
             },
         }),
         translations: orDefault(existing?.translations, [{
-            __typename: "RoutineVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
@@ -78,8 +97,8 @@ export function routineSingleStepInitialValues(
     };
 }
 
-function transformRoutineVersionValues(values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) {
-    return isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+function transformRoutineVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 type UpdateSchemaElementsBaseProps<Shape> = {
@@ -153,7 +172,7 @@ export function updateSchemaElements({
                     // Add new translation
                     updatedTranslations.push({
                         __typename: type === "inputs" ? "RoutineVersionInputTranslation" : "RoutineVersionOutputTranslation",
-                        id: uuidValidate(element.id) ? element.id : DUMMY_ID,
+                        id: validatePK(element.id) ? element.id : DUMMY_ID,
                         ...newTranslation,
                     });
                 }
@@ -172,11 +191,11 @@ export function updateSchemaElements({
             // Create new element
             return {
                 __typename: type === "inputs" ? "RoutineVersionInput" : "RoutineVersionOutput",
-                id: uuidValidate(element.id) ? element.id : DUMMY_ID,
+                id: validatePK(element.id) ? element.id : DUMMY_ID,
                 name: element.fieldName,
                 isRequired,
                 routineVersion: {
-                    __typename: "RoutineVersion",
+                    __typename: "ResourceVersion",
                     id: routineVersionId,
                 },
                 translations: newTranslation ? [newTranslation] : [],
@@ -227,12 +246,12 @@ function RoutineSingleStepForm({
 
     // Formik fields we need to access and/or set values for
     const [idField] = useField<string>("id");
-    const [routineTypeField, , routineTypeHelpers] = useField<RoutineVersion["routineType"]>("routineType");
+    const [routineTypeField, , routineTypeHelpers] = useField<ResourceVersion["config"]["routineType"]>("config.routineType");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("outputs");
-    const [configField, , configHelpers] = useField<RoutineVersion["config"]>("config");
-    const [apiVersionField, , apiVersionHelpers] = useField<RoutineVersion["apiVersion"]>("apiVersion");
-    const [codeVersionField, , codeVersionHelpers] = useField<RoutineVersion["codeVersion"]>("codeVersion");
+    const [configField, , configHelpers] = useField<ResourceVersion["config"]>("config");
+    const [apiVersionField, , apiVersionHelpers] = useField<ResourceVersion["config"]["apiVersion"]>("config.apiVersion");
+    const [codeVersionField, , codeVersionHelpers] = useField<ResourceVersion["config"]["codeVersion"]>("config.codeVersion");
 
     const config = useMemo(function configMemo() {
         return RoutineVersionConfig.parse({ config: configField.value, routineType: routineTypeField.value }, console);
@@ -366,11 +385,11 @@ function RoutineSingleStepForm({
         }
     }, [config, configHelpers, routineTypeField.value, apiVersionField.value, codeVersionField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, routineTypeHelpers]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "RoutineVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -378,13 +397,13 @@ function RoutineSingleStepForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsRoutineVersion.createOne,
-        endpointUpdate: endpointsRoutineVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -409,7 +428,7 @@ function RoutineSingleStepForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
@@ -495,7 +514,7 @@ function RoutineSingleStepForm({
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "Page"} sxs={basicInfoCollapseStyle}>
                         <RelationshipList
                             isEditing={true}
-                            objectType={"Routine"}
+                            objectType={"Resource"}
                             sx={relationshipListStyle}
                         />
                         <ResourceListInput
@@ -609,20 +628,20 @@ export function RoutineSingleStepUpsert({
 }: RoutineSingleStepUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
-        ...endpointsRoutineVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "RoutineVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => routineSingleStepInitialValues(session, existing),
     });
 
-    async function validateValues(values: RoutineVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, resourceVersionValidation);
     }
 
-    const versions = useMemo(() => (existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? [], [existing]);
+    const versions = useMemo(() => (existing?.root as Resource)?.versions?.map(v => v.versionLabel) ?? [], [existing]);
 
     return (
         <Formik

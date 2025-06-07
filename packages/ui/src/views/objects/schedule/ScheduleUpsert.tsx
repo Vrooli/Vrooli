@@ -3,7 +3,7 @@ import { DUMMY_ID, DeleteType, HOURS_1_MS, ScheduleRecurrenceType, calculateOccu
 import { addDays, format, getDay, parse, startOfWeek } from "date-fns";
 import enUS from "date-fns/locale/en-US";
 import { Formik, useField } from "formik";
-import memoize from "lodash/memoize";
+// Removed lodash memoize import - using simple memoization instead
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Calendar, Views, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -254,8 +254,15 @@ function formatRecurrence(r: ScheduleRecurrence): string {
     }
 }
 
-// Ensure proper memoization of the recurrence formatter
-const memoizedFormatRecurrence = memoize(formatRecurrence);
+// Simple memoization for formatRecurrence
+const formatRecurrenceCache = new Map<string, string>();
+const memoizedFormatRecurrence = (recurrence: ScheduleRecurrence): string => {
+    const key = JSON.stringify(recurrence);
+    if (!formatRecurrenceCache.has(key)) {
+        formatRecurrenceCache.set(key, formatRecurrence(recurrence));
+    }
+    return formatRecurrenceCache.get(key)!;
+};
 
 // Create a memoized component for the recurrence item to prevent unnecessary re-renders
 const RecurrenceItem = memo(function RecurrenceItem({

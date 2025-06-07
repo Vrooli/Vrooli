@@ -11,7 +11,7 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import { BookmarkFor, CommentFor, endpointsStandardVersion, getTranslation, type ResourceList as ResourceListType, type StandardShape, type StandardVersion, type Tag } from "@vrooli/shared";
+import { BookmarkFor, CommentFor, endpointsResource, getTranslation, type ResourceList as ResourceListType, type Resource, type ResourceVersion, type Tag } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,9 +53,9 @@ export function PromptView({
     const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(false);
     const [startMessage, setStartMessage] = useState<string>("");
 
-    const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useManagedObject<StandardVersion>({
-        ...endpointsStandardVersion.findOne,
-        objectType: "StandardVersion",
+    const { id, isLoading, object: standardVersion, permissions, setObject: setStandardVersion } = useManagedObject<ResourceVersion>({
+        ...endpointsResource.findOne,
+        objectType: "ResourceVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);

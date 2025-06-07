@@ -1,5 +1,8 @@
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
-import { BotStyle, FormStructureType, LATEST_ROUTINE_CONFIG_VERSION, RunStatus, aiServicesInfo, defaultConfigFormInputMap, defaultConfigFormOutputMap, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate, type BotShape, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type CodeLanguage, type CodeVersionShape, type CodeVersionTranslationShape, type ConfigCallDataGenerate, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type LlmModel, type RoutineVersionConfig, type RunProject, type RunRoutine, type User } from "@vrooli/shared";
+import { BotStyle, FormStructureType, RunStatus, aiServicesInfo, defaultConfigFormInputMap, defaultConfigFormOutputMap, generatePK, getModelDescription, getModelName, getTranslation, noop, validatePK, type BotShape, type CallDataActionConfigObject, type CallDataApiConfigObject, type CallDataCodeConfigObject, type CallDataGenerateConfigObject, type CallDataSmartContractConfigObject, type CodeLanguage, type CodeVersionShape, type CodeVersionTranslationShape, type ConfigCallDataGenerate, type FormInputConfigObject, type FormOutputConfigObject, type FormSchema, type GraphConfigObject, type LlmModel, type RoutineVersionConfig, type RunProject, type RunRoutine, type User } from "@vrooli/shared";
+
+// Default version for routine configs
+const LATEST_ROUTINE_CONFIG_VERSION = "1.0";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../../api/ai.js";
@@ -441,7 +444,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
     });
 
     const [bot, setBot] = useState<BotInfo | null>(function initBotState() {
-        if (!config.callDataGenerate?.schema.respondingBot || !uuidValidate(config.callDataGenerate.schema.respondingBot)) return null;
+        if (!config.callDataGenerate?.schema.respondingBot || !validatePK(config.callDataGenerate.schema.respondingBot)) return null;
         const storedData = getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: config.callDataGenerate.schema.respondingBot });
         if (!storedData) return null;
         return storedData as BotInfo;
@@ -490,7 +493,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
         return {
             type: FormStructureType.Tip,
             icon: "Info",
-            id: uuid(),
+            id: generatePK(),
             label: `Generating with ${modelName}`,
         } as const;
     }, [config.callDataGenerate?.schema.model?.name, t]);
@@ -620,7 +623,7 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
 }: RoutineFormTypeInformational) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-    const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+    const isLoggedIn = validatePK(getCurrentUser(session).id);
     console.log("ghgh isLoggedIn", isLoggedIn, session);
     const isEditing = display === "edit";
 

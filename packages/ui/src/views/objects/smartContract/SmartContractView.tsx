@@ -1,5 +1,5 @@
 import { Box, Button, Container, IconButton, LinearProgress, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkFor, CodeLanguage, CommentFor, LINKS, SearchVersionPageTabOption, endpointsCodeVersion, exists, getTranslation, noopSubmit, type CodeShape, type CodeVersion, type ResourceListShape, type ResourceList as ResourceListType, type Tag, type TagShape } from "@vrooli/shared";
+import { BookmarkFor, CodeLanguage, CommentFor, LINKS, SearchVersionPageTabOption, endpointsResource, exists, getTranslation, noopSubmit, type Resource, type ResourceVersion, type ResourceListShape, type ResourceList as ResourceListType, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -63,9 +63,9 @@ export function SmartContractView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(false);
 
-    const { isLoading, object: codeVersion, permissions, setObject: setCodeVersion } = useManagedObject<CodeVersion>({
-        ...endpointsCodeVersion.findOne,
-        objectType: "CodeVersion",
+    const { isLoading, object: codeVersion, permissions, setObject: setCodeVersion } = useManagedObject<ResourceVersion>({
+        ...endpointsResource.findOne,
+        objectType: "ResourceVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (codeVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [codeVersion?.translations]);
@@ -88,7 +88,7 @@ export function SmartContractView({
         initialValues.resourceList as ResourceListShape | null | undefined,
         [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() =>
-        (initialValues.root as CodeShape)?.tags as TagShape[] | null | undefined,
+        (initialValues.root as Resource)?.tags as TagShape[] | null | undefined,
         [initialValues]);
 
     // More menu
@@ -101,7 +101,7 @@ export function SmartContractView({
 
     const actionData = useObjectActions({
         object: codeVersion,
-        objectType: "CodeVersion",
+        objectType: "ResourceVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setCodeVersion,
@@ -401,7 +401,7 @@ export function SmartContractView({
                                             forceAddCommentOpen={isAddCommentOpen}
                                             language={language}
                                             objectId={codeVersion?.id ?? ""}
-                                            objectType={CommentFor.CodeVersion}
+                                            objectType={CommentFor.ResourceVersion}
                                             onAddCommentClose={closeAddCommentDialog}
                                         />
                                     </Paper>

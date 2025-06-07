@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/material";
-import { DUMMY_ID, addToArray, deleteArrayIndex, exists, getTranslation, shapeRoutineVersion, updateArray, uuid, type DefinedArrayElement, type RoutineVersion, type RoutineVersionShape, type Session } from "@vrooli/shared";
+import { DUMMY_ID, addToArray, deleteArrayIndex, exists, generatePK, getTranslation, shapeResourceVersion, updateArray, type DefinedArrayElement, type ResourceVersion, type ResourceVersionShape, type Session } from "@vrooli/shared";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";
 import { BottomActionsGrid } from "../../../components/buttons/BottomActionsGrid.js";
@@ -61,7 +61,7 @@ class GenerateManager {
     static link(fromId: string, toId: string): NodeLink {
         return {
             __typename: "NodeLink",
-            id: uuid(),
+            id: generatePK(),
             from: { __typename: "Node", id: fromId },
             to: { __typename: "Node", id: toId },
         };
@@ -77,13 +77,13 @@ class GenerateManager {
     ): NodeEnd {
         return {
             __typename: "Node" as const,
-            id: uuid(),
+            id: generatePK(),
             nodeType: NodeType.End,
             rowIndex: 0, // Deprecated
             columnIndex: 0, // Deprecated
             end: {
                 __typename: "NodeEnd" as const,
-                id: uuid(),
+                id: generatePK(),
                 wasSuccessful: true,
             },
             translations: [{
@@ -144,13 +144,13 @@ class GenerateManager {
     ): RoutineListItem {
         return {
             __typename: "NodeRoutineListItem" as const,
-            id: uuid(),
+            id: generatePK(),
             index: node.routineList.items.length,
             isOptional: true,
             routineVersion: subroutine,
             translations: [{
                 __typename: "NodeRoutineListItemTranslation" as const,
-                id: uuid(),
+                id: generatePK(),
                 language,
                 description: getTranslation(subroutine, [language])?.description,
                 name: getTranslation(subroutine, [language])?.name,
@@ -746,12 +746,12 @@ export class Graph {
     /**
      * Initializes a new swim lane graph for a routine version.
      * @param session The current session
-     * @param routineVersion The routine version to add the swim lane to
+     * @param resourceVersion The resource version to add the swim lane to
      * @returns Updated routine version with a new swim lane graph
      */
     static addSwimLane(
         session: Session | undefined,
-        routineVersion: RoutineVersionShape,
+        resourceVersion: ResourceVersionShape,
     ): RoutineVersionShape {
         // const language = getUserLanguages(session)[0];
         // const startNode: NodeStart = {
@@ -1454,7 +1454,7 @@ function AddLaneButton({
 }
 
 function transformRoutineVersionValues(values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) {
-    return isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const DroppableContainer = styled(Box)(() => ({

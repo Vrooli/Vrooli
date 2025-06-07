@@ -1,6 +1,18 @@
 import { Box, Divider, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
-import { CommentFor, FormBuilder, LINKS, RoutineType, RoutineVersionConfig, RunStatus, UrlTools, endpointsRoutineVersion, endpointsRunRoutine, exists, getTranslation, noop, noopSubmit, uuid, uuidToBase36, uuidValidate, type FindByIdInput, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineSingleStepViewSearchParams, type RoutineVersion, type RunRoutine, type Tag, type TagShape } from "@vrooli/shared";
+import { CommentFor, FormBuilder, LINKS, ResourceSubType, RunStatus, UrlTools, endpointsResource, endpointsRun, exists, generatePK, getTranslation, noop, noopSubmit, validatePK, type FindByIdInput, type ResourceListShape, type ResourceList as ResourceListType, type Resource, type RoutineSingleStepViewSearchParams, type ResourceVersion, type RunRoutine, type Tag, type TagShape } from "@vrooli/shared";
+import { RoutineVersionConfig } from "@vrooli/shared/shape/configs/routine.js";
 import { Formik, useFormikContext } from "formik";
+
+// Mapping from old RoutineType enum to new ResourceSubType values
+const RoutineType = {
+    Action: ResourceSubType.RoutineInternalAction,
+    Api: ResourceSubType.RoutineApi,
+    Code: ResourceSubType.RoutineCode,
+    Data: ResourceSubType.RoutineData,
+    Generate: ResourceSubType.RoutineGenerate,
+    Informational: ResourceSubType.RoutineInformational,
+    SmartContract: ResourceSubType.RoutineSmartContract,
+} as const;
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RunButton } from "../../../components/buttons/RunButton.js";
@@ -49,8 +61,8 @@ function handleInvalidUrlParams() {
 }
 
 type RoutineSingleStepTypeViewProps = {
-    config: RoutineVersionConfig;
-    existing: PartialWithType<RoutineVersion>;
+    config: ResourceVersionConfig;
+    existing: PartialWithType<ResourceVersion>;
     isGetRoutineLoading: boolean;
 }
 
@@ -69,7 +81,7 @@ function RoutineSingleStepTypeView({
     const { errors, isSubmitting, isValidating, resetForm, setSubmitting, setValues, values } = useFormikContext<FormErrors>();
 
     const routineTypeOption = useMemo(function routineTypeMemo() {
-        return routineTypes.find((option) => option.type === existing.routineType);
+        return routineTypes.find((option) => option.type === existing.resourceSubType);
     }, [existing.routineType]);
 
     const onRunChange = useCallback(function onRunChangeCallback(newRun: RunRoutine | null) {
@@ -87,17 +99,16 @@ function RoutineSingleStepTypeView({
     const [run, setRun] = useState<RunRoutine | null>(null);
     useEffect(function updateUrlOnRunChange() {
         if (run) {
-            addSearchParams(setLocation, { runId: uuidToBase36(run.id) } as RoutineSingleStepViewSearchParams);
+            addSearchParams(setLocation, { runId: run.id } as RoutineSingleStepViewSearchParams);
         }
     }, [run, setLocation]);
 
-    const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointsRunRoutine.findOne);
+    const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointsRun.findOne);
     useEffect(function fetchRunFromUrl() {
         const searchParams = UrlTools.parseSearchParams(LINKS.RoutineSingleStep);
         if (searchParams.runId) {
-            const runId = base36ToUuid(searchParams.runId);
-            if (uuidValidate(runId)) {
-                getRun({ id: runId });
+            if (validatePK(searchParams.runId)) {
+                getRun({ id: searchParams.runId });
             }
         }
     }, [getRun]);
@@ -117,30 +128,32 @@ function RoutineSingleStepTypeView({
     //     getFormValues,
     //     handleRunUpdate: onRunChange as (run: RunRoutine | RunProject) => unknown,
     //     run,
-    //     runnableObject: existing as RoutineVersion,
+    //     runnableObject: existing as ResourceVersion,
     // });
 
     const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting: setSubmitting });
     const hasFormErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
     const handleCompleteStep = useCallback(function handleCompleteStepCallback(_event: React.MouseEvent | React.TouchEvent) {
-        const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+        const isLoggedIn = validatePK(getCurrentUser(session).id);
         if (!isLoggedIn) {
             PubSub.get().publish("proDialog");
             return;
         }
-        if (!uuidValidate(existing.id)) {
+        if (!validatePK(existing.id)) {
             console.error("Routine ID is not a valid UUID");
             return;
         }
         // Create run if it doesn't exist
         if (!run) {
-            const runRoutineId = uuid();
-            const { inputsCreate } = new RunIOManager(console).runInputsUpdate({
+            const runRoutineId = generatePK();
+            // TODO: Need to implement RunIOManager replacement
+            const inputsCreate: any[] = [];
+            /* const { inputsCreate } = new RunIOManager(console).runInputsUpdate({
                 existingIO: [],
                 formData: values as object,
                 routineIO: existing.inputs ?? [],
                 runRoutineId,
-            });
+            }); */
             createRun({
                 completedComplexity: existing.complexity ?? 1,
                 id: runRoutineId,
@@ -163,12 +176,16 @@ function RoutineSingleStepTypeView({
         // Update run if it does exist
         else {
             const runRoutineId = run.id;
-            const { inputsCreate, inputsUpdate, inputsDelete } = new RunIOManager(console).runInputsUpdate({
+            // TODO: Need to implement RunIOManager replacement
+            const inputsCreate: any[] = [];
+            const inputsUpdate: any[] = [];
+            const inputsDelete: any[] = [];
+            /* const { inputsCreate, inputsUpdate, inputsDelete } = new RunIOManager(console).runInputsUpdate({
                 existingIO: run.inputs,
                 formData: values as object,
                 routineIO: existing.inputs ?? [],
                 runRoutineId,
-            });
+            }); */
             console.log("completing step with inputs", inputsCreate, inputsUpdate, inputsDelete);
             updateRun({
                 id: runRoutineId,
@@ -216,7 +233,7 @@ function RoutineSingleStepTypeView({
         if (!existing) return null;
 
         const isLoading = isCreatingRunRoutine || isUpdatingRunRoutine || isGetRoutineLoading || isLoadingGetRun || isSubmitting || isValidating; // || isGeneratingOutputs
-        const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+        const isLoggedIn = validatePK(getCurrentUser(session).id);
         const isDeleted = existing.isDeleted ?? existing.root?.isDeleted ?? false;
         const canRun = existing.you?.canRun ?? false;
         const hasErrors = hasFormErrors;
@@ -246,7 +263,7 @@ function RoutineSingleStepTypeView({
             run,
         };
 
-        switch (existing.routineType) {
+        switch (existing.resourceSubType) {
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
@@ -307,10 +324,10 @@ export function RoutineSingleStepView({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading: isGetRoutineLoading, object: existing, permissions, setObject: setRoutineVersion } = useManagedObject<RoutineVersion>({
-        ...endpointsRoutineVersion.findOne,
+    const { isLoading: isGetRoutineLoading, object: existing, permissions, setObject: setResourceVersion } = useManagedObject<ResourceVersion>({
+        ...endpointsResource.findOne,
         onInvalidUrlParams: handleInvalidUrlParams,
-        objectType: "RoutineVersion",
+        objectType: "ResourceVersion",
     });
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
@@ -340,10 +357,10 @@ export function RoutineSingleStepView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "RoutineVersion",
+        objectType: "ResourceVersion",
         openAddCommentDialog,
         setLocation,
-        setObject: setRoutineVersion,
+        setObject: setResourceVersion,
     });
     const handleEditStart = useCallback(function handleEditStartCallback() {
         actionData.onActionStart(ObjectAction.Edit);
@@ -351,20 +368,20 @@ export function RoutineSingleStepView({
 
     const initialValues = useMemo(() => routineSingleStepInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
-    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
+    const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as Resource)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     const config = useMemo(function configMemo() {
-        return RoutineVersionConfig.parse({ config: existing.config, routineType: existing.routineType ?? RoutineType.Informational }, console);
-    }, [existing.config, existing.routineType]);
+        return ResourceVersionConfig.parse({ config: existing.config, routineType: existing.resourceSubType ?? RoutineType.Informational }, console);
+    }, [existing.config, existing.resourceSubType]);
 
     const { formInitialValues, formValidationSchema } = useMemo(function initialValuesMemo() {
-        const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, existing.routineType ?? RoutineType.Informational);
-        const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, existing.routineType ?? RoutineType.Informational);
+        const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(config, existing.resourceSubType ?? RoutineType.Informational);
+        const validationSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, existing.resourceSubType ?? RoutineType.Informational);
         return { formInitialValues: initialValues, formValidationSchema: validationSchema };
-    }, [config, existing.routineType]);
+    }, [config, existing.resourceSubType]);
 
     const resourceListParent = useMemo(function resourceListParent() {
-        return { __typename: "RoutineVersion", id: existing?.id ?? "" } as const;
+        return { __typename: "ResourceVersion", id: existing?.id ?? "" } as const;
     }, [existing?.id]);
 
     return (
@@ -412,7 +429,7 @@ export function RoutineSingleStepView({
                             loadingLines={4}
                         />
                     </FormSection>}
-                    {existing?.routineType && Object.values(RoutineType).includes(existing.routineType) && (
+                    {existing?.resourceSubType && Object.values(RoutineType).includes(existing.resourceSubType) && (
                         <Formik
                             enableReinitialize={true}
                             initialValues={formInitialValues}
@@ -463,7 +480,7 @@ export function RoutineSingleStepView({
                         forceAddCommentOpen={isAddCommentOpen}
                         language={language}
                         objectId={existing?.id ?? ""}
-                        objectType={CommentFor.RoutineVersion}
+                        objectType={CommentFor.ResourceVersion}
                         onAddCommentClose={closeAddCommentDialog}
                     />
                 </Stack>}
@@ -483,10 +500,10 @@ export function RoutineSingleStepView({
                     </IconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
-                {Boolean(existing) && existing?.routineType !== RoutineType.Informational ? <RunButton
+                {Boolean(existing) && existing?.resourceSubType !== RoutineType.Informational ? <RunButton
                     isEditing={false}
-                    objectType="RoutineVersion"
-                    runnableObject={existing as RoutineVersion}
+                    objectType="ResourceVersion"
+                    runnableObject={existing as ResourceVersion}
                 /> : null}
             </SideActionsButtons>
         </ScrollBox>

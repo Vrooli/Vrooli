@@ -1,5 +1,5 @@
 import { Box, Button, Collapse, Container, Grid, IconButton, LinearProgress, Paper, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkFor, CodeLanguage, CodeVersionConfig, CommentFor, endpointsCodeVersion, getTranslation, type CodeVersion, type ResourceList as ResourceListType, type Tag } from "@vrooli/shared";
+import { BookmarkFor, CodeLanguage, CodeVersionConfig, CommentFor, endpointsResource, getTranslation, type ResourceVersion, type ResourceList as ResourceListType, type Tag } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";

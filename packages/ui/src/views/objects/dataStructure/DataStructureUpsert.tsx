@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, StandardType, endpointsStandardVersion, noopSubmit, orDefault, shapeStandardVersion, standardVersionTranslationValidation, standardVersionValidation, type Session, type StandardVersion, type StandardVersionCreateInput, type StandardVersionShape, type StandardVersionUpdateInput } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, resourceVersionTranslationValidation, resourceVersionValidation, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,53 +36,49 @@ import { type DataStructureFormProps, type DataStructureUpsertProps } from "./ty
 
 export function dataStructureInitialValues(
     session: Session | undefined,
-    existing?: Partial<StandardVersion> | null | undefined,
-): StandardVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "StandardVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
-        codeLanguage: CodeLanguage.Json,
-        default: JSON.stringify({}),
+        codeLanguage: existing?.codeLanguage || CodeLanguage.Json,
+        resourceSubType: ResourceSubType.StandardDataStructure,
+        config: {
+            __version: "1.0",
+            resources: [],
+            schema: existing?.config?.schema || JSON.stringify({
+                default: {},
+                yup: {},
+            }),
+            schemaLanguage: existing?.config?.schemaLanguage || CodeLanguage.Json,
+            props: existing?.config?.props || {},
+            isFile: existing?.config?.isFile || false,
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: false,
-        isFile: false,
-        props: JSON.stringify({}),
-        variant: StandardType.DataStructure,
-        yup: JSON.stringify({}),
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-            listFor: {
-                __typename: "StandardVersion" as const,
-                id: DUMMY_ID,
-            },
-        },
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Standard" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
-            isInternal: false,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-            parent: null,
-            permissions: JSON.stringify({}),
             tags: [],
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "StandardVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
-            jsonVariable: null, //TODO
             name: "",
         }]),
     };
 }
 
-function transformDataStructureVersionValues(values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) {
-    return isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
+function transformDataStructureVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 const exampleStandardJson = `
@@ -133,18 +129,18 @@ function DataStructureForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: standardVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
-        return { __typename: "StandardVersion", id: values.id } as const;
+        return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "StandardVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -152,13 +148,13 @@ function DataStructureForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsStandardVersion.createOne,
-        endpointUpdate: endpointsStandardVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "StandardVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -183,7 +179,7 @@ function DataStructureForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
@@ -236,7 +232,7 @@ function DataStructureForm({
                                 <Box display="flex" flexDirection="column" gap={4}>
                                     <RelationshipList
                                         isEditing={true}
-                                        objectType={"Standard"}
+                                        objectType={"Resource"}
                                     />
                                     <ResourceListInput
                                         horizontal
@@ -300,11 +296,11 @@ function DataStructureForm({
                                 {/* TODO replace with FormInputStandard */}
                                 <CodeInput
                                     disabled={false}
-                                    codeLanguageField="standardType"
+                                    codeLanguageField="config.schemaLanguage"
                                     // format={isPreviewOn ? "TODO" : undefined}
                                     // limitTo={isPreviewOn ? [CodeLanguage.JsonStandard] : [CodeLanguage.Json]}
                                     limitTo={codeLimitTo}
-                                    name="props"
+                                    name="config.schema"
                                 />
                             </Box>
                         </Grid>
@@ -338,17 +334,17 @@ export function DataStructureUpsert({
 }: DataStructureUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<StandardVersion, StandardVersionShape>({
-        ...endpointsStandardVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "StandardVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => dataStructureInitialValues(session, existing),
     });
 
-    async function validateValues(values: StandardVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformDataStructureVersionValues, standardVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformDataStructureVersionValues, resourceVersionValidation);
     }
 
     return (

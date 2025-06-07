@@ -1,5 +1,5 @@
 import { Box, Button, Divider, Grid, Typography, useTheme } from "@mui/material";
-import { CodeLanguage, CodeType, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion, type CodeShape, type CodeVersion, type CodeVersionCreateInput, type CodeVersionShape, type CodeVersionUpdateInput, type Session } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, resourceVersionTranslationValidation, resourceVersionValidation, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, ResourceSubType, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -35,50 +35,43 @@ import { type DataConverterFormProps, type DataConverterUpsertProps } from "./ty
 
 export function dataConverterInitialValues(
     session: Session | undefined,
-    existing?: Partial<CodeVersion> | undefined,
-): CodeVersionShape {
+    existing?: Partial<ResourceVersion> | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "CodeVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
-        calledByRoutineVersionsCount: 0,
-        codeLanguage: CodeLanguage.Haskell,
-        codeType: CodeType.DataConvert,
-        content: "",
+        codeLanguage: existing?.codeLanguage || CodeLanguage.Haskell,
+        resourceSubType: ResourceSubType.CodeDataConverter,
+        config: {
+            __version: "1.0",
+            resources: [],
+            content: existing?.config?.content || "",
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: false,
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-            listFor: {
-                __typename: "CodeVersion" as const,
-                id: DUMMY_ID,
-            },
-        },
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Code" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-            parent: null,
-            permissions: JSON.stringify({}),
             tags: [],
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "CodeVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
-            jsonVariable: "",
             name: "",
         }]),
     };
 }
 
-function transformDataConverterVersionValues(values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) {
-    return isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
+function transformDataConverterVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 /** Code to display when an example is requested */
@@ -152,18 +145,18 @@ function DataConverterForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: codeVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
-        return { __typename: "CodeVersion", id: values.id } as const;
+        return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<CodeVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "CodeVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -171,18 +164,18 @@ function DataConverterForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsCodeVersion.createOne,
-        endpointUpdate: endpointsCodeVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "CodeVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
             ...getAutoFillTranslationData(values, language),
-            content: values.content,
+            content: values.config?.content,
             isPrivate: values.isPrivate,
             version: values.versionLabel,
         };
@@ -192,12 +185,15 @@ function DataConverterForm({
         const originalValues = { ...values };
         const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
         delete rest.id;
-        const content = typeof rest.content === "string" ? rest.content : values.content;
+        const content = typeof rest.content === "string" ? rest.content : values.config?.content;
         const isPrivate = typeof rest.isPrivate === "boolean" ? rest.isPrivate : values.isPrivate;
         const versionLabel = typeof rest.version === "string" ? rest.version : values.versionLabel;
         const updatedValues = {
             ...values,
-            content,
+            config: {
+                ...values.config,
+                content,
+            },
             isPrivate,
             translations: updatedTranslations,
             versionLabel,
@@ -214,7 +210,7 @@ function DataConverterForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<CodeVersionCreateInput | CodeVersionUpdateInput, CodeVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
@@ -263,7 +259,7 @@ function DataConverterForm({
                                 <Box display="flex" flexDirection="column" gap={4}>
                                     <RelationshipList
                                         isEditing={true}
-                                        objectType={"Code"}
+                                        objectType={"Resource"}
                                     />
                                     <ResourceListInput
                                         horizontal
@@ -320,7 +316,7 @@ function DataConverterForm({
                                 <CodeInput
                                     disabled={false}
                                     limitTo={codeLimitTo}
-                                    name="content"
+                                    name="config.content"
                                 />
                             </Box>
                         </Grid>
@@ -354,21 +350,21 @@ export function DataConverterUpsert({
 }: DataConverterUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<CodeVersion, CodeVersionShape>({
-        ...endpointsCodeVersion.findOne,
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ResourceVersion, ResourceVersionShape>({
+        ...endpointsResource.findOne,
         disabled: display === "Dialog" && isOpen !== true,
         isCreate,
-        objectType: "CodeVersion",
+        objectType: "ResourceVersion",
         overrideObject,
         transform: (existing) => dataConverterInitialValues(session, existing),
     });
 
-    async function validateValues(values: CodeVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformDataConverterVersionValues, codeVersionValidation);
+    async function validateValues(values: ResourceVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformDataConverterVersionValues, resourceVersionValidation);
     }
 
     const versions = useMemo(function versionsMemo() {
-        return (existing?.root as CodeShape)?.versions?.map(v => v.versionLabel) ?? [];
+        return (existing?.root as ResourceShape)?.versions?.map(v => v.versionLabel) ?? [];
     }, [existing]);
 
     return (

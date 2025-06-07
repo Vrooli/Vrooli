@@ -1,5 +1,5 @@
 import { Box, IconButton } from "@mui/material";
-import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, uuid, type Bookmark, type BookmarkCreateInput, type BookmarkList } from "@vrooli/shared";
+import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, generatePK, type Bookmark, type BookmarkCreateInput, type BookmarkList } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
@@ -69,7 +69,7 @@ export function BookmarkListView({
             fetch: createBookmark,
             inputs: shapeBookmark.create({
                 __typename: "Bookmark" as const,
-                id: uuid(),
+                id: generatePK(),
                 to,
                 list: { __typename: "BookmarkList", id: existing?.id ?? "" },
             }),

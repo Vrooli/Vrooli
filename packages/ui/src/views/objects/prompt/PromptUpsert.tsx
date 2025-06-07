@@ -1,5 +1,5 @@
-import { Button, Divider } from "@mui/material";
-import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, StandardType, endpointsStandardVersion, noopSubmit, orDefault, shapeStandardVersion, standardVersionTranslationValidation, standardVersionValidation, type FormSchema, type Session, type StandardVersion, type StandardVersionCreateInput, type StandardVersionShape, type StandardVersionUpdateInput } from "@vrooli/shared";
+import { Button, Divider, Grid, useTheme } from "@mui/material";
+import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, resourceVersionTranslationValidation, resourceVersionValidation, type FormSchema, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,57 +31,83 @@ import { FormContainer, FormSection } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
 import { type PromptFormProps, type PromptUpsertProps } from "./types.js";
+
+// Default schema for prompt inputs
+function defaultSchemaInput(): FormSchema {
+    return {
+        elements: [],
+        layout: "column",
+    };
+}
+
+// Parse schema from props.inputs into FormSchema
+function parseSchema(
+    inputs: any,
+    defaultFn: () => FormSchema,
+    logger: Console,
+    label: string,
+): FormSchema {
+    try {
+        if (!inputs || !Array.isArray(inputs)) {
+            return defaultFn();
+        }
+        return {
+            elements: inputs,
+            layout: "column",
+        };
+    } catch (error) {
+        logger.error(`Error parsing ${label}:`, error);
+        return defaultFn();
+    }
+}
 
 export function promptInitialValues(
     session: Session | undefined,
-    existing?: Partial<StandardVersion> | null | undefined,
-): StandardVersionShape {
+    existing?: Partial<ResourceVersion> | null | undefined,
+): ResourceVersionShape {
     return {
-        __typename: "StandardVersion" as const,
+        __typename: "ResourceVersion" as const,
         id: DUMMY_ID,
-        codeLanguage: CodeLanguage.Javascript,
-        default: JSON.stringify({}),
+        codeLanguage: existing?.codeLanguage || CodeLanguage.Javascript,
+        resourceSubType: ResourceSubType.StandardPrompt,
+        config: {
+            __version: "1.0",
+            resources: [],
+            schema: existing?.config?.schema || JSON.stringify({
+                default: {},
+                yup: {},
+            }),
+            schemaLanguage: existing?.config?.schemaLanguage || CodeLanguage.Javascript,
+            props: existing?.config?.props || {},
+            isFile: existing?.config?.isFile || false,
+            ...existing?.config,
+        },
         isComplete: false,
         isPrivate: false,
-        isFile: false,
-        props: JSON.stringify({}),
-        variant: StandardType.Prompt,
-        yup: JSON.stringify({}),
-        resourceList: {
-            __typename: "ResourceList" as const,
-            id: DUMMY_ID,
-            listFor: {
-                __typename: "StandardVersion" as const,
-                id: DUMMY_ID,
-            },
-        },
         versionLabel: "1.0.0",
         ...existing,
         root: {
-            __typename: "Standard" as const,
+            __typename: "Resource" as const,
             id: DUMMY_ID,
-            isInternal: false,
             isPrivate: false,
             owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-            parent: null,
-            permissions: JSON.stringify({}),
             tags: [],
             ...existing?.root,
         },
         translations: orDefault(existing?.translations, [{
-            __typename: "StandardVersionTranslation" as const,
+            __typename: "ResourceVersionTranslation" as const,
             id: DUMMY_ID,
             language: getUserLanguages(session)[0],
             description: "",
-            jsonVariable: null, //TODO
             name: "",
         }]),
     };
 }
 
-function transformPromptVersionValues(values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) {
-    return isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
+function transformPromptVersionValues(values: ResourceVersionShape, existing: ResourceVersionShape, isCreate: boolean) {
+    return isCreate ? shapeResourceVersion.create(values) : shapeResourceVersion.update(existing, values);
 }
 
 //TODO
@@ -181,18 +207,18 @@ function PromptForm({
         translationErrors,
     } = useTranslatedFields({
         defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: standardVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
+        validationSchema: resourceVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
 
     const resourceListParent = useMemo(function resourceListParentMemo() {
-        return { __typename: "StandardVersion", id: values.id } as const;
+        return { __typename: "ResourceVersion", id: values.id } as const;
     }, [values]);
 
-    const { handleCancel, handleCompleted } = useUpsertActions<StandardVersion>({
+    const { handleCancel, handleCompleted } = useUpsertActions<ResourceVersion>({
         display,
         isCreate,
         objectId: values.id,
-        objectType: "StandardVersion",
+        objectType: "ResourceVersion",
         rootObjectId: values.root?.id,
         ...props,
     });
@@ -200,13 +226,13 @@ function PromptForm({
         fetch,
         isCreateLoading,
         isUpdateLoading,
-    } = useUpsertFetch<StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput>({
+    } = useUpsertFetch<ResourceVersion, ResourceVersionCreateInput, ResourceVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointsStandardVersion.createOne,
-        endpointUpdate: endpointsStandardVersion.updateOne,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
-    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "StandardVersion" });
+    useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ResourceVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
@@ -231,7 +257,7 @@ function PromptForm({
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
-    const onSubmit = useSubmitHelper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
+    const onSubmit = useSubmitHelper<ResourceVersionCreateInput | ResourceVersionUpdateInput, ResourceVersion>({
         disabled,
         existing,
         fetch,
@@ -285,7 +311,7 @@ function PromptForm({
     return (
         <MaybeLargeDialog
             display={display}
-            id="standard-upsert-dialog"
+            id="prompt-upsert-dialog"
             isOpen={isOpen}
             onClose={onClose}
         >
@@ -296,7 +322,7 @@ function PromptForm({
             />
             <SearchExistingButton
                 href={`${LINKS.Search}?type="${SearchPageTabOption.Prompt}"`}
-                text="Search existing standards"
+                text="Search existing prompts"
             />
             <BaseForm
                 display={display}
