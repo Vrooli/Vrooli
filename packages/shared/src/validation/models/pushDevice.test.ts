@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { pushDeviceFixtures } from "./__test/fixtures/pushDeviceFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { pushDeviceValidation } from "./pushDevice.js";
-import { pushDeviceFixtures } from "./__test__/fixtures/pushDeviceFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("pushDeviceValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -86,7 +86,7 @@ describe("pushDeviceValidation", () => {
 
             it("should accept HTTP URLs in dev environment", async () => {
                 const devSchema = pushDeviceValidation.create({ omitFields: [], env: "dev" });
-                
+
                 await testValidation(
                     devSchema,
                     pushDeviceFixtures.edgeCases.httpEndpoint.create,
@@ -96,7 +96,7 @@ describe("pushDeviceValidation", () => {
 
             it("should accept HTTP URLs in production environment", async () => {
                 const prodSchema = pushDeviceValidation.create({ omitFields: [], env: "production" });
-                
+
                 await testValidation(
                     prodSchema,
                     pushDeviceFixtures.edgeCases.httpEndpoint.create,

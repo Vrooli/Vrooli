@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BookmarkFor } from "../../api/types.js";
+import { bookmarkFixtures } from "./__test/fixtures/bookmarkFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { bookmarkValidation } from "./bookmark.js";
-import { bookmarkFixtures } from "./__test__/fixtures/bookmarkFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("bookmarkValidation", () => {
     // Run standard validation tests using shared fixtures

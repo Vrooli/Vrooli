@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { pullRequestValidation, pullRequestTranslationValidation } from "./pullRequest.js";
-import { pullRequestFixtures } from "./__test__/fixtures/pullRequestFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { describe, expect, it } from "vitest";
+import { pullRequestFixtures } from "./__test/fixtures/pullRequestFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import { pullRequestTranslationValidation, pullRequestValidation } from "./pullRequest.js";
 
 describe("pullRequestValidation", () => {
     // Run standard validation tests using shared fixtures

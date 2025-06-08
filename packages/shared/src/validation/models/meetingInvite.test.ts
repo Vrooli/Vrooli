@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { meetingInviteFixtures } from "./__test/fixtures/meetingInviteFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { meetingInviteValidation } from "./meetingInvite.js";
-import { meetingInviteFixtures } from "./__test__/fixtures/meetingInviteFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("meetingInviteValidation", () => {
     // Run standard validation tests using shared fixtures

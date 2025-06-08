@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { chatValidation, chatTranslationValidation } from "./chat.js";
-import { chatFixtures, chatTestDataFactory, chatTranslationFixtures } from "./__test__/fixtures/chatFixtures.js";
-import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
+import { describe, expect, it } from "vitest";
+import { chatFixtures, chatTestDataFactory, chatTranslationFixtures } from "./__test/fixtures/chatFixtures.js";
+import { runStandardValidationTests, testValidation } from "./__test/validationTestUtils.js";
+import { chatTranslationValidation, chatValidation } from "./chat.js";
 
 describe("chatValidation", () => {
     // Run standard test suite
@@ -72,9 +72,9 @@ describe("chatValidation", () => {
                         }],
                     }],
                 };
-                
+
                 try {
-                    const result = await createSchema.validate(data, { 
+                    const result = await createSchema.validate(data, {
                         abortEarly: false,
                         stripUnknown: true,
                     });
@@ -112,8 +112,8 @@ describe("chatValidation", () => {
             });
 
             it("should handle omitFields for nested relations", async () => {
-                const schemaWithOmit = chatValidation.create({ 
-                    omitFields: ["invitesCreate", "messagesCreate"], 
+                const schemaWithOmit = chatValidation.create({
+                    omitFields: ["invitesCreate", "messagesCreate"],
                 });
                 const result = await testValidation(
                     schemaWithOmit,
@@ -157,7 +157,7 @@ describe("chatValidation", () => {
 
             it("should validate complex update operations", async () => {
                 try {
-                    const result = await updateSchema.validate(chatFixtures.complete.update, { 
+                    const result = await updateSchema.validate(chatFixtures.complete.update, {
                         abortEarly: false,
                         stripUnknown: true,
                     });

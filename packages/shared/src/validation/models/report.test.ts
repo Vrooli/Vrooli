@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { reportFixtures } from "./__test/fixtures/reportFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { reportValidation } from "./report.js";
-import { reportFixtures } from "./__test__/fixtures/reportFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("reportValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -568,7 +568,7 @@ describe("reportValidation", () => {
         it("should handle all report types", async () => {
             const reportTypes = [
                 "ChatMessage",
-                "Comment", 
+                "Comment",
                 "Issue",
                 "ResourceVersion",
                 "Tag",

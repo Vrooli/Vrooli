@@ -1,23 +1,23 @@
-import { StatPeriodType, type StatsRoutineSearchInput, uuid } from "@vrooli/shared";
+import { StatPeriodType, type StatsRoutineSearchInput } from "@vrooli/shared";
 import { PeriodType, type routine as RoutineModelPrisma } from "@prisma/client";
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { statsRoutine_findMany } from "../generated/statsRoutine_findMany.js"; // Assuming this generated type exists
 import { statsRoutine } from "./statsResource.js";
 
 // Test data
-const testRoutineId1 = uuid();
-const testRoutineId2 = uuid();
-const privateRoutineId1 = uuid(); // Private Routine owned by user1
-const privateRoutineId2 = uuid(); // Private Routine owned by user2
+const testRoutineId1 = "routine-7001";
+const testRoutineId2 = "routine-7002";
+const privateRoutineId1 = "routine-7003"; // Private Routine owned by user1
+const privateRoutineId2 = "routine-7004"; // Private Routine owned by user2
 
 // User IDs for ownership testing
-const user1Id = uuid();
-const user2Id = uuid();
+const user1Id = "user-8001";
+const user2Id = "user-8002";
 
 // Sample Routine data structure (adjust fields as necessary based on actual Routine model)
 const routineData1: Partial<RoutineModelPrisma> & { id: string } = {
@@ -49,7 +49,7 @@ const privateRoutineData2: Partial<RoutineModelPrisma> & { id: string } = {
 };
 
 const statsRoutineData1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     routineId: testRoutineId1,
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
@@ -62,7 +62,7 @@ const statsRoutineData1 = {
 };
 
 const statsRoutineData2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     routineId: testRoutineId2,
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
@@ -74,7 +74,7 @@ const statsRoutineData2 = {
 };
 
 const privateRoutineStats1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     routineId: privateRoutineId1,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -86,7 +86,7 @@ const privateRoutineStats1 = {
 };
 
 const privateRoutineStats2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     routineId: privateRoutineId2,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -107,7 +107,7 @@ describe("EndpointsStatsRoutine", () => {
     });
 
     beforeEach(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Create test users individually
@@ -152,7 +152,7 @@ describe("EndpointsStatsRoutine", () => {
     });
 
     afterAll(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         loggerErrorStub.mockRestore();

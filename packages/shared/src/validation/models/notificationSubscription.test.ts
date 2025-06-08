@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { SubscribableObject } from "../../api/types.js";
+import { notificationSubscriptionFixtures } from "./__test/fixtures/notificationSubscriptionFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { notificationSubscriptionValidation } from "./notificationSubscription.js";
-import { notificationSubscriptionFixtures } from "./__test__/fixtures/notificationSubscriptionFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("notificationSubscriptionValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -75,7 +75,7 @@ describe("notificationSubscriptionValidation", () => {
 
             it("should not be present in update", async () => {
                 const updateSchema = notificationSubscriptionValidation.update(defaultParams);
-                
+
                 // Update schema should not include objectType field
                 const result = await updateSchema.validate(notificationSubscriptionFixtures.minimal.update);
                 expect(result).to.not.have.property("objectType");
@@ -124,7 +124,7 @@ describe("notificationSubscriptionValidation", () => {
             it("should reject non-boolean values", async () => {
                 const invalidValues = [
                     "true",
-                    "false", 
+                    "false",
                     1,
                     0,
                     "yes",
@@ -295,7 +295,7 @@ describe("notificationSubscriptionValidation", () => {
 
             it("should not include objectType in update result", async () => {
                 const result = await updateSchema.validate(notificationSubscriptionFixtures.minimal.update);
-                
+
                 // Should only have id and optionally silent
                 expect(result).to.have.property("id");
                 expect(result).to.not.have.property("objectType");

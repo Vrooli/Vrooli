@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { resourceFixtures } from "./__test/fixtures/resourceFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { resourceValidation } from "./resource.js";
-import { resourceFixtures } from "./__test__/fixtures/resourceFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("resourceValidation", () => {
     // Run standard validation tests using shared fixtures

@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { walletFixtures, walletTestDataFactory } from "./__test/fixtures/walletFixtures.js";
+import { testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { walletValidation } from "./wallet.js";
-import { walletFixtures, walletTestDataFactory } from "./__test__/fixtures/walletFixtures.js";
-import { testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("walletValidation", () => {
     // Run standard test suite (only update since create isn't supported)
@@ -212,7 +212,7 @@ describe("walletValidation", () => {
         it("should validate multiple wallet update scenarios", async () => {
             const defaultParams = { omitFields: [] };
             const schema = walletValidation.update(defaultParams);
-            
+
             await testValidationBatch(schema, [
                 {
                     data: walletTestDataFactory.updateMinimal(),

@@ -1,11 +1,11 @@
 // Tests for the ReportResponse endpoint (findOne, findMany, createOne, updateOne)
-import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS, uuid } from "@vrooli/shared";
+import { type FindByIdInput, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseUpdateInput, ReportStatus, ReportSuggestedAction, SEEDED_IDS } from "@vrooli/shared";
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { reportResponse_createOne } from "../generated/reportResponse_createOne.js";
 import { reportResponse_findMany } from "../generated/reportResponse_findMany.js";
 import { reportResponse_findOne } from "../generated/reportResponse_findOne.js";
@@ -13,7 +13,7 @@ import { reportResponse_updateOne } from "../generated/reportResponse_updateOne.
 import { reportResponse } from "./reportResponse.js";
 
 // Test users
-const user1Id = uuid();
+const user1Id = "user-4001";
 const adminId = SEEDED_IDS.User.Admin; // Use seeded admin ID
 // Test reports and responses
 let report1: any;
@@ -31,7 +31,7 @@ describe("EndpointsReportResponse", () => {
 
     beforeEach(async () => {
         // Reset DBs
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed users (user1 and admin)
@@ -46,7 +46,7 @@ describe("EndpointsReportResponse", () => {
         // Seed a report created by user1 targeting themselves
         report1 = await DbProvider.get().report.create({
             data: {
-                id: uuid(), language: "en", reason: "Test Report", details: "Details", status: ReportStatus.Open,
+                id: "report-5001", language: "en", reason: "Test Report", details: "Details", status: ReportStatus.Open,
                 createdBy: { connect: { id: user1Id } }, user: { connect: { id: user1Id } },
             },
         });
@@ -54,7 +54,7 @@ describe("EndpointsReportResponse", () => {
         // Seed a response from the admin
         response1 = await DbProvider.get().report_response.create({
             data: {
-                id: uuid(), details: "Admin response", report: { connect: { id: report1.id } },
+                id: "response-6001", details: "Admin response", report: { connect: { id: report1.id } },
                 actionSuggested: ReportSuggestedAction.NonIssue, // Use enum
                 createdBy: { connect: { id: adminId } }, // Explicitly connect creator for seeding
             },
@@ -63,7 +63,7 @@ describe("EndpointsReportResponse", () => {
 
     afterAll(async () => {
         // Cleanup and restore
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         loggerErrorStub.mockRestore();
@@ -129,7 +129,7 @@ describe("EndpointsReportResponse", () => {
         it("admin can create a report response", async () => {
             const adminUser = { ...loggedInUserNoPremiumData(), id: adminId };
             const { req, res } = await mockAuthenticatedSession(adminUser);
-            const newResponseId = uuid();
+            const newResponseId = "response-6002";
             const input: ReportResponseCreateInput = {
                 id: newResponseId,
                 details: "New admin response",
@@ -144,7 +144,7 @@ describe("EndpointsReportResponse", () => {
         it("throws for non-admin user", async () => {
             const user = { ...loggedInUserNoPremiumData(), id: user1Id };
             const { req, res } = await mockAuthenticatedSession(user);
-            const input: ReportResponseCreateInput = { id: uuid(), details: "User response", reportConnect: report1.id, actionSuggested: ReportSuggestedAction.NonIssue }; // Use enum
+            const input: ReportResponseCreateInput = { id: "response-6003", details: "User response", reportConnect: report1.id, actionSuggested: ReportSuggestedAction.NonIssue }; // Use enum
             try {
                 await reportResponse.createOne({ input }, { req, res }, reportResponse_createOne);
                 expect.fail("Expected permission error");

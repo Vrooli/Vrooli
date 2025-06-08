@@ -1,23 +1,21 @@
-import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { type ChatParticipantSearchInput, type ChatParticipantUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { chatParticipant_findMany } from "../generated/chatParticipant_findMany.js";
 import { chatParticipant_findOne } from "../generated/chatParticipant_findOne.js";
 import { chatParticipant_updateOne } from "../generated/chatParticipant_updateOne.js";
 import { chatParticipant } from "./chatParticipant.js";
 
 // Import database fixtures for seeding
-import { ChatParticipantDbFactory, seedChatParticipants, addParticipantsToChat } from "../../__test/fixtures/chatParticipantFixtures.js";
-import { ChatDbFactory, seedTestChat } from "../../__test/fixtures/chatFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
+import { seedChatParticipants } from "../../__test/fixtures/db/chatParticipantFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { chatParticipantTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/chatParticipantFixtures.js";
 
 describe("EndpointsChatParticipant", () => {
     let testUsers: any[];
@@ -34,7 +32,7 @@ describe("EndpointsChatParticipant", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -93,7 +91,7 @@ describe("EndpointsChatParticipant", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -211,10 +209,10 @@ describe("EndpointsChatParticipant", () => {
                     id: testUsers[0].id,
                 });
 
-                const input: ChatParticipantSearchInput = { 
-                    chatId: chat1.id, 
-                    userId: testUsers[1].id, 
-                    take: 10 
+                const input: ChatParticipantSearchInput = {
+                    chatId: chat1.id,
+                    userId: testUsers[1].id,
+                    take: 10
                 };
                 const result = await chatParticipant.findMany({ input }, { req, res }, chatParticipant_findMany);
 

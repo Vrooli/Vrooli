@@ -1,23 +1,23 @@
-import { StatPeriodType, type StatsTeamSearchInput, uuid } from "@vrooli/shared";
+import { StatPeriodType, type StatsTeamSearchInput } from "@vrooli/shared";
 import { PeriodType, type team as TeamModelPrisma } from "@prisma/client";
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { statsTeam_findMany } from "../generated/statsTeam_findMany.js"; // Assuming this generated type exists
 import { statsTeam } from "./statsTeam.js";
 
 // Test data
-const testTeamId1 = uuid(); // Public team
-const testTeamId2 = uuid(); // Private team for user1/team1
-const testTeamId3 = uuid(); // Private team for user2/team2
+const testTeamId1 = "team-1001"; // Public team
+const testTeamId2 = "team-1002"; // Private team for user1/team1
+const testTeamId3 = "team-1003"; // Private team for user2/team2
 
 // User IDs
-const user1Id = uuid(); // Member of team 1 & 2
-const user2Id = uuid(); // Member of team 1 & 3
-const user3Id = uuid(); // Not a member of any tested team
+const user1Id = "user-2001"; // Member of team 1 & 2
+const user2Id = "user-2002"; // Member of team 1 & 3
+const user3Id = "user-2003"; // Not a member of any tested team
 
 // Sample Team data structure
 const teamData1: Partial<TeamModelPrisma> & { id: string } = {
@@ -40,7 +40,7 @@ const teamData3: Partial<TeamModelPrisma> & { id: string } = {
 
 // Adjust fields based on actual StatsTeam model
 const statsTeamData1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     teamId: testTeamId1,
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
@@ -59,7 +59,7 @@ const statsTeamData1 = {
 };
 
 const statsTeamData2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     teamId: testTeamId2,
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
@@ -78,7 +78,7 @@ const statsTeamData2 = {
 };
 
 const statsTeamData3 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     teamId: testTeamId3,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -106,7 +106,7 @@ describe("EndpointsStatsTeam", () => {
     });
 
     beforeEach(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Create test users
@@ -146,11 +146,11 @@ describe("EndpointsStatsTeam", () => {
         await DbProvider.get().member.createMany({
             data: [
                 // User 1 in Public Team 1 and Private Team 2
-                { id: uuid(), teamId: testTeamId1, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: uuid(), teamId: testTeamId2, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
+                { id: "member-3001", teamId: testTeamId1, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
+                { id: "member-3002", teamId: testTeamId2, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
                 // User 2 in Public Team 1 and Private Team 3
-                { id: uuid(), teamId: testTeamId1, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: uuid(), teamId: testTeamId3, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
+                { id: "member-3003", teamId: testTeamId1, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
+                { id: "member-3004", teamId: testTeamId3, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
             ],
         });
 
@@ -165,7 +165,7 @@ describe("EndpointsStatsTeam", () => {
     });
 
     afterAll(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         loggerErrorStub.mockRestore();

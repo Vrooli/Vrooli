@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { scheduleFixtures } from "./__test/fixtures/scheduleFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { scheduleValidation } from "./schedule.js";
-import { scheduleFixtures } from "./__test__/fixtures/scheduleFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("scheduleValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -79,9 +79,9 @@ describe("scheduleValidation", () => {
             it("should reject timezone that's too long", async () => {
                 await testValidation(
                     createSchema,
-                    { 
+                    {
                         id: "123456789012345678",
-                        timezone: "A".repeat(65), 
+                        timezone: "A".repeat(65),
                     },
                     false,
                     /over the limit/,
@@ -152,7 +152,7 @@ describe("scheduleValidation", () => {
                     timezone: "UTC",
                     // No startTime or endTime - but this will fail due to endTime validation bug
                 };
-                
+
                 // Unfortunately, due to the endTime validation bug, we can't test without startTime
                 // So we'll test with startTime
                 const dataWithStartTime = {

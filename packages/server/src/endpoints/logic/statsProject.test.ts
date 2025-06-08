@@ -1,23 +1,23 @@
-import { StatPeriodType, type StatsProjectSearchInput, uuid } from "@vrooli/shared";
+import { StatPeriodType, type StatsProjectSearchInput } from "@vrooli/shared";
 import { PeriodType, type project as ProjectModelPrisma } from "@prisma/client"; // Correct import
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { statsProject_findMany } from "../generated/statsProject_findMany.js"; // Assuming this generated type exists
 import { statsProject } from "./statsProject.js";
 
 // Test data
-const testProjectId1 = uuid();
-const testProjectId2 = uuid();
-const privateProjectId1 = uuid(); // Private Project owned by user1
-const privateProjectId2 = uuid(); // Private Project owned by user2
+const testProjectId1 = "2001";
+const testProjectId2 = "2002";
+const privateProjectId1 = "2003"; // Private Project owned by user1
+const privateProjectId2 = "2004"; // Private Project owned by user2
 
 // User IDs for ownership testing
-const user1Id = uuid();
-const user2Id = uuid();
+const user1Id = "1001";
+const user2Id = "1002";
 
 // Sample Project data structure (adjust fields as necessary based on actual Project model)
 // Projects might have team ownership or different privacy fields
@@ -51,7 +51,7 @@ const privateProjectData2: Partial<ProjectModelPrisma> & { id: string } = {
 };
 
 const statsProjectData1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     projectId: testProjectId1,
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
@@ -71,7 +71,7 @@ const statsProjectData1 = {
 };
 
 const statsProjectData2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     projectId: testProjectId2,
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
@@ -91,7 +91,7 @@ const statsProjectData2 = {
 };
 
 const privateProjectStats1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     projectId: privateProjectId1,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -111,7 +111,7 @@ const privateProjectStats1 = {
 };
 
 const privateProjectStats2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     projectId: privateProjectId2,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -140,7 +140,7 @@ describe("EndpointsStatsProject", () => {
     });
 
     beforeEach(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Create test users individually
@@ -186,7 +186,7 @@ describe("EndpointsStatsProject", () => {
     });
 
     afterAll(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         loggerErrorStub.mockRestore();

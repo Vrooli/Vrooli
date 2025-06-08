@@ -1,27 +1,25 @@
 import { type FindByIdInput, type MeetingInviteCreateInput, type MeetingInviteSearchInput, type MeetingInviteUpdateInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { meetingInvite_acceptOne } from "../generated/meetingInvite_acceptOne.js";
-import { meetingInvite_createMany } from "../generated/meetingInvite_createMany.js";
 import { meetingInvite_createOne } from "../generated/meetingInvite_createOne.js";
 import { meetingInvite_declineOne } from "../generated/meetingInvite_declineOne.js";
 import { meetingInvite_findMany } from "../generated/meetingInvite_findMany.js";
 import { meetingInvite_findOne } from "../generated/meetingInvite_findOne.js";
-import { meetingInvite_updateMany } from "../generated/meetingInvite_updateMany.js";
 import { meetingInvite_updateOne } from "../generated/meetingInvite_updateOne.js";
 import { meetingInvite } from "./meetingInvite.js";
 
 // Import database fixtures for seeding
-import { MeetingInviteDbFactory, seedMeetingInvites, createMeetingWithInvites } from "../../__test/fixtures/meetingInviteFixtures.js";
-import { MeetingDbFactory } from "../../__test/fixtures/meetingFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { MeetingDbFactory } from "../../__test/fixtures/db/meetingFixtures.js";
+import { seedMeetingInvites } from "../../__test/fixtures/db/meetingInviteFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { meetingInviteTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/meetingInviteFixtures.js";
+import { meetingInviteTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsMeetingInvite", () => {
     let testUsers: any[];
@@ -42,7 +40,7 @@ describe("EndpointsMeetingInvite", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -150,7 +148,7 @@ describe("EndpointsMeetingInvite", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -271,10 +269,10 @@ describe("EndpointsMeetingInvite", () => {
                     id: testUsers[0].id, // User 0 created meeting1
                 });
 
-                const input: MeetingInviteSearchInput = { 
+                const input: MeetingInviteSearchInput = {
                     meetingId: meeting1.id,
                     userId: testUsers[1].id,
-                    take: 10 
+                    take: 10
                 };
                 const result = await meetingInvite.findMany({ input }, { req, res }, meetingInvite_findMany);
 
@@ -429,11 +427,11 @@ describe("EndpointsMeetingInvite", () => {
 
             // Verify user is now an attendee
             const attendee = await DbProvider.get().meeting_attendees.findUnique({
-                where: { 
-                    meetingId_userId: { 
-                        meetingId: meeting1.id, 
-                        userId: testUsers[1].id 
-                    } 
+                where: {
+                    meetingId_userId: {
+                        meetingId: meeting1.id,
+                        userId: testUsers[1].id
+                    }
                 },
             });
             expect(attendee).not.toBeNull();
@@ -486,11 +484,11 @@ describe("EndpointsMeetingInvite", () => {
 
             // Verify user is NOT an attendee
             const attendee = await DbProvider.get().meeting_attendees.findUnique({
-                where: { 
-                    meetingId_userId: { 
-                        meetingId: meeting2.id, 
-                        userId: testUsers[0].id 
-                    } 
+                where: {
+                    meetingId_userId: {
+                        meetingId: meeting2.id,
+                        userId: testUsers[0].id
+                    }
                 },
             });
             expect(attendee).toBeNull();

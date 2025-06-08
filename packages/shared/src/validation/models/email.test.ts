@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { emailFixtures, emailTestDataFactory } from "./__test/fixtures/emailFixtures.js";
+import { testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { emailValidation } from "./email.js";
-import { emailFixtures, emailTestDataFactory } from "./__test__/fixtures/emailFixtures.js";
-import { testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("emailValidation", () => {
     // Run standard test suite (but only for create since update isn't supported)
@@ -146,7 +146,7 @@ describe("emailValidation", () => {
         it("should validate multiple email scenarios", async () => {
             const defaultParams = { omitFields: [] };
             const schema = emailValidation.create(defaultParams);
-            
+
             await testValidationBatch(schema, [
                 {
                     data: emailTestDataFactory.createMinimal(),

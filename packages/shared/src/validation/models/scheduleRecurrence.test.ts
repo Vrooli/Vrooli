@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { scheduleRecurrenceFixtures } from "./__test/fixtures/scheduleRecurrenceFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { scheduleRecurrenceValidation } from "./scheduleRecurrence.js";
-import { scheduleRecurrenceFixtures } from "./__test__/fixtures/scheduleRecurrenceFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("scheduleRecurrenceValidation", () => {
     // Run standard validation tests using shared fixtures

@@ -1,22 +1,21 @@
 import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { chatMessage_findMany } from "../generated/chatMessage_findMany.js";
 import { chatMessage_findOne } from "../generated/chatMessage_findOne.js";
 import { chatMessage_findTree } from "../generated/chatMessage_findTree.js";
 import { chatMessage } from "./chatMessage.js";
 
 // Import database fixtures for seeding
-import { ChatMessageDbFactory, seedChatMessages, seedConversationTree } from "../../__test/fixtures/chatMessageFixtures.js";
-import { ChatDbFactory, seedTestChat } from "../../__test/fixtures/chatFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
+import { seedChatMessages, seedConversationTree } from "../../__test/fixtures/db/chatMessageFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { chatMessageTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/chatMessageFixtures.js";
 
 describe("EndpointsChatMessage", () => {
     let testUsers: any[];
@@ -36,12 +35,12 @@ describe("EndpointsChatMessage", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
         testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-        
+
         // Create a bot user
         testBot = await DbProvider.get().user.create({
             data: {
@@ -102,7 +101,7 @@ describe("EndpointsChatMessage", () => {
         messages.user1Message1 = normalChatMessages[0];
         messages.botMessage1 = normalChatMessages[1];
         messages.user2Message1 = normalChatMessages[2];
-        
+
         // Set parent relationships after creation
         await DbProvider.get().chatMessage.update({
             where: { id: messages.botMessage1.id },
@@ -193,7 +192,7 @@ describe("EndpointsChatMessage", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -203,8 +202,8 @@ describe("EndpointsChatMessage", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("participant can view message in their chat", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
@@ -218,8 +217,8 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns message with parent relationship", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
@@ -247,13 +246,13 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("non-participant cannot view message", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[2].id, // User 2 is not in normalChat
                 });
 
                 const input: FindByIdInput = { id: messages.user1Message1.id };
-                
+
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
                 }).rejects.toThrow();
@@ -263,20 +262,20 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: FindByIdInput = { id: messages.user1Message1.id };
-                
+
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
                 }).rejects.toThrow();
             });
 
             it("user cannot view message in private chat they're not part of", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id, // User 0 is not in privateChat
                 });
 
                 const input: FindByIdInput = { id: messages.privateChatMessage.id };
-                
+
                 await expect(async () => {
                     await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
                 }).rejects.toThrow();
@@ -287,8 +286,8 @@ describe("EndpointsChatMessage", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns messages for participant", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
@@ -298,7 +297,7 @@ describe("EndpointsChatMessage", () => {
                 expect(result).not.toBeNull();
                 expect(result.edges).toBeInstanceOf(Array);
                 expect(result.edges.length).toBeGreaterThanOrEqual(3); // At least the 3 messages we created
-                
+
                 const messageIds = result.edges.map(e => e?.node?.id);
                 expect(messageIds).toContain(messages.user1Message1.id);
                 expect(messageIds).toContain(messages.botMessage1.id);
@@ -306,8 +305,8 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns messages from user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
@@ -337,13 +336,13 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("non-participant cannot view messages", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[2].id, // User 2 is not in normalChat
                 });
 
                 const input = { chatId: normalChat.id, take: 10 };
-                
+
                 await expect(async () => {
                     await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
                 }).rejects.toThrow();
@@ -353,7 +352,7 @@ describe("EndpointsChatMessage", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input = { chatId: normalChat.id, take: 10 };
-                
+
                 await expect(async () => {
                     await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
                 }).rejects.toThrow();
@@ -364,12 +363,12 @@ describe("EndpointsChatMessage", () => {
     describe("findTree", () => {
         describe("valid", () => {
             it("returns full conversation tree for participant", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
-                const input: ChatMessageSearchTreeInput = { 
+                const input: ChatMessageSearchTreeInput = {
                     chatId: branchChat.id,
                     take: 50,
                 };
@@ -377,7 +376,7 @@ describe("EndpointsChatMessage", () => {
 
                 expect(result).not.toBeNull();
                 expect(result.branches).toBeInstanceOf(Array);
-                
+
                 // Find root message
                 const rootBranch = result.branches.find(b => b.messages?.[0]?.id === messages.root.id);
                 expect(rootBranch).not.toBeNull();
@@ -386,12 +385,12 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns sequential messages in order", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
-                const input: ChatMessageSearchTreeInput = { 
+                const input: ChatMessageSearchTreeInput = {
                     chatId: seqChat.id,
                     take: 50,
                 };
@@ -400,7 +399,7 @@ describe("EndpointsChatMessage", () => {
                 expect(result).not.toBeNull();
                 expect(result.branches).toBeInstanceOf(Array);
                 expect(result.branches).toHaveLength(1); // Sequential messages should be in one branch
-                
+
                 const messages = result.branches[0].messages!;
                 expect(messages).toHaveLength(4);
                 expect(messages[0].translations[0].text).toBe("Seq A");
@@ -410,12 +409,12 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("handles branching conversations correctly", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
 
-                const input: ChatMessageSearchTreeInput = { 
+                const input: ChatMessageSearchTreeInput = {
                     chatId: branchChat.id,
                     parentId: messages.root.id,
                     take: 50,
@@ -424,11 +423,11 @@ describe("EndpointsChatMessage", () => {
 
                 expect(result).not.toBeNull();
                 expect(result.branches).toBeInstanceOf(Array);
-                
+
                 // Should have two branches from root
                 const branch1A = result.branches.find(b => b.messages?.some(m => m.id === messages.branch1A.id));
                 const branch1B = result.branches.find(b => b.messages?.some(m => m.id === messages.branch1B.id));
-                
+
                 expect(branch1A).not.toBeNull();
                 expect(branch1B).not.toBeNull();
             });
@@ -436,16 +435,16 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("non-participant cannot view tree", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[2].id, // User 2 is not in branchChat
                 });
 
-                const input: ChatMessageSearchTreeInput = { 
+                const input: ChatMessageSearchTreeInput = {
                     chatId: branchChat.id,
                     take: 50,
                 };
-                
+
                 await expect(async () => {
                     await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
                 }).rejects.toThrow();
@@ -454,11 +453,11 @@ describe("EndpointsChatMessage", () => {
             it("logged out user cannot view tree", async () => {
                 const { req, res } = await mockLoggedOutSession();
 
-                const input: ChatMessageSearchTreeInput = { 
+                const input: ChatMessageSearchTreeInput = {
                     chatId: branchChat.id,
                     take: 50,
                 };
-                
+
                 await expect(async () => {
                     await chatMessage.findTree({ input }, { req, res }, chatMessage_findTree);
                 }).rejects.toThrow();

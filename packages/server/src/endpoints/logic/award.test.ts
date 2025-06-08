@@ -5,13 +5,11 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { award_findMany } from "../generated/award_findMany.js";
 import { award } from "./award.js";
-
-// Import database fixtures for seeding
-import { AwardDbFactory, seedAwards } from "../../__test/fixtures/awardFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { AwardDbFactory, seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 describe("EndpointsAward", () => {
     let testUsers: any[];
@@ -26,7 +24,7 @@ describe("EndpointsAward", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -68,7 +66,7 @@ describe("EndpointsAward", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -78,9 +76,9 @@ describe("EndpointsAward", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns awards without filters", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 // When logged in as user1, should see user1's awards
@@ -94,9 +92,9 @@ describe("EndpointsAward", () => {
             });
 
             it("filters by updated time frame", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 // For the given time range, should only see awards updated in Feb-Mar that user1 has access to
@@ -119,15 +117,15 @@ describe("EndpointsAward", () => {
             it("API key - public permissions", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 const input: AwardSearchInput = {
                     take: 10,
                 };
-                
+
                 await expect(async () => {
                     await award.findMany({ input }, { req, res }, award_findMany);
                 }).rejects.toThrow(); // Awards are private
@@ -139,7 +137,7 @@ describe("EndpointsAward", () => {
                 const input: AwardSearchInput = {
                     take: 10,
                 };
-                
+
                 await expect(async () => {
                     await award.findMany({ input }, { req, res }, award_findMany);
                 }).rejects.toThrow(); // Awards are private
@@ -148,9 +146,9 @@ describe("EndpointsAward", () => {
 
         describe("invalid", () => {
             it("invalid time range format", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 const input: AwardSearchInput = {

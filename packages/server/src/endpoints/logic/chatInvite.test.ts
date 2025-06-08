@@ -1,10 +1,10 @@
 import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { chatInvite_acceptOne } from "../generated/chatInvite_acceptOne.js";
 import { chatInvite_createMany } from "../generated/chatInvite_createMany.js";
 import { chatInvite_createOne } from "../generated/chatInvite_createOne.js";
@@ -16,12 +16,12 @@ import { chatInvite_updateOne } from "../generated/chatInvite_updateOne.js";
 import { chatInvite } from "./chatInvite.js";
 
 // Import database fixtures for seeding
-import { ChatDbFactory, seedTestChat } from "../../__test/fixtures/chatFixtures.js";
-import { ChatInviteDbFactory, seedChatInvites } from "../../__test/fixtures/chatInviteFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
+import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { chatInviteTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/chatInviteFixtures.js";
+import { chatInviteTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsChatInvite", () => {
     let testUsers: any[];
@@ -38,7 +38,7 @@ describe("EndpointsChatInvite", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -51,7 +51,7 @@ describe("EndpointsChatInvite", () => {
             openToAnyoneWithInvite: true,
             participantIds: [testUsers[0].id],
         });
-        
+
         chat2 = await seedTestChat(DbProvider.get(), {
             createdById: testUsers[1].id,
             isPrivate: true,
@@ -66,7 +66,7 @@ describe("EndpointsChatInvite", () => {
             withCustomMessages: true,
         });
         invite1 = invites[0];
-        
+
         const invites2 = await seedChatInvites(DbProvider.get(), {
             chatId: chat2.id,
             userIds: [testUsers[0].id], // User 0 is invited to chat2
@@ -77,7 +77,7 @@ describe("EndpointsChatInvite", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -87,8 +87,8 @@ describe("EndpointsChatInvite", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns invite when user is the chat creator", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id  // User 0 is the creator of chat1
                 });
                 const input: FindByIdInput = { id: invite1.id }; // invite1 is for chat1
@@ -98,8 +98,8 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("returns invite when user is the invited user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id  // User 0 is invited in invite2
                 });
                 const input: FindByIdInput = { id: invite2.id };
@@ -167,14 +167,14 @@ describe("EndpointsChatInvite", () => {
             it("creates an invite for authenticated user", async () => {
                 // User0 can create invites for chat1 (which they own)
                 const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
-                
+
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
                     chatConnect: chat1.id,
                     userConnect: testUsers[2].id,
                     message: "New Invite",
                 });
-                
+
                 const result = await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(input.id);
@@ -185,13 +185,13 @@ describe("EndpointsChatInvite", () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
-                
+
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
                     chatConnect: chat1.id,
                     userConnect: testUsers[2].id,
                 });
-                
+
                 const result = await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(input.id);

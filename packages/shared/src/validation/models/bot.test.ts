@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { botValidation, botTranslationValidation } from "./bot.js";
-import { 
-    botFixtures, 
+import { describe, expect, it } from "vitest";
+import {
+    botFixtures,
     botTestDataFactory,
     botTranslationFixtures,
     botTranslationTestDataFactory,
-} from "./__test__/fixtures/botFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+} from "./__test/fixtures/botFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import { botTranslationValidation, botValidation } from "./bot.js";
 
 describe("botValidation", () => {
     // Run standard test suite
@@ -206,7 +206,7 @@ describe("botValidation", () => {
                         description: "missing required fields",
                     },
                     {
-                        data: botTestDataFactory.createMinimal({ 
+                        data: botTestDataFactory.createMinimal({
                             handle: "x".repeat(17),
                         }),
                         shouldPass: false,
@@ -226,17 +226,17 @@ describe("botValidation", () => {
 
         describe("omitFields functionality", () => {
             it("should omit specified fields", async () => {
-                const schema = botValidation.create({ 
-                    omitFields: ["handle", "isPrivate", "bannerImage", "profileImage"], 
+                const schema = botValidation.create({
+                    omitFields: ["handle", "isPrivate", "bannerImage", "profileImage"],
                 });
                 const data = botTestDataFactory.createComplete();
                 const result = await schema.validate(data, { stripUnknown: true });
-                
+
                 expect(result).to.not.have.property("handle");
                 expect(result).to.not.have.property("isPrivate");
                 expect(result).to.not.have.property("bannerImage");
                 expect(result).to.not.have.property("profileImage");
-                
+
                 // Required fields should still be present
                 expect(result).to.have.property("id");
                 expect(result).to.have.property("botSettings");
@@ -343,7 +343,7 @@ describe("botTranslationValidation", () => {
     describe("language handling", () => {
         it("should accept various language codes", async () => {
             const schema = botTranslationValidation.create(defaultParams);
-            
+
             const languages = ["en", "es", "fr", "de", "ja", "zh", "ko", "pt", "ru", "ar"];
             for (const lang of languages) {
                 const result = await testValidation(

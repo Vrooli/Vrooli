@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { RunStatus, RunStepStatus } from "../../api/types.js";
+import { runFixtures, runTestDataFactory } from "./__test/fixtures/runFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { runValidation } from "./run.js";
-import { runFixtures, runTestDataFactory } from "./__test__/fixtures/runFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("runValidation", () => {
     // Run standard test suite
@@ -267,9 +267,9 @@ describe("runValidation", () => {
                 const schema = runValidation.create({
                     omitFields: ["ioCreate", "stepsCreate", "teamConnect"],
                 });
-                
-                const result = await schema.validate(runFixtures.complete.create, { 
-                    stripUnknown: true, 
+
+                const result = await schema.validate(runFixtures.complete.create, {
+                    stripUnknown: true,
                 });
                 expect(result).to.not.have.property("ioCreate");
                 expect(result).to.not.have.property("stepsCreate");
@@ -281,14 +281,14 @@ describe("runValidation", () => {
                 const schema = runValidation.update({
                     omitFields: ["data", "timeElapsed"],
                 });
-                
+
                 const result = await schema.validate({
                     id: "123456789012345678",
                     data: "should be omitted",
                     timeElapsed: 3600,
                     completedComplexity: 5,
                 }, { stripUnknown: true });
-                
+
                 expect(result).to.not.have.property("data");
                 expect(result).to.not.have.property("timeElapsed");
                 expect(result).to.have.property("completedComplexity");

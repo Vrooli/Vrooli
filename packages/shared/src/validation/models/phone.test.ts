@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { phoneFixtures, phoneTestDataFactory } from "./__test/fixtures/phoneFixtures.js";
+import { testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { phoneValidation } from "./phone.js";
-import { phoneFixtures, phoneTestDataFactory } from "./__test__/fixtures/phoneFixtures.js";
-import { testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("phoneValidation", () => {
     // Run standard test suite (but only for create since update isn't supported)
@@ -155,7 +155,7 @@ describe("phoneValidation", () => {
         it("should validate multiple phone scenarios", async () => {
             const defaultParams = { omitFields: [] };
             const schema = phoneValidation.create(defaultParams);
-            
+
             await testValidationBatch(schema, [
                 {
                     data: phoneTestDataFactory.createMinimal(),

@@ -1,31 +1,31 @@
-import { describe, it, expect } from "vitest";
-import { 
-    userValidation, 
-    userTranslationValidation,
+import { describe, expect, it } from "vitest";
+import {
+    emailLogInFixtures,
+    emailRequestPasswordChangeFixtures,
+    emailResetPasswordFixtures,
+    emailResetPasswordFormFixtures,
+    profileEmailUpdateFixtures,
+    switchCurrentAccountFixtures,
+    userDeleteOneFixtures,
+    userFixtures,
+    userTestDataFactory,
+    userTranslationFixtures,
+    validateSessionFixtures,
+} from "./__test/fixtures/userFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import {
     emailLogInSchema,
-    userDeleteOneSchema,
     emailRequestPasswordChangeSchema,
     emailResetPasswordFormSchema,
     emailResetPasswordSchema,
-    validateSessionSchema,
-    switchCurrentAccountSchema,
     profileEmailUpdateValidation,
     profileValidation,
+    switchCurrentAccountSchema,
+    userDeleteOneSchema,
+    userTranslationValidation,
+    userValidation,
+    validateSessionSchema,
 } from "./user.js";
-import { 
-    userFixtures, 
-    userTestDataFactory,
-    userTranslationFixtures,
-    emailLogInFixtures,
-    userDeleteOneFixtures,
-    emailRequestPasswordChangeFixtures,
-    emailResetPasswordFormFixtures,
-    emailResetPasswordFixtures,
-    validateSessionFixtures,
-    switchCurrentAccountFixtures,
-    profileEmailUpdateFixtures,
-} from "./__test__/fixtures/userFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("userValidation", () => {
     // Run standard test suite for userValidation (bot creation and profile updates)

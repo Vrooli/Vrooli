@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CommentFor } from "../../api/types.js";
+import { commentFixtures } from "./__test/fixtures/commentFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { commentValidation } from "./comment.js";
-import { commentFixtures } from "./__test__/fixtures/commentFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("commentValidation", () => {
     // Run standard validation tests using shared fixtures

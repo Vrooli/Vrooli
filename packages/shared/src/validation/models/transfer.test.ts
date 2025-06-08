@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { transferValidation, transferRequestSendValidation, transferRequestReceiveValidation } from "./transfer.js";
-import { transferFixtures, transferRequestSendFixtures, transferRequestReceiveFixtures } from "./__test__/fixtures/transferFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { describe, expect, it } from "vitest";
+import { transferFixtures, transferRequestReceiveFixtures, transferRequestSendFixtures } from "./__test/fixtures/transferFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import { transferRequestReceiveValidation, transferRequestSendValidation, transferValidation } from "./transfer.js";
 
 describe("transferValidation", () => {
     // Run standard validation tests using shared fixtures

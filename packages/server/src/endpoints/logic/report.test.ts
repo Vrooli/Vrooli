@@ -1,22 +1,20 @@
 import { type FindByIdInput, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession, seedMockAdminUser } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { report_createOne } from "../generated/report_createOne.js";
 import { report_findMany } from "../generated/report_findMany.js";
 import { report_findOne } from "../generated/report_findOne.js";
 import { report_updateOne } from "../generated/report_updateOne.js";
 import { report } from "./report.js";
-
 // Import database fixtures for seeding
-import { ReportDbFactory, seedReports } from "../../__test/fixtures/reportFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
-
+import { seedReports } from "../../__test/fixtures/db/reportFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { reportTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/reportFixtures.js";
+import { reportTestDataFactory } from "@vrooli/shared/validation/models/index.js";
 
 describe("EndpointsReport", () => {
     let testUsers: any[];
@@ -32,7 +30,7 @@ describe("EndpointsReport", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed admin user and test users using database fixtures
@@ -61,7 +59,7 @@ describe("EndpointsReport", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -70,9 +68,9 @@ describe("EndpointsReport", () => {
 
     describe("findOne", () => {
         it("returns a report by id for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
             const input: FindByIdInput = { id: seededReport1.id };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
@@ -92,7 +90,7 @@ describe("EndpointsReport", () => {
         it("throws error for non-existent report", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: FindByIdInput = { id: "non-existent-id" };
-            
+
             await expect(async () => {
                 await report.findOne({ input }, { req, res }, report_findOne);
             }).rejects.toThrow();
@@ -101,9 +99,9 @@ describe("EndpointsReport", () => {
 
     describe("findMany", () => {
         it("returns all reports for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
             const input: ReportSearchInput = { take: 10 };
             const expectedIds = [
@@ -117,9 +115,9 @@ describe("EndpointsReport", () => {
         });
 
         it("filters reports by userId", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
             const input: ReportSearchInput = { take: 10, userId: testUsers[0].id };
             const expectedIds = [
@@ -137,27 +135,27 @@ describe("EndpointsReport", () => {
                 take: 10,
                 updatedTimeFrame: { after: new Date("2019-12-31"), before: new Date("2020-01-02") },
             };
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: user1Id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
             const result = await report.findMany({ input }, { req, res }, report_findMany);
-            expect(result.edges).to.have.lengthOf(1);
-            expect(result.edges![0]!.node!.id).to.equal(seededReport1.id);
+            expect(result.edges).toHaveLength(1);
+            expect(result.edges![0]!.node!.id).toBe(seededReport1.id);
         });
 
         it("allows anonymous access to all reports", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: ReportSearchInput = { take: 10 };
             const result = await report.findMany({ input }, { req, res }, report_findMany);
-            expect(result.edges).to.have.lengthOf(2);
+            expect(result.edges).toHaveLength(2);
         });
     });
 
     describe("createOne", () => {
         it("creates a new report for authenticated user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
-            
+
             // Use validation fixtures for API input
             const input: ReportCreateInput = reportTestDataFactory.createMinimal({
                 createdForType: ReportFor.User,
@@ -166,7 +164,7 @@ describe("EndpointsReport", () => {
                 reason: "Test reason",
                 details: "Test details",
             });
-            
+
             const result = await report.createOne({ input }, { req, res }, report_createOne);
             expect(result.id).toBeDefined();
             expect(result.status).toBe(ReportStatus.Open);
@@ -175,11 +173,11 @@ describe("EndpointsReport", () => {
         });
 
         it("does not allow duplicate open report on same object", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
-            
+
             // Use validation fixtures for API input
             const baseInput: ReportCreateInput = reportTestDataFactory.createMinimal({
                 createdForType: ReportFor.User,
@@ -187,16 +185,16 @@ describe("EndpointsReport", () => {
                 language: "en",
                 reason: "Reason A",
             });
-            
+
             await report.createOne({ input: baseInput }, { req, res }, report_createOne);
-            
+
             const dupInput: ReportCreateInput = reportTestDataFactory.createMinimal({
                 createdForType: ReportFor.User,
                 createdForConnect: testUsers[1].id,
                 language: "en",
                 reason: "Reason A",
             });
-            
+
             await expect(async () => {
                 await report.createOne({ input: dupInput }, { req, res }, report_createOne);
             }).rejects.toThrow(); // Duplicate report should fail
@@ -204,7 +202,7 @@ describe("EndpointsReport", () => {
 
         it("throws error when not authenticated", async () => {
             const { req, res } = await mockLoggedOutSession();
-            
+
             // Use validation fixtures for API input
             const input: ReportCreateInput = reportTestDataFactory.createMinimal({
                 createdForType: ReportFor.User,
@@ -212,7 +210,7 @@ describe("EndpointsReport", () => {
                 language: "en",
                 reason: "No auth",
             });
-            
+
             await expect(async () => {
                 await report.createOne({ input }, { req, res }, report_createOne);
             }).rejects.toThrow(); // Unauthenticated should fail
@@ -221,12 +219,12 @@ describe("EndpointsReport", () => {
 
     describe("updateOne", () => {
         it("denies update for non-admin user", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: testUsers[0].id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: testUsers[0].id,
             });
             const input: ReportUpdateInput = { id: seededReport1.id, reason: "Updated" };
-            
+
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);
             }).rejects.toThrow(); // Non-admin should fail
@@ -234,29 +232,29 @@ describe("EndpointsReport", () => {
 
         it("allows admin to update closed report", async () => {
             // Close the second report
-            await DbProvider.get().report.update({ 
-                where: { id: seededReport2.id }, 
-                data: { status: ReportStatus.ClosedHidden } 
+            await DbProvider.get().report.update({
+                where: { id: seededReport2.id },
+                data: { status: ReportStatus.ClosedHidden },
             });
-            
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: adminUser.id 
+
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: adminUser.id,
             });
-            
+
             const input: ReportUpdateInput = { id: seededReport2.id, reason: "Admin updated" };
             const result = await report.updateOne({ input }, { req, res }, report_updateOne);
             expect(result.reason).toBe("Admin updated");
         });
 
         it("throws error when updating non-existent report", async () => {
-            const { req, res } = await mockAuthenticatedSession({ 
-                ...loggedInUserNoPremiumData(), 
-                id: adminUser.id 
+            const { req, res } = await mockAuthenticatedSession({
+                ...loggedInUserNoPremiumData(),
+                id: adminUser.id,
             });
-            
+
             const input: ReportUpdateInput = { id: "non-existent-id", reason: "No such" };
-            
+
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);
             }).rejects.toThrow();
@@ -265,7 +263,7 @@ describe("EndpointsReport", () => {
         it("throws when not authenticated", async () => {
             const { req, res } = await mockLoggedOutSession();
             const input: ReportUpdateInput = { id: seededReport1.id, reason: "Should fail" };
-            
+
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);
             }).rejects.toThrow();

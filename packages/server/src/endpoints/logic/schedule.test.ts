@@ -1,11 +1,11 @@
 import { type FindVersionInput, type ScheduleCreateInput, ScheduleRecurrenceType, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { schedule_createOne } from "../generated/schedule_createOne.js";
 import { schedule_findMany } from "../generated/schedule_findMany.js";
 import { schedule_findOne } from "../generated/schedule_findOne.js";
@@ -13,11 +13,10 @@ import { schedule_updateOne } from "../generated/schedule_updateOne.js";
 import { schedule } from "./schedule.js";
 
 // Import database fixtures for seeding
-import { ScheduleDbFactory, seedSchedules } from "../../__test/fixtures/scheduleFixtures.js";
-import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { scheduleTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/scheduleFixtures.js";
+import { scheduleTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsSchedule", () => {
     let testUsers: any[];
@@ -28,6 +27,25 @@ describe("EndpointsSchedule", () => {
     let meetingUser1: any;
     let meetingUser2: any;
 
+    // Define schedule data
+    const scheduleUser1Data = {
+        id: "schedule-1-" + Date.now(),
+        publicId: "pub-schedule-1-" + Date.now(),
+        startTime: new Date("2024-01-10T09:00:00Z"),
+        endTime: new Date("2024-01-10T10:00:00Z"),
+        timezone: "UTC",
+        isDefault: false,
+    };
+
+    const scheduleUser2Data = {
+        id: "schedule-2-" + Date.now(),
+        publicId: "pub-schedule-2-" + Date.now(),
+        startTime: new Date("2024-01-11T14:00:00Z"),
+        endTime: new Date("2024-01-11T15:00:00Z"),
+        timezone: "America/New_York",
+        isDefault: false,
+    };
+
     beforeAll(() => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
@@ -36,7 +54,7 @@ describe("EndpointsSchedule", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -58,7 +76,7 @@ describe("EndpointsSchedule", () => {
                 },
             },
         });
-        
+
         meetingUser1 = await DbProvider.get().meeting.create({
             data: {
                 id: UserDbFactory.createMinimal().id,
@@ -91,7 +109,7 @@ describe("EndpointsSchedule", () => {
                 },
             },
         });
-        
+
         meetingUser2 = await DbProvider.get().meeting.create({
             data: {
                 id: UserDbFactory.createMinimal().id,
@@ -153,18 +171,19 @@ describe("EndpointsSchedule", () => {
         });
     });
 
-    afterAll(async function afterAll() {
-        await (await initializeRedis())?.flushAll();
+    afterAll(async () => {
+        // Clean up
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        // Restore all mocks
+        vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         describe("valid", () => {
             it("returns schedule by id when user owns the schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Using FindVersionInput, assuming id is the primary way to find
@@ -172,30 +191,30 @@ describe("EndpointsSchedule", () => {
 
                 const result = await schedule.findOne({ input }, { req, res }, schedule_findOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(scheduleUser1.id);
-                expect(result.timezone).to.equal(scheduleUser1Data.timezone);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(scheduleUser1.id);
+                expect(result.timezone).toBe(scheduleUser1Data.timezone);
             });
         });
 
         describe("invalid", () => {
             it("fails when schedule id doesn't exist", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindVersionInput = { id: "non-existent-id" };
 
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
-                    expect.fail("Expected an error to be thrown for non-existent ID");
+                    throw new Error("Expected an error to be thrown for non-existent ID");
                 } catch (error) {
                     // Error expected
-                    expect(error).to.be.an("error"); // Or more specific error check
+                    expect(error).toBeDefined(); // Or more specific error check
                 }
             });
 
             it("fails when user tries to access another user's schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 trying to access User 2's schedule
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id }; // User 1 trying to access User 2's schedule
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindVersionInput = { id: scheduleUser2.id };
@@ -203,10 +222,10 @@ describe("EndpointsSchedule", () => {
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
                     // The readOneHelper should enforce ownership based on userId (assuming it exists)
-                    expect.fail("Expected an error accessing other user's schedule");
+                    throw new Error("Expected an error accessing other user's schedule");
                 } catch (error) {
                     // Error expected
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
@@ -217,15 +236,15 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
-                    expect.fail("Expected an error for logged-out access");
+                    throw new Error("Expected an error for logged-out access");
                 } catch (error) {
                     // Error expected
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
             it("API key with public permissions cannot access schedules (assumes schedules are private)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -233,10 +252,10 @@ describe("EndpointsSchedule", () => {
                 const input: FindVersionInput = { id: scheduleUser1.id };
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
-                    expect.fail("Expected an error for API key public read access");
+                    throw new Error("Expected an error for API key public read access");
                 } catch (error) {
                     // Error expected as readOneHelper likely enforces ownership checks
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
         });
@@ -245,7 +264,7 @@ describe("EndpointsSchedule", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns only own schedules for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // User 1 should only see their own schedule
@@ -254,11 +273,13 @@ describe("EndpointsSchedule", () => {
                 const input: ScheduleSearchInput = { take: 10 }; // Basic search input
                 const result = await schedule.findMany({ input }, { req, res }, schedule_findMany);
 
-                expect(result).to.not.be.null;
-                expect(result).to.have.property("edges").that.is.an("array");
+                expect(result).not.toBeNull();
+                expect(result).toHaveProperty("edges");
+                expect(result.edges).toBeInstanceOf(Array);
 
-                assertFindManyResultIds(expect, result, expectedIds);
-                expect(resultScheduleIds).to.not.include(scheduleUser2.id);
+                assertFindManyResultIds(expect, result, expectedScheduleIds);
+                const resultScheduleIds = result.edges?.map(e => e?.node?.id) || [];
+                expect(resultScheduleIds).not.toContain(scheduleUser2.id);
             });
 
             // Add more tests here if ScheduleSearchInput supports filters (e.g., time ranges)
@@ -271,15 +292,15 @@ describe("EndpointsSchedule", () => {
                 const input: ScheduleSearchInput = { take: 10 };
                 try {
                     await schedule.findMany({ input }, { req, res }, schedule_findMany);
-                    expect.fail("Expected an error for logged-out access");
+                    throw new Error("Expected an error for logged-out access");
                 } catch (error) {
                     // Error expected due to VisibilityType.Own and no user
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
             it("API key with public permissions returns empty list or fails (assumes schedules are private)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 // We mock the session with user1, but the helper with VisibilityType.Own should still check against the user.
@@ -291,11 +312,13 @@ describe("EndpointsSchedule", () => {
                 try {
                     const result = await schedule.findMany({ input }, { req, res }, schedule_findMany);
                     // Expect empty list because VisibilityType.Own should still apply
-                    expect(result).to.not.be.null;
-                    expect(result).to.have.property("edges").that.is.an("array").with.lengthOf(0);
+                    expect(result).not.toBeNull();
+                    expect(result).toHaveProperty("edges");
+                    expect(result.edges).toBeInstanceOf(Array);
+                    expect(result.edges).toHaveLength(0);
                 } catch (error) {
                     // Depending on exact helper implementation, it might throw instead
-                    // expect(error).to.be.an("error");
+                    // expect(error).toBeDefined();
                     // If it doesn't throw, the empty list check above handles it.
                     // For now, assume it returns empty list based on VisibilityType.Own
                     console.warn("API key findMany test assumed empty list, check helper logic if failure occurs.");
@@ -307,7 +330,7 @@ describe("EndpointsSchedule", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a schedule for authenticated user", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Use validation fixtures for API input
@@ -324,8 +347,8 @@ describe("EndpointsSchedule", () => {
                 expect(creationResult.timezone).toBe("Europe/London");
 
                 // Verify creation in DB
-                const createdSchedule = await DbProvider.get().schedule.findUnique({ 
-                    where: { id: creationResult.id } 
+                const createdSchedule = await DbProvider.get().schedule.findUnique({
+                    where: { id: creationResult.id }
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("Europe/London");
@@ -333,7 +356,7 @@ describe("EndpointsSchedule", () => {
             });
 
             it("API key with write permissions can create schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -350,8 +373,8 @@ describe("EndpointsSchedule", () => {
                 expect(result).not.toBeNull();
                 expect(result.id).toBeDefined();
                 // Verify creation in DB
-                const createdSchedule = await DbProvider.get().schedule.findUnique({ 
-                    where: { id: result.id } 
+                const createdSchedule = await DbProvider.get().schedule.findUnique({
+                    where: { id: result.id }
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("UTC"); // Check a basic field
@@ -363,7 +386,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ScheduleCreateInput = {
-                    id: uuid(),
+                    id: "test-id-" + Date.now(),
                     startTime: new Date("2024-02-03T10:00:00Z"),
                     endTime: new Date("2024-02-03T11:00:00Z"),
                     timezone: "UTC",
@@ -371,15 +394,15 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.createOne({ input }, { req, res }, schedule_createOne);
-                    expect.fail("Expected an error for logged-out create attempt");
+                    throw new Error("Expected an error for logged-out create attempt");
                 } catch (error) {
                     // Error expected as createOneHelper requires authenticated user
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
             it("API key without write permissions cannot create schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -393,10 +416,10 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.createOne({ input }, { req, res }, schedule_createOne);
-                    expect.fail("Expected error due to missing write permission");
+                    throw new Error("Expected error due to missing write permission");
                 } catch (error) {
                     // Error expected from createOneHelper permission check
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
@@ -408,11 +431,11 @@ describe("EndpointsSchedule", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates own schedule for authenticated user and adds recurrence", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const newTimezone = "America/Los_Angeles";
-                const newRecurrenceId = uuid();
+                const newRecurrenceId = "test-id-" + Date.now();
                 const input: ScheduleUpdateInput = {
                     id: scheduleUser1.id,
                     timezone: newTimezone,
@@ -428,23 +451,23 @@ describe("EndpointsSchedule", () => {
 
                 const result = await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(scheduleUser1.id);
-                expect(result.timezone).to.equal(newTimezone);
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(scheduleUser1.id);
+                expect(result.timezone).toBe(newTimezone);
 
                 // Verify update and nested create in DB
                 const updatedSchedule = await DbProvider.get().schedule.findUnique({
                     where: { id: scheduleUser1.id },
                     include: { recurrences: true },
                 });
-                expect(updatedSchedule?.timezone).to.equal(newTimezone);
-                expect(updatedSchedule?.recurrences.some(r => r.id === newRecurrenceId)).to.be.true;
+                expect(updatedSchedule?.timezone).toBe(newTimezone);
+                expect(updatedSchedule?.recurrences.some(r => r.id === newRecurrenceId)).toBe(true);
                 const addedRecurrence = updatedSchedule?.recurrences.find(r => r.id === newRecurrenceId);
-                expect(addedRecurrence?.dayOfMonth).to.equal(15);
+                expect(addedRecurrence?.dayOfMonth).toBe(15);
             });
 
             it("API key with write permissions can update own schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -457,18 +480,18 @@ describe("EndpointsSchedule", () => {
 
                 const result = await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
 
-                expect(result).to.not.be.null;
-                expect(result.id).to.equal(scheduleUser1.id);
-                expect(result.endTime.toISOString()).to.equal(newEndTime.toISOString());
+                expect(result).not.toBeNull();
+                expect(result.id).toBe(scheduleUser1.id);
+                expect(result.endTime.toISOString()).toBe(newEndTime.toISOString());
                 // Verify update in DB
                 const updatedSchedule = await DbProvider.get().schedule.findUnique({ where: { id: scheduleUser1.id } });
-                expect(updatedSchedule?.endTime.toISOString()).to.equal(newEndTime.toISOString());
+                expect(updatedSchedule?.endTime.toISOString()).toBe(newEndTime.toISOString());
             });
         });
 
         describe("invalid", () => {
             it("cannot update another user's schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id }; // User 1
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
@@ -478,10 +501,10 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
-                    expect.fail("Expected an error updating other user's schedule");
+                    throw new Error("Expected an error updating other user's schedule");
                 } catch (error) {
                     // Error expected from updateOneHelper ownership check
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
@@ -495,33 +518,33 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
-                    expect.fail("Expected an error for logged-out update attempt");
+                    throw new Error("Expected an error for logged-out update attempt");
                 } catch (error) {
                     // Error expected from updateOneHelper auth check
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
             it("cannot update non-existent schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
-                    id: uuid(), // Non-existent ID
+                    id: "test-id-" + Date.now(), // Non-existent ID
                     timezone: "Asia/Tokyo",
                 };
 
                 try {
                     await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
-                    expect.fail("Expected an error updating non-existent schedule");
+                    throw new Error("Expected an error updating non-existent schedule");
                 } catch (error) {
                     // Error expected from updateOneHelper finding the record
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
 
             it("API key without write permissions cannot update schedule", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -533,10 +556,10 @@ describe("EndpointsSchedule", () => {
 
                 try {
                     await schedule.updateOne({ input }, { req, res }, schedule_updateOne);
-                    expect.fail("Expected error due to missing write permission for update");
+                    throw new Error("Expected error due to missing write permission for update");
                 } catch (error) {
                     // Error expected from updateOneHelper permission check
-                    expect(error).to.be.an("error");
+                    expect(error).toBeDefined();
                 }
             });
         });

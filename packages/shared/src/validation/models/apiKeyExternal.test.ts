@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { apiKeyExternalValidation } from "./apiKeyExternal.js";
-import { apiKeyExternalFixtures } from "./__test__/fixtures/apiKeyExternalFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { describe, expect, it } from "vitest";
 import { API_KEY_EXTERNAL_MAX_LENGTH, NAME_MAX_LENGTH } from "../utils/validationConstants.js";
+import { apiKeyExternalFixtures } from "./__test/fixtures/apiKeyExternalFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import { apiKeyExternalValidation } from "./apiKeyExternal.js";
 
 describe("apiKeyExternalValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -187,7 +187,7 @@ describe("apiKeyExternalValidation", () => {
             it("should be optional in create", async () => {
                 const dataWithoutDisabled = { ...apiKeyExternalFixtures.minimal.create };
                 delete dataWithoutDisabled.disabled;
-                
+
                 await testValidation(createSchema, dataWithoutDisabled, true);
             });
 
@@ -261,7 +261,7 @@ describe("apiKeyExternalValidation", () => {
             };
 
             const result = await testValidation(createSchema, dataWithWhitespace, true);
-            
+
             // Check that whitespace was trimmed
             if (result.key) expect(result.key).to.equal("sk-test-key");
             if (result.name) expect(result.name).to.equal("Test Key");

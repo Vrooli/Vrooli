@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { chatParticipantFixtures } from "./__test/fixtures/chatParticipantFixtures.js";
+import { runStandardValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { chatParticipantValidation } from "./chatParticpant.js";
-import { chatParticipantFixtures } from "./__test__/fixtures/chatParticipantFixtures.js";
-import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
 
 describe("chatParticipantValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -86,7 +86,7 @@ describe("chatParticipantValidation", () => {
                 chatParticipantFixtures.edgeCases.extraFields.update,
                 { stripUnknown: true },
             );
-            
+
             expect(result).to.have.property("id");
             expect(result).to.not.have.property("unknownField1");
             expect(result).to.not.have.property("unknownField2");

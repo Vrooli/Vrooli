@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { resourceVersionFixtures } from "./__test/fixtures/resourceVersionFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { resourceVersionValidation } from "./resourceVersion.js";
-import { resourceVersionFixtures } from "./__test__/fixtures/resourceVersionFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("resourceVersionValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -300,9 +300,9 @@ describe("resourceVersionValidation", () => {
         describe("version creation scenarios", () => {
             it("should handle different resource subtypes", async () => {
                 const subtypes = [
-                    "RoutineInternalAction", "RoutineApi", "RoutineCode", "RoutineData", 
-                    "RoutineGenerate", "RoutineInformational", "RoutineMultiStep", 
-                    "RoutineSmartContract", "RoutineWeb", "CodeDataConverter", 
+                    "RoutineInternalAction", "RoutineApi", "RoutineCode", "RoutineData",
+                    "RoutineGenerate", "RoutineInformational", "RoutineMultiStep",
+                    "RoutineSmartContract", "RoutineWeb", "CodeDataConverter",
                     "CodeSmartContract", "StandardDataStructure", "StandardPrompt",
                 ];
 

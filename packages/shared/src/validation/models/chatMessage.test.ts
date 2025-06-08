@@ -1,7 +1,7 @@
 import { describe, it } from "vitest";
+import { chatMessageFixtures } from "./__test/fixtures/chatMessageFixtures.js";
+import { runStandardValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { chatMessageValidation, messageConfigObjectValidationSchema } from "./chatMessage.js";
-import { chatMessageFixtures } from "./__test__/fixtures/chatMessageFixtures.js";
-import { runStandardValidationTests, testValidation } from "./__test__/validationTestUtils.js";
 
 describe("chatMessageValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -245,7 +245,7 @@ describe("messageConfigObjectValidationSchema", () => {
 
         it("should accept valid role values", async () => {
             const validRoles = ["user", "assistant", "system", "tool"];
-            
+
             for (const role of validRoles) {
                 await testValidation(
                     messageConfigObjectValidationSchema,

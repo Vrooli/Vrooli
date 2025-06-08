@@ -1,21 +1,21 @@
 import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput, SEEDED_IDS } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { testEndpointRequiresApiKeyWritePermissions, testEndpointRequiresAuth } from "../../__test/endpoints.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
-import { user_findOne } from "../generated/user_findOne.js";
+import { CacheService } from "../../redisConn.js";
 import { user_findMany } from "../generated/user_findMany.js";
+import { user_findOne } from "../generated/user_findOne.js";
 import { user_updateOne } from "../generated/user_updateOne.js";
 import { user } from "./user.js";
 
 // Import database fixtures for seeding
-import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { userTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/userFixtures.js";
+import { userTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsUser", () => {
     let testUsers: any[];
@@ -29,7 +29,7 @@ describe("EndpointsUser", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -47,7 +47,7 @@ describe("EndpointsUser", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -57,9 +57,9 @@ describe("EndpointsUser", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("own profile", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 const input: FindByIdOrHandleInput = { id: testUsers[0].id };
@@ -72,9 +72,9 @@ describe("EndpointsUser", () => {
             });
 
             it("own private profile", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: privateUser.id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: privateUser.id
                 });
 
                 const input: FindByIdOrHandleInput = { id: privateUser.id };
@@ -86,9 +86,9 @@ describe("EndpointsUser", () => {
             });
 
             it("public profile", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
 
                 const input: FindByIdOrHandleInput = { id: testUsers[1].id };

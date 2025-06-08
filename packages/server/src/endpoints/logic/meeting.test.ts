@@ -1,11 +1,11 @@
 import { type FindByIdInput, type MeetingCreateInput, type MeetingSearchInput, type MeetingUpdateInput, generatePK } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { meeting_createOne } from "../generated/meeting_createOne.js";
 import { meeting_findMany } from "../generated/meeting_findMany.js";
 import { meeting_findOne } from "../generated/meeting_findOne.js";
@@ -13,11 +13,11 @@ import { meeting_updateOne } from "../generated/meeting_updateOne.js";
 import { meeting } from "./meeting.js";
 
 // Import database fixtures for seeding
-import { MeetingDbFactory, seedMeetings } from "../../__test/fixtures/meetingFixtures.js";
-import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { seedMeetings } from "../../__test/fixtures/db/meetingFixtures.js";
+import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { meetingTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/meetingFixtures.js";
+import { meetingTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsMeeting", () => {
     let testUsers: any[];
@@ -32,7 +32,7 @@ describe("EndpointsMeeting", () => {
     });
 
     beforeEach(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -90,7 +90,7 @@ describe("EndpointsMeeting", () => {
     });
 
     afterAll(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -100,9 +100,9 @@ describe("EndpointsMeeting", () => {
     describe("findOne", () => {
         describe("valid", () => {
             it("returns meeting by id for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
                 const input: FindByIdInput = { id: meetings[0].id };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -121,9 +121,9 @@ describe("EndpointsMeeting", () => {
             it("returns meeting by id with API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
                 const input: FindByIdInput = { id: meetings[0].id };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -136,9 +136,9 @@ describe("EndpointsMeeting", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns meetings without filters for any authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -160,9 +160,9 @@ describe("EndpointsMeeting", () => {
             it("returns meetings without filters for API key public read", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -176,11 +176,11 @@ describe("EndpointsMeeting", () => {
     describe("createOne", () => {
         describe("valid", () => {
             it("creates a meeting for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
-                
+
                 // Use validation fixtures for API input
                 const input: MeetingCreateInput = meetingTestDataFactory.createMinimal({
                     teamConnect: teams[0].id,
@@ -191,7 +191,7 @@ describe("EndpointsMeeting", () => {
                         description: "A test meeting",
                     }],
                 });
-                
+
                 const result = await meeting.createOne({ input }, { req, res }, meeting_createOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toBeDefined();
@@ -201,16 +201,16 @@ describe("EndpointsMeeting", () => {
             it("API key with write permissions can create meeting", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
-                
+
                 // Use complete fixture for comprehensive test
                 const input: MeetingCreateInput = meetingTestDataFactory.createComplete({
                     teamConnect: teams[0].id,
                 });
-                
+
                 const result = await meeting.createOne({ input }, { req, res }, meeting_createOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toBeDefined();
@@ -220,11 +220,11 @@ describe("EndpointsMeeting", () => {
         describe("invalid", () => {
             it("throws error for not logged in user", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                
+
                 const input: MeetingCreateInput = meetingTestDataFactory.createMinimal({
                     teamConnect: teams[0].id,
                 });
-                
+
                 await expect(async () => {
                     await meeting.createOne({ input }, { req, res }, meeting_createOne);
                 }).rejects.toThrow();
@@ -235,17 +235,17 @@ describe("EndpointsMeeting", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates meeting for authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: testUsers[0].id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id
                 });
-                
+
                 const input: MeetingUpdateInput = {
                     id: meetings[0].id,
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
                 };
-                
+
                 const result = await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
                 expect(result).not.toBeNull();
                 expect(result.openToAnyoneWithInvite).toBe(false);
@@ -253,11 +253,11 @@ describe("EndpointsMeeting", () => {
             });
 
             it("admin can update any meeting", async () => {
-                const { req, res } = await mockAuthenticatedSession({ 
-                    ...loggedInUserNoPremiumData(), 
-                    id: adminUser.id 
+                const { req, res } = await mockAuthenticatedSession({
+                    ...loggedInUserNoPremiumData(),
+                    id: adminUser.id
                 });
-                
+
                 const input: MeetingUpdateInput = {
                     id: meetings[1].id,
                     translationsUpdate: [{
@@ -265,7 +265,7 @@ describe("EndpointsMeeting", () => {
                         name: "Admin Updated Meeting",
                     }],
                 };
-                
+
                 const result = await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
                 expect(result).not.toBeNull();
                 expect(result.translations[0].name).toBe("Admin Updated Meeting");
@@ -275,12 +275,12 @@ describe("EndpointsMeeting", () => {
         describe("invalid", () => {
             it("throws error for not logged in user", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                
+
                 const input: MeetingUpdateInput = {
                     id: meetings[0].id,
                     showOnTeamProfile: false,
                 };
-                
+
                 await expect(async () => {
                     await meeting.updateOne({ input }, { req, res }, meeting_updateOne);
                 }).rejects.toThrow();

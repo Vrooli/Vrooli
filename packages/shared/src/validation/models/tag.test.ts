@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { tagValidation, tagTranslationValidation } from "./tag.js";
-import { tagFixtures, tagTestDataFactory } from "./__test__/fixtures/tagFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
+import { describe, expect, it } from "vitest";
+import { tagFixtures, tagTestDataFactory } from "./__test/fixtures/tagFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
+import { tagTranslationValidation, tagValidation } from "./tag.js";
 
 describe("tagValidation", () => {
     // Run standard test suite
@@ -45,8 +45,8 @@ describe("tagValidation", () => {
         });
 
         it("should handle nested omitFields with dot notation", async () => {
-            const schema = tagValidation.update({ 
-                omitFields: ["translationsCreate", "translationsDelete"], 
+            const schema = tagValidation.update({
+                omitFields: ["translationsCreate", "translationsDelete"],
             });
             const data = {
                 id: "123456789012345690",
@@ -124,9 +124,9 @@ describe("tagTranslationValidation", () => {
         it("should require id and make description optional", async () => {
             const result = await testValidation(
                 updateSchema,
-                { 
-                    id: "123456789012345694", 
-                    language: "en", 
+                {
+                    id: "123456789012345694",
+                    language: "en",
                 },
                 true,
             );
@@ -137,8 +137,8 @@ describe("tagTranslationValidation", () => {
         it("should accept update with description", async () => {
             const result = await testValidation(
                 updateSchema,
-                { 
-                    id: "123456789012345695", 
+                {
+                    id: "123456789012345695",
                     language: "en",
                     description: "Updated description",
                 },

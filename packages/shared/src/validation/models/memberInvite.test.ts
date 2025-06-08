@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { memberInviteFixtures } from "./__test/fixtures/memberInviteFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { memberInviteValidation } from "./memberInvite.js";
-import { memberInviteFixtures } from "./__test__/fixtures/memberInviteFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("memberInviteValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -121,7 +121,7 @@ describe("memberInviteValidation", () => {
             it("should reject non-boolean values", async () => {
                 const invalidValues = [
                     "true",
-                    "false", 
+                    "false",
                     1,
                     0,
                     "yes",

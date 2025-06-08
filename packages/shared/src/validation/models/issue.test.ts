@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { IssueFor } from "../../api/types.js";
+import { issueFixtures } from "./__test/fixtures/issueFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { issueValidation } from "./issue.js";
-import { issueFixtures } from "./__test__/fixtures/issueFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("issueValidation", () => {
     // Run standard validation tests using shared fixtures
@@ -75,7 +75,7 @@ describe("issueValidation", () => {
 
             it("should not be present in update", async () => {
                 const updateSchema = issueValidation.update(defaultParams);
-                
+
                 // Update schema should not include issueFor field
                 const result = await updateSchema.validate(issueFixtures.minimal.update);
                 expect(result).to.not.have.property("issueFor");
@@ -291,7 +291,7 @@ describe("issueValidation", () => {
 
             it("should allow only translation operations in update", async () => {
                 const result = await updateSchema.validate(issueFixtures.minimal.update);
-                
+
                 // Should only have id and translation operations
                 expect(result).to.have.property("id");
                 expect(result).to.not.have.property("issueFor");

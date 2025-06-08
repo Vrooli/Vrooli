@@ -1,21 +1,21 @@
-import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, uuid } from "@vrooli/shared";
+import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult } from "@vrooli/shared";
 import { PeriodType } from "@prisma/client";
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { type RecursivePartial } from "../../types.ts";
 import { statsUser_findMany } from "../generated/statsUser_findMany.js"; // Assuming this generated type exists
 import { statsUser } from "./statsUser.js";
 
-// User IDs
-const user1Id = uuid();
-const user2Id = uuid();
-const publicUserId = uuid(); // A public user (not a bot)
-const user1BotId = uuid(); // A bot owned by user1
-const publicBotId = uuid(); // A public bot not owned by user1
+// User IDs - using hard-coded test IDs
+const user1Id = "1001";
+const user2Id = "1002";
+const publicUserId = "1003"; // A public user (not a bot)
+const user1BotId = "1004"; // A bot owned by user1
+const publicBotId = "1005"; // A public bot not owned by user1
 
 // Sample User data structure
 const userData1 = {
@@ -57,7 +57,7 @@ const publicBotData = {
 
 // Adjust fields based on actual StatsUser model
 const statsUserData1 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     userId: user1Id,
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-01-31"),
@@ -87,7 +87,7 @@ const statsUserData1 = {
 };
 
 const statsUserData2 = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     userId: user2Id,
     periodStart: new Date("2023-02-01"),
     periodEnd: new Date("2023-02-28"),
@@ -117,7 +117,7 @@ const statsUserData2 = {
 };
 
 const statsPublicUserData = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     userId: publicUserId,
     periodStart: new Date("2023-03-01"),
     periodEnd: new Date("2023-03-31"),
@@ -147,7 +147,7 @@ const statsPublicUserData = {
 };
 
 const statsUser1BotData = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     userId: user1BotId,
     periodStart: new Date("2023-04-01"),
     periodEnd: new Date("2023-04-30"),
@@ -177,7 +177,7 @@ const statsUser1BotData = {
 };
 
 const statsPublicBotData = {
-    id: uuid(),
+    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     userId: publicBotId,
     periodStart: new Date("2023-01-01"),
     periodEnd: new Date("2023-05-31"),
@@ -229,7 +229,7 @@ describe("EndpointsStatsUser", () => {
     });
 
     beforeEach(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Create test users
@@ -276,7 +276,7 @@ describe("EndpointsStatsUser", () => {
     });
 
     afterAll(async () => {
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         loggerErrorStub.mockRestore();

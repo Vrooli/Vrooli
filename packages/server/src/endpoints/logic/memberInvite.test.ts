@@ -1,26 +1,24 @@
 import { type FindByIdInput, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteUpdateInput } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { memberInvite_acceptOne } from "../generated/memberInvite_acceptOne.js";
-import { memberInvite_createMany } from "../generated/memberInvite_createMany.js";
 import { memberInvite_createOne } from "../generated/memberInvite_createOne.js";
 import { memberInvite_declineOne } from "../generated/memberInvite_declineOne.js";
 import { memberInvite_findMany } from "../generated/memberInvite_findMany.js";
 import { memberInvite_findOne } from "../generated/memberInvite_findOne.js";
-import { memberInvite_updateMany } from "../generated/memberInvite_updateMany.js";
 import { memberInvite_updateOne } from "../generated/memberInvite_updateOne.js";
 import { memberInvite } from "./memberInvite.js";
 
 // Import database fixtures for seeding
-import { MemberInviteDbFactory, seedMemberInvites, createTeamWithInvites } from "../../__test/fixtures/memberInviteFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/userFixtures.js";
+import { seedMemberInvites } from "../../__test/fixtures/db/memberInviteFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { memberInviteTestDataFactory } from "@vrooli/shared/src/validation/models/__test__/fixtures/memberInviteFixtures.js";
+import { memberInviteTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsMemberInvite", () => {
     let testUsers: any[];
@@ -39,7 +37,7 @@ describe("EndpointsMemberInvite", () => {
 
     beforeEach(async () => {
         // Reset Redis and database tables
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -133,7 +131,7 @@ describe("EndpointsMemberInvite", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
@@ -254,10 +252,10 @@ describe("EndpointsMemberInvite", () => {
                     id: testUsers[0].id, // User 0 created team1
                 });
 
-                const input: MemberInviteSearchInput = { 
+                const input: MemberInviteSearchInput = {
                     teamId: team1.id,
                     userId: testUsers[1].id,
-                    take: 10 
+                    take: 10
                 };
                 const result = await memberInvite.findMany({ input }, { req, res }, memberInvite_findMany);
 
@@ -412,11 +410,11 @@ describe("EndpointsMemberInvite", () => {
 
             // Verify user is now a member
             const member = await DbProvider.get().member.findUnique({
-                where: { 
-                    teamId_userId: { 
-                        teamId: team1.id, 
-                        userId: testUsers[1].id 
-                    } 
+                where: {
+                    teamId_userId: {
+                        teamId: team1.id,
+                        userId: testUsers[1].id
+                    }
                 },
             });
             expect(member).not.toBeNull();
@@ -469,11 +467,11 @@ describe("EndpointsMemberInvite", () => {
 
             // Verify user is NOT a member
             const member = await DbProvider.get().member.findUnique({
-                where: { 
-                    teamId_userId: { 
-                        teamId: team2.id, 
-                        userId: testUsers[0].id 
-                    } 
+                where: {
+                    teamId_userId: {
+                        teamId: team2.id,
+                        userId: testUsers[0].id
+                    }
                 },
             });
             expect(member).toBeNull();

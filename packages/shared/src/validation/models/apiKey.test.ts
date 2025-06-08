@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { apiKeyFixtures, apiKeyTestDataFactory } from "./__test/fixtures/apiKeyFixtures.js";
+import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { apiKeyValidation } from "./apiKey.js";
-import { apiKeyFixtures, apiKeyTestDataFactory } from "./__test__/fixtures/apiKeyFixtures.js";
-import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test__/validationTestUtils.js";
 
 describe("apiKeyValidation", () => {
     // Run standard test suite
@@ -281,7 +281,7 @@ describe("apiKeyValidation", () => {
         it("should validate multiple apiKey create scenarios", async () => {
             const defaultParams = { omitFields: [] };
             const schema = apiKeyValidation.create(defaultParams);
-            
+
             await testValidationBatch(schema, [
                 {
                     data: apiKeyTestDataFactory.createMinimal(),
@@ -323,7 +323,7 @@ describe("apiKeyValidation", () => {
         it("should validate multiple apiKey update scenarios", async () => {
             const defaultParams = { omitFields: [] };
             const schema = apiKeyValidation.update(defaultParams);
-            
+
             await testValidationBatch(schema, [
                 {
                     data: apiKeyTestDataFactory.updateMinimal(),
@@ -387,7 +387,7 @@ describe("apiKeyValidation", () => {
         it("should generate valid complete create data", () => {
             const data = apiKeyTestDataFactory.createComplete();
             expect(data).to.have.all.keys(
-                "id", "disabled", "limitHard", "limitSoft", 
+                "id", "disabled", "limitHard", "limitSoft",
                 "name", "stopAtLimit", "absoluteMax", "permissions",
             );
         });
