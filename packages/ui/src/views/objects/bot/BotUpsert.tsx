@@ -1,4 +1,8 @@
-import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
+import Divider from "@mui/material/Divider";
+import InputAdornment from "@mui/material/InputAdornment";
+import Slider from "@mui/material/Slider";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { DEFAULT_PERSONA, DUMMY_ID, LATEST_CONFIG_VERSION, LINKS, LlmTask, SearchPageTabOption, botTranslationValidation, botValidation, endpointsUser, getModelDescription, getModelName, noopSubmit, orDefault, shapeBot, validateAndGetYupErrors, type BotCreateInput, type BotShape, type BotUpdateInput, type LlmModel, type Session, type User } from "@vrooli/shared";
 import { Field, Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

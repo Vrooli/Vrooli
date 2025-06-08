@@ -1,4 +1,5 @@
-import { Typography, useTheme } from "@mui/material";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { isOfType } from "@vrooli/shared";
 import { Field, useField } from "formik";
 import { useMemo } from "react";

@@ -1,4 +1,6 @@
-import { Box, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { type CSSProperties, forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_MIN_ROWS } from "../../../../utils/consts.js";
 import { LINE_HEIGHT_MULTIPLIER } from "../../RichInput/RichInput.js";

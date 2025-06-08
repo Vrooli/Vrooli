@@ -1,4 +1,7 @@
-import { IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material/styles";
 import { getObjectSlug, getObjectUrlBase } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,8 @@
-import { Box, SwipeableDrawer, styled, useTheme, type SwipeableDrawerProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import SwipeableDrawer from "@mui/material/SwipeableDrawer";
+import type { SwipeableDrawerProps } from "@mui/material/SwipeableDrawer";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { noop } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";

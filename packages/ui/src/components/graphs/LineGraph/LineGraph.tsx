@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import Typography from "@mui/material/Typography";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line } from "d3-shape";
 import { useMemo, useRef, useState } from "react";

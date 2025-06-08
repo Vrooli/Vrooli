@@ -1,4 +1,5 @@
-import { Breadcrumbs, Link } from "@mui/material";
+import Breadcrumbs from "@mui/material/Breadcrumbs";
+import Link from "@mui/material/Link";
 import { useMemo } from "react";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";

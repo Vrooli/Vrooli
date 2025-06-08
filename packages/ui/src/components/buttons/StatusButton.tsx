@@ -1,4 +1,6 @@
-import { Stack, Tooltip, Typography } from "@mui/material";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { Status } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { usePopover } from "../../hooks/usePopover.js";

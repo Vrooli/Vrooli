@@ -1,4 +1,12 @@
-import { AvatarGroup, Box, Chip, ListItemText, Stack, Tooltip, styled, useTheme, type BoxProps, type ChipProps, type ListItemProps, type Palette } from "@mui/material";
+import AvatarGroup from "@mui/material/AvatarGroup";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
+import type { BoxProps, ChipProps, ListItemProps, Palette } from "@mui/material";
 import { getObjectUrl, isOfType, nanoid, type Chat, type ChatInvite, type ChatParticipant, type ListObject, type Meeting, type Member, type MemberInvite, type ReactionFor } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

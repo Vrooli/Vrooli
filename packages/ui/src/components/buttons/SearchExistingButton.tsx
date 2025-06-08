@@ -1,4 +1,5 @@
-import { Button, styled } from "@mui/material";
+import Button from "@mui/material/Button";
+import { styled } from "@mui/material/styles";
 import { IconCommon } from "../../icons/Icons.js";
 
 const StyledButton = styled(Button)(({ theme }) => ({

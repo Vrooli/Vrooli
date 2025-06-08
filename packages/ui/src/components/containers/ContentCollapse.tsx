@@ -1,4 +1,9 @@
-import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

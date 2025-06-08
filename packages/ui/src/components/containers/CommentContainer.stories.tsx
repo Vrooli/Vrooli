@@ -1,4 +1,6 @@
-import { Box, Paper, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import { useTheme } from "@mui/material/styles";
 import { CommentFor, endpointsComment, generatePK, type Comment, type CommentThread, type CommentTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";

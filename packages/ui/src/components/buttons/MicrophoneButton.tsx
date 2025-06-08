@@ -1,4 +1,13 @@
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, type IconButtonProps, type Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import type { IconButtonProps } from "@mui/material/IconButton";
+import type { Palette } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material/styles";
 import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

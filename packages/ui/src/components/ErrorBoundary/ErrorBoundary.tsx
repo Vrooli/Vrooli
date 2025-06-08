@@ -1,4 +1,9 @@
-import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { stringifySearchParams } from "@vrooli/shared";
 import { Component } from "react";
 import BunnyCrash from "../../assets/img/BunnyCrash.svg";

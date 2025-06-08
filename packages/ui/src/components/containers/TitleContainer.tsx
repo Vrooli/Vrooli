@@ -1,5 +1,8 @@
 // Used to display popular/search results of a particular object type
-import { Box, CircularProgress, Stack, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material/styles";
 import { Title } from "../text/Title.js";
 import { type TitleProps } from "../text/types.js";
 import { type TitleContainerProps } from "./types.js";

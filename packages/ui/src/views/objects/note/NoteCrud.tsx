@@ -1,4 +1,8 @@
-import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, resourceVersionTranslationValidation, resourceVersionValidation, orDefault, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput, type OwnerShape, type Session, type Success } from "@vrooli/shared";
 import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik } from "formik";

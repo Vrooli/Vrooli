@@ -1,6 +1,14 @@
 /* eslint-disable import/extensions */
 
-import { Box, Checkbox, CircularProgress, IconButton, Link, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { nanoid, type ListObject } from "@vrooli/shared";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";

@@ -1,4 +1,8 @@
-import { Box, type BoxProps, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import type { BoxProps } from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { type FormikProps } from "formik";
 import { type RefObject, useCallback, useEffect, useState } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";

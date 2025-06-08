@@ -1,4 +1,7 @@
-import { Button, Divider, Grid, useTheme } from "@mui/material";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import { useTheme } from "@mui/material/styles";
 import { CodeLanguage, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, ResourceSubType, endpointsResource, noopSubmit, orDefault, shapeResourceVersion, resourceVersionTranslationValidation, resourceVersionValidation, type FormSchema, type Session, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionShape, type ResourceVersionUpdateInput } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

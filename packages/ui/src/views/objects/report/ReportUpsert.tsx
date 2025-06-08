@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, reportValidation, shapeReport, type Report, type ReportCreateInput, type ReportFor, type ReportShape, type ReportUpdateInput, type Session } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useContext, useMemo } from "react";

@@ -1,5 +1,5 @@
 import { Box, useTheme } from "@mui/material";
-import { DUMMY_ID, camelCase, commentTranslationValidation, commentValidation, endpointsComment, noopSubmit, orDefault, shapeComment, uuidValidate, type Comment, type CommentCreateInput, type CommentFor, type CommentSearchInput, type CommentSearchResult, type CommentShape, type CommentUpdateInput, type Session } from "@vrooli/shared";
+import { DUMMY_ID, camelCase, commentTranslationValidation, commentValidation, endpointsComment, noopSubmit, orDefault, shapeComment, validatePK, type Comment, type CommentCreateInput, type CommentFor, type CommentSearchInput, type CommentSearchResult, type CommentShape, type CommentUpdateInput, type Session } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -318,7 +318,7 @@ export function CommentUpsert({
 
     const [getData, { data: fetchedData, loading: isReadLoading }] = useLazyFetch<CommentSearchInput, CommentSearchResult>(endpointsComment.findMany);
     useEffect(() => {
-        if (!uuidValidate(objectId)) return;
+        if (!validatePK(objectId)) return;
         getData({ [`${camelCase(objectType)}Id`]: objectId });
     }, [getData, objectId, objectType]);
 

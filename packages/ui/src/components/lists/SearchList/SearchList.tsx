@@ -1,7 +1,7 @@
 /**
  * Search list for a single object type
  */
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { funcTrue, type ListObject, type NavigableObject } from "@vrooli/shared";
 import { useCallback, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";

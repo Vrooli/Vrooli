@@ -1,4 +1,7 @@
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import { endpointsSchedule, type Schedule } from "@vrooli/shared";
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";

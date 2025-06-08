@@ -1,4 +1,6 @@
-import { Button, Popover, styled } from "@mui/material";
+import Button from "@mui/material/Button";
+import Popover from "@mui/material/Popover";
+import { styled } from "@mui/material/styles";
 import { usePopover } from "../../hooks/usePopover.js";
 import { type PopupMenuProps } from "./types.js";
 

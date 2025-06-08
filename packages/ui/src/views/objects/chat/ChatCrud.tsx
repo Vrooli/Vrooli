@@ -1,4 +1,11 @@
-import { Box, Checkbox, FormControlLabel, IconButton, InputAdornment, Stack, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { ChatInviteStatus, DUMMY_ID, LINKS, SEEDED_PUBLIC_IDS, chatTranslationValidation, chatValidation, endpointsChat, getObjectSlug, getObjectUrl, noopSubmit, orDefault, parseSearchParams, shapeChat, type Chat, type ChatCreateInput, type ChatMessageShape, type ChatParticipantShape, type ChatShape, type ChatUpdateInput, type ServerResponse, type Session } from "@vrooli/shared";
 import { Formik, useFormikContext } from "formik";
 import { type TFunction } from "i18next";
@@ -39,6 +46,13 @@ import { getCookiePartialData, setCookieMatchingChat } from "../../../utils/loca
 import { PubSub } from "../../../utils/pubsub.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { type ChatCrudProps, type ChatFormProps } from "./types.js";
+
+// Export Valyxa info for other components
+export const VALYXA_INFO = {
+    id: SEEDED_PUBLIC_IDS.Valyxa,
+    name: "Valyxa",
+    isBot: true,
+} as const;
 
 export const CHAT_DEFAULTS = {
     __typename: "Chat" as const,

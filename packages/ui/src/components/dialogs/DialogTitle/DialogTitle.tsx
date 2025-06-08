@@ -1,4 +1,9 @@
-import { Box, type IconButtonProps, DialogTitle as MuiDialogTitle, type DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import type { IconButtonProps } from "@mui/material";
+import MuiDialogTitle from "@mui/material/DialogTitle";
+import type { DialogTitleProps as MuiDialogTitleProps } from "@mui/material/DialogTitle";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { forwardRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";

@@ -1,4 +1,5 @@
-import { Box, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { type CardGridProps } from "../types.js";
 

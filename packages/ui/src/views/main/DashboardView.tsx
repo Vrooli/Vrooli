@@ -1,4 +1,7 @@
-import { Box, IconButton, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
 import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, generatePK, getObjectUrl, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

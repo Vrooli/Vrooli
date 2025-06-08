@@ -1,4 +1,11 @@
-import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import LinearProgress from "@mui/material/LinearProgress";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useMemo, useState } from "react";
 import { type UsePressEvent, usePress } from "../../hooks/gestures.js";
 import { useLocation } from "../../route/router.js";

@@ -1,4 +1,8 @@
-import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { validatePK, type Bookmark, type BookmarkFor } from "@vrooli/shared";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

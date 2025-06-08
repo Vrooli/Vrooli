@@ -1,4 +1,10 @@
-import { Box, type BoxProps, Button, IconButton, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import type { BoxProps } from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";

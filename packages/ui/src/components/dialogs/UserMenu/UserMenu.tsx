@@ -1,4 +1,16 @@
-import { Box, Collapse, Divider, Link, List, ListItemButton, ListItemIcon, ListItemText, Stack, Typography, styled, useTheme, type Palette } from "@mui/material";
+import Box from "@mui/material/Box";
+import Collapse from "@mui/material/Collapse";
+import Divider from "@mui/material/Divider";
+import Link from "@mui/material/Link";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
+import type { Palette } from "@mui/material";
 import { API_CREDITS_MULTIPLIER, HistoryPageTabOption, LINKS, endpointsAuth, endpointsUser, profileValidation, shapeProfile, type ActionOption, type PreActionOption, type ProfileUpdateInput, type Session, type SessionUser, type SwitchCurrentAccountInput, type User } from "@vrooli/shared";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";

@@ -1,5 +1,22 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Tooltip, Typography, styled, useTheme, type IconButtonProps } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Collapse from "@mui/material/Collapse";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Popover from "@mui/material/Popover";
+import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
+import type { IconButtonProps } from "@mui/material/IconButton";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { type CSSProperties } from "@mui/styles";
 import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@vrooli/shared";

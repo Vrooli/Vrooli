@@ -1,4 +1,8 @@
-import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ListItem from "@mui/material/ListItem";
+import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material/styles";
 import { DUMMY_ID, endpointsMeeting, meetingValidation, noopSubmit, orDefault, shapeMeeting, type Meeting, type MeetingCreateInput, type MeetingShape, type MeetingUpdateInput, type Schedule, type Session } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useContext, useMemo, useState } from "react";

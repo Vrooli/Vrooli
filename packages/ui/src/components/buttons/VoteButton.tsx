@@ -1,4 +1,8 @@
-import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { getReactionScore, removeModifiers } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

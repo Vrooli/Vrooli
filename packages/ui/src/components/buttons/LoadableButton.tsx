@@ -1,4 +1,6 @@
-import { Button, type ButtonProps, CircularProgress } from "@mui/material";
+import Button from "@mui/material/Button";
+import type { ButtonProps } from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useCallback } from "react";
 
 type LoadableButtonProps = Omit<ButtonProps, "loading"> & {

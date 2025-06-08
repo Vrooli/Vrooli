@@ -1,4 +1,7 @@
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material/styles";
 import { CommentFor, endpointsResource, exists, getTranslation, noop, noopSubmit, type ResourceListShape, type Resource, type ResourceVersion, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

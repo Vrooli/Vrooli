@@ -1,4 +1,5 @@
-import { IconButton, Tooltip } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";

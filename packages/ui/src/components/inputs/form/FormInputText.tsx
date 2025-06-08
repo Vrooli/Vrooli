@@ -1,4 +1,6 @@
-import { Button, Slider, Typography } from "@mui/material";
+import Button from "@mui/material/Button";
+import Slider from "@mui/material/Slider";
+import Typography from "@mui/material/Typography";
 import { getFormikFieldName, type TextFormInput, type TextFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";

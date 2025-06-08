@@ -1,6 +1,22 @@
 // Create a new ChatSettingsMenu component to consolidate chat/model settings
 
-import { Box, Checkbox, Dialog, FormControlLabel, FormGroup, IconButton, InputAdornment, ListItemButton, ListItemIcon, MenuItem, Switch, Tab, Tabs, TextField, Typography, useMediaQuery, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import Dialog from "@mui/material/Dialog";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import type { ChatInviteShape, ListObject, ResourceVersion } from "@vrooli/shared";
 import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } from "@vrooli/shared";
 import { Form, Formik } from "formik";

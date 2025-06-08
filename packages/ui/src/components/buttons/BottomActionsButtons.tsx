@@ -1,4 +1,8 @@
-import { Box, Button, Grid, styled, useTheme, type BoxProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import { styled, useTheme } from "@mui/material/styles";
+import type { BoxProps } from "@mui/material/Box";
 import { exists } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,14 @@
-import { AppBar, Badge, Box, Button, IconButton, Slide, Typography, styled, useScrollTrigger, useTheme, type BoxProps } from "@mui/material";
+import AppBar from "@mui/material/AppBar";
+import Badge from "@mui/material/Badge";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Slide from "@mui/material/Slide";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
+import { useScrollTrigger } from "@mui/material";
+import { useTheme } from "@mui/material";
+import type { BoxProps } from "@mui/material";
 import { BUSINESS_NAME, LINKS } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,9 @@
-import { Box, Dialog, IconButton, Stack, Typography, styled, type DialogProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import Dialog, { type DialogProps } from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
 import { LINKS, ResourceSubType, type TranslationKeyCommon } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

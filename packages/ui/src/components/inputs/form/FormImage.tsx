@@ -1,4 +1,5 @@
-import { Button, Divider } from "@mui/material";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
 import { propButtonStyle } from "./styles.js";
 import { type FormImageProps } from "./types.js";
 

@@ -1,4 +1,6 @@
-import { Button, Divider, Stack } from "@mui/material";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
 import { DUMMY_ID, ResourceUsedFor, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, type Session, type TranslationKeyCommon } from "@vrooli/shared";
 import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";

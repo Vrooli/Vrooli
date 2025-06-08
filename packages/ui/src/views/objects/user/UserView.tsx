@@ -1,5 +1,12 @@
-import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { BookmarkFor, DUMMY_ID, LINKS, UserPageTabOption, getObjectUrl, getTranslation, noop, validatePK, type ChatShape, type ListObject, type User } from "@vrooli/shared";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
+import { BookmarkFor, DUMMY_ID, LINKS, UserPageTabOption, getObjectUrl, getTranslation, noop, validatePK, type ChatShape, type ListObject, type LlmModel, type User } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getAvailableModels, getExistingAIConfig } from "../../../api/ai.js";
@@ -105,6 +112,32 @@ const detailsSectionStyle = {
     marginTop: 0,
     borderRadius: "0px",
 } as const;
+
+function findBotDataForForm(
+    language: string,
+    availableModels: LlmModel[],
+    user: User | null | undefined,
+) {
+    if (!user?.botSettings) {
+        return {
+            model: "",
+            creativity: 0.5,
+            verbosity: 0.5,
+            translations: user?.translations ?? [],
+        };
+    }
+    
+    const model = availableModels.find(m => m.value === user.botSettings?.model)?.value ?? "";
+    const creativity = user.botSettings.creativity ?? 0.5;
+    const verbosity = user.botSettings.verbosity ?? 0.5;
+    
+    return {
+        model,
+        creativity,
+        verbosity,
+        translations: user.translations ?? [],
+    };
+}
 
 export function UserView({
     display,

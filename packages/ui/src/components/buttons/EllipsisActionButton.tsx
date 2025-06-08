@@ -1,4 +1,8 @@
-import { Collapse, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useIsLeftHanded } from "../../hooks/subscriptions.js";

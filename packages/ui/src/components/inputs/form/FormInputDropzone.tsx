@@ -1,4 +1,10 @@
-import { Autocomplete, Button, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import { useTheme } from "@mui/material/styles";
 import { type DropzoneFormInput, type DropzoneFormInputProps } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";

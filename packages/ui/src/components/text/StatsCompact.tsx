@@ -1,4 +1,6 @@
-import { Box, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
 import { ReactionFor, type ListObject } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../icons/Icons.js";

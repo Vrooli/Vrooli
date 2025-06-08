@@ -1,4 +1,6 @@
-import { Tooltip, Typography, useTheme } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { getObjectUrl, getTranslation } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { SessionContext } from "../../contexts/session.js";

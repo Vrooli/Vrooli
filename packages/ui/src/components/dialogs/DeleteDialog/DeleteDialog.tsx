@@ -1,4 +1,8 @@
-import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
+import Button from "@mui/material/Button";
+import DialogContent from "@mui/material/DialogContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";

@@ -1,4 +1,5 @@
-import { Box, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material/styles";
 import { DUMMY_ID, DeleteType, LlmTask, endpointsActions, endpointsResource, noopSubmit, orDefault, resourceVersionTranslationValidation, resourceVersionValidation, shapeResourceVersion, type DeleteOneInput, type ListObject, type ResourceShape, type ResourceVersion, type ResourceVersionCreateInput, type ResourceVersionDirectoryShape, type ResourceVersionShape, type ResourceVersionUpdateInput, type Session, type Success } from "@vrooli/shared";
 import { ResourceType } from "@vrooli/shared/api/types";
 import { Formik, useField } from "formik";

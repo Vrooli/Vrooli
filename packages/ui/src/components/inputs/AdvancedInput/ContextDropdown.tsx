@@ -1,4 +1,11 @@
-import { Box, IconButton, InputAdornment, List, ListItem, Popover, TextField, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import Popover from "@mui/material/Popover";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { ResourceUsedFor, getObjectUrl } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";

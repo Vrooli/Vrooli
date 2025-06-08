@@ -1,4 +1,7 @@
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePopover } from "../../../../hooks/usePopover.js";
 import { IconCommon, IconRoutine } from "../../../../icons/Icons.js";

@@ -1,4 +1,7 @@
-import { Box, styled, useTheme, type BoxProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
+import type { BoxProps } from "@mui/material";
 import { LINKS, UrlTools } from "@vrooli/shared";
 import { useContext, useEffect, useMemo } from "react";
 import { SessionContext } from "../../contexts/session.js";

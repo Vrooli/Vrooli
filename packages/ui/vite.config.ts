@@ -108,14 +108,20 @@ export default defineConfig((props) => {
                     // This should be done only if you've tried everything else to reduce the bundle size.
                     // Also, this doesn't guarantee that the chunk will be moved to its own bundle. But it's worth a try.
                     manualChunks: {
-                        // Packages used in virtually every file
-                        'vendor': ['react', 'react-dom', '@mui/material', 'formik', 'i18next', 'yup'],
+                        // Core React (required for everything)
+                        'react-core': ['react', 'react-dom'],
+                        // MUI core components (Box, Typography, etc)
+                        'mui-core': ['@mui/material/Box', '@mui/material/Typography', '@mui/material/Stack', '@mui/material/Grid'],
+                        // MUI extras (less common components)
+                        'mui-extras': ['@mui/material/Accordion', '@mui/material/Autocomplete', '@mui/material/Stepper'],
+                        // Form handling
+                        'forms': ['formik', 'yup'],
+                        // Internationalization
+                        'i18n': ['i18next', 'react-i18next'],
                         // Bundle for ad banners (if an ad-blocker decides to block this, 
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.
                         'banner-chicken': ['./src/components/BannerChicken.tsx'],
-                        // Separate landing page to reduce main bundle size
-                        'landing': ['./src/views/main/LandingView.tsx'],
                         // Codemirror bundles
                         'lang-angular': ['@codemirror/lang-angular'],
                         'lang-cpp': ['@codemirror/lang-cpp'],

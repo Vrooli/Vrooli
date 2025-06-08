@@ -1,5 +1,4 @@
-import { useContext, useEffect, useMemo } from "react";
-import { SessionContext } from "../contexts/session.js";
+import { useEffect, useMemo } from "react";
 
 /**
  * Routes that should never display ads.
@@ -22,31 +21,34 @@ const HALF = 0.5;
 type BannerChickenProps = {
     backgroundColor: string;
     isMobile: boolean;
+    isLoggedIn: boolean;
+    hasPremium: boolean;
 }
 
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
- * Uses session to display no ads for premium users, and less ads if logged in.
+ * Uses session data to display no ads for premium users, and less ads if logged in.
  * 
  * NOTE 1: If we call this "BannerAd", ad blockers will cause the whole bundle to break. 
  * Hence the name "BannerChicken".
  * 
  * NOTE 2: This is setup to use a minimal amount of imports. We want this to be the only 
  * file in its bundle, in case it is blocked by an ad blocker.
+ * 
+ * NOTE 3: Session data is passed as props to avoid importing heavy dependencies.
  */
 export function BannerChicken({
     backgroundColor,
     isMobile,
+    isLoggedIn,
+    hasPremium,
 }: BannerChickenProps) {
-    const session = useContext(SessionContext);
 
     const adFrequency = useMemo(() => {
-        if (!session?.isLoggedIn) return "full";
-        const user = session.users?.[0];
-        if (!user) return "full";
-        if (user.hasPremium) return "none";
+        if (!isLoggedIn) return "full";
+        if (hasPremium) return "none";
         return "half";
-    }, [session]);
+    }, [isLoggedIn, hasPremium]);
 
     const shouldDisplayAd = useMemo(() => {
         // Don't display ads on certain routes

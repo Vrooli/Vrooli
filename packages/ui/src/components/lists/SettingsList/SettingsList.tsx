@@ -1,4 +1,12 @@
-import { Box, Divider, List, ListItem, ListItemIcon, ListItemText, styled, useTheme, type BoxProps, type ListItemProps, type ListProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
+import type { BoxProps, ListItemProps, ListProps } from "@mui/material";
 import { type LINKS } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

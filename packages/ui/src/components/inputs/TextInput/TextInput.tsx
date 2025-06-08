@@ -1,4 +1,5 @@
-import { TextField, Typography } from "@mui/material";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useField } from "formik";
 import { type RefObject, useMemo } from "react";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";

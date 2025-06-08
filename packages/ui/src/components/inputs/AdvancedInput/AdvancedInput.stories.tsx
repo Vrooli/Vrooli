@@ -1,5 +1,10 @@
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
-import { Box, Button, Divider, FormControlLabel, Switch, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import Typography from "@mui/material/Typography";
 import { action } from "@storybook/addon-actions";
 import { type Meta } from "@storybook/react";
 import userEvent from "@testing-library/user-event";

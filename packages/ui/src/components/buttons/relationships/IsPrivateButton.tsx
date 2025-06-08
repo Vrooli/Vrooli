@@ -1,4 +1,5 @@
-import { Tooltip, useTheme } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

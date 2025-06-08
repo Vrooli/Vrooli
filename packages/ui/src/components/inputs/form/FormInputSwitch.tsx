@@ -1,4 +1,10 @@
-import { Box, Button, FormControlLabel, Switch, TextField, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { getFormikFieldName, type SwitchFormInput, type SwitchFormInputProps } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";

@@ -1,4 +1,6 @@
-import { Box, type BoxProps, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import type { BoxProps } from "@mui/material/Box";
+import { styled, useTheme } from "@mui/material/styles";
 import { useRef } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { type SxType, type ViewDisplayType } from "../../types.js";

@@ -1,4 +1,10 @@
-import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material/styles";
 import { getObjectUrlBase, validatePK, type ListObject, type ModelType, type SearchType } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

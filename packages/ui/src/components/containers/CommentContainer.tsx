@@ -2,8 +2,12 @@
  * CommentContainer - A component that manages comments for various object types.
  * Displays a comment input and thread list with support for pagination, sorting and filtering.
  */
-import { Alert, Box, Stack, Typography, useTheme } from "@mui/material";
-import { endpointsComment, lowercaseFirstLetter, uuidValidate, type Comment, type CommentCreateInput, type CommentThread as ThreadType } from "@vrooli/shared";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
+import { endpointsComment, lowercaseFirstLetter, validatePK, type Comment, type CommentCreateInput, type CommentThread as ThreadType } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -63,7 +67,7 @@ export function CommentContainer({
         // Use the loading state from the API response if available, otherwise default to false
         isLoading = false,
     } = useFindMany<ThreadType>({
-        canSearch: () => uuidValidate(objectId),
+        canSearch: () => validatePK(objectId),
         controlsUrl: false,
         searchType: "Comment",
         resolve: (result) => result.threads,

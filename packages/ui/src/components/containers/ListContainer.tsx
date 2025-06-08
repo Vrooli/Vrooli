@@ -1,4 +1,7 @@
-import { Box, type BoxProps, List, Typography, styled } from "@mui/material";
+import Box, { type BoxProps } from "@mui/material/Box";
+import List from "@mui/material/List";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { type SxType } from "../../types.js";

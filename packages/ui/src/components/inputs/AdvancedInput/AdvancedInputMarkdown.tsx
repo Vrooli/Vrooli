@@ -1,4 +1,4 @@
-import { useTheme } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { type AdvancedInputMarkdownProps, type AdvancedInputStylingAction, MarkdownUtils, advancedInputTextareaClassName } from "./utils.js";
 

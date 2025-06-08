@@ -17,7 +17,7 @@ import { type ViewProps } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { RandomBlobs } from "../main/LandingView.js";
+import { RandomBlobs } from "../main/components/RandomBlobs.js";
 
 // Match keys in SubscriptionPricesResponse
 export enum BillingCycle {

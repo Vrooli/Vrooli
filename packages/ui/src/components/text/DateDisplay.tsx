@@ -1,4 +1,6 @@
-import { Box, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { IconCommon } from "../../icons/Icons.js";
 import { displayDate } from "../../utils/display/stringTools.js";
 import { TextLoading } from "../lists/TextLoading/TextLoading.js";

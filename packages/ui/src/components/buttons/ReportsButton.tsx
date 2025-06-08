@@ -1,4 +1,6 @@
-import { Box, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material/styles";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../icons/Icons.js";
 import { Link, useLocation } from "../../route/router.js";

@@ -1,4 +1,10 @@
-import { Box, Button, Divider, Grid, IconButton, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { DUMMY_ID, addToArray, deleteArrayIndex, exists, generatePK, getTranslation, shapeResourceVersion, updateArray, type DefinedArrayElement, type ResourceVersion, type ResourceVersionShape, type Session } from "@vrooli/shared";
 // eslint-disable-next-line import/extensions
 // import Modeler from "bpmn-js/lib/Modeler";

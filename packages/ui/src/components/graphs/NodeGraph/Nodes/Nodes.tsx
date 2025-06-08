@@ -1,5 +1,11 @@
 
-import { Box, IconButton, Tooltip, Typography, styled, useTheme, type BoxProps, type SxProps, type TypographyProps } from "@mui/material";
+import Box, { type BoxProps } from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography, { type TypographyProps } from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
+import type { SxProps } from "@mui/material/styles";
 import { Status } from "@vrooli/shared";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Draggable, { type DraggableData, type DraggableEvent } from "react-draggable";

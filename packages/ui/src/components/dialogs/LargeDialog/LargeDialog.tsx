@@ -1,4 +1,8 @@
-import { Box, Dialog, Popover, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import Popover from "@mui/material/Popover";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { UpTransition } from "../../transitions/UpTransition/UpTransition.js";

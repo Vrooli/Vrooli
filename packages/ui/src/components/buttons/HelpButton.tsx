@@ -1,4 +1,9 @@
-import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Menu from "@mui/material/Menu";
+import Tooltip from "@mui/material/Tooltip";
+import { styled, useTheme } from "@mui/material/styles";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePopover } from "../../hooks/usePopover.js";

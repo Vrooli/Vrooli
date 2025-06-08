@@ -1,16 +1,14 @@
-import {
-    Box,
-    Button,
-    Container,
-    Grid,
-    IconButton,
-    LinearProgress,
-    Paper,
-    Stack,
-    Tooltip,
-    Typography,
-    useTheme,
-} from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Container from "@mui/material/Container";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { BookmarkFor, CommentFor, endpointsResource, getTranslation, type ResourceList as ResourceListType, type Resource, type ResourceVersion, type Tag } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";

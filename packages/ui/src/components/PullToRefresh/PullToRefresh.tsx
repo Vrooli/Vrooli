@@ -1,4 +1,7 @@
-import { Box, IconButton, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { useEffect, useRef, useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
 import { getDeviceInfo } from "../../utils/display/device.js";

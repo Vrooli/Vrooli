@@ -1,4 +1,8 @@
-import { Badge, BottomNavigation, BottomNavigationAction, styled, useTheme } from "@mui/material";
+import Badge from "@mui/material/Badge";
+import BottomNavigation from "@mui/material/BottomNavigation";
+import BottomNavigationAction from "@mui/material/BottomNavigationAction";
+import { styled } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { LINKS } from "@vrooli/shared";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

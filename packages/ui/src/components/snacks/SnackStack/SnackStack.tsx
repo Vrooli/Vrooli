@@ -1,4 +1,6 @@
-import { Box, styled, type BoxProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import type { BoxProps } from "@mui/material/Box";
+import { styled } from "@mui/material/styles";
 import { nanoid } from "@vrooli/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,9 @@
-import { Box, type BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box, { type BoxProps } from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Icon, type IconInfo } from "../../icons/Icons.js";
