@@ -116,9 +116,10 @@ export interface ResourceAllocation {
 }
 
 /**
- * Resource usage tracking
+ * Execution resource usage tracking
+ * Used for tracking resource consumption during execution
  */
-export interface ResourceUsage {
+export interface ExecutionResourceUsage {
     creditsUsed: string; // BigInt as string
     durationMs: number;
     memoryUsedMB: number;
@@ -128,6 +129,9 @@ export interface ResourceUsage {
     computeTime?: number;
     cost?: number;
 }
+
+// Alias for backward compatibility (deprecated)
+export type ResourceUsage = ExecutionResourceUsage;
 
 /**
  * Execution result returned by each tier

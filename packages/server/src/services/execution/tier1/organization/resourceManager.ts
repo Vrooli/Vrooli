@@ -1,14 +1,12 @@
 import { type Logger } from "winston";
 import {
     type ResourceAllocation,
+    type ResourceType,
+    type ResourceReservation,
+    type ResourceReturn,
     SwarmEventType as SwarmEventTypeEnum,
     generatePk,
 } from "@vrooli/shared";
-
-/**
- * Resource type definitions
- */
-export type ResourceType = "credits" | "time" | "memory" | "tokens" | "api_calls" | "custom";
 
 /**
  * Resource pool configuration

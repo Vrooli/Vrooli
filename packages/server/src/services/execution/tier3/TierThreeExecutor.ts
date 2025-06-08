@@ -7,7 +7,7 @@ import { ResourceManager } from "./engine/resourceManager.js";
 import { ValidationEngine } from "./engine/validationEngine.js";
 import { IOProcessor } from "./engine/ioProcessor.js";
 import { TelemetryShim } from "./engine/telemetryShim.js";
-import { RunContext } from "./context/runContext.js";
+import { ExecutionRunContext } from "./context/runContext.js";
 import { ContextExporter } from "./context/contextExporter.js";
 import { ConversationalStrategy } from "./strategies/conversationalStrategy.js";
 import { ReasoningStrategy } from "./strategies/reasoningStrategy.js";
@@ -82,9 +82,22 @@ export class TierThreeExecutor {
             const result = await this.unifiedExecutor.execute(context);
             
             // Export context if needed
-            if (context.config.exportContext) {
+            if (context.config?.exportContext) {
+                const runContext = new ExecutionRunContext({
+                    runId: context.runId,
+                    routineId: context.routineId || '',
+                    routineName: context.routineName || '',
+                    currentStepId: context.stepId,
+                    userData: context.userData || { id: '' },
+                });
+                
                 const exportedContext = await this.contextExporter.exportContext(
-                    new RunContext(context.runId, context.stepId),
+                    runContext,
+                    {
+                        outputs: result.result as Record<string, unknown>,
+                        strategy: result.metadata?.strategy as any,
+                        resourceUsage: result.metadata?.resourceUsage as any,
+                    },
                 );
                 result.metadata.exportedContext = exportedContext;
             }

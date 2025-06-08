@@ -37,7 +37,7 @@ export interface UsageHints {
 }
 
 /**
- * RunContext - Runtime environment for step execution
+ * ExecutionRunContext - Runtime environment for step execution
  * 
  * This class maintains the execution context passed from Tier 2 (Process Intelligence)
  * to Tier 3 (Execution Intelligence). It provides:
@@ -49,9 +49,9 @@ export interface UsageHints {
  * - Cross-tier communication data
  * - Usage hints for optimization
  * 
- * The RunContext is immutable during step execution to ensure consistency.
+ * The ExecutionRunContext is immutable during step execution to ensure consistency.
  */
-export class RunContext {
+export class ExecutionRunContext {
     readonly runId: string;
     readonly routineId: string;
     readonly routineName: string;
@@ -68,7 +68,7 @@ export class RunContext {
     private readonly startTime: number;
     private readonly logger?: Logger;
 
-    constructor(config: RunContextConfig) {
+    constructor(config: ExecutionRunContextConfig) {
         this.runId = config.runId || generatePk();
         this.routineId = config.routineId;
         this.routineName = config.routineName;
@@ -89,8 +89,8 @@ export class RunContext {
     /**
      * Creates a child context for nested execution
      */
-    createChildContext(overrides: Partial<RunContextConfig>): RunContext {
-        return new RunContext({
+    createChildContext(overrides: Partial<ExecutionRunContextConfig>): ExecutionRunContext {
+        return new ExecutionRunContext({
             ...this.toConfig(),
             ...overrides,
             parentRunId: this.runId,
@@ -182,7 +182,7 @@ export class RunContext {
     /**
      * Converts context to configuration object
      */
-    toConfig(): RunContextConfig {
+    toConfig(): ExecutionRunContextConfig {
         return {
             runId: this.runId,
             routineId: this.routineId,
@@ -217,9 +217,9 @@ export class RunContext {
 }
 
 /**
- * Configuration for creating RunContext
+ * Configuration for creating ExecutionRunContext
  */
-export interface RunContextConfig {
+export interface ExecutionRunContextConfig {
     runId?: string;
     routineId: string;
     routineName: string;
@@ -237,9 +237,9 @@ export interface RunContextConfig {
 }
 
 /**
- * Factory for creating RunContext instances
+ * Factory for creating ExecutionRunContext instances
  */
-export class RunContextFactory {
+export class ExecutionRunContextFactory {
     private readonly defaultEnvironment: Record<string, string>;
     private readonly logger?: Logger;
 
@@ -249,10 +249,10 @@ export class RunContextFactory {
     }
 
     /**
-     * Creates a new RunContext
+     * Creates a new ExecutionRunContext
      */
-    create(config: RunContextConfig): RunContext {
-        return new RunContext({
+    create(config: ExecutionRunContextConfig): ExecutionRunContext {
+        return new ExecutionRunContext({
             ...config,
             environment: {
                 ...this.defaultEnvironment,
@@ -263,10 +263,10 @@ export class RunContextFactory {
     }
 
     /**
-     * Creates a RunContext from serialized data
+     * Creates an ExecutionRunContext from serialized data
      */
-    fromJSON(data: Record<string, unknown>): RunContext {
-        return new RunContext({
+    fromJSON(data: Record<string, unknown>): ExecutionRunContext {
+        return new ExecutionRunContext({
             runId: data.runId as string,
             routineId: data.routineId as string,
             routineName: data.routineName as string,

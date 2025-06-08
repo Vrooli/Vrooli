@@ -172,7 +172,8 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         id: "api_logs",
                         label: "API Request Logs",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "timeRange",
@@ -180,7 +181,8 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         label: "Time Range",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "1h"
+                        defaultValue: "1h",
+                        props: {}
                     },
                     {
                         fieldName: "knownIPs",
@@ -188,7 +190,8 @@ export const API_SECURITY_SCAN: RoutineFixture = {
                         label: "Known Safe IPs",
                         type: InputType.JSON,
                         isRequired: false,
-                        defaultValue: []
+                        defaultValue: [],
+                        props: {}
                     }
                 ]
             }
@@ -278,21 +281,24 @@ export const GDPR_DATA_AUDIT: RoutineFixture = {
                         id: "processing_records",
                         label: "Data Processing Records",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "subjectRequests",
                         id: "subject_requests",
                         label: "Data Subject Requests",
                         type: InputType.JSON,
-                        isRequired: false
+                        isRequired: false,
+                        props: {}
                     },
                     {
                         fieldName: "retentionPolicies",
                         id: "retention_policies",
                         label: "Retention Policies",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     }
                 ]
             }
@@ -381,9 +387,7 @@ export const TRADING_PATTERN_ANALYSIS: RoutineFixture = {
                         label: "Trading Data",
                         type: InputType.JSON,
                         isRequired: true,
-                        props: {
-                            placeholder: "Paste trading data JSON..."
-                        }
+                        props: {}
                     },
                     {
                         fieldName: "timeWindow",

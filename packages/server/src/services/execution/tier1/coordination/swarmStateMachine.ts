@@ -26,7 +26,7 @@ import { StrategyEngine } from "../intelligence/strategyEngine.js";
 import { MetacognitiveMonitor } from "../intelligence/metacognitiveMonitor.js";
 import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
-import { TelemetryShim } from "../../tier3/engine/telemetryShim.js";
+import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
 
 /**
  * Swarm initialization parameters

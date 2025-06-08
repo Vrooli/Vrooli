@@ -1,5 +1,5 @@
 import { LlmServiceId, type ModelInfo, OpenAIModel, openAIServiceInfo, type SessionUser } from "@vrooli/shared";
-import { type ToolFunctionCall } from "@vrooli/shared/src/shape/configs/message.js";
+import { type ToolFunctionCall } from "@vrooli/shared/shape";
 import OpenAI from "openai";
 import { type Tool as OpenAITool } from "openai/resources/responses/responses.js";
 import { CustomError } from "../../events/error.js";

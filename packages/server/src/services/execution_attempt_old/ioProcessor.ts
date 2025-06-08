@@ -1,5 +1,5 @@
 import { CodeLanguage, InputType, RoutineVersionConfig, type FormInputType, type PassableLogger, type ResourceVersion, type StandardVersionConfigObject } from "@vrooli/shared";
-import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink } from "@vrooli/shared/src/utils/relatedResource.js";
+import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink } from "@vrooli/shared/utils";
 
 /**
  * Internal representation of a routine's input configuration,

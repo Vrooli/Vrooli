@@ -21,6 +21,42 @@ interface SecurityScanResult {
 }
 
 /**
+ * Reasoning validation types (consolidated from strategy validation)
+ */
+interface ReasoningValidationResult {
+    type: string;
+    passed: boolean;
+    message: string;
+    details?: Record<string, unknown>;
+}
+
+interface ReasoningResult {
+    conclusion: unknown;
+    reasoning: string[];
+    evidence: Evidence[];
+    confidence: number;
+    assumptions: string[];
+}
+
+interface Evidence {
+    type: "fact" | "inference" | "assumption";
+    content: string;
+    source?: string;
+    confidence: number;
+}
+
+interface ReasoningFramework {
+    type: "logical" | "analytical" | "decision_tree" | "evidence_based";
+    steps: Array<{
+        id: string;
+        type: string;
+        description: string;
+        inputs: string[];
+        outputs: string[];
+    }>;
+}
+
+/**
  * ValidationEngine - Output validation and security enforcement
  * 
  * This component provides:
@@ -554,5 +590,118 @@ export class ValidationEngine {
         } catch {
             return { valid: false, error: "Not a valid URL" };
         }
+    }
+
+    /**
+     * Reasoning-specific validation methods
+     * Consolidated from tier3/strategies/reasoning/validationEngine.ts
+     */
+
+    /**
+     * Validates reasoning results using multiple validation patterns
+     */
+    async validateReasoning(
+        result: ReasoningResult,
+        framework: ReasoningFramework
+    ): Promise<ReasoningValidationResult[]> {
+        this.logger.debug("[ValidationEngine] Starting reasoning validation", {
+            frameworkType: framework.type,
+            conclusionType: typeof result.conclusion,
+            reasoningStepsCount: result.reasoning.length,
+            evidenceCount: result.evidence.length,
+        });
+
+        const validations: ReasoningValidationResult[] = [];
+
+        // Logic validation
+        validations.push({
+            type: "logic",
+            passed: this.validateLogicalConsistency(result),
+            message: "Logical consistency check",
+            details: {
+                reasoningSteps: result.reasoning.length,
+                contradictionsFound: this.findContradictions(result),
+            },
+        });
+
+        // Completeness validation
+        validations.push({
+            type: "completeness",
+            passed: this.validateCompleteness(result, framework),
+            message: "Reasoning completeness check",
+            details: {
+                expectedSteps: framework.steps.length,
+                actualSteps: result.reasoning.length,
+                hasConclusion: result.conclusion !== undefined,
+            },
+        });
+
+        // Confidence validation
+        validations.push({
+            type: "confidence",
+            passed: result.confidence >= 0.7, // CONFIDENCE_THRESHOLD
+            message: "Confidence threshold check",
+            details: {
+                confidence: result.confidence,
+                threshold: 0.7,
+            },
+        });
+
+        // Evidence validation
+        validations.push({
+            type: "evidence",
+            passed: result.evidence.length >= 1, // MIN_EVIDENCE_THRESHOLD
+            message: "Evidence sufficiency check",
+            details: {
+                evidenceCount: result.evidence.length,
+                requiredMinimum: 1,
+            },
+        });
+
+        return validations;
+    }
+
+    private validateLogicalConsistency(result: ReasoningResult): boolean {
+        // Check for contradictions in reasoning
+        const reasoningText = result.reasoning.join(" ");
+        
+        // Simple contradiction patterns
+        const contradictionPatterns = [
+            /\b(not|never|cannot|impossible)\b[\s\w]*\b(is|are|can|possible|true)\b/gi,
+            /\b(always|must|definitely)\b[\s\w]*\b(never|not|cannot)\b/gi,
+            /\b(yes|true|correct)\b[\s\w]*\b(no|false|incorrect|wrong)\b/gi,
+        ];
+
+        return !contradictionPatterns.some(pattern => pattern.test(reasoningText));
+    }
+
+    private validateCompleteness(result: ReasoningResult, framework: ReasoningFramework): boolean {
+        // Check if all framework steps produced outputs
+        const expectedOutputs = framework.steps.flatMap(s => s.outputs);
+        const hasConclusion = result.conclusion !== undefined;
+        const hasReasoning = result.reasoning.length >= framework.steps.length;
+        const hasEvidence = result.evidence.length > 0;
+
+        return hasConclusion && hasReasoning && hasEvidence;
+    }
+
+    private findContradictions(result: ReasoningResult): string[] {
+        const contradictions: string[] = [];
+        const reasoningText = result.reasoning.join(" ");
+        
+        const contradictionPatterns = [
+            { pattern: /\b(not|never|cannot|impossible)\b[\s\w]*\b(is|are|can|possible|true)\b/gi, type: "logical" },
+            { pattern: /\b(always|must|definitely)\b[\s\w]*\b(never|not|cannot)\b/gi, type: "certainty" },
+            { pattern: /\b(yes|true|correct)\b[\s\w]*\b(no|false|incorrect|wrong)\b/gi, type: "truth" },
+        ];
+
+        for (const { pattern, type } of contradictionPatterns) {
+            const matches = reasoningText.match(pattern);
+            if (matches) {
+                contradictions.push(`${type}: ${matches[0]}`);
+            }
+        }
+
+        return contradictions;
     }
 }

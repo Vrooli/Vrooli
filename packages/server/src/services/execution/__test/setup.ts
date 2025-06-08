@@ -6,7 +6,7 @@ import * as http from "http";
 import * as https from "https";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { DbProvider } from "../../../db/provider.js";
-import { closeRedis, initializeRedis } from "../../../redisConn.js";
+import { CacheService } from "../../../redisConn.js";
 import { AnthropicService } from "../../../tasks/llm/services/anthropic.js";
 import { MistralService } from "../../../tasks/llm/services/mistral.js";
 import { OpenAIService } from "../../../tasks/llm/services/openai.js";
@@ -86,7 +86,7 @@ beforeAll(async () => {
     // Setup queues
     await setupTaskQueues();
     // Setup databases
-    await initializeRedis();
+    // CacheService will initialize Redis connection on first use
     await DbProvider.init();
 
     // Add vitest mocks for LLM services
@@ -130,7 +130,7 @@ afterAll(async () => {
     await QueueService.get().shutdown();
 
     // Close the Redis client connection
-    await closeRedis();
+    await CacheService.get().close();
 
     // Close database connection
     await DbProvider.shutdown();

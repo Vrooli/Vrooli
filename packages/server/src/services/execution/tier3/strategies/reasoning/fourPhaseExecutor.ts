@@ -1,7 +1,7 @@
 import { type Logger } from "winston";
 import { type ExecutionContext } from "@vrooli/shared";
 import { LLMIntegrationService } from "../../../integration/llmIntegrationService.js";
-import { ValidationEngine } from "./validationEngine.js";
+import { ValidationEngine } from "../../engine/validationEngine.js";
 
 /**
  * Four-phase execution patterns extracted from legacy ReasoningStrategy

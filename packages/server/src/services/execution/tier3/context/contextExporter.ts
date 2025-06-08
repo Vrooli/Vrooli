@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type ResourceUsage, type StrategyType } from "@vrooli/shared";
+import { type ExecutionRunContext } from "./runContext.js";
 
 /**
  * Context data exported for cross-tier synchronization
@@ -56,19 +57,37 @@ export class ContextExporter {
      * to other tiers for coordination and learning.
      */
     async exportContext(
-        stepId: string,
-        context: Omit<ExportedContext, "stepId" | "timestamp">,
-    ): Promise<void> {
+        runContext: ExecutionRunContext,
+        additionalData?: Partial<ExportedContext>,
+    ): Promise<ExportedContext> {
+        const stepId = runContext.currentStepId || 'unknown';
         const exportedContext: ExportedContext = {
             stepId,
             timestamp: new Date(),
-            ...context,
+            strategy: additionalData?.strategy || 'conversational' as StrategyType,
+            resourceUsage: additionalData?.resourceUsage || {
+                creditsUsed: 0,
+                timeElapsedMs: runContext.getElapsedTime(),
+                memoryUsedMB: 0,
+                toolCallsMade: 0,
+                concurrentBranchesActive: 0,
+                peakMemoryMB: 0,
+                networkBytesTransferred: 0,
+                diskBytesUsed: 0,
+            },
+            outputs: additionalData?.outputs || {},
+            metadata: {
+                ...additionalData?.metadata,
+                runId: runContext.runId,
+                routineId: runContext.routineId,
+                userId: runContext.userData.id,
+            },
         };
 
         this.logger.debug("[ContextExporter] Exporting context", {
             stepId,
-            strategy: context.strategy,
-            outputKeys: Object.keys(context.outputs),
+            strategy: exportedContext.strategy,
+            outputKeys: Object.keys(exportedContext.outputs),
         });
 
         try {
@@ -87,12 +106,15 @@ export class ContextExporter {
 
             this.logger.debug("[ContextExporter] Context exported successfully", { stepId });
 
+            return exportedContext;
+
         } catch (error) {
             this.logger.error("[ContextExporter] Failed to export context", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
             // Don't throw - context export should not break execution
+            return exportedContext;
         }
     }
 

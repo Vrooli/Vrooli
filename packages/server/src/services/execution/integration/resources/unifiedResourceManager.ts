@@ -1,12 +1,18 @@
 /**
- * Unified Resource Manager - Central coordination for all resource allocation and tracking
+ * Unified Resource Manager - Legacy component converted to monitoring-only
  * 
- * This component provides:
- * - Hierarchical allocation (Swarm → Run → Step)
- * - Real-time usage tracking across all tiers
- * - Budget enforcement and alerts
- * - Resource pooling and sharing
- * - Usage reports and analytics
+ * DEPRECATED: This component now provides monitoring only.
+ * Resource allocation is handled by the hierarchical tier managers:
+ * - Tier 1: Swarm-level allocation
+ * - Tier 2: Run-level allocation and distribution
+ * - Tier 3: Step-level execution
+ * 
+ * This component only provides:
+ * - Usage reports and analytics across all tiers
+ * - Resource optimization suggestions
+ * - Historical usage tracking
+ * 
+ * Use ResourceMonitor for new implementations.
  */
 
 import { type Logger } from "winston";
@@ -183,86 +189,26 @@ export class UnifiedResourceManager {
     }
 
     /**
-     * Allocates resources with hierarchical enforcement
+     * @deprecated Allocation is now handled by hierarchical tier managers
+     * Use Tier 1/2/3 ResourceManagers instead
      */
     async allocateResources(
         request: SharedResourceAllocation,
         context: AllocationContext,
     ): Promise<AllocationResult> {
-        const allocationId = generatePk();
+        this.logger.warn("[UnifiedResourceManager] DEPRECATED: allocateResources() called. Use tier managers instead.");
         
-        try {
-            // Check hierarchical limits
-            const limitChecks = await this.checkHierarchicalLimits(request, context);
-            if (!limitChecks.allowed) {
-                return {
-                    allocationId,
-                    status: "denied",
-                    allocatedResources: [],
-                    deniedResources: limitChecks.deniedResources,
-                };
-            }
-            
-            // Check resource availability
-            const availabilityChecks = await this.checkResourceAvailability(request);
-            if (!availabilityChecks.allAvailable) {
-                return {
-                    allocationId,
-                    status: availabilityChecks.someAvailable ? "partial" : "denied",
-                    allocatedResources: availabilityChecks.allocatedResources,
-                    deniedResources: availabilityChecks.deniedResources,
-                };
-            }
-            
-            // Reserve resources
-            const allocated = await this.reserveResources(request, context, allocationId);
-            
-            // Track allocation
-            await this.trackAllocation(allocationId, allocated, context);
-            
-            // Emit allocation event
-            await this.emitResourceEvent({
-                id: generatePk(),
-                timestamp: new Date(),
-                allocationId,
-                resourceType: request.resources[0]?.resourceId as SharedResourceType,
-                amount: allocated.reduce((sum, r) => sum + r.amount, 0),
-                operation: "allocate",
-                context,
-            });
-            
-            this.logger.info("[UnifiedResourceManager] Resources allocated", {
-                allocationId,
-                context,
-                allocated: allocated.length,
-            });
-            
-            return {
-                allocationId,
-                status: "allocated",
-                allocatedResources: allocated,
-                expiresAt: new Date(Date.now() + (request.duration || 3600) * 1000),
-                token: this.generateAllocationToken(allocationId),
-            };
-            
-        } catch (error) {
-            this.logger.error("[UnifiedResourceManager] Allocation failed", {
-                allocationId,
-                error,
-            });
-            
-            return {
-                allocationId,
-                status: "denied",
-                allocatedResources: [],
-                deniedResources: [{
-                    resourceId: request.resources[0]?.resourceId || "unknown",
-                    requestedAmount: request.resources[0]?.amount || 0,
-                    availableAmount: 0,
-                    reason: error instanceof Error ? error.message : "Unknown error",
-                }],
-            };
-        }
+        return {
+            allocationId: generatePk(),
+            status: "denied",
+            allocatedResources: [],
+            deniedResources: [{
+                resourceId: "deprecated",
+                requestedAmount: 0,
+                availableAmount: 0,
+                reason: "UnifiedResourceManager allocation is deprecated. Use hierarchical tier managers.",
+            }],
+        };
     }
 
     /**
@@ -417,27 +363,13 @@ export class UnifiedResourceManager {
     }
 
     /**
-     * Sets resource limits for a scope
+     * @deprecated Resource limits are now managed by tier managers
      */
     async setResourceLimits(
         config: ResourceLimitConfig,
     ): Promise<void> {
-        const key = `${config.scope}:${config.scopeId}`;
-        this.resourceLimits.set(key, config);
-        
-        // Persist to Redis
-        if (this.redis) {
-            await this.redis.set(
-                `${this.LIMIT_PREFIX}${key}`,
-                JSON.stringify(config),
-            );
-        }
-        
-        this.logger.info("[UnifiedResourceManager] Resource limits set", {
-            scope: config.scope,
-            scopeId: config.scopeId,
-            limits: config.limits.length,
-        });
+        this.logger.warn("[UnifiedResourceManager] DEPRECATED: setResourceLimits() called. Configure limits in tier managers.");
+        // No-op - limits are handled by individual tier managers
     }
 
     /**
@@ -499,42 +431,16 @@ export class UnifiedResourceManager {
     }
 
     /**
-     * Handles resource conflicts
+     * @deprecated Conflict resolution is now handled by tier managers
      */
     async resolveConflict(
         conflict: ResourceConflict,
     ): Promise<ConflictResolution> {
-        // Simple priority-based resolution
-        const allocations = conflict.requesters
-            .map(id => this.allocations.get(id))
-            .filter(Boolean) as ResourceTracking[];
-        
-        if (allocations.length === 0) {
-            return {
-                type: "queuing",
-                reason: "No active allocations found",
-            };
-        }
-        
-        // Sort by priority and timestamp
-        allocations.sort((a, b) => {
-            const aPriority = (a.metadata.priority as AllocationPriority) || "NORMAL";
-            const bPriority = (b.metadata.priority as AllocationPriority) || "NORMAL";
-            
-            if (aPriority !== bPriority) {
-                const priorityOrder = ["CRITICAL", "HIGH", "NORMAL", "LOW"];
-                return priorityOrder.indexOf(aPriority) - priorityOrder.indexOf(bPriority);
-            }
-            
-            return a.startTime.getTime() - b.startTime.getTime();
-        });
-        
-        const winner = allocations[0];
+        this.logger.warn("[UnifiedResourceManager] DEPRECATED: resolveConflict() called. Conflicts are resolved by tier managers.");
         
         return {
-            type: "priority",
-            winner: winner.id,
-            reason: `Allocation ${winner.id} has highest priority`,
+            type: "queuing",
+            reason: "Conflict resolution is deprecated in UnifiedResourceManager",
         };
     }
 

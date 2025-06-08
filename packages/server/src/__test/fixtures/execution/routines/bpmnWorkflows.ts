@@ -204,7 +204,8 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         id: "system_logs",
                         label: "System Logs",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "auditTimeRange",
@@ -212,28 +213,32 @@ export const COMPREHENSIVE_SECURITY_AUDIT: RoutineFixture = {
                         label: "Audit Time Range",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "24h"
+                        defaultValue: "24h",
+                        props: {}
                     },
                     {
                         fieldName: "dataProcessingRecords",
                         id: "data_processing_records",
                         label: "Data Processing Records",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "retentionPolicies",
                         id: "retention_policies",
                         label: "Data Retention Policies",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "activityData",
                         id: "activity_data",
                         label: "User Activity Data",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     }
                 ]
             }
@@ -414,7 +419,8 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         id: "treatment_plan",
                         label: "AI Treatment Plan",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "complianceThreshold",
@@ -430,21 +436,24 @@ export const MEDICAL_TREATMENT_VALIDATION: RoutineFixture = {
                         id: "diagnosis",
                         label: "Diagnosis",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "patientDemographics",
                         id: "patient_demographics",
                         label: "Patient Demographics",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "symptoms",
                         id: "symptoms",
                         label: "Symptoms",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "biasCriteria",
@@ -603,7 +612,8 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         label: "Error Pattern to Search",
                         type: InputType.Text,
                         isRequired: false,
-                        defaultValue: "error|failure|exception"
+                        defaultValue: "error|failure|exception",
+                        props: {}
                     },
                     {
                         fieldName: "analysisWindow",
@@ -611,7 +621,8 @@ Format as JSON with keys: patterns, correlations, rootCauses, predictions</vrool
                         label: "Analysis Window",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "24h"
+                        defaultValue: "24h",
+                        props: {}
                     }
                 ]
             }
@@ -789,7 +800,8 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         id: "system_logs",
                         label: "System Failure Logs",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "timeWindow",
@@ -797,21 +809,24 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         label: "Analysis Time Window",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "24h"
+                        defaultValue: "24h",
+                        props: {}
                     },
                     {
                         fieldName: "performanceMetrics",
                         id: "performance_metrics",
                         label: "Performance Metrics",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "systemConfig",
                         id: "system_config",
                         label: "System Configuration",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "performanceThreshold",
@@ -819,7 +834,8 @@ export const RESILIENCE_OPTIMIZATION_WORKFLOW: RoutineFixture = {
                         label: "Performance Threshold (ms)",
                         type: InputType.IntegerInput,
                         isRequired: true,
-                        defaultValue: 1000
+                        defaultValue: 1000,
+                        props: {}
                     }
                 ]
             }

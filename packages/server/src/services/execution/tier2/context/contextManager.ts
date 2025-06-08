@@ -1,9 +1,19 @@
 import { type Logger } from "winston";
 import {
-    type RunContext,
     type ContextScope,
 } from "@vrooli/shared";
 import { type IRunStateStore } from "../state/runStateStore.js";
+import { ContextValidator, type ValidationResult } from "../../shared/contextValidator.js";
+
+/**
+ * Process-specific RunContext interface for Tier 2
+ * Extends the shared RunContext with process-specific features
+ */
+export interface ProcessRunContext {
+    variables: Record<string, unknown>;
+    blackboard: Record<string, unknown>;
+    scopes: ContextScope[];
+}
 
 /**
  * Context initialization parameters
@@ -39,18 +49,20 @@ export interface VariableAccess {
 export class ContextManager {
     private readonly stateStore: IRunStateStore;
     private readonly logger: Logger;
-    private readonly contextCache: Map<string, RunContext> = new Map();
+    private readonly validator: ContextValidator;
+    private readonly contextCache: Map<string, ProcessRunContext> = new Map();
 
     constructor(stateStore: IRunStateStore, logger: Logger) {
         this.stateStore = stateStore;
         this.logger = logger;
+        this.validator = new ContextValidator(logger);
     }
 
     /**
      * Creates a new context
      */
-    async createContext(params: ContextInitParams = {}): Promise<RunContext> {
-        const context: RunContext = {
+    async createContext(params: ContextInitParams = {}): Promise<ProcessRunContext> {
+        const context: ProcessRunContext = {
             variables: params.variables || {},
             blackboard: params.blackboard || {},
             scopes: params.scopes || [{
@@ -70,9 +82,9 @@ export class ContextManager {
     /**
      * Clones a context for branching
      */
-    async cloneContext(context: RunContext, branchId: string): Promise<RunContext> {
+    async cloneContext(context: ProcessRunContext, branchId: string): Promise<ProcessRunContext> {
         // Deep clone the context
-        const cloned: RunContext = {
+        const cloned: ProcessRunContext = {
             variables: { ...context.variables },
             blackboard: context.blackboard, // Blackboard is shared
             scopes: context.scopes.map(scope => ({
@@ -101,10 +113,10 @@ export class ContextManager {
      * Merges contexts from parallel branches
      */
     async mergeContexts(
-        parent: RunContext,
-        branches: RunContext[],
+        parent: ProcessRunContext,
+        branches: ProcessRunContext[],
         strategy: "first" | "last" | "merge" = "merge",
-    ): Promise<RunContext> {
+    ): Promise<ProcessRunContext> {
         const merged = await this.cloneContext(parent, "merged");
 
         if (strategy === "first" && branches.length > 0) {
@@ -157,7 +169,7 @@ export class ContextManager {
      * Gets a variable value with scope resolution
      */
     async getVariable(
-        context: RunContext,
+        context: ProcessRunContext,
         name: string,
         scopeId?: string,
     ): Promise<VariableAccess> {
@@ -205,7 +217,7 @@ export class ContextManager {
      * Sets a variable in the appropriate scope
      */
     async setVariable(
-        context: RunContext,
+        context: ProcessRunContext,
         name: string,
         value: unknown,
         scopeId?: string,
@@ -256,7 +268,7 @@ export class ContextManager {
      * Pushes a new scope onto the stack
      */
     async pushScope(
-        context: RunContext,
+        context: ProcessRunContext,
         scope: ContextScope,
     ): Promise<void> {
         context.scopes.push(scope);
@@ -271,7 +283,7 @@ export class ContextManager {
     /**
      * Pops a scope from the stack
      */
-    async popScope(context: RunContext): Promise<ContextScope | undefined> {
+    async popScope(context: ProcessRunContext): Promise<ContextScope | undefined> {
         if (context.scopes.length <= 1) {
             // Don't pop the global scope
             return undefined;
@@ -291,7 +303,7 @@ export class ContextManager {
      * Gets blackboard value
      */
     async getBlackboardValue(
-        context: RunContext,
+        context: ProcessRunContext,
         key: string,
     ): Promise<unknown> {
         return context.blackboard[key];
@@ -301,7 +313,7 @@ export class ContextManager {
      * Sets blackboard value
      */
     async setBlackboardValue(
-        context: RunContext,
+        context: ProcessRunContext,
         key: string,
         value: unknown,
     ): Promise<void> {
@@ -311,7 +323,7 @@ export class ContextManager {
     /**
      * Gets context from cache or state store
      */
-    async getContext(runId: string): Promise<RunContext> {
+    async getContext(runId: string): Promise<ProcessRunContext> {
         // Check cache first
         const cached = this.contextCache.get(runId);
         if (cached) {
@@ -328,7 +340,27 @@ export class ContextManager {
     /**
      * Updates context in cache and state store
      */
-    async updateContext(runId: string, context: RunContext): Promise<void> {
+    async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
+        // Validate context before storing
+        const validation = this.validator.validateProcessRunContext(context);
+        if (!validation.valid) {
+            const criticalErrors = validation.errors.filter(e => e.severity === "critical" || e.severity === "high");
+            if (criticalErrors.length > 0) {
+                this.logger.error("[ContextManager] Context validation failed", {
+                    runId,
+                    errors: criticalErrors,
+                });
+                throw new Error(`Context validation failed: ${criticalErrors[0].message}`);
+            }
+        }
+
+        if (validation.warnings.length > 0) {
+            this.logger.warn("[ContextManager] Context validation warnings", {
+                runId,
+                warnings: validation.warnings,
+            });
+        }
+
         // Update cache
         this.contextCache.set(runId, context);
 
@@ -340,7 +372,7 @@ export class ContextManager {
      * Creates a step execution scope
      */
     async createStepScope(
-        context: RunContext,
+        context: ProcessRunContext,
         stepId: string,
         inputs: Record<string, unknown>,
     ): Promise<ContextScope> {
@@ -359,14 +391,14 @@ export class ContextManager {
     /**
      * Serializes context for checkpointing
      */
-    async serializeContext(context: RunContext): Promise<string> {
+    async serializeContext(context: ProcessRunContext): Promise<string> {
         return JSON.stringify(context, null, 2);
     }
 
     /**
      * Deserializes context from checkpoint
      */
-    async deserializeContext(data: string): Promise<RunContext> {
+    async deserializeContext(data: string): Promise<ProcessRunContext> {
         return JSON.parse(data);
     }
 
@@ -380,8 +412,15 @@ export class ContextManager {
     /**
      * Gets context size for monitoring
      */
-    async getContextSize(context: RunContext): Promise<number> {
+    async getContextSize(context: ProcessRunContext): Promise<number> {
         const serialized = await this.serializeContext(context);
         return new TextEncoder().encode(serialized).length;
+    }
+
+    /**
+     * Validates context integrity
+     */
+    async validateContext(context: ProcessRunContext): Promise<ValidationResult> {
+        return this.validator.validateProcessRunContext(context);
     }
 }

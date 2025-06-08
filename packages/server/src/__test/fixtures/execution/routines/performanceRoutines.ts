@@ -59,14 +59,16 @@ export const PERFORMANCE_BOTTLENECK_DETECTION: RoutineFixture = {
                         id: "metrics",
                         label: "Execution Metrics",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "config",
                         id: "config",
                         label: "Routine Configuration",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "threshold",
@@ -164,14 +166,16 @@ export const COST_ANALYSIS: RoutineFixture = {
                         id: "billing_data",
                         label: "Billing Data",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "resourceUsage",
                         id: "resource_usage",
                         label: "Resource Usage Data",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "timeframe",
@@ -264,7 +268,8 @@ export const OUTPUT_QUALITY_ASSESSMENT: RoutineFixture = {
                         id: "output",
                         label: "Output to Assess",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "criteria",

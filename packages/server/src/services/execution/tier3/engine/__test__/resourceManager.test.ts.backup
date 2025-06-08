@@ -1,29 +1,28 @@
 import { expect } from 'chai';
 import sinon from 'sinon';
-import { ResourceManager } from '../resourceManager.js';
+import { createMockLogger } from '../../../../__test/fixtures/loggerFixtures.js';
 import { EventBus } from '../../../cross-cutting/events/eventBus.js';
-import { createMockLogger } from '../../../../__test__/fixtures/loggerFixtures.js';
-import { nanoid } from '@vrooli/shared';
+import { ResourceManager } from '../resourceManager.js';
 
-describe('ResourceManager', function() {
+describe('ResourceManager', function () {
     let logger: any;
     let eventBus: EventBus;
     let resourceManager: ResourceManager;
     let sandbox: sinon.SinonSandbox;
 
-    beforeEach(function() {
+    beforeEach(function () {
         sandbox = sinon.createSandbox();
         logger = createMockLogger(sandbox);
         eventBus = new EventBus(logger);
         resourceManager = new ResourceManager(logger, eventBus);
     });
 
-    afterEach(function() {
+    afterEach(function () {
         sandbox.restore();
     });
 
-    describe('reserveBudget', function() {
-        it('should approve reservation when resources are sufficient', async function() {
+    describe('reserveBudget', function () {
+        it('should approve reservation when resources are sufficient', async function () {
             const available = {
                 models: [{ provider: 'openai', model: 'gpt-4', capabilities: ['chat'], cost: 0.01, available: true }],
                 tools: [],
@@ -45,7 +44,7 @@ describe('ResourceManager', function() {
             expect(result.allocation).to.deep.equal(available);
         });
 
-        it('should reject reservation when credits insufficient', async function() {
+        it('should reject reservation when credits insufficient', async function () {
             const available = {
                 models: [],
                 tools: [],
@@ -64,7 +63,7 @@ describe('ResourceManager', function() {
             expect(result.reason).to.include('Insufficient credits');
         });
 
-        it('should track user-specific credits when userId provided', async function() {
+        it('should track user-specific credits when userId provided', async function () {
             const available = {
                 models: [],
                 tools: [],
@@ -80,18 +79,18 @@ describe('ResourceManager', function() {
             const result = await resourceManager.reserveBudget(available, constraints, userId);
 
             expect(result.approved).to.be.true;
-            
+
             // Try to reserve more than user has
             const bigConstraints = { maxCost: 20000 };
             const result2 = await resourceManager.reserveBudget(available, bigConstraints, userId);
-            
+
             expect(result2.approved).to.be.false;
             expect(result2.reason).to.include('Insufficient user credits');
         });
 
-        it('should emit reservation event when event bus available', async function() {
+        it('should emit reservation event when event bus available', async function () {
             const emitSpy = sandbox.spy(eventBus, 'emit');
-            
+
             const available = {
                 models: [],
                 tools: [],
@@ -105,7 +104,7 @@ describe('ResourceManager', function() {
 
             const userId = 'user-123';
             const swarmId = 'swarm-456';
-            
+
             await resourceManager.reserveBudget(available, constraints, userId, swarmId);
 
             expect(emitSpy.calledOnce).to.be.true;
@@ -121,10 +120,10 @@ describe('ResourceManager', function() {
         });
     });
 
-    describe('trackUsage', function() {
-        it('should track usage and emit warnings at thresholds', async function() {
+    describe('trackUsage', function () {
+        it('should track usage and emit warnings at thresholds', async function () {
             const emitSpy = sandbox.spy(eventBus, 'emit');
-            
+
             // First reserve budget
             const available = {
                 models: [],
@@ -140,7 +139,7 @@ describe('ResourceManager', function() {
 
             const reservation = await resourceManager.reserveBudget(available, constraints);
             expect(reservation.approved).to.be.true;
-            
+
             // Set step ID
             const stepId = 'step-123';
             resourceManager.setStepId(reservation.reservationId, stepId);
@@ -152,7 +151,7 @@ describe('ResourceManager', function() {
             });
 
             // Check warning event was emitted
-            const warningEvent = emitSpy.getCalls().find(call => 
+            const warningEvent = emitSpy.getCalls().find(call =>
                 call.args[0].type === 'resource.warning'
             );
             expect(warningEvent).to.exist;
@@ -165,7 +164,7 @@ describe('ResourceManager', function() {
             });
 
             // Check critical event was emitted
-            const criticalEvent = emitSpy.getCalls().find(call => 
+            const criticalEvent = emitSpy.getCalls().find(call =>
                 call.args[0].type === 'resource.critical'
             );
             expect(criticalEvent).to.exist;
@@ -173,10 +172,10 @@ describe('ResourceManager', function() {
         });
     });
 
-    describe('finalizeUsage', function() {
-        it('should calculate efficiency and emit completion event', async function() {
+    describe('finalizeUsage', function () {
+        it('should calculate efficiency and emit completion event', async function () {
             const emitSpy = sandbox.spy(eventBus, 'emit');
-            
+
             // Reserve budget
             const available = {
                 models: [],
@@ -192,7 +191,7 @@ describe('ResourceManager', function() {
             };
 
             const reservation = await resourceManager.reserveBudget(available, constraints);
-            
+
             // Finalize with 80% usage (optimal)
             const finalUsage = {
                 cost: 8,
@@ -212,7 +211,7 @@ describe('ResourceManager', function() {
             expect(report.computeTime).to.be.greaterThan(0);
 
             // Check completion event
-            const completionEvent = emitSpy.getCalls().find(call => 
+            const completionEvent = emitSpy.getCalls().find(call =>
                 call.args[0].type === 'resource.completed'
             );
             expect(completionEvent).to.exist;
@@ -222,8 +221,8 @@ describe('ResourceManager', function() {
         });
     });
 
-    describe('releaseReservation', function() {
-        it('should release reservation and return unused credits', async function() {
+    describe('releaseReservation', function () {
+        it('should release reservation and return unused credits', async function () {
             const available = {
                 models: [],
                 tools: [],
@@ -237,8 +236,8 @@ describe('ResourceManager', function() {
 
             const userId = 'user-123';
             const reservation = await resourceManager.reserveBudget(
-                available, 
-                constraints, 
+                available,
+                constraints,
                 userId
             );
 
@@ -247,17 +246,17 @@ describe('ResourceManager', function() {
 
             // User should be able to reserve again with full credits
             const result2 = await resourceManager.reserveBudget(
-                available, 
-                constraints, 
+                available,
+                constraints,
                 userId
             );
-            
+
             expect(result2.approved).to.be.true;
         });
     });
 
-    describe('getMetrics', function() {
-        it('should return current resource metrics', async function() {
+    describe('getMetrics', function () {
+        it('should return current resource metrics', async function () {
             // Make some reservations
             const available = {
                 models: [],
@@ -272,9 +271,9 @@ describe('ResourceManager', function() {
 
             await resourceManager.reserveBudget(available, constraints);
             await resourceManager.reserveBudget(available, constraints);
-            
+
             const metrics = resourceManager.getMetrics();
-            
+
             expect(metrics).to.include({
                 activeAllocations: 2,
                 totalReservations: 2,

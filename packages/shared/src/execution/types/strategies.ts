@@ -38,9 +38,10 @@ export interface StrategyMetadata {
 }
 
 /**
- * Resource usage tracking
+ * Strategy-specific resource usage
+ * Used by execution strategies for lightweight resource tracking
  */
-export interface ResourceUsage {
+export interface StrategyResourceUsage {
     tokens?: number;
     apiCalls?: number;
     computeTime?: number;

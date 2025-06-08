@@ -1,7 +1,6 @@
 import { type Logger } from "winston";
 import {
     type ExecutionContext as StrategyExecutionContext,
-    type ExecutionStrategy,
     type StrategyExecutionResult,
     type ResourceUsage,
     type LLMRequest,
@@ -9,59 +8,55 @@ import {
     type LLMMessage,
     type AvailableResources,
     type StrategyFeedback,
-    type StrategyPerformance,
     StrategyType,
 } from "@vrooli/shared";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
 import { ToolOrchestrator } from "../../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../../engine/validationEngine.js";
+import { StrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
 
 /**
- * ConversationalStrategy - Enhanced with legacy implementation patterns
+ * ConversationalStrategy - Enhanced with shared base class patterns
  * 
  * This strategy combines the new architecture capabilities with proven legacy patterns:
  * - Multi-turn conversation support (adapted from legacy)
  * - Context-aware message building (from legacy implementation)
  * - Tool execution integration (enhanced for new architecture) 
- * - Error handling with retry logic (proven legacy patterns)
- * - Performance tracking and metrics (upgraded for new system)
+ * - Error handling with retry logic (inherited from StrategyBase)
+ * - Performance tracking and metrics (inherited from StrategyBase)
  * 
  * Migration from legacy ConversationalStrategy (425 lines) with enhancements:
  * - Extracted conversation building logic
  * - Preserved error recovery patterns
  * - Added resource estimation and learning capabilities
  * - Integrated with new LLMIntegrationService and ToolOrchestrator
+ * - Uses shared StrategyBase for common patterns
  */
-export class ConversationalStrategy implements ExecutionStrategy {
+export class ConversationalStrategy extends StrategyBase {
     readonly type = StrategyType.CONVERSATIONAL;
     readonly name = "ConversationalStrategy";
     readonly version = "2.0.0-enhanced";
 
-    private readonly logger: Logger;
     private readonly llmService: LLMIntegrationService;
     private toolOrchestrator?: ToolOrchestrator;
     private validationEngine?: ValidationEngine;
     
-    // Performance tracking (new capability)
-    private performanceHistory: Array<{
-        timestamp: Date;
-        executionTime: number;
-        tokensUsed: number;
-        success: boolean;
-        confidence: number;
-    }> = [];
-    
-    // Legacy patterns adapted for new architecture
+    // Conversational-specific configuration
     private static readonly MAX_CONVERSATION_TURNS = 10;
     private static readonly CONVERSATION_CONTEXT_WINDOW = 5;
     private static readonly TURN_TIMEOUT_MS = 60000; // 1 minute per turn
 
     constructor(
         logger: Logger,
+        config: StrategyConfig = {},
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
     ) {
-        this.logger = logger;
+        super(logger, {
+            timeoutMs: ConversationalStrategy.TURN_TIMEOUT_MS * ConversationalStrategy.MAX_CONVERSATION_TURNS,
+            ...config,
+        });
+        
         this.llmService = new LLMIntegrationService(logger);
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
@@ -82,86 +77,62 @@ export class ConversationalStrategy implements ExecutionStrategy {
     }
 
     /**
-     * Enhanced execution with legacy conversation patterns
+     * Strategy-specific execution logic (called by base class)
      */
-    async execute(context: StrategyExecutionContext): Promise<StrategyExecutionResult> {
-        const startTime = Date.now();
-        const stepId = context.stepId;
+    protected async executeStrategy(
+        context: StrategyExecutionContext,
+        metadata: ExecutionMetadata
+    ): Promise<StrategyExecutionResult> {
+        this.validateContext(context);
+        
         let totalTokensUsed = 0;
 
-        this.logger.info("[ConversationalStrategy] Starting enhanced execution", {
-            stepId,
+        this.logger.info("[ConversationalStrategy] Starting conversational execution", {
+            stepId: context.stepId,
             stepType: context.stepType,
+            attempt: metadata.retryCount + 1,
         });
 
-        try {
-            // Legacy pattern: Build conversation request with context awareness
-            const conversationRequest = await this.buildConversationRequest(context);
-            
-            // Legacy pattern: Multi-turn conversation support (adapted for single context)
-            const response = await this.executeConversationalReasoning(conversationRequest, context);
-            totalTokensUsed += response.tokensUsed;
-            
-            // Legacy pattern: Tool execution if required
-            let finalResponse = response;
-            if (this.requiresToolExecution(response)) {
-                finalResponse = await this.handleToolExecution(response, context);
-                totalTokensUsed += finalResponse.tokensUsed;
-            }
-            
-            // Legacy pattern: Extract outputs from conversation
-            const outputs = await this.extractOutputsFromConversation(finalResponse, context);
-            
-            // New capability: Validate outputs
-            const validatedOutputs = await this.validateOutputs(outputs, context);
-            
-            // Calculate comprehensive resource usage
-            const resourceUsage = this.calculateResourceUsage(finalResponse, Date.now() - startTime, totalTokensUsed);
-            
-            // Track performance for learning
-            this.trackPerformance({
-                timestamp: new Date(),
-                executionTime: Date.now() - startTime,
-                tokensUsed: totalTokensUsed,
-                success: true,
-                confidence: finalResponse.confidence,
-            });
-
-            return {
-                success: true,
-                result: validatedOutputs,
-                metadata: {
-                    strategyType: this.type,
-                    executionTime: Date.now() - startTime,
-                    resourceUsage,
-                    confidence: this.calculateConfidence(finalResponse, context),
-                    fallbackUsed: false,
-                },
-                feedback: {
-                    outcome: "success",
-                    performanceScore: this.calculatePerformanceScore(finalResponse, context),
-                    improvements: this.suggestImprovements(finalResponse, context),
-                },
-            };
-
-        } catch (error) {
-            this.logger.error("[ConversationalStrategy] Execution failed", {
-                stepId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
-            // Track failure for learning
-            this.trackPerformance({
-                timestamp: new Date(),
-                executionTime: Date.now() - startTime,
-                tokensUsed: totalTokensUsed,
-                success: false,
-                confidence: 0,
-            });
-
-            // Legacy pattern: Error handling with retry possibility
-            return this.handleExecutionError(error as Error, context, Date.now() - startTime);
+        // Legacy pattern: Build conversation request with context awareness
+        const conversationRequest = await this.buildConversationRequest(context);
+        
+        // Legacy pattern: Multi-turn conversation support (adapted for single context)
+        const response = await this.executeConversationalReasoning(conversationRequest, context);
+        totalTokensUsed += response.tokensUsed;
+        
+        // Legacy pattern: Tool execution if required
+        let finalResponse = response;
+        if (this.requiresToolExecution(response)) {
+            finalResponse = await this.handleToolExecution(response, context);
+            totalTokensUsed += finalResponse.tokensUsed;
         }
+        
+        // Legacy pattern: Extract outputs from conversation
+        const outputs = await this.extractOutputsFromConversation(finalResponse, context);
+        
+        // New capability: Validate outputs
+        const validatedOutputs = await this.validateOutputs(outputs, context);
+        
+        // Calculate execution time from metadata
+        const executionTime = Date.now() - metadata.startTime.getTime();
+        
+        // Calculate comprehensive resource usage
+        const resourceUsage = this.calculateConversationalResourceUsage(finalResponse, executionTime, totalTokensUsed);
+
+        return {
+            success: true,
+            outputs: validatedOutputs,
+            resourceUsage,
+            confidence: this.calculateConfidence(finalResponse, context),
+            metadata: {
+                strategy: this.name,
+                version: this.version,
+                executionTime,
+                tokensUsed: totalTokensUsed,
+                conversationTurns: 1, // Currently single turn, but structure supports multi-turn
+                toolsUsed: this.toolOrchestrator ? 1 : 0,
+            },
+        };
     }
 
     /**
@@ -806,21 +777,23 @@ export class ConversationalStrategy implements ExecutionStrategy {
     }
     
     /**
-     * Track performance for learning
+     * Calculate conversational-specific resource usage
      */
-    private trackPerformance(performance: {
-        timestamp: Date;
-        executionTime: number;
-        tokensUsed: number;
-        success: boolean;
-        confidence: number;
-    }): void {
-        this.performanceHistory.push(performance);
+    private calculateConversationalResourceUsage(
+        response: LLMResponse,
+        executionTime: number,
+        totalTokensUsed: number
+    ): ResourceUsage {
+        // Conversational strategies typically use more tokens and credits
+        const baseCredits = Math.ceil(totalTokensUsed * 0.001); // Token-based pricing
+        const timeBonus = Math.ceil(executionTime / 10000); // Time-based component
         
-        // Keep only recent history (last 1000 executions)
-        if (this.performanceHistory.length > 1000) {
-            this.performanceHistory = this.performanceHistory.slice(-1000);
-        }
+        return {
+            credits: Math.max(baseCredits + timeBonus, 1),
+            tokens: totalTokensUsed,
+            time: executionTime,
+            memory: Math.ceil(totalTokensUsed * 0.001), // Rough memory estimate based on tokens
+        };
     }
     
     /**

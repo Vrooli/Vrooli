@@ -57,7 +57,8 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                         id: "search_pattern",
                         label: "Search Pattern",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "timeRange",
@@ -65,7 +66,8 @@ export const SYSTEM_LOG_SEARCH: RoutineFixture = {
                         label: "Time Range",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "24h"
+                        defaultValue: "24h",
+                        props: {}
                     },
                     {
                         fieldName: "severity",
@@ -147,7 +149,8 @@ export const SYSTEM_HEALTH_CHECK: RoutineFixture = {
                         label: "System Name",
                         type: InputType.Text,
                         isRequired: true,
-                        defaultValue: "kubernetes cluster"
+                        defaultValue: "kubernetes cluster",
+                        props: {}
                     }
                 ]
             }

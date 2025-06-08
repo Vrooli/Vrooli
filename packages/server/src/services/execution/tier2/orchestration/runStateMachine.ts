@@ -38,7 +38,7 @@ import { PerformanceMonitor } from "../intelligence/performanceMonitor.js";
 import { PathOptimizer } from "../intelligence/pathOptimizer.js";
 import { MOISEGate } from "../validation/moiseGate.js";
 import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
-import { TelemetryShim } from "../../tier3/engine/telemetryShim.js";
+import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
 
 /**
  * Run initialization parameters
@@ -114,7 +114,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
         this.performanceMonitor = new PerformanceMonitor(eventBus, logger);
         this.pathOptimizer = new PathOptimizer(logger);
         this.moiseGate = new MOISEGate(logger);
-        this.telemetryShim = new TelemetryShim(eventBus, true);
+        this.telemetryShim = new TelemetryShim(eventBus, { tier: 'tier2', component: 'run-state-machine' });
 
         // Subscribe to tier 3 events
         this.subscribeToExecutionEvents();
@@ -236,14 +236,20 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
             });
 
             // Emit telemetry for run start
-            await this.telemetryShim.emitStepStarted(runId, {
-                stepType: 'routine_orchestration',
-                strategy: StrategyType.CONVERSATIONAL,
-                estimatedResources: {
-                    credits: config.maxCost?.toString() || '100',
-                    time: config.maxTime,
-                },
-            });
+            await this.telemetryShim.emitExecutionTiming(
+                'run-state-machine',
+                'run_started',
+                new Date(),
+                new Date(),
+                true,
+                {
+                    runId,
+                    stepType: 'routine_orchestration',
+                    strategy: StrategyType.CONVERSATIONAL,
+                    estimatedCredits: config.maxCost?.toString() || '100',
+                    estimatedTimeMs: config.maxTime,
+                }
+            );
 
             // Transition to LOADING state
             await this.transitionState(run, RunStateEnum.LOADING);
@@ -516,11 +522,15 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
             });
             
             // Emit telemetry for permission denial
-            await this.telemetryShim.emitSecurityViolation(stepId, {
-                violationType: 'moise_permission_denied',
-                severity: 'medium',
-                details: 'Step execution blocked by MOISE+ permission system',
-            });
+            await this.telemetryShim.emitSecurityIncident(
+                'moise_permission_denied',
+                'medium',
+                {
+                    stepId,
+                    details: 'Step execution blocked by MOISE+ permission system',
+                    component: 'moise-gate',
+                }
+            );
             
             await this.skipStep(run, location, "Permission denied");
             return;
@@ -794,15 +804,13 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
         });
 
         // Emit telemetry for run completion
-        await this.telemetryShim.emitStepCompleted(run.id, {
-            strategy: StrategyType.CONVERSATIONAL,
+        await this.telemetryShim.emitTaskCompletion(
+            run.id,
+            'routine_execution',
+            run.status === RunStateEnum.COMPLETED ? 'success' : 'failure',
             duration,
-            resourceUsage: {
-                stepsCompleted: run.progress.completedSteps,
-                stepsFailed: run.progress.failedSteps,
-                stepsSkipped: run.progress.skippedSteps,
-            },
-        });
+            0 // No direct resource cost at this level
+        );
 
         // Track run completion
         if (this.rollingHistory) {

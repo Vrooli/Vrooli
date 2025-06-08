@@ -4,6 +4,16 @@
  */
 
 /**
+ * Context scope for hierarchical variable management
+ */
+export interface ContextScope {
+    id: string;
+    name: string;
+    parentId?: string;
+    variables: Record<string, unknown>;
+}
+
+/**
  * Base context interface for all tiers
  */
 export interface BaseContext {

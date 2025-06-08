@@ -46,21 +46,24 @@ export const MEDICAL_DIAGNOSIS_VALIDATION: RoutineFixture = {
                         id: "diagnosis",
                         label: "AI Diagnosis",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "demographics",
                         id: "demographics",
                         label: "Patient Demographics",
                         type: InputType.JSON,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     },
                     {
                         fieldName: "symptoms",
                         id: "symptoms",
                         label: "Symptoms",
                         type: InputType.Text,
-                        isRequired: true
+                        isRequired: true,
+                        props: {}
                     }
                 ]
             }

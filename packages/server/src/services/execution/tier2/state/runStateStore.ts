@@ -6,12 +6,12 @@
 import { type Redis } from "ioredis";
 import { 
     RunState, 
-    type RunContext,
     type Location,
     type Checkpoint,
     type BranchExecution,
     type StepExecution,
 } from "@vrooli/shared";
+import { type ProcessRunContext } from "../context/contextManager.js";
 import { getRedisConnection } from "../../../../redisConn.js";
 import { logger } from "../../../../events/logger.js";
 
@@ -43,8 +43,8 @@ export interface IRunStateStore {
     updateRunState(runId: string, state: RunState): Promise<void>;
     
     // Context management
-    getContext(runId: string): Promise<RunContext>;
-    updateContext(runId: string, context: RunContext): Promise<void>;
+    getContext(runId: string): Promise<ProcessRunContext>;
+    updateContext(runId: string, context: ProcessRunContext): Promise<void>;
     setVariable(runId: string, name: string, value: unknown): Promise<void>;
     getVariable(runId: string, name: string): Promise<unknown>;
     
@@ -103,10 +103,13 @@ export class RedisRunStateStore implements IRunStateStore {
         
         // Initialize empty context
         await this.updateContext(runId, {
-            variables: {},
-            inputs: config.inputs,
-            outputs: {},
-            parentContext: null,
+            variables: config.inputs,
+            blackboard: {},
+            scopes: [{
+                id: "global",
+                name: "Global Scope",
+                variables: config.inputs,
+            }],
         });
         
         // Add to active runs set
@@ -202,7 +205,7 @@ export class RedisRunStateStore implements IRunStateStore {
         }
     }
     
-    async getContext(runId: string): Promise<RunContext> {
+    async getContext(runId: string): Promise<ProcessRunContext> {
         if (!this.client) throw new Error("Store not initialized");
         
         const key = this.getKey(runId, "context");
@@ -211,16 +214,19 @@ export class RedisRunStateStore implements IRunStateStore {
         if (!data) {
             return {
                 variables: {},
-                inputs: {},
-                outputs: {},
-                parentContext: null,
+                blackboard: {},
+                scopes: [{
+                    id: "global",
+                    name: "Global Scope",
+                    variables: {},
+                }],
             };
         }
         
         return JSON.parse(data);
     }
     
-    async updateContext(runId: string, context: RunContext): Promise<void> {
+    async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
         if (!this.client) throw new Error("Store not initialized");
         
         const key = this.getKey(runId, "context");

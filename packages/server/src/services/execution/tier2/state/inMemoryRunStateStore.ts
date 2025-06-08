@@ -4,13 +4,13 @@
 
 import { 
     RunState, 
-    type RunContext,
     type Location,
     type Checkpoint,
     type BranchExecution,
     type StepExecution,
 } from "@vrooli/shared";
 import { type IRunStateStore, type RunConfig } from "./runStateStore.js";
+import { type ProcessRunContext } from "../context/contextManager.js";
 import { logger } from "../../../../events/logger.js";
 
 /**
@@ -20,7 +20,7 @@ import { logger } from "../../../../events/logger.js";
 export class InMemoryRunStateStore implements IRunStateStore {
     private runs = new Map<string, RunConfig>();
     private states = new Map<string, RunState>();
-    private contexts = new Map<string, RunContext>();
+    private contexts = new Map<string, ProcessRunContext>();
     private locations = new Map<string, Location>();
     private locationHistory = new Map<string, Location[]>();
     private branches = new Map<string, Map<string, BranchExecution>>();
@@ -40,10 +40,13 @@ export class InMemoryRunStateStore implements IRunStateStore {
         
         // Initialize empty context
         await this.updateContext(runId, {
-            variables: {},
-            inputs: config.inputs,
-            outputs: {},
-            parentContext: null,
+            variables: config.inputs,
+            blackboard: {},
+            scopes: [{
+                id: "global",
+                name: "Global Scope",
+                variables: config.inputs,
+            }],
         });
         
         // Add to active runs
@@ -136,16 +139,19 @@ export class InMemoryRunStateStore implements IRunStateStore {
         }
     }
     
-    async getContext(runId: string): Promise<RunContext> {
+    async getContext(runId: string): Promise<ProcessRunContext> {
         return this.contexts.get(runId) || {
             variables: {},
-            inputs: {},
-            outputs: {},
-            parentContext: null,
+            blackboard: {},
+            scopes: [{
+                id: "global",
+                name: "Global Scope",
+                variables: {},
+            }],
         };
     }
     
-    async updateContext(runId: string, context: RunContext): Promise<void> {
+    async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
         this.contexts.set(runId, context);
     }
     

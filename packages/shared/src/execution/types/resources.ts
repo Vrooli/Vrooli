@@ -135,9 +135,10 @@ export interface DeniedResource {
 }
 
 /**
- * Resource usage tracking
+ * Resource allocation usage tracking
+ * Used for detailed tracking of specific resource allocations
  */
-export interface ResourceUsage {
+export interface ResourceAllocationUsage {
     id: string;
     allocationId: string;
     resourceId: string;
@@ -334,4 +335,40 @@ export interface EfficiencyMetrics {
     wastedResources: number; // Percentage
     optimizationPotential: number; // Percentage
     recommendations: OptimizationSuggestion[];
+}
+
+/**
+ * Budget reservation for execution
+ * Used in the reserve-and-return pattern
+ */
+export interface BudgetReservation {
+    id: string;
+    credits: number;
+    timeLimit: number; // milliseconds
+    memoryLimit: number; // MB
+    allocated: boolean;
+    metadata?: Record<string, unknown>;
+}
+
+/**
+ * Resource reservation request
+ * Used when requesting resources from a parent tier
+ */
+export interface ResourceReservation {
+    credits: number;
+    maxDurationMs: number;
+    toolPermissions: string[];
+    memoryMB: number;
+    priority: AllocationPriority;
+}
+
+/**
+ * Resource return information
+ * Used when returning unused resources to parent tier
+ */
+export interface ResourceReturn {
+    creditsReturned: number;
+    timeReturned: number; // milliseconds
+    toolsReleased: string[];
+    memoryReleased: number; // MB
 }
