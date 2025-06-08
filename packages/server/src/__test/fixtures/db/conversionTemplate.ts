@@ -14,7 +14,7 @@
  *    import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
  *    
  *    // Import validation fixtures for API input testing
- *    import { [model]TestDataFactory } from "@vrooli/shared/src/validation/models/__test/fixtures/[model]Fixtures.js";
+ *    import { [model]TestDataFactory } from "@vrooli/shared/validation/models";
  * 
  * 3. Replace beforeAll logger stubs:
  *    OLD:
@@ -125,7 +125,7 @@ import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mo
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { initializeRedis } from "../../redisConn.js";
+import { CacheService } from "../../redisConn.js";
 import { model_createOne } from "../generated/model_createOne.js";
 import { model_findMany } from "../generated/model_findMany.js";
 import { model_findOne } from "../generated/model_findOne.js";
@@ -137,7 +137,7 @@ import { ModelDbFactory, seedModels } from "../../__test/fixtures/modelFixtures.
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { modelTestDataFactory } from "@vrooli/shared/src/validation/models/__test/fixtures/modelFixtures.js";
+import { modelTestDataFactory } from "@vrooli/shared/validation/models";
 
 describe("EndpointsModel", () => {
     let testUsers: any[];
@@ -151,7 +151,7 @@ describe("EndpointsModel", () => {
 
     beforeEach(async () => {
         // Clear databases
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Seed test users using database fixtures
@@ -167,7 +167,7 @@ describe("EndpointsModel", () => {
 
     afterAll(async () => {
         // Clean up
-        await (await initializeRedis())?.flushAll();
+        await CacheService.get().flushAll();
         await DbProvider.deleteAll();
 
         // Restore all mocks
