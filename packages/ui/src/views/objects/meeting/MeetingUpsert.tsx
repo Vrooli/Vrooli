@@ -20,7 +20,9 @@ import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { IconCommon } from "../../../icons/Icons.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
+import { lazy, Suspense } from "react";
+
+const ScheduleUpsert = lazy(() => import("../schedule/ScheduleUpsert.js").then(module => ({ default: module.ScheduleUpsert })));
 import { type MeetingFormProps, type MeetingUpsertProps } from "./types.js";
 
 export function meetingInitialValues(
@@ -140,19 +142,23 @@ function MeetingForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateMeeting" : "UpdateMeeting")}
             />
-            <ScheduleUpsert
-                canSetScheduleFor={false}
-                defaultScheduleFor="Meeting"
-                display="Dialog"
-                isCreate={editingSchedule === null}
-                isMutate={false}
-                isOpen={isScheduleDialogOpen}
-                onCancel={handleCloseScheduleDialog}
-                onClose={handleCloseScheduleDialog}
-                onCompleted={handleScheduleCompleted}
-                onDeleted={handleScheduleDeleted}
-                overrideObject={editingSchedule ?? defaultScheduleOverrideObject}
-            />
+            {isScheduleDialogOpen && (
+                <Suspense fallback={null}>
+                    <ScheduleUpsert
+                        canSetScheduleFor={false}
+                        defaultScheduleFor="Meeting"
+                        display="Dialog"
+                        isCreate={editingSchedule === null}
+                        isMutate={false}
+                        isOpen={isScheduleDialogOpen}
+                        onCancel={handleCloseScheduleDialog}
+                        onClose={handleCloseScheduleDialog}
+                        onCompleted={handleScheduleCompleted}
+                        onDeleted={handleScheduleDeleted}
+                        overrideObject={editingSchedule ?? defaultScheduleOverrideObject}
+                    />
+                </Suspense>
+            )}
             <BaseForm
                 display={display}
                 isLoading={isLoading}

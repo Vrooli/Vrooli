@@ -557,7 +557,8 @@ export function CodeInputBase({
 
         async function loadGutter() {
             const { gutter } = await import("@codemirror/view");
-            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers.js");
+            const { createMarkers } = await import("./codeMirrorMarkers.js");
+            const { ErrorMarker, WarnMarker } = await createMarkers();
             return gutter({
                 lineMarker: (view, line) => {
                     const severity = getSeverityForLine(line, errors, view as unknown as EditorView);

@@ -39,7 +39,9 @@ import { type PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "../../utils/display/translationTools.js";
-import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
+import { lazy, Suspense } from "react";
+
+const ScheduleUpsert = lazy(() => import("../objects/schedule/ScheduleUpsert.js").then(module => ({ default: module.ScheduleUpsert })));
 import { type CalendarViewProps } from "../types.js";
 
 // Workaround typing issues: wrap Calendar as any to satisfy JSX
@@ -745,19 +747,23 @@ export function CalendarView({
         <Box sx={outerBoxStyle}>
             <Navbar keepVisible title={t("Schedule", { count: 1, defaultValue: "Schedule" })} />
             <FlexContainer isBottomNavVisible={isBottomNavVisible}>
-                <ScheduleUpsert
-                    canSetScheduleFor={true}
-                    defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : ScheduleFor.Meeting}
-                    display="Dialog"
-                    isCreate={editingSchedule === null}
-                    isMutate={true}
-                    isOpen={isScheduleDialogOpen}
-                    onCancel={handleCloseScheduleDialog}
-                    onClose={handleCloseScheduleDialog}
-                    onCompleted={handleScheduleCompleted}
-                    onDeleted={handleScheduleDeleted}
-                    overrideObject={scheduleOverrideObject}
-                />
+                {isScheduleDialogOpen && (
+                    <Suspense fallback={null}>
+                        <ScheduleUpsert
+                            canSetScheduleFor={true}
+                            defaultScheduleFor={activeTab === CalendarTabs.CALENDAR ? ScheduleFor.Meeting : ScheduleFor.Meeting}
+                            display="Dialog"
+                            isCreate={editingSchedule === null}
+                            isMutate={true}
+                            isOpen={isScheduleDialogOpen}
+                            onCancel={handleCloseScheduleDialog}
+                            onClose={handleCloseScheduleDialog}
+                            onCompleted={handleScheduleCompleted}
+                            onDeleted={handleScheduleDeleted}
+                            overrideObject={scheduleOverrideObject}
+                        />
+                    </Suspense>
+                )}
 
                 <FilterDialog
                     isOpen={isFilterDialogOpen}

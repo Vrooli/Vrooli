@@ -21,7 +21,9 @@ import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { validateFormValues } from "../../../utils/validateFormValues.js";
-import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
+import { lazy, Suspense } from "react";
+
+const ScheduleUpsert = lazy(() => import("../schedule/ScheduleUpsert.js").then(module => ({ default: module.ScheduleUpsert })));
 import { type RunFormProps, type RunUpsertProps } from "./types.js";
 
 export function runInitialValues(
@@ -132,19 +134,23 @@ function RunForm({
                 onClose={onClose}
                 title={t(isCreate ? "CreateRun" : "UpdateRun")}
             />
-            <ScheduleUpsert
-                canSetScheduleFor={false}
-                defaultScheduleFor="Run"
-                display="Dialog"
-                isCreate={editingSchedule === null}
-                isMutate={false}
-                isOpen={isScheduleDialogOpen}
-                onCancel={handleCloseScheduleDialog}
-                onClose={handleCloseScheduleDialog}
-                onCompleted={handleScheduleCompleted}
-                onDeleted={handleScheduleDeleted}
-                overrideObject={editingSchedule ?? { __typename: "Schedule" }}
-            />
+            {isScheduleDialogOpen && (
+                <Suspense fallback={null}>
+                    <ScheduleUpsert
+                        canSetScheduleFor={false}
+                        defaultScheduleFor="Run"
+                        display="Dialog"
+                        isCreate={editingSchedule === null}
+                        isMutate={false}
+                        isOpen={isScheduleDialogOpen}
+                        onCancel={handleCloseScheduleDialog}
+                        onClose={handleCloseScheduleDialog}
+                        onCompleted={handleScheduleCompleted}
+                        onDeleted={handleScheduleDeleted}
+                        overrideObject={editingSchedule ?? { __typename: "Schedule" }}
+                    />
+                </Suspense>
+            )}
             <BaseForm
                 display={display}
                 isLoading={isLoading}

@@ -1,4 +1,4 @@
-import { type PaletteColor, type Theme } from "@mui/material";
+import type { PaletteColor, Theme } from "@mui/material";
 
 /**
  * Resolves a color value from the MUI theme, supporting dot notation (e.g., "text.secondary", "grey.500").
