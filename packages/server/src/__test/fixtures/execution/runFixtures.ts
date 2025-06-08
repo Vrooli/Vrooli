@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePublicId } from "@vrooli/shared";
 import {
     type Run,
     type RunState,
@@ -14,27 +14,28 @@ import {
     type StepInfo,
     RunState as RunStateEnum,
 } from "@vrooli/shared";
+import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
  * Database fixtures for Run/Routine execution - used for seeding test data
  * These support the Tier 2 Process Intelligence orchestration
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - using pre-generated bigint strings for runs
 export const runDbIds = {
-    run1: generatePK(),
-    run2: generatePK(),
-    run3: generatePK(),
-    routine1: generatePK(),
-    routine2: generatePK(),
-    routine3: generatePK(),
-    step1: generatePK(),
-    step2: generatePK(),
-    step3: generatePK(),
-    branch1: generatePK(),
-    branch2: generatePK(),
-    scope1: generatePK(),
-    scope2: generatePK(),
+    run1: TEST_IDS.RUN_1,
+    run2: TEST_IDS.RUN_2,
+    run3: TEST_IDS.RUN_3,
+    routine1: TestIdFactory.routine(1),
+    routine2: TestIdFactory.routine(2),
+    routine3: TestIdFactory.routine(3),
+    step1: TestIdFactory.routine(101),
+    step2: TestIdFactory.routine(102),
+    step3: TestIdFactory.routine(103),
+    branch1: TestIdFactory.routine(201),
+    branch2: TestIdFactory.routine(202),
+    scope1: TestIdFactory.context(301),
+    scope2: TestIdFactory.context(302),
 };
 
 /**

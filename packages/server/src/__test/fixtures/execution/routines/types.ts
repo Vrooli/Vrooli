@@ -25,6 +25,22 @@ export interface RoutineFixture {
     resourceSubType: ResourceSubType;
     /** Routine configuration object */
     config: RoutineVersionConfigObject;
+    /** Optional: Who created this routine (human or agent) */
+    createdBy?: string;
+    /** Optional: If generated from external source */
+    generatedFrom?: {
+        apiSpec?: string;
+        analysisDate?: Date;
+        confidence?: number;
+        generationAgent?: string;
+        basedOn?: string[];
+    };
+    /** Optional: Evolution potential for this routine */
+    evolutionPotential?: {
+        suggestedEnhancements?: string[];
+        compatibleIntegrations?: string[];
+        performanceBaseline?: Record<string, number>;
+    };
 }
 
 /**
@@ -63,11 +79,15 @@ export interface RoutineStats {
     total: number;
     sequential: number;
     bpmn: number;
+    bootstrap: number;
     byCategory: {
         security: number;
         medical: number;
         performance: number;
         system: number;
+        api_bootstrap: number;
+        document_bootstrap: number;
+        data_transformation: number;
     };
     byStrategy: {
         reasoning: number;
@@ -87,7 +107,7 @@ export interface RoutineStats {
 /**
  * Category type for routine filtering
  */
-export type RoutineCategory = "security" | "medical" | "performance" | "system" | "bpmn";
+export type RoutineCategory = "security" | "medical" | "performance" | "system" | "bpmn" | "api_bootstrap" | "document_bootstrap" | "data_transformation";
 
 /**
  * Execution strategy type

@@ -5,6 +5,70 @@
  * to deterministic through agent-driven optimization proposals.
  */
 
+import { ResourceSubType } from "@vrooli/shared";
+
+/**
+ * Supporting specialist routines for the routing stage
+ * These demonstrate how specialized sub-routines are coordinated
+ */
+const SPECIALIST_ROUTINES = {
+    TECHNICAL_SUPPORT_SPECIALIST_V3: {
+        id: "technical_support_specialist_v3",
+        name: "Technical Support Specialist v3",
+        description: "Specialized routine for technical issues",
+        version: "3.0.0",
+        resourceSubType: ResourceSubType.RoutineCode,
+        config: {
+            __version: "1.0",
+            executionStrategy: "deterministic" as const,
+        },
+    },
+    BILLING_SPECIALIST_V3: {
+        id: "billing_specialist_v3", 
+        name: "Billing Specialist v3",
+        description: "Specialized routine for billing issues",
+        version: "3.0.0",
+        resourceSubType: ResourceSubType.RoutineCode,
+        config: {
+            __version: "1.0",
+            executionStrategy: "deterministic" as const,
+        },
+    },
+    ACCOUNT_SPECIALIST_V3: {
+        id: "account_specialist_v3",
+        name: "Account Specialist v3", 
+        description: "Specialized routine for account issues",
+        version: "3.0.0",
+        resourceSubType: ResourceSubType.RoutineCode,
+        config: {
+            __version: "1.0",
+            executionStrategy: "reasoning" as const,
+        },
+    },
+    ESCALATION_HANDLER_V2: {
+        id: "escalation_handler_v2",
+        name: "Escalation Handler v2",
+        description: "Handles complex issues requiring human intervention",
+        version: "2.0.0", 
+        resourceSubType: ResourceSubType.RoutineCode,
+        config: {
+            __version: "1.0",
+            executionStrategy: "conversational" as const,
+        },
+    },
+    RESPONSE_SYNTHESIZER_V1: {
+        id: "response_synthesizer_v1",
+        name: "Response Synthesizer v1",
+        description: "Synthesizes responses from multiple sub-routines",
+        version: "1.0.0",
+        resourceSubType: ResourceSubType.RoutineCode,
+        config: {
+            __version: "1.0",
+            executionStrategy: "reasoning" as const,
+        },
+    },
+};
+
 /**
  * Sample routine evolution stages as they would be created by agents
  */
@@ -278,6 +342,143 @@ export const ROUTINE_EVOLUTION_STAGES = {
             },
         ],
     },
+    
+    /**
+     * Stage 5: Routing Strategy (Proposed by Coordination Agent)
+     * Coordination agent identifies complex workflow patterns and proposes routing optimization
+     */
+    ROUTING_STAGE: {
+        id: "customer_support_v5",
+        name: "Customer Support Assistant - Intelligent Routing",
+        description: "Multi-routine coordination for complex customer support scenarios",
+        version: "5.0.0",
+        strategy: "routing",
+        createdBy: "workflow_coordination_agent",
+        createdAt: new Date("2024-08-15"),
+        proposalId: "coord_proposal_004",
+        
+        // Routing coordination configuration
+        config: {
+            // Coordination pattern
+            coordinationPattern: "scatter-gather",
+            
+            // Sub-routines for different support categories
+            subRoutines: [
+                {
+                    routineId: "technical_support_specialist_v3",
+                    strategy: "deterministic",
+                    triggers: ["technical_issue", "bug_report", "integration_problem"],
+                    dependencies: [],
+                    parallelizable: true,
+                    estimatedDuration: 500,
+                },
+                {
+                    routineId: "billing_specialist_v3",
+                    strategy: "deterministic", 
+                    triggers: ["payment_issue", "subscription_question", "refund_request"],
+                    dependencies: [],
+                    parallelizable: true,
+                    estimatedDuration: 600,
+                },
+                {
+                    routineId: "account_specialist_v3",
+                    strategy: "reasoning",
+                    triggers: ["account_access", "security_concern", "profile_update"],
+                    dependencies: [],
+                    parallelizable: true,
+                    estimatedDuration: 800,
+                },
+                {
+                    routineId: "escalation_handler_v2",
+                    strategy: "conversational",
+                    triggers: ["complex_issue", "dissatisfied_customer", "unresolved_problem"],
+                    dependencies: ["technical_support", "billing", "account"],
+                    parallelizable: false,
+                    estimatedDuration: 1200,
+                },
+                {
+                    routineId: "response_synthesizer_v1",
+                    strategy: "reasoning",
+                    triggers: ["all_complete"],
+                    dependencies: ["*"], // Depends on all previous
+                    parallelizable: false,
+                    estimatedDuration: 300,
+                }
+            ],
+            
+            // Intelligent routing logic
+            routingRules: {
+                classificationFirst: true,
+                parallelExecution: true,
+                aggregationStrategy: "intelligent_merge",
+                fallbackRouting: "escalation_handler",
+                
+                // Context sharing between sub-routines
+                contextPropagation: {
+                    customerProfile: "all",
+                    issueHistory: "relevant_only",
+                    previousSolutions: "filtered",
+                    sensitivityLevel: "maintain",
+                },
+                
+                // Performance optimization
+                optimizationHints: {
+                    cacheSharing: true,
+                    resourcePooling: true,
+                    resultReuse: true,
+                }
+            }
+        },
+        
+        // Optimized performance through intelligent routing
+        performance: {
+            averageExecutionTime: 450, // Faster through parallelization
+            averageCost: 0.08, // Lower through specialization
+            successRate: 0.97, // Higher through expertise
+            qualityScore: 0.95, // Better through focused handling
+            parallelizationGain: 0.65, // 65% time saved through parallel execution
+            specializationGain: 0.82, // 82% better accuracy through specialization
+        },
+        
+        // All optimizations including routing
+        optimizations: [
+            {
+                type: "strategy_evolution",
+                description: "Evolved from conversational to reasoning strategy",
+                appliedBy: "performance_optimizer_agent",
+                appliedAt: new Date("2024-02-15"),
+                impact: { executionTime: -37, cost: -29, successRate: 8.5, qualityScore: 9 },
+            },
+            {
+                type: "strategy_evolution",
+                description: "Evolved from reasoning to deterministic strategy",
+                appliedBy: "optimization_agent", 
+                appliedAt: new Date("2024-04-10"),
+                impact: { executionTime: -61, cost: -62, successRate: 5.6, qualityScore: 8 },
+            },
+            {
+                type: "quality_enhancement",
+                description: "Added adaptive quality monitoring and multi-tier fallbacks",
+                appliedBy: "quality_assurance_agent",
+                appliedAt: new Date("2024-06-20"),
+                impact: { successRate: 2.1, qualityScore: 2.2, adaptability: 91 },
+            },
+            {
+                type: "coordination_optimization",
+                description: "Evolved to intelligent routing with parallel sub-routine coordination",
+                appliedBy: "workflow_coordination_agent",
+                appliedAt: new Date("2024-08-15"),
+                impact: { 
+                    executionTime: -53, // 53% faster than adaptive
+                    cost: -47, // 47% cheaper through specialization
+                    successRate: 1.0, // 1% higher success
+                    qualityScore: 1.1, // 1.1% higher quality
+                    parallelizationGain: 65, // New metric
+                    specializationGain: 82 // New metric
+                },
+            },
+        ],
+    },
 };
 
 /**
@@ -460,12 +661,87 @@ export const EVOLUTION_PROPOSALS = {
         implementedAt: new Date("2024-06-20"),
     },
     
-    // Security agent proposes security enhancements
-    SECURITY_ENHANCEMENT: {
+    // Coordination agent proposes routing evolution
+    ADAPTIVE_TO_ROUTING: {
         id: "evolution_proposal_004",
-        agentId: "security_monitor_agent",
+        agentId: "workflow_coordination_agent",
         sourceRoutine: "customer_support_v4",
         targetRoutine: "customer_support_v5",
+        evolutionType: "coordination_optimization",
+        
+        analysis: {
+            currentPerformance: ROUTINE_EVOLUTION_STAGES.ADAPTIVE_STAGE.performance,
+            identifiedPatterns: [
+                "Multiple related sub-tasks executed sequentially",
+                "Independent operations that could run in parallel",
+                "Specialized knowledge domains requiring different strategies",
+                "Resource contention from sequential execution",
+            ],
+            
+            proposedSolution: {
+                strategy: "routing",
+                reasoning: "Intelligent routing with parallel sub-routine coordination will dramatically improve performance",
+                coordinationFeatures: [
+                    "Parallel execution of independent tasks",
+                    "Specialized sub-routines for domain expertise",
+                    "Intelligent result aggregation",
+                    "Context sharing optimization",
+                ],
+                expectedImprovements: {
+                    executionTime: -50, // 50% improvement through parallelization
+                    cost: -45, // 45% reduction through efficient resource use
+                    successRate: 1,
+                    qualityScore: 1,
+                    parallelizationGain: 65,
+                    specializationGain: 82,
+                },
+            },
+            
+            confidence: 0.89,
+            evidenceFromEvents: [
+                "87 workflow executions analyzed",
+                "65% of tasks identified as parallelizable",
+                "Clear domain specialization patterns",
+                "Successful routing implementations in similar domains",
+            ],
+        },
+        
+        implementation: {
+            coordinationPattern: "scatter-gather",
+            subRoutineMapping: [
+                { category: "technical", routine: "technical_support_specialist_v3" },
+                { category: "billing", routine: "billing_specialist_v3" },
+                { category: "account", routine: "account_specialist_v3" },
+                { category: "complex", routine: "escalation_handler_v2" },
+                { category: "synthesis", routine: "response_synthesizer_v1" },
+            ],
+            contextPropagation: {
+                strategy: "selective",
+                sharedContext: ["customer_profile", "issue_history"],
+                isolatedContext: ["temporary_calculations", "internal_state"],
+            },
+            performanceOptimizations: [
+                "cache_sharing",
+                "resource_pooling",
+                "result_reuse",
+                "parallel_execution",
+            ],
+            rolloutPlan: "phased_rollout_25_percent",
+            successMetrics: ["parallelization_gain", "specialization_gain", "total_execution_time", "resource_efficiency"],
+        },
+        
+        status: "accepted",
+        proposedAt: new Date("2024-08-10"),
+        acceptedAt: new Date("2024-08-15"),
+        implementedAt: new Date("2024-08-15"),
+    },
+    
+    // Security agent proposes security enhancements
+    SECURITY_ENHANCEMENT: {
+        id: "evolution_proposal_005",
+        agentId: "security_monitor_agent",
+        sourceRoutine: "customer_support_v5",
+        targetRoutine: "customer_support_v6",
         evolutionType: "security_enhancement",
         
         analysis: {
@@ -645,6 +921,45 @@ export const EMERGENT_CAPABILITIES_EVOLUTION = {
             complianceImprovement: 0.68, // 68% compliance improvement
         },
     },
+    
+    WORKFLOW_COORDINATION_INTELLIGENCE: {
+        name: "Intelligent Workflow Coordination",
+        description: "Ability to orchestrate complex multi-routine workflows with optimal parallelization",
+        emergentFrom: ["pattern_analysis", "dependency_mapping", "resource_optimization", "parallel_execution"],
+        developmentStages: [
+            {
+                stage: "sequential_execution",
+                routineVersion: "v1",
+                capability: "Basic sequential task execution",
+                confidence: 0.5,
+            },
+            {
+                stage: "dependency_awareness",
+                routineVersion: "v2",
+                capability: "Understanding task dependencies",
+                confidence: 0.7,
+            },
+            {
+                stage: "parallel_identification",
+                routineVersion: "v3",
+                capability: "Identifying parallelizable tasks",
+                confidence: 0.85,
+            },
+            {
+                stage: "intelligent_routing",
+                routineVersion: "v5",
+                capability: "Dynamic workflow orchestration with context propagation",
+                confidence: 0.95,
+            },
+        ],
+        maturityLevel: "advanced",
+        businessImpact: {
+            executionTimeReduction: 0.65, // 65% faster through parallelization
+            resourceUtilization: 0.82, // 82% better resource usage
+            scalabilityImprovement: 0.75, // 75% better scalability
+            specialistAccuracy: 0.89, // 89% accuracy through specialization
+        },
+    },
 };
 
 /**
@@ -717,11 +1032,36 @@ export function getEvolutionTimeline() {
             performance: ROUTINE_EVOLUTION_STAGES.ADAPTIVE_STAGE.performance,
         },
         {
-            date: new Date("2024-08-01"),
-            event: "Security agent proposes security enhancements",
+            date: new Date("2024-08-10"),
+            event: "Coordination agent proposes routing evolution",
             routine: ROUTINE_EVOLUTION_STAGES.ADAPTIVE_STAGE,
+            agent: "workflow_coordination_agent",
+            proposal: EVOLUTION_PROPOSALS.ADAPTIVE_TO_ROUTING,
+        },
+        {
+            date: new Date("2024-08-15"),
+            event: "Routing strategy deployed",
+            routine: ROUTINE_EVOLUTION_STAGES.ROUTING_STAGE,
+            agent: "workflow_coordination_agent",
+            performance: ROUTINE_EVOLUTION_STAGES.ROUTING_STAGE.performance,
+        },
+        {
+            date: new Date("2024-10-01"),
+            event: "Security agent proposes security enhancements",
+            routine: ROUTINE_EVOLUTION_STAGES.ROUTING_STAGE,
             agent: "security_monitor_agent", 
             proposal: EVOLUTION_PROPOSALS.SECURITY_ENHANCEMENT,
         },
     ];
 }
+
+/**
+ * Export all specialist routines for use in other fixtures
+ */
+export const { 
+    TECHNICAL_SUPPORT_SPECIALIST_V3,
+    BILLING_SPECIALIST_V3,
+    ACCOUNT_SPECIALIST_V3,
+    ESCALATION_HANDLER_V2,
+    RESPONSE_SYNTHESIZER_V1,
+} = SPECIALIST_ROUTINES;

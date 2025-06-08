@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePublicId } from "@vrooli/shared";
 import {
     type BaseContext,
     type CoordinationContext,
@@ -19,6 +19,7 @@ import {
     type ContextSnapshot,
     type ContextConstraints,
 } from "@vrooli/shared";
+import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
  * Database fixtures for Context management - used for seeding test data
@@ -27,20 +28,20 @@ import {
 
 // Consistent IDs for testing
 export const contextDbIds = {
-    coord1: generatePK(),
-    coord2: generatePK(),
-    process1: generatePK(),
-    process2: generatePK(),
-    exec1: generatePK(),
-    exec2: generatePK(),
-    cross1: generatePK(),
-    decision1: generatePK(),
-    consensus1: generatePK(),
-    conflict1: generatePK(),
-    tool1: generatePK(),
-    pattern1: generatePK(),
-    feedback1: generatePK(),
-    adaptation1: generatePK(),
+    coord1: TEST_IDS.CONTEXT_1,
+    coord2: TEST_IDS.CONTEXT_2,
+    process1: TestIdFactory.context(1001),
+    process2: TestIdFactory.context(1002),
+    exec1: TestIdFactory.context(2001),
+    exec2: TestIdFactory.context(2002),
+    cross1: TestIdFactory.context(3001),
+    decision1: TestIdFactory.context(4001),
+    consensus1: TestIdFactory.context(4002),
+    conflict1: TestIdFactory.context(4003),
+    tool1: TestIdFactory.context(5001),
+    pattern1: TestIdFactory.context(6001),
+    feedback1: TestIdFactory.context(6002),
+    adaptation1: TestIdFactory.context(6003),
 };
 
 /**

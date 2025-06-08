@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePublicId } from "@vrooli/shared";
 import {
     type BaseEvent,
     type EventSource,
@@ -22,6 +22,7 @@ import {
     EventPriority,
     EventCategory,
 } from "@vrooli/shared";
+import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
  * Database fixtures for Event Bus - used for seeding test data
@@ -30,11 +31,11 @@ import {
 
 // Consistent IDs for testing
 export const eventDbIds = {
-    event1: generatePK(),
-    event2: generatePK(),
-    event3: generatePK(),
-    subscription1: generatePK(),
-    subscription2: generatePK(),
+    event1: TEST_IDS.EVENT_1,
+    event2: TEST_IDS.EVENT_2,
+    event3: TEST_IDS.EVENT_3,
+    subscription1: TestIdFactory.event(1001),
+    subscription2: TestIdFactory.event(1002),
     correlation1: generatePublicId(),
     correlation2: generatePublicId(),
     causation1: generatePublicId(),

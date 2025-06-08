@@ -18,6 +18,8 @@ import { MEDICAL_ROUTINES } from "./medicalRoutines.js";
 import { PERFORMANCE_ROUTINES } from "./performanceRoutines.js";
 import { SYSTEM_ROUTINES } from "./systemRoutines.js";
 import { BPMN_WORKFLOWS } from "./bpmnWorkflows.js";
+import { API_BOOTSTRAP_ROUTINES } from "./apiBootstrapRoutines.js";
+import { DOCUMENT_BOOTSTRAP_ROUTINES, DATA_TRANSFORMATION_ROUTINES } from "./dataBootstrapRoutines.js";
 
 /**
  * All sequential (single-step) routines
@@ -27,6 +29,15 @@ export const SEQUENTIAL_ROUTINES = {
     ...MEDICAL_ROUTINES,
     ...PERFORMANCE_ROUTINES,
     ...SYSTEM_ROUTINES,
+};
+
+/**
+ * All bootstrap routines (API and data)
+ */
+export const BOOTSTRAP_ROUTINES = {
+    ...API_BOOTSTRAP_ROUTINES,
+    ...DOCUMENT_BOOTSTRAP_ROUTINES,
+    ...DATA_TRANSFORMATION_ROUTINES,
 };
 
 /**
@@ -43,6 +54,9 @@ export {
     PERFORMANCE_ROUTINES,
     SYSTEM_ROUTINES,
     BPMN_WORKFLOWS,
+    API_BOOTSTRAP_ROUTINES,
+    DOCUMENT_BOOTSTRAP_ROUTINES,
+    DATA_TRANSFORMATION_ROUTINES,
 };
 
 /**
@@ -51,7 +65,8 @@ export {
 export function getAllRoutines(): RoutineFixture[] {
     return [
         ...Object.values(SEQUENTIAL_ROUTINES),
-        ...Object.values(BPMN_ROUTINES)
+        ...Object.values(BPMN_ROUTINES),
+        ...Object.values(BOOTSTRAP_ROUTINES)
     ];
 }
 
@@ -95,6 +110,12 @@ export function getRoutinesByCategory(category: RoutineCategory): RoutineFixture
             return Object.values(SYSTEM_ROUTINES);
         case "bpmn":
             return Object.values(BPMN_ROUTINES);
+        case "api_bootstrap":
+            return Object.values(API_BOOTSTRAP_ROUTINES);
+        case "document_bootstrap":
+            return Object.values(DOCUMENT_BOOTSTRAP_ROUTINES);
+        case "data_transformation":
+            return Object.values(DATA_TRANSFORMATION_ROUTINES);
         default:
             return [];
     }
@@ -128,6 +149,14 @@ export const AGENT_ROUTINE_MAP: AgentRoutineMapping = {
     "healthcare_security_swarm": [BPMN_ROUTINES.MEDICAL_TREATMENT_VALIDATION.id],
     "security_swarm": [BPMN_ROUTINES.COMPREHENSIVE_SECURITY_AUDIT.id],
     "resilience_evolution_swarm": [BPMN_ROUTINES.RESILIENCE_OPTIMIZATION_WORKFLOW.id],
+    
+    // API bootstrapping agents
+    "api_integration_creator": [API_BOOTSTRAP_ROUTINES.STRIPE_INTEGRATION_BOOTSTRAP.id, API_BOOTSTRAP_ROUTINES.TWILIO_SMS_BOOTSTRAP.id],
+    "api_test_generator": [API_BOOTSTRAP_ROUTINES.SENDGRID_EMAIL_BOOTSTRAP.id],
+    
+    // Document bootstrapping agents
+    "intelligent_document_creator": [DOCUMENT_BOOTSTRAP_ROUTINES.QUARTERLY_REPORT_GENERATOR.id, DOCUMENT_BOOTSTRAP_ROUTINES.PRESENTATION_BUILDER.id],
+    "format_optimization_specialist": [DATA_TRANSFORMATION_ROUTINES.MULTI_FORMAT_CONVERTER.id],
 };
 
 /**
@@ -146,16 +175,21 @@ export function getRoutinesForAgent(agentId: string): RoutineFixture[] {
 export function getRoutineStats(): RoutineStats {
     const sequential = Object.values(SEQUENTIAL_ROUTINES);
     const bpmn = Object.values(BPMN_ROUTINES);
+    const bootstrap = Object.values(BOOTSTRAP_ROUTINES);
     
     return {
-        total: sequential.length + bpmn.length,
+        total: sequential.length + bpmn.length + bootstrap.length,
         sequential: sequential.length,
         bpmn: bpmn.length,
+        bootstrap: bootstrap.length,
         byCategory: {
             security: Object.values(SECURITY_ROUTINES).length,
             medical: Object.values(MEDICAL_ROUTINES).length,
             performance: Object.values(PERFORMANCE_ROUTINES).length,
             system: Object.values(SYSTEM_ROUTINES).length,
+            api_bootstrap: Object.values(API_BOOTSTRAP_ROUTINES).length,
+            document_bootstrap: Object.values(DOCUMENT_BOOTSTRAP_ROUTINES).length,
+            data_transformation: Object.values(DATA_TRANSFORMATION_ROUTINES).length,
         },
         byStrategy: {
             reasoning: getRoutinesByStrategy("reasoning").length,

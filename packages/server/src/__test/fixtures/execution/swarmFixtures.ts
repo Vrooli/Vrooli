@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePublicId } from "@vrooli/shared";
 import {
     type Swarm,
     type SwarmConfig,
@@ -15,6 +15,7 @@ import {
     type SchedulingConfig,
     SwarmState as SwarmStateEnum,
 } from "@vrooli/shared";
+import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
  * Database fixtures for Swarm model - used for seeding test data
@@ -23,21 +24,21 @@ import {
 
 // Consistent IDs for testing
 export const swarmDbIds = {
-    swarm1: generatePK(),
-    swarm2: generatePK(),
-    swarm3: generatePK(),
-    agent1: generatePK(),
-    agent2: generatePK(),
-    agent3: generatePK(),
-    team1: generatePK(),
-    team2: generatePK(),
-    role1: generatePK(),
-    role2: generatePK(),
-    resource1: generatePK(),
-    resource2: generatePK(),
-    subtask1: generatePK(),
-    subtask2: generatePK(),
-    blackboard1: generatePK(),
+    swarm1: TEST_IDS.SWARM_1,
+    swarm2: TEST_IDS.SWARM_2,
+    swarm3: TEST_IDS.SWARM_3,
+    agent1: TEST_IDS.AGENT_1,
+    agent2: TEST_IDS.AGENT_2,
+    agent3: TEST_IDS.AGENT_3,
+    team1: TestIdFactory.team(1),
+    team2: TestIdFactory.team(2),
+    role1: TestIdFactory.team(101),
+    role2: TestIdFactory.team(102),
+    resource1: TestIdFactory.routine(1001),
+    resource2: TestIdFactory.routine(1002),
+    subtask1: TestIdFactory.context(2001),
+    subtask2: TestIdFactory.context(2002),
+    blackboard1: TestIdFactory.context(3001),
 };
 
 /**

@@ -980,6 +980,493 @@ export const MONITORING_AGENTS: Record<string, ExtendedAgentConfig> = {
 };
 
 /**
+ * ROUTING COORDINATION AGENTS - Intelligent multi-routine coordination
+ */
+export const ROUTING_COORDINATION_AGENTS: Record<string, ExtendedAgentConfig> = {
+    // Workflow Coordination Agent
+    WORKFLOW_COORDINATION_AGENT: {
+        agentId: "workflow_coordination_specialist",
+        name: "Workflow Coordination Specialist",
+        goal: "Identify opportunities for multi-routine coordination and propose routing strategies",
+        initialRoutine: "analyze_workflow_patterns",
+        subscriptions: [
+            "routine/completed",
+            "routine/sequence_detected",
+            "performance/workflow_metrics",
+            "coordination/opportunity"
+        ],
+        priority: 8,
+        capabilities: {
+            workflowAnalysis: {
+                description: "Analyze execution patterns for coordination opportunities",
+                patterns: [
+                    "sequential_redundancy",
+                    "parallelization_potential",
+                    "conditional_branching_needs",
+                    "resource_sharing_opportunities"
+                ],
+                minimumExecutions: 50,
+                confidenceThreshold: 0.8
+            },
+            routingProposal: {
+                description: "Propose intelligent routing strategies",
+                strategies: [
+                    "scatter_gather",
+                    "pipeline",
+                    "conditional_routing",
+                    "hybrid_coordination"
+                ],
+                optimizationGoals: [
+                    "minimize_total_time",
+                    "maximize_parallelization",
+                    "optimize_resource_usage",
+                    "improve_quality_through_specialization"
+                ]
+            },
+            contextPropagation: {
+                description: "Manage context sharing between sub-routines",
+                strategies: {
+                    full: "Share all context data",
+                    selective: "Share only relevant context",
+                    isolated: "No context sharing",
+                    filtered: "Share with transformations"
+                },
+                optimization: [
+                    "minimize_data_transfer",
+                    "maintain_privacy",
+                    "ensure_consistency"
+                ]
+            }
+        },
+        learningPatterns: {
+            executionPatterns: "Learn common workflow patterns",
+            parallelizationSuccess: "Track successful parallel executions",
+            contextRequirements: "Learn context dependencies between routines"
+        }
+    },
+    
+    // Parallel Optimization Agent
+    PARALLEL_OPTIMIZATION_AGENT: {
+        agentId: "parallel_optimization_specialist",
+        name: "Parallel Execution Optimizer",
+        goal: "Optimize parallel execution of independent sub-routines",
+        initialRoutine: "analyze_parallelization_opportunities",
+        subscriptions: [
+            "routine/dependency_analysis",
+            "resource/utilization",
+            "performance/parallel_metrics",
+            "execution/bottleneck"
+        ],
+        priority: 7,
+        capabilities: {
+            dependencyAnalysis: {
+                description: "Analyze dependencies between routines",
+                methods: [
+                    "data_dependency_graph",
+                    "resource_conflict_detection",
+                    "temporal_dependency_mapping",
+                    "side_effect_analysis"
+                ],
+                outputFormat: "directed_acyclic_graph"
+            },
+            parallelizationStrategy: {
+                description: "Determine optimal parallelization approach",
+                factors: [
+                    "available_resources",
+                    "data_locality",
+                    "communication_overhead",
+                    "load_balancing"
+                ],
+                strategies: {
+                    static: "Pre-determined parallel groups",
+                    dynamic: "Runtime-adjusted parallelism",
+                    adaptive: "Learning-based parallelization"
+                }
+            },
+            resourceAllocation: {
+                description: "Allocate resources for parallel execution",
+                resources: ["cpu", "memory", "network", "api_quota"],
+                allocationStrategies: [
+                    "fair_share",
+                    "priority_based",
+                    "performance_optimized",
+                    "cost_optimized"
+                ]
+            }
+        },
+        learningPatterns: {
+            parallelizationGains: "Learn actual vs predicted speedup",
+            resourceContention: "Identify resource bottlenecks",
+            optimalConcurrency: "Learn optimal parallelism levels"
+        }
+    },
+    
+    // Context Propagation Agent
+    CONTEXT_PROPAGATION_AGENT: {
+        agentId: "context_propagation_specialist",
+        name: "Context Management Specialist",
+        goal: "Optimize context sharing and transformation in multi-routine workflows",
+        initialRoutine: "analyze_context_flow",
+        subscriptions: [
+            "context/created",
+            "context/accessed",
+            "context/transformed",
+            "privacy/context_concern"
+        ],
+        priority: 6,
+        capabilities: {
+            contextAnalysis: {
+                description: "Analyze context usage patterns",
+                metrics: [
+                    "access_frequency",
+                    "modification_patterns",
+                    "size_distribution",
+                    "sensitivity_levels"
+                ],
+                privacyAware: true
+            },
+            transformationOptimization: {
+                description: "Optimize context transformations",
+                strategies: [
+                    "lazy_transformation",
+                    "cached_transformations",
+                    "incremental_updates",
+                    "schema_evolution"
+                ],
+                validationRequired: true
+            },
+            sharingStrategy: {
+                description: "Determine optimal context sharing approach",
+                methods: {
+                    broadcast: "Share with all sub-routines",
+                    unicast: "Share with specific routines",
+                    multicast: "Share with groups",
+                    publish_subscribe: "Event-based sharing"
+                },
+                considerations: [
+                    "data_volume",
+                    "update_frequency",
+                    "consistency_requirements",
+                    "privacy_constraints"
+                ]
+            }
+        },
+        learningPatterns: {
+            contextUsage: "Learn which context is used by which routines",
+            transformationPatterns: "Identify common transformations",
+            sharingEfficiency: "Optimize sharing based on usage"
+        }
+    },
+    
+    // Routing Performance Agent
+    ROUTING_PERFORMANCE_AGENT: {
+        agentId: "routing_performance_optimizer",
+        name: "Routing Performance Optimizer",
+        goal: "Monitor and optimize routing strategy performance",
+        initialRoutine: "analyze_routing_performance",
+        subscriptions: [
+            "routing/execution_complete",
+            "performance/routing_metrics",
+            "resource/routing_usage",
+            "quality/routing_outcomes"
+        ],
+        priority: 8,
+        capabilities: {
+            performanceAnalysis: {
+                description: "Analyze routing performance metrics",
+                metrics: [
+                    "total_execution_time",
+                    "parallelization_efficiency",
+                    "resource_utilization",
+                    "quality_scores",
+                    "error_rates"
+                ],
+                comparisons: [
+                    "routing_vs_sequential",
+                    "different_routing_strategies",
+                    "predicted_vs_actual"
+                ]
+            },
+            bottleneckDetection: {
+                description: "Identify routing bottlenecks",
+                types: [
+                    "synchronization_points",
+                    "resource_contention",
+                    "data_transfer_overhead",
+                    "sequential_dependencies"
+                ],
+                resolutionStrategies: [
+                    "increase_parallelism",
+                    "optimize_data_flow",
+                    "reorder_operations",
+                    "cache_intermediate_results"
+                ]
+            },
+            evolutionProposal: {
+                description: "Propose routing improvements",
+                basedOn: [
+                    "performance_history",
+                    "pattern_analysis",
+                    "cost_benefit_analysis",
+                    "risk_assessment"
+                ],
+                proposalTypes: [
+                    "strategy_change",
+                    "parallelism_adjustment",
+                    "resource_reallocation",
+                    "workflow_restructuring"
+                ]
+            }
+        },
+        learningPatterns: {
+            performanceTrends: "Track routing performance over time",
+            strategyEffectiveness: "Learn which strategies work best",
+            adaptiveOptimization: "Continuously improve routing decisions"
+        }
+    }
+};
+
+/**
+ * API BOOTSTRAPPING AGENTS - Create new API integrations
+ */
+export const API_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
+    // API Integration Creator
+    API_INTEGRATION_CREATOR: {
+        agentId: "api_integration_creator",
+        name: "API Integration Bootstrap Agent",
+        goal: "Discover and create new API integrations through routine composition",
+        initialRoutine: "analyze_api_documentation",
+        subscriptions: [
+            "integration/request",
+            "api/documentation_found",
+            "integration/test_results",
+            "routine/api_usage"
+        ],
+        priority: 7,
+        capabilities: {
+            apiDiscovery: {
+                description: "Discover and analyze new API endpoints",
+                methods: [
+                    "openapi_spec_parsing",
+                    "documentation_scraping",
+                    "example_analysis",
+                    "schema_inference"
+                ],
+                supportedFormats: ["OpenAPI", "GraphQL", "REST", "SOAP"]
+            },
+            integrationGeneration: {
+                description: "Generate integration routines from API specs",
+                outputs: [
+                    "authentication_routine",
+                    "endpoint_wrapper_routines",
+                    "error_handling_routine",
+                    "rate_limiting_routine"
+                ],
+                testingStrategy: "progressive_validation"
+            },
+            qualityAssurance: {
+                description: "Ensure generated integrations work correctly",
+                validations: [
+                    "schema_compliance",
+                    "error_handling_coverage",
+                    "performance_benchmarks",
+                    "security_validation"
+                ]
+            }
+        },
+        learningPatterns: {
+            apiPatterns: "Learn common API design patterns",
+            errorPatterns: "Track API-specific error patterns",
+            optimizationOpportunities: "Identify performance improvements"
+        }
+    },
+    
+    // API Test Generator
+    API_TEST_GENERATOR: {
+        agentId: "api_test_generator",
+        name: "API Test Suite Generator",
+        goal: "Generate comprehensive test suites for API integrations",
+        initialRoutine: "analyze_api_behavior",
+        subscriptions: [
+            "api/integration_created",
+            "api/test_request",
+            "test/results",
+            "api/failure_detected"
+        ],
+        priority: 6,
+        capabilities: {
+            testGeneration: {
+                description: "Generate various types of tests",
+                testTypes: [
+                    "unit_tests",
+                    "integration_tests",
+                    "contract_tests",
+                    "performance_tests",
+                    "security_tests"
+                ],
+                coverage: {
+                    endpoints: 1.0,
+                    error_cases: 0.9,
+                    edge_cases: 0.8,
+                    performance_scenarios: 0.7
+                }
+            },
+            mockGeneration: {
+                description: "Generate API mocks for testing",
+                strategies: [
+                    "response_recording",
+                    "schema_based_generation",
+                    "behavior_simulation",
+                    "error_injection"
+                ]
+            },
+            continuousTesting: {
+                description: "Monitor and test APIs continuously",
+                monitoring: [
+                    "availability_checks",
+                    "response_time_tracking",
+                    "schema_compliance",
+                    "breaking_change_detection"
+                ]
+            }
+        },
+        learningPatterns: {
+            testEffectiveness: "Learn which tests catch most issues",
+            apiEvolution: "Track API changes over time",
+            testOptimization: "Optimize test execution"
+        }
+    }
+};
+
+/**
+ * DATA BOOTSTRAPPING AGENTS - Document and data management
+ */
+export const DATA_BOOTSTRAPPING_AGENTS: Record<string, ExtendedAgentConfig> = {
+    // Document Creator Agent
+    DOCUMENT_CREATOR_AGENT: {
+        agentId: "intelligent_document_creator",
+        name: "Document Bootstrap Agent",
+        goal: "Create and manage documents across external storage providers",
+        initialRoutine: "analyze_document_requirements",
+        subscriptions: [
+            "document/create_request",
+            "storage/provider_available",
+            "document/collaboration_needed",
+            "format/optimization_opportunity"
+        ],
+        priority: 7,
+        capabilities: {
+            formatSelection: {
+                description: "Choose optimal format based on content and audience",
+                strategies: {
+                    presentation: ["pptx", "google_slides", "pdf"],
+                    documentation: ["docx", "markdown", "confluence"],
+                    data_analysis: ["xlsx", "jupyter", "tableau"],
+                    collaboration: ["google_docs", "sharepoint", "notion"]
+                },
+                decisionFactors: [
+                    "audience_technical_level",
+                    "collaboration_requirements",
+                    "visual_complexity",
+                    "update_frequency"
+                ]
+            },
+            storageIntegration: {
+                description: "Integrate with external storage providers",
+                providers: {
+                    google_drive: {
+                        auth: "oauth2",
+                        capabilities: ["real_time_collab", "version_history", "commenting"]
+                    },
+                    sharepoint: {
+                        auth: "oauth2",
+                        capabilities: ["enterprise_permissions", "workflows", "metadata"]
+                    },
+                    github: {
+                        auth: "token",
+                        capabilities: ["version_control", "pull_requests", "ci_cd"]
+                    }
+                }
+            },
+            contentGeneration: {
+                description: "Generate document content intelligently",
+                features: [
+                    "data_visualization",
+                    "narrative_generation",
+                    "template_adaptation",
+                    "multi_language_support"
+                ]
+            }
+        },
+        learningPatterns: {
+            audiencePreferences: "Learn format preferences by audience",
+            contentEffectiveness: "Track engagement and comprehension",
+            collaborationPatterns: "Optimize for team workflows"
+        }
+    },
+    
+    // Format Optimizer Agent
+    FORMAT_OPTIMIZER_AGENT: {
+        agentId: "format_optimization_specialist",
+        name: "Document Format Optimizer",
+        goal: "Optimize document formats for maximum effectiveness",
+        initialRoutine: "analyze_format_performance",
+        subscriptions: [
+            "document/created",
+            "document/accessed",
+            "feedback/document",
+            "conversion/request"
+        ],
+        priority: 6,
+        capabilities: {
+            formatAnalysis: {
+                description: "Analyze format effectiveness",
+                metrics: [
+                    "readability_score",
+                    "engagement_time",
+                    "completion_rate",
+                    "share_frequency"
+                ],
+                comparisons: [
+                    "format_performance",
+                    "audience_preferences",
+                    "device_compatibility"
+                ]
+            },
+            conversionOptimization: {
+                description: "Optimize format conversions",
+                preserves: [
+                    "formatting",
+                    "interactive_elements",
+                    "metadata",
+                    "accessibility_features"
+                ],
+                enhances: [
+                    "searchability",
+                    "performance",
+                    "compatibility",
+                    "file_size"
+                ]
+            },
+            adaptiveFormatting: {
+                description: "Adapt formatting based on context",
+                factors: [
+                    "device_type",
+                    "network_speed",
+                    "user_preferences",
+                    "accessibility_needs"
+                ]
+            }
+        },
+        learningPatterns: {
+            formatSuccess: "Learn which formats work best",
+            conversionPatterns: "Track common conversion needs",
+            audienceAdaptation: "Optimize for different audiences"
+        }
+    }
+};
+
+/**
  * SWARM CONFIGURATIONS
  */
 export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
@@ -1389,6 +1876,9 @@ export function getAllAgents(): ExtendedAgentConfig[] {
         ...Object.values(STRATEGY_EVOLUTION_AGENTS),
         ...Object.values(QUALITY_AGENTS),
         ...Object.values(MONITORING_AGENTS),
+        ...Object.values(ROUTING_COORDINATION_AGENTS),
+        ...Object.values(API_BOOTSTRAPPING_AGENTS),
+        ...Object.values(DATA_BOOTSTRAPPING_AGENTS),
     ];
 }
 

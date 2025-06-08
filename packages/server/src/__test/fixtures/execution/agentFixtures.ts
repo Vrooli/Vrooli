@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePublicId } from "@vrooli/shared";
 import {
     type SwarmAgent,
     type AgentRole,
@@ -10,26 +10,27 @@ import {
     type TeamConstraints,
     type AgentCapability,
 } from "@vrooli/shared";
+import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
  * Database fixtures for Agent/Team models - used for seeding test data
  * These support the MOISE+ organizational model for multi-agent systems
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - using pre-generated IDs
 export const agentDbIds = {
-    agent1: generatePK(),
-    agent2: generatePK(),
-    agent3: generatePK(),
-    agent4: generatePK(),
-    team1: generatePK(),
-    team2: generatePK(),
-    team3: generatePK(),
-    role1: generatePK(),
-    role2: generatePK(),
-    role3: generatePK(),
-    role4: generatePK(),
-    role5: generatePK(),
+    agent1: TEST_IDS.AGENT_1,
+    agent2: TEST_IDS.AGENT_2,
+    agent3: TEST_IDS.AGENT_3,
+    agent4: TEST_IDS.AGENT_4,
+    team1: TestIdFactory.team(1),
+    team2: TestIdFactory.team(2),
+    team3: TestIdFactory.team(3),
+    role1: TestIdFactory.team(101), // Using team factory for role IDs
+    role2: TestIdFactory.team(102),
+    role3: TestIdFactory.team(103),
+    role4: TestIdFactory.team(104),
+    role5: TestIdFactory.team(105),
 };
 
 /**
