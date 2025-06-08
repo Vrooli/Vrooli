@@ -1,10 +1,17 @@
-// Import necessary MUI components
-import { alpha, Avatar, Box, ListItem, ListItemAvatar, ListItemButton, ListItemText, Skeleton, Stack, Typography, useTheme } from "@mui/material";
-// Keep ListItemChip for category display
-// import { NotificationCategory } from "@vrooli/shared"; // Import category type
-import { useCallback, useMemo } from "react"; // Import useCallback and useMemo
-import { Icon, type IconInfo } from "../../../icons/Icons.js"; // Import Icon and IconInfo
-import { useLocation } from "../../../route/router.js"; // Import useLocation for navigation
+import { useTheme } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import ListItem from "@mui/material/ListItem";
+import ListItemAvatar from "@mui/material/ListItemAvatar";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+import { alpha } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
+import { useCallback, useMemo } from "react";
+import { Icon, type IconInfo } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
 import { type NotificationListItemProps } from "../types.js";
 
 const notificationIconInfo = { name: "NotificationsCustomized", type: "Common" } as const;

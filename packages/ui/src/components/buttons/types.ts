@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type ButtonProps } from "@mui/material";
+import type { ButtonProps } from "@mui/material";
 import { type BookmarkFor, type FormSchema, type NavigableObject, type OrArray, type ProjectVersion, type ReactionFor, type ReportFor, type RoutineVersion, type SearchType, type Status } from "@vrooli/shared";
 import type React from "react";
 import { type FormErrors, type SxType, type ViewDisplayType } from "../../types.js";

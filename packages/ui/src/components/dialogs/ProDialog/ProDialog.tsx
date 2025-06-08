@@ -1,4 +1,11 @@
-import { Box, Button, Dialog, DialogContent, IconButton, Typography, keyframes, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { keyframes } from "@mui/material";
+import { styled } from "@mui/material";
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

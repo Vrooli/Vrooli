@@ -1,4 +1,4 @@
-import { type FilterOptionsState } from "@mui/material";
+import type { FilterOptionsState } from "@mui/material";
 import { type Session, type TranslationKeyCommon } from "@vrooli/shared";
 import i18next from "i18next";
 import { type IconInfo } from "../../icons/Icons.js";

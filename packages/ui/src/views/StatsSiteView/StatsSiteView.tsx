@@ -1,4 +1,7 @@
-import { Card, CardContent, Typography, useTheme } from "@mui/material";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { DAYS_1_MS, MONTHS_1_MS, WEEKS_1_MS, YEARS_1_MS, endpointsStatsSite, type StatPeriodType, type StatsSite, type StatsSiteSearchInput, type StatsSiteSearchResult } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";

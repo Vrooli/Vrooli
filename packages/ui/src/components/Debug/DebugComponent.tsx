@@ -1,4 +1,6 @@
-import { Box, Snackbar, type SxProps, type Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Snackbar from "@mui/material/Snackbar";
+import type { SxProps, Theme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useDebugStore } from "../../stores/debugStore.js";
 

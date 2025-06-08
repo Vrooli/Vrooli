@@ -1,4 +1,7 @@
-import { Button, Chip, type ChipProps, styled } from "@mui/material";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import type { ChipProps } from "@mui/material";
+import { styled } from "@mui/material";
 import { ProfileAvatar } from "../../../styles.js";
 
 export function commonIconProps() {

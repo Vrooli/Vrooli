@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import Typography from "@mui/material/Typography";
 import { isOfType } from "@vrooli/shared";
 import { Field, useField } from "formik";
 import { type EditTextComponent, type EditableTextProps, type PropsByComponentType } from "../containers/types.js";

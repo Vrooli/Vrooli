@@ -1,4 +1,6 @@
-import { Box, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { chatInviteValidation, endpointsChatInvite, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors, type ChatInvite, type ChatInviteCreateInput, type ChatInviteShape, type ChatInviteUpdateInput } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useMemo, useState } from "react";

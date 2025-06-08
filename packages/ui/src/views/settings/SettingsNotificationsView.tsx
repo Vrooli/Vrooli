@@ -1,4 +1,7 @@
-import { Box, Button, Divider, Stack } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
 import { endpointsNotification, type Email, type NotificationSettings, type NotificationSettingsCategory, type NotificationSettingsUpdateInput, type PushDevice } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback } from "react";

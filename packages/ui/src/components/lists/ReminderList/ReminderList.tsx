@@ -1,5 +1,9 @@
 import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps, type DropResult } from "@hello-pangea/dnd";
-import { Box, IconButton, Tooltip, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { DUMMY_ID, DeleteType, LINKS, MyStuffPageTabOption, ResourceUsedFor, endpointsActions, updateArray, type Count, type DeleteManyInput, type ListObject, type Reminder, type ReminderList as ReminderListType } from "@vrooli/shared";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";

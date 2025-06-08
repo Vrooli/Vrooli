@@ -1,4 +1,14 @@
-import { Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormHelperText, Link, Typography, alpha, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import Divider from "@mui/material/Divider";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
+import Link from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
+import { styled, useTheme } from "@mui/material";
 import { BUSINESS_NAME, LINKS, emailSignUpFormValidation, endpointsAuth, type EmailSignUpInput, type Session } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

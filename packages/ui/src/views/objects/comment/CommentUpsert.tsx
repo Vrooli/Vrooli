@@ -1,4 +1,5 @@
-import { Box, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material";
 import { DUMMY_ID, camelCase, commentTranslationValidation, commentValidation, endpointsComment, noopSubmit, orDefault, shapeComment, validatePK, type Comment, type CommentCreateInput, type CommentFor, type CommentSearchInput, type CommentSearchResult, type CommentShape, type CommentUpdateInput, type Session } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";

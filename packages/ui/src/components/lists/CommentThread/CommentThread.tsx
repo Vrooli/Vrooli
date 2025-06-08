@@ -1,4 +1,12 @@
-import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { BookmarkFor, DeleteType, ReactionFor, endpointsActions, getObjectUrl, getTranslation, updateArray, type Comment, type CommentFor, type DeleteOneInput, type NavigableObject, type ReportFor, type Success } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useState } from "react";

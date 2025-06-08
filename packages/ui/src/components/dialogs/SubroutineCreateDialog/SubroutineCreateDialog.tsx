@@ -1,4 +1,5 @@
-import { Box, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { useTheme } from "@mui/material";
 import { type TranslationKeyCommon } from "@vrooli/shared";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

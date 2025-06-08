@@ -1,4 +1,6 @@
-import { Box, Button, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import { useTheme } from "@mui/material";
 import { endpointsAuth, endpointsUser, profileEmailUpdateFormValidation, type Email, type Phone, type ProfileEmailUpdateInput, type Session, type User } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useState } from "react";

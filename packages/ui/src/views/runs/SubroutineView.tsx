@@ -1,4 +1,5 @@
-import { Box, Stack } from "@mui/material";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 import { FormBuilder, RoutineType, RoutineVersionConfig, exists, getTranslation, noop, noopSubmit, uuidValidate, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineVersion, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";

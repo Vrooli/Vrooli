@@ -1,4 +1,7 @@
-import { Box, IconButton, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material";
 import { BUSINESS_NAME, LINKS, getObjectUrlBase, type ListObject, type ModelType } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

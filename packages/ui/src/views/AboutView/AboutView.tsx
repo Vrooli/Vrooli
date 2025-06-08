@@ -1,4 +1,12 @@
-import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { keyframes } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import { SOCIALS } from "@vrooli/shared";
 import { cloneElement, useCallback } from "react";
 import { useTranslation } from "react-i18next";

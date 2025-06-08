@@ -1,4 +1,4 @@
-import { IconButton } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
 import { LINKS, getObjectUrlBase, type ListObject, type ModelType } from "@vrooli/shared";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

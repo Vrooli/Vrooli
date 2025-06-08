@@ -1,4 +1,4 @@
-import { type Palette } from "@mui/material";
+import type { Palette } from "@mui/material";
 import { expect } from "chai";
 import { calculateUpdatedNumber, getColorForLabel, getNumberInRange } from "./IntegerInput.js";
 

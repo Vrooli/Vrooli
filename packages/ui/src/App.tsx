@@ -1,4 +1,11 @@
-import { Box, CssBaseline, GlobalStyles, StyledEngineProvider, ThemeProvider, createTheme, styled, type Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import CssBaseline from "@mui/material/CssBaseline";
+import GlobalStyles from "@mui/material/GlobalStyles";
+import { StyledEngineProvider } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
+import { createTheme } from "@mui/material/styles";
+import type { Theme } from "@mui/material";
+import { styled } from "@mui/material";
 import { endpointsAuth, type Session, type ValidateSessionInput } from "@vrooli/shared";
 import i18next from "i18next";
 import { useCallback, useEffect, useState } from "react";

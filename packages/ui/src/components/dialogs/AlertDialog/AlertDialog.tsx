@@ -1,4 +1,10 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, type DialogProps, styled, useTheme } from "@mui/material";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import type { DialogProps } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import i18next from "i18next";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

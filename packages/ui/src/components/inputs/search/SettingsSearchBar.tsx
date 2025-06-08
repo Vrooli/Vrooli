@@ -1,4 +1,12 @@
-import { Autocomplete, IconButton, Input, ListItemText, MenuItem, Paper, Popper, useTheme, type AutocompleteChangeDetails, type AutocompleteChangeReason, type AutocompleteHighlightChangeReason, type PopperProps } from "@mui/material";
+import Autocomplete from "@mui/material/Autocomplete";
+import IconButton from "@mui/material/IconButton";
+import Input from "@mui/material/Input";
+import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Popper from "@mui/material/Popper";
+import type { AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, PopperProps } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { LINKS } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";

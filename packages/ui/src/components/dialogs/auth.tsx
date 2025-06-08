@@ -1,4 +1,10 @@
-import { Box, Button, DialogContent, ListItem, ListItemText, Stack, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import DialogContent from "@mui/material/DialogContent";
+import ListItem from "@mui/material/ListItem";
+import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { useTranslation } from "react-i18next";
 import { getInstalledWalletProviders, walletDownloadUrls } from "../../utils/authentication/walletIntegration.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";

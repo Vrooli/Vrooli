@@ -1,4 +1,6 @@
-import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import Slider, { SliderThumb } from "@mui/material/Slider";
+import { useTheme } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useThrottle } from "../../../hooks/useThrottle.js";
 import { IconCommon, IconText } from "../../../icons/Icons.js";

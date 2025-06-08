@@ -1,4 +1,7 @@
-import { Box, keyframes, styled, type SxProps, type Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import { keyframes } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material";
+import { styled } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMenu } from "../hooks/useMenu.js";
 import { ELEMENT_IDS } from "../utils/consts.js";

@@ -1,4 +1,7 @@
-import { Box, IconButton, Tooltip, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { styled } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { type CalendarEvent } from "@vrooli/shared";
 import React, { useCallback, useRef } from "react";

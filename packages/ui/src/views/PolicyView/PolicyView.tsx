@@ -1,4 +1,5 @@
-import { Box, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material";
 import { convertToDot, valueFromDot } from "@vrooli/shared";
 import { useCallback, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";

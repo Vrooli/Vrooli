@@ -1,4 +1,5 @@
-import { Box, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material";
 import { type ModelType, type OwnerShape, type Session } from "@vrooli/shared";
 import { useMemo } from "react";
 import { getCurrentUser } from "../../../utils/authentication/session.js";

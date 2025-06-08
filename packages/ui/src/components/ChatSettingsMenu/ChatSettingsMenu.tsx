@@ -15,7 +15,7 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
+import { useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import type { ChatInviteShape, ListObject, ResourceVersion } from "@vrooli/shared";
 import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } from "@vrooli/shared";

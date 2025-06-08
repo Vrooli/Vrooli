@@ -1,6 +1,6 @@
 /* c8 ignore start */
 // Defines common props
-import { type Theme } from "@mui/material";
+import type { Theme } from "@mui/material";
 import { type SystemStyleObject } from "@mui/system";
 import { type AITaskInfo, type AwardCategory, type ListObject, type OrArray, type TranslationKeyCommon } from "@vrooli/shared";
 import { type FormikProps } from "formik";

@@ -1,4 +1,6 @@
-import { Box, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Formik, useField, type FormikHelpers, type FormikProps } from "formik";
 import { useCallback, useMemo, useRef } from "react";

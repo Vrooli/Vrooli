@@ -1,4 +1,15 @@
-import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Link, Typography, alpha, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonBase from "@mui/material/ButtonBase";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
+import { styled, useTheme } from "@mui/material";
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, YEARS_1_MONTHS, type SubscriptionPricesResponse } from "@vrooli/shared";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

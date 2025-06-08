@@ -1,4 +1,11 @@
-import { Box, type BoxProps, CircularProgress, IconButton, Input, type Palette, Paper, Popover, type PopoverProps, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
+import IconButton from "@mui/material/IconButton";
+import Input from "@mui/material/Input";
+import Paper from "@mui/material/Paper";
+import Popover from "@mui/material/Popover";
+import type { BoxProps, Palette, PopoverProps } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import { type ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList } from "react-window";

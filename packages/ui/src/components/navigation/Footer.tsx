@@ -1,4 +1,11 @@
-import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material";
 import { LINKS, SOCIALS, type TranslationKeyCommon } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import { Icon, IconCommon, type IconInfo } from "../../icons/Icons.js";

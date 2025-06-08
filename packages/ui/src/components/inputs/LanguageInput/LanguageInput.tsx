@@ -1,7 +1,8 @@
 /**
  * Handles the state management for adding/updating text in multiple languages.
  */
-import { Stack, Typography } from "@mui/material";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { useCallback, useContext } from "react";
 import { SessionContext } from "../../../contexts/session.js";
 import { getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";

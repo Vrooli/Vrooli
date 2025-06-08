@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { action } from "@storybook/addon-actions";
 import { MINUTES_10_MS, generatePK, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads } from "@vrooli/shared";
 import { useCallback, useEffect, useState } from "react";

@@ -1,4 +1,7 @@
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material";
 import { ChatInviteStatus, DUMMY_ID, ParticipantManagePageTabOption, noop, validatePublicId, type ChatInvite, type ChatInviteShape, type ListObject, type User } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

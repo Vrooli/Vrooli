@@ -1,4 +1,8 @@
-import { ListItem, Stack, Typography, styled, useTheme, type ListItemProps } from "@mui/material";
+import ListItem from "@mui/material/ListItem";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { ListItemProps } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import { type DecisionOption } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "../../styles.js";

@@ -1,4 +1,11 @@
-import { Box, FormControl, FormHelperText, Input, InputLabel, type Palette, Tooltip, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import Input from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import Tooltip from "@mui/material/Tooltip";
+import type { Palette } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useMemo } from "react";
 import { type IntegerInputBaseProps, type IntegerInputProps } from "../types.js";

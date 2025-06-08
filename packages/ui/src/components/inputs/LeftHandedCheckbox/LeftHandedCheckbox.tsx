@@ -1,4 +1,6 @@
-import { Box, Checkbox, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
+import Typography from "@mui/material/Typography";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "../../../styles.js";

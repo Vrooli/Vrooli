@@ -1,4 +1,8 @@
-import { alpha, Box, IconButton, Stack, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import { useTheme } from "@mui/material";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { LINKS } from "@vrooli/shared";
 import { lazily } from "react-lazily";
 import { Page } from "./components/Page/Page.js";

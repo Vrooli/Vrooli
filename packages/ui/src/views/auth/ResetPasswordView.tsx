@@ -1,4 +1,5 @@
-import { Box, Button } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import { LINKS, UrlTools, emailResetPasswordFormSchema, endpointsAuth, validatePublicId, type EmailResetPasswordInput, type Session } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";

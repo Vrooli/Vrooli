@@ -1,4 +1,6 @@
-import { Box, IconButton, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import { styled, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";

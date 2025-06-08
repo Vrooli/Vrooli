@@ -1,4 +1,7 @@
-import { Box, Button, Stack, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import type { Meta } from "@storybook/react";
 import { LINKS, ResourceUsedFor, type Resource, type ResourceList as ResourceListType } from "@vrooli/shared";
 import { useState } from "react";

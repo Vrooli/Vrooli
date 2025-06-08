@@ -1,4 +1,9 @@
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { Icon, type IconInfo } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";

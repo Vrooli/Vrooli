@@ -1,4 +1,7 @@
-import { Box, type BoxProps, LinearProgress, type LinearProgressProps, type TypographyProps, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import LinearProgress from "@mui/material/LinearProgress";
+import type { BoxProps, LinearProgressProps, TypographyProps } from "@mui/material";
+import { styled } from "@mui/material";
 import { type CSSProperties } from "react";
 import { type SxType } from "../../types.js";
 import { type CompletionBarProps } from "../types.js";

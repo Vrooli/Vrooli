@@ -1,5 +1,9 @@
 // Used to display popular/search results of a particular object type
-import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import Checkbox from "@mui/material/Checkbox";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import { useTheme } from "@mui/material";
 import { endpointsReminder, shapeReminder, type Reminder, type ReminderUpdateInput } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";

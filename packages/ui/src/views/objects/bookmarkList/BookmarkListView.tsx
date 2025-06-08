@@ -1,4 +1,5 @@
-import { Box, IconButton } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import { HistoryPageTabOption, LINKS, deleteArrayIndex, endpointsBookmark, shapeBookmark, updateArray, generatePK, type Bookmark, type BookmarkCreateInput, type BookmarkList } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

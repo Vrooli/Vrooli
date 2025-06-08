@@ -1,4 +1,7 @@
-import { Box, Typography, useTheme, type BoxProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import type { BoxProps } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { endpointsUser, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,6 @@
-import { Box, Button, InputAdornment } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import InputAdornment from "@mui/material/InputAdornment";
 import { LINKS, emailRequestPasswordChangeSchema, endpointsAuth, type EmailRequestPasswordChangeInput, type Success } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback } from "react";

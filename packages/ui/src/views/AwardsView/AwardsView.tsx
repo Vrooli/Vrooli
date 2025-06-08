@@ -1,4 +1,5 @@
-import { Box, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
 import { AwardCategory, awardNames, endpointsAward, type Award, type AwardSearchInput, type AwardSearchResult, type TranslationKeyAward } from "@vrooli/shared";
 import { type TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";

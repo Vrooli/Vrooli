@@ -1,4 +1,6 @@
-import { Box, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { IconCommon } from "../../../icons/Icons.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { type MemberInviteListItemProps } from "../types.js";

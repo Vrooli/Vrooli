@@ -1,4 +1,7 @@
-import { Card, CardContent, Typography, useTheme } from "@mui/material";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { LineGraph } from "../../graphs/LineGraph/LineGraph.js";
 import { type LineGraphCardProps } from "../types.js";

@@ -1,4 +1,7 @@
-import { Box, Chip, Stack, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import { styled, useTheme } from "@mui/material";
 import { type SyntheticEvent, useCallback, useMemo, useState } from "react";
 import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase.js";

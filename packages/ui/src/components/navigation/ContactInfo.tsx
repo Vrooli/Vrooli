@@ -1,4 +1,9 @@
-import { Box, Divider, Link, Tooltip, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import Link from "@mui/material/Link";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { LINKS, SOCIALS, type TranslationKeyCommon } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import { Icon, type IconInfo } from "../../icons/Icons.js";

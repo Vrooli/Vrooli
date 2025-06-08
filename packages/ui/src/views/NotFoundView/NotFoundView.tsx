@@ -1,4 +1,9 @@
-import { Box, Button, Container, Stack, Typography, type SxProps, type Theme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Container from "@mui/material/Container";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import type { SxProps, Theme } from "@mui/material";
 import { LINKS } from "@vrooli/shared";
 import { useTranslation } from "react-i18next";
 import Bunny404 from "../../assets/img/Bunny404.svg";

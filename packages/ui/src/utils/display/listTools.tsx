@@ -1,4 +1,5 @@
-import { Chip, type Palette } from "@mui/material";
+import Chip from "@mui/material/Chip";
+import type { Palette } from "@mui/material";
 import { BookmarkFor, CommentFor, CopyType, DUMMY_ID, DeleteType, ReactionFor, ReportFor, exists, getTranslation, isOfType, valueFromDot, type AutocompleteOption, type Bookmark, type Chat, type ChatInvite, type ChatParticipant, type DotNotation, type ListObject, type Meeting, type Member, type MemberInvite, type Reaction, type Resource, type ResourceVersion, type Run, type User, type View, type YouInflated } from "@vrooli/shared";
 import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/resource.js";

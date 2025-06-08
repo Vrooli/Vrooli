@@ -1,7 +1,11 @@
 /**
  * Displays all search options for a team
  */
-import { Button, Divider, Grid, Stack, Typography } from "@mui/material";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { useFormik } from "formik";
 import { useTranslation } from "react-i18next";
 import { Z_INDEX } from "../../../utils/consts.js";

@@ -1,4 +1,4 @@
-import { InputAdornment } from "@mui/material";
+import InputAdornment from "@mui/material/InputAdornment";
 import { DUMMY_ID, endpointsUser, profileValidation, shapeProfile, userTranslationValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Field, Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext, useMemo } from "react";

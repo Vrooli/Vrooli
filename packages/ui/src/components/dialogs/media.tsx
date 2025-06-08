@@ -1,4 +1,8 @@
-import { Box, IconButton, Modal, type ModalProps, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Modal from "@mui/material/Modal";
+import type { ModalProps } from "@mui/material";
+import { styled } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { IconCommon } from "../../icons/Icons.js";

@@ -1,4 +1,8 @@
-import { Box, ClickAwayListener, type Palette, Popper, type PopperPlacementType, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import ClickAwayListener from "@mui/material/ClickAwayListener";
+import Popper from "@mui/material/Popper";
+import type { Palette, PopperPlacementType } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { Z_INDEX } from "../../../utils/consts.js";

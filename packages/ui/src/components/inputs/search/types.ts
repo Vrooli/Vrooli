@@ -1,4 +1,4 @@
-import { type InputProps } from "@mui/material";
+import type { InputProps } from "@mui/material";
 import { type TranslationKeyCommon } from "@vrooli/shared";
 import { type SearchItem } from "../../../utils/search/siteToSearch.js";
 

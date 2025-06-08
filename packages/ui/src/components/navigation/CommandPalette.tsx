@@ -1,4 +1,13 @@
-import { Box, ButtonBase, DialogContent, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import DialogContent from "@mui/material/DialogContent";
+import Divider from "@mui/material/Divider";
+import List from "@mui/material/List";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { VisibilityType, getObjectUrl, type ActionOption, type ListObject, type AutocompleteOption as SearchResult, type ShortcutOption } from "@vrooli/shared";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

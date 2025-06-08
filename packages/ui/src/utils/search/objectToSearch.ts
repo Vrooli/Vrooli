@@ -1,4 +1,4 @@
-import { type Palette } from "@mui/material";
+import type { Palette } from "@mui/material";
 import { CalendarPageTabOption, ChatInviteStatus, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, ResourceSubType, ResourceSubTypeRoutine, RunStatus, ScheduleFor, SearchPageTabOption, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, type SearchType, type SearchTypeToSearchInput, type TranslationKeyCommon, type YouInflated } from "@vrooli/shared";
 // Import ResourceType directly from api module to avoid namespace conflict
 import { ResourceType } from "@vrooli/shared/api/types";

@@ -1,4 +1,7 @@
-import { ListItem, Stack, Typography, useTheme } from "@mui/material";
+import ListItem from "@mui/material/ListItem";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { useField } from "formik";
 import { ToggleSwitch } from "../../inputs/ToggleSwitch/ToggleSwitch.js";
 import { type SettingsToggleListItemProps } from "../types.js";

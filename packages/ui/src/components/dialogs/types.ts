@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type DialogProps, type PopoverProps } from "@mui/material";
+import type { DialogProps, PopoverProps } from "@mui/material";
 import { type Bookmark, type BookmarkFor, type ListObject, type RoutineVersion, type TranslationKeyCommon } from "@vrooli/shared";
 import { type ReactNode } from "react";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";

@@ -1,5 +1,5 @@
 /* c8 ignore start */
-import { type BoxProps, type CheckboxProps, type TextFieldProps } from "@mui/material";
+import type { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { type CodeLanguage, type JSONVariable, type ResourceListFor, type ResourceVersion, type Tag, type TagShape, type TranslationFunc } from "@vrooli/shared";
 import { type FieldProps } from "formik";
 import { type CSSProperties, type RefObject } from "react";

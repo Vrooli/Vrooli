@@ -1,4 +1,12 @@
-import { Box, Chip, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme, type ChipProps } from "@mui/material";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import type { ChipProps } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import { LlmTask, getTranslation, type AITaskInfo, type ChatMessageShape, type ChatParticipantShape, type ListObject } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

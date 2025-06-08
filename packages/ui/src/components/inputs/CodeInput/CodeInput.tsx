@@ -1,5 +1,10 @@
 /* eslint-disable import/extensions */
-import { Box, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material";
 import { CodeLanguage, Status, isEqual, type TranslationKeyLangs } from "@vrooli/shared";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";

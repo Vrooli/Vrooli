@@ -1,4 +1,4 @@
-import { Stack } from "@mui/material";
+import Stack from "@mui/material/Stack";
 import { RunStatus } from "@vrooli/shared";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,9 @@
-import { Box, IconButton, Stack, Tooltip, Typography, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { styled } from "@mui/material";
 import { LINKS, ResourceUsedFor, endpointsActions, getObjectUrl, type CalendarEvent, type Count, type DeleteManyInput, type ListObject, type Resource } from "@vrooli/shared";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState, type SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";

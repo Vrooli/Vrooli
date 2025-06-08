@@ -1,4 +1,12 @@
-import { Box, Button, ButtonGroup, IconButton, InputAdornment, Slider, Stack, TextField, Tooltip } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ButtonGroup from "@mui/material/ButtonGroup";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import Slider from "@mui/material/Slider";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
 import { IconCommon, IconFavicon, type IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";

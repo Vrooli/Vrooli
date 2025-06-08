@@ -1,4 +1,8 @@
-import { Box, type BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import type { BoxProps } from "@mui/material";
+import { styled, useTheme } from "@mui/material";
 import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { type TIDCardProps, type TIDCardSize } from "../types.js";
 

@@ -1,4 +1,5 @@
-import { Box, styled } from "@mui/material";
+import Box from "@mui/material/Box";
+import { styled } from "@mui/material";
 import { useFormikContext } from "formik";
 import { forwardRef, type ReactNode, useMemo } from "react";
 import { ViewDisplayType } from "../../types.js";

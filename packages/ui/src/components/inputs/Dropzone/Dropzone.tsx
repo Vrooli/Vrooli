@@ -6,7 +6,9 @@
  * which can be removed.
  * //TODO do what this comment says
  */
-import { Button, Grid, type Theme } from "@mui/material";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import type { Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";

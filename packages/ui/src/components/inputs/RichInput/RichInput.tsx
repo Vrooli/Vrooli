@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { getDotNotationValue, noop, setDotNotationValue } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

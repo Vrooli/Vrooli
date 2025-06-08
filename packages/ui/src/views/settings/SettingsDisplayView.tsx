@@ -1,4 +1,8 @@
-import { Box, Button, Grid, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material";
 import { endpointsUser, profileValidation, type ProfileUpdateInput, type User } from "@vrooli/shared";
 import { Formik, type FormikHelpers } from "formik";
 import { useCallback, useContext } from "react";

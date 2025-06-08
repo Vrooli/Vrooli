@@ -1,4 +1,7 @@
-import { IconButton, InputAdornment, Tooltip, styled, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import Tooltip from "@mui/material/Tooltip";
+import { styled, useTheme } from "@mui/material";
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";

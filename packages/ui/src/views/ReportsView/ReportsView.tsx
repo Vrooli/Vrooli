@@ -1,4 +1,7 @@
-import { Box, Button, Typography, styled, useTheme } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import { styled, useTheme } from "@mui/material";
 import { LINKS, ReportStatus, VisibilityType, endpointsChatMessage, endpointsComment, endpointsIssue, endpointsResource, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop, type ListObject, type Report, type ReportFor, type ReportSearchInput } from "@vrooli/shared";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

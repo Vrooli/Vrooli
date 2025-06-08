@@ -1,4 +1,10 @@
-import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import IconButton from "@mui/material/IconButton";
+import ListItem from "@mui/material/ListItem";
+import Popover from "@mui/material/Popover";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material";
 import { type MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";

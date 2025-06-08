@@ -1,5 +1,7 @@
 /* eslint-disable no-magic-numbers */
-import { Box, Button, Typography } from "@mui/material";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import type { Meta } from "@storybook/react";
 import { generatePK, type Reminder, type ReminderList as ReminderListType } from "@vrooli/shared";
 import { useState } from "react";
