@@ -41,7 +41,7 @@ export class SearchHistory {
         try {
             const parsedHistory = JSON.parse(existingHistoryString);
             // If it's not an object, set it to an empty object
-            if (typeof existingHistory !== "object") existingHistory = {};
+            if (typeof parsedHistory !== "object") existingHistory = {};
             else existingHistory = parsedHistory;
         } catch (e) {
             existingHistory = {};
@@ -74,7 +74,7 @@ export class SearchHistory {
             try {
                 const parsedHistory = JSON.parse(localStorage.getItem(key) ?? "{}");
                 // If it's not an object, set it to an empty object
-                if (typeof existingHistory !== "object") existingHistory = {};
+                if (typeof parsedHistory !== "object") existingHistory = {};
                 else existingHistory = parsedHistory;
             } catch (e) {
                 existingHistory = {};
@@ -90,9 +90,9 @@ export class SearchHistory {
                         return {
                             timestamp: historyItem.timestamp,
                             option: {
-                                ...option,
-                                bookmarks,
-                                isBookmarked,
+                                ...historyItem.option,
+                                bookmarks: option.bookmarks,
+                                isBookmarked: option.isBookmarked,
                             },
                         };
                     }

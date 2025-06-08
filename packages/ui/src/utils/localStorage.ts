@@ -201,8 +201,12 @@ export function getLocalStorageKeys({
     suffix = "",
 }: GetLocalStorageKeysProps): string[] {
     const keys: string[] = [];
-    for (let i = 0; i < (localStorageObj?.length ?? 0); i++) {
-        const key = localStorageObj?.key(i);
+    // Use localStorage directly to ensure we're using the same instance as the tests
+    const storage = typeof localStorage !== "undefined" ? localStorage : localStorageObj;
+    if (!storage) return keys;
+    
+    for (let i = 0; i < storage.length; i++) {
+        const key = storage.key(i);
         if (key && key.startsWith(prefix) && key.endsWith(suffix)) {
             keys.push(key);
         }

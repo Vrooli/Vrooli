@@ -1,4 +1,5 @@
-import { createTheme, lighten } from "@mui/material";
+import { createTheme } from "@mui/material/styles";
+import { lighten } from "@mui/material/styles";
 
 // Define custom theme properties
 declare module "@mui/material/styles/createPalette" {

@@ -1,15 +1,15 @@
-import { uuid, type ChatMessage, type ChatParticipant, type ChatShape, type LlmTaskInfo, type Session } from "@vrooli/shared";
-import { describe, it, expect, afterAll, beforeEach } from "vitest";
+import { generatePK, type ChatMessage, type ChatParticipant, type ChatShape, type LlmTaskInfo, type Session } from "@vrooli/shared";
+import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage.js";
 import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat.js";
 
 describe("processMessages", () => {
-    const addMessages = jest.fn();
-    const removeMessages = jest.fn();
-    const editMessage = jest.fn();
+    const addMessages = vi.fn();
+    const removeMessages = vi.fn();
+    const editMessage = vi.fn();
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should handle added messages", () => {
@@ -69,12 +69,12 @@ describe("processMessages", () => {
 });
 
 describe("processTypingUpdates", () => {
-    const currentUserId = uuid();
+    const currentUserId = generatePK().toString();
     const session = {
         isLoggedIn: true,
         users: [{ id: currentUserId }],
     } as Session;
-    const setUsersTyping = jest.fn();
+    const setUsersTyping = vi.fn();
     const participants = [
         { user: { id: "user1" } },
         { user: { id: "user2" } },
@@ -83,7 +83,7 @@ describe("processTypingUpdates", () => {
     ] as Omit<ChatParticipant, "chat">[];
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should add participants who start typing, excluding the current user", () => {
@@ -160,17 +160,17 @@ describe("processTypingUpdates", () => {
 });
 
 describe("processParticipantsUpdates", () => {
-    const setParticipants = jest.fn();
+    const setParticipants = vi.fn();
     const chat = { id: "chat1" } as ChatShape;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         global.localStorage.clear();
         setCookie("Preferences", fullPreferences);
     });
     afterAll(() => {
         global.localStorage.clear();
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it("should add joining participants to the chat", () => {
@@ -255,20 +255,20 @@ describe("processParticipantsUpdates", () => {
 
 describe("processLlmTasks", () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         global.localStorage.clear();
         setCookie("Preferences", fullPreferences);
     });
     afterAll(() => {
         global.localStorage.clear();
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it("should handle empty tasks and updates", () => {
         processLlmTasks({ tasks: [], updates: [] }, "chat1");
 
         const storedTasks = getCookieTasksForChat("chat1");
-        expect(storedTasks?.inactiveTasks).to.be.undefined;
+        expect(storedTasks?.inactiveTasks).toBeUndefined();
     });
 
     it("should process full tasks", () => {
@@ -332,7 +332,7 @@ describe("processLlmTasks", () => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         storedTasks!.inactiveTasks.forEach(task => {
             // Make sure `lastUpdated` can be parsed as a valid date
-            expect(new Date(task.lastUpdated).toString()).not.to.equal("Invalid Date");
+            expect(new Date(task.lastUpdated).toString()).not.toBe("Invalid Date");
         });
     });
 
@@ -380,7 +380,7 @@ describe("processLlmTasks", () => {
         processLlmTasks({ tasks, updates: [] }, "chat1");
 
         const storedTasks = getCookieTasksForChat("chat1");
-        expect(storedTasks?.inactiveTasks).to.be.undefined;
+        expect(storedTasks?.inactiveTasks).toBeUndefined();
     });
 
     it("should ignore updates without an ID", () => {
@@ -397,11 +397,11 @@ describe("processLlmTasks", () => {
 
 describe("processResponseStream", () => {
     let messageStreamRef;
-    const setMessageStream = jest.fn();
-    const throttledSetMessageStream = jest.fn();
+    const setMessageStream = vi.fn();
+    const throttledSetMessageStream = vi.fn();
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         messageStreamRef = { current: null };
     });
 
@@ -414,7 +414,7 @@ describe("processResponseStream", () => {
     it("should append to the existing message on stream type", () => {
         messageStreamRef.current = { __type: "stream", botId: "bot123", message: "Hello" };
         processResponseStream({ __type: "stream", botId: "bot123", message: " World" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).to.equal("Hello World");
+        expect(messageStreamRef.current.message).toBe("Hello World");
     });
 
     it("should clear message and update botId on new bot message", () => {
@@ -425,13 +425,13 @@ describe("processResponseStream", () => {
 
     it("should handle error type by continuing to append message", () => {
         processResponseStream({ __type: "error", botId: "bot123", message: "Error occurred" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).to.equal("Error occurred");
+        expect(messageStreamRef.current.message).toBe("Error occurred");
     });
 
     it("should clear the stream on end type", () => {
-        console.log = jest.fn();
+        console.log = vi.fn();
         processResponseStream({ __type: "end", botId: "bot123", message: "Complete" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current).to.be.null;
+        expect(messageStreamRef.current).toBeNull();
         expect(setMessageStream).toHaveBeenCalledWith(null);
     });
 

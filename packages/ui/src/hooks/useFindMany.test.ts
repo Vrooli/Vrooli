@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { searchTypeToParams } from "../utils/search/objectToSearch.js";
 import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from "./useFindMany.js";
 
@@ -16,7 +16,7 @@ function setWindowSearch(search) {
 }
 
 // Mock setLocation function
-const mockSetLocation = jest.fn((path, { replace, searchParams }) => {
+const mockSetLocation = vi.fn((path, { replace, searchParams }) => {
     console.log("in boop mockSetLocation", path, replace, searchParams);
     const search = stringifySearchParams(searchParams);
     setWindowSearch(`?${search}`);
@@ -26,8 +26,8 @@ describe("parseData", () => {
     // Test 1: No Data
     it("should return an empty array if data is null undefined", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(parseData(null)).to.deep.equal([]);
-        expect(parseData(undefined)).to.deep.equal([]);
+        expect(parseData(null)).toEqual([]);
+        expect(parseData(undefined)).toEqual([]);
     });
 
     it("should return an empty array if data is not an object", () => {
@@ -39,34 +39,34 @@ describe("parseData", () => {
 
     // Test 2: Custom Resolver
     it("should use custom resolver if provided", () => {
-        const customResolver = jest.fn().mockReturnValue([{ id: 1 }]);
+        const customResolver = vi.fn().mockReturnValue([{ id: 1 }]);
         const data = { items: [{ id: 1 }] };
-        expect(parseData(data, customResolver)).to.deep.equal([{ id: 1 }]);
+        expect(parseData(data, customResolver)).toEqual([{ id: 1 }]);
         expect(customResolver).toHaveBeenCalledWith(data);
     });
 
     // Test 3: Invalid Custom Resolver
     it("should handle custom resolver returning non-array values", () => {
-        const customResolver = jest.fn().mockReturnValue(null);
+        const customResolver = vi.fn().mockReturnValue(null);
         const data = { items: [{ id: 1 }] };
-        expect(parseData(data, customResolver)).to.be.null;
+        expect(parseData(data, customResolver)).toBe(null);
     });
 
     // Test 4: Paginated Data
     it("should correctly parse paginated data", () => {
         const paginatedData = { edges: [{ node: { id: 1 } }, { node: { id: 2 } }] };
-        expect(parseData(paginatedData)).to.deep.equal([{ id: 1 }, { id: 2 }]);
+        expect(parseData(paginatedData)).toEqual([{ id: 1 }, { id: 2 }]);
     });
 
     // Test 5: Non-Paginated Data
     it("should return empty array if edges are not present", () => {
         const nonPaginatedData = { items: [{ id: 1 }] };
-        expect(parseData(nonPaginatedData)).to.deep.equal([]);
+        expect(parseData(nonPaginatedData)).toEqual([]);
     });
 
     // Test 6: Error Handling
     it("should not throw error with unexpected input types", () => {
-        expect(() => parseData([1, 2, 3])).not.to.throw();
+        expect(() => parseData([1, 2, 3])).not.toThrow();
     });
 });
 
@@ -80,14 +80,14 @@ describe("updateSortBy", () => {
     it("returns sortBy when it is valid", () => {
         const sortBy = "NameDesc";
         const result = updateSortBy(searchParams, sortBy);
-        expect(result).to.equal(sortBy);
+        expect(result).toBe(sortBy);
     });
 
     // Test 2: Invalid SortBy
     it("returns defaultSortBy when sortBy is not valid", () => {
         const sortBy = "unknown";
         const result = updateSortBy(searchParams, sortBy);
-        expect(result).to.equal(searchParams.defaultSortBy);
+        expect(result).toBe(searchParams.defaultSortBy);
     });
 
     // Test 3: Default Fallback
@@ -95,7 +95,7 @@ describe("updateSortBy", () => {
         const localSearchParams = { sortByOptions: { NameDesc: true }, defaultSortBy: undefined };
         const sortBy = "unknown";
         const result = updateSortBy(localSearchParams, sortBy);
-        expect(result).to.equal("");
+        expect(result).toBe("");
     });
 
     // Test 4: Non-String SortBy
@@ -103,7 +103,7 @@ describe("updateSortBy", () => {
         const sortBy = 12345;
         // @ts-ignore: Testing runtime scenario
         const result = updateSortBy(searchParams, sortBy);
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     });
 
     // Test 5: Missing sortByOptions
@@ -112,7 +112,7 @@ describe("updateSortBy", () => {
         const sortBy = "NameDesc";
         // @ts-ignore: Testing runtime scenario
         const result = updateSortBy(localSearchParams, sortBy);
-        expect(result).to.equal("DateCreatedAsc");
+        expect(result).toBe("DateCreatedAsc");
     });
 });
 
@@ -131,37 +131,37 @@ describe("readyToSearch", () => {
 
     // Test 1: All conditions met
     it("returns true when all conditions are met", () => {
-        expect(readyToSearch(baseParams)).to.equal(true);
+        expect(readyToSearch(baseParams)).toBe(true);
     });
 
     // Test 2: canSearch is false
     it("returns false when canSearch is false", () => {
         const params = { ...baseParams, canSearch: false };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 3: loading is true
     it("returns false when loading is true", () => {
         const params = { ...baseParams, loading: true };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 4: hasMore is false
     it("returns false when hasMore is false", () => {
         const params = { ...baseParams, hasMore: false };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 5: findManyEndpoint is empty
     it("returns false when findManyEndpoint is empty", () => {
         const params = { ...baseParams, findManyEndpoint: "" };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 6: sortBy is empty
     it("returns false when sortBy is empty", () => {
         const params = { ...baseParams, sortBy: "" };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 
     // Test 7: Handling partial searchParams
@@ -172,7 +172,7 @@ describe("readyToSearch", () => {
             hasMore: true,
             // Omit findManyEndpoint and sortBy to simulate missing values
         };
-        expect(readyToSearch(params)).to.equal(false);
+        expect(readyToSearch(params)).toBe(false);
     });
 });
 
@@ -192,7 +192,7 @@ describe("getUrlSearchParams", () => {
             time: { after: new Date("2022-01-01") },
         }));
         const result = getUrlSearchParams(false, "Routine");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             searchString: "",
             sortBy: "",
             timeFrame: undefined,
@@ -205,8 +205,8 @@ describe("getUrlSearchParams", () => {
             sort: CommentSortBy.DateUpdatedDesc,
         }));
         const result = getUrlSearchParams(true, "Comment");
-        expect(result.searchString).to.equal("query");
-        expect(result.sortBy).to.equal(CommentSortBy.DateUpdatedDesc);
+        expect(result.searchString).toBe("query");
+        expect(result.sortBy).toBe(CommentSortBy.DateUpdatedDesc);
     });
 
     it("includes timeFrame with only 'after' when 'after' is present", () => {
@@ -216,7 +216,7 @@ describe("getUrlSearchParams", () => {
             },
         }));
         const result = getUrlSearchParams(true, "Issue");
-        expect(result.timeFrame).to.deep.equal({ after: new Date("2022-01-01") });
+        expect(result.timeFrame).toEqual({ after: new Date("2022-01-01") });
     });
 
     it("includes timeFrame with only 'before' when 'before' is present", () => {
@@ -226,7 +226,7 @@ describe("getUrlSearchParams", () => {
             },
         }));
         const result = getUrlSearchParams(true, "User");
-        expect(result.timeFrame).to.deep.equal({ before: new Date("2022-12-31") });
+        expect(result.timeFrame).toEqual({ before: new Date("2022-12-31") });
     });
 
     it("includes timeFrame with both 'after' and 'before' when both are present", () => {
@@ -237,7 +237,7 @@ describe("getUrlSearchParams", () => {
             },
         }));
         const result = getUrlSearchParams(true, "Organization");
-        expect(result.timeFrame).to.deep.equal({
+        expect(result.timeFrame).toEqual({
             after: new Date("2022-01-01"),
             before: new Date("2022-12-31"),
         });
@@ -256,7 +256,7 @@ describe("getUrlSearchParams", () => {
             },
         }));
         const result = getUrlSearchParams(true, "ApiVersion");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             searchString: "query",
             sortBy: ApiVersionSortBy.ForksAsc,
             timeFrame: {
@@ -269,7 +269,7 @@ describe("getUrlSearchParams", () => {
     it("returns default values when URL is malformed", () => {
         setWindowSearch("?search=&sort=");
         const result = getUrlSearchParams(true, "Code");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             searchString: "",
             sortBy: searchTypeToParams.Code().defaultSortBy,
             timeFrame: undefined,
@@ -281,11 +281,11 @@ describe("getUrlSearchParams", () => {
             search: "query",
             sort: "invalidSort",
         }));
-        console.warn = jest.fn(); // Mock console.warn to check if it gets called
+        console.warn = vi.fn(); // Mock console.warn to check if it gets called
 
         const result = getUrlSearchParams(true, "invalidType");
         expect(console.warn).toHaveBeenCalledWith("Invalid search type provided: invalidType");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             searchString: "query",
             sortBy: "",
         });

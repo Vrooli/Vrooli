@@ -102,7 +102,23 @@ export default defineConfig((props) => {
             chunkSizeWarningLimit: 1000,
             // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
             sourcemap: true,
+            // Remove console statements in production
+            minify: 'terser',
+            terserOptions: {
+                compress: {
+                    drop_console: true,
+                    drop_debugger: true,
+                },
+            },
             rollupOptions: {
+                // Exclude development files from production builds
+                external: (id) => {
+                    // Exclude test and story files from the build
+                    if (id.includes('.test.') || id.includes('.stories.')) {
+                        return true;
+                    }
+                    return false;
+                },
                 output: {
                     // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
                     // This should be done only if you've tried everything else to reduce the bundle size.
@@ -122,30 +138,7 @@ export default defineConfig((props) => {
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.
                         'banner-chicken': ['./src/components/BannerChicken.tsx'],
-                        // Codemirror bundles
-                        'lang-angular': ['@codemirror/lang-angular'],
-                        'lang-cpp': ['@codemirror/lang-cpp'],
-                        'lang-css': ['@codemirror/lang-css'],
-                        'lang-html': ['@codemirror/lang-html'],
-                        'lang-java': ['@codemirror/lang-java'],
-                        'lang-javascript': ['@codemirror/lang-javascript'],
-                        'lang-json': ['@codemirror/lang-json'],
-                        'lang-php': ['@codemirror/lang-php'],
-                        'lang-python': ['@codemirror/lang-python'],
-                        'lang-rust': ['@codemirror/lang-rust'],
-                        'lang-sass': ['@codemirror/lang-sass'],
-                        'lang-sql': ['@codemirror/legacy-modes/mode/sql'],
-                        'lang-svelte': ['@replit/codemirror-lang-svelte'],
-                        'lang-vue': ['@codemirror/lang-vue'],
-                        'lang-xml': ['@codemirror/lang-xml'],
-                        'codemirror-autocomplete': ['@codemirror/autocomplete'],
-                        'codemirror-commands': ['@codemirror/commands'],
-                        'codemirror-language': ['@codemirror/language'],
-                        'codemirror-lint': ['@codemirror/lint'],
-                        'codemirror-search': ['@codemirror/search'],
-                        'codemirror-state': ['@codemirror/state'],
-                        'codemirror-theme-one-dark': ['@codemirror/theme-one-dark'],
-                        'codemirror-view': ['@codemirror/view'],
+                        // Codemirror bundles removed - now loaded dynamically
                         // Latex bundles
                         'latex': ['katex', '@matejmazur/react-katex'],
                     },

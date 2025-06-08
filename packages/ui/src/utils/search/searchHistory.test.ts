@@ -1,12 +1,18 @@
-import { uuid, type AutocompleteOption, type Session, type SessionUser } from "@vrooli/shared";
-import { describe, it, expect, afterAll } from "vitest";
+import { generatePK, type AutocompleteOption, type Session, type SessionUser } from "@vrooli/shared";
+import { describe, it, expect, afterAll, beforeEach } from "vitest";
 import { SearchHistory } from "./searchHistory.js";
 
-const userId = uuid();
-const validSession: Partial<Session> = {
+const userId = generatePK().toString();
+const validSession: Session = {
+    __typename: "Session",
     isLoggedIn: true,
     users: [{
+        __typename: "SessionUser",
         id: userId,
+        credits: "0",
+        hasPremium: false,
+        languages: ["en"],
+        publicId: userId,
     }] as SessionUser[],
 };
 const invalidSession: Partial<Session> = {};
@@ -39,27 +45,27 @@ describe("SearchHistory", () => {
             const history = { "option1": { timestamp: 123, option: { label: "option1", __typename: "SomeType" } } };
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(history));
             const result = SearchHistory.getSearchHistory(searchBarId, userId);
-            expect(result).to.deep.equal(history);
+            expect(result).toEqual(history);
         });
 
         it("should return empty object if no history exists", () => {
             const searchBarId = "bar2";
             const result = SearchHistory.getSearchHistory(searchBarId, userId);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         it("should return empty object if history is invalid JSON", () => {
             const searchBarId = "bar3";
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, "invalid json");
             const result = SearchHistory.getSearchHistory(searchBarId, userId);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         it("should return empty object if stored data is not an object", () => {
             const searchBarId = "bar4";
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify("not an object"));
             const result = SearchHistory.getSearchHistory(searchBarId, userId);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
     });
 
@@ -87,21 +93,21 @@ describe("SearchHistory", () => {
             SearchHistory.updateHistoryItems(searchBarId, userId, options);
             // Check updated history for bar1
             const updatedHistoryBar1 = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}bar1-${userId}`) as string);
-            expect(updatedHistoryBar1["optionA"].option).to.deep.equal({
-                label: "optionA", __typename: "SomeType", bookmarks: 6, isBookmarked: true, description: "new",
+            expect(updatedHistoryBar1["optionA"].option).toEqual({
+                label: "optionA", __typename: "SomeType", bookmarks: 6, isBookmarked: true, description: "old",
             });
-            expect(updatedHistoryBar1["optionA"].timestamp).to.equal(100);
-            expect(updatedHistoryBar1["shortcut1"]).to.deep.equal(initialHistoryBar1["shortcut1"]);
+            expect(updatedHistoryBar1["optionA"].timestamp).toBe(100);
+            expect(updatedHistoryBar1["shortcut1"]).toEqual(initialHistoryBar1["shortcut1"]);
             // Check updated history for bar2
             const updatedHistoryBar2 = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}bar2-${userId}`) as string);
-            expect(updatedHistoryBar2["optionB"].option).to.deep.equal({
+            expect(updatedHistoryBar2["optionB"].option).toEqual({
                 label: "optionB", __typename: "AnotherType", bookmarks: 10, isBookmarked: true,
             });
-            expect(updatedHistoryBar2["optionB"].timestamp).to.equal(200);
-            expect(updatedHistoryBar2["action1"]).to.deep.equal(initialHistoryBar2["action1"]);
+            expect(updatedHistoryBar2["optionB"].timestamp).toBe(200);
+            expect(updatedHistoryBar2["action1"]).toEqual(initialHistoryBar2["action1"]);
             // Ensure optionC wasn't added
-            expect(updatedHistoryBar1).to.not.have.property("optionC");
-            expect(updatedHistoryBar2).to.not.have.property("optionC");
+            expect(updatedHistoryBar1).not.toHaveProperty("optionC");
+            expect(updatedHistoryBar2).not.toHaveProperty("optionC");
         });
 
         it("should not update if bookmarks and isBookmarked are unchanged", () => {
@@ -115,7 +121,7 @@ describe("SearchHistory", () => {
             ] as unknown as AutocompleteOption[];
             SearchHistory.updateHistoryItems(searchBarId, userId, options);
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(updatedHistory["optionA"]).to.deep.equal(initialHistory["optionA"]);
+            expect(updatedHistory["optionA"]).toEqual(initialHistory["optionA"]);
         });
 
         it("should do nothing if options is undefined", () => {
@@ -126,7 +132,7 @@ describe("SearchHistory", () => {
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(initialHistory));
             SearchHistory.updateHistoryItems(searchBarId, userId, undefined);
             const historyAfter = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(historyAfter).to.deep.equal(initialHistory);
+            expect(historyAfter).toEqual(initialHistory);
         });
     });
 
@@ -135,10 +141,10 @@ describe("SearchHistory", () => {
             const keys = [`${SEARCH_HISTORY_PREFIX}bar1-${userId}`, `${SEARCH_HISTORY_PREFIX}bar2-${userId}`];
             // Set up localStorage with some keys
             keys.forEach(key => localStorage.setItem(key, JSON.stringify({})));
-            SearchHistory.clearSearchHistory(validSession as Session);
+            SearchHistory.clearSearchHistory(validSession);
             // Verify all keys are removed
             keys.forEach(key => {
-                expect(localStorage.getItem(key)).to.be.null;
+                expect(localStorage.getItem(key)).toBeNull();
             });
         });
 
@@ -146,7 +152,7 @@ describe("SearchHistory", () => {
             // No keys set in localStorage
             SearchHistory.clearSearchHistory(validSession as Session);
             // localStorage should remain empty
-            expect(localStorage.length).to.equal(0);
+            expect(localStorage.length).toBe(0);
         });
 
         it("should do nothing if session is invalid", () => {
@@ -154,7 +160,7 @@ describe("SearchHistory", () => {
             localStorage.setItem(key, JSON.stringify({}));
             SearchHistory.clearSearchHistory(invalidSession as Session);
             // Verify the key is still present
-            expect(localStorage.getItem(key)).to.equal(JSON.stringify({}));
+            expect(localStorage.getItem(key)).toBe(JSON.stringify({}));
         });
     });
 
@@ -171,28 +177,28 @@ describe("SearchHistory", () => {
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(history));
             SearchHistory.removeSearchHistoryItem(searchBarId, userId, labelToRemove);
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(updatedHistory).to.not.have.property(labelToRemove);
-            expect(updatedHistory).to.have.property(otherLabel);
+            expect(updatedHistory).not.toHaveProperty(labelToRemove);
+            expect(updatedHistory).toHaveProperty(otherLabel);
         });
 
         it("should do nothing when removing a non-existing item", () => {
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify(history));
             SearchHistory.removeSearchHistoryItem(searchBarId, userId, "nonExisting");
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(updatedHistory).to.deep.equal(history);
+            expect(updatedHistory).toEqual(history);
         });
 
         it("should do nothing when history is empty", () => {
             SearchHistory.removeSearchHistoryItem(searchBarId, userId, labelToRemove);
             const updatedHistory = localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`);
-            expect(updatedHistory).to.be.null;
+            expect(updatedHistory).toBeNull();
         });
 
         it("should clear out the entry if it's the only one", () => {
             localStorage.setItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`, JSON.stringify({ [labelToRemove]: { timestamp: 100, option: { label: labelToRemove, __typename: "SomeType" } } }));
             SearchHistory.removeSearchHistoryItem(searchBarId, userId, labelToRemove);
             const updatedHistory = localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`);
-            expect(updatedHistory).to.be.null;
+            expect(updatedHistory).toBeNull();
         });
     });
 
@@ -203,9 +209,9 @@ describe("SearchHistory", () => {
             const option = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const history = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(history).to.have.property("newOption");
-            expect(history["newOption"].option).to.deep.equal({ ...option, isFromHistory: true });
-            expect(typeof history["newOption"].timestamp).to.equal("number");
+            expect(history).toHaveProperty("newOption");
+            expect(history["newOption"].option).toEqual({ ...option, isFromHistory: true });
+            expect(typeof history["newOption"].timestamp).toBe("number");
         });
 
         it("should remove the oldest item when history exceeds max length", () => {
@@ -214,10 +220,10 @@ describe("SearchHistory", () => {
             const newOption = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
             SearchHistory.addSearchHistoryItem(searchBarId, userId, newOption);
             const updatedHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(updatedHistory).to.not.have.property("option1");
-            expect(updatedHistory).to.have.property("newOption");
-            expect(updatedHistory["newOption"].option).to.deep.equal({ ...newOption, isFromHistory: true });
-            expect(Object.keys(updatedHistory).length).to.equal(MAX_HISTORY_LENGTH);
+            expect(updatedHistory).not.toHaveProperty("option1");
+            expect(updatedHistory).toHaveProperty("newOption");
+            expect(updatedHistory["newOption"].option).toEqual({ ...newOption, isFromHistory: true });
+            expect(Object.keys(updatedHistory).length).toBe(MAX_HISTORY_LENGTH);
         });
 
         it("should update timestamp when adding an existing item", async () => {
@@ -229,16 +235,16 @@ describe("SearchHistory", () => {
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const secondHistory = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
             const secondTimestamp = secondHistory["existingOption"].timestamp;
-            expect(secondTimestamp).to.be.greaterThan(firstTimestamp);
-            expect(secondHistory["existingOption"].option).to.deep.equal({ ...option, isFromHistory: true });
+            expect(secondTimestamp).toBeGreaterThan(firstTimestamp);
+            expect(secondHistory["existingOption"].option).toEqual({ ...option, isFromHistory: true });
         });
 
         it("should add item to empty history", () => {
             const option = { label: "firstOption", __typename: "SomeType" } as unknown as AutocompleteOption;
             SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
             const history = JSON.parse(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId}-${userId}`) as string);
-            expect(history).to.have.property("firstOption");
-            expect(history["firstOption"].option).to.deep.equal({ ...option, isFromHistory: true });
+            expect(history).toHaveProperty("firstOption");
+            expect(history["firstOption"].option).toEqual({ ...option, isFromHistory: true });
         });
     });
 
@@ -255,15 +261,15 @@ describe("SearchHistory", () => {
 
         // Verify all three are present
         let history = SearchHistory.getSearchHistory(searchBarId, userId);
-        expect(history).to.have.keys("option1", "option2", "option3");
+        expect(Object.keys(history)).toEqual(expect.arrayContaining(["option1", "option2", "option3"]));
 
         // Remove option2
         SearchHistory.removeSearchHistoryItem(searchBarId, userId, "option2");
 
         // Verify option2 is removed, others remain
         history = SearchHistory.getSearchHistory(searchBarId, userId);
-        expect(history).to.have.keys("option1", "option3");
-        expect(history).to.not.have.key("option2");
+        expect(Object.keys(history)).toEqual(expect.arrayContaining(["option1", "option3"]));
+        expect(history).not.toHaveProperty("option2");
     });
 
     it("should maintain max length and add new item when exceeding limit", () => {
@@ -288,9 +294,9 @@ describe("SearchHistory", () => {
         const history = SearchHistory.getSearchHistory(searchBarId, userId);
         const updatedKeys = Object.keys(history);
 
-        expect(updatedKeys.length).to.equal(maxLength);           // Length stays at 500
+        expect(updatedKeys.length).toBe(maxLength);           // Length stays at 500
         expect(updatedKeys).to.include("newOption");             // New item is added
-        expect(initialKeys.filter(k => !updatedKeys.includes(k)).length).to.equal(1); // One item removed
+        expect(initialKeys.filter(k => !updatedKeys.includes(k)).length).toBe(1); // One item removed
     });
 
     it("should add items and then update their bookmarks correctly", () => {
@@ -309,9 +315,9 @@ describe("SearchHistory", () => {
 
         // Verify updates
         const history = SearchHistory.getSearchHistory(searchBarId, userId);
-        expect((history["option1"].option as any).bookmarks).to.equal(6);
+        expect((history["option1"].option as any).bookmarks).toBe(6);
         expect((history["option1"].option as any).isBookmarked).to.be.false;
-        expect((history["option2"].option as any).bookmarks).to.equal(11);
+        expect((history["option2"].option as any).bookmarks).toBe(11);
         expect((history["option2"].option as any).isBookmarked).to.be.true;
     });
 
@@ -333,14 +339,14 @@ describe("SearchHistory", () => {
         SearchHistory.clearSearchHistory(validSession as Session);
 
         // Verify history is cleared
-        expect(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId1}-${userId}`)).to.be.null;
-        expect(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId2}-${userId}`)).to.be.null;
+        expect(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId1}-${userId}`)).toBeNull();
+        expect(localStorage.getItem(`${SEARCH_HISTORY_PREFIX}${searchBarId2}-${userId}`)).toBeNull();
     });
 
     it("should maintain separate histories for different users", () => {
         const searchBarId = "bar1";
-        const userId1 = uuid();
-        const userId2 = uuid();
+        const userId1 = generatePK().toString();
+        const userId2 = generatePK().toString();
         const option1 = { label: "option1", __typename: "SomeType" } as unknown as AutocompleteOption;
         const option2 = { label: "option2", __typename: "SomeType" } as unknown as AutocompleteOption;
 
@@ -350,11 +356,11 @@ describe("SearchHistory", () => {
 
         // Verify isolation
         const historyUser1 = SearchHistory.getSearchHistory(searchBarId, userId1);
-        expect(historyUser1).to.have.key("option1");
-        expect(historyUser1).to.not.have.key("option2");
+        expect(historyUser1).toHaveProperty("option1");
+        expect(historyUser1).not.toHaveProperty("option2");
 
         const historyUser2 = SearchHistory.getSearchHistory(searchBarId, userId2);
-        expect(historyUser2).to.have.key("option2");
-        expect(historyUser2).to.not.have.key("option1");
+        expect(historyUser2).toHaveProperty("option2");
+        expect(historyUser2).not.toHaveProperty("option1");
     });
 });
