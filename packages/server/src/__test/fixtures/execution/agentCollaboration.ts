@@ -740,6 +740,8 @@ export const AGENT_COLLABORATIONS = {
     CUSTOMER_SUPPORT_COLLABORATION,
     HEALTHCARE_COMPLIANCE_COLLABORATION,
     FINANCIAL_RISK_COLLABORATION,
+    RESEARCH_INNOVATION_COLLABORATION,
+    CRISIS_RESPONSE_COLLABORATION,
 } as const;
 
 /**
@@ -778,6 +780,430 @@ export const COLLABORATION_EVOLUTION = {
         emergentBehaviors: ["predictive_collaboration", "proactive_optimization", "collective_creativity"],
         collaborationComplexity: 0.92
     }
+};
+
+/**
+ * Research Laboratory Innovation Collaboration
+ * Demonstrates collaborative scientific discovery through agent specialization
+ */
+export const RESEARCH_INNOVATION_COLLABORATION: AgentCollaboration = {
+    id: "research_innovation_network",
+    name: "Research Innovation Network",
+    description: "Multi-agent system for accelerating scientific discovery through collaborative intelligence",
+    
+    communicationPattern: "blackboard",
+    coordinationStrategy: "consensus",
+    
+    participants: [
+        {
+            agentId: "hypothesis_generation_specialist",
+            role: "specialist",
+            capabilities: [
+                "literature_synthesis",
+                "pattern_recognition",
+                "creative_hypothesis_formation",
+                "cross_domain_connection"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "analysis",
+                    description: "Generates novel research hypotheses from literature and data patterns",
+                    confidence: 0.85,
+                    evidence: ["literature_corpus", "pattern_analysis", "domain_connections"],
+                    dependencies: []
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "experiment_design_optimizer",
+                    learnedCapability: "feasibility_aware_hypothesis_generation",
+                    confidenceGain: 0.23,
+                    applicationContext: ["practical_hypothesis_filtering", "resource_aware_proposals"]
+                }
+            ]
+        },
+        {
+            agentId: "experiment_design_optimizer",
+            role: "specialist",
+            capabilities: [
+                "statistical_power_analysis",
+                "resource_optimization",
+                "protocol_development",
+                "control_variable_identification"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "optimization",
+                    description: "Designs optimal experiments to test hypotheses efficiently",
+                    confidence: 0.90,
+                    evidence: ["statistical_models", "resource_constraints", "protocol_library"],
+                    dependencies: ["hypothesis_generation_specialist"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "data_analysis_engine",
+                    learnedCapability: "analysis_aware_experimental_design",
+                    confidenceGain: 0.20,
+                    applicationContext: ["data_quality_optimization", "analysis_pipeline_design"]
+                }
+            ]
+        },
+        {
+            agentId: "data_analysis_engine",
+            role: "analyzer",
+            capabilities: [
+                "multivariate_analysis",
+                "anomaly_detection",
+                "result_interpretation",
+                "visualization_generation"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "analysis",
+                    description: "Performs comprehensive data analysis and interpretation",
+                    confidence: 0.92,
+                    evidence: ["analysis_algorithms", "statistical_tests", "visualization_tools"],
+                    dependencies: ["experiment_design_optimizer"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "publication_strategist",
+                    learnedCapability: "publication_oriented_analysis",
+                    confidenceGain: 0.18,
+                    applicationContext: ["result_presentation", "story_driven_analysis"]
+                }
+            ]
+        },
+        {
+            agentId: "publication_strategist",
+            role: "executor",
+            capabilities: [
+                "journal_targeting",
+                "manuscript_structuring",
+                "peer_review_prediction",
+                "impact_assessment"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "solution",
+                    description: "Optimizes publication strategy for maximum research impact",
+                    confidence: 0.86,
+                    evidence: ["journal_analytics", "peer_review_patterns", "citation_networks"],
+                    dependencies: ["data_analysis_engine"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "hypothesis_generation_specialist",
+                    learnedCapability: "novelty_impact_correlation",
+                    confidenceGain: 0.21,
+                    applicationContext: ["high_impact_targeting", "breakthrough_identification"]
+                }
+            ]
+        },
+        {
+            agentId: "collaboration_network_builder",
+            role: "coordinator",
+            capabilities: [
+                "researcher_matching",
+                "collaboration_facilitation",
+                "resource_sharing_coordination",
+                "intellectual_property_management"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "optimization",
+                    description: "Builds optimal research collaborations and resource sharing networks",
+                    confidence: 0.83,
+                    evidence: ["researcher_profiles", "collaboration_history", "resource_availability"],
+                    dependencies: ["*"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "hypothesis_generation_specialist",
+                    learnedCapability: "expertise_gap_identification",
+                    confidenceGain: 0.19,
+                    applicationContext: ["targeted_collaboration", "skill_complementarity"]
+                }
+            ]
+        }
+    ],
+    
+    sharedState: {
+        facts: [
+            {
+                id: TestIdFactory.event(7013),
+                fact: "Cross-disciplinary collaborations increase breakthrough probability by 73%",
+                confidence: 0.89,
+                contributingAgents: ["collaboration_network_builder", "hypothesis_generation_specialist"],
+                supportingEvidence: ["10_year_publication_analysis", "breakthrough_correlation_study"],
+                consensusLevel: 0.91
+            }
+        ],
+        patterns: [
+            {
+                id: TestIdFactory.event(7014),
+                pattern: "Research impact follows power law distribution with collaborative size",
+                discoveredBy: ["publication_strategist", "collaboration_network_builder"],
+                validatedBy: ["data_analysis_engine"],
+                confidence: 0.87,
+                applicableContexts: ["team_formation", "resource_allocation", "grant_proposals"]
+            }
+        ],
+        solutions: [
+            {
+                id: TestIdFactory.event(7015),
+                problem: "Long research cycles limiting innovation speed",
+                solution: {
+                    strategy: "parallel_hypothesis_testing_with_adaptive_resource_allocation",
+                    components: {
+                        parallel_tracks: "test_multiple_hypotheses_simultaneously",
+                        adaptive_allocation: "shift_resources_to_promising_directions",
+                        early_termination: "kill_unpromising_experiments_quickly"
+                    }
+                },
+                contributingAgents: ["experiment_design_optimizer", "data_analysis_engine"],
+                consensusScore: 0.90,
+                implementationSteps: [
+                    "Implement parallel experiment tracking",
+                    "Create early indicator metrics",
+                    "Build resource reallocation system",
+                    "Monitor and optimize continuously"
+                ],
+                expectedOutcome: {
+                    cycle_time: "reduce_by_45_percent",
+                    success_rate: "improve_by_30_percent",
+                    resource_efficiency: "improve_by_60_percent"
+                }
+            }
+        ],
+        decisions: [],
+        lastUpdated: new Date("2024-12-07T18:00:00Z")
+    },
+    
+    emergentCapabilities: [
+        "Automated literature-based discovery of research connections",
+        "Predictive experiment success modeling before execution",
+        "Dynamic collaboration team formation based on expertise gaps",
+        "Real-time research trend identification and positioning",
+        "Automated grant proposal optimization for funding success",
+        "Cross-institutional resource sharing and coordination"
+    ]
+};
+
+/**
+ * Multi-Domain Crisis Response Collaboration
+ * Shows how diverse agent swarms collaborate during complex emergencies
+ */
+export const CRISIS_RESPONSE_COLLABORATION: AgentCollaboration = {
+    id: "multi_domain_crisis_response",
+    name: "Multi-Domain Crisis Response Network",
+    description: "Collaborative agent system coordinating across domains during crisis situations",
+    
+    communicationPattern: "broadcast",
+    coordinationStrategy: "leader_follower",
+    
+    participants: [
+        {
+            agentId: "crisis_assessment_commander",
+            role: "coordinator",
+            capabilities: [
+                "situation_assessment",
+                "priority_determination",
+                "resource_mobilization",
+                "multi_agency_coordination"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "analysis",
+                    description: "Provides comprehensive crisis assessment and coordination strategy",
+                    confidence: 0.91,
+                    evidence: ["real_time_data_feeds", "historical_crisis_patterns", "resource_inventories"],
+                    dependencies: []
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "medical_emergency_specialist",
+                    learnedCapability: "medical_priority_assessment",
+                    confidenceGain: 0.24,
+                    applicationContext: ["triage_coordination", "resource_prioritization"]
+                }
+            ]
+        },
+        {
+            agentId: "medical_emergency_specialist",
+            role: "specialist",
+            capabilities: [
+                "medical_triage",
+                "hospital_capacity_tracking",
+                "treatment_protocol_selection",
+                "medical_resource_optimization"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "solution",
+                    description: "Manages medical response and healthcare resource allocation",
+                    confidence: 0.93,
+                    evidence: ["medical_protocols", "capacity_data", "treatment_outcomes"],
+                    dependencies: ["crisis_assessment_commander"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "logistics_coordinator",
+                    learnedCapability: "supply_chain_aware_medical_planning",
+                    confidenceGain: 0.22,
+                    applicationContext: ["resource_planning", "supply_optimization"]
+                }
+            ]
+        },
+        {
+            agentId: "infrastructure_protection_agent",
+            role: "specialist",
+            capabilities: [
+                "critical_infrastructure_monitoring",
+                "vulnerability_assessment",
+                "failure_cascade_prediction",
+                "restoration_prioritization"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "prediction",
+                    description: "Predicts and prevents infrastructure failures during crisis",
+                    confidence: 0.88,
+                    evidence: ["infrastructure_models", "failure_patterns", "dependency_graphs"],
+                    dependencies: []
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "public_safety_coordinator",
+                    learnedCapability: "population_aware_infrastructure_priority",
+                    confidenceGain: 0.20,
+                    applicationContext: ["evacuation_support", "shelter_infrastructure"]
+                }
+            ]
+        },
+        {
+            agentId: "public_safety_coordinator",
+            role: "executor",
+            capabilities: [
+                "evacuation_planning",
+                "public_communication",
+                "shelter_management",
+                "security_coordination"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "solution",
+                    description: "Coordinates public safety measures and civilian protection",
+                    confidence: 0.87,
+                    evidence: ["population_data", "evacuation_routes", "shelter_capacity"],
+                    dependencies: ["infrastructure_protection_agent", "crisis_assessment_commander"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "logistics_coordinator",
+                    learnedCapability: "resource_aware_evacuation_planning",
+                    confidenceGain: 0.19,
+                    applicationContext: ["evacuation_logistics", "supply_distribution"]
+                }
+            ]
+        },
+        {
+            agentId: "logistics_coordinator",
+            role: "specialist",
+            capabilities: [
+                "supply_chain_management",
+                "resource_distribution",
+                "transportation_optimization",
+                "inventory_tracking"
+            ],
+            contributionsToCollaboration: [
+                {
+                    type: "optimization",
+                    description: "Optimizes resource distribution and supply chain during crisis",
+                    confidence: 0.85,
+                    evidence: ["inventory_systems", "transportation_networks", "distribution_algorithms"],
+                    dependencies: ["medical_emergency_specialist", "public_safety_coordinator"]
+                }
+            ],
+            learningFromOthers: [
+                {
+                    fromAgent: "crisis_assessment_commander",
+                    learnedCapability: "priority_based_logistics_planning",
+                    confidenceGain: 0.21,
+                    applicationContext: ["critical_resource_routing", "emergency_prioritization"]
+                }
+            ]
+        }
+    ],
+    
+    sharedState: {
+        facts: [
+            {
+                id: TestIdFactory.event(7016),
+                fact: "Coordinated multi-domain response reduces crisis resolution time by 42%",
+                confidence: 0.94,
+                contributingAgents: ["crisis_assessment_commander", "logistics_coordinator"],
+                supportingEvidence: ["crisis_response_metrics", "coordination_effectiveness_study"],
+                consensusLevel: 0.96
+            }
+        ],
+        patterns: [
+            {
+                id: TestIdFactory.event(7017),
+                pattern: "Infrastructure failures cascade predictably through dependency networks",
+                discoveredBy: ["infrastructure_protection_agent"],
+                validatedBy: ["crisis_assessment_commander", "logistics_coordinator"],
+                confidence: 0.91,
+                applicableContexts: ["failure_prevention", "restoration_planning", "resource_allocation"]
+            }
+        ],
+        solutions: [
+            {
+                id: TestIdFactory.event(7018),
+                problem: "Coordination delays between agencies during crisis response",
+                solution: {
+                    strategy: "unified_command_with_automated_information_sharing",
+                    components: {
+                        unified_dashboard: "real_time_shared_situational_awareness",
+                        automated_protocols: "trigger_based_response_activation",
+                        resource_pooling: "dynamic_cross_agency_resource_sharing"
+                    }
+                },
+                contributingAgents: ["crisis_assessment_commander", "public_safety_coordinator"],
+                consensusScore: 0.93,
+                implementationSteps: [
+                    "Deploy unified command dashboard",
+                    "Establish automated trigger protocols",
+                    "Create resource sharing agreements",
+                    "Train on coordinated response"
+                ],
+                expectedOutcome: {
+                    response_time: "reduce_by_50_percent",
+                    coordination_efficiency: "improve_by_65_percent",
+                    resource_utilization: "optimize_by_40_percent"
+                }
+            }
+        ],
+        decisions: [],
+        lastUpdated: new Date("2024-12-07T20:30:00Z")
+    },
+    
+    emergentCapabilities: [
+        "Predictive crisis evolution modeling across multiple domains",
+        "Automated resource reallocation based on real-time priorities",
+        "Cross-domain cascade effect prediction and prevention",
+        "Dynamic evacuation route optimization with infrastructure status",
+        "Unified situational awareness across all response agencies",
+        "Adaptive response strategy based on crisis evolution"
+    ]
 };
 
 /**

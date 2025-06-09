@@ -8,7 +8,7 @@
  * - Performance monitoring
  */
 
-export * from "./RateLimiter.js";
-export * from "./ResourcePool.js";
-export * from "./UsageTracker.js";
-export * from "./ResourceMetrics.js";
+export * from "./rateLimiter.js";
+export * from "./resourceMetrics.js";
+export * from "./resourcePool.js";
+export * from "./usageTracker.js";

@@ -1,32 +1,30 @@
-import { type Logger } from "winston";
 import {
-    type SwarmState,
-    type SwarmConfig,
-    type SwarmEventType,
     type AgentRole,
-    type TeamFormation,
-    SwarmState as SwarmStateEnum,
-    SwarmEventType as SwarmEventTypeEnum,
-    generatePk,
-    type TierCommunicationInterface,
-    type TierExecutionRequest,
+    type ExecutionId,
     type ExecutionResult,
     type ExecutionStatus,
-    type ExecutionId,
-    type SwarmCoordinationInput,
-    type TierCapabilities,
-    type RoutineExecutionInput,
     type ResourceAllocation,
+    type SwarmConfig,
+    type SwarmCoordinationInput,
+    type SwarmState,
+    type TeamFormation,
+    type TierCapabilities,
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
     StrategyType,
+    SwarmEventType as SwarmEventTypeEnum,
+    SwarmState as SwarmStateEnum,
+    generatePk
 } from "@vrooli/shared";
+import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { TeamManager } from "../organization/teamManager.js";
-import { ResourceManager } from "../organization/resourceManager.js";
-import { StrategyEngine } from "../intelligence/strategyEngine.js";
-import { MetacognitiveMonitor } from "../intelligence/metacognitiveMonitor.js";
-import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
 import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
+import { MetacognitiveMonitor } from "../intelligence/metacognitiveMonitor.js";
+import { StrategyEngine } from "../intelligence/strategyEngine.js";
+import { ResourceManager } from "../organization/resourceManager.js";
+import { TeamManager } from "../organization/teamManager.js";
+import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 
 /**
  * Swarm initialization parameters
@@ -119,7 +117,7 @@ export interface SwarmDecision {
  * 
  * Implements TierCommunicationInterface for standardized inter-tier communication.
  */
-export class TierOneSwarmStateMachine implements TierCommunicationInterface {
+export class SwarmStateMachine implements TierCommunicationInterface {
     private readonly logger: Logger;
     private readonly eventBus: EventBus;
     private readonly stateStore: ISwarmStateStore;
@@ -134,7 +132,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
     // Active swarms
     private readonly activeSwarms: Map<string, SwarmContext> = new Map();
     private readonly swarmTimers: Map<string, NodeJS.Timer> = new Map();
-    
+
     // Configuration constants
     private readonly DEFAULT_BUDGET = 1000;
     private readonly DEFAULT_ADAPTATION_INTERVAL_MS = 60000; // 1 minute
@@ -168,7 +166,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
      */
     async createSwarm(params: SwarmInitParams): Promise<string> {
         const swarmId = generatePk();
-        
+
         this.logger.info("[SwarmStateMachine] Creating new swarm", {
             swarmId,
             name: params.name,
@@ -419,7 +417,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
         for (const [key, value] of Object.entries(analysis.facts)) {
             context.knowledge.facts.set(key, value);
         }
-        
+
         if (analysis.insights) {
             context.knowledge.insights.push(...analysis.insights);
         }
@@ -467,7 +465,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
                 decision: decision.action,
                 rationale: decision.rationale,
             };
-            
+
             decisions.push(swarmDecision);
             context.knowledge.decisions.push(swarmDecision);
         }
@@ -478,9 +476,9 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
                 swarmId,
                 decisions.map(d => d.decision),
             );
-            
+
             // Filter decisions based on consensus
-            const approvedDecisions = decisions.filter((d, i) => 
+            const approvedDecisions = decisions.filter((d, i) =>
                 consensus.results[i] >= consensus.threshold,
             );
 
@@ -562,7 +560,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
 
             } catch (error) {
                 decision.outcome = `failed: ${error instanceof Error ? error.message : String(error)}`;
-                
+
                 this.logger.error("[SwarmStateMachine] Decision execution failed", {
                     swarmId,
                     decision: decision.decision,
@@ -657,7 +655,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
         newState: SwarmState,
     ): Promise<void> {
         await this.stateStore.updateSwarmState(swarmId, newState);
-        
+
         await this.emitSwarmEvent({
             type: SwarmEventTypeEnum.STATE_CHANGED,
             swarmId,
@@ -791,7 +789,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
     async terminateSwarm(swarmId: string): Promise<void> {
         await this.transitionState(swarmId, SwarmStateEnum.COMPLETED);
         this.stopSwarmLifecycle(swarmId);
-        
+
         await this.emitSwarmEvent({
             type: SwarmEventTypeEnum.SWARM_TERMINATED,
             swarmId,
@@ -830,7 +828,7 @@ export class TierOneSwarmStateMachine implements TierCommunicationInterface {
     }
 
     // ===== TierCommunicationInterface Implementation =====
-    
+
     private readonly activeExecutions = new Map<ExecutionId, {
         status: ExecutionStatus;
         startTime: Date;
