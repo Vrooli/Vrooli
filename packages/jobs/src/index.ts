@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { initSingletons, initializeRedis, logger } from "@vrooli/server";
+import { CacheService, initSingletons, logger } from "@vrooli/server";
 import { MINUTES_30_MS } from "@vrooli/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
@@ -263,7 +263,8 @@ class CronJobQueue {
         errorMessage: string | null,
         durationMs: number,
     ) {
-        const redis = await initializeRedis();
+        const cacheService = CacheService.get();
+        const redis = await cacheService.raw();
         if (!redis) {
             logger.error("Failed to connect to Redis for job execution recording", { trace: "0401" });
             return;

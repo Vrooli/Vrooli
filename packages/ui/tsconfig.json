@@ -2,7 +2,7 @@
     "compilerOptions": {
         "target": "ESNext",
         // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
-        "module": "ESNext",
+        "module": "nodenext",
         "rootDir": "./src",
         "outDir": "./dist",
         "useDefineForClassFields": true,
@@ -17,7 +17,7 @@
         "allowSyntheticDefaultImports": true,
         "strict": true,
         "forceConsistentCasingInFileNames": true,
-        "moduleResolution": "node",
+        "moduleResolution": "nodenext",
         "noFallthroughCasesInSwitch": true,
         // "noUncheckedIndexedAccess": true,
         "resolveJsonModule": true,

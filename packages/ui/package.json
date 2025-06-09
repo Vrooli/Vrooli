@@ -71,7 +71,7 @@
         "react-rewards": "^2.0.4",
         "react-window": "^1.8.11",
         "socket.io-client": "^4.6.2",
-        "typescript": "5.4.5",
+        "typescript": "5.8.3",
         "workbox-background-sync": "^7.0.0",
         "workbox-broadcast-update": "^7.0.0",
         "workbox-cacheable-response": "^7.0.0",
@@ -89,9 +89,9 @@
         "zxcvbn": "^4.4.2"
     },
     "scripts": {
-        "test": "vitest run",
+        "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest run",
         "test-watch": "vitest",
-        "test-coverage": "vitest run --coverage",
+        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest run --coverage",
         "coverage-report": "vitest run --coverage --reporter=html",
         "build": "rimraf dist && vite build && node workbox-build.js && pnpm run post-build",
         "post-build": "pnpm run post-build-copy",

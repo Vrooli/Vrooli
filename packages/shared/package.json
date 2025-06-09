@@ -9,10 +9,76 @@
     "typings": "src/types.d.ts",
     "sideEffects": false,
     "type": "module",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./src/index.ts"
+        },
+        "./ai": {
+            "import": "./dist/ai/index.js",
+            "types": "./src/ai/index.ts"
+        },
+        "./api": {
+            "import": "./dist/api/index.js",
+            "types": "./src/api/index.ts"
+        },
+        "./consts": {
+            "import": "./dist/consts/index.js",
+            "types": "./src/consts/index.ts"
+        },
+        "./execution": {
+            "import": "./dist/execution/types/index.js",
+            "types": "./src/execution/types/index.ts"
+        },
+        "./forms": {
+            "import": "./dist/forms/index.js",
+            "types": "./src/forms/index.ts"
+        },
+        "./id": {
+            "import": "./dist/id/index.js",
+            "types": "./src/id/index.ts"
+        },
+        "./run": {
+            "import": "./dist/run/index.js",
+            "types": "./src/run/index.ts"
+        },
+        "./shape": {
+            "import": "./dist/shape/index.js",
+            "types": "./src/shape/index.ts"
+        },
+        "./translations": {
+            "import": "./dist/translations/index.js",
+            "types": "./src/translations/index.ts"
+        },
+        "./utils": {
+            "import": "./dist/utils/index.js",
+            "types": "./src/utils/index.ts"
+        },
+        "./validation": {
+            "import": "./dist/validation/index.js",
+            "types": "./src/validation/index.ts"
+        },
+        "./validation/models": {
+            "import": "./dist/validation/models/index.js",
+            "types": "./src/validation/models/index.ts"
+        },
+        "./validation/models/fixtures": {
+            "import": "./dist/validation/models/__test/fixtures/index.js",
+            "types": "./src/validation/models/__test/fixtures/index.ts"
+        },
+        "./validation/forms": {
+            "import": "./dist/validation/forms/index.js",
+            "types": "./src/validation/forms/index.ts"
+        },
+        "./validation/utils": {
+            "import": "./dist/validation/utils/index.js",
+            "types": "./src/validation/utils/index.ts"
+        }
+    },
     "scripts": {
-        "test": "vitest run",
+        "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest run",
         "test-watch": "vitest",
-        "test-coverage": "vitest run --coverage",
+        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest run --coverage",
         "coverage-report": "vitest run --coverage --reporter=html",
         "lint": "eslint src",
         "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && pnpm run post-build",

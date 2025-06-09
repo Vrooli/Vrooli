@@ -7,14 +7,60 @@
     "main": "dist/index.js",
     "type": "module",
     "typings": "src/types.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./src/index.ts"
+        },
+        "./auth": {
+            "import": "./dist/auth/index.js",
+            "types": "./src/auth/index.ts"
+        },
+        "./db": {
+            "import": "./dist/db/provider.js",
+            "types": "./src/db/provider.ts"
+        },
+        "./cache": {
+            "import": "./dist/redisConn.js",
+            "types": "./src/redisConn.ts"
+        },
+        "./events": {
+            "import": "./dist/events/index.js",
+            "types": "./src/events/index.ts"
+        },
+        "./logger": {
+            "import": "./dist/events/logger.js",
+            "types": "./src/events/logger.ts"
+        },
+        "./utils": {
+            "import": "./dist/utils/index.js",
+            "types": "./src/utils/index.ts"
+        },
+        "./batch": {
+            "import": "./dist/utils/batch.js",
+            "types": "./src/utils/batch.ts"
+        },
+        "./models": {
+            "import": "./dist/models/index.js",
+            "types": "./src/models/index.ts"
+        },
+        "./tasks": {
+            "import": "./dist/tasks/index.js",
+            "types": "./src/tasks/index.ts"
+        },
+        "./services": {
+            "import": "./dist/services/index.js",
+            "types": "./src/services/index.ts"
+        }
+    },
     "prisma": {
         "schema": "./dist/db/schema.prisma",
         "seed": "./dist/db/seeds/init.js"
     },
     "scripts": {
-        "test": "vitest run",
+        "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest run",
         "test-watch": "vitest",
-        "test-coverage": "vitest run --coverage",
+        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest run --coverage",
         "coverage-report": "vitest run --coverage --reporter=html",
         "lint": "eslint src",
         "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs\" && pnpm run post-build",
@@ -45,6 +91,7 @@
         "cors": "^2.8.5",
         "express": "^5.0.1",
         "file-type": "^20.0.0",
+        "form-data": "^4.0.3",
         "heic-convert": "^1.2.4",
         "i18next": "^22.4.10",
         "ioredis": "^5.6.1",
@@ -103,7 +150,7 @@
         "rimraf": "^5.0.10",
         "sinon": "^19.0.2",
         "testcontainers": "^10.18.0",
-        "typescript": "5.4.5",
+        "typescript": "5.8.3",
         "typescript-json-schema": "^0.65.1",
         "vitest": "~3.0.9",
         "why-is-node-running": "^2.3.0"

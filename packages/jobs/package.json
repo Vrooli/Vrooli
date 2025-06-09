@@ -7,9 +7,9 @@
     "main": "dist/index.js",
     "type": "module",
     "scripts": {
-        "test": "vitest run",
+        "test": "NODE_OPTIONS='--max-old-space-size=8192' vitest run",
         "test-watch": "vitest",
-        "test-coverage": "vitest run --coverage",
+        "test-coverage": "NODE_OPTIONS='--max-old-space-size=8192' vitest run --coverage",
         "coverage-report": "vitest run --coverage --reporter=html",
         "lint": "eslint src",
         "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist",
@@ -22,9 +22,9 @@
     "dependencies": {
         "@aws-sdk/client-s3": "^3.666.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
+        "@prisma/client": "6.1.0",
         "@vrooli/server": "workspace:*",
         "@vrooli/shared": "workspace:*",
-        "@prisma/client": "6.1.0",
         "bcrypt": "^5.0.1",
         "bullmq": "^5.52.2",
         "busboy": "^1.6.0",
@@ -46,7 +46,7 @@
         "stopword": "^2.0.8",
         "stripe": "^11.17.0",
         "twilio": "^3.61.0",
-        "typescript": "5.4.5",
+        "typescript": "5.8.3",
         "web-push": "^3.5.0",
         "winston": "^3.7.2"
     },
@@ -69,12 +69,14 @@
         "@types/web-push": "^3.3.2",
         "@vitest/coverage-v8": "^3.0.9",
         "chai": "^5.1.2",
+        "cross-env": "^7.0.3",
         "dotenv-cli": "^8.0.0",
         "mocha": "^11.1.0",
-        "sinon": "^19.0.2",
         "npm-run-all": "^4.1.5",
-        "cross-env": "^7.0.3",
         "rimraf": "^5.0.10",
+        "sinon": "^19.0.5",
+        "testcontainers": "^10.18.0",
+        "vite-tsconfig-paths": "^5.1.4",
         "vitest": "~3.0.9"
     },
     "packageManager": "pnpm@10.5.2"

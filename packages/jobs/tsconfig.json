@@ -3,7 +3,7 @@
         "target": "ESNext",
         // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
         "module": "ESNext",
-        "rootDir": "./src",
+        // "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
             "DOM",
@@ -17,7 +17,7 @@
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
         // "noUncheckedIndexedAccess": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "incremental": true,
         "isolatedModules": true,

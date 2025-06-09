@@ -7,11 +7,11 @@
         "**/node_modules/**",
         "src/**/*.test.ts",
         "src/**/*.test.js",
-        "src/**/__test__/**/*",
-        "src/__test/**/*",
+        "src/**/__test.*/**/*",
+        "src/__test.*/**/*",
         "coverage/**",
         "dist/**",
-        "**/__test__/**/*"
+        "**/__test.*/**/*"
     ],
     "reporter": [
         "text",
@@ -20,7 +20,9 @@
     ],
     "reportDir": "./coverage",
     "sourceMap": true,
-    "src": ["src"],
+    "src": [
+        "src"
+    ],
     "skipFull": false,
     "clean": true,
     "checkCoverage": false,
