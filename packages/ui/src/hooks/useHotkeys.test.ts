@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import sinon from "sinon";
 import { useHotkeys } from "./useHotkeys.js";
 
@@ -54,7 +54,7 @@ describe("useHotkeys", () => {
 
             document.dispatchEvent(new KeyboardEvent("keydown", { key: keys[0], ctrlKey, shiftKey, altKey }));
 
-            expect(mockCallback.calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
         });
 
         it(`does not call callback for incorrect key with ctrlKey: ${ctrlKey}, shiftKey: ${shiftKey}, and altKey: ${altKey}`, () => {
@@ -65,7 +65,7 @@ describe("useHotkeys", () => {
             // Dispatch with a different key
             document.dispatchEvent(new KeyboardEvent("keydown", { key: "wrongKey", ctrlKey, shiftKey, altKey }));
 
-            expect(mockCallback.called).to.be.false;
+            expect(mockCallback.called).toBe(false);
         });
     });
 
@@ -79,7 +79,7 @@ describe("useHotkeys", () => {
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", ctrlKey: true }));
 
         // The callback should not have been called since the event listener should not have been added
-        expect(mockCallback.called).to.be.false;
+        expect(mockCallback.called).toBe(false);
     });
 
     it("attaches and detaches event listener from the specified targetRef", () => {
@@ -93,15 +93,15 @@ describe("useHotkeys", () => {
 
         const { unmount } = renderHook(() => useHotkeys(hotkeys, true, targetRef as any));
 
-        expect(mockElement.addEventListener.calledOnce).to.be.true;
-        expect(mockElement.addEventListener.firstCall.args[0]).to.equal("keydown");
-        expect(typeof mockElement.addEventListener.firstCall.args[1]).to.equal("function");
+        expect(mockElement.addEventListener.calledOnce).toBe(true);
+        expect(mockElement.addEventListener.firstCall.args[0]).toBe("keydown");
+        expect(typeof mockElement.addEventListener.firstCall.args[1]).toBe("function");
 
         unmount();
 
-        expect(mockElement.removeEventListener.calledOnce).to.be.true;
-        expect(mockElement.removeEventListener.firstCall.args[0]).to.equal("keydown");
-        expect(typeof mockElement.removeEventListener.firstCall.args[1]).to.equal("function");
+        expect(mockElement.removeEventListener.calledOnce).toBe(true);
+        expect(mockElement.removeEventListener.firstCall.args[0]).toBe("keydown");
+        expect(typeof mockElement.removeEventListener.firstCall.args[1]).toBe("function");
     });
 
     describe("requirePrecedingWhitespace functionality", () => {
@@ -138,7 +138,7 @@ describe("useHotkeys", () => {
             // Simulate keydown
             const event = new KeyboardEvent("keydown", { key: "a", bubbles: true });
             inputElement.dispatchEvent(event);
-            expect(mockCallback.calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
         });
 
         it("does not trigger hotkey when preceding character is not whitespace in input element", () => {
@@ -153,7 +153,7 @@ describe("useHotkeys", () => {
 
             // Simulate keydown
             inputElement.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
-            expect(mockCallback.called).to.be.false;
+            expect(mockCallback.called).toBe(false);
         });
 
         it("triggers hotkey at start of input", () => {
@@ -168,7 +168,7 @@ describe("useHotkeys", () => {
 
             // Simulate keydown
             inputElement.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
-            expect(mockCallback.calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
         });
 
         it("triggers hotkey when preceding character is newline in contenteditable", () => {
@@ -198,7 +198,7 @@ describe("useHotkeys", () => {
                 composed: true, // Ensure the event can cross shadow DOM boundaries
             });
             contentEditableElement.dispatchEvent(event);
-            expect(mockCallback.calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
         });
 
         it("does not trigger hotkey when preceding character is not whitespace in contenteditable", () => {
@@ -217,7 +217,7 @@ describe("useHotkeys", () => {
 
             // Simulate keydown
             contentEditableElement.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
-            expect(mockCallback.called).to.be.false;
+            expect(mockCallback.called).toBe(false);
         });
     });
 
@@ -241,8 +241,8 @@ describe("useHotkeys", () => {
 
             document.dispatchEvent(mockEvent);
 
-            expect(mockCallback.calledOnce).to.be.true;
-            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
+            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).toBe(true);
         });
 
         it("calls preventDefault when explicitly set to true", () => {
@@ -251,8 +251,8 @@ describe("useHotkeys", () => {
 
             document.dispatchEvent(mockEvent);
 
-            expect(mockCallback.calledOnce).to.be.true;
-            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+            expect(mockCallback.calledOnce).toBe(true);
+            expect((mockEvent.preventDefault as sinon.SinonSpy).calledOnce).toBe(true);
         });
 
         it("does not call preventDefault when set to false", () => {
@@ -261,8 +261,8 @@ describe("useHotkeys", () => {
 
             document.dispatchEvent(mockEvent);
 
-            expect(mockCallback.calledOnce).to.be.true;
-            expect((mockEvent.preventDefault as sinon.SinonSpy).called).to.be.false;
+            expect(mockCallback.calledOnce).toBe(true);
+            expect((mockEvent.preventDefault as sinon.SinonSpy).called).toBe(false);
         });
 
         it("respects preventDefault setting for multiple hotkeys", () => {
@@ -275,8 +275,8 @@ describe("useHotkeys", () => {
 
             // Test first hotkey (preventDefault: false)
             document.dispatchEvent(mockEvent);
-            expect(mockCallback.calledOnce).to.be.true;
-            expect((mockEvent.preventDefault as sinon.SinonSpy).called).to.be.false;
+            expect(mockCallback.calledOnce).toBe(true);
+            expect((mockEvent.preventDefault as sinon.SinonSpy).called).toBe(false);
 
             // Test second hotkey (default preventDefault behavior)
             const eventTwo = new KeyboardEvent("keydown", {
@@ -286,8 +286,8 @@ describe("useHotkeys", () => {
             });
             sinon.spy(eventTwo, "preventDefault");
             document.dispatchEvent(eventTwo);
-            expect(mockCallbackTwo.calledOnce).to.be.true;
-            expect((eventTwo.preventDefault as sinon.SinonSpy).calledOnce).to.be.true;
+            expect(mockCallbackTwo.calledOnce).toBe(true);
+            expect((eventTwo.preventDefault as sinon.SinonSpy).calledOnce).toBe(true);
         });
     });
 });

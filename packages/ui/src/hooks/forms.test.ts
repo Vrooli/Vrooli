@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LINKS, ModelType } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { asMockObject, goBack } from "./forms.js";
 
 describe("goBack function", () => {
-    const mockSetLocation = jest.fn();
-    const mockHistoryBack = jest.spyOn(window.history, "back");
+    const mockSetLocation = vi.fn();
+    const mockHistoryBack = vi.spyOn(window.history, "back");
 
     beforeEach(() => {
         sessionStorage.clear();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should navigate back if last path matches the target URL (ignoring query params)", () => {
@@ -78,6 +78,6 @@ describe("asMockObject", () => {
         const rootObjectId = "101";
         const result = asMockObject(objectType, objectId, rootObjectId);
         // @ts-ignore Testing runtime scenario
-        expect(result.root.__typename).to.equal(objectType.replace("Version", ""));
+        expect(result.root.__typename).toEqual(objectType.replace("Version", ""));
     });
 });

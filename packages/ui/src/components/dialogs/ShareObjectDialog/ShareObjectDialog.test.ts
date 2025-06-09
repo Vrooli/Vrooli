@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { sanitizeFilename } from "./ShareObjectDialog.js";
 
 describe("sanitizeFilename", () => {
@@ -39,7 +39,7 @@ describe("sanitizeFilename", () => {
         // Expect all underscores
         const result = sanitizeFilename(filename);
         const allUnderscores = result.split("").every((char) => char === "_");
-        expect(allUnderscores).to.equal(true);
+        expect(allUnderscores).toBe(true);
     });
 
     it("should handle complex filenames with mixed issues", () => {

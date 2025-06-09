@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { initializeDirectoryList } from "./DirectoryList.js";
 
 type SimpleObject = {
@@ -34,49 +34,49 @@ const mockDirectory: {
 describe("initializeDirectoryList", () => {
     it("returns an empty array when directory is null", () => {
         const result = initializeDirectoryList(null, "NameAsc", "Hourly", mockSession) as unknown as SimpleObject[];
-        expect(result).to.have.lengthOf(0);
+        expect(result).toHaveLength(0);
     });
 
     it("sorts by NameAsc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "NameAsc", "Daily", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("API A");
-        expect(result[1].title).to.equal("Note B");
-        expect(result[2].title).to.equal("Project C");
+        expect(result[0].title).toBe("API A");
+        expect(result[1].title).toBe("Note B");
+        expect(result[2].title).toBe("Project C");
     });
 
     it("sorts by NameDesc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "NameDesc", "Weekly", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("Project C");
-        expect(result[1].title).to.equal("Note B");
-        expect(result[2].title).to.equal("API A");
+        expect(result[0].title).toBe("Project C");
+        expect(result[1].title).toBe("Note B");
+        expect(result[2].title).toBe("API A");
     });
 
     it("sorts by DateCreatedAsc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "DateCreatedAsc", "AllTime", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("Note B");
-        expect(result[1].title).to.equal("Project C");
-        expect(result[2].title).to.equal("API A");
+        expect(result[0].title).toBe("Note B");
+        expect(result[1].title).toBe("Project C");
+        expect(result[2].title).toBe("API A");
     });
 
     it("sorts by DateCreatedDesc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "DateCreatedDesc", "Hourly", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("API A");
-        expect(result[1].title).to.equal("Project C");
-        expect(result[2].title).to.equal("Note B");
+        expect(result[0].title).toBe("API A");
+        expect(result[1].title).toBe("Project C");
+        expect(result[2].title).toBe("Note B");
     });
 
     it("sorts by DateUpdatedAsc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "DateUpdatedAsc", "Weekly", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("Note B");
-        expect(result[1].title).to.equal("Project C");
-        expect(result[2].title).to.equal("API A");
+        expect(result[0].title).toBe("Note B");
+        expect(result[1].title).toBe("Project C");
+        expect(result[2].title).toBe("API A");
     });
 
     it("sorts by DateUpdatedDesc correctly", () => {
         const result = initializeDirectoryList(mockDirectory as any, "DateUpdatedDesc", "Monthly", mockSession) as unknown as SimpleObject[];
-        expect(result[0].title).to.equal("API A");
-        expect(result[1].title).to.equal("Project C");
-        expect(result[2].title).to.equal("Note B");
+        expect(result[0].title).toBe("API A");
+        expect(result[1].title).toBe("Project C");
+        expect(result[2].title).toBe("Note B");
     });
 
     it("handles invalid dates gracefully", () => {
@@ -86,6 +86,6 @@ describe("initializeDirectoryList", () => {
         };
         const result = initializeDirectoryList(invalidDateDirectory as any, "DateCreatedAsc", "Daily", mockSession) as unknown as SimpleObject[];
         // The item with the invalid date should be treated as if it has the earliest possible date
-        expect(result[0].title).to.equal("API A");
+        expect(result[0].title).toBe("API A");
     });
 });

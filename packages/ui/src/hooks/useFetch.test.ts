@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { renderHook, waitFor } from "@testing-library/react";
-import { act } from "react";
-import { describe, it, beforeEach, afterEach, vi } from "vitest";
-import { expect } from "chai";
+import { renderHook, waitFor, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useFetch, useLazyFetch, uiPathToApi } from "./useFetch.js";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";
@@ -48,10 +46,10 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            expect(result.current.loading).to.equal(false);
-            expect(result.current.data).to.be.undefined;
-            expect(result.current.errors).to.be.undefined;
-            expect(typeof result.current.refetch).to.equal("function");
+            expect(result.current.loading).toBe(false);
+            expect(result.current.data).toBeUndefined();
+            expect(result.current.errors).toBeUndefined();
+            expect(typeof result.current.refetch).toBe("function");
         });
 
         it("should not make request when endpoint is undefined", () => {
@@ -60,7 +58,7 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            expect(mockFetchData).not.to.have.been.called;
+            expect(mockFetchData).not.toHaveBeenCalled();
         });
 
         it("should use default method GET when no method specified", async () => {
@@ -79,7 +77,7 @@ describe("useFetch", () => {
             }));
 
             await waitFor(() => {
-                expect(mockFetchData).to.have.been.calledWith({
+                expect(mockFetchData).toHaveBeenCalledWith({
                     endpoint: "/test",
                     inputs: {},
                     method: "GET",
@@ -112,7 +110,7 @@ describe("useFetch", () => {
             }));
 
             // Initially should not be loading
-            expect(result.current.loading).to.equal(false);
+            expect(result.current.loading).toBe(false);
 
             // Trigger the fetch by calling the debounced callback
             await act(async () => {
@@ -122,7 +120,7 @@ describe("useFetch", () => {
 
             // Should be loading now
             await waitFor(() => {
-                expect(result.current.loading).to.equal(true);
+                expect(result.current.loading).toBe(true);
             });
 
             // Resolve the promise
@@ -133,9 +131,9 @@ describe("useFetch", () => {
 
             // Should no longer be loading and have data
             await waitFor(() => {
-                expect(result.current.loading).to.equal(false);
-                expect(result.current.data).to.deep.equal(mockResponse.data);
-                expect(result.current.errors).to.be.undefined;
+                expect(result.current.loading).toBe(false);
+                expect(result.current.data).toEqual(mockResponse.data);
+                expect(result.current.errors).toBeUndefined();
             });
         });
 
@@ -156,9 +154,9 @@ describe("useFetch", () => {
             }));
 
             await waitFor(() => {
-                expect(result.current.data).to.deep.equal(mockData);
-                expect(result.current.errors).to.be.undefined;
-                expect(result.current.loading).to.equal(false);
+                expect(result.current.data).toEqual(mockData);
+                expect(result.current.errors).toBeUndefined();
+                expect(result.current.loading).toBe(false);
             });
         });
     });
@@ -184,9 +182,9 @@ describe("useFetch", () => {
             }));
 
             await waitFor(() => {
-                expect(result.current.errors).to.deep.equal(mockErrors);
-                expect(result.current.data).to.equal(mockResponse.data);
-                expect(mockDisplayErrors).to.have.been.calledWith(mockErrors);
+                expect(result.current.errors).toEqual(mockErrors);
+                expect(result.current.data).toBe(mockResponse.data);
+                expect(mockDisplayErrors).toHaveBeenCalledWith(mockErrors);
             });
         });
 
@@ -200,7 +198,7 @@ describe("useFetch", () => {
             await act(async () => {
                 const response = await result.current.refetch();
                 // @ts-ignore: Testing error response structure
-                expect(response.errors).to.deep.equal([{
+                expect(response.errors).toEqual([{
                     trace: "0693",
                     message: "No endpoint provided to useLazyFetch",
                 }]);
@@ -228,14 +226,14 @@ describe("useFetch", () => {
             );
 
             await waitFor(() => {
-                expect(mockFetchData).to.have.been.calledOnce;
+                expect(mockFetchData).toHaveBeenCalledTimes(1);
             });
 
             // Change dependency
             rerender({ deps: [2] });
 
             await waitFor(() => {
-                expect(mockFetchData).to.have.been.calledTwice;
+                expect(mockFetchData).toHaveBeenCalledTimes(2);
             });
         });
     });
@@ -258,7 +256,7 @@ describe("useFetch", () => {
             }));
 
             await waitFor(() => {
-                expect(mockFetchData).to.have.been.calledWith({
+                expect(mockFetchData).toHaveBeenCalledWith({
                     endpoint: "/test",
                     inputs: { name: "test" },
                     method: "POST",
@@ -285,7 +283,7 @@ describe("useFetch", () => {
             }));
 
             await waitFor(() => {
-                expect(mockFetchData).to.have.been.calledWith({
+                expect(mockFetchData).toHaveBeenCalledWith({
                     endpoint: "/auth/login",
                     inputs: {},
                     method: "GET",
@@ -322,7 +320,7 @@ describe("useFetch", () => {
 
             // Wait for initial fetch
             await waitFor(() => {
-                expect(result.current.data).to.deep.equal(mockResponse1.data);
+                expect(result.current.data).toEqual(mockResponse1.data);
             });
 
             // Manual refetch with new input
@@ -331,8 +329,8 @@ describe("useFetch", () => {
             });
 
             await waitFor(() => {
-                expect(result.current.data).to.deep.equal(mockResponse2.data);
-                expect(mockFetchData).to.have.been.calledTwice;
+                expect(result.current.data).toEqual(mockResponse2.data);
+                expect(mockFetchData).toHaveBeenCalledTimes(2);
             });
         });
     });
@@ -350,10 +348,10 @@ describe("useLazyFetch", () => {
                 inputs: {},
             })).result.current;
 
-            expect(typeof getData).to.equal("function");
-            expect(state.loading).to.equal(false);
-            expect(state.data).to.be.undefined;
-            expect(state.errors).to.be.undefined;
+            expect(typeof getData).toBe("function");
+            expect(state.loading).toBe(false);
+            expect(state.data).toBeUndefined();
+            expect(state.errors).toBeUndefined();
         });
 
         it("should not make automatic request on mount", () => {
@@ -362,7 +360,7 @@ describe("useLazyFetch", () => {
                 inputs: {},
             }));
 
-            expect(mockFetchData).not.to.have.been.called;
+            expect(mockFetchData).not.toHaveBeenCalled();
         });
     });
 
@@ -386,18 +384,18 @@ describe("useLazyFetch", () => {
 
             await act(async () => {
                 const response = await getData();
-                expect(response.data).to.deep.equal(mockResponse.data);
+                expect(response.data).toEqual(mockResponse.data);
             });
 
-            expect(mockFetchData).to.have.been.calledWith({
+            expect(mockFetchData).toHaveBeenCalledWith({
                 endpoint: "/test",
                 inputs: {},
                 method: "GET",
                 options: {},
             });
 
-            expect(result.current[1].data).to.deep.equal(mockResponse.data);
-            expect(result.current[1].loading).to.equal(false);
+            expect(result.current[1].data).toEqual(mockResponse.data);
+            expect(result.current[1].loading).toBe(false);
         });
     });
 
@@ -422,11 +420,11 @@ describe("useLazyFetch", () => {
 
             await act(async () => {
                 const response = await getData();
-                expect(response.errors).to.deep.equal(mockErrors);
+                expect(response.errors).toEqual(mockErrors);
             });
 
-            expect(result.current[1].errors).to.deep.equal(mockErrors);
-            expect(mockDisplayErrors).to.have.been.calledWith(mockErrors);
+            expect(result.current[1].errors).toEqual(mockErrors);
+            expect(mockDisplayErrors).toHaveBeenCalledWith(mockErrors);
         });
 
         it("should handle missing endpoint", async () => {
@@ -440,17 +438,17 @@ describe("useLazyFetch", () => {
 
             await act(async () => {
                 const response = await getData();
-                expect(response.errors).to.deep.equal([{
+                expect(response.errors).toEqual([{
                     trace: "0692",
                     message: "No endpoint provided to useLazyFetch",
                 }]);
             });
 
-            expect(result.current[1].errors).to.deep.equal([{
+            expect(result.current[1].errors).toEqual([{
                 trace: "0692",
                 message: "No endpoint provided to useLazyFetch",
             }]);
-            expect(consoleSpy).to.have.been.calledWith("No endpoint provided to useLazyFetch");
+            expect(consoleSpy).toHaveBeenCalledWith("No endpoint provided to useLazyFetch");
 
             consoleSpy.mockRestore();
         });
@@ -487,7 +485,7 @@ describe("useLazyFetch", () => {
                 await getData();
             });
 
-            expect(result.current[1].data).to.deep.equal(newerResponse.data);
+            expect(result.current[1].data).toEqual(newerResponse.data);
 
             // Second call returns older response (should be ignored)
             mockFetchData.mockResolvedValueOnce(olderResponse);
@@ -499,8 +497,8 @@ describe("useLazyFetch", () => {
             });
 
             // Data should still be the newer response
-            expect(result.current[1].data).to.deep.equal(newerResponse.data);
-            expect(consoleSpy).to.have.been.called;
+            expect(result.current[1].data).toEqual(newerResponse.data);
+            expect(consoleSpy).toHaveBeenCalled();
 
             consoleSpy.mockRestore();
         });
@@ -528,7 +526,7 @@ describe("useLazyFetch", () => {
                 await getData({ updated: "input" });
             });
 
-            expect(mockFetchData).to.have.been.calledWith({
+            expect(mockFetchData).toHaveBeenCalledWith({
                 endpoint: "/test",
                 inputs: { updated: "input" },
                 method: "GET",
@@ -540,18 +538,18 @@ describe("useLazyFetch", () => {
 
 describe("uiPathToApi", () => {
     it("should convert UI path to API path with default base", () => {
-        expect(uiPathToApi("/users")).to.equal("/api/v2/users");
-        expect(uiPathToApi("/u/@john")).to.equal("/api/v2/u/@john");
-        expect(uiPathToApi("/search?q=test")).to.equal("/api/v2/search?q=test");
+        expect(uiPathToApi("/users")).toBe("/api/v2/users");
+        expect(uiPathToApi("/u/@john")).toBe("/api/v2/u/@john");
+        expect(uiPathToApi("/search?q=test")).toBe("/api/v2/search?q=test");
     });
 
     it("should convert UI path to API path with custom base", () => {
-        expect(uiPathToApi("/users", "/api/v1")).to.equal("/api/v1/users");
-        expect(uiPathToApi("/items", "/custom/api")).to.equal("/custom/api/items");
+        expect(uiPathToApi("/users", "/api/v1")).toBe("/api/v1/users");
+        expect(uiPathToApi("/items", "/custom/api")).toBe("/custom/api/items");
     });
 
     it("should handle empty path", () => {
-        expect(uiPathToApi("")).to.equal("/api/v2");
-        expect(uiPathToApi("", "/custom")).to.equal("/custom");
+        expect(uiPathToApi("")).toBe("/api/v2");
+        expect(uiPathToApi("", "/custom")).toBe("/custom");
     });
 });

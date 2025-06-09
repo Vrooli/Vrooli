@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { FormStructureType, LINKS, nanoid } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getCurrentElement, getCurrentStep, getNextPlace, getPrevPlace, getTutorialStepInfo, isValidPlace, type TutorialSection } from "./TutorialDialog.js";
 
 // Mock sections data for testing
@@ -125,41 +125,41 @@ describe("Tutorial Utils", () => {
         it("should return correct info for initial step", () => {
             const place = { section: 0, step: 0 };
             const result = getTutorialStepInfo(mockSections, place);
-            expect(result.isFinalStep).to.equal(false);
-            expect(result.isFinalStepInSection).to.equal(false);
+            expect(result.isFinalStep).toBe(false);
+            expect(result.isFinalStepInSection).toBe(false);
             expect(result.nextStep).toEqual(mockSections[0].steps[1]);
         });
 
         it("should return correct info for final step in section", () => {
             const place = { section: 0, step: 1 };
             const result = getTutorialStepInfo(mockSections, place);
-            expect(result.isFinalStep).to.equal(false);
-            expect(result.isFinalStepInSection).to.equal(true);
+            expect(result.isFinalStep).toBe(false);
+            expect(result.isFinalStepInSection).toBe(true);
             expect(result.nextStep).toEqual(mockSections[1].steps[0]);
         });
 
         it("should return correct info for final step overall", () => {
             const place = { section: 2, step: 0 };
             const result = getTutorialStepInfo(mockSections, place);
-            expect(result.isFinalStep).to.equal(true);
-            expect(result.isFinalStepInSection).to.equal(true);
-            expect(result.nextStep).to.be.null;
+            expect(result.isFinalStep).toBe(true);
+            expect(result.isFinalStepInSection).toBe(true);
+            expect(result.nextStep).toBeNull();
         });
 
         it("should handle invalid section index", () => {
             const place = { section: 5, step: 0 };
             const result = getTutorialStepInfo(mockSections, place);
-            expect(result.isFinalStep).to.equal(false);
-            expect(result.isFinalStepInSection).to.equal(false);
-            expect(result.nextStep).to.be.null;
+            expect(result.isFinalStep).toBe(false);
+            expect(result.isFinalStepInSection).toBe(false);
+            expect(result.nextStep).toBeNull();
         });
 
         it("should handle invalid step index", () => {
             const place = { section: 0, step: 10 };
             const result = getTutorialStepInfo(mockSections, place);
-            expect(result.isFinalStep).to.equal(false);
-            expect(result.isFinalStepInSection).to.equal(false);
-            expect(result.nextStep).to.be.null;
+            expect(result.isFinalStep).toBe(false);
+            expect(result.isFinalStepInSection).toBe(false);
+            expect(result.nextStep).toBeNull();
         });
     });
 
@@ -179,13 +179,13 @@ describe("Tutorial Utils", () => {
         it("should return null when at the final step", () => {
             const place = { section: 2, step: 0 }; // Last section, last step
             const result = getNextPlace(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should handle invalid current section", () => {
             const place = { section: 5, step: 0 };
             const result = getNextPlace(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should handle invalid step index", () => {
@@ -211,13 +211,13 @@ describe("Tutorial Utils", () => {
         it("should return null when at the very first step", () => {
             const place = { section: 0, step: 0 };
             const result = getPrevPlace(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should handle invalid current section", () => {
             const place = { section: -1, step: 0 };
             const result = getPrevPlace(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should handle invalid step index", () => {
@@ -231,36 +231,36 @@ describe("Tutorial Utils", () => {
         beforeEach(() => {
             const mockElement = document.createElement("div");
             mockElement.id = "element1";
-            document.getElementById = jest.fn().mockImplementation(() => mockElement);
+            document.getElementById = vi.fn().mockImplementation(() => mockElement);
         });
 
         afterEach(() => {
-            jest.clearAllMocks();
+            vi.clearAllMocks();
         });
 
         it("should return element when element ID exists", () => {
             const place = { section: 0, step: 0 };
             const result = getCurrentElement(mockSections, place);
-            expect(typeof result).to.equal("object");
-            expect(result?.id).to.equal("element1");
+            expect(typeof result).toBe("object");
+            expect(result?.id).toBe("element1");
         });
 
         it("should return null when element ID does not exist", () => {
             const place = { section: 0, step: 1 }; // Step without element
             const result = getCurrentElement(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should return null when step does not exist", () => {
             const place = { section: 0, step: 5 };
             const result = getCurrentElement(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should return null when section does not exist", () => {
             const place = { section: 5, step: 0 };
             const result = getCurrentElement(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
     });
 
@@ -274,13 +274,13 @@ describe("Tutorial Utils", () => {
         it("should return null when step index is invalid", () => {
             const place = { section: 0, step: 5 };
             const result = getCurrentStep(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should return null when section index is invalid", () => {
             const place = { section: 5, step: 0 };
             const result = getCurrentStep(mockSections, place);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
     });
 
@@ -288,19 +288,19 @@ describe("Tutorial Utils", () => {
         it("should return true when place is valid", () => {
             const place = { section: 1, step: 2 };
             const result = isValidPlace(mockSections, place);
-            expect(result).to.equal(true);
+            expect(result).toBe(true);
         });
 
         it("should return false when step index is invalid", () => {
             const place = { section: 0, step: 5 };
             const result = isValidPlace(mockSections, place);
-            expect(result).to.equal(false);
+            expect(result).toBe(false);
         });
 
         it("should return false when section index is invalid", () => {
             const place = { section: 5, step: 0 };
             const result = isValidPlace(mockSections, place);
-            expect(result).to.equal(false);
+            expect(result).toBe(false);
         });
 
         describe("invalid place", () => {
@@ -308,20 +308,20 @@ describe("Tutorial Utils", () => {
                 const place = { step: 0 };
                 // @ts-ignore Testing runtime scenario
                 const result = isValidPlace(mockSections, place);
-                expect(result).to.equal(false);
+                expect(result).toBe(false);
             });
 
             it("should return false when step is undefined", () => {
                 const place = { section: 0 };
                 // @ts-ignore Testing runtime scenario
                 const result = isValidPlace(mockSections, place);
-                expect(result).to.equal(false);
+                expect(result).toBe(false);
             });
 
             it("should return false when place is null", () => {
                 // @ts-ignore Testing runtime scenario
                 const result = isValidPlace(mockSections, null);
-                expect(result).to.equal(false);
+                expect(result).toBe(false);
             });
 
             describe("non-integers", () => {
@@ -329,14 +329,14 @@ describe("Tutorial Utils", () => {
                     const place = { section: "0", step: 0 };
                     // @ts-ignore Testing runtime scenario
                     const result = isValidPlace(mockSections, place);
-                    expect(result).to.equal(false);
+                    expect(result).toBe(false);
                 });
 
                 it("should return false when step is a string", () => {
                     const place = { section: 0, step: "0" };
                     // @ts-ignore Testing runtime scenario
                     const result = isValidPlace(mockSections, place);
-                    expect(result).to.equal(false);
+                    expect(result).toBe(false);
                 });
             });
         });

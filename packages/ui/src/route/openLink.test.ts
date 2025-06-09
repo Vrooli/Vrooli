@@ -1,5 +1,5 @@
 import { stringifySearchParams } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { openLink } from "./openLink.js";
 
 describe("openLink", () => {
@@ -7,8 +7,8 @@ describe("openLink", () => {
     let originalStringifySearchParams;
 
     beforeEach(() => {
-        setLocationMock = jest.fn();
-        global.window.open = jest.fn();
+        setLocationMock = vi.fn();
+        global.window.open = vi.fn();
         // Mock window.location.origin
         Object.defineProperty(window, "location", {
             value: {
@@ -21,14 +21,14 @@ describe("openLink", () => {
         originalStringifySearchParams = stringifySearchParams;
 
         // Mock stringifySearchParams
-        Object.assign(stringifySearchParams, jest.fn());
+        Object.assign(stringifySearchParams, vi.fn());
     });
 
     afterEach(() => {
         // Restore the original stringifySearchParams function
         Object.assign(stringifySearchParams, originalStringifySearchParams);
 
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should open external link in a new tab without search params", () => {

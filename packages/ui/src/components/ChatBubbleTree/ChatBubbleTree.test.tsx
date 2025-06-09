@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import { render, screen, waitFor } from "../../__mocks__/testUtils.js";
+import { render, screen, waitFor } from "../../__test/testUtils.js";
 import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 
 // describe("ChatBubbleStatus Component", () => {
@@ -13,20 +13,20 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //     beforeAll(() => {
 //         theme = themes[DEFAULT_THEME];
 //         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         jest.spyOn(console, "warn").mockImplementation(() => { });
+//         vi.spyOn(console, "warn").mockImplementation(() => { });
 //     });
 
 //     afterAll(() => {
-//         jest.restoreAllMocks();
+//         vi.restoreAllMocks();
 //     });
 
 //     beforeEach(() => {
-//         jest.useFakeTimers();
+//         vi.useFakeTimers();
 //     });
 
 //     afterEach(() => {
-//         jest.runOnlyPendingTimers();
-//         jest.useRealTimers();
+//         vi.runOnlyPendingTimers();
+//         vi.useRealTimers();
 //     });
 
 //     it("should display CircularProgress with appropriate color when status is \"sending\"", () => {
@@ -42,7 +42,7 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //         render(<ChatBubbleStatus status="sending" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
 
 //         act(() => {
-//             jest.advanceTimersByTime(50); // Advance time by 50ms
+//             vi.advanceTimersByTime(50); // Advance time by 50ms
 //         });
 
 //         const progress = screen.getByRole("progressbar");
@@ -54,14 +54,14 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //         const { rerender } = render(<ChatBubbleStatus status="sending" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
 
 //         act(() => {
-//             jest.advanceTimersByTime(300); // Advance time by 300ms
+//             vi.advanceTimersByTime(300); // Advance time by 300ms
 //         });
 
 //         // eslint-disable-next-line @typescript-eslint/no-empty-function
 //         rerender(<ChatBubbleStatus status="sent" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
 
 //         act(() => {
-//             jest.advanceTimersByTime(1000); // Wait for reset
+//             vi.advanceTimersByTime(1000); // Wait for reset
 //         });
 
 //         expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
@@ -77,7 +77,7 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //     });
 
 //     it("should call onRetry when ErrorIcon is clicked", () => {
-//         const onRetryMock = jest.fn();
+//         const onRetryMock = vi.fn();
 //         // eslint-disable-next-line @typescript-eslint/no-empty-function
 //         render(<ChatBubbleStatus status="failed" showButtons={false} isEditing={false} onRetry={onRetryMock} onEdit={() => { }} onDelete={() => { }} />);
 //         const errorButton = screen.getByLabelText("retry");
@@ -86,7 +86,7 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //     });
 
 //     it("should call onEdit when EditIcon is clicked", () => {
-//         const onEditMock = jest.fn();
+//         const onEditMock = vi.fn();
 //         // eslint-disable-next-line @typescript-eslint/no-empty-function
 //         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={false} onRetry={() => { }} onEdit={onEditMock} onDelete={() => { }} />);
 //         const editButton = screen.getByLabelText("edit");
@@ -95,7 +95,7 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 //     });
 
 //     it("should call onDelete when DeleteIcon is clicked", () => {
-//         const onDeleteMock = jest.fn();
+//         const onDeleteMock = vi.fn();
 //         // eslint-disable-next-line @typescript-eslint/no-empty-function
 //         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={onDeleteMock} />);
 //         const deleteButton = screen.getByLabelText("delete");
@@ -120,19 +120,19 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 // });
 
 describe("NavigationArrows Component", () => {
-    const handleIndexChangeMock = jest.fn();
+    const handleIndexChangeMock = vi.fn();
 
     beforeAll(() => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
+        vi.spyOn(console, "warn").mockImplementation(() => { });
     });
 
     afterAll(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should not render if there are less than 2 siblings", () => {
@@ -196,17 +196,17 @@ describe("ScrollToBottomButton", () => {
         Object.defineProperty(containerElement, "scrollTop", { value: 0, writable: true });
         Object.defineProperty(containerElement, "clientHeight", { value: 500, writable: true });
         // Mock the scroll method to allow calling during tests
-        containerElement.scroll = jest.fn((options) => {
+        containerElement.scroll = vi.fn((options) => {
             // Optionally, you can directly set scrollTop to simulate instant scrolling,
             // or handle it more dynamically if your tests need to consider different scenarios.
             containerElement.scrollTop = options.top;
         });
-        jest.spyOn(React, "useRef").mockReturnValue({ current: containerElement });
+        vi.spyOn(React, "useRef").mockReturnValue({ current: containerElement });
     });
 
     afterEach(() => {
         cleanup();
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it("renders button and checks initial visibility based on scroll", () => {
@@ -241,7 +241,7 @@ describe("ScrollToBottomButton", () => {
     });
 
     it("cleans up event listener on unmount", () => {
-        const removeEventListenerSpy = jest.spyOn(containerElement, "removeEventListener");
+        const removeEventListenerSpy = vi.spyOn(containerElement, "removeEventListener");
         const { unmount } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         unmount();
         expect(removeEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function));

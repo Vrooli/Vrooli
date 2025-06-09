@@ -1,10 +1,10 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getTypingIndicatorText } from "./ChatMessageInput.js";
 
 describe("getTypingIndicatorText", () => {
 
     it("returns an empty string when there are no participants", () => {
-        expect(getTypingIndicatorText([], 50)).to.equal("");
+        expect(getTypingIndicatorText([], 50)).toBe("");
     });
 
     it("handles case where maxChars is too small to include any names with ChatParticipants", () => {
@@ -12,7 +12,7 @@ describe("getTypingIndicatorText", () => {
             { user: { id: "1", name: "Alice", __typename: "User" as const }, __typename: "ChatParticipant" as const },
             { user: { id: "2", name: "Bob", __typename: "User" as const }, __typename: "ChatParticipant" as const },
         ];
-        expect(getTypingIndicatorText(participants, 5)).to.equal("+2 are typing");
+        expect(getTypingIndicatorText(participants, 5)).toBe("+2 are typing");
     });
 
     it("handles ChatParticipants with names that have special characters", () => {
@@ -21,7 +21,7 @@ describe("getTypingIndicatorText", () => {
             { user: { id: "2", name: "Bob$@#", __typename: "User" as const }, __typename: "ChatParticipant" as const },
             { user: { id: "3", name: "Charlie%^&", __typename: "User" as const }, __typename: "ChatParticipant" as const },
         ];
-        expect(getTypingIndicatorText(participants, 50)).to.equal("Alice_123!, Bob$@#, Charlie%^& are typing");
+        expect(getTypingIndicatorText(participants, 50)).toBe("Alice_123!, Bob$@#, Charlie%^& are typing");
     });
 
     it("handles a mix of ChatParticipants and direct user objects", () => {
@@ -29,7 +29,7 @@ describe("getTypingIndicatorText", () => {
             { user: { id: "1", name: "Alice", __typename: "User" as const }, __typename: "ChatParticipant" as const },
             { id: "2", name: "Bob", __typename: "User" as const },
         ];
-        expect(getTypingIndicatorText(participants, 50)).to.equal("Alice, Bob are typing");
+        expect(getTypingIndicatorText(participants, 50)).toBe("Alice, Bob are typing");
     });
 
     describe("length checks", () => {
@@ -41,7 +41,7 @@ describe("getTypingIndicatorText", () => {
                 const maxChars = 20;
                 const result = getTypingIndicatorText(participants, maxChars);
                 expect(result.length).to.be.at.most(maxChars);
-                expect(result).to.equal("1234567890 is typing");
+                expect(result).toBe("1234567890 is typing");
             });
             it("name longer than maxChars - ' is typing'", () => {
                 const participants = [
@@ -50,7 +50,7 @@ describe("getTypingIndicatorText", () => {
                 const maxChars = 23;
                 const result = getTypingIndicatorText(participants, maxChars);
                 expect(result.length).to.be.at.most(maxChars);
-                expect(result).to.equal("123456789012… is typing"); // Cuts off enough characters to add "... is typing"
+                expect(result).toBe("123456789012… is typing"); // Cuts off enough characters to add "... is typing"
             });
             it("name longer than maxChars", () => {
                 const participants = [
@@ -59,7 +59,7 @@ describe("getTypingIndicatorText", () => {
                 const maxChars = 23;
                 const result = getTypingIndicatorText(participants, maxChars);
                 expect(result.length).to.be.at.most(maxChars);
-                expect(result).to.equal("123456789012… is typing");
+                expect(result).toBe("123456789012… is typing");
             });
         });
         describe("multiple participants", () => {
@@ -72,7 +72,7 @@ describe("getTypingIndicatorText", () => {
                 ];
                 const maxChars = 100;
                 const expected = "Alice, Bob, Charlie, David are typing";
-                expect(getTypingIndicatorText(participants, maxChars)).to.equal(expected);
+                expect(getTypingIndicatorText(participants, maxChars)).toBe(expected);
                 expect(expected.length).to.be.at.most(maxChars);
             });
             it("some names cut off - ellipsis in name", () => {
@@ -84,8 +84,8 @@ describe("getTypingIndicatorText", () => {
                 ];
                 const maxChars = 24;
                 const expected = "Alice, B…, +2 are typing";
-                expect(getTypingIndicatorText(participants, maxChars)).to.equal(expected);
-                expect(expected.length).to.equal(maxChars);
+                expect(getTypingIndicatorText(participants, maxChars)).toBe(expected);
+                expect(expected.length).toBe(maxChars);
             });
             it("some names cut off - ellipsis not in name", () => {
                 const participants = [
@@ -96,8 +96,8 @@ describe("getTypingIndicatorText", () => {
                 ];
                 const maxChars = 20;
                 const expected = "Alice, +3 are typing";
-                expect(getTypingIndicatorText(participants, maxChars)).to.equal(expected);
-                expect(expected.length).to.equal(maxChars);
+                expect(getTypingIndicatorText(participants, maxChars)).toBe(expected);
+                expect(expected.length).toBe(maxChars);
             });
         });
     });

@@ -1,20 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PubSub } from "../utils/pubsub.js";
 
-// Create mock functions
-const mockSocket = {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    emit: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-    connected: false,
-    id: "mock-socket-id",
-};
+// First, unmock the socket module to override the global mock
+vi.unmock("./socket.js");
 
-// Mock socket.io-client
+// Mock socket.io-client before importing socket module
 vi.mock("socket.io-client", () => ({
-    io: () => mockSocket,
+    io: () => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        emit: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        connected: false,
+        id: "mock-socket-id",
+    }),
 }));
 
 // Mock i18next
@@ -29,14 +28,18 @@ vi.mock("../utils/consts.js", () => ({
     webSocketUrlBase: "ws://localhost:3000",
 }));
 
-// Import after mocking
-const { SocketService, SERVER_CONNECT_MESSAGE_ID } = await import("./socket.js");
+// Import after all mocks are set up
+import { SocketService, SERVER_CONNECT_MESSAGE_ID, socket } from "./socket.js";
+import { PubSub } from "../utils/pubsub.js";
 
 describe("SocketService", () => {
     let socketService: SocketService;
     let pubsubSpy: any;
 
     beforeEach(() => {
+        // Clear all mocks
+        vi.clearAllMocks();
+        
         // Reset the singleton instance
         (SocketService as any).instance = undefined;
         
@@ -44,17 +47,18 @@ describe("SocketService", () => {
         socketService = SocketService.get();
         
         // Spy on PubSub methods
+        const pubsubInstance = PubSub.get();
         pubsubSpy = {
-            publish: vi.spyOn(PubSub.get(), "publish"),
-            subscribe: vi.spyOn(PubSub.get(), "subscribe"),
+            publish: vi.spyOn(pubsubInstance, "publish"),
+            subscribe: vi.spyOn(pubsubInstance, "subscribe"),
         };
-        
-        // Clear all mocks
-        vi.clearAllMocks();
     });
 
     describe("Singleton Pattern", () => {
         it("should return the same instance when called multiple times", () => {
+            // Reset instance for this specific test
+            (SocketService as any).instance = undefined;
+            
             const instance1 = SocketService.get();
             const instance2 = SocketService.get();
             expect(instance1).toBe(instance2);
@@ -68,19 +72,19 @@ describe("SocketService", () => {
     describe("Connection Management", () => {
         it("should call socket.connect() when connect is called", () => {
             socketService.connect();
-            expect(mockSocket.connect).toHaveBeenCalled();
+            expect(socket.connect).toHaveBeenCalled();
         });
 
         it("should set state to DisconnectedNoError and call socket.disconnect() when disconnect is called", () => {
             socketService.disconnect();
             expect(socketService.state).toBe("DisconnectedNoError");
-            expect(mockSocket.disconnect).toHaveBeenCalled();
+            expect(socket.disconnect).toHaveBeenCalled();
         });
 
         it("should disconnect then connect when restart is called", () => {
             socketService.restart();
-            expect(mockSocket.disconnect).toHaveBeenCalled();
-            expect(mockSocket.connect).toHaveBeenCalled();
+            expect(socket.disconnect).toHaveBeenCalled();
+            expect(socket.connect).toHaveBeenCalled();
         });
     });
 
@@ -99,7 +103,11 @@ describe("SocketService", () => {
         it("should update state to LostConnection when handleDisconnected is called from Connected state", () => {
             const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
             
-            socketService.state = "Connected";
+            // First set to connected state by calling handleConnected
+            socketService.handleConnected();
+            expect(socketService.state).toBe("Connected");
+            
+            // Then disconnect
             socketService.handleDisconnected();
             
             expect(socketService.state).toBe("LostConnection");
@@ -129,7 +137,7 @@ describe("SocketService", () => {
             
             socketService.emitEvent(testEvent, testPayload);
             
-            expect(mockSocket.emit).toHaveBeenCalledWith(testEvent, testPayload);
+            expect(socket.emit).toHaveBeenCalledWith(testEvent, testPayload);
         });
 
         it("should emit event with payload and callback when callback provided", () => {
@@ -139,7 +147,7 @@ describe("SocketService", () => {
             
             socketService.emitEvent(testEvent, testPayload, testCallback);
             
-            expect(mockSocket.emit).toHaveBeenCalledWith(testEvent, testPayload, testCallback);
+            expect(socket.emit).toHaveBeenCalledWith(testEvent, testPayload, testCallback);
         });
     });
 
@@ -150,7 +158,7 @@ describe("SocketService", () => {
             
             const unsubscribe = socketService.onEvent(testEvent, testHandler);
             
-            expect(mockSocket.on).toHaveBeenCalledWith(testEvent, testHandler);
+            expect(socket.on).toHaveBeenCalledWith(testEvent, testHandler);
             expect(typeof unsubscribe).toBe("function");
         });
 
@@ -161,7 +169,7 @@ describe("SocketService", () => {
             const unsubscribe = socketService.onEvent(testEvent, testHandler);
             unsubscribe();
             
-            expect(mockSocket.off).toHaveBeenCalledWith(testEvent, testHandler);
+            expect(socket.off).toHaveBeenCalledWith(testEvent, testHandler);
         });
     });
 

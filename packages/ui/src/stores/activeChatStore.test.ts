@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useActiveChatStore } from "./activeChatStore.js";
 
 describe("ActiveChatStore", () => {
@@ -17,13 +17,13 @@ describe("ActiveChatStore", () => {
 
     it("should have initial default values", () => {
         const state = useActiveChatStore.getState();
-        expect(state.activeChatId).to.be.null;
-        expect(state.chats).to.deep.equal({});
-        expect(state.participants).to.deep.equal([]);
-        expect(state.usersTyping).to.deep.equal([]);
-        expect(state.latestMessageId).to.be.null;
-        expect(state.isBotOnlyChat).to.be.false;
-        expect(state.isLoading).to.be.false;
+        expect(state.activeChatId).toBeNull();
+        expect(state.chats).toEqual({});
+        expect(state.participants).toEqual([]);
+        expect(state.usersTyping).toEqual([]);
+        expect(state.latestMessageId).toBeNull();
+        expect(state.isBotOnlyChat).toBe(false);
+        expect(state.isLoading).toBe(false);
     });
 
     it("setActiveChat should track activeChatId, store chat and participants", () => {
@@ -41,26 +41,26 @@ describe("ActiveChatStore", () => {
         // Call setActiveChat without a session to skip cookie logic
         useActiveChatStore.getState().setActiveChat(dummyChat as any, undefined as any);
         const state = useActiveChatStore.getState();
-        expect(state.activeChatId).to.equal("chat1");
-        expect(state.chats["chat1"]).to.deep.equal(dummyChat);
-        expect(state.participants).to.deep.equal(dummyChat.participants);
+        expect(state.activeChatId).toBe("chat1");
+        expect(state.chats["chat1"]).toEqual(dummyChat);
+        expect(state.participants).toEqual(dummyChat.participants);
     });
 
     it("setLatestMessageId should update latestMessageId", () => {
         const stateBefore = useActiveChatStore.getState();
-        expect(stateBefore.latestMessageId).to.be.null;
+        expect(stateBefore.latestMessageId).toBeNull();
         useActiveChatStore.getState().setLatestMessageId("msg123");
         const stateAfter = useActiveChatStore.getState();
-        expect(stateAfter.latestMessageId).to.equal("msg123");
+        expect(stateAfter.latestMessageId).toBe("msg123");
     });
 
     it("setParticipants and setUsersTyping should update respective arrays", () => {
         const participants = [{ id: "p2" /* omit user */ } as any];
         useActiveChatStore.getState().setParticipants(participants);
-        expect(useActiveChatStore.getState().participants).to.deep.equal(participants);
+        expect(useActiveChatStore.getState().participants).toEqual(participants);
 
         const typing = [{ id: "p3" /* omit user */ } as any];
         useActiveChatStore.getState().setUsersTyping(typing);
-        expect(useActiveChatStore.getState().usersTyping).to.deep.equal(typing);
+        expect(useActiveChatStore.getState().usersTyping).toEqual(typing);
     });
 }); 

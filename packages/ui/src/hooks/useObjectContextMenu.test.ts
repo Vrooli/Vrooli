@@ -1,13 +1,13 @@
 import { renderHook } from "@testing-library/react";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act } from "react";
 import { useObjectContextMenu } from "./useObjectContextMenu.js";
 
 describe("useObjectContextMenu", () => {
     it("initial state is correct", () => {
         const { result } = renderHook(() => useObjectContextMenu());
-        expect(result.current.anchorEl).to.be.null;
-        expect(result.current.object).to.be.null;
+        expect(result.current.anchorEl).toBeNull();
+        expect(result.current.object).toBeNull();
     });
 
     it("handleContextMenu sets anchorEl and object", () => {
@@ -19,8 +19,8 @@ describe("useObjectContextMenu", () => {
             result.current.handleContextMenu(dummyTarget, dummyObject);
         });
 
-        expect(result.current.anchorEl).to.deep.equal(dummyTarget);
-        expect(result.current.object).to.deep.equal(dummyObject);
+        expect(result.current.anchorEl).toEqual(dummyTarget);
+        expect(result.current.object).toEqual(dummyObject);
     });
 
     it("handleContextMenu does nothing if object is null", () => {
@@ -31,8 +31,8 @@ describe("useObjectContextMenu", () => {
             result.current.handleContextMenu(dummyTarget, null);
         });
 
-        expect(result.current.anchorEl).to.be.null;
-        expect(result.current.object).to.be.null;
+        expect(result.current.anchorEl).toBeNull();
+        expect(result.current.object).toBeNull();
     });
 
     it("closeContextMenu resets anchorEl but keeps object", () => {
@@ -50,7 +50,7 @@ describe("useObjectContextMenu", () => {
             result.current.closeContextMenu();
         });
 
-        expect(result.current.anchorEl).to.be.null;
-        expect(result.current.object).to.deep.equal(dummyObject); // object remains the same
+        expect(result.current.anchorEl).toBeNull();
+        expect(result.current.object).toEqual(dummyObject); // object remains the same
     });
 });

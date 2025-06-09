@@ -1,16 +1,11 @@
 import { type FormikProps } from "formik";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { useAutoSave } from "./useAutoSave.js";
+import { useDebounce } from "./useDebounce.js";
 
 // Mock useDebounce hook
-vi.mock("./useDebounce.js", () => ({
-    useDebounce: vi.fn(),
-}));
-
-const { useDebounce } = vi.hoisted(() => ({
-    useDebounce: vi.fn(),
-}));
+vi.mock("./useDebounce.js");
 
 describe("useAutoSave", () => {
     let mockFormikRef: { current: FormikProps<any> | null };
@@ -27,7 +22,7 @@ describe("useAutoSave", () => {
         mockCancelDebounce = vi.fn();
 
         // Mock useDebounce to return our mock functions
-        useDebounce.mockReturnValue([mockDebouncedSave, mockCancelDebounce]);
+        vi.mocked(useDebounce).mockReturnValue([mockDebouncedSave, mockCancelDebounce]);
 
         // Create a mock formik ref
         mockFormikRef = {

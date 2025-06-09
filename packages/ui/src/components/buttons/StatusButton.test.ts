@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { formatStatusMessages } from "./StatusButton.js";
 
 describe("formatStatusMessages", () => {

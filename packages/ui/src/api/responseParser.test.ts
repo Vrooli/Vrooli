@@ -1,21 +1,21 @@
 import i18next from "i18next";
 // import { PubSub } from "../utils/pubsub.js"; TODO pubsub mock not working. Likely due to being a singleton class
 import { type ServerResponse } from "@vrooli/shared";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ServerResponseParser } from "./responseParser.js";
 
-jest.mock("i18next");
-// jest.mock("../utils/pubsub", () => ({
+vi.mock("i18next");
+// vi.mock("../utils/pubsub", () => ({
 //     PubSub: {
-//         get: jest.fn().mockReturnValue({
-//             publish: jest.fn(),
+//         get: vi.fn().mockReturnValue({
+//             publish: vi.fn(),
 //         }),
 //     },
 // }));
 
 describe("ServerResponseParser", () => {
     describe("errorToCode", () => {
-        beforeEach(() => { jest.clearAllMocks(); });
+        beforeEach(() => { vi.clearAllMocks(); });
 
         it("should return the first error code", () => {
             const response = {
@@ -24,7 +24,7 @@ describe("ServerResponseParser", () => {
                     { code: "FailedToDelete", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.errorToCode(response)).to.deep.equal("InputEmpty");
+            expect(ServerResponseParser.errorToCode(response)).toEqual("InputEmpty");
         });
 
         it("should return \"ErrorUnknown\" if no error code is found", () => {
@@ -33,12 +33,12 @@ describe("ServerResponseParser", () => {
                     { message: "Error", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.errorToCode(response)).to.deep.equal("ErrorUnknown");
+            expect(ServerResponseParser.errorToCode(response)).toEqual("ErrorUnknown");
         });
     });
 
     describe("errorToMessage", () => {
-        beforeEach(() => { jest.clearAllMocks(); });
+        beforeEach(() => { vi.clearAllMocks(); });
 
         it("should return the first error message", () => {
             const response = {
@@ -48,7 +48,7 @@ describe("ServerResponseParser", () => {
                 ],
             } as ServerResponse;
             const languages = ["en"];
-            expect(ServerResponseParser.errorToMessage(response, languages)).to.deep.equal("NotFound");
+            expect(ServerResponseParser.errorToMessage(response, languages)).toEqual("NotFound");
         });
 
         it("should return translated error code if no error message is found", () => {
@@ -64,7 +64,7 @@ describe("ServerResponseParser", () => {
     });
 
     describe("hasErrorCode", () => {
-        beforeEach(() => { jest.clearAllMocks(); });
+        beforeEach(() => { vi.clearAllMocks(); });
 
         it("should return true if the error code exists in the response", () => {
             const response = {
@@ -72,7 +72,7 @@ describe("ServerResponseParser", () => {
                     { code: "HardLockout", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.hasErrorCode(response, "HardLockout")).to.be.ok;
+            expect(ServerResponseParser.hasErrorCode(response, "HardLockout")).toBeTruthy();
         });
 
         it("should return false if the error code does not exist in the response", () => {
@@ -81,7 +81,7 @@ describe("ServerResponseParser", () => {
                     { code: "LineBreaksBio", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.hasErrorCode(response, "InternalError")).to.not.be.ok;
+            expect(ServerResponseParser.hasErrorCode(response, "InternalError")).toBeFalsy();
         });
     });
 
@@ -93,7 +93,7 @@ describe("ServerResponseParser", () => {
     //         pubsub = module.PubSub.get();
     //     });
 
-    //     beforeEach(() => { jest.clearAllMocks(); });
+    //     beforeEach(() => { vi.clearAllMocks(); });
 
 
     //     it("should display each error as a snack message", async () => {

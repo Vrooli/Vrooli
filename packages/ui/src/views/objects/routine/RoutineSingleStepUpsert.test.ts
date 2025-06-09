@@ -1,5 +1,5 @@
 import { DUMMY_ID, InputType, type FormSchema, type RoutineVersionInputShape, type RoutineVersionOutputShape } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, vi } from "vitest";
 import { type FieldHelperProps } from "formik";
 import { updateSchemaElements, type UpdateSchemaElementsProps } from "./RoutineSingleStepUpsert.js";
 
@@ -114,9 +114,9 @@ const mockLanguage = "en";
 const mockRoutineVersionId = "routine1";
 
 const mockElementsHelpers: FieldHelperProps<RoutineVersionInputShape[]> = {
-    setValue: jest.fn(),
-    setTouched: jest.fn(),
-    setError: jest.fn(),
+    setValue: vi.fn(),
+    setTouched: vi.fn(),
+    setError: vi.fn(),
 };
 
 describe("updateSchemaElements", () => {

@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
-import { expect } from "chai";
-import { act } from "react";
+import { describe, it, expect, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { calculateEstimatedIndex, handleChangeLabel, handleKeyDownLabel, submitChangeLabel, useEditableLabel } from "./useEditableLabel.js";
 
 describe("calculateEstimatedIndex", () => {
@@ -11,17 +11,17 @@ describe("calculateEstimatedIndex", () => {
     });
 
     it("returns 0 if clickX is 0", () => {
-        expect(calculateEstimatedIndex(0, 200, 10)).to.equal(0);
+        expect(calculateEstimatedIndex(0, 200, 10)).toBe(0);
     });
 
     it("returns textLength if clickX is equal to textWidth", () => {
-        expect(calculateEstimatedIndex(200, 200, 10)).to.equal(10);
+        expect(calculateEstimatedIndex(200, 200, 10)).toBe(10);
     });
 });
 
 describe("handleChangeLabel", () => {
     it("updates the editedLabel state with the new value", () => {
-        const setEditedLabelMock = jest.fn();
+        const setEditedLabelMock = vi.fn();
         handleChangeLabel({ target: { value: "new value" } }, setEditedLabelMock);
         expect(setEditedLabelMock).toHaveBeenCalledWith("new value");
     });
@@ -29,23 +29,23 @@ describe("handleChangeLabel", () => {
 
 describe("submitChangeLabel", () => {
     it("does not call onUpdate if isEditable is false", () => {
-        const onUpdateMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const onUpdateMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
         submitChangeLabel(false, "edited", "original", onUpdateMock, setIsEditingLabelMock);
         expect(onUpdateMock).not.toHaveBeenCalled();
     });
 
     it("calls onUpdate if isEditable is true and editedLabel differs from label", () => {
-        const onUpdateMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const onUpdateMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
         submitChangeLabel(true, "edited", "original", onUpdateMock, setIsEditingLabelMock);
         expect(onUpdateMock).toHaveBeenCalledWith("edited");
         expect(setIsEditingLabelMock).toHaveBeenCalledWith(false);
     });
 
     it("does not call onUpdate if editedLabel is the same as label", () => {
-        const onUpdateMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const onUpdateMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
         submitChangeLabel(true, "original", "original", onUpdateMock, setIsEditingLabelMock);
         expect(onUpdateMock).not.toHaveBeenCalled();
         expect(setIsEditingLabelMock).toHaveBeenCalledWith(false);
@@ -54,22 +54,22 @@ describe("submitChangeLabel", () => {
 
 describe("handleKeyDownLabel", () => {
     it("submits label change on Enter key", () => {
-        const submitLabelChangeMock = jest.fn();
-        const setEditedLabelMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const submitLabelChangeMock = vi.fn();
+        const setEditedLabelMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
 
-        const event = { key: "Enter", preventDefault: jest.fn(), shiftKey: false };
+        const event = { key: "Enter", preventDefault: vi.fn(), shiftKey: false };
         handleKeyDownLabel(event as any, true, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
         expect(event.preventDefault).toHaveBeenCalled();
         expect(submitLabelChangeMock).toHaveBeenCalled();
     });
 
     it("cancels label edit on Escape key", () => {
-        const submitLabelChangeMock = jest.fn();
-        const setEditedLabelMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const submitLabelChangeMock = vi.fn();
+        const setEditedLabelMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
 
-        const event = { key: "Escape", preventDefault: jest.fn() };
+        const event = { key: "Escape", preventDefault: vi.fn() };
         handleKeyDownLabel(event as any, true, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
         expect(event.preventDefault).toHaveBeenCalled();
         expect(setEditedLabelMock).toHaveBeenCalledWith("label");
@@ -77,11 +77,11 @@ describe("handleKeyDownLabel", () => {
     });
 
     it("does not handle keys if isEditable is false", () => {
-        const submitLabelChangeMock = jest.fn();
-        const setEditedLabelMock = jest.fn();
-        const setIsEditingLabelMock = jest.fn();
+        const submitLabelChangeMock = vi.fn();
+        const setEditedLabelMock = vi.fn();
+        const setIsEditingLabelMock = vi.fn();
 
-        const event = { key: "Enter", preventDefault: jest.fn(), shiftKey: false };
+        const event = { key: "Enter", preventDefault: vi.fn(), shiftKey: false };
         handleKeyDownLabel(event as any, false, false, submitLabelChangeMock, setEditedLabelMock, setIsEditingLabelMock, "label");
         expect(submitLabelChangeMock).not.toHaveBeenCalled();
         expect(setEditedLabelMock).not.toHaveBeenCalled();
@@ -95,11 +95,11 @@ describe("useEditableLabel", () => {
             isEditable: true,
             isMultiline: false,
             label: "initial",
-            onUpdate: jest.fn(),
+            onUpdate: vi.fn(),
         }));
 
-        expect(result.current.editedLabel).to.equal("initial");
-        expect(result.current.isEditingLabel).to.equal(false);
+        expect(result.current.editedLabel).toBe("initial");
+        expect(result.current.isEditingLabel).toBe(false);
     });
 
     it("updates editedLabel when label prop changes", () => {
@@ -107,11 +107,11 @@ describe("useEditableLabel", () => {
             isEditable: true,
             isMultiline: false,
             label: "initial",
-            onUpdate: jest.fn(),
+            onUpdate: vi.fn(),
         }));
 
-        rerender({ isEditable: true, isMultiline: false, label: "updated", onUpdate: jest.fn() });
-        expect(result.current.editedLabel).to.equal("updated");
+        rerender({ isEditable: true, isMultiline: false, label: "updated", onUpdate: vi.fn() });
+        expect(result.current.editedLabel).toBe("updated");
     });
 
     it("starts editing label on startEditingLabel call", () => {
@@ -119,7 +119,7 @@ describe("useEditableLabel", () => {
             isEditable: true,
             isMultiline: false,
             label: "label",
-            onUpdate: jest.fn(),
+            onUpdate: vi.fn(),
         }));
 
         act(() => result.current.startEditingLabel({
@@ -127,7 +127,7 @@ describe("useEditableLabel", () => {
             currentTarget: { offsetWidth: 100, getBoundingClientRect: () => ({ left: 0 }) } as any,
         } as React.MouseEvent<HTMLElement>));
 
-        expect(result.current.isEditingLabel).to.equal(true);
+        expect(result.current.isEditingLabel).toBe(true);
     });
 
     it("handles label change and updates editedLabel state", () => {
@@ -135,15 +135,15 @@ describe("useEditableLabel", () => {
             isEditable: true,
             isMultiline: false,
             label: "label",
-            onUpdate: jest.fn(),
+            onUpdate: vi.fn(),
         }));
 
         act(() => result.current.handleLabelChange({ target: { value: "new label" } }));
-        expect(result.current.editedLabel).to.equal("new label");
+        expect(result.current.editedLabel).toBe("new label");
     });
 
     it("submits label change when editedLabel is modified", () => {
-        const onUpdateMock = jest.fn();
+        const onUpdateMock = vi.fn();
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,
@@ -160,7 +160,7 @@ describe("useEditableLabel", () => {
     });
 
     it("does not submit label if editedLabel is unchanged", () => {
-        const onUpdateMock = jest.fn();
+        const onUpdateMock = vi.fn();
         const { result } = renderHook(() => useEditableLabel({
             isEditable: true,
             isMultiline: false,

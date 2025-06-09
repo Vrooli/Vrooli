@@ -1,5 +1,5 @@
 import { screen } from "@testing-library/react";
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
 import sinon from "sinon";
 import { render } from "../__test/testUtils.js";
@@ -32,12 +32,12 @@ describe("<IconFavicon />", () => {
             render(<IconFavicon href={url} data-testid={testId} />);
 
             const icon = screen.getByTestId(testId);
-            expect(icon).to.exist;
-            expect(icon.tagName.toLowerCase()).to.equal("svg");
+            expect(icon).toBeDefined();
+            expect(icon.tagName.toLowerCase()).toBe("svg");
 
             const useElement = icon.querySelector("use");
-            expect(useElement).to.exist;
-            expect(useElement?.getAttribute("href")).to.equal(
+            expect(useElement).toBeDefined();
+            expect(useElement?.getAttribute("href")).toBe(
                 `http://www.google.com/s2/favicons?domain=${new URL(url).hostname}`,
             );
         });
@@ -57,16 +57,16 @@ describe("<IconFavicon />", () => {
             render(<IconFavicon href={url} data-testid={testId} />);
 
             const icon = screen.getByTestId(testId);
-            expect(icon).to.exist;
-            expect(icon.tagName.toLowerCase()).to.equal("svg");
+            expect(icon).toBeDefined();
+            expect(icon.tagName.toLowerCase()).toBe("svg");
 
             const useElement = icon.querySelector("use");
-            expect(useElement).to.exist;
+            expect(useElement).toBeDefined();
             expect(useElement?.getAttribute("href")).to.contain("#Website");
 
             // Verify error was logged
-            expect(consoleErrorStub.calledOnce).to.be.true;
-            expect(consoleErrorStub.firstCall.args[0]).to.include("[IconFavicon] Invalid URL");
+            expect(consoleErrorStub.calledOnce).toBe(true);
+            expect(consoleErrorStub.firstCall.args[0]).toContain("[IconFavicon] Invalid URL");
         });
     });
 
@@ -88,11 +88,11 @@ describe("<IconFavicon />", () => {
         );
 
         const icon = screen.getByTestId(testId);
-        expect(icon).to.exist;
-        expect(icon.getAttribute("width")).to.equal(customSize.toString());
-        expect(icon.getAttribute("height")).to.equal(customSize.toString());
-        expect(icon.getAttribute("fill")).to.equal(customFill);
-        expect(icon.classList.contains(customClass)).to.be.true;
+        expect(icon).toBeDefined();
+        expect(icon.getAttribute("width")).toBe(customSize.toString());
+        expect(icon.getAttribute("height")).toBe(customSize.toString());
+        expect(icon.getAttribute("fill")).toBe(customFill);
+        expect(icon.classList.contains(customClass)).toBe(true);
     });
 
     // Test accessibility attributes
@@ -109,8 +109,8 @@ describe("<IconFavicon />", () => {
         );
 
         const icon = screen.getByTestId(testId);
-        expect(icon).to.exist;
-        expect(icon.getAttribute("aria-label")).to.equal("Website Icon");
-        expect(icon.getAttribute("aria-hidden")).to.be.null;
+        expect(icon).toBeDefined();
+        expect(icon.getAttribute("aria-label")).toBe("Website Icon");
+        expect(icon.getAttribute("aria-hidden")).toBeNull();
     });
 }); 

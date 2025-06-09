@@ -1,11 +1,11 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { chatMatchHash, weakHash } from "./codes.js";
 
 describe("weakHash", () => {
     it("generates a consistent SHA-256 hash for the given string", () => {
         const inputString = "test-string";
         const hash = weakHash(inputString);
-        expect(typeof hash).to.equal("string");
+        expect(typeof hash).toBe("string");
     });
 });
 
@@ -18,7 +18,7 @@ describe("chatMatchHash", () => {
         const hash1 = chatMatchHash(participantIds1);
         const hash2 = chatMatchHash(participantIds2);
 
-        expect(hash1).to.equal(hash2);
+        expect(hash1).toBe(hash2);
     });
 
     it("generates different hashes for different sets of participant user IDs", () => {
@@ -37,6 +37,6 @@ describe("chatMatchHash", () => {
         const hash1 = chatMatchHash(participantIds);
         const hash2 = chatMatchHash(participantIds);
 
-        expect(hash1).to.equal(hash2);
+        expect(hash1).toBe(hash2);
     });
 });

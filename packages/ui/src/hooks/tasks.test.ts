@@ -26,9 +26,9 @@ describe("getAutoFillTranslationData", () => {
         const result = getAutoFillTranslationData(values, language) as any;
 
         expect(result).toEqual({ content: "Hello", otherField: "value" });
-        expect(result.id).to.be.undefined;
-        expect(result.language).to.be.undefined;
-        expect(result.__typename).to.be.undefined;
+        expect(result.id).toBeUndefined();
+        expect(result.language).toBeUndefined();
+        expect(result.__typename).toBeUndefined();
     });
 
     it("should return any translation data if the language does not match", () => {
@@ -78,9 +78,9 @@ describe("getAutoFillTranslationData", () => {
         const result = getAutoFillTranslationData(values, language) as any;
 
         expect(result).toEqual({ content: "Hello" });
-        expect(result.id).to.be.undefined;
-        expect(result.language).to.be.undefined;
-        expect(result.__typename).to.be.undefined; // Ensuring it handles missing fields properly
+        expect(result.id).toBeUndefined();
+        expect(result.language).toBeUndefined();
+        expect(result.__typename).toBeUndefined(); // Ensuring it handles missing fields properly
     });
 });
 
@@ -1254,7 +1254,7 @@ describe("useChatTasks", () => {
                     });
 
                     validateTotalContexts(result.current, 2);
-                    expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).to.be.undefined;
+                    expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toBeUndefined();
                     expect(result.current.contexts[task1.task].length).to.equal(2);
                     expect(result.current.activeTask.task).to.equal(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
@@ -1340,7 +1340,7 @@ describe("useChatTasks", () => {
                     });
 
                     validateTotalContexts(result.current, 2);
-                    expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).to.be.undefined;
+                    expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toBeUndefined();
                     expect(result.current.contexts[task1.task].length).to.equal(2);
                     expect(result.current.activeTask.task).to.equal(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
@@ -2270,7 +2270,7 @@ describe("useChatTasks", () => {
 
 // describe("sendMessageWithContext", () => {
 //     it("should skip context collection if no active task is set", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         await act(async () => {
@@ -2282,7 +2282,7 @@ describe("useChatTasks", () => {
 //     });
 
 //     it("should resolve with the correct context if data is available", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 //         const mockContext = { key: "value" };
 
@@ -2302,7 +2302,7 @@ describe("useChatTasks", () => {
 //         });
 
 //         await act(async () => {
-//             jest.advanceTimersByTime(250);
+//             vi.advanceTimersByTime(250);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello", mockContext);
@@ -2310,7 +2310,7 @@ describe("useChatTasks", () => {
 //     });
 
 //     it("should reject with a timeout error if no data is available within the timeout", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         act(() => {
@@ -2323,15 +2323,15 @@ describe("useChatTasks", () => {
 
 //         // Fast-forward until all timers have been executed
 //         await act(async () => {
-//             jest.advanceTimersByTime(2_000);
+//             vi.advanceTimersByTime(2_000);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // Context failed to collect, send message without it
-//         jest.useRealTimers();
+//         vi.useRealTimers();
 //     });
 
 //     it("should ignore context collection if id does not match", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         act(() => {
@@ -2351,7 +2351,7 @@ describe("useChatTasks", () => {
 
 //         // Fast-forward until all timers have been executed
 //         await act(async () => {
-//             jest.advanceTimersByTime(2_000);
+//             vi.advanceTimersByTime(2_000);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // No context collected since ID does not match
@@ -2359,7 +2359,7 @@ describe("useChatTasks", () => {
 //     });
 
 //     it("should ignore context collection if task does not match", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         act(() => {
@@ -2379,7 +2379,7 @@ describe("useChatTasks", () => {
 
 //         // Fast-forward until all timers have been executed
 //         await act(async () => {
-//             jest.advanceTimersByTime(2_000);
+//             vi.advanceTimersByTime(2_000);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // No context collected since the task does not match
@@ -2387,7 +2387,7 @@ describe("useChatTasks", () => {
 //     });
 
 //     it("should ignore context collection if __type does not match", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         act(() => {
@@ -2409,14 +2409,14 @@ describe("useChatTasks", () => {
 
 //         // Fast-forward until all timers have been executed
 //         await act(async () => {
-//             jest.advanceTimersByTime(2_000);
+//             vi.advanceTimersByTime(2_000);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // No context collected since the __type does not match
 //     });
 
 //     it("should send message with context if activeTask is set", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 //         const contextData = { key: "value" };
 
@@ -2437,14 +2437,14 @@ describe("useChatTasks", () => {
 //         });
 
 //         await act(async () => {
-//             jest.advanceTimersByTime(250); // Advance time to simulate async context collection
+//             vi.advanceTimersByTime(250); // Advance time to simulate async context collection
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello", contextData);
 //     });
 
 //     it("should send message without context if activeTask is null", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         // No active task is set
@@ -2457,7 +2457,7 @@ describe("useChatTasks", () => {
 //     });
 
 //     it("should handle errors in context collection", async () => {
-//         const onSendMessage = jest.fn();
+//         const onSendMessage = vi.fn();
 //         const { result } = renderHook(() => useChatTasks({ chatId: "main", onSendMessage }));
 
 //         // Set an active task
@@ -2472,7 +2472,7 @@ describe("useChatTasks", () => {
 
 //         // Fast-forward until after the timeout for context collection has passed
 //         await act(async () => {
-//             jest.advanceTimersByTime(2_000);
+//             vi.advanceTimersByTime(2_000);
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // Should send message without context due to failure

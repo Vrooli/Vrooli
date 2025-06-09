@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { findObjectTabParams } from "../../../utils/search/objectToSearch.js";
 import { convertRootObjectToVersion, getFilteredTabs } from "./FindObjectDialog.js";
 
@@ -29,7 +29,7 @@ describe("getFilteredTabs function", () => {
             "SmartContract",
         ] as const;
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
-        expect(result.length).to.equal(expectedKeys.length);
+        expect(result.length).toBe(expectedKeys.length);
     });
 
     it("returns limited versioned tabs when both limitTo and onlyVersioned are specified", () => {
@@ -79,13 +79,13 @@ describe("convertRootObjectToVersion", () => {
     it("returns undefined when the versionId does not exist in the versions array", () => {
         const versionId = "v3"; // Non-existent version
         const result = convertRootObjectToVersion(rootObject, versionId);
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     });
 
     it("returns undefined when versionId is undefined", () => {
         // @ts-ignore: Testing runtime scenario
         const result = convertRootObjectToVersion(rootObject, undefined);
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     });
 
     it("correctly handles objects without a versions array", () => {
@@ -94,12 +94,12 @@ describe("convertRootObjectToVersion", () => {
             type: "Original",
         };
         const result = convertRootObjectToVersion(objectWithoutVersions, "v1");
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     });
 
     it("ensures root property does not include versions array", () => {
         const versionId = "v1";
         const result = convertRootObjectToVersion(rootObject, versionId);
-        expect(result.root.versions).to.be.undefined;
+        expect(result.root.versions).toBeUndefined();
     });
 });

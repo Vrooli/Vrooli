@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { generatePK, type CommonKey, type Session } from "@vrooli/shared";
-import { expect } from "chai";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
@@ -21,10 +21,10 @@ function mockNavigatorLanguages(languages) {
     });
 }
 
-jest.mock("i18next");
-jest.mock("react-i18next");
+vi.mock("i18next");
+vi.mock("react-i18next");
 // Cast the i18next.t function to the Jest Mock type
-// const mockedTranslate = i18next.t as unknown as jest.Mock;
+// const mockedTranslate = i18next.t as unknown as ReturnType<typeof vi.fn>;
 
 // Utility function for creating a session object
 function createSession(languages: string[] | null | undefined) {
@@ -42,28 +42,28 @@ function createSession(languages: string[] | null | undefined) {
 describe("loadLocale", () => {
     it("should load the specified valid locale", async () => {
         const locale = await loadLocale("de");
-        expect(locale.code).to.deep.equal("de");
+        expect(locale.code).toEqual("de");
     });
 
     it("should fallback to en-US when an unknown locale is requested", async () => {
         const locale = await loadLocale("unknown-locale");
-        expect(locale.code).to.deep.equal("en-US");
+        expect(locale.code).toEqual("en-US");
     });
 
     it("should load en-US by default when no locale is specified", async () => {
         // @ts-ignore: Testing runtime scenario
         const locale = await loadLocale(undefined);
-        expect(locale.code).to.deep.equal("en-US");
+        expect(locale.code).toEqual("en-US");
     });
 
     it("should handle the loading of locales with region codes", async () => {
         const locale = await loadLocale("en-GB");
-        expect(locale.code).to.deep.equal("en-GB");
+        expect(locale.code).toEqual("en-GB");
     });
 
     it("should pick default region code when requested one doesn't exist", async () => {
         const locale = await loadLocale("en-ZZ");
-        expect(locale.code).to.deep.equal("en-US"); // See the "en" entry in localeLoaders. Note how it points to "en-US"
+        expect(locale.code).toEqual("en-US"); // See the "en" entry in localeLoaders. Note how it points to "en-US"
     });
 });
 
@@ -87,7 +87,7 @@ describe("updateTranslationFields", () => {
         const updatedTranslations = updateTranslationFields({ translations: mockTranslations }, language, changes);
         const newTranslation = updatedTranslations.find(t => t.language === language);
         expect(newTranslation).toMatchObject({ language, ...changes });
-        expect(newTranslation?.id).to.exist;
+        expect(newTranslation?.id).toBeDefined();
     });
 
     it("should preserve existing fields that are not being updated", () => {
@@ -105,29 +105,29 @@ describe("updateTranslationFields", () => {
         const resultFromUndefined = updateTranslationFields(undefined, language, changes);
 
         // Check that both results are arrays with a single object
-        expect(resultFromNull).to.have.lengthOf(1);
-        expect(resultFromUndefined).to.have.lengthOf(1);
+        expect(resultFromNull).toHaveLength(1);
+        expect(resultFromUndefined).toHaveLength(1);
 
         // Check that the single object in each array has the correct language and content
         expect(resultFromNull[0]).toMatchObject({ language, ...changes });
         expect(resultFromUndefined[0]).toMatchObject({ language, ...changes });
 
         // Check that each new translation has a unique id
-        expect(resultFromNull[0].id).to.exist;
-        expect(resultFromUndefined[0].id).to.exist;
+        expect(resultFromNull[0].id).toBeDefined();
+        expect(resultFromUndefined[0].id).toBeDefined();
     });
 
     it("should handle an empty translations array", () => {
         const language = "en";
         const changes = { content: "Hi" };
-        expect(updateTranslationFields({ translations: [] }, language, changes).length).to.equal(1);
+        expect(updateTranslationFields({ translations: [] }, language, changes).length).toBe(1);
     });
 
     it("should handle null or undefined translations property", () => {
         const language = "en";
         const changes = { content: "Hi" };
-        expect(updateTranslationFields({ translations: null }, language, changes).length).to.equal(1);
-        expect(updateTranslationFields({ translations: undefined }, language, changes).length).to.equal(1);
+        expect(updateTranslationFields({ translations: null }, language, changes).length).toBe(1);
+        expect(updateTranslationFields({ translations: undefined }, language, changes).length).toBe(1);
     });
 
     it("should allow removal of a field by setting it to null", () => {
@@ -135,14 +135,14 @@ describe("updateTranslationFields", () => {
         const changes = { note: null };
         const updatedTranslations = updateTranslationFields({ translations: mockTranslations }, language, changes);
         const updatedTranslation = updatedTranslations.find(t => t.language === language) as Record<string, unknown>;
-        expect(updatedTranslation?.note).to.be.null;
+        expect(updatedTranslation?.note).toBeNull();
     });
 
     it("should not update fields if changes object is empty", () => {
         const language = "en";
         const changes = {};
         const updatedTranslations = updateTranslationFields({ translations: mockTranslations }, language, changes);
-        expect(updatedTranslations).to.deep.equal(mockTranslations);
+        expect(updatedTranslations).toEqual(mockTranslations);
     });
 
     it("should not update fields if changes object is null or undefined", () => {
@@ -151,8 +151,8 @@ describe("updateTranslationFields", () => {
         const updatedTranslationsNullChanges = updateTranslationFields({ translations: mockTranslations }, language, null);
         // @ts-ignore: Testing runtime scenario
         const updatedTranslationsUndefinedChanges = updateTranslationFields({ translations: mockTranslations }, language, undefined);
-        expect(updatedTranslationsNullChanges).to.deep.equal(mockTranslations);
-        expect(updatedTranslationsUndefinedChanges).to.deep.equal(mockTranslations);
+        expect(updatedTranslationsNullChanges).toEqual(mockTranslations);
+        expect(updatedTranslationsUndefinedChanges).toEqual(mockTranslations);
     });
 });
 
@@ -166,104 +166,104 @@ describe("updateTranslation", () => {
         const newTranslation = { id: mockTranslations[0].id, language: "en", content: "Hi" };
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         const updatedTranslation = updatedTranslations.find(t => t.language === "en");
-        expect(updatedTranslation).to.deep.equal(newTranslation);
+        expect(updatedTranslation).toEqual(newTranslation);
     });
 
     it("should add a new translation if the specified language is not found", () => {
         const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         const addedTranslation = updatedTranslations.find(t => t.language === "fr");
-        expect(addedTranslation).to.deep.equal(newTranslation);
+        expect(addedTranslation).toEqual(newTranslation);
     });
 
     it("should return the original translations if the translation object is empty", () => {
         const newTranslation = {};
         // @ts-ignore: Testing runtime scenario
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
-        expect(updatedTranslations).to.deep.equal(mockTranslations);
+        expect(updatedTranslations).toEqual(mockTranslations);
     });
 
     it("should handle null or undefined translations property", () => {
         const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
         // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: null }, newTranslation)).to.have.lengthOf(0);
+        expect(updateTranslation({ translations: null }, newTranslation)).toHaveLength(0);
         // @ts-ignore: Testing runtime scenario
-        expect(updateTranslation({ translations: undefined }, newTranslation)).to.have.lengthOf(0);
+        expect(updateTranslation({ translations: undefined }, newTranslation)).toHaveLength(0);
     });
 
     it("should handle empty translations array", () => {
         const newTranslation = { id: generatePK().toString(), language: "fr", content: "Bonjour" };
-        expect(updateTranslation({ translations: [] }, newTranslation)).to.deep.equal([newTranslation]);
+        expect(updateTranslation({ translations: [] }, newTranslation)).toEqual([newTranslation]);
     });
 
     it("should not update translations if the provided translation does not have a language", () => {
         const newTranslation = { id: generatePK().toString(), content: "Bonjour" };
         // @ts-ignore: Testing runtime scenario
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
-        expect(updatedTranslations).to.deep.equal(mockTranslations);
+        expect(updatedTranslations).toEqual(mockTranslations);
     });
 
     it("should preserve other translations when updating", () => {
         const newTranslation = { id: generatePK().toString(), language: "en", content: "Hi" };
         const updatedTranslations = updateTranslation({ translations: mockTranslations }, newTranslation);
         const unchangedTranslation = updatedTranslations.find(t => t.language === "es");
-        expect(unchangedTranslation).to.deep.equal(mockTranslations[1]);
+        expect(unchangedTranslation).toEqual(mockTranslations[1]);
     });
 });
 
 describe("getLanguageSubtag", () => {
     it("should return the subtag for a standard IETF language code", () => {
-        expect(getLanguageSubtag("en-US")).to.deep.equal("en");
-        expect(getLanguageSubtag("fr-CA")).to.deep.equal("fr");
+        expect(getLanguageSubtag("en-US")).toEqual("en");
+        expect(getLanguageSubtag("fr-CA")).toEqual("fr");
     });
 
     it("should handle language codes without a region", () => {
-        expect(getLanguageSubtag("de")).to.deep.equal("de");
+        expect(getLanguageSubtag("de")).toEqual("de");
     });
 
     it("should handle language codes with extended tags", () => {
-        expect(getLanguageSubtag("zh-Hant-HK")).to.deep.equal("zh");
+        expect(getLanguageSubtag("zh-Hant-HK")).toEqual("zh");
     });
 
     it("should return empty string for undefined input", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(undefined)).to.deep.equal("");
+        expect(getLanguageSubtag(undefined)).toEqual("");
     });
 
     it("should return empty string for null input", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(null)).to.deep.equal("");
+        expect(getLanguageSubtag(null)).toEqual("");
     });
 
     it("should return empty string for empty string input", () => {
-        expect(getLanguageSubtag("")).to.deep.equal("");
+        expect(getLanguageSubtag("")).toEqual("");
     });
 
     it("should return empty string for non-string input", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag(1234)).to.deep.equal("");
+        expect(getLanguageSubtag(1234)).toEqual("");
         // @ts-ignore: Testing runtime scenario
-        expect(getLanguageSubtag({})).to.deep.equal("");
+        expect(getLanguageSubtag({})).toEqual("");
     });
 
     it("should handle codes with non-standard format", () => {
-        expect(getLanguageSubtag("i-klingon")).to.deep.equal("i");
-        expect(getLanguageSubtag("sgn-BE-FR")).to.deep.equal("sgn");
+        expect(getLanguageSubtag("i-klingon")).toEqual("i");
+        expect(getLanguageSubtag("sgn-BE-FR")).toEqual("sgn");
     });
 
     it("should always lowercase input", () => {
-        expect(getLanguageSubtag("EN-us")).to.deep.equal("en");
-        expect(getLanguageSubtag("Fr-cA")).to.deep.equal("fr");
+        expect(getLanguageSubtag("EN-us")).toEqual("en");
+        expect(getLanguageSubtag("Fr-cA")).toEqual("fr");
     });
 
     it("should handle input with extra whitespace", () => {
-        expect(getLanguageSubtag(" en-US ")).to.deep.equal("en");
-        expect(getLanguageSubtag(" fr-CA ")).to.deep.equal("fr");
+        expect(getLanguageSubtag(" en-US ")).toEqual("en");
+        expect(getLanguageSubtag(" fr-CA ")).toEqual("fr");
     });
 
     it("should handle input with only region subtag", () => {
-        expect(getLanguageSubtag("-US")).to.deep.equal("");
-        expect(getLanguageSubtag("-CA")).to.deep.equal("");
+        expect(getLanguageSubtag("-US")).toEqual("");
+        expect(getLanguageSubtag("-CA")).toEqual("");
     });
 });
 
@@ -274,40 +274,40 @@ describe("getUserLanguages", () => {
     });
 
     it("should return at least English when useDefault is true and no languages are found", () => {
-        expect(getUserLanguages(null, true)).to.deep.equal(["en"]);
-        expect(getUserLanguages(undefined)).to.deep.equal(["en"]);
+        expect(getUserLanguages(null, true)).toEqual(["en"]);
+        expect(getUserLanguages(undefined)).toEqual(["en"]);
     });
 
     it("should return user defined languages from session", () => {
         const session = createSession(["en-US", "fr"]);
-        expect(getUserLanguages(session)).to.deep.equal(["en", "fr"]);
+        expect(getUserLanguages(session)).toEqual(["en", "fr"]);
     });
 
     it("should handle session with empty language array", () => {
         const session = createSession([]);
-        expect(getUserLanguages(session)).to.deep.equal(["en"]);
+        expect(getUserLanguages(session)).toEqual(["en"]);
     });
 
     it("should handle session with missing languages property", () => {
         const session = createSession(undefined);
-        expect(getUserLanguages(session)).to.deep.equal(["en"]);
+        expect(getUserLanguages(session)).toEqual(["en"]);
     });
 
     it("should return navigator language if no session languages", () => {
         mockNavigatorLanguage("de");
         const session = createSession([]);
-        expect(getUserLanguages(session, false)).to.deep.equal(["de"]);
+        expect(getUserLanguages(session, false)).toEqual(["de"]);
     });
 
     it("should return empty array when useDefault is false and no languages are found", () => {
-        expect(getUserLanguages(null, false)).to.have.lengthOf(0);
-        expect(getUserLanguages(undefined, false)).to.have.lengthOf(0);
+        expect(getUserLanguages(null, false)).toHaveLength(0);
+        expect(getUserLanguages(undefined, false)).toHaveLength(0);
     });
 
     it("should handle cases where navigator does not return a language", () => {
         mockNavigatorLanguage(undefined);
         const session = createSession(undefined);
-        expect(getUserLanguages(session, false)).to.have.lengthOf(0);
+        expect(getUserLanguages(session, false)).toHaveLength(0);
     });
 });
 
@@ -322,43 +322,43 @@ describe("getUserLocale", () => {
         const session = createSession(["fr", "de"]);
         mockNavigatorLanguages(["de-AT", "en-US"]);
         mockNavigatorLanguage("en-US");
-        expect(getUserLocale(session)).to.deep.equal("de-AT");
+        expect(getUserLocale(session)).toEqual("de-AT");
     });
 
     it("Prefer first language session if none of navigator languages are in the session", () => {
         const session = createSession(["af", "de"]);
         mockNavigatorLanguages(["fr-CA", "ja"]);
         mockNavigatorLanguage("zh");
-        expect(getUserLocale(session)).to.deep.equal("af");
+        expect(getUserLocale(session)).toEqual("af");
     });
 
     it("Prefer navigator when session languages not present", () => {
         const session = createSession([]);
         mockNavigatorLanguage("zh");
-        expect(getUserLocale(session)).to.deep.equal("zh");
+        expect(getUserLocale(session)).toEqual("zh");
     });
 
     it("Prefer navigator when session languages not valid", () => {
         const session = createSession(["sheep"]);
         mockNavigatorLanguages(["fr-CA", "ja"]);
         mockNavigatorLanguage("zh");
-        expect(getUserLocale(session)).to.deep.equal("fr-CA");
+        expect(getUserLocale(session)).toEqual("fr-CA");
     });
 
     it("Default to en-US when no languages valid", () => {
         const session = createSession(["chicken"]);
         mockNavigatorLanguages(["nuggets"]);
-        expect(getUserLocale(session)).to.deep.equal("en-US");
+        expect(getUserLocale(session)).toEqual("en-US");
     });
 
     it("should handle undefined session", () => {
         mockNavigatorLanguages(["en-GB"]);
-        expect(getUserLocale(undefined)).to.deep.equal("en-GB");
+        expect(getUserLocale(undefined)).toEqual("en-GB");
     });
 
     it("should handle null session", () => {
         mockNavigatorLanguages(["en-GB"]);
-        expect(getUserLocale(null)).to.deep.equal("en-GB");
+        expect(getUserLocale(null)).toEqual("en-GB");
     });
 });
 
@@ -366,99 +366,99 @@ describe("getPreferredLanguage", () => {
     it("should return the user's most preferred available language", () => {
         const available = ["en", "fr", "es"];
         const userPref = ["es", "de", "en"];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("es");
+        expect(getPreferredLanguage(available, userPref)).toEqual("es");
     });
 
     it("should return the first available language if none of the user's preferred languages are available", () => {
         const available = ["it", "pt"];
         const userPref = ["es", "de", "en"];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("it");
+        expect(getPreferredLanguage(available, userPref)).toEqual("it");
     });
 
     it("should handle empty list of user languages", () => {
         const available = ["zh", "fr"];
         const userPref = [];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("zh");
+        expect(getPreferredLanguage(available, userPref)).toEqual("zh");
     });
 
     it("should handle empty list of available languages", () => {
         const available = [];
         const userPref = ["zh", "fr"];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("zh");
+        expect(getPreferredLanguage(available, userPref)).toEqual("zh");
     });
 
     it("should handle both lists being empty", () => {
         const available = [];
         const userPref = [];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("en");
+        expect(getPreferredLanguage(available, userPref)).toEqual("en");
     });
 
     it("should return the first language if multiple user preferences are available", () => {
         const available = ["fr", "de", "en"];
         const userPref = ["de", "en"];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("de");
+        expect(getPreferredLanguage(available, userPref)).toEqual("de");
     });
 
     it("should handle case sensitivity", () => {
         const available = ["EN", "FR"];
         const userPref = ["en", "fr"];
-        expect(getPreferredLanguage(available, userPref)).to.deep.equal("EN");
+        expect(getPreferredLanguage(available, userPref)).toEqual("EN");
     });
 
     it("should handle null and undefined inputs", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(null, ["fr"])).to.deep.equal("fr");
+        expect(getPreferredLanguage(null, ["fr"])).toEqual("fr");
         // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(["fr"], null)).to.deep.equal("fr");
+        expect(getPreferredLanguage(["fr"], null)).toEqual("fr");
         // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(undefined, ["fr"])).to.deep.equal("fr");
+        expect(getPreferredLanguage(undefined, ["fr"])).toEqual("fr");
         // @ts-ignore: Testing runtime scenario
-        expect(getPreferredLanguage(["fr"], undefined)).to.deep.equal("fr");
+        expect(getPreferredLanguage(["fr"], undefined)).toEqual("fr");
     });
 });
 
 describe("getShortenedLabel", () => {
     it("should shorten Latin script words to a maximum of 3 characters", () => {
-        expect(getShortenedLabel("Apple")).to.deep.equal("App");
-        expect(getShortenedLabel("Banana")).to.deep.equal("Ban");
+        expect(getShortenedLabel("Apple")).toEqual("App");
+        expect(getShortenedLabel("Banana")).toEqual("Ban");
     });
 
     it("should return the word as is if it's 3 characters or less", () => {
-        expect(getShortenedLabel("Car")).to.deep.equal("Car");
-        expect(getShortenedLabel("Do")).to.deep.equal("Do");
+        expect(getShortenedLabel("Car")).toEqual("Car");
+        expect(getShortenedLabel("Do")).toEqual("Do");
     });
 
     it("should shorten words with Han characters to 1 character", () => {
-        expect(getShortenedLabel("苹果")).to.deep.equal("苹");
-        expect(getShortenedLabel("香蕉好吃")).to.deep.equal("香");
+        expect(getShortenedLabel("苹果")).toEqual("苹");
+        expect(getShortenedLabel("香蕉好吃")).toEqual("香");
     });
 
     it("should handle words with mixed scripts, prioritizing Han shortening", () => {
-        expect(getShortenedLabel("苹apple")).to.deep.equal("苹");
-        expect(getShortenedLabel("香banana")).to.deep.equal("香");
+        expect(getShortenedLabel("苹apple")).toEqual("苹");
+        expect(getShortenedLabel("香banana")).toEqual("香");
     });
 
     it("should return an empty string when given an empty string", () => {
-        expect(getShortenedLabel("")).to.deep.equal("");
+        expect(getShortenedLabel("")).toEqual("");
     });
 
     it("should handle non-string inputs gracefully", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(null)).to.deep.equal("");
+        expect(getShortenedLabel(null)).toEqual("");
         // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(undefined)).to.deep.equal("");
+        expect(getShortenedLabel(undefined)).toEqual("");
         // @ts-ignore: Testing runtime scenario
-        expect(getShortenedLabel(123)).to.deep.equal("");
+        expect(getShortenedLabel(123)).toEqual("");
     });
 
     it("should handle single-character inputs correctly", () => {
-        expect(getShortenedLabel("A")).to.deep.equal("A");
-        expect(getShortenedLabel("苹")).to.deep.equal("苹");
+        expect(getShortenedLabel("A")).toEqual("A");
+        expect(getShortenedLabel("苹")).toEqual("苹");
     });
 
     it("should handle special characters and numbers", () => {
-        expect(getShortenedLabel("12345")).to.deep.equal("123");
-        expect(getShortenedLabel("!@#")).to.deep.equal("!@#");
+        expect(getShortenedLabel("12345")).toEqual("123");
+        expect(getShortenedLabel("!@#")).toEqual("!@#");
     });
 });
 
@@ -478,26 +478,26 @@ describe("getTranslationData", () => {
     it("should correctly retrieve translation data for a given language", () => {
         let language = "en";
         let result = getTranslationData(mockField, mockMeta, language);
-        expect(result.index).to.equal(0);
-        expect(result.value).to.deep.equal(mockField.value[0]);
-        expect(result.touched).to.equal(true);
-        expect(result.error).to.deep.equal({ content: "Required" });
+        expect(result.index).toBe(0);
+        expect(result.value).toEqual(mockField.value[0]);
+        expect(result.touched).toBe(true);
+        expect(result.error).toEqual({ content: "Required" });
 
         language = "es";
         result = getTranslationData(mockField, mockMeta, language);
-        expect(result.index).to.equal(1);
-        expect(result.value).to.deep.equal(mockField.value[1]);
-        expect(result.touched).to.equal(false);
-        expect(result.error).to.deep.equal({});
+        expect(result.index).toBe(1);
+        expect(result.value).toEqual(mockField.value[1]);
+        expect(result.touched).toBe(false);
+        expect(result.error).toEqual({});
     });
 
     it("should return undefined values when the language is not found", () => {
         const language = "fr";
         const result = getTranslationData(mockField, mockMeta, language);
-        expect(result.index).to.equal(-1);
-        expect(result.value).to.be.undefined;
-        expect(result.touched).to.be.undefined;
-        expect(result.error).to.be.undefined;
+        expect(result.index).toBe(-1);
+        expect(result.value).toBeUndefined();
+        expect(result.touched).toBeUndefined();
+        expect(result.error).toBeUndefined();
     });
 
     it("should handle null or undefined field values", () => {
@@ -506,15 +506,15 @@ describe("getTranslationData", () => {
         const resultFromNull = getTranslationData({ ...mockField, value: null }, mockMeta, language);
         // @ts-ignore: Testing runtime scenario
         const resultFromUndefined = getTranslationData({ ...mockField, value: undefined }, mockMeta, language);
-        expect(resultFromNull).to.deep.equal({ error: undefined, index: -1, touched: undefined, value: undefined });
-        expect(resultFromUndefined).to.deep.equal({ error: undefined, index: -1, touched: undefined, value: undefined });
+        expect(resultFromNull).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
+        expect(resultFromUndefined).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
     });
 
     it("should handle non-array field values", () => {
         const language = "en";
         // @ts-ignore: Testing runtime scenario
         const result = getTranslationData({ ...mockField, value: "not an array" }, mockMeta, language);
-        expect(result).to.deep.equal({ error: undefined, index: -1, touched: undefined, value: undefined });
+        expect(result).toEqual({ error: undefined, index: -1, touched: undefined, value: undefined });
     });
 
     it("should handle missing meta properties", () => {
@@ -522,8 +522,8 @@ describe("getTranslationData", () => {
         // @ts-ignore: Testing runtime scenario
         const resultNoTouched = getTranslationData(mockField, { ...mockMeta, touched: undefined }, language);
         const resultNoError = getTranslationData(mockField, { ...mockMeta, error: undefined }, language);
-        expect(resultNoTouched.touched).to.be.undefined;
-        expect(resultNoError.error).to.be.undefined;
+        expect(resultNoTouched.touched).toBeUndefined();
+        expect(resultNoError.error).toBeUndefined();
     });
 
     it("should handle empty meta properties", () => {
@@ -532,8 +532,8 @@ describe("getTranslationData", () => {
         const resultEmptyTouched = getTranslationData(mockField, { ...mockMeta, touched: [] }, language);
         // @ts-ignore: Testing runtime scenario
         const resultEmptyError = getTranslationData(mockField, { ...mockMeta, error: [] }, language);
-        expect(resultEmptyTouched.touched).to.be.undefined;
-        expect(resultEmptyError.error).to.be.undefined;
+        expect(resultEmptyTouched.touched).toBeUndefined();
+        expect(resultEmptyError.error).toBeUndefined();
     });
 });
 
@@ -544,8 +544,8 @@ describe("handleTranslationChange", () => {
             { language: "es", content: "Hola" },
         ],
         name: "translations",
-        onChange: jest.fn(),
-        onBlur: jest.fn(),
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
     } as unknown as FieldInputProps<Array<TranslationObject>>;
 
     const mockMeta = {
@@ -554,7 +554,7 @@ describe("handleTranslationChange", () => {
     } as unknown as FieldMetaProps<unknown>;
 
     const mockHelpers = {
-        setValue: jest.fn(),
+        setValue: vi.fn(),
     };
 
     it("should correctly update the translation for the given language", () => {
@@ -574,7 +574,7 @@ describe("handleTranslationChange", () => {
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
         const secondTranslation = mockHelpers.setValue.mock.calls[0][0][1];
-        expect(secondTranslation).to.deep.equal(mockField.value[1]);
+        expect(secondTranslation).toEqual(mockField.value[1]);
     });
 
     it("should add translation when specified language is not found", () => {
@@ -649,7 +649,7 @@ describe("getFormikErrorsWithTranslations", () => {
 
     it("should correctly convert formik errors to GridSubmitButtons errors", () => {
         const errors = getFormikErrorsWithTranslations(mockField, validationSchema);
-        expect(errors).to.deep.equal({
+        expect(errors).toEqual({
             "English description": ["description is too long"],
             "English pages[0].text": ["text is too long"],
         });
@@ -665,27 +665,27 @@ describe("getFormikErrorsWithTranslations", () => {
             }],
         } as unknown as FieldInputProps<TranslationObject[]>;
         const errors = getFormikErrorsWithTranslations(validField, validationSchema);
-        expect(errors).to.deep.equal({});
+        expect(errors).toEqual({});
     });
 
     it("should handle null or undefined field values", () => {
         const nullField = { ...mockField, value: null };
         const undefinedField = { ...mockField, value: undefined };
         // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(nullField, validationSchema)).to.deep.equal({});
+        expect(getFormikErrorsWithTranslations(nullField, validationSchema)).toEqual({});
         // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(undefinedField, validationSchema)).to.deep.equal({});
+        expect(getFormikErrorsWithTranslations(undefinedField, validationSchema)).toEqual({});
     });
 
     it("should handle non-array field values", () => {
         const nonArrayField = { ...mockField, value: "not an array" };
         // @ts-ignore: Testing runtime scenario
-        expect(getFormikErrorsWithTranslations(nonArrayField, validationSchema)).to.deep.equal({});
+        expect(getFormikErrorsWithTranslations(nonArrayField, validationSchema)).toEqual({});
     });
 
     it("should handle empty translations array", () => {
         const emptyField = { ...mockField, value: [] };
-        expect(getFormikErrorsWithTranslations(emptyField, validationSchema)).to.deep.equal({});
+        expect(getFormikErrorsWithTranslations(emptyField, validationSchema)).toEqual({});
     });
 });
 
@@ -704,7 +704,7 @@ describe("combineErrorsWithTranslations", () => {
 
     it("should correctly combine normal and translation errors", () => {
         const combinedErrors = combineErrorsWithTranslations(normalErrors, translationErrors);
-        expect(combinedErrors).to.deep.equal({
+        expect(combinedErrors).toEqual({
             name: "Name is required",
             otherField: "Other error",
             "English description": "Description is too long",
@@ -714,17 +714,17 @@ describe("combineErrorsWithTranslations", () => {
 
     it("should filter out normal errors that start with 'translations'", () => {
         const combinedErrors = combineErrorsWithTranslations(normalErrors, translationErrors);
-        expect(combinedErrors.translations).to.be.undefined;
+        expect(combinedErrors.translations).toBeUndefined();
     });
 
     it("should handle empty error objects", () => {
         const combinedErrors = combineErrorsWithTranslations({}, {});
-        expect(combinedErrors).to.deep.equal({});
+        expect(combinedErrors).toEqual({});
     });
 
     it("should handle only normal errors being present", () => {
         const combinedErrors = combineErrorsWithTranslations(normalErrors, {});
-        expect(combinedErrors).to.deep.equal({
+        expect(combinedErrors).toEqual({
             name: "Name is required",
             otherField: "Other error",
         });
@@ -732,7 +732,7 @@ describe("combineErrorsWithTranslations", () => {
 
     it("should handle only translation errors being present", () => {
         const combinedErrors = combineErrorsWithTranslations({}, translationErrors);
-        expect(combinedErrors).to.deep.equal(translationErrors);
+        expect(combinedErrors).toEqual(translationErrors);
     });
 
     it("should handle null or undefined error objects", () => {
@@ -740,8 +740,8 @@ describe("combineErrorsWithTranslations", () => {
         const combinedErrorsWithNull = combineErrorsWithTranslations(null, translationErrors);
         // @ts-ignore: Testing runtime scenario
         const combinedErrorsWithUndefined = combineErrorsWithTranslations(undefined, translationErrors);
-        expect(combinedErrorsWithNull).to.deep.equal(translationErrors);
-        expect(combinedErrorsWithUndefined).to.deep.equal(translationErrors);
+        expect(combinedErrorsWithNull).toEqual(translationErrors);
+        expect(combinedErrorsWithUndefined).toEqual(translationErrors);
     });
 });
 
@@ -751,8 +751,8 @@ describe("addEmptyTranslation", () => {
             { id: "1234", language: "en", content: "Hello" },
         ],
         name: "translations",
-        onChange: jest.fn(),
-        onBlur: jest.fn(),
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
     } as unknown as FieldInputProps<Array<TranslationObject>>;
 
     const mockMeta = {
@@ -762,7 +762,7 @@ describe("addEmptyTranslation", () => {
     } as unknown as FieldMetaProps<unknown>;
 
     const mockHelpers = {
-        setValue: jest.fn(),
+        setValue: vi.fn(),
     };
 
     it("should correctly add an empty translation with determined fields", () => {
@@ -770,14 +770,14 @@ describe("addEmptyTranslation", () => {
         // @ts-ignore: Testing runtime scenario
         addEmptyTranslation(mockField, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][1];
-        expect(newValue).to.have.property("language", language);
-        expect(newValue).to.have.property("content", "");
-        expect(newValue).to.have.property("id");
-        expect(typeof newValue.id).to.equal("string");
+        expect(newValue).toHaveProperty("language", language);
+        expect(newValue).toHaveProperty("content", "");
+        expect(newValue).toHaveProperty("id");
+        expect(typeof newValue.id).toBe("string");
     });
 
     it("should not add a translation if initial values are not an array", () => {
-        console.error = jest.fn(); // Mock console.error to check if it was called
+        console.error = vi.fn(); // Mock console.error to check if it was called
         const language = "es";
         // @ts-ignore: Testing runtime scenario
         addEmptyTranslation(mockField, { ...mockMeta, initialValue: {} }, mockHelpers, language);
@@ -793,9 +793,9 @@ describe("addEmptyTranslation", () => {
         addEmptyTranslation({ ...mockField, value: undefined }, mockMeta, mockHelpers, language);
         expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
         const firstCallNewValue = mockHelpers.setValue.mock.calls[0][0][0];
-        expect(firstCallNewValue).to.have.property("language", language);
-        expect(firstCallNewValue).to.have.property("content", "");
-        expect(firstCallNewValue).to.have.property("id");
+        expect(firstCallNewValue).toHaveProperty("language", language);
+        expect(firstCallNewValue).toHaveProperty("content", "");
+        expect(firstCallNewValue).toHaveProperty("id");
     });
 
     it("should handle non-array field values", () => {
@@ -803,9 +803,9 @@ describe("addEmptyTranslation", () => {
         // @ts-ignore: Testing runtime scenario
         addEmptyTranslation({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
-        expect(newValue).to.have.property("language", language);
-        expect(newValue).to.have.property("content", "");
-        expect(newValue).to.have.property("id");
+        expect(newValue).toHaveProperty("language", language);
+        expect(newValue).toHaveProperty("content", "");
+        expect(newValue).toHaveProperty("id");
     });
 
     it("should handle empty translations array", () => {
@@ -813,9 +813,9 @@ describe("addEmptyTranslation", () => {
         // @ts-ignore: Testing runtime scenario
         addEmptyTranslation({ ...mockField, value: [] }, mockMeta, mockHelpers, language);
         const newValue = mockHelpers.setValue.mock.calls[0][0][0];
-        expect(newValue).to.have.property("language", language);
-        expect(newValue).to.have.property("content", "");
-        expect(newValue).to.have.property("id");
+        expect(newValue).toHaveProperty("language", language);
+        expect(newValue).toHaveProperty("content", "");
+        expect(newValue).toHaveProperty("id");
     });
 });
 
@@ -827,8 +827,8 @@ describe("removeTranslation", () => {
             { language: "fr", content: "Bonjour" },
         ],
         name: "translations",
-        onChange: jest.fn(),
-        onBlur: jest.fn(),
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
     } as unknown as FieldInputProps<Array<TranslationObject>>;
 
     const mockMeta = {
@@ -837,7 +837,7 @@ describe("removeTranslation", () => {
     } as unknown as FieldMetaProps<unknown>;
 
     const mockHelpers = {
-        setValue: jest.fn(),
+        setValue: vi.fn(),
     };
 
     it("should correctly remove the translation for the given language", () => {
@@ -900,7 +900,7 @@ describe("translateSnackMessage", () => {
         Object.assign(i18next, { t: i18nextTMock }); // We're using a normal function instead of a mock, because the mock is inexplicably not working
 
         // Reset all mock calls
-        jest.resetAllMocks();
+        vi.resetAllMocks();
     });
 
     afterEach(() => {
@@ -910,17 +910,17 @@ describe("translateSnackMessage", () => {
 
     it("should return message with details if both are in i18next dictionary", () => {
         const result = translateSnackMessage("CannotConnectToServer", {});
-        expect(result).to.deep.equal({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
+        expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
     });
 
     it("should return message without details if only message is in i18next dictionary", () => {
         const result = translateSnackMessage("ChangePassword", {});
-        expect(result).to.deep.equal({ message: "Change password", details: undefined });
+        expect(result).toEqual({ message: "Change password", details: undefined });
     });
 
     it("should handle undefined variables - test 1", () => {
         const result = translateSnackMessage("CannotConnectToServer", undefined);
-        expect(result).to.deep.equal({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
+        expect(result).toEqual({ message: "Cannot connect to server", details: "The details of cannot connect to server" });
     });
 
     it("should handle undefined variables - test 2", () => {
@@ -929,7 +929,7 @@ describe("translateSnackMessage", () => {
             return `Message with variable ${options.variable}`;
         };
         const result = translateSnackMessage("CannotConnectToServer", undefined);
-        expect(result).to.deep.equal({ message: "Message with variable undefined", details: "Message with variable undefined" }); // Limitation of i18next, so make sure your variables are defined
+        expect(result).toEqual({ message: "Message with variable undefined", details: "Message with variable undefined" }); // Limitation of i18next, so make sure your variables are defined
     });
 
     it("should interpolate variables into the message", () => {
@@ -938,12 +938,12 @@ describe("translateSnackMessage", () => {
             return `Message with variable ${options.variable}`;
         };
         const result = translateSnackMessage("CannotConnectToServer", { variable: "value" });
-        expect(result.message).to.equal("Message with variable value");
+        expect(result.message).toBe("Message with variable value");
     });
 
     it("should return default key as message if translation is missing", () => {
         const result = translateSnackMessage("qwerqwerqwer" as CommonKey, {});
-        expect(result.message).to.deep.equal("qwerqwerqwer");
-        expect(result.details).to.deep.equal(undefined);
+        expect(result.message).toEqual("qwerqwerqwer");
+        expect(result.details).toEqual(undefined);
     });
 });

@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
-import { expect } from "chai";
+import { describe, it, expect, vi } from "vitest";
 import { Formik } from "formik";
 import { act } from "react";
-import { fireEvent, render, screen } from "../../../__mocks__/testUtils.js";
+import { fireEvent, render, screen } from "../../../__test/testUtils.js";
 import { TextInput, TranslatedTextInput } from "./TextInput.js";
 
 describe("TextInput", () => {
@@ -21,14 +21,14 @@ describe("TextInput", () => {
     });
 
     it("calls onSubmit when Enter is pressed and enterWillSubmit is true", () => {
-        const mockSubmit = jest.fn();
+        const mockSubmit = vi.fn();
         render(<TextInput enterWillSubmit={true} onSubmit={mockSubmit} />);
         fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter", code: "Enter" });
         expect(mockSubmit).toHaveBeenCalled();
     });
 
     it("does not call onSubmit when Enter is pressed and enterWillSubmit is false", () => {
-        const mockSubmit = jest.fn();
+        const mockSubmit = vi.fn();
         render(<TextInput enterWillSubmit={false} onSubmit={mockSubmit} />);
         fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter", code: "Enter" });
         expect(mockSubmit).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ describe("TranslatedTextInput", () => {
     testCases.forEach(({ name, initialValues, language, newValue, expectedValue }) => {
         it(`renders TranslatedTextInput and handles change with ${name}`, async () => {
             render(
-                <Formik initialValues={initialValues} onSubmit={jest.fn()}>
+                <Formik initialValues={initialValues} onSubmit={vi.fn()}>
                     {({ values }) => (
                         <>
                             <TranslatedTextInput name="testName" language={language} />

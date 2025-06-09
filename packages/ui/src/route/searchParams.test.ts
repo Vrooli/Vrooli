@@ -1,8 +1,8 @@
-import { expect } from "chai";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { addSearchParams, keepSearchParams, removeSearchParams, setSearchParams } from "./searchParams.js";
 
 // Mock setLocation function
-const mockSetLocation = jest.fn();
+const mockSetLocation = vi.fn();
 
 // Helper function to set window.location.search
 const setWindowSearch = (search) => {

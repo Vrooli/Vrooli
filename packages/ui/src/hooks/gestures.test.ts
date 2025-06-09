@@ -1,24 +1,24 @@
 import { renderHook } from "@testing-library/react";
-import { expect } from "chai";
-import { act } from "react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { useInfiniteScroll } from "./gestures.js";
 
 describe("useInfiniteScroll", () => {
-    let mockLoadMore: jest.Mock;
-    let mockAddEventListener: jest.Mock;
-    let mockRemoveEventListener: jest.Mock;
+    let mockLoadMore: ReturnType<typeof vi.fn>;
+    let mockAddEventListener: ReturnType<typeof vi.fn>;
+    let mockRemoveEventListener: ReturnType<typeof vi.fn>;
     let mockScrollContainer: {
-        addEventListener: jest.Mock;
-        removeEventListener: jest.Mock;
+        addEventListener: ReturnType<typeof vi.fn>;
+        removeEventListener: ReturnType<typeof vi.fn>;
         scrollTop: number;
         scrollHeight: number;
         clientHeight: number;
     };
 
     beforeEach(() => {
-        mockLoadMore = jest.fn();
-        mockAddEventListener = jest.fn();
-        mockRemoveEventListener = jest.fn();
+        mockLoadMore = vi.fn();
+        mockAddEventListener = vi.fn();
+        mockRemoveEventListener = vi.fn();
         mockScrollContainer = {
             addEventListener: mockAddEventListener,
             removeEventListener: mockRemoveEventListener,
@@ -30,11 +30,11 @@ describe("useInfiniteScroll", () => {
         };
 
         // Mock getElementById
-        document.getElementById = jest.fn().mockImplementation(() => mockScrollContainer);
+        document.getElementById = vi.fn().mockImplementation(() => mockScrollContainer);
     });
 
     afterEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
     });
 
     it("should add scroll event listener on mount", () => {
@@ -134,8 +134,8 @@ describe("useInfiniteScroll", () => {
     });
 
     it("should log error when scrollContainerId is not found", () => {
-        const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-        document.getElementById = jest.fn().mockReturnValue(null);
+        const consoleSpy = vi.spyOn(console, "error").mockImplementation();
+        document.getElementById = vi.fn().mockReturnValue(null);
 
         renderHook(() => useInfiniteScroll({
             loading: false,

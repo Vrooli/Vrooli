@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { PubSub } from "./pubsub.js";
 
 describe("PubSub", () => {
@@ -12,11 +12,11 @@ describe("PubSub", () => {
 
     it("should always return the same instance", () => {
         const anotherInstance = PubSub.get();
-        expect(pubSub).to.equal(anotherInstance);
+        expect(pubSub).toBe(anotherInstance);
     });
 
     it("should allow subscription to events", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber);
 
         const testEventData = { message: "Test Snack", severity: "Success" } as const;
@@ -25,7 +25,7 @@ describe("PubSub", () => {
     });
 
     it("should allow unsubscription from events", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         const unsubscribe = pubSub.subscribe("snack", mockSubscriber);
 
         unsubscribe();
@@ -34,7 +34,7 @@ describe("PubSub", () => {
     });
 
     it("should notify subscribers with provided data", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         const testEventData = { message: "Test Event Data", severity: "Error" } as const;
         pubSub.subscribe("snack", mockSubscriber);
 
@@ -43,7 +43,7 @@ describe("PubSub", () => {
     });
 
     // it("should use default payload if no data is provided", () => {
-    //     const mockSubscriber = jest.fn();
+    //     const mockSubscriber = vi.fn();
     //     pubSub.subscribe("fastUpdate", mockSubscriber);
 
     //     // Adjust this to match your actual default payload for "fastUpdate"
@@ -54,7 +54,7 @@ describe("PubSub", () => {
     // });
 
     it("should notify subscribers with undefined if default payload is not defined", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("theme", mockSubscriber);
 
         pubSub.publish("theme");
@@ -65,57 +65,57 @@ describe("PubSub", () => {
     // Tests for hasSubscribers
 
     it("hasSubscribers should return true when there are subscribers for an event type", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber);
 
-        expect(pubSub.hasSubscribers("snack")).to.equal(true);
+        expect(pubSub.hasSubscribers("snack")).toBe(true);
     });
 
     it("hasSubscribers should return false when there are no subscribers for an event type", () => {
-        expect(pubSub.hasSubscribers("snack")).to.equal(false);
+        expect(pubSub.hasSubscribers("snack")).toBe(false);
     });
 
     it("hasSubscribers should return true when a subscriber matches the filter function", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber, { componentType: "form" });
 
         const hasFormSubscribers = pubSub.hasSubscribers("snack", metadata => metadata?.componentType === "form");
-        expect(hasFormSubscribers).to.equal(true);
+        expect(hasFormSubscribers).toBe(true);
     });
 
     it("hasSubscribers should return false when no subscribers match the filter function", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber, { componentType: "chat" });
 
         const hasFormSubscribers = pubSub.hasSubscribers("snack", metadata => metadata?.componentType === "form");
-        expect(hasFormSubscribers).to.equal(false);
+        expect(hasFormSubscribers).toBe(false);
     });
 
     it("hasSubscribers should handle subscribers with undefined metadata", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber); // No metadata provided
 
         const hasSubscribers = pubSub.hasSubscribers("snack");
-        expect(hasSubscribers).to.equal(true);
+        expect(hasSubscribers).toBe(true);
 
         const hasFormSubscribers = pubSub.hasSubscribers("snack", metadata => metadata?.componentType === "form");
-        expect(hasFormSubscribers).to.equal(false);
+        expect(hasFormSubscribers).toBe(false);
     });
 
     it("hasSubscribers should return false after all subscribers have unsubscribed", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         const unsubscribe = pubSub.subscribe("snack", mockSubscriber);
 
         unsubscribe();
 
-        expect(pubSub.hasSubscribers("snack")).to.equal(false);
+        expect(pubSub.hasSubscribers("snack")).toBe(false);
     });
 
     // Tests for publish with filter function
 
     it("publish should send event to all subscribers when no filter function is provided", () => {
-        const mockSubscriber1 = jest.fn();
-        const mockSubscriber2 = jest.fn();
+        const mockSubscriber1 = vi.fn();
+        const mockSubscriber2 = vi.fn();
 
         pubSub.subscribe("snack", mockSubscriber1, { componentType: "form" });
         pubSub.subscribe("snack", mockSubscriber2, { componentType: "chat" });
@@ -128,9 +128,9 @@ describe("PubSub", () => {
     });
 
     it("publish should send event only to subscribers matching the filter function", () => {
-        const mockSubscriber1 = jest.fn();
-        const mockSubscriber2 = jest.fn();
-        const mockSubscriber3 = jest.fn();
+        const mockSubscriber1 = vi.fn();
+        const mockSubscriber2 = vi.fn();
+        const mockSubscriber3 = vi.fn();
 
         pubSub.subscribe("snack", mockSubscriber1, { componentType: "form" });
         pubSub.subscribe("snack", mockSubscriber2, { componentType: "chat" });
@@ -145,8 +145,8 @@ describe("PubSub", () => {
     });
 
     it("publish should not send event to any subscribers when filter function matches none", () => {
-        const mockSubscriber1 = jest.fn();
-        const mockSubscriber2 = jest.fn();
+        const mockSubscriber1 = vi.fn();
+        const mockSubscriber2 = vi.fn();
 
         pubSub.subscribe("snack", mockSubscriber1, { componentType: "form" });
         pubSub.subscribe("snack", mockSubscriber2, { componentType: "chat" });
@@ -159,8 +159,8 @@ describe("PubSub", () => {
     });
 
     it("publish should handle subscribers with undefined metadata", () => {
-        const mockSubscriber1 = jest.fn();
-        const mockSubscriber2 = jest.fn();
+        const mockSubscriber1 = vi.fn();
+        const mockSubscriber2 = vi.fn();
 
         pubSub.subscribe("snack", mockSubscriber1); // No metadata
         pubSub.subscribe("snack", mockSubscriber2, { componentType: "form" });
@@ -173,7 +173,7 @@ describe("PubSub", () => {
     });
 
     it("publish should send event to all subscribers when filter function is not provided", () => {
-        const mockSubscriber = jest.fn();
+        const mockSubscriber = vi.fn();
         pubSub.subscribe("snack", mockSubscriber);
 
         const eventData = { message: "Event without Filter", severity: "Success" } as const;

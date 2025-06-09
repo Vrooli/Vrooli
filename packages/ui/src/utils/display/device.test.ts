@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import sinon from "sinon";
 import * as keyModule from "./device.js";
 
@@ -24,31 +24,31 @@ describe("keyComboToString", () => {
 
         it("should return an empty string when no keys are provided", () => {
             const result = keyModule.keyComboToString();
-            expect(result).to.equal("");
+            expect(result).toBe("");
         });
 
         it("should return non-WindowsKey values as-is", () => {
-            expect(keyModule.keyComboToString("Shift")).to.equal("Shift");
-            expect(keyModule.keyComboToString("A")).to.equal("A");
+            expect(keyModule.keyComboToString("Shift")).toBe("Shift");
+            expect(keyModule.keyComboToString("A")).toBe("A");
         });
 
         it("should keep WindowsKey values unchanged", () => {
-            expect(keyModule.keyComboToString("Ctrl")).to.equal("Ctrl");
-            expect(keyModule.keyComboToString("Alt")).to.equal("Alt");
-            expect(keyModule.keyComboToString("Enter")).to.equal("Enter");
+            expect(keyModule.keyComboToString("Ctrl")).toBe("Ctrl");
+            expect(keyModule.keyComboToString("Alt")).toBe("Alt");
+            expect(keyModule.keyComboToString("Enter")).toBe("Enter");
         });
 
         it("should join multiple keys with \" + \"", () => {
-            expect(keyModule.keyComboToString("Ctrl", "A")).to.equal("Ctrl + A");
-            expect(keyModule.keyComboToString("Shift", "Tab")).to.equal("Shift + Tab");
+            expect(keyModule.keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
+            expect(keyModule.keyComboToString("Shift", "Tab")).toBe("Shift + Tab");
         });
 
         it("should handle mixed keys without conversion", () => {
-            expect(keyModule.keyComboToString("Ctrl", "Shift", "B")).to.equal("Ctrl + Shift + B");
+            expect(keyModule.keyComboToString("Ctrl", "Shift", "B")).toBe("Ctrl + Shift + B");
         });
 
         it("should handle arrow keys and number keys", () => {
-            expect(keyModule.keyComboToString("ArrowUp", "1")).to.equal("ArrowUp + 1");
+            expect(keyModule.keyComboToString("ArrowUp", "1")).toBe("ArrowUp + 1");
         });
     });
 
@@ -66,21 +66,21 @@ describe("keyComboToString", () => {
         });
 
         it("should convert WindowsKey values to their Mac equivalents", () => {
-            expect(keyModule.keyComboToString("Ctrl")).to.equal(keyModule.MacKeyFromWindows.Ctrl);
-            expect(keyModule.keyComboToString("Alt")).to.equal(keyModule.MacKeyFromWindows.Alt);
-            expect(keyModule.keyComboToString("Enter")).to.equal(keyModule.MacKeyFromWindows.Enter);
+            expect(keyModule.keyComboToString("Ctrl")).toBe(keyModule.MacKeyFromWindows.Ctrl);
+            expect(keyModule.keyComboToString("Alt")).toBe(keyModule.MacKeyFromWindows.Alt);
+            expect(keyModule.keyComboToString("Enter")).toBe(keyModule.MacKeyFromWindows.Enter);
         });
 
         it("should leave non-WindowsKey values unchanged", () => {
-            expect(keyModule.keyComboToString("Shift")).to.equal("Shift");
-            expect(keyModule.keyComboToString("A")).to.equal("A");
+            expect(keyModule.keyComboToString("Shift")).toBe("Shift");
+            expect(keyModule.keyComboToString("A")).toBe("A");
         });
 
         it("should join multiple keys with proper conversion", () => {
-            expect(keyModule.keyComboToString("Ctrl", "Shift", "A")).to.equal(
+            expect(keyModule.keyComboToString("Ctrl", "Shift", "A")).toBe(
                 `${keyModule.MacKeyFromWindows.Ctrl} + Shift + A`,
             );
-            expect(keyModule.keyComboToString("Alt", "Tab")).to.equal(
+            expect(keyModule.keyComboToString("Alt", "Tab")).toBe(
                 `${keyModule.MacKeyFromWindows.Alt} + Tab`,
             );
         });
@@ -88,7 +88,7 @@ describe("keyComboToString", () => {
         it("should handle a mixed key combination correctly", () => {
             const result = keyModule.keyComboToString("Ctrl", "Alt", "Delete");
             // Only "Ctrl" and "Alt" are converted; "Delete" remains unchanged.
-            expect(result).to.equal(
+            expect(result).toBe(
                 `${keyModule.MacKeyFromWindows.Ctrl} + ${keyModule.MacKeyFromWindows.Alt} + Delete`,
             );
         });
@@ -108,7 +108,7 @@ describe("keyComboToString", () => {
         });
 
         it("should not convert WindowsKey values (treat as default)", () => {
-            expect(keyModule.keyComboToString("Ctrl", "A")).to.equal("Ctrl + A");
+            expect(keyModule.keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
         });
     });
 });
