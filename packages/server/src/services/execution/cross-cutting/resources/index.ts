@@ -1,14 +1,6 @@
 /**
- * Cross-cutting resource management utilities
- * 
- * Shared components for resource management across all tiers:
- * - Rate limiting with burst support
- * - Resource pool management
- * - Usage tracking and metrics
- * - Performance monitoring
+ * Unified resource management exports
  */
 
-export * from "./rateLimiter.js";
-export * from "./resourceMetrics.js";
-export * from "./resourcePool.js";
-export * from "./usageTracker.js";
+export * from "./resourceManager.js";
+export * from "./adapters.js";

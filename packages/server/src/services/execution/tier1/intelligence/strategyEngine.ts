@@ -4,6 +4,8 @@ import {
     type SwarmKnowledge,
     type SwarmDecision,
 } from "@vrooli/shared";
+import { EventBus } from "../../cross-cutting/eventBus.js";
+import { LLMService } from "../llm/llmService.js";
 
 /**
  * Situation analysis input
@@ -13,19 +15,6 @@ export interface SituationAnalysisInput {
     observations: any;
     knowledge: SwarmKnowledge;
     progress: SwarmProgress;
-}
-
-/**
- * Situation analysis result
- */
-export interface SituationAnalysis {
-    assessment: string;
-    facts: Record<string, unknown>;
-    insights?: string[];
-    opportunities?: string[];
-    threats?: string[];
-    recommendations?: string[];
-    confidence: number;
 }
 
 /**
@@ -42,238 +31,44 @@ export interface DecisionGenerationInput {
 }
 
 /**
- * Strategic decision
- */
-export interface StrategicDecision {
-    action: string;
-    rationale: string;
-    priority: "low" | "medium" | "high";
-    expectedOutcome: string;
-    risks: string[];
-    dependencies: string[];
-}
-
-/**
- * Strategy pattern
- */
-export interface StrategyPattern {
-    id: string;
-    name: string;
-    context: string;
-    actions: string[];
-    successRate: number;
-    lastUsed?: Date;
-}
-
-/**
- * StrategyEngine - Natural language reasoning for strategic decisions
+ * StrategyEngine - Natural language reasoning interface for Tier 1
  * 
- * This component implements the metacognitive reasoning capabilities of
- * Tier 1. It uses natural language processing to:
+ * This component provides a simple interface to LLM-based reasoning.
+ * All intelligence comes from the LLM's natural language understanding,
+ * not from hard-coded patterns or algorithms.
  * 
- * - Analyze complex situations
- * - Generate strategic decisions
- * - Learn from outcomes
- * - Adapt strategies dynamically
- * - Reason about reasoning (metacognition)
- * 
- * The engine combines prompt-based reasoning with pattern recognition
- * to make intelligent strategic decisions.
+ * The engine:
+ * - Formats prompts for LLM reasoning
+ * - Sends reasoning requests to LLM service
+ * - Parses LLM responses into structured decisions
+ * - Emits events for agent analysis
  */
 export class StrategyEngine {
     private readonly logger: Logger;
-    private readonly strategyPatterns: Map<string, StrategyPattern> = new Map();
-    private readonly decisionHistory: StrategicDecision[] = [];
-    private readonly maxHistorySize: number = 100;
-    
-    // Configuration constants
-    private readonly MAX_DECISIONS_RETURNED = 5;
-    private readonly PERFORMANCE_THRESHOLD = 0.7;
-    private readonly CONFIDENCE_THRESHOLD = 0.3;
-    private readonly EFFECTIVENESS_THRESHOLD = 0.8;
-    private readonly HISTORY_LIMIT = 10;
-    private readonly TIME_LIMIT_DEFAULT_MS = 300000; // 5 minutes
-    private readonly IMPROVEMENT_WEIGHT = 0.1;
-    private readonly NEGATIVE_IMPROVEMENT = -0.1;
-    private readonly DEFAULT_CONFIDENCE = 0.75;
+    private readonly eventBus: EventBus;
+    private readonly llmService: LLMService;
 
-    constructor(logger: Logger) {
+    constructor(logger: Logger, eventBus: EventBus, llmService: LLMService) {
         this.logger = logger;
-        this.initializeStrategyPatterns();
+        this.eventBus = eventBus;
+        this.llmService = llmService;
     }
 
     /**
-     * Analyzes the current situation
+     * Analyzes the current situation using LLM reasoning
      */
     async analyzeSituation(
         input: SituationAnalysisInput,
-    ): Promise<SituationAnalysis> {
+    ): Promise<string> {
         this.logger.debug("[StrategyEngine] Analyzing situation", {
             goal: input.goal,
             observationCount: Object.keys(input.observations).length,
         });
 
-        try {
-            // Build analysis prompt
-            const prompt = this.buildAnalysisPrompt(input);
-            
-            // Simulate LLM reasoning (in production, call actual LLM)
-            const analysis = await this.simulateAnalysis(input);
-            
-            // Extract facts and insights
-            const facts = this.extractFacts(input.observations);
-            const insights = this.generateInsights(facts, input.knowledge);
-            
-            return {
-                assessment: analysis.assessment,
-                facts,
-                insights,
-                opportunities: analysis.opportunities,
-                threats: analysis.threats,
-                recommendations: analysis.recommendations,
-                confidence: analysis.confidence,
-            };
+        // Build natural language prompt
+        const prompt = `
+You are a strategic coordinator analyzing a swarm execution.
 
-        } catch (error) {
-            this.logger.error("[StrategyEngine] Situation analysis failed", {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
-            // Return basic analysis
-            return {
-                assessment: "Unable to fully analyze situation",
-                facts: {},
-                confidence: this.CONFIDENCE_THRESHOLD,
-            };
-        }
-    }
-
-    /**
-     * Generates strategic decisions
-     */
-    async generateDecisions(
-        input: DecisionGenerationInput,
-    ): Promise<StrategicDecision[]> {
-        this.logger.debug("[StrategyEngine] Generating decisions", {
-            goal: input.goal,
-            constraints: input.constraints,
-        });
-
-        const decisions: StrategicDecision[] = [];
-
-        try {
-            // Check for applicable patterns
-            const applicablePatterns = this.findApplicablePatterns(
-                input.goal,
-                input.orientation,
-            );
-
-            // Generate decisions based on patterns and reasoning
-            if (applicablePatterns.length > 0) {
-                // Use learned patterns
-                for (const pattern of applicablePatterns.slice(0, 3)) {
-                    const decision = this.createDecisionFromPattern(pattern, input);
-                    decisions.push(decision);
-                }
-            }
-
-            // Generate novel decisions through reasoning
-            const novelDecisions = await this.generateNovelDecisions(input);
-            decisions.push(...novelDecisions);
-
-            // Rank and filter decisions
-            const rankedDecisions = this.rankDecisions(decisions, input.constraints);
-            
-            // Record decisions for learning
-            this.recordDecisions(rankedDecisions.slice(0, this.MAX_DECISIONS_RETURNED));
-
-            return rankedDecisions.slice(0, this.MAX_DECISIONS_RETURNED);
-
-        } catch (error) {
-            this.logger.error("[StrategyEngine] Decision generation failed", {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
-            // Return fallback decision
-            return [{
-                action: "continue_observation",
-                rationale: "Need more information before making strategic decisions",
-                priority: "medium",
-                expectedOutcome: "Better understanding of situation",
-                risks: ["Delayed action"],
-                dependencies: [],
-            }];
-        }
-    }
-
-    /**
-     * Adapts strategy based on new information
-     */
-    async adaptStrategy(
-        swarmId: string,
-        adaptation: string,
-    ): Promise<void> {
-        this.logger.info("[StrategyEngine] Adapting strategy", {
-            swarmId,
-            adaptation,
-        });
-
-        // Parse adaptation
-        if (adaptation.includes("increase_exploration")) {
-            // Add exploration patterns
-            this.addExplorationPatterns();
-        } else if (adaptation.includes("optimize_resources")) {
-            // Add resource optimization patterns
-            this.addOptimizationPatterns();
-        } else if (adaptation.includes("accelerate_execution")) {
-            // Add speed-focused patterns
-            this.addSpeedPatterns();
-        }
-
-        // Learn from recent decisions
-        await this.learnFromHistory();
-    }
-
-    /**
-     * Learns from decision outcomes
-     */
-    async learnFromOutcome(
-        decision: SwarmDecision,
-        outcome: "success" | "failure" | "partial",
-    ): Promise<void> {
-        this.logger.debug("[StrategyEngine] Learning from outcome", {
-            decision: decision.decision,
-            outcome,
-        });
-
-        // Find corresponding strategic decision
-        const strategicDecision = this.decisionHistory.find(
-            d => d.action === decision.decision,
-        );
-
-        if (strategicDecision) {
-            // Update pattern success rates
-            const pattern = this.findPatternByAction(strategicDecision.action);
-            if (pattern) {
-                const weight = outcome === "success" ? this.IMPROVEMENT_WEIGHT : this.NEGATIVE_IMPROVEMENT;
-                pattern.successRate = Math.max(0, Math.min(1, 
-                    pattern.successRate + weight,
-                ));
-                pattern.lastUsed = new Date();
-            }
-
-            // Create new pattern if successful novel decision
-            if (outcome === "success" && !pattern) {
-                this.createPatternFromDecision(strategicDecision);
-            }
-        }
-    }
-
-    /**
-     * Private helper methods
-     */
-    private buildAnalysisPrompt(input: SituationAnalysisInput): string {
-        return `
 Goal: ${input.goal}
 
 Current Progress:
@@ -284,341 +79,150 @@ Current Progress:
 Observations:
 ${JSON.stringify(input.observations, null, 2)}
 
-Knowledge Base:
-- Facts: ${input.knowledge.facts.size} items
-- Insights: ${input.knowledge.insights.length} items
-- Past Decisions: ${input.knowledge.decisions.length} items
+Provide a strategic assessment of the current situation.`;
 
-Analyze the current situation and provide:
-1. Overall assessment
-2. Key opportunities
-3. Potential threats
-4. Recommended actions
-`;
+        // Emit analysis request for monitoring agents
+        await this.eventBus.publish("swarm.events", {
+            type: "STRATEGY_ANALYSIS_REQUEST",
+            swarmId: input.knowledge.swarmId,
+            timestamp: new Date(),
+            metadata: { prompt, input },
+        });
+
+        // Use LLM service for strategic analysis
+        return await this.llmService.analyzeStrategically(
+            `Goal: ${input.goal}\nProgress: ${JSON.stringify(input.progress)}\nObservations: ${JSON.stringify(input.observations)}`,
+            "Provide a strategic assessment of the current situation"
+        );
     }
 
-    private async simulateAnalysis(
-        input: SituationAnalysisInput,
-    ): Promise<any> {
-        // Simulate LLM analysis
-        // In production, this would call an actual LLM
+    /**
+     * Generates strategic decisions using LLM reasoning
+     */
+    async generateDecisions(
+        input: DecisionGenerationInput,
+    ): Promise<SwarmDecision[]> {
+        this.logger.debug("[StrategyEngine] Generating decisions", {
+            goal: input.goal,
+            constraints: input.constraints,
+        });
+
+        // Build natural language prompt
+        const prompt = `
+You are a strategic coordinator making decisions for a swarm.
+
+Goal: ${input.goal}
+
+Current Orientation: ${JSON.stringify(input.orientation, null, 2)}
+
+Constraints:
+- Budget: ${input.constraints.budget || "unlimited"}
+- Time Limit: ${input.constraints.timeLimit ? `${input.constraints.timeLimit}ms` : "none"}
+- Resources: ${JSON.stringify(input.constraints.resources || {})}
+
+Generate strategic decisions in the format:
+action_name(parameters)
+
+Provide 1-3 high-priority decisions with brief rationale.`;
+
+        // Emit decision request for monitoring agents
+        await this.eventBus.publish("swarm.events", {
+            type: "STRATEGY_DECISION_REQUEST",
+            timestamp: new Date(),
+            metadata: { prompt, input },
+        });
+
+        // Use LLM service for decision generation
+        const response = await this.llmService.generateDecision(
+            input.goal,
+            input.constraints,
+            ["allocate_resources", "execute_routine", "form_team", "adapt_strategy"]
+        );
         
-        const progress = input.progress.tasksCompleted / Math.max(input.progress.tasksTotal, 1);
-        
-        return {
-            assessment: progress > this.PERFORMANCE_THRESHOLD ? "Nearing completion" : 
-                       progress > this.CONFIDENCE_THRESHOLD ? "Making steady progress" : "Early stages",
-            opportunities: [
-                "Parallelize remaining tasks",
-                "Optimize resource allocation",
-            ],
-            threats: [
-                "Resource constraints",
-                "Time limitations",
-            ],
-            recommendations: [
-                "Focus on critical path tasks",
-                "Monitor resource usage closely",
-            ],
-            confidence: this.DEFAULT_CONFIDENCE,
-        };
+        return this.parseDecisionsFromText(response);
     }
 
-    private extractFacts(
-        observations: any,
-    ): Record<string, unknown> {
-        const facts: Record<string, unknown> = {};
-        
-        // Extract key facts from observations
-        if (observations.agentReports) {
-            facts.activeAgents = observations.agentReports.filter(
-                (r: any) => r.status === "active",
-            ).length;
-            facts.averageProgress = observations.agentReports.reduce(
-                (sum: number, r: any) => sum + (r.progress || 0), 0,
-            ) / Math.max(observations.agentReports.length, 1);
-        }
-        
-        if (observations.resourceStatus) {
-            facts.resourceUtilization = observations.resourceStatus.utilizationRate;
-        }
-        
-        return facts;
+    /**
+     * Requests strategy adaptation through LLM reasoning
+     */
+    async requestAdaptation(
+        swarmId: string,
+        context: any,
+    ): Promise<string> {
+        this.logger.info("[StrategyEngine] Requesting strategy adaptation", {
+            swarmId,
+        });
+
+        const prompt = `
+You are a strategic coordinator evaluating swarm performance.
+
+Context: ${JSON.stringify(context, null, 2)}
+
+Based on the current performance and challenges, what strategic adaptations would you recommend?
+
+Focus on high-level strategic changes, not implementation details.`;
+
+        // Emit adaptation request for monitoring agents
+        await this.eventBus.publish("swarm.events", {
+            type: "STRATEGY_ADAPTATION_REQUEST",
+            swarmId,
+            timestamp: new Date(),
+            metadata: { prompt, context },
+        });
+
+        // Use LLM service for adaptation reasoning
+        return await this.llmService.analyzeStrategically(
+            JSON.stringify(context),
+            "What strategic adaptations would you recommend based on current performance?"
+        );
     }
 
-    private generateInsights(
-        facts: Record<string, unknown>,
-        knowledge: SwarmKnowledge,
-    ): string[] {
-        const insights: string[] = [];
-        
-        // Generate insights based on facts and history
-        if (facts.resourceUtilization as number > this.EFFECTIVENESS_THRESHOLD) {
-            insights.push("High resource utilization may constrain future operations");
-        }
-        
-        if (facts.averageProgress as number < 0.5 && knowledge.decisions.length > 10) {
-            insights.push("Progress is slower than expected given number of decisions");
-        }
-        
-        return insights;
+    /**
+     * Records decision outcome for agent analysis
+     */
+    async recordOutcome(
+        decision: SwarmDecision,
+        outcome: "success" | "failure" | "partial",
+    ): Promise<void> {
+        this.logger.debug("[StrategyEngine] Recording outcome", {
+            decision: decision.decision,
+            outcome,
+        });
+
+        // Emit outcome event for learning agents
+        await this.eventBus.publish("swarm.events", {
+            type: "STRATEGY_DECISION_OUTCOME",
+            timestamp: new Date(),
+            metadata: {
+                decision,
+                outcome,
+            },
+        });
     }
 
-    private findApplicablePatterns(
-        goal: string,
-        orientation: any,
-    ): StrategyPattern[] {
-        const applicable: StrategyPattern[] = [];
+    /**
+     * Private helper methods
+     */
+    private parseDecisionsFromText(text: string): SwarmDecision[] {
+        // Simple parser for LLM output
+        // In production, use more sophisticated parsing
+        const decisions: SwarmDecision[] = [];
+        const lines = text.split('\n').filter(line => line.trim());
         
-        for (const pattern of this.strategyPatterns.values()) {
-            // Simple context matching
-            if (goal.toLowerCase().includes(pattern.context.toLowerCase()) ||
-                pattern.context === "general") {
-                applicable.push(pattern);
+        for (const line of lines) {
+            // Look for action_name(parameters) format
+            const match = line.match(/^(\w+)\(([^)]*)\)/);
+            if (match) {
+                decisions.push({
+                    id: `decision-${Date.now()}-${Math.random()}`,
+                    decision: match[0],
+                    timestamp: new Date(),
+                    confidence: 0.8, // LLM decisions have high confidence
+                });
             }
-        }
-        
-        // Sort by success rate
-        applicable.sort((a, b) => b.successRate - a.successRate);
-        
-        return applicable;
-    }
-
-    private createDecisionFromPattern(
-        pattern: StrategyPattern,
-        input: DecisionGenerationInput,
-    ): StrategicDecision {
-        // Select action from pattern
-        const action = pattern.actions[
-            Math.floor(Math.random() * pattern.actions.length)
-        ];
-        
-        return {
-            action,
-            rationale: `Based on successful pattern: ${pattern.name}`,
-            priority: "high",
-            expectedOutcome: "Improved progress toward goal",
-            risks: ["Pattern may not apply to current context"],
-            dependencies: [],
-        };
-    }
-
-    private async generateNovelDecisions(
-        input: DecisionGenerationInput,
-    ): Promise<StrategicDecision[]> {
-        // Simulate novel decision generation
-        // In production, use LLM for creative solutions
-        
-        const decisions: StrategicDecision[] = [];
-        
-        // Resource-based decisions
-        if (input.constraints.budget && input.constraints.budget > 100) {
-            decisions.push({
-                action: "allocate_resources(200)",
-                rationale: "Sufficient budget available for resource allocation",
-                priority: "medium",
-                expectedOutcome: "Accelerated task completion",
-                risks: ["Over-allocation"],
-                dependencies: ["resource_availability"],
-            });
-        }
-        
-        // Time-based decisions
-        if (input.constraints.timeLimit && input.constraints.timeLimit < 300000) {
-            decisions.push({
-                action: "execute_routine(critical_path_only)",
-                rationale: "Time constraint requires focus on critical tasks",
-                priority: "high",
-                expectedOutcome: "Timely completion of essential tasks",
-                risks: ["Non-critical tasks skipped"],
-                dependencies: ["critical_path_identification"],
-            });
         }
         
         return decisions;
     }
 
-    private rankDecisions(
-        decisions: StrategicDecision[],
-        constraints: any,
-    ): StrategicDecision[] {
-        // Score each decision
-        const scored = decisions.map(decision => {
-            let score = 0;
-            
-            // Priority scoring
-            score += { high: 3, medium: 2, low: 1 }[decision.priority];
-            
-            // Risk scoring (fewer risks = higher score)
-            score += Math.max(0, 3 - decision.risks.length);
-            
-            // Constraint compatibility
-            if (constraints.budget && decision.action.includes("allocate_resources")) {
-                const amount = parseInt(decision.action.match(/\d+/)?.[0] || "0");
-                if (amount <= constraints.budget) {
-                    score += 2;
-                }
-            }
-            
-            return { decision, score };
-        });
-        
-        // Sort by score
-        scored.sort((a, b) => b.score - a.score);
-        
-        return scored.map(s => s.decision);
-    }
-
-    private recordDecisions(decisions: StrategicDecision[]): void {
-        // Add to history
-        this.decisionHistory.push(...decisions);
-        
-        // Trim history if too large
-        if (this.decisionHistory.length > this.maxHistorySize) {
-            this.decisionHistory.splice(
-                0,
-                this.decisionHistory.length - this.maxHistorySize,
-            );
-        }
-    }
-
-    private findPatternByAction(action: string): StrategyPattern | undefined {
-        for (const pattern of this.strategyPatterns.values()) {
-            if (pattern.actions.includes(action)) {
-                return pattern;
-            }
-        }
-        return undefined;
-    }
-
-    private createPatternFromDecision(decision: StrategicDecision): void {
-        const pattern: StrategyPattern = {
-            id: `pattern-${Date.now()}`,
-            name: `Learned: ${decision.action.split("(")[0]}`,
-            context: "learned",
-            actions: [decision.action],
-            successRate: 0.7, // Start with moderate confidence
-            lastUsed: new Date(),
-        };
-        
-        this.strategyPatterns.set(pattern.id, pattern);
-        
-        this.logger.info("[StrategyEngine] Created new pattern from successful decision", {
-            patternId: pattern.id,
-            action: decision.action,
-        });
-    }
-
-    private async learnFromHistory(): Promise<void> {
-        // Analyze decision history for patterns
-        // This is simplified - real implementation would use ML
-        
-        const actionFrequency = new Map<string, number>();
-        
-        for (const decision of this.decisionHistory) {
-            const actionType = decision.action.split("(")[0];
-            actionFrequency.set(
-                actionType,
-                (actionFrequency.get(actionType) || 0) + 1,
-            );
-        }
-        
-        // Log frequent actions
-        for (const [action, frequency] of actionFrequency) {
-            if (frequency > 5) {
-                this.logger.debug("[StrategyEngine] Frequent action detected", {
-                    action,
-                    frequency,
-                });
-            }
-        }
-    }
-
-    private initializeStrategyPatterns(): void {
-        // Initialize with basic patterns
-        const patterns: StrategyPattern[] = [
-            {
-                id: "explore",
-                name: "Exploration Strategy",
-                context: "explore",
-                actions: [
-                    "form_team(exploratory)",
-                    "allocate_resources(100)",
-                    "execute_routine(discovery)",
-                ],
-                successRate: 0.8,
-            },
-            {
-                id: "optimize",
-                name: "Optimization Strategy",
-                context: "optimize",
-                actions: [
-                    "analyze_performance",
-                    "reallocate_resources",
-                    "adapt_strategy(efficiency)",
-                ],
-                successRate: 0.75,
-            },
-            {
-                id: "complete",
-                name: "Completion Strategy",
-                context: "complete",
-                actions: [
-                    "execute_routine(final_tasks)",
-                    "verify_results",
-                    "consolidate_outputs",
-                ],
-                successRate: 0.9,
-            },
-        ];
-
-        for (const pattern of patterns) {
-            this.strategyPatterns.set(pattern.id, pattern);
-        }
-    }
-
-    private addExplorationPatterns(): void {
-        const pattern: StrategyPattern = {
-            id: "deep-explore",
-            name: "Deep Exploration",
-            context: "explore",
-            actions: [
-                "form_team(specialized)",
-                "execute_routine(deep_analysis)",
-                "gather_insights",
-            ],
-            successRate: 0.7,
-        };
-        this.strategyPatterns.set(pattern.id, pattern);
-    }
-
-    private addOptimizationPatterns(): void {
-        const pattern: StrategyPattern = {
-            id: "resource-opt",
-            name: "Resource Optimization",
-            context: "optimize",
-            actions: [
-                "analyze_resource_usage",
-                "redistribute_allocations",
-                "throttle_low_priority",
-            ],
-            successRate: 0.8,
-        };
-        this.strategyPatterns.set(pattern.id, pattern);
-    }
-
-    private addSpeedPatterns(): void {
-        const pattern: StrategyPattern = {
-            id: "speed-focus",
-            name: "Speed Focus",
-            context: "accelerate",
-            actions: [
-                "parallelize_tasks",
-                "skip_optional_steps",
-                "increase_resources",
-            ],
-            successRate: 0.65,
-        };
-        this.strategyPatterns.set(pattern.id, pattern);
-    }
 }

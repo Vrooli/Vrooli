@@ -1,10 +1,11 @@
+/**
+ * Performance Monitor - Simple performance data collection for monitoring agents
+ * 
+ * This component collects performance metrics and emits events.
+ * Performance analysis and optimization emerge from monitoring agents.
+ */
+
 import { type Logger } from "winston";
-import {
-    type PerformanceAnalysis,
-    type OptimizationSuggestion,
-    type RunEventType,
-    RunEventType as RunEventTypeEnum,
-} from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/eventBus.js";
 
 /**
@@ -12,7 +13,7 @@ import { type EventBus } from "../../cross-cutting/eventBus.js";
  */
 export interface PerformanceMetric {
     runId: string;
-    stepId: string;
+    stepId?: string;
     metric: string;
     value: number;
     timestamp: Date;
@@ -20,416 +21,198 @@ export interface PerformanceMetric {
 }
 
 /**
- * Step performance data
- */
-export interface StepPerformance {
-    stepId: string;
-    executionCount: number;
-    totalDuration: number;
-    averageDuration: number;
-    minDuration: number;
-    maxDuration: number;
-    failureRate: number;
-    resourceUsage: {
-        avgCredits: number;
-        avgTokens: number;
-        avgMemory: number;
-    };
-}
-
-/**
- * PerformanceMonitor - Analyzes execution performance and suggests optimizations
+ * PerformanceMonitor - Event emitter for performance analysis
  * 
- * This component provides real-time performance monitoring and optimization
- * suggestions for workflow execution. It tracks:
- * 
- * - Step execution times and resource usage
- * - Bottleneck identification
- * - Failure patterns and recovery times
- * - Resource utilization trends
- * - Optimization opportunities
- * 
- * The monitor uses statistical analysis to identify performance issues and
- * provide actionable suggestions for improvement.
+ * Collects performance metrics and emits events for monitoring agents.
+ * Does NOT implement analysis algorithms - those emerge from agent analysis.
  */
 export class PerformanceMonitor {
-    private readonly eventBus: EventBus;
     private readonly logger: Logger;
-    private readonly metricsBuffer: Map<string, PerformanceMetric[]> = new Map();
-    private readonly stepPerformance: Map<string, StepPerformance> = new Map();
-    private readonly analysisInterval: number = 60000; // 1 minute
-    private analysisTimer?: NodeJS.Timer;
+    private readonly eventBus: EventBus;
+    private readonly metrics: Map<string, PerformanceMetric[]> = new Map();
 
     constructor(eventBus: EventBus, logger: Logger) {
         this.eventBus = eventBus;
         this.logger = logger;
-        this.startAnalysisLoop();
         this.subscribeToEvents();
     }
 
     /**
      * Records a performance metric
      */
-    async recordMetric(metric: PerformanceMetric): Promise<void> {
-        const key = `${metric.runId}:${metric.stepId}`;
-        
-        if (!this.metricsBuffer.has(key)) {
-            this.metricsBuffer.set(key, []);
-        }
-        
-        this.metricsBuffer.get(key)!.push(metric);
-
-        // Update step performance
-        await this.updateStepPerformance(metric);
-    }
-
-    /**
-     * Analyzes performance for a run
-     */
-    async analyzeRun(runId: string): Promise<PerformanceAnalysis> {
-        const bottlenecks = await this.identifyBottlenecks(runId);
-        const suggestions = await this.generateOptimizationSuggestions(runId, bottlenecks);
-        const efficiency = await this.calculateEfficiency(runId);
-
-        const analysis: PerformanceAnalysis = {
-            bottlenecks,
-            suggestions,
-            overallEfficiency: efficiency,
+    async recordMetric(
+        runId: string,
+        metric: string,
+        value: number,
+        stepId?: string,
+        metadata?: Record<string, unknown>,
+    ): Promise<void> {
+        const performanceMetric: PerformanceMetric = {
+            runId,
+            stepId,
+            metric,
+            value,
+            timestamp: new Date(),
+            metadata,
         };
 
-        this.logger.info("[PerformanceMonitor] Analysis complete", {
-            runId,
-            bottleneckCount: bottlenecks.length,
-            suggestionCount: suggestions.length,
-            efficiency,
+        // Store for historical reference
+        if (!this.metrics.has(runId)) {
+            this.metrics.set(runId, []);
+        }
+        this.metrics.get(runId)!.push(performanceMetric);
+
+        // Emit performance metric event for monitoring agents
+        await this.eventBus.publish("performance.events", {
+            type: "METRIC_RECORDED",
+            timestamp: new Date(),
+            metadata: performanceMetric,
         });
 
-        return analysis;
+        this.logger.debug("[PerformanceMonitor] Recorded metric", {
+            runId,
+            stepId,
+            metric,
+            value,
+        });
     }
 
     /**
-     * Identifies performance bottlenecks
+     * Records step execution timing
      */
-    private async identifyBottlenecks(runId: string): Promise<Array<{
-        stepId: string;
-        duration: number;
-        resourceUsage: Record<string, number>;
-    }>> {
-        const bottlenecks = [];
-        const stepMetrics = new Map<string, PerformanceMetric[]>();
-
-        // Group metrics by step
-        for (const [key, metrics] of this.metricsBuffer) {
-            if (key.startsWith(runId)) {
-                const stepId = key.split(":")[1];
-                stepMetrics.set(stepId, metrics);
-            }
-        }
-
-        // Calculate statistics for each step
-        for (const [stepId, metrics] of stepMetrics) {
-            const durations = metrics
-                .filter(m => m.metric === "duration")
-                .map(m => m.value);
-
-            if (durations.length === 0) continue;
-
-            const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-            const stdDev = Math.sqrt(
-                durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length,
-            );
-
-            // Identify bottlenecks (steps with high duration or high variance)
-            if (avgDuration > 5000 || stdDev > avgDuration * 0.5) {
-                const resourceMetrics = metrics.filter(m => m.metric.startsWith("resource."));
-                const resourceUsage: Record<string, number> = {};
-
-                for (const metric of resourceMetrics) {
-                    const resourceType = metric.metric.split(".")[1];
-                    resourceUsage[resourceType] = metric.value;
-                }
-
-                bottlenecks.push({
-                    stepId,
-                    duration: avgDuration,
-                    resourceUsage,
-                });
-            }
-        }
-
-        // Sort by duration (longest first)
-        bottlenecks.sort((a, b) => b.duration - a.duration);
-
-        return bottlenecks;
-    }
-
-    /**
-     * Generates optimization suggestions
-     */
-    private async generateOptimizationSuggestions(
+    async recordStepTiming(
         runId: string,
-        bottlenecks: Array<{ stepId: string; duration: number; resourceUsage: Record<string, number> }>,
-    ): Promise<OptimizationSuggestion[]> {
-        const suggestions: OptimizationSuggestion[] = [];
-
-        for (const bottleneck of bottlenecks) {
-            const perf = this.stepPerformance.get(bottleneck.stepId);
-            if (!perf) continue;
-
-            // Suggest parallelization for independent steps
-            if (bottleneck.duration > 10000 && !bottleneck.resourceUsage.parallel) {
-                suggestions.push({
-                    type: "parallelize",
-                    targetSteps: [bottleneck.stepId],
-                    expectedImprovement: 0.5, // 50% improvement
-                    rationale: "Step takes significant time and could be parallelized",
-                    risk: "low",
-                });
-            }
-
-            // Suggest caching for deterministic steps
-            if (perf.executionCount > 5 && perf.failureRate < 0.1) {
-                suggestions.push({
-                    type: "cache",
-                    targetSteps: [bottleneck.stepId],
-                    expectedImprovement: 0.8, // 80% improvement on cache hits
-                    rationale: "Step is executed frequently with low failure rate",
-                    risk: "low",
-                });
-            }
-
-            // Suggest skipping for optional steps with high failure rate
-            if (perf.failureRate > 0.5) {
-                suggestions.push({
-                    type: "skip",
-                    targetSteps: [bottleneck.stepId],
-                    expectedImprovement: 1.0, // 100% time saved
-                    rationale: "Step has high failure rate and may be optional",
-                    risk: "medium",
-                });
-            }
-
-            // Suggest reordering for steps with dependencies
-            if (bottleneck.resourceUsage.waitTime > bottleneck.duration * 0.3) {
-                suggestions.push({
-                    type: "reorder",
-                    targetSteps: [bottleneck.stepId],
-                    expectedImprovement: 0.3, // 30% improvement
-                    rationale: "Step spends significant time waiting for resources",
-                    risk: "medium",
-                });
-            }
-        }
-
-        // Sort by expected improvement (highest first)
-        suggestions.sort((a, b) => b.expectedImprovement - a.expectedImprovement);
-
-        return suggestions;
+        stepId: string,
+        duration: number,
+        metadata?: Record<string, unknown>,
+    ): Promise<void> {
+        await this.recordMetric(runId, "step_duration", duration, stepId, metadata);
     }
 
     /**
-     * Calculates overall efficiency
+     * Records resource usage
      */
-    private async calculateEfficiency(runId: string): Promise<number> {
-        let totalActiveTime = 0;
-        let totalWaitTime = 0;
-        let totalSteps = 0;
-
-        for (const [key, metrics] of this.metricsBuffer) {
-            if (!key.startsWith(runId)) continue;
-
-            const activeTime = metrics
-                .filter(m => m.metric === "active_time")
-                .reduce((sum, m) => sum + m.value, 0);
-
-            const waitTime = metrics
-                .filter(m => m.metric === "wait_time")
-                .reduce((sum, m) => sum + m.value, 0);
-
-            totalActiveTime += activeTime;
-            totalWaitTime += waitTime;
-            totalSteps++;
+    async recordResourceUsage(
+        runId: string,
+        stepId: string,
+        resources: {
+            credits?: number;
+            tokens?: number;
+            memory?: number;
+            apiCalls?: number;
+        },
+    ): Promise<void> {
+        for (const [resource, value] of Object.entries(resources)) {
+            if (value !== undefined) {
+                await this.recordMetric(runId, `resource_${resource}`, value, stepId);
+            }
         }
-
-        if (totalActiveTime + totalWaitTime === 0) {
-            return 1.0;
-        }
-
-        return totalActiveTime / (totalActiveTime + totalWaitTime);
     }
 
     /**
-     * Updates step performance statistics
+     * Gets performance metrics for a run
      */
-    private async updateStepPerformance(metric: PerformanceMetric): Promise<void> {
-        const { stepId } = metric;
+    getRunMetrics(runId: string): PerformanceMetric[] {
+        return this.metrics.get(runId) || [];
+    }
+
+    /**
+     * Emits performance analysis request for agents
+     */
+    async requestPerformanceAnalysis(runId: string): Promise<void> {
+        const metrics = this.getRunMetrics(runId);
         
-        if (!this.stepPerformance.has(stepId)) {
-            this.stepPerformance.set(stepId, {
-                stepId,
-                executionCount: 0,
-                totalDuration: 0,
-                averageDuration: 0,
-                minDuration: Infinity,
-                maxDuration: 0,
-                failureRate: 0,
-                resourceUsage: {
-                    avgCredits: 0,
-                    avgTokens: 0,
-                    avgMemory: 0,
-                },
-            });
-        }
-
-        const perf = this.stepPerformance.get(stepId)!;
-
-        switch (metric.metric) {
-            case "duration":
-                perf.executionCount++;
-                perf.totalDuration += metric.value;
-                perf.averageDuration = perf.totalDuration / perf.executionCount;
-                perf.minDuration = Math.min(perf.minDuration, metric.value);
-                perf.maxDuration = Math.max(perf.maxDuration, metric.value);
-                break;
-
-            case "failure":
-                if (metric.value > 0) {
-                    perf.failureRate = ((perf.failureRate * (perf.executionCount - 1)) + 1) / perf.executionCount;
-                }
-                break;
-
-            case "resource.credits":
-                perf.resourceUsage.avgCredits = 
-                    ((perf.resourceUsage.avgCredits * (perf.executionCount - 1)) + metric.value) / perf.executionCount;
-                break;
-
-            case "resource.tokens":
-                perf.resourceUsage.avgTokens = 
-                    ((perf.resourceUsage.avgTokens * (perf.executionCount - 1)) + metric.value) / perf.executionCount;
-                break;
-
-            case "resource.memory":
-                perf.resourceUsage.avgMemory = 
-                    ((perf.resourceUsage.avgMemory * (perf.executionCount - 1)) + metric.value) / perf.executionCount;
-                break;
-        }
+        await this.eventBus.publish("performance.events", {
+            type: "PERFORMANCE_ANALYSIS_REQUEST",
+            timestamp: new Date(),
+            metadata: {
+                runId,
+                metrics,
+                metricCount: metrics.length,
+            },
+        });
     }
 
     /**
-     * Starts the analysis loop
-     */
-    private startAnalysisLoop(): void {
-        this.analysisTimer = setInterval(async () => {
-            await this.performPeriodicAnalysis();
-        }, this.analysisInterval);
-    }
-
-    /**
-     * Performs periodic analysis
-     */
-    private async performPeriodicAnalysis(): Promise<void> {
-        // Clean up old metrics
-        const cutoffTime = Date.now() - 3600000; // 1 hour
-        
-        for (const [key, metrics] of this.metricsBuffer) {
-            const filtered = metrics.filter(m => m.timestamp.getTime() > cutoffTime);
-            
-            if (filtered.length === 0) {
-                this.metricsBuffer.delete(key);
-            } else if (filtered.length < metrics.length) {
-                this.metricsBuffer.set(key, filtered);
-            }
-        }
-
-        // Emit performance summaries
-        for (const [stepId, perf] of this.stepPerformance) {
-            if (perf.executionCount > 0) {
-                await this.eventBus.publish("performance.summary", {
-                    stepId,
-                    performance: perf,
-                    timestamp: new Date(),
-                });
-            }
-        }
-    }
-
-    /**
-     * Subscribes to relevant events
+     * Private helper methods
      */
     private subscribeToEvents(): void {
-        // Subscribe to step completion events
+        // Subscribe to run events to automatically track metrics
         this.eventBus.subscribe("run.events", async (event) => {
-            if (event.type === RunEventTypeEnum.STEP_COMPLETED) {
-                const duration = event.metadata?.duration;
-                if (duration) {
-                    await this.recordMetric({
-                        runId: event.runId,
-                        stepId: event.stepId!,
-                        metric: "duration",
-                        value: duration,
+            const runId = event.runId;
+            
+            switch (event.type) {
+                case "Started":
+                    await this.recordMetric(runId, "run_started", 1, undefined, {
                         timestamp: event.timestamp,
                     });
-                }
-            } else if (event.type === RunEventTypeEnum.STEP_FAILED) {
-                await this.recordMetric({
-                    runId: event.runId,
-                    stepId: event.stepId!,
-                    metric: "failure",
-                    value: 1,
-                    timestamp: event.timestamp,
-                });
+                    break;
+                    
+                case "Completed":
+                    await this.recordMetric(runId, "run_completed", 1, undefined, {
+                        timestamp: event.timestamp,
+                        duration: event.metadata?.duration,
+                    });
+                    break;
+                    
+                case "Failed":
+                    await this.recordMetric(runId, "run_failed", 1, undefined, {
+                        timestamp: event.timestamp,
+                        error: event.metadata?.error,
+                    });
+                    break;
+                    
+                case "ProgressUpdated":
+                    if (event.metadata?.percentComplete !== undefined) {
+                        await this.recordMetric(runId, "progress", event.metadata.percentComplete);
+                    }
+                    break;
             }
         });
 
-        // Subscribe to resource usage events
-        this.eventBus.subscribe("telemetry.resources", async (event) => {
-            if (event.runId && event.stepId) {
-                await this.recordMetric({
-                    runId: event.runId,
-                    stepId: event.stepId,
-                    metric: `resource.${event.resourceType}`,
-                    value: event.value,
-                    timestamp: new Date(),
-                    metadata: event.metadata,
-                });
+        // Subscribe to step events
+        this.eventBus.subscribe("execution.step.completed", async (event) => {
+            if (event.metadata?.runId && event.metadata?.stepId) {
+                await this.recordMetric(
+                    event.metadata.runId,
+                    "step_completed",
+                    1,
+                    event.metadata.stepId,
+                    {
+                        timestamp: event.timestamp,
+                        status: event.metadata.status,
+                        duration: event.metadata.duration,
+                    },
+                );
             }
         });
     }
 
     /**
-     * Stops the performance monitor
+     * Cleans up old metrics
      */
-    async stop(): Promise<void> {
-        if (this.analysisTimer) {
-            clearInterval(this.analysisTimer);
-            this.analysisTimer = undefined;
+    async cleanup(maxAge: number = 86400000): Promise<void> {
+        const cutoff = new Date(Date.now() - maxAge);
+        let cleaned = 0;
+
+        for (const [runId, metrics] of this.metrics) {
+            const filtered = metrics.filter(m => m.timestamp > cutoff);
+            if (filtered.length !== metrics.length) {
+                this.metrics.set(runId, filtered);
+                cleaned += metrics.length - filtered.length;
+            }
+            
+            // Remove empty entries
+            if (filtered.length === 0) {
+                this.metrics.delete(runId);
+            }
         }
 
-        this.logger.info("[PerformanceMonitor] Stopped");
-    }
-
-    /**
-     * Gets performance report for a step
-     */
-    async getStepPerformanceReport(stepId: string): Promise<StepPerformance | null> {
-        return this.stepPerformance.get(stepId) || null;
-    }
-
-    /**
-     * Exports performance data
-     */
-    async exportPerformanceData(): Promise<{
-        metrics: PerformanceMetric[];
-        stepPerformance: StepPerformance[];
-    }> {
-        const allMetrics: PerformanceMetric[] = [];
-        for (const metrics of this.metricsBuffer.values()) {
-            allMetrics.push(...metrics);
+        if (cleaned > 0) {
+            this.logger.info("[PerformanceMonitor] Cleaned up old metrics", {
+                cleaned,
+                remaining: Array.from(this.metrics.values()).reduce((sum, m) => sum + m.length, 0),
+            });
         }
-
-        return {
-            metrics: allMetrics,
-            stepPerformance: Array.from(this.stepPerformance.values()),
-        };
     }
 }

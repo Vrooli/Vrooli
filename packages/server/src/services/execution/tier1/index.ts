@@ -14,6 +14,8 @@ export { RedisSwarmStateStore } from "./state/redisSwarmStateStore.js";
 export { InMemorySwarmStateStore, type ISwarmStateStore } from "./state/swarmStateStore.js";
 export { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 export { TierOneCoordinator } from "./tierOneCoordinator.js";
+export { TierOneFactory } from "./tierOneFactory.js";
+export * from "./llm/index.js";
 
 // Re-export types
 export type {
