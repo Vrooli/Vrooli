@@ -13,9 +13,8 @@
 
 
 
-- **Implement Camera Button for Image Capture** - Complete the implementation of CameraButton component that allows users to capture images using their device camera. Similar to MicrophoneButton for speech input, this should provide visual input capabilities. Features should include: camera access permission handling, image capture interface, preview functionality, and integration with forms/chat for image uploads.
 
-- **Implement Redis Connection Pool Management** - Create proper Redis connection pool with connection reuse, health checks, and automatic reconnection logic to improve resource utilization and reliability.
+- **Enhance Redis Connection Management with Unified Pool** - Build upon the existing connection caching in queueFactory.ts to create a unified Redis connection manager with health checks, metrics, and pool-like features that all services can use instead of creating individual connections.
 
 - **Implement Environment Variable Validation** - Create validation system for environment variables at startup with clear error messages for missing or invalid configurations based on .env-example file.
 

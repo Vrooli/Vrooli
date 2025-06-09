@@ -572,54 +572,6 @@ Create comprehensive documentation for all user authentication API endpoints in 
 
 ---
 
-# Fix API Key Raw Value Return on Creation
-Priority: HIGH  
-Status: TODO
-Dependencies: None
-ParentTask: None
-
-**Description:**  
-Fix the issue where raw API keys are not properly returned during creation. The current implementation has a TODO comment indicating that the unencrypted key value must be included in the create response so users can save it (as it's only shown once). This is critical for API key functionality to work properly.
-
-**Current Implementation Analysis:**
-- API key infrastructure is largely complete with encryption, permissions, and authentication
-- The main issue is in `packages/server/src/endpoints/logic/apiKey.ts` line 24
-- Keys are properly generated and encrypted, but the raw value isn't returned
-- UI already expects to display the key once on creation
-
-**Key Deliverables:**
-
-**Phase 1: Fix Core Implementation**
-- [ ] Modify the createOne endpoint to include the raw key in the response
-- [ ] Ensure the raw key is only included during creation (never on updates/reads)
-- [ ] Update the response type to include the temporary raw key field
-- [ ] Verify the UI properly displays and handles the one-time key display
-
-**Phase 2: Security Verification**
-- [ ] Ensure raw keys are never logged or stored
-- [ ] Verify keys are properly encrypted before database storage
-- [ ] Confirm raw keys are only transmitted over HTTPS
-- [ ] Add security warnings in the UI about saving the key
-
-**Phase 3: Testing**
-- [ ] Create unit tests for key creation with raw value return
-- [ ] Test that subsequent reads never include the raw key
-- [ ] Test UI flow for copying and saving the key
-- [ ] Verify error handling if key creation fails
-
-**Phase 4: Enhancement (Optional)**
-- [ ] Add key rotation mechanism
-- [ ] Implement key expiration dates
-- [ ] Add IP whitelisting support
-- [ ] Create usage analytics dashboard
-
-**Technical Notes:**
-- The fix is straightforward but security-critical
-- Must coordinate with UI to ensure proper one-time display
-- Consider adding a "download key" option for better UX
-
----
-
 # Implement Comprehensive Error Handling Strategy
 Priority: HIGH  
 Status: TODO
@@ -1510,3 +1462,76 @@ packages/server/src/
 - Document all non-reversible migrations clearly
 - Implement gradual rollout for the rollback system itself
 - Create runbooks for common rollback scenarios
+
+---
+
+# Implement Camera Button for Image Capture
+Priority: MEDIUM  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Complete the implementation of CameraButton component that allows users to capture images using their device camera. Following the established pattern of MicrophoneButton, this component will provide visual input capabilities for forms and chat interfaces. The implementation should handle camera permissions, provide a capture interface with preview, and integrate seamlessly with the AdvancedInput component.
+
+**Current Implementation Analysis:**
+- **Existing Stub**: `CameraButton.tsx` exists but is incomplete (returns empty object)
+- **Icon Support**: "CameraOpen" icon already defined in icon types
+- **Pattern Reference**: MicrophoneButton provides the architectural template
+- **Image Handling**: Existing components (Dropzone, ProfilePictureInput) show image preview patterns
+- **Integration Points**: AdvancedInput component ready for feature flag addition
+
+**Key Deliverables:**
+
+**Phase 1: Create Camera Hook**
+- [ ] Create `/packages/ui/src/hooks/useCamera.ts` with camera API access
+- [ ] Implement permission handling with clear user prompts
+- [ ] Add browser compatibility detection (getUserMedia support)
+- [ ] Create state management for camera status (idle, requesting, active, capturing, error)
+- [ ] Handle both photo capture and potential video stream access
+
+**Phase 2: Complete CameraButton Component**
+- [ ] Implement CameraButton following MicrophoneButton pattern
+- [ ] Add camera icon with state variations (enabled/disabled/active)
+- [ ] Create camera preview dialog with capture controls
+- [ ] Implement image capture with preview before confirmation
+- [ ] Add image format options (JPEG/PNG) and quality settings
+- [ ] Handle different camera sources (front/back) if available
+
+**Phase 3: Integrate with AdvancedInput**
+- [ ] Add `allowCameraInput?: boolean` to AdvancedInputFeatures interface
+- [ ] Include camera feature in DEFAULT_FEATURES
+- [ ] Add CameraButton to AdvancedInput component layout
+- [ ] Implement proper callback for captured images
+- [ ] Handle image data format (base64 or blob)
+
+**Phase 4: Image Processing and Display**
+- [ ] Implement image preview in chat/form contexts
+- [ ] Add image compression for large captures
+- [ ] Support HEIC/HEIF conversion (leverage existing utilities)
+- [ ] Create image attachment UI component
+- [ ] Handle multiple image captures in sequence
+
+**Phase 5: Testing and Polish**
+- [ ] Create unit tests for useCamera hook
+- [ ] Add component tests for CameraButton
+- [ ] Test permission denial scenarios
+- [ ] Verify mobile device compatibility
+- [ ] Add storybook stories for different states
+- [ ] Ensure accessibility (ARIA labels, keyboard navigation)
+
+**Technical Implementation Notes:**
+- Use MediaDevices.getUserMedia() API for camera access
+- Follow existing permission handling patterns from MicrophoneButton
+- Ensure mobile-first design for camera interface
+- Consider performance implications of video stream vs still capture
+- Maintain consistent error handling with user-friendly messages
+- Future enhancement: OCR integration could be added later using Tesseract.js
+
+**Files to Create/Modify:**
+- `/packages/ui/src/hooks/useCamera.ts` - New camera management hook
+- `/packages/ui/src/components/buttons/CameraButton.tsx` - Complete implementation
+- `/packages/ui/src/components/inputs/AdvancedInput/utils.ts` - Add camera feature flag
+- `/packages/ui/src/components/inputs/AdvancedInput/AdvancedInput.tsx` - Integrate button
+- `/packages/ui/src/components/buttons/CameraButton.test.tsx` - Unit tests
+- `/packages/ui/src/components/buttons/CameraButton.stories.tsx` - Storybook stories
