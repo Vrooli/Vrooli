@@ -1,7 +1,9 @@
-import { DbProvider } from "@vrooli/server";
 import { DAYS_90_MS, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanupRevokedSessions } from "./cleanupRevokedSessions.js";
+
+// Direct import to avoid problematic services
+const { DbProvider } = await import("../../../server/src/db/provider.ts");
 
 describe("cleanupRevokedSessions integration tests", () => {
     // Store test entity IDs for cleanup
@@ -16,14 +18,13 @@ describe("cleanupRevokedSessions integration tests", () => {
 
     afterEach(async () => {
         // Clean up test data using collected IDs
-        await DbProvider.get().$transaction([
-            DbProvider.get().session.deleteMany({
-                where: { id: { in: testSessionIds } },
-            }),
-            DbProvider.get().user.deleteMany({
-                where: { id: { in: testUserIds } },
-            }),
-        ]);
+        const db = DbProvider.get();
+        await db.session.deleteMany({
+            where: { id: { in: testSessionIds } },
+        });
+        await db.user.deleteMany({
+            where: { id: { in: testUserIds } },
+        });
     });
 
     it("should delete sessions revoked more than 90 days ago", async () => {
@@ -143,7 +144,7 @@ describe("cleanupRevokedSessions integration tests", () => {
 
         // Check that all old sessions were deleted
         const remainingSessions = await DbProvider.get().session.findMany({
-            where: { user: { id: user.id } },
+            where: { user_id: user.id },
         });
 
         expect(remainingSessions).toHaveLength(0);

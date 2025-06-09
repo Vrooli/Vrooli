@@ -1,7 +1,9 @@
-import { DbProvider } from "@vrooli/server";
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countReacts } from "./countReacts.js";
+
+// Direct import to avoid problematic services
+const { DbProvider } = await import("../../../server/src/db/provider.ts");
 
 describe("countReacts integration tests", () => {
     // Store test entity IDs for cleanup
@@ -92,10 +94,17 @@ describe("countReacts integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Issue",
-                description: "Test Description",
                 score: 100, // Incorrect score
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Issue",
+                        description: "Test Description",
+                    }],
+                },
             },
         });
         testIssueIds.push(issue.id);
@@ -156,8 +165,9 @@ describe("countReacts integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Resource",
+                resourceType: "RoutineVersion",
                 score: 0,
             },
         });
@@ -390,10 +400,17 @@ describe("countReacts integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Issue with no reactions",
-                description: "Should be reset to 0",
                 score: 15,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Issue with no reactions",
+                        description: "Should be reset to 0",
+                    }],
+                },
                 reactionSummaries: {
                     create: [
                         {
@@ -473,10 +490,17 @@ describe("countReacts integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test",
-                description: "Test",
                 score: 5,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test",
+                        description: "Test",
+                    }],
+                },
             },
         });
         testIssueIds.push(issue.id);
@@ -484,8 +508,9 @@ describe("countReacts integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test",
+                resourceType: "RoutineVersion",
                 score: 5,
             },
         });

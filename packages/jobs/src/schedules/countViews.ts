@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
-import { DbProvider, batch, logger } from "@vrooli/server";
+import { DbProvider } from "@vrooli/server/db/provider.js";
+import { batch } from "@vrooli/server/utils/batch.js";
+import { logger } from "@vrooli/server/events/logger.js";
 import { camelCase, uppercaseFirstLetter, type ModelType } from "@vrooli/shared";
 
 const { PrismaClient } = pkg;

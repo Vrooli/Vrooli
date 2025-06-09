@@ -1,7 +1,33 @@
-import { DbProvider } from "@vrooli/server";
-import { generatePK, generatePublicId } from "@vrooli/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { generatePK, generatePublicId } from "../__test__/setup-working-no-barrel.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DbProvider } from "../__test__/db-mock.js";
 import { countViews } from "./countViews.js";
+
+// Mock the specific server imports that countViews uses
+vi.mock("@vrooli/server/db/provider.js", () => ({
+    DbProvider: DbProvider,
+}));
+
+vi.mock("@vrooli/server/utils/batch.js", () => ({
+    batch: async ({ processBatch, ...args }) => {
+        // Simple batch implementation for testing
+        const db = DbProvider.get();
+        const tableName = args.objectType.toLowerCase();
+        const entities = await db[tableName].findMany({
+            select: args.select,
+            where: args.where,
+        });
+        await processBatch(entities);
+    }
+}));
+
+vi.mock("@vrooli/server/events/logger.js", () => ({
+    logger: {
+        info: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+    }
+}));
 
 describe("countViews integration tests", () => {
     // Store test entity IDs for cleanup
@@ -140,8 +166,9 @@ describe("countViews integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Resource",
+                resourceType: "RoutineVersion",
                 views: 0, // Correct count (no views)
             },
         });
@@ -310,8 +337,9 @@ describe("countViews integration tests", () => {
                 DbProvider.get().resource.create({
                     data: {
                         id: generatePK(),
+                        publicId: generatePublicId(),
                         createdById: owner.id,
-                        name: `Resource ${i}`,
+                        resourceType: "RoutineVersion",
                         views: i * 10, // Incorrect counts
                     },
                 }),

@@ -1,7 +1,9 @@
-import { DbProvider } from "@vrooli/server";
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countBookmarks } from "./countBookmarks.js";
+
+// Direct import to avoid problematic services
+const { DbProvider } = await import("../../../server/src/db/provider.ts");
 
 describe("countBookmarks integration tests", () => {
     // Store test entity IDs for cleanup
@@ -203,10 +205,17 @@ describe("countBookmarks integration tests", () => {
         const team = await DbProvider.get().team.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Team",
                 handle: "testteam1",
                 bookmarks: 3, // Incorrect count
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team",
+                    }],
+                },
             },
         });
         testTeamIds.push(team.id);
@@ -214,8 +223,9 @@ describe("countBookmarks integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Resource",
+                resourceType: "RoutineVersion",
                 bookmarks: null, // Null count
             },
         });
@@ -371,8 +381,9 @@ describe("countBookmarks integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test",
+                resourceType: "RoutineVersion",
                 bookmarks: 5,
             },
         });
@@ -391,10 +402,17 @@ describe("countBookmarks integration tests", () => {
         const team = await DbProvider.get().team.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Team",
                 handle: "testteam2",
                 bookmarks: 5,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team",
+                    }],
+                },
             },
         });
         testTeamIds.push(team.id);
