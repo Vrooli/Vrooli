@@ -1,5 +1,5 @@
 import type { ResourceVersionCreateInput, SessionUser, SwarmSubTask } from "@vrooli/shared";
-import { DEFAULT_LANGUAGE, DeleteType, McpToolName, ResourceSubType, ResourceType, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, DeleteType, McpToolName, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "path";
@@ -11,7 +11,10 @@ import { updateOneHelper } from "../../actions/updates.js";
 import type { RequestService } from "../../auth/request.js";
 import type { PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
+import { activeRunsRegistry } from "../../tasks/run/process.js";
+import { changeRunTaskStatus, processRun } from "../../tasks/run/queue.js";
 import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
+import { type RunTask } from "../../tasks/taskTypes.js";
 import { type ConversationStateStore } from "../conversation/chatStore.js";
 import defineToolSchema from "../schemas/DefineTool/schema.json" with { type: "json" };
 import type { NoteAddAttributes } from "../types/resources.js";
@@ -468,18 +471,192 @@ export class BuiltInTools {
      */
     async runRoutine(args: RunRoutineParams): Promise<ToolResponse> {
         this.logger.info(`runRoutine called with args: ${JSON.stringify(args)}`);
-        // TODO: Implement routine execution logic
 
-        if (isRunRoutineStart(args)) {
-            return {
-                isError: false,
-                content: [{ type: "text", text: `runRoutine operation '${args.action}' for routine '${args.routineId}' not implemented yet.` }],
+        try {
+            if (isRunRoutineStart(args)) {
+                // Handle "start" action - create a new run
+                return await this._handleRunRoutineStart(args);
+            } else {
+                // Handle manage actions: "pause", "resume", "cancel", "status"
+                return await this._handleRunRoutineManage(args);
+            }
+        } catch (error) {
+            this.logger.error("Error in runRoutine:", error);
+            return { isError: true, content: [{ type: "text", text: (error as Error).message }] };
+        }
+    }
+
+    /**
+     * Handles starting a new routine run.
+     */
+    private async _handleRunRoutineStart(args: Extract<RunRoutineParams, { action: "start" }>): Promise<ToolResponse> {
+        const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
+
+        try {
+            // Generate a unique run ID
+            const runId = generatePK().toString();
+
+            // Convert priority to RunTriggeredFrom for queue prioritization
+            // Use "Api" as the trigger source since this comes from MCP
+            const runFrom = RunTriggeredFrom.Api;
+
+            // Create the RunTask for the queue
+            const runTask: Omit<RunTask, "type" | "status"> = {
+                runId,
+                resourceVersionId: routineId,
+                isNewRun: true,
+                runFrom,
+                startedById: this.user.id,
+                userData: this.user,
+                config: {
+                    decisionConfig: {
+                        pathSelection: PathSelectionStrategy.AutoPickFirst,
+                    },
+                    isTimeSensitive: priority === "high",
+                    // Set other config based on args
+                    ...(inputs && Object.keys(inputs).length > 0 && { inputs }),
+                },
+                formValues: inputs,
             };
-        } else {
-            return {
-                isError: false,
-                content: [{ type: "text", text: `runRoutine operation '${args.action}' for run '${args.runId}' not implemented yet.` }],
-            };
+
+            // Add the run to the queue
+            const result = await processRun(runTask);
+
+            if (result.success) {
+                if (mode === "sync") {
+                    return {
+                        isError: false,
+                        content: [{ 
+                            type: "text", 
+                            text: `Run started successfully. Run ID: ${runId}. Mode: ${mode}. Check status for completion.` 
+                        }],
+                    };
+                } else {
+                    return {
+                        isError: false,
+                        content: [{ 
+                            type: "text", 
+                            text: `Run scheduled successfully. Run ID: ${runId}. Mode: ${mode}.` 
+                        }],
+                    };
+                }
+            } else {
+                throw new Error("Failed to queue run task");
+            }
+        } catch (error) {
+            const errorMsg = `Failed to start routine ${routineId}: ${(error as Error).message}`;
+            this.logger.error(errorMsg, error);
+            return { isError: true, content: [{ type: "text", text: errorMsg }] };
+        }
+    }
+
+    /**
+     * Handles managing an existing routine run (pause, resume, cancel, status).
+     */
+    private async _handleRunRoutineManage(args: Extract<RunRoutineParams, { action: "pause" | "resume" | "cancel" | "status" }>): Promise<ToolResponse> {
+        const { runId, action } = args;
+
+        try {
+            // Get the active run from the registry
+            const stateMachine = activeRunsRegistry.get(runId);
+
+            if (!stateMachine) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: `Run ${runId} not found in active runs registry` }],
+                };
+            }
+
+            switch (action) {
+                case "status": {
+                    const status = stateMachine.getCurrentSagaStatus();
+                    return {
+                        isError: false,
+                        content: [{ 
+                            type: "text", 
+                            text: `Run ${runId} current status: ${status}` 
+                        }],
+                    };
+                }
+
+                case "pause": {
+                    const success = await stateMachine.requestPause();
+                    if (success) {
+                        return {
+                            isError: false,
+                            content: [{ 
+                                type: "text", 
+                                text: `Run ${runId} pause request initiated successfully` 
+                            }],
+                        };
+                    } else {
+                        return {
+                            isError: true,
+                            content: [{ 
+                                type: "text", 
+                                text: `Failed to pause run ${runId}` 
+                            }],
+                        };
+                    }
+                }
+
+                case "resume": {
+                    // For resume, we need to requeue the run task
+                    try {
+                        const result = await changeRunTaskStatus(runId, "Scheduled", this.user.id);
+                        if (result.success) {
+                            return {
+                                isError: false,
+                                content: [{ 
+                                    type: "text", 
+                                    text: `Run ${runId} resume request initiated successfully` 
+                                }],
+                            };
+                        } else {
+                            throw new Error("Failed to change task status");
+                        }
+                    } catch (error) {
+                        return {
+                            isError: true,
+                            content: [{ 
+                                type: "text", 
+                                text: `Failed to resume run ${runId}: ${(error as Error).message}` 
+                            }],
+                        };
+                    }
+                }
+
+                case "cancel": {
+                    const success = await stateMachine.requestStop("Cancelled by user via MCP tool");
+                    if (success) {
+                        return {
+                            isError: false,
+                            content: [{ 
+                                type: "text", 
+                                text: `Run ${runId} cancellation request initiated successfully` 
+                            }],
+                        };
+                    } else {
+                        return {
+                            isError: true,
+                            content: [{ 
+                                type: "text", 
+                                text: `Failed to cancel run ${runId}` 
+                            }],
+                        };
+                    }
+                }
+
+                default:
+                    return {
+                        isError: true,
+                        content: [{ type: "text", text: `Unsupported action: ${action}` }],
+                    };
+            }
+        } catch (error) {
+            const errorMsg = `Error managing run ${runId} with action ${action}: ${(error as Error).message}`;
+            this.logger.error(errorMsg, error);
+            return { isError: true, content: [{ type: "text", text: errorMsg }] };
         }
     }
 
@@ -489,19 +666,133 @@ export class BuiltInTools {
      * @param args - Parameters for spawning a swarm.
      * @returns A ToolResponse indicating the result of the spawnSwarm operation.
      */
-    async spawnSwarm(args: SpawnSwarmParams): Promise<ToolResponse> {
+    async spawnSwarm(args: SpawnSwarmParams, parentSwarmId?: string): Promise<ToolResponse> {
         this.logger.info(`spawnSwarm called with args: ${JSON.stringify(args)}`);
-        // TODO: Implement session start logic
 
-        if (isSpawnSwarmSimple(args)) {
-            return {
-                isError: false,
-                content: [{ type: "text", text: `spawnSwarm initiated with leader '${args.swarmLeader}' and goal '${args.goal}' - not implemented yet.` }],
+        try {
+            // Get parent swarm ID from active swarm registry if not provided
+            // This is a temporary solution - ideally we'd get this from MCP context
+            let actualParentSwarmId = parentSwarmId;
+            if (!actualParentSwarmId) {
+                // Try to find an active swarm for this user
+                for (const [swarmId, swarmInstance] of activeSwarmRegistry.entries()) {
+                    const associatedUserId = swarmInstance.getAssociatedUserId();
+                    if (associatedUserId === this.user.id) {
+                        actualParentSwarmId = swarmId;
+                        this.logger.info(`[spawnSwarm] Found parent swarm context: ${swarmId}`);
+                        break;
+                    }
+                }
+            }
+
+            if (!actualParentSwarmId) {
+                return {
+                    isError: true,
+                    content: [{ type: "text", text: "spawnSwarm can only be called from within an active swarm context. No active swarm found for current user." }],
+                };
+            }
+
+            // Generate unique child swarm ID
+            const childSwarmId = generatePK().toString();
+
+            // Calculate resource reservation
+            const defaultReservation = { creditsPct: 50, messagesPct: 50, durationPct: 50 };
+            const reservation = args.reservation || defaultReservation;
+
+            // Get parent swarm to calculate actual resource amounts
+            // Note: This would ideally come from the current context, but for now we'll use default values
+            const defaultParentResources = {
+                maxCredits: 1000,
+                maxTokens: 100000,
+                maxTime: 3600000, // 1 hour in ms
             };
-        } else {
-            return {
-                isError: false,
-                content: [{ type: "text", text: `spawnSwarm initiated for team '${args.teamId}' with goal '${args.goal}' - not implemented yet.` }],
+
+            const childResources = {
+                maxCredits: Math.floor(defaultParentResources.maxCredits * (reservation.creditsPct / 100)),
+                maxTokens: Math.floor(defaultParentResources.maxTokens * (reservation.messagesPct || reservation.creditsPct) / 100),
+                maxTime: Math.floor(defaultParentResources.maxTime * (reservation.durationPct || reservation.creditsPct) / 100),
+                tools: [], // Child inherits available tools
+            };
+
+            if (isSpawnSwarmSimple(args)) {
+                // Handle simple child swarm
+                const childSwarmConfig = {
+                    swarmId: childSwarmId,
+                    name: `Child of ${actualParentSwarmId}`,
+                    description: `Child swarm spawned to accomplish: ${args.goal}`,
+                    goal: args.goal,
+                    resources: childResources,
+                    config: {
+                        model: "claude-3-haiku-20240307", // Default model for child swarms
+                        temperature: 0.7,
+                        autoApproveTools: false, // Child swarms should be more conservative
+                        parallelExecutionLimit: 2,
+                    },
+                    userId: this.user.id,
+                    parentSwarmId: actualParentSwarmId, // NEW: Set parent relationship
+                };
+
+                // Use existing swarm execution infrastructure
+                const { SwarmExecutionService } = await import("../execution/swarmExecutionService.js");
+                const swarmService = new SwarmExecutionService(this.logger);
+
+                const result = await swarmService.startSwarm(childSwarmConfig);
+
+                return {
+                    isError: false,
+                    content: [{ 
+                        type: "text", 
+                        text: `Child swarm ${result.swarmId} spawned successfully with goal: "${args.goal}". Leader: ${args.swarmLeader}. Reserved resources: ${JSON.stringify(reservation)}.` 
+                    }],
+                };
+
+            } else {
+                // Handle rich child swarm with team
+                const childSwarmConfig = {
+                    swarmId: childSwarmId,
+                    name: `Team ${args.teamId} Child Swarm`,
+                    description: `Rich child swarm with team ${args.teamId} for: ${args.goal}`,
+                    goal: args.goal,
+                    resources: childResources,
+                    config: {
+                        model: "claude-3-sonnet-20240229", // Rich swarms get better model
+                        temperature: 0.5,
+                        autoApproveTools: false,
+                        parallelExecutionLimit: 5,
+                    },
+                    userId: this.user.id,
+                    parentSwarmId: actualParentSwarmId, // NEW: Set parent relationship
+                };
+
+                // Use existing swarm execution infrastructure
+                const { SwarmExecutionService } = await import("../execution/swarmExecutionService.js");
+                const swarmService = new SwarmExecutionService(this.logger);
+
+                const result = await swarmService.startSwarm(childSwarmConfig);
+
+                // TODO: Handle additional rich swarm features
+                // - Team assignment (args.teamId)
+                // - Initial subtasks (args.subtasks)
+                // - Event subscriptions (args.eventSubscriptions)
+                // - Policy settings (args.policy)
+
+                return {
+                    isError: false,
+                    content: [{ 
+                        type: "text", 
+                        text: `Rich child swarm ${result.swarmId} spawned successfully with team ${args.teamId} and goal: "${args.goal}". Reserved resources: ${JSON.stringify(reservation)}.` 
+                    }],
+                };
+            }
+
+        } catch (error) {
+            this.logger.error("Error in spawnSwarm:", error);
+            return { 
+                isError: true, 
+                content: [{ 
+                    type: "text", 
+                    text: `Failed to spawn child swarm: ${error instanceof Error ? error.message : "Unknown error"}` 
+                }] 
             };
         }
     }

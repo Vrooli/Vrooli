@@ -80,6 +80,7 @@ export class SwarmExecutionService {
         };
         userId: string;
         organizationId?: string;
+        parentSwarmId?: string; // NEW: For child swarms
     }): Promise<{ swarmId: string }> {
         this.logger.info("[SwarmExecutionService] Starting new swarm", {
             swarmId: config.swarmId,
@@ -109,6 +110,7 @@ export class SwarmExecutionService {
                 config: config.config,
                 userId: config.userId,
                 organizationId: config.organizationId,
+                parentSwarmId: config.parentSwarmId, // NEW: Pass through parent relationship
             });
 
             return { swarmId: config.swarmId };

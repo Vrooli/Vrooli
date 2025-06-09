@@ -78,6 +78,7 @@ export class TierOneCoordinator {
         };
         userId: string;
         organizationId?: string;
+        parentSwarmId?: string; // NEW: For child swarms
     }): Promise<void> {
         this.logger.info("[TierOneCoordinator] Starting swarm", {
             swarmId: config.swarmId,
@@ -85,29 +86,65 @@ export class TierOneCoordinator {
         });
 
         try {
+            // If this is a child swarm, verify parent exists and reserve resources
+            if (config.parentSwarmId) {
+                const reservationResult = await this.reserveResourcesForChild(
+                    config.parentSwarmId,
+                    config.swarmId,
+                    {
+                        credits: config.resources.maxCredits,
+                        tokens: config.resources.maxTokens,
+                        time: config.resources.maxTime,
+                    }
+                );
+
+                if (!reservationResult.success) {
+                    throw new Error(`Failed to reserve resources from parent swarm: ${reservationResult.message}`);
+                }
+            }
+
             // Create swarm object
             const swarm: Swarm = {
                 id: config.swarmId,
+                name: config.name,
+                description: config.description,
                 state: SwarmState.UNINITIALIZED,
                 config: {
-                    name: config.name,
-                    description: config.description,
-                    goal: config.goal,
+                    maxAgents: 10,
+                    minAgents: 1,
+                    consensusThreshold: 0.7,
+                    decisionTimeout: 300000, // 5 minutes
+                    adaptationInterval: 60000, // 1 minute
+                    resourceOptimization: true,
+                    learningEnabled: true,
+                    maxBudget: config.resources.maxCredits,
+                    maxDuration: config.resources.maxTime,
                     ...config.config,
                 },
-                team: {
-                    agents: [],
-                    capabilities: [],
-                    activeMembers: 0,
-                },
+                parentSwarmId: config.parentSwarmId, // NEW: Set parent relationship
+                childSwarmIds: [],
                 resources: {
-                    allocated: config.resources,
+                    allocated: {
+                        credits: config.resources.maxCredits,
+                        tokens: config.resources.maxTokens,
+                        time: config.resources.maxTime,
+                    },
                     consumed: {
                         credits: 0,
                         tokens: 0,
                         time: 0,
                     },
-                    remaining: { ...config.resources },
+                    remaining: {
+                        credits: config.resources.maxCredits,
+                        tokens: config.resources.maxTokens,
+                        time: config.resources.maxTime,
+                    },
+                    reservedByChildren: {
+                        credits: 0,
+                        tokens: 0,
+                        time: 0,
+                    },
+                    childReservations: [],
                 },
                 metrics: {
                     tasksCompleted: 0,
@@ -121,6 +158,7 @@ export class TierOneCoordinator {
                     userId: config.userId,
                     organizationId: config.organizationId,
                     version: "2.0.0",
+                    parentSwarmId: config.parentSwarmId, // Also store in metadata for easy access
                 },
             };
 
@@ -260,7 +298,30 @@ export class TierOneCoordinator {
             throw new Error(`Swarm ${swarmId} not found`);
         }
 
+        // Get swarm info before stopping for cleanup
+        const swarm = await this.stateStore.getSwarm(swarmId);
+
         await stateMachine.stop(swarmId);
+        
+        // If this was a child swarm, release resources back to parent
+        if (swarm?.parentSwarmId) {
+            await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+        }
+
+        // Cancel any child swarms
+        if (swarm?.childSwarmIds && swarm.childSwarmIds.length > 0) {
+            for (const childId of swarm.childSwarmIds) {
+                try {
+                    await this.cancelSwarm(childId, userId, `Parent swarm ${swarmId} cancelled`);
+                } catch (error) {
+                    this.logger.warn(`[TierOneCoordinator] Failed to cancel child swarm ${childId}`, {
+                        parentSwarmId: swarmId,
+                        childSwarmId: childId,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                }
+            }
+        }
         
         // Remove from active machines
         this.swarmMachines.delete(swarmId);
@@ -271,6 +332,146 @@ export class TierOneCoordinator {
             userId,
             reason,
         });
+    }
+
+    /**
+     * Reserves resources for a child swarm
+     */
+    async reserveResourcesForChild(
+        parentSwarmId: string,
+        childSwarmId: string,
+        reservation: { credits: number; tokens: number; time: number }
+    ): Promise<{ success: boolean; message?: string }> {
+        try {
+            const swarm = await this.stateStore.getSwarm(parentSwarmId);
+            if (!swarm) {
+                return { success: false, message: `Parent swarm ${parentSwarmId} not found` };
+            }
+
+            // Check if parent has enough remaining resources
+            const available = {
+                credits: swarm.resources.remaining.credits - swarm.resources.reservedByChildren.credits,
+                tokens: swarm.resources.remaining.tokens - swarm.resources.reservedByChildren.tokens,
+                time: swarm.resources.remaining.time - swarm.resources.reservedByChildren.time,
+            };
+
+            if (reservation.credits > available.credits ||
+                reservation.tokens > available.tokens ||
+                reservation.time > available.time) {
+                return {
+                    success: false,
+                    message: `Insufficient resources. Available: ${JSON.stringify(available)}, Requested: ${JSON.stringify(reservation)}`
+                };
+            }
+
+            // Add reservation
+            swarm.resources.reservedByChildren.credits += reservation.credits;
+            swarm.resources.reservedByChildren.tokens += reservation.tokens;
+            swarm.resources.reservedByChildren.time += reservation.time;
+
+            swarm.resources.childReservations.push({
+                childSwarmId,
+                reserved: reservation,
+                createdAt: new Date(),
+            });
+
+            swarm.childSwarmIds.push(childSwarmId);
+            swarm.updatedAt = new Date();
+
+            // Update state store
+            await this.stateStore.updateSwarm(parentSwarmId, swarm);
+
+            // Emit reservation event
+            await this.eventBus.publish("swarm.resource.reserved", {
+                parentSwarmId,
+                childSwarmId,
+                reservation,
+            });
+
+            this.logger.info(`[TierOneCoordinator] Reserved resources for child swarm`, {
+                parentSwarmId,
+                childSwarmId,
+                reservation,
+            });
+
+            return { success: true };
+
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to reserve resources", {
+                parentSwarmId,
+                childSwarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return { success: false, message: "Internal error during resource reservation" };
+        }
+    }
+
+    /**
+     * Releases resources from a child swarm back to parent
+     */
+    async releaseResourcesFromChild(
+        parentSwarmId: string,
+        childSwarmId: string
+    ): Promise<{ success: boolean; message?: string }> {
+        try {
+            const swarm = await this.stateStore.getSwarm(parentSwarmId);
+            if (!swarm) {
+                return { success: false, message: `Parent swarm ${parentSwarmId} not found` };
+            }
+
+            // Find and remove the child reservation
+            const reservationIndex = swarm.resources.childReservations.findIndex(
+                r => r.childSwarmId === childSwarmId
+            );
+
+            if (reservationIndex === -1) {
+                return { success: false, message: `No reservation found for child swarm ${childSwarmId}` };
+            }
+
+            const reservation = swarm.resources.childReservations[reservationIndex];
+
+            // Release the reserved resources
+            swarm.resources.reservedByChildren.credits -= reservation.reserved.credits;
+            swarm.resources.reservedByChildren.tokens -= reservation.reserved.tokens;
+            swarm.resources.reservedByChildren.time -= reservation.reserved.time;
+
+            // Remove reservation record
+            swarm.resources.childReservations.splice(reservationIndex, 1);
+
+            // Remove from child list
+            const childIndex = swarm.childSwarmIds.indexOf(childSwarmId);
+            if (childIndex > -1) {
+                swarm.childSwarmIds.splice(childIndex, 1);
+            }
+
+            swarm.updatedAt = new Date();
+
+            // Update state store
+            await this.stateStore.updateSwarm(parentSwarmId, swarm);
+
+            // Emit release event
+            await this.eventBus.publish("swarm.resource.released", {
+                parentSwarmId,
+                childSwarmId,
+                released: reservation.reserved,
+            });
+
+            this.logger.info(`[TierOneCoordinator] Released resources from child swarm`, {
+                parentSwarmId,
+                childSwarmId,
+                released: reservation.reserved,
+            });
+
+            return { success: true };
+
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to release resources", {
+                parentSwarmId,
+                childSwarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return { success: false, message: "Internal error during resource release" };
+        }
     }
 
     /**
@@ -338,6 +539,79 @@ export class TierOneCoordinator {
                     payload: { type: "metacognitive_insight", ...event.data }
                 });
             }
+        });
+
+        // Handle child swarm completion events
+        this.eventBus.on("swarm.completed", async (event) => {
+            const { swarmId } = event.data;
+            const swarm = await this.stateStore.getSwarm(swarmId);
+            
+            // If this completed swarm has a parent, notify parent and release resources
+            if (swarm?.parentSwarmId) {
+                const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
+                if (parentStateMachine) {
+                    await parentStateMachine.handleEvent({
+                        type: "internal_status_update",
+                        conversationId: swarm.parentSwarmId,
+                        sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                        payload: { 
+                            type: "child_swarm_completed", 
+                            childSwarmId: swarmId,
+                            completedAt: new Date().toISOString()
+                        }
+                    });
+                }
+                
+                // Release resources back to parent
+                await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+            }
+        });
+
+        // Handle child swarm failure events
+        this.eventBus.on("swarm.failed", async (event) => {
+            const { swarmId, error } = event.data;
+            const swarm = await this.stateStore.getSwarm(swarmId);
+            
+            // If this failed swarm has a parent, notify parent and release resources
+            if (swarm?.parentSwarmId) {
+                const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
+                if (parentStateMachine) {
+                    await parentStateMachine.handleEvent({
+                        type: "internal_status_update",
+                        conversationId: swarm.parentSwarmId,
+                        sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                        payload: { 
+                            type: "child_swarm_failed", 
+                            childSwarmId: swarmId,
+                            error,
+                            failedAt: new Date().toISOString()
+                        }
+                    });
+                }
+                
+                // Release resources back to parent
+                await this.releaseResourcesFromChild(swarm.parentSwarmId, swarmId);
+            }
+        });
+
+        // Handle resource reservation events
+        this.eventBus.on("swarm.resource.reserved", async (event) => {
+            const { parentSwarmId, childSwarmId, reservation } = event.data;
+            this.logger.info("[TierOneCoordinator] Child swarm resources reserved", {
+                parentSwarmId,
+                childSwarmId,
+                reservation,
+            });
+        });
+
+        // Handle resource release events  
+        this.eventBus.on("swarm.resource.released", async (event) => {
+            const { parentSwarmId, childSwarmId, released } = event.data;
+            this.logger.info("[TierOneCoordinator] Child swarm resources released", {
+                parentSwarmId,
+                childSwarmId,
+                released,
+            });
         });
     }
 

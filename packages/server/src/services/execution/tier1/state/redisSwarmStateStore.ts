@@ -9,7 +9,7 @@ import {
     type SwarmResource,
     SwarmStatus,
 } from "@vrooli/shared";
-import { redis } from "../../../../services/redisConn.js";
+import { redis } from "../../../redisConn.js";
 import { type ISwarmStateStore } from "./swarmStateStore.js";
 
 /**
