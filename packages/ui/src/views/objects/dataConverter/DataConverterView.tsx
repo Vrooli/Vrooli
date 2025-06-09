@@ -10,7 +10,7 @@ import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { BookmarkFor, CodeLanguage, CodeVersionConfig, CommentFor, endpointsResource, getTranslation, type ResourceVersion, type ResourceList as ResourceListType, type Tag } from "@vrooli/shared";
+import { BookmarkFor, CodeLanguage, CodeVersionConfig, CommentFor, getTranslation, type ResourceList as ResourceListType, type Tag } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../../components/Page/Page.js";
@@ -103,7 +103,7 @@ export function DataConverterView({
 
     // Use managed object hook to handle API calls and caching
     const { id, isLoading, object: codeVersion, permissions, setObject: setCodeVersion } = useManagedObject<CodeVersion>({
-        ...endpointsCodeVersion.findOne,
+        ...endpointsResourceVersion.findOne,
         objectType: "CodeVersion",
     });
 

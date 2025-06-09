@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, endpointsNoteVersion, generatePK, getObjectUrl, type NoteVersion, type Tag, type User } from "@vrooli/shared";
+import { DUMMY_ID, endpointsResource, generatePK, getObjectUrl, type NoteVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { NoteCrud } from "./NoteCrud.js";
@@ -121,7 +121,7 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
@@ -149,7 +149,7 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
                 return HttpResponse.json({ data: mockNoteVersionData });
             }),
         ],
@@ -169,7 +169,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockNoteVersionData });
@@ -201,7 +201,7 @@ ViewMode.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsNoteVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findNoteVersion.endpoint}`, () => {
                 const viewOnlyData = {
                     ...mockNoteVersionData,
                     you: {

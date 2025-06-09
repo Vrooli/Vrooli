@@ -1,6 +1,6 @@
 /* eslint-disable no-magic-numbers */
 import { type Meta } from "@storybook/react";
-import { CodeLanguage, CodeType, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterView } from "./DataConverterView.js";
@@ -48,7 +48,7 @@ const mockDataConverterVersionData: CodeVersion = {
     id: generatePK().toString(),
     calledByRoutineVersionsCount: 3,
     codeLanguage: CodeLanguage.Javascript,
-    codeType: CodeType.DataConvert,
+    codeType: ResourceSubType.CodeDataConverter,
     comments: [],
     commentsCount: 0,
     content: `
@@ -216,7 +216,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });
@@ -237,7 +237,7 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
@@ -256,7 +256,7 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
@@ -276,7 +276,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockDataConverterVersionData,

@@ -2,7 +2,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { DUMMY_ID, uuid, uuidToBase36, type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, type User } from "@vrooli/shared";
+import { DUMMY_ID, generatePK, type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, type User } from "@vrooli/shared";
 import { expect } from "chai";
 import { HttpResponse, http } from "msw";
 import { signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
@@ -25,9 +25,9 @@ const valyxaUser: User = {
 };
 
 // Mock chat data
-const mockChatId = uuid();
-const mockBase36ChatId = uuidToBase36(mockChatId);
-const mockNewChatId = uuid();
+const mockChatId = generatePK().toString();
+const mockBase36ChatId = mockChatId; // Base36 conversion no longer needed
+const mockNewChatId = generatePK().toString();
 
 // Mock ChatYou type - Assuming it links via `chat` and `user` objects/IDs
 const mockChatYou: ChatYou = {
@@ -44,7 +44,7 @@ const mockChatYou: ChatYou = {
 function createMockParticipant(user: User, chatId: string): ChatParticipant {
     return {
         __typename: "ChatParticipant",
-        id: uuid(),
+        id: generatePK().toString(),
         user,
         chat: { id: chatId } as Chat,
         createdAt: new Date().toISOString(),
@@ -56,7 +56,7 @@ function createMockParticipant(user: User, chatId: string): ChatParticipant {
 function createMockMessage(user: User, chatId: string, messageText: string): ChatMessage {
     return {
         __typename: "ChatMessage",
-        id: uuid(),
+        id: generatePK().toString(),
         chat: { id: chatId } as Chat,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -87,7 +87,7 @@ const mockExistingChat: Chat = {
     ],
     translations: [{
         __typename: "ChatTranslation",
-        id: uuid(),
+        id: generatePK().toString(),
         language: "en",
         name: "Existing Chat",
         description: "This is an existing chat.",
@@ -113,7 +113,7 @@ const mockCreatedChat: Chat = {
     messages: [],
     translations: [{
         __typename: "ChatTranslation",
-        id: uuid(),
+        id: generatePK().toString(),
         language: "en",
         name: "New Chat",
         description: "",
@@ -165,7 +165,7 @@ const meta: Meta<typeof ChatCrud> = {
                         translations: body.translationsCreate?.map(t => ({
                             ...t,
                             __typename: "ChatTranslation",
-                            id: t.id ?? uuid(),
+                            id: t.id ?? generatePK().toString(),
                         })) ?? mockCreatedChat.translations,
                     };
                     return HttpResponse.json({ data: createdChatResponse }, { status: 201 });

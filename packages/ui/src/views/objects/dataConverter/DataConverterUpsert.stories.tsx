@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, DUMMY_ID, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type CodeVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataConverterUpsert } from "./DataConverterUpsert.js";
@@ -12,7 +12,7 @@ const mockDataConverterVersionData: CodeVersion = {
     id: generatePK().toString(),
     calledByRoutineVersionsCount: Math.floor(Math.random() * 100),
     codeLanguage: CodeLanguage.Javascript,
-    codeType: CodeType.DataConvert,
+    codeType: ResourceSubType.CodeDataConverter,
     comments: [],
     commentsCount: 0,
     content: `/**
@@ -150,7 +150,7 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
@@ -178,7 +178,7 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataConverterVersionData });
             }),
         ],
@@ -198,7 +198,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataConverterVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataConverterVersionData });

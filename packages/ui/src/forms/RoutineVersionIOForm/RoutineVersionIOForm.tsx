@@ -1,4 +1,4 @@
-import { DUMMY_ID, orDefault, routineVersionInputValidation, routineVersionOutputValidation, shapeRoutineVersionInput, shapeRoutineVersionOutput, uuid, type RoutineVersionInput, type RoutineVersionInputShape, type RoutineVersionOutput, type RoutineVersionOutputShape, type Session } from "@vrooli/shared";
+import { DUMMY_ID, generatePK, orDefault, routineVersionInputValidation, routineVersionOutputValidation, shapeRoutineVersionInput, shapeRoutineVersionOutput, type RoutineVersionInput, type RoutineVersionInputShape, type RoutineVersionOutput, type RoutineVersionOutputShape, type Session } from "@vrooli/shared";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { validateFormValues } from "../../utils/validateFormValues.js";
 
@@ -8,7 +8,7 @@ export function routineVersionInputInitialValues(
 ): RoutineVersionInputShape {
     return {
         __typename: "RoutineVersionInput" as const,
-        id: uuid(), // Cannot be a dummy ID because routine versions reference this ID
+        id: generatePK().toString(), // Cannot be a dummy ID because routine versions reference this ID
         index: existing?.index ?? 0,
         isRequired: true,
         name: `Input ${(existing?.index ?? 0) + 1}`,
@@ -31,7 +31,7 @@ export function routineVersionOutputInitialValues(
 ): RoutineVersionOutputShape {
     return {
         __typename: "RoutineVersionOutput" as const,
-        id: uuid(), // Cannot be a dummy ID because routine versions reference this ID
+        id: generatePK().toString(), // Cannot be a dummy ID because routine versions reference this ID
         index: existing?.index ?? 0,
         name: `Output ${(existing?.index ?? 0) + 1}`,
         routineVersion: existing!.routineVersion,

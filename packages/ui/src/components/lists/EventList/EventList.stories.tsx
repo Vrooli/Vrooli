@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import type { Meta } from "@storybook/react";
-import { ScheduleRecurrenceType, generatePK, uuid, type CalendarEvent, type Meeting, type Run, type Schedule } from "@vrooli/shared";
+import { ScheduleRecurrenceType, generatePK, type CalendarEvent, type Meeting, type Run, type Schedule } from "@vrooli/shared";
 import { useState } from "react";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";
@@ -24,8 +24,8 @@ const meta = {
 export default meta;
 
 // Mock data for meetings and routines
-const mockMeetingId = uuid();
-const mockMeetingTranslationId = uuid();
+const mockMeetingId = generatePK().toString();
+const mockMeetingTranslationId = generatePK().toString();
 const mockMeeting: Meeting = {
     __typename: "Meeting",
     id: mockMeetingId,
@@ -63,12 +63,12 @@ const mockRun: Run = {
 };
 
 // Mock data for the story
-const mockScheduleId = uuid();
-const mockRecurrenceId = uuid();
-const mockSchedule2Id = uuid();
-const mockRecurrence2Id = uuid();
-const mockSchedule3Id = uuid();
-const mockRecurrence3Id = uuid();
+const mockScheduleId = generatePK().toString();
+const mockRecurrenceId = generatePK().toString();
+const mockSchedule2Id = generatePK().toString();
+const mockRecurrence2Id = generatePK().toString();
+const mockSchedule3Id = generatePK().toString();
+const mockRecurrence3Id = generatePK().toString();
 const baseMockSchedules: Schedule[] = [
     {
         __typename: "Schedule",
@@ -135,13 +135,13 @@ const baseMockSchedules: Schedule[] = [
     },
 ];
 
-const mockEvent1Id = uuid();
-const mockEvent2Id = uuid();
-const mockEvent3Id = uuid();
-const mockEvent4Id = uuid();
-const mockEvent5Id = uuid();
-const mockEvent6Id = uuid();
-const mockEvent7Id = uuid();
+const mockEvent1Id = generatePK().toString();
+const mockEvent2Id = generatePK().toString();
+const mockEvent3Id = generatePK().toString();
+const mockEvent4Id = generatePK().toString();
+const mockEvent5Id = generatePK().toString();
+const mockEvent6Id = generatePK().toString();
+const mockEvent7Id = generatePK().toString();
 
 // Helper to create a date relative to now
 function getRelativeDate(minutes: number): Date {

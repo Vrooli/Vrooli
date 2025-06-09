@@ -1,4 +1,4 @@
-import { uuid, type ListObject } from "@vrooli/shared";
+import { generatePK, type ListObject } from "@vrooli/shared";
 import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { StatsObjectView } from "./StatsObjectView.js";
@@ -12,7 +12,7 @@ const mockObject: ListObject = {
     __typename: "Standard" as const,
     bookmarks: 0,
     createdAt: new Date().toISOString(),
-    id: uuid(),
+    id: generatePK().toString(),
     isDeleted: false,
     score: 0,
     translatedName: "Mock Object",

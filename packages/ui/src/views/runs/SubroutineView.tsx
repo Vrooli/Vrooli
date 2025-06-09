@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import { FormBuilder, RoutineType, RoutineVersionConfig, exists, getTranslation, noop, noopSubmit, uuidValidate, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineVersion, type Tag, type TagShape } from "@vrooli/shared";
+import { FormBuilder, ResourceSubType, RoutineVersionConfig, exists, getTranslation, noop, noopSubmit, validatePK, type ResourceListShape, type ResourceList as ResourceListType, type RoutineShape, type RoutineVersion, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
@@ -68,7 +68,7 @@ export function SubroutineView({
     // Type-specific components
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
         const loading = isGeneratingOutputs || isLoading;
-        const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+        const isLoggedIn = validatePK(getCurrentUser(session).id);
         const isDeleted = (routineVersion as RoutineVersion).isDeleted ?? routineVersion.root?.isDeleted ?? false;
         const canRun = routineVersion.you?.canRun ?? false;
         const hasErrors = hasFormErrors;
@@ -99,17 +99,17 @@ export function SubroutineView({
         };
 
         switch (routineVersion.routineType) {
-            case RoutineType.Api:
+            case ResourceSubType.RoutineApi:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
-            case RoutineType.Code:
+            case ResourceSubType.RoutineCode:
                 return <RoutineDataConverterForm {...routineTypeBaseProps} />;
-            case RoutineType.Data:
+            case ResourceSubType.RoutineData:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
-            case RoutineType.Generate:
+            case ResourceSubType.RoutineGenerate:
                 return <RoutineGenerateForm {...routineTypeBaseProps} />;
-            case RoutineType.Informational:
+            case ResourceSubType.RoutineInformational:
                 return <RoutineInformationalForm {...routineTypeBaseProps} />;
-            case RoutineType.SmartContract:
+            case ResourceSubType.RoutineSmartContract:
                 return <RoutineSmartContractForm {...routineTypeBaseProps} />;
             default:
                 // NOTE: We don't display the multi-step form, as its data should be coverted into smaller steps

@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsStandardVersion, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { PromptView } from "./PromptView.js";
@@ -181,7 +181,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockPromptVersionData });
@@ -202,7 +202,7 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],
@@ -221,7 +221,7 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findPromptVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockPromptVersionData });
             }),
         ],

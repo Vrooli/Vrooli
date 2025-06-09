@@ -1,4 +1,4 @@
-import { VisibilityType, uuidValidate, type OwnerShape, type RoutineVersion } from "@vrooli/shared";
+import { VisibilityType, validatePK, type OwnerShape, type RoutineVersion } from "@vrooli/shared";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog.js";
@@ -26,7 +26,7 @@ export function FindSubroutineDialog({
      */
     const where = useMemo<{ [key: string]: object }>(() => {
         // If no routineVersionId, then we are creating a new routine
-        if (!routineVersionId || !uuidValidate(routineVersionId)) return { visibility: VisibilityType.Public };
+        if (!routineVersionId || !validatePK(routineVersionId)) return { visibility: VisibilityType.Public };
         return {
             // Ignore current routine
             excludeIds: [routineVersionId],

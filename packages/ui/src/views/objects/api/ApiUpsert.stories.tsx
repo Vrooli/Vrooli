@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, endpointsApiVersion, generatePK, getObjectUrl, type ApiVersion, type Resource, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type ApiVersion, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { type ViewDisplayType } from "../../../types.js";
@@ -109,7 +109,7 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResourceVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
@@ -129,7 +129,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });

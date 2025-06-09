@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsStandardVersion, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataStructureView } from "./DataStructureView.js";
@@ -185,7 +185,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataStructureVersionData });
@@ -206,7 +206,7 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
@@ -225,7 +225,7 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],

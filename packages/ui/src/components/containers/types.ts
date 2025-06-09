@@ -88,13 +88,6 @@ interface BaseEditableTextProps<T extends EditTextComponent> {
     variant?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "subtitle1" | "subtitle2" | "body1" | "body2";
 }
 
-interface BaseEditableTextCollapseProps<T extends EditTextComponent> extends BaseEditableTextProps<T> {
-    helpText?: string;
-    isOpen?: boolean;
-    onOpenChange?: (isOpen: boolean) => unknown;
-    title?: string | null;
-}
-
 export type PropsByComponentType = {
     Markdown: Omit<RichInputProps, "name" | "zIndex">;
     TranslatedMarkdown: Omit<TranslatedRichInputProps, "name" | "zIndex">;
@@ -103,8 +96,5 @@ export type PropsByComponentType = {
 };
 
 export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextProps<T> & {
-    props?: PropsByComponentType[T];
-}
-export type EditableTextCollapseProps<T extends EditTextComponent> = BaseEditableTextCollapseProps<T> & {
     props?: PropsByComponentType[T];
 }

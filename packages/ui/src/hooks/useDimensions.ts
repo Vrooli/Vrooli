@@ -31,24 +31,6 @@ export function useResizeAndMutationListener(callback: () => void, target: HTMLE
     }, [callback, target]);
 }
 
-export function useViewportDimensions(): Dimensions {
-    const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
-
-    const updateDimensions = useCallback(() => {
-        setDimensions({
-            width: window.innerWidth,
-            height: window.innerHeight,
-        });
-    }, []);
-
-    useEffect(() => {
-        updateDimensions();
-        window.addEventListener("resize", updateDimensions);
-        return () => window.removeEventListener("resize", updateDimensions);
-    }, [updateDimensions]);
-
-    return dimensions;
-}
 
 export function useElementDimensions({
     id,

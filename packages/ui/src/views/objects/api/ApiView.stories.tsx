@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, ResourceUsedFor, endpointsApiVersion, generatePK, getObjectUrl, type Api, type ApiVersion, type Resource, type ResourceList, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type Api, type ApiVersion, type Resource, type ResourceList, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ApiView } from "./ApiView.js";
@@ -223,7 +223,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120_000));
                 return HttpResponse.json({ data: mockApiVersionData });
@@ -244,7 +244,7 @@ SignInWithResults.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
@@ -263,7 +263,7 @@ LoggedOutWithResults.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockApiVersionData });
             }),
         ],
@@ -282,7 +282,7 @@ Own.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsApiVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findApiVersion.findOne.endpoint}`, () => {
                 // Create a modified version of the mock data with owner permissions
                 const mockWithOwnerPermissions = {
                     ...mockApiVersionData,

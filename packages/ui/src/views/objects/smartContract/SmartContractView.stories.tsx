@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, CodeType, ResourceUsedFor, endpointsCodeVersion, generatePK, getObjectUrl, type Code, type CodeVersion, type CodeVersionTranslation } from "@vrooli/shared";
+import { CodeLanguage, ResourceSubType, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type Code, type CodeVersion, type CodeVersionTranslation } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SmartContractView } from "./SmartContractView.js";
@@ -15,7 +15,7 @@ const mockCodeVersionData: CodeVersion = {
     updatedAt: new Date().toISOString(),
     calledByRoutineVersionsCount: 2,
     codeLanguage: CodeLanguage.Solidity,
-    codeType: CodeType.SmartContract,
+    codeType: ResourceSubType.CodeSmartContract,
     content: `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -212,7 +212,7 @@ Loading.parameters = {
     session: signedInNoPremiumNoCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockCodeVersionData });
@@ -234,7 +234,7 @@ SignedInWithSolidity.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
@@ -254,7 +254,7 @@ SignedInWithHaskell.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionWithHaskellData });
             }),
         ],
@@ -280,7 +280,7 @@ DialogView.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],
@@ -300,7 +300,7 @@ LoggedOut.parameters = {
     session: loggedOutSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsCodeVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findSmartContractVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockCodeVersionData });
             }),
         ],

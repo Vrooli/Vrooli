@@ -1,5 +1,5 @@
 import Box from "@mui/material/Box";
-import { BotStyle, FormBuilder, InputType, LATEST_ROUTINE_CONFIG_VERSION, RoutineType, RoutineVersionConfig, noop, noopSubmit, uuid } from "@vrooli/shared";
+import { BotStyle, FormBuilder, InputType, ResourceSubType, RoutineVersionConfig, generatePK, noop, noopSubmit } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useMemo } from "react";
 import { PageContainer } from "../../../components/Page/Page.js";
@@ -13,6 +13,9 @@ import {
     RoutineSmartContractForm,
     type RoutineFormPropsBase,
 } from "./RoutineTypeForms.js";
+
+// Default version for routine configs
+const LATEST_ROUTINE_CONFIG_VERSION = "1.0";
 
 export default {
     title: "Views/Objects/Routine/RoutineTypeForms",
@@ -37,7 +40,7 @@ const mockFormProps: Omit<RoutineFormPropsBase, "config" | "display"> = {
     onFormOutputChange: noop,
     onGraphChange: noop,
     onRunChange: noop,
-    routineId: uuid(),
+    routineId: generatePK().toString(),
     routineName: "Test Routine",
     run: null,
 };
@@ -622,7 +625,7 @@ export function ApiFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.Api,
+            routineType: ResourceSubType.RoutineApi,
         };
     }, []);
 
@@ -659,7 +662,7 @@ export function ApiFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(apiFormWithDataParams.config),
-            routineType: RoutineType.Api,
+            routineType: ResourceSubType.RoutineApi,
         };
     }, []);
 
@@ -711,7 +714,7 @@ export function DataConverterFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.Code,
+            routineType: ResourceSubType.RoutineCode,
         };
     }, []);
 
@@ -748,7 +751,7 @@ export function DataConverterFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(dataConverterFormWithDataParams.config),
-            routineType: RoutineType.Code,
+            routineType: ResourceSubType.RoutineCode,
         };
     }, []);
 
@@ -800,7 +803,7 @@ export function DataFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.Data,
+            routineType: ResourceSubType.RoutineData,
         };
     }, []);
 
@@ -837,7 +840,7 @@ export function DataFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(dataFormWithDataParams.config),
-            routineType: RoutineType.Data,
+            routineType: ResourceSubType.RoutineData,
         };
     }, []);
 
@@ -889,7 +892,7 @@ export function GenerateFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.Generate,
+            routineType: ResourceSubType.RoutineGenerate,
         };
     }, []);
 
@@ -926,7 +929,7 @@ export function GenerateFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(generateFormWithDataParams.config),
-            routineType: RoutineType.Generate,
+            routineType: ResourceSubType.RoutineGenerate,
         };
     }, []);
 
@@ -978,7 +981,7 @@ export function InformationalFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.Informational,
+            routineType: ResourceSubType.RoutineInformational,
         };
     }, []);
 
@@ -1015,7 +1018,7 @@ export function InformationalFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(informationalFormWithDataParams.config),
-            routineType: RoutineType.Informational,
+            routineType: ResourceSubType.RoutineInformational,
         };
     }, []);
 
@@ -1067,7 +1070,7 @@ export function SmartContractFormEmpty() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(emptyFormParams.config),
-            routineType: RoutineType.SmartContract,
+            routineType: ResourceSubType.RoutineSmartContract,
         };
     }, []);
 
@@ -1104,7 +1107,7 @@ export function SmartContractFormWithData() {
     const routine = useMemo(function routineMemo() {
         return {
             config: JSON.stringify(smartContractFormWithDataParams.config),
-            routineType: RoutineType.SmartContract,
+            routineType: ResourceSubType.RoutineSmartContract,
         };
     }, []);
 

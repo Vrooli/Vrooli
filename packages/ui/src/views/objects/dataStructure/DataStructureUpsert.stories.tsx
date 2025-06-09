@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsStandardVersion, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataStructureUpsert } from "./DataStructureUpsert.js";
@@ -189,7 +189,7 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
@@ -217,7 +217,7 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockDataStructureVersionData });
             }),
         ],
@@ -237,7 +237,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsStandardVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findDataStructureVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockDataStructureVersionData });

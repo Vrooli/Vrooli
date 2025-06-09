@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { DUMMY_ID, ResourceUsedFor, endpointsProjectVersion, generatePK, getObjectUrl, type ProjectVersion, type ProjectVersionDirectory, type Resource, type Tag, type User } from "@vrooli/shared";
+import { DUMMY_ID, ResourceUsedFor, endpointsResource, generatePK, getObjectUrl, type ProjectVersion, type ProjectVersionDirectory, type Resource, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ProjectCrud } from "./ProjectCrud.js";
@@ -138,7 +138,7 @@ Update.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsProjectVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockProjectVersionData });
             }),
         ],
@@ -166,7 +166,7 @@ UpdateDialog.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsProjectVersion.findOne.endpoint}`, () => {
+            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, () => {
                 return HttpResponse.json({ data: mockProjectVersionData });
             }),
         ],
@@ -186,7 +186,7 @@ Loading.parameters = {
     session: signedInPremiumWithCreditsSession,
     msw: {
         handlers: [
-            http.get(`${API_URL}/v2${endpointsProjectVersion.findOne.endpoint}`, async () => {
+            http.get(`${API_URL}/v2${endpointsResource.findProjectVersion.findOne.endpoint}`, async () => {
                 // Delay the response to simulate loading
                 await new Promise(resolve => setTimeout(resolve, 120000));
                 return HttpResponse.json({ data: mockProjectVersionData });
