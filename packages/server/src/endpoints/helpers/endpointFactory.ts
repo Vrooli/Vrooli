@@ -1,4 +1,4 @@
-import { VisibilityType } from "@vrooli/shared";
+import { ModelType, VisibilityType } from "@vrooli/shared";
 import { createOneHelper } from "../../actions/creates.js";
 import { readManyHelper, readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
 import { updateOneHelper } from "../../actions/updates.js";
@@ -43,7 +43,7 @@ export interface EndpointMethodConfig {
  */
 export interface StandardCrudConfig {
     /** The object type (e.g., "Tag", "Bookmark") */
-    objectType: ModelType;
+    objectType: ModelType | `${ModelType}`;
 
     /** Configuration for each endpoint method */
     endpoints: {

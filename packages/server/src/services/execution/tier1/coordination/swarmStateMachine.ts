@@ -1,1094 +1,622 @@
-import {
-    type AgentRole,
-    type ExecutionId,
-    type ExecutionResult,
-    type ExecutionStatus,
-    type ResourceAllocation,
-    type SwarmConfig,
-    type SwarmCoordinationInput,
-    type SwarmState,
-    type TeamFormation,
-    type TierCapabilities,
-    type TierCommunicationInterface,
-    type TierExecutionRequest,
-    StrategyType,
-    SwarmEventType as SwarmEventTypeEnum,
-    SwarmState as SwarmStateEnum,
-    generatePk
+/**
+ * SwarmStateMachine - Autonomous Swarm Coordination
+ * 
+ * This is the battle-tested implementation from conversation/responseEngine.ts,
+ * adapted for the tier1 execution architecture. It provides elegant, event-driven
+ * swarm coordination without overly complex state transitions.
+ * 
+ * Key features:
+ * - Simple, proven state model (UNINITIALIZED → STARTING → RUNNING/IDLE → STOPPED/FAILED)
+ * - Event queue with autonomous draining
+ * - Tool approval/rejection flows
+ * - Graceful shutdown with statistics
+ * 
+ * The beauty of this design is that complex behaviors (goal setting, team formation,
+ * task decomposition) emerge from AI agent decisions rather than being hard-coded
+ * as states. Agents use tools like update_swarm_shared_state, resource_manage, and
+ * spawn_swarm to accomplish these tasks when they determine it's necessary.
+ */
+
+import { 
+    type SessionUser, 
+    type PendingToolCallEntry,
+    type ToolCallRecord,
+    type ChatConfigObject,
+    type BotParticipant,
+    type BotConfigObject,
+    type SwarmSubTask,
+    generatePK,
+    PendingToolCallStatus,
+    ChatConfig,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
-import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
-import { MetacognitiveMonitor } from "../intelligence/metacognitiveMonitor.js";
-import { StrategyEngine } from "../intelligence/strategyEngine.js";
-import { ResourceManager } from "../organization/resourceManager.js";
-import { TeamManager } from "../organization/teamManager.js";
 import { type ISwarmStateStore } from "../state/swarmStateStore.js";
+import { type ConversationBridge } from "../intelligence/conversationBridge.js";
+import { SocketService } from "../../../../sockets/io.js";
 
 /**
- * Swarm initialization parameters
+ * Swarm event types
  */
-export interface SwarmInitParams {
-    name: string;
-    description: string;
+export type SwarmEventType = 
+    | "swarm_started"
+    | "external_message_created"
+    | "tool_approval_response"
+    | "ApprovedToolExecutionRequest"
+    | "RejectedToolExecutionRequest"
+    | "internal_task_assignment"
+    | "internal_status_update";
+
+/**
+ * Base swarm event interface
+ */
+export interface SwarmEvent {
+    type: SwarmEventType;
+    conversationId: string;
+    sessionUser: SessionUser;
+    goal?: string;
+    payload?: any;
+}
+
+/**
+ * Swarm started event
+ */
+export interface SwarmStartedEvent extends SwarmEvent {
+    type: "swarm_started";
     goal: string;
-    config?: Partial<SwarmConfig>;
-    initialAgents?: string[];
-    metadata?: Record<string, unknown>;
 }
 
 /**
- * Swarm execution context
+ * Available states for the swarm state machine
  */
-export interface SwarmContext {
-    swarmId: string;
-    goal: string;
-    progress: SwarmProgress;
-    resources: SwarmResources;
-    knowledge: SwarmKnowledge;
+export const SwarmState = {
+    UNINITIALIZED: "UNINITIALIZED",
+    STARTING: "STARTING",
+    RUNNING: "RUNNING",
+    IDLE: "IDLE",
+    PAUSED: "PAUSED",
+    STOPPED: "STOPPED",
+    FAILED: "FAILED",
+    TERMINATED: "TERMINATED",
+} as const;
+
+export type State = (typeof SwarmState)[keyof typeof SwarmState];
+
+/**
+ * Interface for managed task state machines
+ */
+export interface ManagedTaskStateMachine {
+    getTaskId(): string;
+    getCurrentSagaStatus(): string;
+    requestPause(): Promise<boolean>;
+    requestStop(reason: string): Promise<boolean>;
+    getAssociatedUserId?(): string | undefined;
 }
 
 /**
- * Swarm progress tracking
+ * Conversation state interface (simplified for tier1)
  */
-export interface SwarmProgress {
-    tasksCompleted: number;
-    tasksTotal: number;
-    milestones: SwarmMilestone[];
-    currentPhase: string;
-}
-
-/**
- * Swarm milestone
- */
-export interface SwarmMilestone {
+export interface ConversationState {
     id: string;
-    name: string;
-    completed: boolean;
-    timestamp?: Date;
+    config: ChatConfigObject;
+    participants: BotParticipant[];
+    teamConfig?: any;
+    availableTools: string[];
+    initialLeaderSystemMessage?: string;
 }
 
 /**
- * Swarm resource allocation
- */
-export interface SwarmResources {
-    totalBudget: number;
-    usedBudget: number;
-    allocations: Map<string, number>; // agentId -> allocated budget
-}
-
-/**
- * Swarm knowledge base
- */
-export interface SwarmKnowledge {
-    facts: Map<string, unknown>;
-    insights: string[];
-    decisions: SwarmDecision[];
-}
-
-/**
- * Swarm decision record
- */
-export interface SwarmDecision {
-    id: string;
-    timestamp: Date;
-    decision: string;
-    rationale: string;
-    outcome?: string;
-}
-
-/**
- * TierOneSwarmStateMachine - Metacognitive swarm coordination
+ * SwarmStateMachine
  * 
- * This is the highest level of intelligence in Vrooli's execution architecture.
- * It implements a metacognitive approach to swarm coordination, where the swarm
- * reasons about its own reasoning and adapts its strategies dynamically.
+ * Manages the lifecycle of an autonomous agent swarm. Instead of prescriptive states
+ * for goal setting, team formation, etc., this implementation lets those behaviors
+ * emerge from agent decisions. The state machine focuses on operational states only.
  * 
- * Key capabilities:
- * - Natural language reasoning for strategic decisions
- * - Dynamic team formation based on task requirements
- * - Resource allocation with economic modeling
- * - Self-monitoring and strategy adaptation
- * - Emergent intelligence through agent collaboration
+ * States:
+ * - UNINITIALIZED: Not yet started
+ * - STARTING: Initializing swarm with goal and leader
+ * - RUNNING: Actively processing events
+ * - IDLE: Waiting for events (but monitoring for work)
+ * - PAUSED: Temporarily suspended
+ * - STOPPED: Gracefully ended
+ * - FAILED: Error occurred
+ * - TERMINATED: Force shutdown
  * 
- * The swarm operates through a continuous OODA loop (Observe, Orient, Decide, Act)
- * enhanced with metacognitive reflection and learning.
- * 
- * Implements TierCommunicationInterface for standardized inter-tier communication.
+ * Agents handle complex coordination through tools:
+ * - update_swarm_shared_state: Manage subtasks, team, resources
+ * - resource_manage: Find/create teams, routines, etc.
+ * - spawn_swarm: Create child swarms for complex subtasks
+ * - run_routine: Execute discovered routines
  */
-export class SwarmStateMachine implements TierCommunicationInterface {
-    private readonly logger: Logger;
-    private readonly eventBus: EventBus;
-    private readonly stateStore: ISwarmStateStore;
-    private readonly tier2Orchestrator: TierCommunicationInterface;
-    private readonly teamManager: TeamManager;
-    private readonly resourceManager: ResourceManager;
-    private readonly strategyEngine: StrategyEngine;
-    private readonly metacognitiveMonitor: MetacognitiveMonitor;
-    private readonly telemetryShim: TelemetryShim;
-    private readonly rollingHistory?: RollingHistory;
-
-    // Active swarms
-    private readonly activeSwarms: Map<string, SwarmContext> = new Map();
-    private readonly swarmTimers: Map<string, NodeJS.Timer> = new Map();
-
-    // Configuration constants
-    private readonly DEFAULT_BUDGET = 1000;
-    private readonly DEFAULT_ADAPTATION_INTERVAL_MS = 60000; // 1 minute
+export class SwarmStateMachine implements ManagedTaskStateMachine {
+    private disposed = false;
+    private processingLock = false;
+    private pendingDrainTimeout: NodeJS.Timeout | null = null;
+    private state: State = SwarmState.UNINITIALIZED;
+    private readonly eventQueue: SwarmEvent[] = [];
+    private conversationId: string | null = null;
+    private initiatingUser: SessionUser | null = null;
 
     constructor(
-        logger: Logger,
-        eventBus: EventBus,
-        stateStore: ISwarmStateStore,
-        tier2Orchestrator: TierCommunicationInterface,
-        rollingHistory?: RollingHistory,
-    ) {
-        this.logger = logger;
-        this.eventBus = eventBus;
-        this.stateStore = stateStore;
-        this.tier2Orchestrator = tier2Orchestrator;
-        this.rollingHistory = rollingHistory;
+        private readonly logger: Logger,
+        private readonly eventBus: EventBus,
+        private readonly stateStore: ISwarmStateStore,
+        private readonly conversationBridge: ConversationBridge,
+    ) {}
 
-        // Initialize components
-        this.teamManager = new TeamManager(eventBus, logger);
-        this.resourceManager = new ResourceManager(logger);
-        this.strategyEngine = new StrategyEngine(logger);
-        this.metacognitiveMonitor = new MetacognitiveMonitor(eventBus, logger);
-        this.telemetryShim = new TelemetryShim(eventBus, true);
+    // Implementation of ManagedTaskStateMachine methods
+    public getTaskId(): string {
+        if (!this.conversationId) {
+            this.logger.error("SwarmStateMachine: getTaskId called before conversationId was set.");
+            return "undefined_swarm_task_id";
+        }
+        return this.conversationId;
+    }
 
-        // Subscribe to relevant events
-        this.subscribeToEvents();
+    public getCurrentSagaStatus(): string {
+        switch (this.state) {
+            case SwarmState.UNINITIALIZED:
+                return "UNINITIALIZED";
+            case SwarmState.STARTING:
+                return "STARTING";
+            case SwarmState.RUNNING:
+                return "RUNNING";
+            case SwarmState.IDLE:
+                return "IDLE";
+            case SwarmState.PAUSED:
+                return "PAUSED";
+            case SwarmState.STOPPED:
+                return "STOPPED";
+            case SwarmState.FAILED:
+                return "FAILED";
+            case SwarmState.TERMINATED:
+                return "TERMINATED";
+            default:
+                this.logger.warn(`SwarmStateMachine: Unknown state in getCurrentSagaStatus: ${this.state}`);
+                return "UNKNOWN";
+        }
+    }
+
+    public async requestPause(): Promise<boolean> {
+        if (this.state === SwarmState.RUNNING || this.state === SwarmState.IDLE) {
+            await this.pause();
+            return true;
+        }
+        this.logger.warn(`SwarmStateMachine: requestPause called in non-pausable state: ${this.state}`);
+        return false;
+    }
+
+    public async requestStop(reason: string): Promise<boolean> {
+        this.logger.info(`SwarmStateMachine: requestStop called for ${this.conversationId}. Reason: ${reason}`);
+        const result = await this.stop("graceful", reason, this.initiatingUser ?? undefined);
+        return result.success;
+    }
+
+    public getAssociatedUserId(): string | undefined {
+        return this.initiatingUser?.id;
     }
 
     /**
-     * Creates and initializes a new swarm
+     * Starts the swarm with a goal and initial configuration
      */
-    async createSwarm(params: SwarmInitParams): Promise<string> {
-        const swarmId = generatePk();
-
-        this.logger.info("[SwarmStateMachine] Creating new swarm", {
-            swarmId,
-            name: params.name,
-            goal: params.goal,
-        });
-
-        // Track in rolling history
-        if (this.rollingHistory) {
-            this.rollingHistory.addEvent({
-                timestamp: new Date(),
-                type: 'tier1.swarm.created',
-                tier: 'tier1',
-                component: 'swarm-state-machine',
-                data: {
-                    swarmId,
-                    name: params.name,
-                    goal: params.goal,
-                    agentCount: params.initialAgents?.length || 0,
-                },
-            });
+    async start(convoId: string, goal: string, initiatingUser: SessionUser): Promise<void> {
+        if (this.state !== SwarmState.UNINITIALIZED) {
+            this.logger.warn(`SwarmStateMachine for ${convoId} already started. Current state: ${this.state}`);
+            return;
         }
+        
+        this.conversationId = convoId;
+        this.initiatingUser = initiatingUser;
+        this.state = SwarmState.STARTING;
+        this.logger.info(`Starting SwarmStateMachine for ${convoId} with goal: "${goal}"`);
 
         try {
-            // Create swarm configuration
-            const config: SwarmConfig = {
-                maxAgents: 10,
-                minAgents: 1,
-                consensusThreshold: 0.7,
-                decisionTimeout: 30000, // 30 seconds
-                adaptationInterval: 60000, // 1 minute
-                resourceOptimization: true,
-                learningEnabled: true,
-                ...params.config,
-            };
-
-            // Initialize swarm context
-            const context: SwarmContext = {
-                swarmId,
-                goal: params.goal,
-                progress: {
-                    tasksCompleted: 0,
-                    tasksTotal: 0,
-                    milestones: [],
-                    currentPhase: "initialization",
-                },
-                resources: {
-                    totalBudget: config.maxBudget || this.DEFAULT_BUDGET,
-                    usedBudget: 0,
-                    allocations: new Map(),
-                },
-                knowledge: {
-                    facts: new Map(),
-                    insights: [],
-                    decisions: [],
-                },
-            };
-
-            // Store swarm state
-            await this.stateStore.createSwarm(swarmId, {
-                id: swarmId,
-                name: params.name,
-                description: params.description,
-                state: SwarmStateEnum.FORMING,
-                config,
-                metadata: params.metadata || {},
-                createdAt: new Date(),
-            });
-
-            // Cache context
-            this.activeSwarms.set(swarmId, context);
-
-            // Form initial team if agents provided
-            if (params.initialAgents && params.initialAgents.length > 0) {
-                await this.formInitialTeam(swarmId, params.initialAgents);
+            // Get or create conversation state
+            let convoState = await this.getConversationState(convoId);
+            if (!convoState) {
+                // Create minimal conversation state
+                convoState = await this.createConversationState(convoId, goal, initiatingUser);
             }
 
-            // Emit creation event
-            await this.emitSwarmEvent({
-                type: SwarmEventTypeEnum.SWARM_CREATED,
-                swarmId,
-                timestamp: new Date(),
-                metadata: {
-                    name: params.name,
-                    goal: params.goal,
-                },
+            // Find or create leader bot
+            let leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                leaderBot = this.createDefaultLeaderBot();
+                this.logger.warn(`No leader found for ${convoId}, using default leader bot`);
+            }
+
+            // Generate system message for the leader
+            const systemMessage = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { state: "STARTING" },
+                { goal },
+                "You are starting a new swarm. Set up the team and plan as needed.",
+                convoId
+            );
+
+            // Update conversation config
+            await this.updateConversationConfig(convoId, {
+                goal,
+                subtasks: [],
+                blackboard: [],
+                resources: [],
+                stats: ChatConfig.defaultStats(),
+                swarmLeader: leaderBot.id,
             });
 
-            // Emit telemetry for swarm creation
-            await this.telemetryShim.emitStepStarted(swarmId, {
-                stepType: 'swarm_coordination',
-                strategy: StrategyType.REASONING,
-                estimatedResources: {
-                    credits: (config.maxBudget || this.DEFAULT_BUDGET).toString(),
-                    time: config.decisionTimeout,
-                },
-            });
-
-            // Start swarm lifecycle
-            await this.startSwarmLifecycle(swarmId);
-
-            return swarmId;
-
+            // Queue the started event
+            const startEvent: SwarmStartedEvent = {
+                type: "swarm_started",
+                conversationId: convoId,
+                goal,
+                sessionUser: initiatingUser,
+            };
+            
+            await this.handleEvent(startEvent);
+            this.state = SwarmState.IDLE;
+            
         } catch (error) {
-            this.logger.error("[SwarmStateMachine] Failed to create swarm", {
-                swarmId,
-                error: error instanceof Error ? error.message : String(error),
-            });
+            this.logger.error(`Failed to start swarm ${convoId}:`, error);
+            this.state = SwarmState.FAILED;
             throw error;
         }
     }
 
     /**
-     * Starts the swarm lifecycle loop
+     * Handles incoming events by queuing them
      */
-    private async startSwarmLifecycle(swarmId: string): Promise<void> {
-        const swarm = await this.stateStore.getSwarm(swarmId);
-        if (!swarm) {
-            throw new Error(`Swarm ${swarmId} not found`);
+    async handleEvent(ev: SwarmEvent): Promise<void> {
+        if (this.state === SwarmState.TERMINATED) return;
+        
+        this.eventQueue.push(ev);
+        
+        if (this.state === SwarmState.IDLE && ev.conversationId) {
+            this.drain(ev.conversationId).catch(err => 
+                this.logger.error("Error draining swarm queue from handleEvent", { error: err, event: ev })
+            );
         }
-
-        // Transition to PLANNING state
-        await this.transitionState(swarmId, SwarmStateEnum.PLANNING);
-
-        // Start the OODA loop
-        const timer = setInterval(async () => {
-            try {
-                await this.executeOODALoop(swarmId);
-            } catch (error) {
-                this.logger.error("[SwarmStateMachine] OODA loop error", {
-                    swarmId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }, swarm.config.adaptationInterval || this.DEFAULT_ADAPTATION_INTERVAL_MS);
-
-        this.swarmTimers.set(swarmId, timer);
     }
 
     /**
-     * Executes the OODA (Observe, Orient, Decide, Act) loop
+     * Processes queued events (the heart of autonomous operation)
      */
-    private async executeOODALoop(swarmId: string): Promise<void> {
-        const context = this.activeSwarms.get(swarmId);
-        if (!context) {
+    private async drain(convoId: string): Promise<void> {
+        if (this.state === SwarmState.PAUSED || 
+            this.state === SwarmState.TERMINATED || 
+            this.state === SwarmState.FAILED) {
+            this.logger.info(`Drain called in state ${this.state}, not processing queue for ${convoId}.`);
+            return;
+        }
+        
+        if (this.processingLock) {
+            this.logger.info(`Drain already in progress for ${convoId}, skipping.`);
             return;
         }
 
-        const swarm = await this.stateStore.getSwarm(swarmId);
-        if (!swarm || swarm.state === SwarmStateEnum.COMPLETED) {
-            this.stopSwarmLifecycle(swarmId);
+        this.processingLock = true;
+        this.state = SwarmState.RUNNING;
+
+        if (this.eventQueue.length === 0) {
+            this.processingLock = false;
+            this.state = SwarmState.IDLE;
+            // Could trigger autonomous monitoring here
             return;
         }
 
-        this.logger.debug("[SwarmStateMachine] Executing OODA loop", {
-            swarmId,
-            phase: context.progress.currentPhase,
-        });
-
-        // Track OODA loop execution
-        if (this.rollingHistory) {
-            this.rollingHistory.addEvent({
-                timestamp: new Date(),
-                type: 'tier1.ooda.cycle',
-                tier: 'tier1',
-                component: 'ooda-loop',
-                data: {
-                    swarmId,
-                    phase: context.progress.currentPhase,
-                    iteration: context.progress.tasksCompleted,
-                },
+        const ev = this.eventQueue.shift()!;
+        if (ev.conversationId !== convoId) {
+            this.logger.warn("Swarm drain called with convoId mismatch", { 
+                expected: convoId, 
+                actual: ev.conversationId 
             });
+            this.eventQueue.unshift(ev);
+            this.processingLock = false;
+            this.state = SwarmState.IDLE;
+            return;
         }
 
-        // Observe - Gather information from environment and agents
-        const observations = await this.observe(swarmId, context);
+        try {
+            await this.handleInternalEvent(ev);
+        } catch (error) {
+            this.logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
+        }
 
-        // Orient - Analyze situation and update understanding
-        const orientation = await this.orient(swarmId, context, observations);
+        // Release processing lock
+        this.processingLock = false;
 
-        // Decide - Make strategic decisions
-        const decisions = await this.decide(swarmId, context, orientation);
-
-        // Act - Execute decisions
-        await this.act(swarmId, context, decisions);
-
-        // Metacognitive reflection
-        await this.reflect(swarmId, context);
-    }
-
-    /**
-     * Observe phase - Gather information
-     */
-    private async observe(
-        swarmId: string,
-        context: SwarmContext,
-    ): Promise<SwarmObservations> {
-        const observations: SwarmObservations = {
-            agentReports: [],
-            environmentState: {},
-            resourceStatus: await this.resourceManager.getResourceStatus(swarmId),
-            performanceMetrics: await this.metacognitiveMonitor.getPerformanceMetrics(swarmId),
-        };
-
-        // Collect agent reports
-        const team = await this.teamManager.getTeam(swarmId);
-        for (const agent of team.agents) {
-            const report = await this.collectAgentReport(agent.id);
-            if (report) {
-                observations.agentReports.push(report);
+        if (this.eventQueue.length === 0) {
+            this.state = SwarmState.IDLE;
+        } else {
+            // Schedule next drain with optional delay
+            const delayMs = await this.getDrainDelay(convoId);
+            if (delayMs > 0) {
+                this.pendingDrainTimeout = setTimeout(() => {
+                    this.pendingDrainTimeout = null;
+                    this.drain(convoId).catch(err => 
+                        this.logger.error("Error in delayed drain", { error: err, conversationId: convoId })
+                    );
+                }, delayMs);
+            } else {
+                setImmediate(() => 
+                    this.drain(convoId).catch(err => 
+                        this.logger.error("Error in immediate drain", { error: err, conversationId: convoId })
+                    )
+                );
             }
         }
-
-        // Query environment state
-        observations.environmentState = await this.queryEnvironment(swarmId);
-
-        this.logger.debug("[SwarmStateMachine] Observation complete", {
-            swarmId,
-            reportCount: observations.agentReports.length,
-        });
-
-        // Emit telemetry for observation phase
-        await this.telemetryShim.emitOutputGenerated(swarmId, {
-            outputKeys: ['agentReports', 'environmentState', 'resourceStatus', 'performanceMetrics'],
-            size: JSON.stringify(observations).length,
-            validationPassed: true,
-        });
-
-        return observations;
     }
 
     /**
-     * Orient phase - Analyze and understand
+     * Handles internal event processing
      */
-    private async orient(
-        swarmId: string,
-        context: SwarmContext,
-        observations: SwarmObservations,
-    ): Promise<SwarmOrientation> {
-        // Use strategy engine to analyze situation
-        const analysis = await this.strategyEngine.analyzeSituation({
-            goal: context.goal,
-            observations,
-            knowledge: context.knowledge,
-            progress: context.progress,
+    private async handleInternalEvent(event: SwarmEvent): Promise<void> {
+        this.logger.debug(`[SwarmStateMachine] Handling event: ${event.type}`, {
+            conversationId: event.conversationId,
         });
 
-        // Update knowledge base
-        for (const [key, value] of Object.entries(analysis.facts)) {
-            context.knowledge.facts.set(key, value);
+        switch (event.type) {
+            case "swarm_started":
+                await this.handleSwarmStarted(event as SwarmStartedEvent);
+                break;
+            
+            case "external_message_created":
+                await this.handleExternalMessage(event);
+                break;
+            
+            case "ApprovedToolExecutionRequest":
+                await this.handleApprovedTool(event);
+                break;
+            
+            case "RejectedToolExecutionRequest":
+                await this.handleRejectedTool(event);
+                break;
+            
+            default:
+                this.logger.warn(`Unknown event type: ${event.type}`);
         }
-
-        if (analysis.insights) {
-            context.knowledge.insights.push(...analysis.insights);
-        }
-
-        const orientation: SwarmOrientation = {
-            currentState: analysis.assessment,
-            opportunities: analysis.opportunities || [],
-            threats: analysis.threats || [],
-            recommendations: analysis.recommendations || [],
-        };
-
-        this.logger.debug("[SwarmStateMachine] Orientation complete", {
-            swarmId,
-            state: orientation.currentState,
-            opportunityCount: orientation.opportunities.length,
-        });
-
-        return orientation;
     }
 
     /**
-     * Decide phase - Make strategic decisions
+     * Handles swarm started event
      */
-    private async decide(
-        swarmId: string,
-        context: SwarmContext,
-        orientation: SwarmOrientation,
-    ): Promise<SwarmDecision[]> {
-        const decisions: SwarmDecision[] = [];
+    private async handleSwarmStarted(event: SwarmStartedEvent): Promise<void> {
+        const convoState = await this.getConversationState(event.conversationId);
+        if (!convoState) {
+            this.logger.error(`Conversation state not found for ${event.conversationId}`);
+            return;
+        }
 
-        // Use strategy engine to generate decisions
-        const strategicDecisions = await this.strategyEngine.generateDecisions({
-            goal: context.goal,
-            orientation,
-            constraints: {
-                budget: context.resources.totalBudget - context.resources.usedBudget,
-                timeLimit: 300000, // 5 minutes
+        // Get the leader bot
+        const leaderBot = this.findLeaderBot(convoState);
+        if (!leaderBot) {
+            this.logger.error(`No leader bot found for ${event.conversationId}`);
+            return;
+        }
+
+        // Let the leader bot initialize the swarm
+        const response = await this.conversationBridge.generateAgentResponse(
+            leaderBot,
+            { state: "STARTED", goal: event.goal },
+            convoState.config,
+            `The swarm has started with goal: "${event.goal}". Initialize the team and create a plan.`,
+            event.conversationId
+        );
+
+        this.logger.info(`[SwarmStateMachine] Leader response to swarm start`, {
+            conversationId: event.conversationId,
+            responseLength: response.length,
+        });
+
+        // Emit event for monitoring
+        await this.eventBus.publish("swarm.events", {
+            type: "SWARM_INITIALIZED",
+            swarmId: event.conversationId,
+            timestamp: new Date(),
+            metadata: {
+                goal: event.goal,
+                leaderId: leaderBot.id,
             },
         });
+    }
 
-        for (const decision of strategicDecisions) {
-            const swarmDecision: SwarmDecision = {
-                id: generatePk(),
-                timestamp: new Date(),
-                decision: decision.action,
-                rationale: decision.rationale,
+    /**
+     * Pauses the swarm
+     */
+    async pause(): Promise<void> {
+        if (this.state === SwarmState.RUNNING || this.state === SwarmState.IDLE) {
+            this._clearPendingDrainTimeout();
+            this.state = SwarmState.PAUSED;
+            this.logger.info(`SwarmStateMachine for ${this.conversationId} paused.`);
+        }
+    }
+
+    /**
+     * Resumes the swarm
+     */
+    async resume(convoId: string): Promise<void> {
+        if (this.state === SwarmState.PAUSED) {
+            this.state = SwarmState.IDLE;
+            this.logger.info(`SwarmStateMachine for ${convoId} resumed.`);
+            await this.drain(convoId);
+        }
+    }
+
+    /**
+     * Gracefully stops the swarm
+     */
+    async stop(
+        mode: "graceful" | "force" = "graceful",
+        reason?: string,
+        _requestingUser?: SessionUser,
+    ): Promise<{
+        success: boolean;
+        message?: string;
+        finalState?: any;
+        error?: string;
+    }> {
+        if (!this.conversationId) {
+            const errorMsg = "SwarmStateMachine: stop() called before conversationId was set.";
+            this.logger.error(errorMsg);
+            return { success: false, message: errorMsg, error: "CONVERSATION_ID_NOT_SET" };
+        }
+
+        if (this.state === SwarmState.STOPPED || this.state === SwarmState.TERMINATED) {
+            const message = `Swarm ${this.conversationId} is already in state ${this.state}.`;
+            this.logger.warn(message);
+            return { success: true, message };
+        }
+
+        this.logger.info(`Stopping swarm ${this.conversationId} with mode: ${mode}, reason: ${reason || "No reason"}`);
+
+        try {
+            const convoState = await this.getConversationState(this.conversationId);
+            if (!convoState) {
+                throw new Error("Conversation state not found");
+            }
+
+            // Calculate final statistics
+            const subtasks = convoState.config.subtasks || [];
+            const totalSubTasks = subtasks.length;
+            const completedSubTasks = subtasks.filter((task: SwarmSubTask) => 
+                task.status === "done"
+            ).length;
+
+            const finalState = {
+                endedAt: new Date().toISOString(),
+                reason: reason || "Swarm stopped",
+                mode,
+                totalSubTasks,
+                completedSubTasks,
+                totalCreditsUsed: convoState.config.stats?.totalCredits || "0",
+                totalToolCalls: convoState.config.stats?.totalToolCalls || 0,
             };
 
-            decisions.push(swarmDecision);
-            context.knowledge.decisions.push(swarmDecision);
-        }
+            // Clear pending operations
+            this._clearPendingDrainTimeout();
+            this.state = SwarmState.STOPPED;
+            this.processingLock = false;
 
-        // Get team consensus if needed
-        if (decisions.length > 0) {
-            const consensus = await this.teamManager.getConsensus(
-                swarmId,
-                decisions.map(d => d.decision),
-            );
+            this.logger.info(`Swarm ${this.conversationId} stopped successfully`, finalState);
 
-            // Filter decisions based on consensus
-            const approvedDecisions = decisions.filter((d, i) =>
-                consensus.results[i] >= consensus.threshold,
-            );
+            return {
+                success: true,
+                message: `Swarm stopped ${mode === "graceful" ? "gracefully" : "forcefully"}`,
+                finalState,
+            };
 
-            this.logger.info("[SwarmStateMachine] Decisions made", {
-                swarmId,
-                totalDecisions: decisions.length,
-                approvedDecisions: approvedDecisions.length,
-            });
-
-            // Track decision making
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier1.decisions.made',
-                    tier: 'tier1',
-                    component: 'strategy-engine',
-                    data: {
-                        swarmId,
-                        totalDecisions: decisions.length,
-                        approvedDecisions: approvedDecisions.length,
-                        consensusThreshold: consensus.threshold,
-                    },
-                });
-            }
-
-            return approvedDecisions;
-        }
-
-        return decisions;
-    }
-
-    /**
-     * Act phase - Execute decisions
-     */
-    private async act(
-        swarmId: string,
-        context: SwarmContext,
-        decisions: SwarmDecision[],
-    ): Promise<void> {
-        for (const decision of decisions) {
-            try {
-                // Execute decision based on type
-                if (decision.decision.startsWith("allocate_resources")) {
-                    await this.executeResourceAllocation(swarmId, decision);
-                } else if (decision.decision.startsWith("form_team")) {
-                    await this.executeTeamFormation(swarmId, decision);
-                } else if (decision.decision.startsWith("execute_routine")) {
-                    await this.executeRoutine(swarmId, decision);
-                } else if (decision.decision.startsWith("adapt_strategy")) {
-                    await this.executeStrategyAdaptation(swarmId, decision);
-                } else {
-                    // Generic execution through event
-                    await this.emitSwarmEvent({
-                        type: SwarmEventTypeEnum.DECISION_EXECUTED,
-                        swarmId,
-                        timestamp: new Date(),
-                        metadata: { decision },
-                    });
-                }
-
-                // Record outcome
-                decision.outcome = "executed";
-
-                // Track successful execution
-                if (this.rollingHistory) {
-                    this.rollingHistory.addEvent({
-                        timestamp: new Date(),
-                        type: 'tier1.decision.executed',
-                        tier: 'tier1',
-                        component: 'decision-executor',
-                        data: {
-                            swarmId,
-                            decisionId: decision.id,
-                            decision: decision.decision,
-                            success: true,
-                        },
-                    });
-                }
-
-            } catch (error) {
-                decision.outcome = `failed: ${error instanceof Error ? error.message : String(error)}`;
-
-                this.logger.error("[SwarmStateMachine] Decision execution failed", {
-                    swarmId,
-                    decision: decision.decision,
-                    error: decision.outcome,
-                });
-
-                // Track failed execution
-                if (this.rollingHistory) {
-                    this.rollingHistory.addEvent({
-                        timestamp: new Date(),
-                        type: 'tier1.decision.failed',
-                        tier: 'tier1',
-                        component: 'decision-executor',
-                        data: {
-                            swarmId,
-                            decisionId: decision.id,
-                            decision: decision.decision,
-                            error: decision.outcome,
-                        },
-                    });
-                }
-            }
+        } catch (error) {
+            this.state = SwarmState.FAILED;
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            this.logger.error(`Error stopping swarm ${this.conversationId}:`, error);
+            return {
+                success: false,
+                message: `Failed to stop swarm: ${errorMessage}`,
+                error: "STOP_OPERATION_FAILED",
+            };
         }
     }
 
     /**
-     * Reflect phase - Metacognitive analysis
+     * Shuts down the swarm completely
      */
-    private async reflect(
-        swarmId: string,
-        context: SwarmContext,
-    ): Promise<void> {
-        // Analyze swarm performance
-        const reflection = await this.metacognitiveMonitor.analyzePerformance({
-            swarmId,
-            decisions: context.knowledge.decisions,
-            progress: context.progress,
-            resources: context.resources,
-        });
-
-        // Apply learnings
-        if (reflection.learnings) {
-            for (const learning of reflection.learnings) {
-                context.knowledge.insights.push(learning);
-            }
-        }
-
-        // Adapt if needed
-        if (reflection.adaptations) {
-            for (const adaptation of reflection.adaptations) {
-                await this.applyAdaptation(swarmId, adaptation);
-            }
-        }
-
-        this.logger.debug("[SwarmStateMachine] Reflection complete", {
-            swarmId,
-            learningCount: reflection.learnings?.length || 0,
-            adaptationCount: reflection.adaptations?.length || 0,
-        });
-
-        // Emit telemetry for metacognitive reflection
-        if (reflection.learnings && reflection.learnings.length > 0) {
-            await this.telemetryShim.emitOutputGenerated(swarmId, {
-                outputKeys: ['learnings', 'adaptations'],
-                size: reflection.learnings.length,
-                validationPassed: true,
-            });
-        }
-
-        // Track reflection phase
-        if (this.rollingHistory) {
-            this.rollingHistory.addEvent({
-                timestamp: new Date(),
-                type: 'tier1.reflection.completed',
-                tier: 'tier1',
-                component: 'metacognitive-monitor',
-                data: {
-                    swarmId,
-                    learningCount: reflection.learnings?.length || 0,
-                    adaptationCount: reflection.adaptations?.length || 0,
-                    performanceMetrics: reflection.performanceMetrics,
-                },
-            });
-        }
+    async shutdown(): Promise<void> {
+        this._clearPendingDrainTimeout();
+        this.disposed = true;
+        this.eventQueue.length = 0;
+        this.state = SwarmState.TERMINATED;
+        this.logger.info("SwarmStateMachine shutdown complete.");
     }
 
     /**
      * Helper methods
      */
-    private async transitionState(
-        swarmId: string,
-        newState: SwarmState,
-    ): Promise<void> {
-        await this.stateStore.updateSwarmState(swarmId, newState);
-
-        await this.emitSwarmEvent({
-            type: SwarmEventTypeEnum.STATE_CHANGED,
-            swarmId,
-            timestamp: new Date(),
-            metadata: { newState },
-        });
-    }
-
-    private async formInitialTeam(
-        swarmId: string,
-        agentIds: string[],
-    ): Promise<void> {
-        const formation: TeamFormation = {
-            id: generatePk(),
-            swarmId,
-            agents: agentIds.map(id => ({
-                id,
-                role: "member" as AgentRole,
-                capabilities: [],
-                status: "active",
-            })),
-            createdAt: new Date(),
-        };
-
-        await this.teamManager.formTeam(formation);
-    }
-
-    private async collectAgentReport(agentId: string): Promise<AgentReport | null> {
-        // TODO: Implement agent report collection
-        return null;
-    }
-
-    private async queryEnvironment(swarmId: string): Promise<Record<string, unknown>> {
-        // TODO: Implement environment querying
-        return {};
-    }
-
-    private async executeResourceAllocation(
-        swarmId: string,
-        decision: SwarmDecision,
-    ): Promise<void> {
-        // Parse allocation from decision
-        const match = decision.decision.match(/allocate_resources\((\d+)\)/);
-        if (match) {
-            const amount = parseInt(match[1]);
-            await this.resourceManager.allocateResources(swarmId, "general", amount);
+    private _clearPendingDrainTimeout(): void {
+        if (this.pendingDrainTimeout) {
+            clearTimeout(this.pendingDrainTimeout);
+            this.pendingDrainTimeout = null;
         }
     }
 
-    private async executeTeamFormation(
-        swarmId: string,
-        decision: SwarmDecision,
-    ): Promise<void> {
-        // TODO: Implement dynamic team formation
-        await this.emitSwarmEvent({
-            type: SwarmEventTypeEnum.TEAM_UPDATED,
-            swarmId,
-            timestamp: new Date(),
-            metadata: { decision },
-        });
-    }
-
-    private async executeRoutine(
-        swarmId: string,
-        decision: SwarmDecision,
-    ): Promise<void> {
-        // Emit event to trigger routine execution in Tier 2
-        await this.eventBus.publish("swarm.routine.request", {
-            swarmId,
-            decision,
-            timestamp: new Date(),
-        });
-    }
-
-    private async executeStrategyAdaptation(
-        swarmId: string,
-        decision: SwarmDecision,
-    ): Promise<void> {
-        await this.strategyEngine.adaptStrategy(swarmId, decision.decision);
-    }
-
-    private async applyAdaptation(
-        swarmId: string,
-        adaptation: string,
-    ): Promise<void> {
-        // TODO: Implement specific adaptations
-        this.logger.info("[SwarmStateMachine] Applying adaptation", {
-            swarmId,
-            adaptation,
-        });
-    }
-
-    private async emitSwarmEvent(event: any): Promise<void> {
-        await this.eventBus.publish("swarm.events", event);
-    }
-
-    private stopSwarmLifecycle(swarmId: string): void {
-        const timer = this.swarmTimers.get(swarmId);
-        if (timer) {
-            clearInterval(timer);
-            this.swarmTimers.delete(swarmId);
-        }
-        this.activeSwarms.delete(swarmId);
-    }
-
-    private subscribeToEvents(): void {
-        // Subscribe to agent events
-        this.eventBus.subscribe("agent.report", async (event) => {
-            // Handle agent reports
-        });
-
-        // Subscribe to execution results from Tier 2
-        this.eventBus.subscribe("run.completed", async (event) => {
-            // Update swarm progress
-        });
-    }
-
-    /**
-     * Public control methods
-     */
-    async pauseSwarm(swarmId: string): Promise<void> {
-        await this.transitionState(swarmId, SwarmStateEnum.SUSPENDED);
-        this.stopSwarmLifecycle(swarmId);
-    }
-
-    async resumeSwarm(swarmId: string): Promise<void> {
-        await this.transitionState(swarmId, SwarmStateEnum.EXECUTING);
-        await this.startSwarmLifecycle(swarmId);
-    }
-
-    async terminateSwarm(swarmId: string): Promise<void> {
-        await this.transitionState(swarmId, SwarmStateEnum.COMPLETED);
-        this.stopSwarmLifecycle(swarmId);
-
-        await this.emitSwarmEvent({
-            type: SwarmEventTypeEnum.SWARM_TERMINATED,
-            swarmId,
-            timestamp: new Date(),
-        });
-
-        // Emit telemetry for swarm completion
-        const context = this.activeSwarms.get(swarmId);
-        if (context) {
-            await this.telemetryShim.emitStepCompleted(swarmId, {
-                strategy: StrategyType.REASONING,
-                duration: Date.now() - (await this.stateStore.getSwarm(swarmId))?.createdAt.getTime() || 0,
-                resourceUsage: {
-                    creditsUsed: context.resources.usedBudget,
-                    tasksCompleted: context.progress.tasksCompleted,
-                    decisionsExecuted: context.knowledge.decisions.length,
-                },
-            });
-        }
-
-        // Track swarm termination
-        if (this.rollingHistory) {
-            this.rollingHistory.addEvent({
-                timestamp: new Date(),
-                type: 'tier1.swarm.terminated',
-                tier: 'tier1',
-                component: 'swarm-state-machine',
-                data: {
-                    swarmId,
-                    finalState: SwarmStateEnum.COMPLETED,
-                    tasksCompleted: context?.progress.tasksCompleted || 0,
-                    decisionsExecuted: context?.knowledge.decisions.length || 0,
-                },
-            });
-        }
-    }
-
-    // ===== TierCommunicationInterface Implementation =====
-
-    private readonly activeExecutions = new Map<ExecutionId, {
-        status: ExecutionStatus;
-        startTime: Date;
-        swarmId: string;
-    }>();
-
-    /**
-     * Execute a request via the standard tier communication interface
-     * This is the primary method for external systems to initiate swarm coordination
-     */
-    async execute<TInput extends SwarmCoordinationInput, TOutput>(
-        request: TierExecutionRequest<TInput>
-    ): Promise<ExecutionResult<TOutput>> {
-        const { context, input, allocation, options } = request;
-        const executionId = context.executionId;
-
-        // Track execution
-        this.activeExecutions.set(executionId, {
-            status: ExecutionStatus.RUNNING,
-            startTime: new Date(),
-            swarmId: context.swarmId,
-        });
-
-        try {
-            this.logger.info("[SwarmStateMachine] Starting tier execution", {
-                executionId,
-                goal: input.goal,
-                agentCount: input.availableAgents.length,
-            });
-
-            // Track execution in rolling history
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier1.execution.started',
-                    tier: 'tier1',
-                    component: 'swarm-state-machine',
-                    data: {
-                        executionId,
-                        goal: input.goal,
-                        agentCount: input.availableAgents.length,
-                        constraints: input.constraints,
-                    },
-                });
-            }
-
-            // Initialize swarm for this goal
-            const swarmParams: SwarmInitParams = {
-                name: `Swarm for ${input.goal}`,
-                description: `Autonomous swarm coordinating to achieve: ${input.goal}`,
-                goal: input.goal,
-                config: {
-                    budget: parseInt(allocation.maxCredits),
-                    timeoutMs: allocation.maxDurationMs,
-                    maxAgents: input.availableAgents.length,
-                },
-                initialAgents: input.availableAgents.map(a => a.id),
-                metadata: {
-                    teamConfiguration: input.teamConfiguration,
-                    constraints: input.constraints,
-                },
-            };
-
-            // Create and coordinate the swarm
-            const swarmId = await this.createSwarm(swarmParams);
-            const swarmContext = this.activeSwarms.get(swarmId)!;
-            const result = await this.coordinateSwarmExecution(swarmContext, input, allocation);
-
-            // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.COMPLETED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
-                swarmId: swarmContext.swarmId,
-            });
-
-            this.logger.info("[SwarmStateMachine] Tier execution completed", {
-                executionId,
-                swarmId: swarmContext.swarmId,
-                success: true,
-            });
-
-            // Track execution completion
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier1.execution.completed',
-                    tier: 'tier1',
-                    component: 'swarm-state-machine',
-                    data: {
-                        executionId,
-                        swarmId: swarmContext.swarmId,
-                        success: true,
-                        duration: executionResult.duration,
-                        tasksCompleted: swarmContext.progress.tasksCompleted,
-                        milestonesAchieved: swarmContext.progress.milestones.filter(m => m.completed).length,
-                    },
-                });
-            }
-
-            // Return execution result
-            const executionResult: ExecutionResult<TOutput> = {
-                success: true,
-                result: result as TOutput,
-                outputs: result as Record<string, unknown>,
-                resourcesUsed: {
-                    creditsUsed: swarmContext.resources.usedBudget.toString(),
-                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                    memoryUsedMB: 0,
-                    stepsExecuted: swarmContext.progress.tasksCompleted,
-                },
-                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                context,
-                metadata: {
-                    strategy: 'swarm_coordination',
-                    version: '1.0.0',
-                    performance: {
-                        swarmId: swarmContext.swarmId,
-                        tasksCompleted: swarmContext.progress.tasksCompleted,
-                        milestonesAchieved: swarmContext.progress.milestones.filter(m => m.completed).length,
-                    },
-                    timestamp: new Date().toISOString(),
-                },
-                confidence: 0.90,
-                performanceScore: 0.85,
-            };
-
-            return executionResult;
-
-        } catch (error) {
-            // Update execution status
-            this.activeExecutions.set(executionId, {
-                status: ExecutionStatus.FAILED,
-                startTime: this.activeExecutions.get(executionId)!.startTime,
-                swarmId: this.activeExecutions.get(executionId)?.swarmId || 'unknown',
-            });
-
-            this.logger.error("[SwarmStateMachine] Tier execution failed", {
-                executionId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-
-            // Return error result
-            const errorResult: ExecutionResult<TOutput> = {
-                success: false,
-                error: {
-                    code: 'TIER1_EXECUTION_FAILED',
-                    message: error instanceof Error ? error.message : 'Unknown error',
-                    tier: 'tier1',
-                    type: error instanceof Error ? error.constructor.name : 'Error',
-                },
-                resourcesUsed: {
-                    creditsUsed: '0',
-                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                    memoryUsedMB: 0,
-                    stepsExecuted: 0,
-                },
-                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
-                context,
-                metadata: {
-                    strategy: 'swarm_coordination',
-                    version: '1.0.0',
-                    timestamp: new Date().toISOString(),
-                },
-                confidence: 0.0,
-                performanceScore: 0.0,
-            };
-
-            return errorResult;
-        }
-    }
-
-    /**
-     * Coordinate swarm execution by delegating to Tier 2
-     */
-    private async coordinateSwarmExecution(
-        swarmContext: SwarmContext,
-        input: SwarmCoordinationInput,
-        allocation: ResourceAllocation
-    ): Promise<unknown> {
-        // For now, return a simple successful result
-        // TODO: Implement full goal decomposition and routine delegation
+    private async getConversationState(conversationId: string): Promise<ConversationState | null> {
+        // In tier1, we'd get this from the state store
+        // For now, return a mock
         return {
-            goal: input.goal,
-            status: 'completed',
-            result: `Successfully coordinated swarm to achieve: ${input.goal}`,
+            id: conversationId,
+            config: {} as ChatConfigObject,
+            participants: [],
+            availableTools: [],
         };
     }
 
-    /**
-     * Get execution status for monitoring
-     */
-    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
-        const execution = this.activeExecutions.get(executionId);
-        return execution?.status || ExecutionStatus.COMPLETED;
-    }
-
-    /**
-     * Cancel a running execution
-     */
-    async cancelExecution(executionId: ExecutionId): Promise<void> {
-        const execution = this.activeExecutions.get(executionId);
-        if (execution) {
-            this.activeExecutions.set(executionId, {
-                ...execution,
-                status: ExecutionStatus.CANCELLED,
-            });
-
-            // Terminate the associated swarm if it exists
-            const swarmContext = this.activeSwarms.get(execution.swarmId);
-            if (swarmContext) {
-                await this.terminateSwarm(execution.swarmId);
-            }
-
-            this.logger.info("[SwarmStateMachine] Execution cancelled", { executionId });
-        }
-    }
-
-    /**
-     * Get tier capabilities for discovery
-     */
-    async getCapabilities(): Promise<TierCapabilities> {
+    private async createConversationState(
+        conversationId: string, 
+        goal: string, 
+        user: SessionUser
+    ): Promise<ConversationState> {
+        // Create a new conversation state
         return {
-            tier: 'tier1',
-            supportedInputTypes: ['SwarmCoordinationInput'],
-            supportedStrategies: ['swarm_coordination', 'multi_agent_planning', 'goal_decomposition'],
-            maxConcurrency: 10,
-            estimatedLatency: {
-                p50: 30000,
-                p95: 180000,
-                p99: 600000,
-            },
-            resourceLimits: {
-                maxCredits: '1000000',
-                maxDurationMs: 7200000, // 2 hours
-                maxMemoryMB: 8192,
-            },
+            id: conversationId,
+            config: {
+                goal,
+                subtasks: [],
+                stats: ChatConfig.defaultStats(),
+            } as ChatConfigObject,
+            participants: [],
+            availableTools: ["update_swarm_shared_state", "resource_manage", "run_routine", "spawn_swarm"],
         };
     }
-}
 
-/**
- * Type definitions for OODA loop
- */
-interface SwarmObservations {
-    agentReports: AgentReport[];
-    environmentState: Record<string, unknown>;
-    resourceStatus: any;
-    performanceMetrics: any;
-}
+    private findLeaderBot(convoState: ConversationState): BotParticipant | null {
+        const leaderId = convoState.config.swarmLeader;
+        if (leaderId) {
+            return convoState.participants.find(p => p.id === leaderId) || null;
+        }
+        return convoState.participants[0] || null;
+    }
 
-interface AgentReport {
-    agentId: string;
-    status: string;
-    progress: number;
-    issues?: string[];
-}
+    private createDefaultLeaderBot(): BotParticipant {
+        return {
+            id: generatePK(),
+            name: "Swarm Leader",
+            config: { __version: "1.0", model: "gpt-4" } as BotConfigObject,
+            meta: { role: "leader" },
+        };
+    }
 
-interface SwarmOrientation {
-    currentState: string;
-    opportunities: string[];
-    threats: string[];
-    recommendations: string[];
+    private async updateConversationConfig(
+        conversationId: string, 
+        updates: Partial<ChatConfigObject>
+    ): Promise<void> {
+        // Update config in state store
+        this.logger.debug(`Updating conversation config for ${conversationId}`, updates);
+    }
+
+    private async getDrainDelay(conversationId: string): Promise<number> {
+        // Could get from config, for now return 0 for immediate processing
+        return 0;
+    }
+
+    private async handleExternalMessage(event: SwarmEvent): Promise<void> {
+        // Handle external messages by routing to appropriate agents
+        this.logger.info(`[SwarmStateMachine] Handling external message`, {
+            conversationId: event.conversationId,
+        });
+    }
+
+    private async handleApprovedTool(event: SwarmEvent): Promise<void> {
+        // Handle approved tool execution
+        this.logger.info(`[SwarmStateMachine] Handling approved tool`, {
+            conversationId: event.conversationId,
+            tool: event.payload?.pendingToolCall?.toolName,
+        });
+    }
+
+    private async handleRejectedTool(event: SwarmEvent): Promise<void> {
+        // Handle rejected tool
+        this.logger.info(`[SwarmStateMachine] Handling rejected tool`, {
+            conversationId: event.conversationId,
+            tool: event.payload?.pendingToolCall?.toolName,
+            reason: event.payload?.reason,
+        });
+    }
 }

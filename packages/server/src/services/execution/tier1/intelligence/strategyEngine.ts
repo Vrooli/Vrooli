@@ -5,7 +5,7 @@ import {
     type SwarmDecision,
 } from "@vrooli/shared";
 import { EventBus } from "../../cross-cutting/eventBus.js";
-import { LLMService } from "../llm/llmService.js";
+import { ConversationBridge } from "./conversationBridge.js";
 
 /**
  * Situation analysis input
@@ -45,13 +45,13 @@ export interface DecisionGenerationInput {
  */
 export class StrategyEngine {
     private readonly logger: Logger;
-    private readonly eventBus: EventBus;
-    private readonly llmService: LLMService;
+    private readonly eventBus?: EventBus;
+    private readonly conversationBridge: ConversationBridge;
 
-    constructor(logger: Logger, eventBus: EventBus, llmService: LLMService) {
+    constructor(logger: Logger, eventBus?: EventBus) {
         this.logger = logger;
         this.eventBus = eventBus;
-        this.llmService = llmService;
+        this.conversationBridge = new ConversationBridge(logger);
     }
 
     /**
@@ -82,18 +82,21 @@ ${JSON.stringify(input.observations, null, 2)}
 Provide a strategic assessment of the current situation.`;
 
         // Emit analysis request for monitoring agents
-        await this.eventBus.publish("swarm.events", {
-            type: "STRATEGY_ANALYSIS_REQUEST",
-            swarmId: input.knowledge.swarmId,
-            timestamp: new Date(),
-            metadata: { prompt, input },
-        });
+        if (this.eventBus) {
+            await this.eventBus.publish("swarm.events", {
+                type: "STRATEGY_ANALYSIS_REQUEST",
+                swarmId: input.knowledge.swarmId,
+                timestamp: new Date(),
+                metadata: { prompt, input },
+            });
+        }
 
-        // Use LLM service for strategic analysis
-        return await this.llmService.analyzeStrategically(
-            `Goal: ${input.goal}\nProgress: ${JSON.stringify(input.progress)}\nObservations: ${JSON.stringify(input.observations)}`,
-            "Provide a strategic assessment of the current situation"
-        );
+        // Use conversation bridge for strategic analysis
+        return await this.conversationBridge.reason(prompt, {
+            goal: input.goal,
+            progress: input.progress,
+            observations: input.observations,
+        });
     }
 
     /**
@@ -126,18 +129,20 @@ action_name(parameters)
 Provide 1-3 high-priority decisions with brief rationale.`;
 
         // Emit decision request for monitoring agents
-        await this.eventBus.publish("swarm.events", {
-            type: "STRATEGY_DECISION_REQUEST",
-            timestamp: new Date(),
-            metadata: { prompt, input },
-        });
+        if (this.eventBus) {
+            await this.eventBus.publish("swarm.events", {
+                type: "STRATEGY_DECISION_REQUEST",
+                timestamp: new Date(),
+                metadata: { prompt, input },
+            });
+        }
 
-        // Use LLM service for decision generation
-        const response = await this.llmService.generateDecision(
-            input.goal,
-            input.constraints,
-            ["allocate_resources", "execute_routine", "form_team", "adapt_strategy"]
-        );
+        // Use conversation bridge for decision generation
+        const response = await this.conversationBridge.reason(prompt, {
+            goal: input.goal,
+            orientation: input.orientation,
+            constraints: input.constraints,
+        });
         
         return this.parseDecisionsFromText(response);
     }
@@ -163,18 +168,17 @@ Based on the current performance and challenges, what strategic adaptations woul
 Focus on high-level strategic changes, not implementation details.`;
 
         // Emit adaptation request for monitoring agents
-        await this.eventBus.publish("swarm.events", {
-            type: "STRATEGY_ADAPTATION_REQUEST",
-            swarmId,
-            timestamp: new Date(),
-            metadata: { prompt, context },
-        });
+        if (this.eventBus) {
+            await this.eventBus.publish("swarm.events", {
+                type: "STRATEGY_ADAPTATION_REQUEST",
+                swarmId,
+                timestamp: new Date(),
+                metadata: { prompt, context },
+            });
+        }
 
-        // Use LLM service for adaptation reasoning
-        return await this.llmService.analyzeStrategically(
-            JSON.stringify(context),
-            "What strategic adaptations would you recommend based on current performance?"
-        );
+        // Use conversation bridge for adaptation reasoning
+        return await this.conversationBridge.reason(prompt, { swarmId, context });
     }
 
     /**
@@ -190,14 +194,16 @@ Focus on high-level strategic changes, not implementation details.`;
         });
 
         // Emit outcome event for learning agents
-        await this.eventBus.publish("swarm.events", {
-            type: "STRATEGY_DECISION_OUTCOME",
-            timestamp: new Date(),
-            metadata: {
-                decision,
-                outcome,
-            },
-        });
+        if (this.eventBus) {
+            await this.eventBus.publish("swarm.events", {
+                type: "STRATEGY_DECISION_OUTCOME",
+                timestamp: new Date(),
+                metadata: {
+                    decision,
+                    outcome,
+                },
+            });
+        }
     }
 
     /**

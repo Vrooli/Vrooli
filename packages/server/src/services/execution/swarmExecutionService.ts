@@ -39,10 +39,10 @@ export class SwarmExecutionService {
         this.routineService = new RoutineStorageService(logger);
         this.authService = new AuthIntegrationService(logger);
         
-        // Initialize all three tiers
-        this.tierOne = new TierOneCoordinator(logger, this.eventBus);
-        this.tierTwo = new TierTwoOrchestrator(logger, this.eventBus);
+        // Initialize tiers in dependency order (tier 3 -> tier 2 -> tier 1)
         this.tierThree = new TierThreeExecutor(logger, this.eventBus);
+        this.tierTwo = new TierTwoOrchestrator(logger, this.eventBus, this.tierThree);
+        this.tierOne = new TierOneCoordinator(logger, this.eventBus, this.tierTwo);
         
         // Start all services
         this.initialize();

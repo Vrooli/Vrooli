@@ -787,3 +787,726 @@ The factory approach should maintain full TypeScript type safety and allow for p
 - `packages/server/src/endpoints/logic/README-SharedFixtures.md` (existing guide)
 
 ---
+
+# Create Performance Monitoring Dashboard
+Priority: LOW  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Build a comprehensive performance monitoring dashboard to track execution times, resource usage, and bottlenecks across the three-tier AI architecture. The dashboard will provide real-time visualization of system performance, tier interactions, and AI agent execution metrics.
+
+**Current Implementation Analysis:**
+- **Existing Infrastructure**: Basic metrics endpoint (`/metrics`), metrics service with system monitoring
+- **Three-Tier Architecture**: Tier 1 (Coordination), Tier 2 (Process), Tier 3 (Execution) with performance tracking
+- **Event Bus**: Redis-based event streaming with delivery guarantees
+- **Performance Components**: PerformanceMonitor, ResourceMetrics, PerformanceTracker classes
+- **Missing**: Real-time streaming, historical data persistence, dashboard UI components
+
+**Key Deliverables:**
+
+**Phase 1: Backend Infrastructure Enhancement**
+- [ ] Enhance metrics collection across all three tiers:
+  - [ ] Tier 1: Swarm coordination metrics (decision time, resource allocation efficiency)
+  - [ ] Tier 2: Process orchestration metrics (run execution, step transitions, navigator performance)
+  - [ ] Tier 3: Execution strategy metrics (tool usage, validation results, strategy comparisons)
+- [ ] Implement metrics persistence layer:
+  - [ ] Design metrics database schema (time-series optimized)
+  - [ ] Create metrics storage service with retention policies
+  - [ ] Implement aggregation for different time windows (1m, 5m, 1h, 1d)
+- [ ] Add real-time metrics streaming:
+  - [ ] WebSocket endpoint for live metrics updates
+  - [ ] Server-sent events as fallback option
+  - [ ] Subscription management for specific metric types
+
+**Phase 2: API Development**
+- [ ] Create dashboard-specific API endpoints:
+  - [ ] `/api/dashboard/metrics/overview` - High-level system metrics
+  - [ ] `/api/dashboard/metrics/tiers` - Per-tier performance breakdown
+  - [ ] `/api/dashboard/metrics/executions` - Execution history and analytics
+  - [ ] `/api/dashboard/metrics/resources` - Resource usage patterns
+- [ ] Implement metric aggregation queries:
+  - [ ] Time-series data with configurable granularity
+  - [ ] Cross-tier performance correlation
+  - [ ] Bottleneck detection algorithms
+  - [ ] Cost analysis per execution type
+
+**Phase 3: Dashboard UI Components**
+- [ ] Create core dashboard layout:
+  - [ ] Responsive grid system for metric cards
+  - [ ] Navigation between different dashboard views
+  - [ ] Time range selector for historical data
+  - [ ] Auto-refresh toggle for real-time updates
+- [ ] Implement visualization components:
+  - [ ] Real-time line charts for performance metrics
+  - [ ] Tier interaction flow diagram
+  - [ ] Resource usage heat maps
+  - [ ] Execution timeline with drill-down capability
+- [ ] Add interactive features:
+  - [ ] Click-through from metrics to detailed logs
+  - [ ] Metric comparison tools
+  - [ ] Custom dashboard configuration
+  - [ ] Export functionality for reports
+
+**Phase 4: Advanced Monitoring Features**
+- [ ] Implement alerting system:
+  - [ ] Configurable performance thresholds
+  - [ ] Alert notification channels (UI, email, webhook)
+  - [ ] Alert history and acknowledgment
+- [ ] Add predictive analytics:
+  - [ ] Performance trend analysis
+  - [ ] Anomaly detection using rolling averages
+  - [ ] Resource exhaustion predictions
+- [ ] Create diagnostic tools:
+  - [ ] Performance profiling triggers
+  - [ ] Execution trace visualization
+  - [ ] Bottleneck root cause analysis
+
+**Phase 5: Integration and Testing**
+- [ ] Integrate with existing monitoring infrastructure:
+  - [ ] Connect to event bus for real-time updates
+  - [ ] Leverage existing PerformanceMonitor classes
+  - [ ] Ensure minimal performance overhead
+- [ ] Comprehensive testing:
+  - [ ] Load testing for metrics collection
+  - [ ] UI component testing with Storybook
+  - [ ] End-to-end dashboard functionality tests
+  - [ ] Performance impact assessment
+
+**Technical Implementation Notes:**
+- Use React with Material-UI for dashboard components
+- Leverage D3.js or Recharts for data visualization
+- Implement efficient data fetching with React Query
+- Use WebSocket for real-time updates with automatic reconnection
+- Follow existing metrics patterns from `packages/server/src/services/metrics.ts`
+- Ensure dashboard doesn't impact system performance
+
+**UI Mock-up Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Performance Dashboard                    [Time Range ▼] │
+├─────────────────────────────────────────────────────────┤
+│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐     │
+│ │ Total Runs   │ │ Avg Duration │ │ Success Rate │     │
+│ │    1,234     │ │   3.45s      │ │    98.5%     │     │
+│ └──────────────┘ └──────────────┘ └──────────────┘     │
+│                                                          │
+│ ┌────────────────────────────┐ ┌──────────────────────┐│
+│ │ Tier Performance           │ │ Resource Usage       ││
+│ │ [Line Chart]              │ │ [Stacked Area Chart] ││
+│ └────────────────────────────┘ └──────────────────────┘│
+│                                                          │
+│ ┌────────────────────────────────────────────────────┐ │
+│ │ Execution Timeline                                  │ │
+│ │ [Interactive Timeline with Tier Breakdown]          │ │
+│ └────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Success Criteria:**
+- Real-time performance visibility across all tiers
+- Historical data analysis with configurable time ranges
+- Bottleneck identification within 5 seconds
+- Dashboard load time under 2 seconds
+- Support for 100+ concurrent dashboard users
+- Actionable insights for performance optimization
+
+---
+
+# Develop Comprehensive API Documentation with OpenAPI/Swagger
+Priority: MEDIUM  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Create interactive API documentation with automatic client SDK generation capabilities using OpenAPI/Swagger. The project already has a comprehensive OpenAPI schema generator but lacks a live documentation endpoint. This task will implement swagger-ui-express to serve interactive API documentation and enhance the existing documentation infrastructure.
+
+**Current Implementation Analysis:**
+- **Existing Schema Generator**: `/packages/shared/src/__tools/api/buildOpenAPISchema.ts` generates OpenAPI 3.0.0 spec
+- **Generated Schema Location**: `/docs/docs/assets/openapi.json`
+- **API Structure**: Well-organized endpoints in `/packages/server/src/endpoints/`
+- **Documentation**: Comprehensive markdown docs exist but no interactive API explorer
+- **Missing**: Live API documentation endpoint, swagger-ui integration, SDK generation
+
+**Key Deliverables:**
+
+**Phase 1: Swagger UI Integration**
+- [ ] Install swagger-ui-express and related dependencies
+- [ ] Create `/packages/server/src/endpoints/docs/` directory structure
+- [ ] Implement swagger-ui middleware to serve interactive documentation
+- [ ] Add authentication/security for documentation endpoint (configurable)
+- [ ] Configure swagger-ui with custom theme matching Vrooli branding
+- [ ] Add route `/api-docs` to serve the documentation
+
+**Phase 2: Enhance OpenAPI Schema Generation**
+- [ ] Update `buildOpenAPISchema.ts` to include:
+  - [ ] Request/response examples from actual test data
+  - [ ] Enhanced descriptions from JSDoc comments
+  - [ ] Authentication schemes (API keys, JWT tokens)
+  - [ ] Rate limiting information per endpoint
+  - [ ] Webhook definitions and callbacks
+- [ ] Add validation to ensure schema stays in sync with code
+- [ ] Create build script to auto-generate docs on changes
+
+**Phase 3: SDK Generation Setup**
+- [ ] Research and select SDK generation tool (e.g., OpenAPI Generator, Swagger Codegen)
+- [ ] Configure SDK generation for popular languages:
+  - [ ] TypeScript/JavaScript (primary)
+  - [ ] Python
+  - [ ] Go
+  - [ ] Java
+- [ ] Create GitHub Actions workflow for automatic SDK publishing
+- [ ] Set up SDK versioning strategy aligned with API versions
+
+**Phase 4: Documentation Enhancements**
+- [ ] Add interactive examples with "Try it out" functionality
+- [ ] Create getting started guide within swagger-ui
+- [ ] Add code snippets for common use cases
+- [ ] Implement request/response logging for debugging
+- [ ] Add API changelog and versioning information
+- [ ] Create postman collection export functionality
+
+**Phase 5: Developer Experience**
+- [ ] Add hot-reload for documentation during development
+- [ ] Create VSCode snippets for adding new endpoints with proper docs
+- [ ] Implement API mocking for frontend development
+- [ ] Add API health check endpoint with documentation
+- [ ] Create migration guides for API version changes
+
+**Technical Implementation Notes:**
+- Use existing OpenAPI schema generator as foundation
+- Ensure documentation is version-controlled but generated files are gitignored
+- Follow existing project patterns for middleware and routing
+- Documentation should be accessible in development but protected in production
+- Consider performance impact of serving documentation in production
+- Integrate with existing authentication system for protected endpoints
+
+**File Structure:**
+```
+packages/server/src/endpoints/docs/
+├── index.ts              # Swagger UI setup and configuration
+├── middleware.ts         # Authentication and rate limiting for docs
+├── customizations/       # Custom CSS and UI modifications
+│   ├── theme.css        # Vrooli-branded swagger theme
+│   └── logo.svg         # Project logo for docs
+└── examples/            # Request/response examples
+    └── [endpoint].json  # Example data per endpoint
+```
+
+**Success Criteria:**
+- Interactive API documentation accessible at `/api-docs`
+- All endpoints documented with examples and schemas
+- SDK generation automated for at least 3 languages
+- Documentation stays in sync with code changes
+- Improved developer onboarding time
+- Reduced support requests about API usage
+
+---
+
+# Build Agent Performance Profiling System
+Priority: LOW  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Implement a comprehensive performance profiling system for the emergent agent infrastructure to measure, benchmark, and optimize agent performance metrics including response time, accuracy, resource consumption, and learning efficiency. The system will provide insights into agent behavior patterns and enable data-driven optimization of the three-tier AI architecture.
+
+**Current Implementation Analysis:**
+- **Agent Infrastructure**: Emergent agents in `/packages/server/src/services/execution/cross-cutting/agents/`
+- **Existing Monitoring**: TelemetryShim (5ms overhead limit), PerformanceMonitor, PerformanceTracker
+- **Event-Driven Architecture**: Agents subscribe to events and learn from patterns
+- **Performance Events**: Already emitted (`execution/metrics`, `routine/completed`, `step/completed`)
+- **Missing**: Agent-specific profiling, learning metrics, swarm coordination analytics
+
+**Key Deliverables:**
+
+**Phase 1: Agent Metrics Infrastructure**
+- [ ] Extend existing metrics system for agent-specific data:
+  - [ ] Agent lifecycle metrics (startup time, initialization, shutdown)
+  - [ ] Event processing metrics (events/second, processing latency, queue depth)
+  - [ ] Learning metrics (patterns detected, proposals generated, accuracy rates)
+  - [ ] Resource consumption per agent (CPU, memory, event bus usage)
+- [ ] Create agent profiling service:
+  - [ ] Real-time agent performance tracking
+  - [ ] Historical performance data with configurable retention
+  - [ ] Agent comparison and benchmarking tools
+  - [ ] Swarm-level performance aggregation
+
+**Phase 2: Performance Benchmarking Framework**
+- [ ] Develop standardized agent benchmarks:
+  - [ ] Response time benchmarks for different event types
+  - [ ] Accuracy benchmarks for pattern detection
+  - [ ] Resource efficiency benchmarks
+  - [ ] Learning speed benchmarks
+- [ ] Create synthetic workload generator:
+  - [ ] Configurable event streams for testing
+  - [ ] Reproducible test scenarios
+  - [ ] Load testing capabilities
+  - [ ] Edge case simulation
+
+**Phase 3: Profiling Tools and Visualization**
+- [ ] Build agent profiling dashboard:
+  - [ ] Real-time agent performance metrics
+  - [ ] Event flow visualization
+  - [ ] Resource utilization heat maps
+  - [ ] Learning progress tracking
+- [ ] Implement profiling CLI tools:
+  - [ ] Agent performance snapshots
+  - [ ] Comparative analysis between agents
+  - [ ] Performance regression detection
+  - [ ] Export capabilities for further analysis
+
+**Phase 4: Optimization Insights Engine**
+- [ ] Create performance analysis algorithms:
+  - [ ] Bottleneck detection in event processing
+  - [ ] Inefficient pattern matching identification
+  - [ ] Resource waste detection
+  - [ ] Optimal agent configuration recommendations
+- [ ] Implement automated optimization:
+  - [ ] Dynamic event subscription tuning
+  - [ ] Priority adjustment based on performance
+  - [ ] Resource allocation optimization
+  - [ ] Learning rate adjustments
+
+**Phase 5: Integration with Emergent Capabilities**
+- [ ] Enable performance-aware agent deployment:
+  - [ ] Performance-based agent selection
+  - [ ] Automatic scaling based on metrics
+  - [ ] Load balancing across agent swarms
+  - [ ] Performance SLAs for critical agents
+- [ ] Create feedback loops:
+  - [ ] Performance metrics influence agent learning
+  - [ ] Agents propose their own optimizations
+  - [ ] Swarm-level performance evolution
+  - [ ] Self-healing based on performance degradation
+
+**Technical Implementation Notes:**
+- Leverage existing TelemetryShim for minimal overhead profiling
+- Use event bus for performance event collection
+- Store metrics in time-series optimized format
+- Ensure profiling overhead stays under 2% of agent processing time
+- Follow emergent pattern - let agents learn to optimize themselves
+- Integration with existing MetricsService at `/packages/server/src/services/metrics.ts`
+
+**File Structure:**
+```
+packages/server/src/services/execution/cross-cutting/profiling/
+├── agentProfiler.ts           # Core profiling service
+├── benchmarks/                # Standardized benchmark suite
+│   ├── responseBenchmark.ts
+│   ├── accuracyBenchmark.ts
+│   └── resourceBenchmark.ts
+├── analysis/                  # Performance analysis tools
+│   ├── bottleneckDetector.ts
+│   ├── optimizationEngine.ts
+│   └── trendAnalyzer.ts
+└── visualization/             # Dashboard components
+    ├── AgentMetricsCard.tsx
+    ├── SwarmPerformance.tsx
+    └── ProfilerDashboard.tsx
+```
+
+**Success Criteria:**
+- Agent performance metrics available within 100ms
+- Profiling overhead under 2% of agent processing time
+- Identify performance bottlenecks within 5 minutes
+- 20% improvement in agent response times after optimization
+- Automated performance regression detection
+- Self-optimizing agent swarms based on profiling data
+
+---
+
+# Implement Distributed Tracing for Swarm Execution
+Priority: LOW  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Add distributed tracing capabilities to the three-tier swarm execution architecture using OpenTelemetry. This will provide end-to-end visibility into multi-agent workflows, enabling better debugging, performance analysis, and bottleneck identification across Tier 1 (Coordination), Tier 2 (Process), and Tier 3 (Execution) layers.
+
+**Current Implementation Analysis:**
+- **Existing Infrastructure**: TelemetryShim (5ms overhead), MetricsService, MonitoringTools
+- **Event Bus**: Redis-backed with correlation IDs already present
+- **Logging**: Winston-based structured logging with trace IDs
+- **Three-Tier Architecture**: Clear boundaries and event-based communication
+- **Missing**: Distributed trace context propagation, span collection, trace visualization
+
+**Key Deliverables:**
+
+**Phase 1: Foundation Setup**
+- [ ] Install and configure OpenTelemetry SDK (@opentelemetry/api, @opentelemetry/sdk-node)
+- [ ] Create tracing configuration service at `/packages/server/src/services/execution/cross-cutting/tracing/`
+- [ ] Set up trace exporter configuration (support Jaeger, Zipkin, OTLP)
+- [ ] Implement trace context propagation utilities
+- [ ] Add distributed tracing environment variables to .env-example
+
+**Phase 2: Event Bus Instrumentation**
+- [ ] Extend IntelligentEventBus to propagate trace context in event headers
+- [ ] Add span creation for event publishing and consumption
+- [ ] Implement trace context extraction from incoming events
+- [ ] Ensure trace continuity across event-driven boundaries
+- [ ] Add trace-aware event correlation
+
+**Phase 3: Tier Instrumentation**
+- [ ] Instrument Tier 1 (TierOneCoordinator):
+  - [ ] Swarm lifecycle spans (initialization, execution, completion)
+  - [ ] Resource allocation tracking
+  - [ ] Team management operations
+  - [ ] Strategic decision points
+- [ ] Instrument Tier 2 (TierTwoOrchestrator):
+  - [ ] Run lifecycle spans
+  - [ ] Routine navigation tracking
+  - [ ] Branch selection and coordination
+  - [ ] Step orchestration
+- [ ] Instrument Tier 3 (TierThreeExecutor):
+  - [ ] Strategy selection and execution
+  - [ ] Tool orchestration spans
+  - [ ] I/O processing tracking
+  - [ ] Resource utilization
+
+**Phase 4: Integration with Existing Telemetry**
+- [ ] Enhance TelemetryShim to emit trace spans alongside telemetry events
+- [ ] Correlate traces with existing metrics and logs using trace IDs
+- [ ] Add trace context to Winston logger
+- [ ] Integrate with MonitoringTools for trace-based analysis
+- [ ] Ensure minimal overhead (maintain <5ms telemetry target)
+
+**Phase 5: Visualization and Analysis**
+- [ ] Deploy trace backend (Jaeger or Zipkin) in Docker environment
+- [ ] Configure trace sampling strategies (head-based and tail-based)
+- [ ] Create trace analysis dashboards
+- [ ] Implement trace-based alerting for performance degradation
+- [ ] Add developer documentation for trace analysis
+
+**Phase 6: Advanced Features**
+- [ ] Implement custom span attributes for swarm-specific data:
+  - [ ] Agent types and roles
+  - [ ] Strategy selections
+  - [ ] Resource constraints
+  - [ ] Execution outcomes
+- [ ] Add baggage propagation for cross-cutting concerns
+- [ ] Create trace-based performance baselines
+- [ ] Implement trace archival and retention policies
+
+**Technical Implementation Notes:**
+- Use OpenTelemetry for vendor-neutral instrumentation
+- Leverage existing correlation IDs as trace IDs where possible
+- Implement sampling to control overhead (start with 10% sampling rate)
+- Use async span processing to minimize latency impact
+- Follow OpenTelemetry semantic conventions for span naming
+- Ensure trace context survives Redis serialization
+
+**File Structure:**
+```
+packages/server/src/services/execution/cross-cutting/tracing/
+├── tracingService.ts           # Core tracing configuration and setup
+├── spanProcessors.ts           # Custom span processors
+├── propagators.ts              # Trace context propagation utilities
+├── instrumentations/           # Auto-instrumentation configs
+│   ├── redis.ts               # Redis instrumentation
+│   ├── http.ts                # HTTP instrumentation
+│   └── eventBus.ts            # Event bus instrumentation
+└── exporters/                  # Trace exporter configurations
+    ├── jaeger.ts              # Jaeger exporter setup
+    ├── zipkin.ts              # Zipkin exporter setup
+    └── otlp.ts                # OTLP exporter setup
+```
+
+**Docker Compose Addition:**
+```yaml
+# Add to docker-compose.yml
+jaeger:
+  image: jaegertracing/all-in-one:latest
+  ports:
+    - "16686:16686"  # Jaeger UI
+    - "14268:14268"  # Jaeger collector
+  environment:
+    - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+```
+
+**Success Criteria:**
+- End-to-end trace visibility for all swarm executions
+- Trace overhead under 2% of execution time
+- Ability to diagnose performance issues within 5 minutes
+- Correlation between traces, logs, and metrics
+- Support for high-cardinality trace analysis
+- Developer adoption through clear documentation
+
+**Testing Approach:**
+- Unit tests for trace propagation logic
+- Integration tests for cross-tier tracing
+- Performance tests to verify overhead limits
+- End-to-end tests with sample swarm executions
+- Chaos testing to ensure trace continuity during failures
+
+# Create Accessibility Audit and Enhancement System
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Implement automated accessibility testing, add missing ARIA labels, ensure keyboard navigation works properly, and create accessibility checklist for new components. Build upon the existing Material-UI foundation to achieve WCAG 2.1 AA compliance and provide an inclusive user experience.
+
+**Current Implementation Analysis:**
+- **Strong Foundation**: Material-UI provides built-in accessibility for basic components
+- **Icon Accessibility**: Well-implemented with proper `aria-hidden` and `aria-label` handling
+- **Dialog System**: Proper ARIA labeling with `aria-labelledby` and `aria-describedby`
+- **Tab Navigation**: Correct tab role structure and ARIA attributes
+- **Keyboard Support**: Basic keyboard event handlers exist but incomplete coverage
+- **Testing**: React Testing Library used but no specialized accessibility testing tools
+
+**Key Deliverables:**
+
+**Phase 1: Automated Testing Infrastructure**
+- [ ] Install and configure axe-core and jest-axe for automated accessibility testing
+- [ ] Add accessibility tests to existing Storybook stories
+- [ ] Create accessibility test utilities for common patterns
+- [ ] Integrate accessibility testing into CI/CD pipeline
+- [ ] Set up accessibility linting rules (eslint-plugin-jsx-a11y)
+
+**Phase 2: Keyboard Navigation Enhancement**
+- [ ] Audit all interactive components for keyboard accessibility
+- [ ] Implement focus traps for modals and dialogs
+- [ ] Add escape key handling for dismissible components
+- [ ] Create keyboard navigation documentation and patterns
+- [ ] Test tab order and focus management across the application
+
+**Phase 3: ARIA Enhancement**
+- [ ] Add missing ARIA landmarks (`main`, `navigation`, `banner`, `contentinfo`)
+- [ ] Implement ARIA live regions for dynamic content updates
+- [ ] Enhance complex widgets with proper ARIA patterns:
+  - [ ] Dropdown menus (`role="menu"`, `role="menuitem"`)
+  - [ ] Data tables (`role="grid"`, `role="gridcell"`)
+  - [ ] Search/filter components with proper announcements
+- [ ] Add comprehensive ARIA state management (expanded, selected, disabled)
+
+**Phase 4: Form Accessibility**
+- [ ] Enhance form validation with accessible error announcements
+- [ ] Add proper fieldset and legend usage for grouped form controls
+- [ ] Implement accessible form instructions and help text
+- [ ] Create accessible multi-step form patterns
+- [ ] Add form completion status announcements
+
+**Phase 5: Visual and Design Accessibility**
+- [ ] Audit color contrast ratios and fix violations (WCAG AA: 4.5:1 normal, 3:1 large)
+- [ ] Implement high contrast theme option
+- [ ] Add reduced motion support (`prefers-reduced-motion`)
+- [ ] Ensure focus indicators are visible and consistent
+- [ ] Test with different zoom levels (up to 200%)
+
+**Phase 6: Content and Navigation**
+- [ ] Add skip navigation links for keyboard users
+- [ ] Implement semantic HTML structure (`section`, `article`, `aside`)
+- [ ] Create accessible breadcrumb navigation
+- [ ] Add page title updates for single-page application navigation
+- [ ] Implement accessible search result announcements
+
+**Phase 7: Screen Reader Optimization**
+- [ ] Add screen reader only content for context (`sr-only` class usage)
+- [ ] Implement accessible data table headers and captions
+- [ ] Create screen reader friendly loading states
+- [ ] Add descriptive text for complex UI interactions
+- [ ] Test with actual screen readers (NVDA, JAWS, VoiceOver)
+
+**Phase 8: Documentation and Guidelines**
+- [ ] Create comprehensive accessibility checklist for new components
+- [ ] Document accessible coding patterns and examples
+- [ ] Create accessibility testing procedures and tools
+- [ ] Add accessibility considerations to component design guidelines
+- [ ] Create accessibility audit schedule and procedures
+
+**Technical Implementation Notes:**
+- Build upon existing Material-UI accessibility features
+- Leverage React Testing Library's accessibility-focused testing approach
+- Use semantic HTML5 elements where possible
+- Implement progressive enhancement patterns
+- Ensure compatibility with assistive technologies
+- Follow WCAG 2.1 AA guidelines as minimum standard
+
+**File Structure:**
+```
+packages/ui/src/accessibility/
+├── testing/
+│   ├── axeConfig.ts           # Axe-core configuration
+│   ├── testUtils.ts           # Accessibility test utilities
+│   └── commonTests.ts         # Reusable accessibility tests
+├── components/
+│   ├── SkipLink.tsx           # Skip navigation component
+│   ├── ScreenReaderOnly.tsx   # Screen reader only content
+│   └── FocusTrap.tsx          # Focus management utility
+├── hooks/
+│   ├── useKeyboardNavigation.ts
+│   ├── useFocusManagement.ts
+│   └── useAccessibilityAnnouncements.ts
+└── utils/
+    ├── ariaUtils.ts           # ARIA helper functions
+    ├── focusUtils.ts          # Focus management utilities
+    └── colorContrast.ts       # Color contrast validation
+```
+
+**Success Criteria:**
+- 100% of components pass automated accessibility tests
+- All interactive elements are keyboard accessible
+- WCAG 2.1 AA compliance achieved across the application
+- Screen reader users can navigate and use all features
+- Accessibility checklist integrated into development workflow
+- Zero accessibility violations in production
+- Comprehensive accessibility testing coverage
+
+**Testing Strategy:**
+- Automated testing with axe-core in unit and integration tests
+- Manual testing with keyboard navigation
+- Screen reader testing with NVDA, JAWS, and VoiceOver
+- Color contrast validation tools
+- Focus management testing
+- User testing with accessibility community
+
+---
+
+# Create Database Migration Rollback System
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Implement a robust rollback system for Prisma database migrations to improve deployment safety. Currently, Vrooli relies on manual backup restoration for migration rollbacks, which is time-consuming and error-prone. This task will create an automated rollback mechanism that generates down migrations, tracks migration state, and provides safe rollback capabilities for both development and production environments.
+
+**Current Implementation Analysis:**
+- **Migration System**: Prisma migrations stored in `/packages/server/src/db/migrations/`
+- **Execution**: Migrations run automatically during server startup via `start.sh`
+- **Backup System**: Daily backups via `/scripts/main/backup.sh` but no pre-migration backups
+- **Rollback Process**: Manual - restore from backup and mark as rolled back
+- **Missing**: Down migrations, automated rollback commands, migration validation, pre-migration backups
+
+**Key Deliverables:**
+
+**Phase 1: Down Migration Generation**
+- [ ] Create script to analyze Prisma migrations and generate corresponding down migrations
+  - [ ] Parse SQL from existing migrations to identify reversible operations
+  - [ ] Generate inverse SQL for CREATE TABLE → DROP TABLE, ADD COLUMN → DROP COLUMN, etc.
+  - [ ] Handle non-reversible operations with warnings (data modifications, drops)
+  - [ ] Store down migrations alongside up migrations with naming convention
+- [ ] Implement migration analyzer to categorize migrations:
+  - [ ] Safe (fully reversible) - schema additions
+  - [ ] Risky (data loss possible) - column drops, type changes
+  - [ ] Irreversible (manual intervention required) - data transformations
+- [ ] Add validation to ensure down migrations are syntactically correct
+
+**Phase 2: Rollback Command Infrastructure**
+- [ ] Create rollback CLI command in `/packages/server/src/cli/`:
+  - [ ] `pnpm prisma:rollback` - Roll back last migration
+  - [ ] `pnpm prisma:rollback --to <migration>` - Roll back to specific migration
+  - [ ] `pnpm prisma:rollback --dry-run` - Preview rollback without execution
+- [ ] Implement rollback state tracking:
+  - [ ] Create `_prisma_rollback_history` table to track rollback operations
+  - [ ] Store rollback metadata (timestamp, user, reason, affected tables)
+  - [ ] Prevent re-applying rolled back migrations without explicit override
+- [ ] Add rollback hooks for custom logic:
+  - [ ] Pre-rollback validation
+  - [ ] Post-rollback cleanup
+  - [ ] Data integrity checks
+
+**Phase 3: Automated Backup Integration**
+- [ ] Enhance backup system for migration safety:
+  - [ ] Automatic backup before any migration execution
+  - [ ] Backup naming includes migration identifier
+  - [ ] Configurable retention for migration backups (separate from daily backups)
+- [ ] Create restore utilities:
+  - [ ] Fast restore from migration-specific backups
+  - [ ] Partial restore for specific tables
+  - [ ] Backup validation before migration
+- [ ] Implement backup cleanup:
+  - [ ] Remove old migration backups after successful rollback window
+  - [ ] Compress older backups to save space
+
+**Phase 4: Testing Framework**
+- [ ] Create migration testing utilities:
+  - [ ] Test harness for up/down migration pairs
+  - [ ] Data integrity validation after rollback
+  - [ ] Performance impact assessment
+- [ ] Add migration tests to CI/CD:
+  - [ ] Automatic testing of new migrations
+  - [ ] Rollback testing for all migrations
+  - [ ] Multi-version compatibility testing
+- [ ] Create test data generators:
+  - [ ] Generate realistic data for migration testing
+  - [ ] Test edge cases and large datasets
+
+**Phase 5: Production Safety Features**
+- [ ] Implement migration safety checks:
+  - [ ] Lock detection to prevent concurrent migrations
+  - [ ] Connection pool draining before migrations
+  - [ ] Health check integration to prevent migrations during issues
+- [ ] Add monitoring and alerting:
+  - [ ] Migration execution metrics
+  - [ ] Rollback trigger alerts
+  - [ ] Performance degradation detection
+- [ ] Create rollback approval workflow:
+  - [ ] Required approvals for production rollbacks
+  - [ ] Audit trail for all rollback operations
+  - [ ] Integration with existing monitoring tools
+
+**Phase 6: Kubernetes Integration**
+- [ ] Create Kubernetes migration job templates:
+  - [ ] Separate job for migrations (not part of server startup)
+  - [ ] Pre-upgrade and post-upgrade hooks
+  - [ ] Automatic rollback on job failure
+- [ ] Implement blue-green migration strategy:
+  - [ ] Apply migrations to inactive environment first
+  - [ ] Validation before switching traffic
+  - [ ] Quick rollback by switching back
+- [ ] Add Helm chart enhancements:
+  - [ ] Migration job configuration
+  - [ ] Rollback hooks
+  - [ ] Backup volume management
+
+**Technical Implementation Notes:**
+- Use Prisma's introspection capabilities to analyze schema changes
+- Leverage PostgreSQL's transactional DDL for safe rollbacks
+- Ensure compatibility with existing backup system
+- Maintain zero-downtime deployment capability
+- Follow Prisma's migration resolution system for tracking
+- Consider using `pg_dump` for schema-only backups as lighter alternative
+
+**File Structure:**
+```
+packages/server/src/
+├── cli/
+│   ├── migration/
+│   │   ├── rollback.ts         # Main rollback command
+│   │   ├── analyzer.ts         # Migration analysis utilities
+│   │   └── generator.ts        # Down migration generator
+├── db/
+│   ├── migrations/
+│   │   └── [timestamp]_[name]/
+│   │       ├── migration.sql   # Up migration (existing)
+│   │       └── down.sql        # Down migration (new)
+│   └── rollback/
+│       ├── history.ts          # Rollback history tracking
+│       └── validator.ts        # Migration validation
+└── scripts/
+    ├── backup-migration.sh     # Pre-migration backup
+    └── test-migration.sh       # Migration testing
+```
+
+**Success Criteria:**
+- All migrations have corresponding down migrations
+- Rollback completes within 5 minutes for typical migrations
+- Zero data loss for safe migrations
+- Clear warnings for risky operations
+- 100% test coverage for rollback logic
+- Production rollbacks require < 30 seconds of downtime
+- Comprehensive audit trail for all operations
+
+**Risk Mitigation:**
+- Always test rollbacks in staging environment first
+- Maintain manual rollback procedures as fallback
+- Document all non-reversible migrations clearly
+- Implement gradual rollout for the rollback system itself
+- Create runbooks for common rollback scenarios

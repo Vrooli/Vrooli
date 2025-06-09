@@ -1,6 +1,8 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { type TierCommunicationInterface } from "@vrooli/shared";
 import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
+import { ConversationBridge } from "./intelligence/conversationBridge.js";
 import { TeamManager } from "./organization/teamManager.js";
 import { ResourceManager } from "./organization/resourceManager.js";
 import { StrategyEngine } from "./intelligence/strategyEngine.js";
@@ -11,6 +13,7 @@ import {
     type SwarmStatus,
     type Swarm,
     SwarmState,
+    type SessionUser,
     nanoid,
 } from "@vrooli/shared";
 
@@ -23,16 +26,19 @@ import {
 export class TierOneCoordinator {
     private readonly logger: Logger;
     private readonly eventBus: EventBus;
+    private readonly tier2Orchestrator: TierCommunicationInterface;
     private readonly stateStore: ISwarmStateStore;
     private readonly swarmMachines: Map<string, SwarmStateMachine> = new Map();
     private readonly teamManager: TeamManager;
     private readonly resourceManager: ResourceManager;
     private readonly strategyEngine: StrategyEngine;
     private readonly metacognitiveMonitor: MetacognitiveMonitor;
+    private readonly conversationBridge: ConversationBridge;
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
         this.logger = logger;
         this.eventBus = eventBus;
+        this.tier2Orchestrator = tier2Orchestrator;
         
         // Initialize state store
         this.stateStore = SwarmStateStoreFactory.getInstance(logger);
@@ -42,6 +48,7 @@ export class TierOneCoordinator {
         this.resourceManager = new ResourceManager(logger);
         this.strategyEngine = new StrategyEngine(logger);
         this.metacognitiveMonitor = new MetacognitiveMonitor(logger, eventBus);
+        this.conversationBridge = new ConversationBridge(logger);
         
         // Setup event handlers
         this.setupEventHandlers();
@@ -125,16 +132,18 @@ export class TierOneCoordinator {
                 this.logger,
                 this.eventBus,
                 this.stateStore,
-                this.teamManager,
-                this.resourceManager,
-                this.strategyEngine,
-                this.metacognitiveMonitor,
+                this.conversationBridge,
             );
 
             this.swarmMachines.set(config.swarmId, stateMachine);
 
             // Start the swarm
-            await stateMachine.start(config.swarmId);
+            const initiatingUser = { 
+                id: config.userId, 
+                name: "User", 
+                hasPremium: false 
+            } as SessionUser;
+            await stateMachine.start(config.swarmId, config.goal, initiatingUser);
 
             // Emit swarm started event
             await this.eventBus.publish("swarm.started", {
@@ -172,8 +181,18 @@ export class TierOneCoordinator {
             throw new Error(`Swarm ${request.swarmId} not found`);
         }
 
-        // Delegate run execution to swarm
-        await stateMachine.requestRunExecution(request);
+        // Create run execution event for swarm to handle
+        await stateMachine.handleEvent({
+            type: "internal_task_assignment",
+            conversationId: request.swarmId,
+            sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+            payload: {
+                runId: request.runId,
+                routineVersionId: request.routineVersionId,
+                inputs: request.inputs,
+                config: request.config
+            }
+        });
     }
 
     /**
@@ -197,18 +216,15 @@ export class TierOneCoordinator {
             }
 
             const stateMachine = this.swarmMachines.get(swarmId);
-            const currentPhase = stateMachine?.getCurrentPhase();
+            const currentPhase = stateMachine?.getCurrentSagaStatus();
 
             // Map internal state to external status
             const statusMap: Record<SwarmState, SwarmStatus> = {
                 [SwarmState.UNINITIALIZED]: SwarmStatus.Pending,
-                [SwarmState.INITIALIZING]: SwarmStatus.Running,
-                [SwarmState.STRATEGIZING]: SwarmStatus.Running,
-                [SwarmState.RESOURCE_ALLOCATION]: SwarmStatus.Running,
-                [SwarmState.TEAM_FORMING]: SwarmStatus.Running,
-                [SwarmState.READY]: SwarmStatus.Running,
-                [SwarmState.ACTIVE]: SwarmStatus.Running,
-                [SwarmState.ADAPTING]: SwarmStatus.Running,
+                [SwarmState.STARTING]: SwarmStatus.Running,
+                [SwarmState.RUNNING]: SwarmStatus.Running,
+                [SwarmState.IDLE]: SwarmStatus.Running,
+                [SwarmState.PAUSED]: SwarmStatus.Paused,
                 [SwarmState.STOPPED]: SwarmStatus.Completed,
                 [SwarmState.FAILED]: SwarmStatus.Failed,
                 [SwarmState.TERMINATED]: SwarmStatus.Cancelled,
@@ -244,7 +260,7 @@ export class TierOneCoordinator {
             throw new Error(`Swarm ${swarmId} not found`);
         }
 
-        await stateMachine.stop(reason || "User cancelled");
+        await stateMachine.stop(swarmId);
         
         // Remove from active machines
         this.swarmMachines.delete(swarmId);
@@ -266,7 +282,7 @@ export class TierOneCoordinator {
         // Stop all active swarms
         for (const [swarmId, stateMachine] of this.swarmMachines) {
             try {
-                await stateMachine.stop("System shutdown");
+                await stateMachine.requestStop("shutdown");
             } catch (error) {
                 this.logger.error("[TierOneCoordinator] Error stopping swarm during shutdown", {
                     swarmId,
@@ -287,7 +303,12 @@ export class TierOneCoordinator {
             const { swarmId, runId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
-                await stateMachine.handleRunCompletion(runId);
+                await stateMachine.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: swarmId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: { type: "run_completed", runId }
+                });
             }
         });
 
@@ -296,7 +317,12 @@ export class TierOneCoordinator {
             const { swarmId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
-                await stateMachine.handleResourceAlert(event.data);
+                await stateMachine.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: swarmId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: { type: "resource_alert", ...event.data }
+                });
             }
         });
 
@@ -305,7 +331,12 @@ export class TierOneCoordinator {
             const { swarmId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
-                await stateMachine.handleMetacognitiveInsight(event.data);
+                await stateMachine.handleEvent({
+                    type: "internal_status_update",
+                    conversationId: swarmId,
+                    sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                    payload: { type: "metacognitive_insight", ...event.data }
+                });
             }
         });
     }

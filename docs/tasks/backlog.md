@@ -9,17 +9,9 @@
 
 ## Low Priority
 
-- **Create Performance Monitoring Dashboard** - Track execution times, resource usage, and bottlenecks across the three-tier AI architecture with visual dashboard.
 
-- **Develop Comprehensive API Documentation with OpenAPI/Swagger** - Create interactive API documentation with automatic client SDK generation capabilities.
 
-- **Build Agent Performance Profiling System** - Implement system to profile and benchmark agent performance metrics like response time, accuracy, and resource consumption.
 
-- **Implement Distributed Tracing for Swarm Execution** - Add distributed tracing (e.g., OpenTelemetry) to improve debugging and performance analysis of multi-agent workflows.
-
-- **Create Database Migration Rollback System** - Implement robust rollback system for Prisma database migrations to improve deployment safety.
-
-- **Create Accessibility Audit and Enhancement System** - Implement automated accessibility testing, add missing ARIA labels, ensure keyboard navigation works properly. Create accessibility checklist for new components.
 
 - **Implement Camera Button for Image Capture** - Complete the implementation of CameraButton component that allows users to capture images using their device camera. Similar to MicrophoneButton for speech input, this should provide visual input capabilities. Features should include: camera access permission handling, image capture interface, preview functionality, and integration with forms/chat for image uploads.
 

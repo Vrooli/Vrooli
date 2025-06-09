@@ -1,21 +1,22 @@
 import { type FindByIdInput, type Payment, type PaymentSearchInput, type PaymentSearchResult } from "@vrooli/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsPayment = {
     findOne: ApiEndpoint<FindByIdInput, Payment>;
     findMany: ApiEndpoint<PaymentSearchInput, PaymentSearchResult>;
 }
 
-const objectType = "Payment";
-export const payment: EndpointsPayment = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const payment: EndpointsPayment = createStandardCrudEndpoints({
+    objectType: "Payment",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PRIVATE,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
-    },
-};
+});

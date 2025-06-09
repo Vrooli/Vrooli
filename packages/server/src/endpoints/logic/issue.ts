@@ -32,7 +32,7 @@ export const issue: EndpointsIssue = createStandardCrudEndpoints({
         },
     },
     customEndpoints: {
-        closeOne: async ({ input }, { req }, info) => {
+        closeOne: async (wrapped, { req }, info) => {
             throw new CustomError("0000", "NotImplemented");
         },
     },

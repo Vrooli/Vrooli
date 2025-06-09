@@ -11,9 +11,18 @@ import { PathOptimizer } from "./intelligence/pathOptimizer.js";
 import { MOISEGate } from "./validation/moiseGate.js";
 import { type InMemoryRunStateStore } from "./state/runStateStore.js";
 import {
+    type ExecutionId,
+    type ExecutionResult,
+    type ExecutionStatus,
+    type ResourceAllocation,
+    type RoutineExecutionInput,
     type RunStatus,
     type Run,
+    type TierCapabilities,
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
     RunState,
+    generatePk,
 } from "@vrooli/shared";
 
 /**
@@ -22,9 +31,10 @@ import {
  * Main entry point for Tier 2 process intelligence.
  * Manages run lifecycle, routine navigation, and orchestration.
  */
-export class TierTwoOrchestrator {
+export class TierTwoOrchestrator implements TierCommunicationInterface {
     private readonly logger: Logger;
     private readonly eventBus: EventBus;
+    private readonly tier3Executor: TierCommunicationInterface;
     private readonly runMachines: Map<string, RunStateMachine> = new Map();
     private readonly navigatorRegistry: NavigatorRegistry;
     private readonly branchCoordinator: BranchCoordinator;
@@ -36,9 +46,13 @@ export class TierTwoOrchestrator {
     private readonly moiseGate: MOISEGate;
     private readonly stateStore: InMemoryRunStateStore;
 
-    constructor(logger: Logger, eventBus: EventBus) {
+    // Track active executions for interface compliance
+    private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
+
+    constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface) {
         this.logger = logger;
         this.eventBus = eventBus;
+        this.tier3Executor = tier3Executor;
         
         // Initialize components
         this.stateStore = new InMemoryRunStateStore(logger);
@@ -234,5 +248,217 @@ export class TierTwoOrchestrator {
         
         const { stepsCompleted = 0, totalSteps = 1 } = run.metrics;
         return Math.min((stepsCompleted / totalSteps) * 100, 100);
+    }
+
+    /**
+     * TierCommunicationInterface implementation
+     */
+
+    /**
+     * Execute a routine execution request
+     */
+    async execute<TInput extends RoutineExecutionInput, TOutput>(
+        request: TierExecutionRequest<TInput>
+    ): Promise<ExecutionResult<TOutput>> {
+        const { context, input, allocation, options } = request;
+        const executionId = context.executionId;
+
+        // Track execution
+        this.activeExecutions.set(executionId, {
+            status: ExecutionStatus.RUNNING,
+            startTime: new Date(),
+            runId: input.routineId,
+        });
+
+        try {
+            this.logger.info("[TierTwoOrchestrator] Starting tier execution", {
+                executionId,
+                routineId: input.routineId,
+            });
+
+            // Create a run ID for this execution
+            const runId = generatePk();
+
+            // Start routine execution through the existing startRun method
+            // Note: This is a simplified implementation - in practice we'd need to load the routine data
+            await this.startRun({
+                runId,
+                swarmId: context.swarmId,
+                routineVersionId: input.routineId,
+                routine: { workflow: input.workflow }, // Simplified routine data
+                inputs: input.parameters,
+                config: {
+                    strategy: options?.strategy || 'reasoning',
+                    model: 'gpt-4',
+                    maxSteps: 50,
+                    timeout: parseInt(allocation.maxDurationMs?.toString() || '300000'),
+                },
+                userId: context.userId || 'system',
+            });
+
+            // Wait for completion (simplified - in practice this would be more sophisticated)
+            const result = await this.waitForCompletion(runId, parseInt(allocation.maxDurationMs?.toString() || '300000'));
+
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.COMPLETED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+                runId,
+            });
+
+            const executionResult: ExecutionResult<TOutput> = {
+                success: true,
+                result: result as TOutput,
+                outputs: result as Record<string, unknown>,
+                resourcesUsed: {
+                    creditsUsed: '10', // Simplified
+                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    memoryUsedMB: 64,
+                    stepsExecuted: 1,
+                },
+                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                context,
+                metadata: {
+                    strategy: 'routine_execution',
+                    version: '1.0.0',
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: 0.85,
+                performanceScore: 0.80,
+            };
+
+            return executionResult;
+
+        } catch (error) {
+            // Update execution status
+            this.activeExecutions.set(executionId, {
+                status: ExecutionStatus.FAILED,
+                startTime: this.activeExecutions.get(executionId)!.startTime,
+                runId: this.activeExecutions.get(executionId)?.runId || 'unknown',
+            });
+
+            this.logger.error("[TierTwoOrchestrator] Tier execution failed", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            const errorResult: ExecutionResult<TOutput> = {
+                success: false,
+                error: {
+                    code: 'TIER2_EXECUTION_FAILED',
+                    message: error instanceof Error ? error.message : 'Unknown error',
+                    tier: 'tier2',
+                    type: error instanceof Error ? error.constructor.name : 'Error',
+                },
+                resourcesUsed: {
+                    creditsUsed: '0',
+                    durationMs: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                    memoryUsedMB: 0,
+                    stepsExecuted: 0,
+                },
+                duration: Date.now() - this.activeExecutions.get(executionId)!.startTime.getTime(),
+                context,
+                metadata: {
+                    strategy: 'routine_execution',
+                    version: '1.0.0',
+                    timestamp: new Date().toISOString(),
+                },
+                confidence: 0.0,
+                performanceScore: 0.0,
+            };
+
+            return errorResult;
+        }
+    }
+
+    /**
+     * Get execution status for monitoring
+     */
+    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
+        const execution = this.activeExecutions.get(executionId);
+        return execution?.status || ExecutionStatus.COMPLETED;
+    }
+
+    /**
+     * Cancel a running execution
+     */
+    async cancelExecution(executionId: ExecutionId): Promise<void> {
+        const execution = this.activeExecutions.get(executionId);
+        if (execution) {
+            this.activeExecutions.set(executionId, {
+                ...execution,
+                status: ExecutionStatus.CANCELLED,
+            });
+
+            // Cancel the associated run
+            await this.cancelRun(execution.runId, 'Execution cancelled');
+
+            this.logger.info("[TierTwoOrchestrator] Execution cancelled", { executionId });
+        }
+    }
+
+    /**
+     * Get tier capabilities
+     */
+    async getCapabilities(): Promise<TierCapabilities> {
+        return {
+            tier: 'tier2',
+            supportedInputTypes: ['RoutineExecutionInput'],
+            supportedStrategies: ['reasoning', 'deterministic', 'conversational'],
+            maxConcurrency: 5,
+            estimatedLatency: {
+                p50: 15000,
+                p95: 90000,
+                p99: 300000,
+            },
+            resourceLimits: {
+                maxCredits: '100000',
+                maxDurationMs: 3600000, // 1 hour
+                maxMemoryMB: 4096,
+            },
+        };
+    }
+
+    /**
+     * Wait for run completion (simplified implementation)
+     */
+    private async waitForCompletion(runId: string, timeoutMs: number): Promise<Record<string, unknown>> {
+        const startTime = Date.now();
+        const checkInterval = 1000; // Check every second
+
+        return new Promise((resolve, reject) => {
+            const checkStatus = async () => {
+                try {
+                    const run = await this.stateStore.getRun(runId);
+                    if (!run) {
+                        reject(new Error(`Run ${runId} not found`));
+                        return;
+                    }
+
+                    if (run.state === RunState.COMPLETED) {
+                        resolve(run.outputs || {});
+                        return;
+                    }
+
+                    if (run.state === RunState.FAILED) {
+                        reject(new Error(`Run ${runId} failed: ${run.errors?.join(', ')}`));
+                        return;
+                    }
+
+                    if (Date.now() - startTime > timeoutMs) {
+                        reject(new Error(`Run ${runId} timed out after ${timeoutMs}ms`));
+                        return;
+                    }
+
+                    // Continue checking
+                    setTimeout(checkStatus, checkInterval);
+
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            checkStatus();
+        });
     }
 }
