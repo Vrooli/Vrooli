@@ -1,10 +1,7 @@
 import { type FindByPublicIdInput, type Issue, type IssueCloseInput, type IssueCreateInput, type IssueSearchInput, type IssueSearchResult, type IssueUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { CustomError } from "../../events/error.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsIssue = {
     findOne: ApiEndpoint<FindByPublicIdInput, Issue>;
@@ -14,25 +11,29 @@ export type EndpointsIssue = {
     closeOne: ApiEndpoint<IssueCloseInput, Issue>;
 }
 
-const objectType = "Issue";
-export const issue: EndpointsIssue = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const issue: EndpointsIssue = createStandardCrudEndpoints({
+    objectType: "Issue",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            // No permissions required for public issues
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            // No permissions required for public issues
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.STRICT,
+            // No permissions required for creating issues
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            // No permissions required for updating issues
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
+    customEndpoints: {
+        closeOne: async ({ input }, { req }, info) => {
+            throw new CustomError("0000", "NotImplemented");
+        },
     },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-    closeOne: async ({ input }, { req }, info) => {
-        throw new CustomError("0000", "NotImplemented");
-    },
-};
+});

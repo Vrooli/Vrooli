@@ -1,26 +1,30 @@
 import { type Email, type EmailCreateInput, type SendVerificationEmailInput, type Success } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
 import { PasswordAuthService } from "../../auth/email.js";
 import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 export type EndpointsEmail = {
     createOne: ApiEndpoint<EmailCreateInput, Email>;
     verify: ApiEndpoint<SendVerificationEmailInput, Success>;
 }
 
-const objectType = "Email";
-export const email: EndpointsEmail = {
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 10, req });
-        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
-        return createOneHelper({ info, input, objectType, req });
+export const email: EndpointsEmail = createStandardCrudEndpoints({
+    objectType: "Email",
+    endpoints: {
+        createOne: {
+            rateLimit: { maxUser: 10 },
+            permissions: { hasWriteAuthPermissions: true },
+        },
     },
-    verify: async ({ input }, { req }) => {
-        const { id: userId, publicId: userPublicId } = RequestService.assertRequestFrom(req, { isUser: true });
-        await RequestService.get().rateLimit({ maxUser: 50, req });
-        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
-        await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, userPublicId, req.session.languages);
-        return { __typename: "Success" as const, success: true };
+    customEndpoints: {
+        verify: async (wrapped, { req }) => {
+            const input = wrapped?.input;
+            const { id: userId, publicId: userPublicId } = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 50, req });
+            RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
+            await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, userPublicId, req.session.languages);
+            return { __typename: "Success" as const, success: true };
+        },
     },
-};
+});

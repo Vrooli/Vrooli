@@ -1,16 +1,17 @@
 import { type StatsSiteSearchInput, type StatsSiteSearchResult } from "@vrooli/shared";
-import { readManyHelper } from "../../actions/reads.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsStatsSite = {
     findMany: ApiEndpoint<StatsSiteSearchInput, StatsSiteSearchResult>;
 }
 
-const objectType = "StatsSite";
-export const statsSite: EndpointsStatsSite = {
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
+export const statsSite: EndpointsStatsSite = createStandardCrudEndpoints({
+    objectType: "StatsSite",
+    endpoints: {
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
     },
-};
+});

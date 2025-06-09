@@ -8,6 +8,7 @@ import { CustomError } from "../../events/error.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ApiEndpoint } from "../../types.js";
 import { auth } from "./auth.js";
+import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 export type EndpointsActions = {
     copy: ApiEndpoint<CopyInput, CopyResult>;
@@ -17,7 +18,10 @@ export type EndpointsActions = {
     deleteAccount: ApiEndpoint<DeleteAccountInput, Success>;
 }
 
-export const actions: EndpointsActions = {
+export const actions: EndpointsActions = createStandardCrudEndpoints({
+    objectType: "Actions",
+    endpoints: {},
+    customEndpoints: {
     copy: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
         RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
@@ -86,5 +90,6 @@ export const actions: EndpointsActions = {
         } else {
             throw new CustomError("0123", "InternalError");
         }
+        },
     },
-};
+});

@@ -1,9 +1,6 @@
 import { type FindByPublicIdInput, type PullRequest, type PullRequestCreateInput, type PullRequestSearchInput, type PullRequestSearchResult, type PullRequestUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsPullRequest = {
     findOne: ApiEndpoint<FindByPublicIdInput, PullRequest>;
@@ -12,23 +9,25 @@ export type EndpointsPullRequest = {
     updateOne: ApiEndpoint<PullRequestUpdateInput, PullRequest>;
 }
 
-const objectType = "PullRequest";
-export const pullRequest: EndpointsPullRequest = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const pullRequest: EndpointsPullRequest = createStandardCrudEndpoints({
+    objectType: "PullRequest",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.STRICT,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+            // TODO 2 permissions for this differ from normal objects. Some fields can be updated by creator, and some by owner of object the pull request is for. Probably need to make custom endpoints like for transfers
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
-    },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        return updateOneHelper({ info, input, objectType, req });
-        // TODO 2 permissions for this differ from normal objects. Some fields can be updated by creator, and some by owner of object the pull request is for. Probably need to make custom endpoints like for transfers
-    },
-};
+});

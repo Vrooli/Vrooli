@@ -9,6 +9,7 @@ import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
 import { changeSwarmTaskStatus, getSwarmTaskStatuses, processSwarm } from "../../tasks/swarm/queue.js";
 import { QueueTaskType } from "../../tasks/taskTypes.js";
 import type { ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints } from "../helpers/endpointFactory.js";
 
 // Initialize the new three-tier execution service
 const swarmExecutionService = new SwarmExecutionService(logger);
@@ -21,8 +22,11 @@ export type EndpointsTask = {
     respondToToolApproval: ApiEndpoint<RespondToToolApprovalInput, Success>;
 }
 
-export const task: EndpointsTask = {
-    checkStatuses: async ({ input }, { req }) => {
+export const task: EndpointsTask = createStandardCrudEndpoints({
+    objectType: "Task",
+    endpoints: {},
+    customEndpoints: {
+        checkStatuses: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         const result: CheckTaskStatusesResult = {
             __typename: "CheckTaskStatusesResult",
@@ -317,5 +321,6 @@ export const task: EndpointsTask = {
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
             return { __typename: "Success" as const, success: false, error: `Failed to process approval: ${errorMessage}` };
         }
+        },
     },
-};
+});

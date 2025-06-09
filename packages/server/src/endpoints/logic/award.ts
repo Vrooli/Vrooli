@@ -1,17 +1,18 @@
 import { type AwardSearchInput, type AwardSearchResult, VisibilityType } from "@vrooli/shared";
-import { readManyHelper } from "../../actions/reads.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsAward = {
     findMany: ApiEndpoint<AwardSearchInput, AwardSearchResult>;
 }
 
-const objectType = "Award";
-export const award: EndpointsAward = {
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPrivatePermissions: true });
-        return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
+export const award: EndpointsAward = createStandardCrudEndpoints({
+    objectType: "Award",
+    endpoints: {
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PRIVATE,
+            visibility: VisibilityType.Own,
+        },
     },
-};
+});

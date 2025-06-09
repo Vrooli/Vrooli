@@ -1,8 +1,6 @@
 import { type FindByPublicIdInput, type Member, type MemberSearchInput, type MemberSearchResult, type MemberUpdateInput } from "@vrooli/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsMember = {
     findOne: ApiEndpoint<FindByPublicIdInput, Member>;
@@ -10,21 +8,20 @@ export type EndpointsMember = {
     updateOne: ApiEndpoint<MemberUpdateInput, Member>;
 }
 
-const objectType = "Member";
-export const member: EndpointsMember = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readOneHelper({ info, input, objectType, req });
+export const member: EndpointsMember = createStandardCrudEndpoints({
+    objectType: "Member",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readManyHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

@@ -1,10 +1,7 @@
 import { type Comment, type CommentCreateInput, type CommentSearchInput, type CommentSearchResult, type CommentUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { CommentModel } from "../../models/base/comment.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsComment = {
     findOne: ApiEndpoint<FindByIdInput, Comment>;
@@ -13,26 +10,27 @@ export type EndpointsComment = {
     updateOne: ApiEndpoint<CommentUpdateInput, Comment>;
 }
 
-const objectType = "Comment";
-export const comment: EndpointsComment = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readOneHelper({ info, input, objectType, req });
+export const comment: EndpointsComment = createStandardCrudEndpoints({
+    objectType: "Comment",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+            customImplementation: async ({ input, req, info }) => {
+                return CommentModel.query.searchNested(req, input, info);
+            },
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return CommentModel.query.searchNested(req, input, info);
-    },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

@@ -1,9 +1,6 @@
 import { type FindByIdInput, type Tag, type TagCreateInput, type TagSearchInput, type TagSearchResult, type TagUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsTag = {
     findOne: ApiEndpoint<FindByIdInput, Tag>;
@@ -12,26 +9,25 @@ export type EndpointsTag = {
     updateOne: ApiEndpoint<TagUpdateInput, Tag>;
 }
 
-const objectType = "Tag";
-export const tag: EndpointsTag = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readOneHelper({ info, input, objectType, req });
+export const tag: EndpointsTag = createStandardCrudEndpoints({
+    objectType: "Tag",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+            useEmbeddings: true,
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.MEDIUM,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.MEDIUM,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readManyWithEmbeddingsHelper({ info, input, objectType, req });
-    },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 500, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 500, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

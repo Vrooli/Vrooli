@@ -1,9 +1,6 @@
 import { type FindByPublicIdInput, type Team, type TeamCreateInput, type TeamSearchInput, type TeamSearchResult, type TeamUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsTeam = {
     findOne: ApiEndpoint<FindByPublicIdInput, Team>;
@@ -12,22 +9,24 @@ export type EndpointsTeam = {
     updateOne: ApiEndpoint<TeamUpdateInput, Team>;
 }
 
-const objectType = "Team";
-export const team: EndpointsTeam = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const team: EndpointsTeam = createStandardCrudEndpoints({
+    objectType: "Team",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.STRICT,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
-    },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

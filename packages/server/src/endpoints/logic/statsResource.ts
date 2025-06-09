@@ -1,16 +1,18 @@
 import { type StatsResourceSearchInput, type StatsResourceSearchResult, VisibilityType } from "@vrooli/shared";
-import { readManyHelper } from "../../actions/reads.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsStatsResource = {
     findMany: ApiEndpoint<StatsResourceSearchInput, StatsResourceSearchResult>;
 }
 
-const objectType = "StatsResource";
-export const statsResource: EndpointsStatsResource = {
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.OwnOrPublic });
+export const statsResource: EndpointsStatsResource = createStandardCrudEndpoints({
+    objectType: "StatsResource",
+    endpoints: {
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+            visibility: VisibilityType.OwnOrPublic,
+        },
     },
-};
+});
