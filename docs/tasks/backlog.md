@@ -1,16 +1,9 @@
-- Change primary keys away from uuidv4. Research best practices for this.
+## Research Tasks
+
+// Add research tasks here
 
 ## High Priority
 
-- **Complete Test Framework Migration to Vitest** - Convert all existing Jest and Mocha/Chai/Sinon tests to Vitest for consistency across the codebase. Currently ~20 test files need migration.
-
-- **Implement Security Validation Engine for AI Outputs** - Build validation system for AI-generated outputs to ensure they meet security and quality standards. Focus on output validation only (not bias/hallucination detection as those are emergent properties).
-
-- **Verify and Test Rate Limiting Implementation** - Audit existing rate limiting and API quota management system. Create comprehensive tests to ensure it's working correctly and preventing abuse.
-
-- **Implement and Test API Key Generation and Validation** - Ensure internal and external API key generation and validation is fully implemented with proper encryption. Create comprehensive tests for key generation, validation, rotation, and secure storage. Verify keys are properly encrypted at rest and in transit.
-
-- **Add API Key Support to Execution Architecture** - (Depends on: API Key Generation task) Extend the three-tier execution architecture to support API key authentication for swarm operations. Enable secure API bootstrapping capabilities as described in emergent-capabilities documentation. Ensure proper key management and access control across all tiers.
 
 ## Medium Priority
 
@@ -34,11 +27,11 @@
 
 - **Create Accessibility Audit and Enhancement System** - Implement automated accessibility testing, add missing ARIA labels, ensure keyboard navigation works properly. Create accessibility checklist for new components.
 
+- **Implement Camera Button for Image Capture** - Complete the implementation of CameraButton component that allows users to capture images using their device camera. Similar to MicrophoneButton for speech input, this should provide visual input capabilities. Features should include: camera access permission handling, image capture interface, preview functionality, and integration with forms/chat for image uploads.
+
 - **Implement Redis Connection Pool Management** - Create proper Redis connection pool with connection reuse, health checks, and automatic reconnection logic to improve resource utilization and reliability.
 
 - **Implement Environment Variable Validation** - Create validation system for environment variables at startup with clear error messages for missing or invalid configurations based on .env-example file.
-
-## Research Tasks
 
 - **Research WebSocket Connection Pool Management** - Investigate current WebSocket implementation for real-time features. Research best practices for connection pooling, reconnection logic, and resource efficiency. Provide recommendation on whether improvements are needed.
 

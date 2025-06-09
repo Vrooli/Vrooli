@@ -1,3 +1,56 @@
+# Verify and Test Rate Limiting Implementation
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Audit existing rate limiting and API quota management system. Create comprehensive tests to ensure it's working correctly and preventing abuse.
+
+**Current Implementation Analysis:**
+- Token bucket algorithm with burst support and sliding window
+- Request-level middleware with API/IP/User rate limits
+- Per-endpoint configuration with custom limits
+- Credit system integration for usage-based billing
+- Existing test coverage in request.test.ts
+
+**Key Deliverables:**
+
+**Phase 1: Audit Current Implementation**
+- [ ] Review all rate limiting code for correctness
+- [ ] Identify any missing rate limits on endpoints
+- [ ] Check for bypass vulnerabilities
+- [ ] Verify Redis failure fallback behavior
+- [ ] Audit credit system integration
+
+**Phase 2: Enhance Test Coverage**
+- [ ] Test distributed rate limiting across multiple servers
+- [ ] Test burst capacity handling
+- [ ] Test rate limit recovery over time
+- [ ] Test edge cases (clock skew, Redis failures, Lua errors, concurrent requests)
+- [ ] Test all endpoint rate limits
+
+**Phase 3: Security Testing**
+- [ ] Test for rate limit bypass attempts
+- [ ] Test IP spoofing resistance
+- [ ] Test safe origin validation
+- [ ] Test API key rotation impact
+- [ ] Test DDoS resistance
+
+**Phase 4: Monitoring & Alerts**
+- [ ] Verify rate limit violation logging
+- [ ] Test metrics collection
+- [ ] Create alert thresholds
+- [ ] Test event emission for violations
+
+**Phase 5: Documentation**
+- [ ] Document all rate limits per endpoint
+- [ ] Create rate limiting best practices guide
+- [ ] Document monitoring procedures
+- [ ] Create incident response playbook
+
+---
+
 # Fix Commenting System
 Priority: MEDIUM  
 Status: TODO
@@ -12,6 +65,51 @@ Fix the commenting functionality throughout the application, starting with the U
 - [ ] Implement necessary server-side fixes
 - [ ] Test commenting functionality across different parts of the application
 - [ ] Ensure proper error handling for comment operations
+
+---
+
+# Implement and Test API Key Generation and Validation
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Ensure internal and external API key generation and validation is fully implemented with proper encryption. Create comprehensive tests for key generation, validation, rotation, and secure storage. Verify keys are properly encrypted at rest and in transit.
+
+**Current Implementation Analysis:**
+- 32-character key generation with AES-256-CBC encryption
+- Dual storage system (site keys and external keys)
+- Multi-source authentication (header, query, env var)
+- Permission-based access control system
+- Basic unit tests exist but lack comprehensive coverage
+
+**Key Deliverables:**
+
+**Phase 1: Complete Core Implementation**
+- [ ] Fix raw key return in createOne endpoint (TODO at line 24)
+- [ ] Implement key rotation mechanism with history and grace period
+- [ ] Add key expiration support with cleanup jobs
+
+**Phase 2: Security Enhancements**
+- [ ] Verify encryption at rest (database, backups)
+- [ ] Implement encryption in transit (HTTPS, TLS)
+- [ ] Add usage restrictions (IP whitelist, domain limits, time windows)
+
+**Phase 3: Comprehensive Testing**
+- [ ] Unit tests for generation, encryption, permissions
+- [ ] Integration tests for full lifecycle and multi-tenant isolation
+- [ ] Security tests for brute force, timing attacks, enumeration
+
+**Phase 4: Usage Tracking & Analytics**
+- [ ] Implement detailed per-endpoint usage tracking
+- [ ] Add usage alerts and automated suspension
+- [ ] Create real-time usage dashboard
+
+**Phase 5: Documentation & Developer Experience**
+- [ ] Complete API authentication guide
+- [ ] Document security best practices
+- [ ] Create migration tools and guides
 
 ---
 
@@ -397,5 +495,53 @@ Create comprehensive documentation for all user authentication API endpoints in 
   - [ ] Usage examples
 - [ ] Organize documentation in a logical, user-friendly format
 - [ ] Add the documentation to a dedicated API documentation section
+
+---
+
+# Fix API Key Raw Value Return on Creation
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Fix the issue where raw API keys are not properly returned during creation. The current implementation has a TODO comment indicating that the unencrypted key value must be included in the create response so users can save it (as it's only shown once). This is critical for API key functionality to work properly.
+
+**Current Implementation Analysis:**
+- API key infrastructure is largely complete with encryption, permissions, and authentication
+- The main issue is in `packages/server/src/endpoints/logic/apiKey.ts` line 24
+- Keys are properly generated and encrypted, but the raw value isn't returned
+- UI already expects to display the key once on creation
+
+**Key Deliverables:**
+
+**Phase 1: Fix Core Implementation**
+- [ ] Modify the createOne endpoint to include the raw key in the response
+- [ ] Ensure the raw key is only included during creation (never on updates/reads)
+- [ ] Update the response type to include the temporary raw key field
+- [ ] Verify the UI properly displays and handles the one-time key display
+
+**Phase 2: Security Verification**
+- [ ] Ensure raw keys are never logged or stored
+- [ ] Verify keys are properly encrypted before database storage
+- [ ] Confirm raw keys are only transmitted over HTTPS
+- [ ] Add security warnings in the UI about saving the key
+
+**Phase 3: Testing**
+- [ ] Create unit tests for key creation with raw value return
+- [ ] Test that subsequent reads never include the raw key
+- [ ] Test UI flow for copying and saving the key
+- [ ] Verify error handling if key creation fails
+
+**Phase 4: Enhancement (Optional)**
+- [ ] Add key rotation mechanism
+- [ ] Implement key expiration dates
+- [ ] Add IP whitelisting support
+- [ ] Create usage analytics dashboard
+
+**Technical Notes:**
+- The fix is straightforward but security-critical
+- Must coordinate with UI to ensure proper one-time display
+- Consider adding a "download key" option for better UX
 
 ---
