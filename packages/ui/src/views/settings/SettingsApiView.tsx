@@ -19,7 +19,7 @@ import RadioGroup from "@mui/material/RadioGroup";
 import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useTheme } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { ApiKeyPermission, DeleteType, FormStructureType, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
