@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, ResourceSubType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { PromptView } from "./PromptView.js";
@@ -141,7 +141,7 @@ const mockPromptVersionData: StandardVersion = {
     }],
     translationsCount: 1,
     updatedAt: new Date().toISOString(),
-    variant: StandardType.Prompt,
+    variant: ResourceSubType.StandardPrompt,
     versionIndex: 1,
     versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
     versionNotes: "Initial version",

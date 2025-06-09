@@ -1,5 +1,5 @@
-// eslint-disable-next-line import/extensions
-import { action } from "@storybook/addon-actions";
+// Simple action replacement
+const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
 import { noop } from "@vrooli/shared";
 import React from "react";
 import { MicrophoneButton, TranscriptDialog } from "./MicrophoneButton.js";

@@ -134,10 +134,6 @@ export default defineConfig((props) => {
                         'forms': ['formik', 'yup'],
                         // Internationalization
                         'i18n': ['i18next', 'react-i18next'],
-                        // Bundle for ad banners (if an ad-blocker decides to block this, 
-                        // it won't affect the rest of the site).
-                        // To help prevent blocking, it's named something random.
-                        'banner-chicken': ['./src/components/BannerChicken.tsx'],
                         // Codemirror bundles removed - now loaded dynamically
                         // Latex bundles
                         'latex': ['katex', '@matejmazur/react-katex'],

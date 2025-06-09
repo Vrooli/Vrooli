@@ -264,14 +264,14 @@ export const searchVersionViewTabParams: TabParamSearchableList<SearchVersionVie
         key: SearchVersionPageTabOption.DataConverterVersion,
         titleKey: "DataConverter",
         searchType: "CodeVersion",
-        where: () => ({ codeType: CodeType.DataConvert }),
+        where: () => ({ codeType: ResourceSubType.CodeDataConverter }),
     },
     {
         iconInfo: { name: "SmartContract", type: "Common" } as const,
         key: SearchVersionPageTabOption.SmartContractVersion,
         titleKey: "SmartContract",
         searchType: "CodeVersion",
-        where: () => ({ codeType: CodeType.SmartContract }),
+        where: () => ({ codeType: ResourceSubType.CodeSmartContract }),
     },
 ];
 

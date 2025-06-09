@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 /* eslint-disable no-magic-numbers */
-import { CodeLanguage, DUMMY_ID, ResourceUsedFor, StandardType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
+import { CodeLanguage, DUMMY_ID, ResourceUsedFor, ResourceSubType, endpointsResource, generatePK, getObjectUrl, type Resource, type StandardVersion, type Tag, type User } from "@vrooli/shared";
 import { HttpResponse, http } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { DataStructureUpsert } from "./DataStructureUpsert.js";
@@ -129,7 +129,7 @@ const mockDataStructureVersionData: StandardVersion = {
     }],
     translationsCount: 1,
     updatedAt: new Date().toISOString(),
-    variant: StandardType.DataStructure,
+    variant: ResourceSubType.StandardDataStructure,
     versionIndex: 1,
     versionLabel: `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}`,
     versionNotes: "Initial version",
