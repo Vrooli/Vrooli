@@ -20,6 +20,8 @@
 
 The `ChatConfigObject` is more than just configuration—it's the **living state** that drives execution across all three tiers. Every conversation corresponds 1:1 with a swarm, and the swarm's configuration serves as the central coordination mechanism.
 
+> 📝 **Note**: Swarms are initiated through the **[Task Queue System](../core-services/task-queue-system.md)** which handles distributed processing, worker scaling, and integration with the Active Task Registry for long-running swarm operations.
+
 ```mermaid
 graph TB
     subgraph "🗣️ User Interface Layer"

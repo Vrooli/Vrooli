@@ -1,3 +1,77 @@
+# Create Integration Tests for Cross-Tier Communication
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Develop comprehensive integration tests for the three-tier AI architecture (Coordination/Process/Execution) to ensure proper communication, error handling, and resilience between tiers. The tests should verify event-driven coordination, MCP tool communication, and emergency control channels.
+
+**Current Implementation Analysis:**
+- Three-tier architecture with Redis-based event bus for communication
+- Tier 1 (Coordination) → Tier 2 (Process) via MCP tools
+- Tier 2 (Process) → Tier 3 (Execution) via direct service interface
+- Emergency channel for Tier 1 ↔ Tier 3 bypassing Tier 2
+- Existing integration test pattern in `executionFlow.test.ts` using testcontainers
+
+**Key Deliverables:**
+
+**Phase 1: Core Communication Tests**
+- [ ] Test Tier 1 → Tier 2 MCP tool communication (`run_routine`, resource management)
+- [ ] Test Tier 2 → Tier 3 step execution flow (request/response cycle)
+- [ ] Test emergency channel (Tier 1 ↔ Tier 3 direct communication)
+- [ ] Test event bus delivery guarantees (fire-and-forget, reliable, barrier sync)
+- [ ] Test concurrent swarm execution and resource sharing
+
+**Phase 2: Error Handling and Resilience Tests**
+- [ ] Test error propagation across tiers (transient, permanent, system errors)
+- [ ] Test circuit breaker activation and recovery
+- [ ] Test fallback strategies for each tier
+- [ ] Test resource exhaustion scenarios and graceful degradation
+- [ ] Test recovery from tier failures (Redis down, service unavailable)
+
+**Phase 3: State Management Tests**
+- [ ] Test swarm state transitions and persistence
+- [ ] Test run state machine transitions across tiers
+- [ ] Test checkpoint and recovery mechanisms
+- [ ] Test context propagation through execution chain
+- [ ] Test state synchronization during concurrent operations
+
+**Phase 4: Performance and Load Tests**
+- [ ] Test high-volume event processing
+- [ ] Test tier performance under concurrent load
+- [ ] Test resource limit enforcement
+- [ ] Test priority-based event routing
+- [ ] Test backpressure handling
+
+**Phase 5: Security and Validation Tests**
+- [ ] Test cross-tier authentication and authorization
+- [ ] Test input/output validation at tier boundaries
+- [ ] Test security event propagation
+- [ ] Test rate limiting across tiers
+- [ ] Test malicious input handling
+
+**Technical Implementation Notes:**
+- Use testcontainers for Redis (never mock core infrastructure)
+- Follow existing pattern in `__test/integration/` directory
+- Test files should use `.test.ts` extension
+- Use shared test setup from `__test/setup.ts`
+- Verify both success and failure scenarios
+- Test event subscriptions and unsubscriptions
+- Ensure tests are idempotent and can run in parallel
+
+**Test Structure:**
+```
+packages/server/src/services/execution/__test/integration/
+├── tierCommunication.test.ts      # Core communication tests
+├── errorHandling.test.ts           # Error and resilience tests
+├── stateManagement.test.ts         # State and persistence tests
+├── performance.test.ts             # Load and performance tests
+└── security.test.ts                # Security boundary tests
+```
+
+---
+
 # Verify and Test Rate Limiting Implementation
 Priority: HIGH  
 Status: TODO
@@ -543,5 +617,173 @@ Fix the issue where raw API keys are not properly returned during creation. The 
 - The fix is straightforward but security-critical
 - Must coordinate with UI to ensure proper one-time display
 - Consider adding a "download key" option for better UX
+
+---
+
+# Implement Comprehensive Error Handling Strategy
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Create a unified error handling system with custom error classes, consistent error codes, and proper error propagation across all tiers. The system should improve debugging, user experience, and provide better error tracking and recovery mechanisms throughout the application.
+
+**Current Implementation Analysis:**
+- **CustomError class** exists in `/packages/server/src/events/error.ts` with trace code system
+- **Translation-based errors** using i18n keys from `/packages/shared/src/translations/locales/en/error.json`
+- **Trace codes** are manually managed per file (4-digit location + 4-digit random)
+- **Execution tiers** have sophisticated error classification and recovery strategies
+- **HTTP errors** have specialized classes (FetchError, TimeoutError, NetworkError)
+- **No centralized error utilities** - error handling is distributed across modules
+
+**Key Deliverables:**
+
+**Phase 1: Error Infrastructure Enhancement**
+- [ ] Create centralized error utilities module at `/packages/shared/src/errors/`
+  - [ ] Move and enhance CustomError class with additional metadata
+  - [ ] Create error factory functions for common error types
+  - [ ] Implement automatic trace code generation system
+  - [ ] Add error context preservation (stack traces, request data, user context)
+- [ ] Extend error classification system from execution tiers to general application
+  - [ ] Apply ErrorSeverity, ErrorCategory, ErrorRecoverability enums application-wide
+  - [ ] Create error classifier for non-execution errors
+  - [ ] Implement recovery strategy selector for common errors
+
+**Phase 2: Error Code Management**
+- [ ] Implement automatic trace code assignment system
+  - [ ] Create build-time script to assign unique codes to error locations
+  - [ ] Generate trace code mapping file for debugging
+  - [ ] Add VS Code extension for trace code lookup
+- [ ] Standardize error code format across application
+  - [ ] Document error code ranges for different modules
+  - [ ] Create error code registry to prevent duplicates
+  - [ ] Add validation for error code uniqueness
+
+**Phase 3: Error Propagation and Handling**
+- [ ] Implement consistent error propagation patterns
+  - [ ] Create error boundary components for UI
+  - [ ] Add error middleware for all API endpoints
+  - [ ] Implement error aggregation for batch operations
+  - [ ] Add context propagation through error chain
+- [ ] Create tier-specific error handlers
+  - [ ] Tier 1: Strategic error handling with fallback coordination
+  - [ ] Tier 2: Process error handling with retry and circuit breaking
+  - [ ] Tier 3: Execution error handling with detailed logging
+
+**Phase 4: User-Facing Error Improvements**
+- [ ] Enhance error messages for better user experience
+  - [ ] Create user-friendly error message templates
+  - [ ] Add actionable error messages with suggested fixes
+  - [ ] Implement error message personalization based on user role
+- [ ] Add error recovery UI components
+  - [ ] Create retry mechanisms for failed operations
+  - [ ] Add fallback UI states for critical errors
+  - [ ] Implement progressive degradation for feature failures
+
+**Phase 5: Error Monitoring and Analytics**
+- [ ] Implement comprehensive error tracking
+  - [ ] Add error telemetry with anonymized data
+  - [ ] Create error dashboards for monitoring
+  - [ ] Implement error alerting for critical issues
+- [ ] Add error pattern detection
+  - [ ] Identify recurring error patterns
+  - [ ] Create automated error reports
+  - [ ] Implement predictive error prevention
+
+**Phase 6: Testing and Documentation**
+- [ ] Create comprehensive error handling tests
+  - [ ] Unit tests for all error classes and utilities
+  - [ ] Integration tests for error propagation
+  - [ ] E2E tests for user-facing error scenarios
+- [ ] Document error handling patterns
+  - [ ] Create error handling best practices guide
+  - [ ] Document all error codes and their meanings
+  - [ ] Add troubleshooting guides for common errors
+
+**Technical Implementation Notes:**
+- Build on existing CustomError and execution tier error handling
+- Maintain backward compatibility with existing error codes
+- Ensure errors are properly logged but don't expose sensitive data
+- Follow TypeScript strict error typing patterns
+- Consider performance impact of error tracking
+
+**File Structure:**
+```
+packages/shared/src/errors/
+├── index.ts                    # Main exports
+├── CustomError.ts              # Enhanced CustomError class
+├── errorFactory.ts             # Error creation utilities
+├── errorClassifier.ts          # Error classification logic
+├── errorCodes.ts               # Error code constants
+└── types.ts                    # Error-related types
+
+packages/server/src/middleware/
+├── errorHandler.ts             # Global error middleware
+└── errorLogger.ts              # Error logging middleware
+
+packages/ui/src/components/errors/
+├── ErrorBoundary.tsx           # React error boundary
+├── ErrorDisplay.tsx            # User-friendly error display
+└── ErrorRecovery.tsx           # Error recovery UI
+```
+
+**Success Criteria:**
+- All errors use consistent error classes and codes
+- Error messages are user-friendly and actionable
+- Debugging is simplified with trace codes and context
+- Error patterns are tracked and analyzed
+- Recovery mechanisms reduce user frustration
+- Documentation enables quick error resolution
+
+---
+
+# Implement Code Duplication Detection and Refactoring
+Priority: MEDIUM  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Refactor duplicate code patterns in endpoint logic files to reduce maintenance burden and improve code reusability. Analysis shows ~36 out of 47 endpoint files follow nearly identical CRUD patterns with only minor configuration differences. This refactoring could reduce the codebase by 15,000-20,000 lines while standardizing behavior across all endpoints.
+
+**Key Deliverables:**
+- [ ] Create endpoint factory function for standard CRUD operations:
+  - Design configuration interface for rate limits, permissions, and visibility
+  - Implement `createStandardCrudEndpoints` factory function
+  - Support custom overrides for endpoints with special logic
+- [ ] Migrate standard endpoints to use the factory:
+  - Start with 5 simple endpoints as proof of concept
+  - Create migration script to convert remaining endpoints
+  - Preserve existing functionality and type safety
+- [ ] Extract common configuration constants:
+  - Rate limit presets (100, 250, 500, 1000, 2000)
+  - Permission combinations
+  - Default visibility settings
+- [ ] Update endpoint tests to use shared patterns:
+  - Continue migration to shared fixtures as per README-SharedFixtures.md
+  - Create test factory for common CRUD test scenarios
+  - Ensure test coverage remains at 100%
+- [ ] Document the new patterns:
+  - Add usage examples to developer documentation
+  - Create migration guide for future endpoints
+  - Update contribution guidelines
+
+**Technical Implementation Notes:**
+The factory approach should maintain full TypeScript type safety and allow for progressive migration. Endpoints with custom logic (auth, user, etc.) should be able to override specific methods while still benefiting from the standardization. The implementation should follow the existing pattern of using helper functions (createOneHelper, readOneHelper, etc.) which already handle the business logic well.
+
+**Acceptance Criteria:**
+- All migrated endpoints maintain exact same functionality
+- TypeScript types remain fully intact with no loss of type safety
+- Performance characteristics remain unchanged
+- Code reduction of at least 50% in migrated endpoint files
+- All existing tests pass without modification
+- New factory is well-documented with examples
+
+**Files to Focus On:**
+- `packages/server/src/endpoints/logic/*.ts` (primary refactoring targets)
+- `packages/server/src/endpoints/util/` (location for new factory)
+- `packages/server/src/__test/fixtures/` (test pattern updates)
+- `packages/server/src/endpoints/logic/README-SharedFixtures.md` (existing guide)
 
 ---

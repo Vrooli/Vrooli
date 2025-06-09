@@ -610,6 +610,9 @@ export class AISecurityManager {
         input: string, 
         context: SecurityContext
     ): Promise<AIThreatDetectionResult> {
+        // Note: For production sensitive data handling, integrate with
+        // the Secrets Management Service for encryption/decryption
+        // See: ../../core-services/secrets-management.md
         const sensitivePatterns = [
             { pattern: /\b\d{3}-\d{2}-\d{4}\b/, type: "ssn" },
             { pattern: /\b4[0-9]{12}(?:[0-9]{3})?\b/, type: "credit_card" },
@@ -1064,11 +1067,17 @@ export class ExecutionSecurityHooks {
 
 ## Related Documentation
 
+### **Execution Architecture**
 - **[Security Overview](README.md)** - High-level security architecture
 - **[Security Boundaries](security-boundaries.md)** - Trust models and permission systems
 - **[Main Execution Architecture](../README.md)** - Complete architectural overview
 - **[Types System](../types/core-types.ts)** - Security interface definitions
 - **[Communication Patterns](../communication/communication-patterns.md)** - Security integration with communication
 - **[Error Handling](../resilience/error-propagation.md)** - Security error handling and recovery
+
+### **Core Services Integration**
+- **[Secrets Management](../../core-services/secrets-management.md)** - Encryption and secure storage for sensitive run inputs/outputs
+- **[Notification Service](../../core-services/notification-service.md)** - Security event notifications and alerts
+- **[Event Bus System](../../core-services/event-bus-system.md)** - Security event distribution across tiers
 
 This implementation guide provides the concrete patterns and code examples needed to build Vrooli's comprehensive security architecture. 

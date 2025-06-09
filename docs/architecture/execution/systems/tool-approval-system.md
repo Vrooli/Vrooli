@@ -341,7 +341,7 @@ sequenceDiagram
 
 ### **3. User Notification System**
 
-The system supports multiple notification channels:
+The system supports multiple notification channels through the **[Notification Service](../../core-services/notification-service.md)**:
 
 #### **Real-Time Notifications (Active Users)**
 ```typescript
@@ -648,11 +648,16 @@ class ApprovalAnalytics {
 
 ## 🔗 Related Documentation
 
-- **[Event Catalog](event-driven/event-catalog.md)** - Complete event definitions including tool approval events
-- **[Security Architecture](security/README.md)** - Security frameworks that integrate with tool approval
-- **[Resource Management](resource-management/README.md)** - Cost tracking and credit management
-- **[Swarm State Management](swarm-state-management.md)** - How tool approvals are persisted in swarm state
-- **[MCP Integration](communication/mcp-integration.md)** - How MCP tools integrate with the approval system
+### **Execution Architecture**
+- **[Event Catalog](../event-driven/event-catalog.md)** - Complete event definitions including tool approval events
+- **[Security Architecture](../security/README.md)** - Security frameworks that integrate with tool approval
+- **[Resource Management](../resource-management/README.md)** - Cost tracking and credit management
+- **[MCP Integration](../communication/implementation/mcp-integration.md)** - How MCP tools integrate with the approval system
+
+### **Core Services Integration**
+- **[Notification Service](../../core-services/notification-service.md)** - Multi-channel notification delivery for approval requests
+- **[Event Bus System](../../core-services/event-bus-system.md)** - Event distribution for approval workflows
+- **[Task Queue System](../../core-services/task-queue-system.md)** - Queue processing for scheduled tool executions
 
 ---
 

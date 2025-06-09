@@ -77,20 +77,22 @@ interface APIKeyConfiguration {
 
 ### **Encrypted Storage**
 
-All sensitive credentials are encrypted before database storage:
+All sensitive credentials are encrypted before database storage using the **[Secrets Management Service](../../core-services/secrets-management.md)**:
 
 ```typescript
 interface EncryptedAPIKey {
     id: string;
     serviceName: string;
     serviceUrl: string;
-    encryptedCredentials: string;  // AES-256 encrypted JSON
+    encryptedCredentials: string;  // AES-256 encrypted JSON via Secrets Management
     createdAt: Date;
     lastUsed?: Date;
     isActive: boolean;
     createdBy: string;             // Admin user ID
 }
 ```
+
+> 🔐 **Security Note**: API keys and other sensitive credentials are encrypted using AES-256-CBC encryption through the **[Secrets Management Service](../../core-services/secrets-management.md)**, which also provides automated key rotation and compliance audit trails.
 
 ---
 

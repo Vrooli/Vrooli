@@ -553,11 +553,15 @@ await eventSubscriber.subscribe(
 
 ## 🔗 Related Documentation
 
+### **Execution Architecture**
 - **[Event Bus Protocol](event-bus-protocol.md)** - Core event communication protocols
-- **[Event-Driven Intelligence](event-driven-intelligence.md)** - Intelligent event processing agents
-- **[Safety and Barrier Synchronization](../security/barrier-synchronization.md)** - Safety-critical event coordination
-- **[Resource Management Events](../resource-management/event-coordination.md)** - Resource allocation event handling
-- **[Performance Monitoring](../monitoring/event-analytics.md)** - Event-driven performance tracking
+- **[Event-Driven Architecture](README.md)** - Overall event-driven system design
+- **[Tool Approval System](../systems/tool-approval-system.md)** - Approval events and workflows
+
+### **Core Services Integration**
+- **[Event Bus System](../../core-services/event-bus-system.md)** - Production event bus implementation
+- **[Notification Service](../../core-services/notification-service.md)** - Event-driven user notifications for approvals
+- **[Task Queue System](../../core-services/task-queue-system.md)** - Queue processing for event handlers
 
 ---
 

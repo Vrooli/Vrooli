@@ -276,11 +276,21 @@ The security architecture integrates with all other execution architecture compo
 
 ## Related Documentation
 
+### **Security Architecture**
 - **[Security Implementation Patterns](security-implementation-patterns.md)** - Concrete implementation guidance and code examples
 - **[Security Boundaries](security-boundaries.md)** - Trust models and validation flows
+- **[Security Validation Engine Implementation](security-validation-engine-implementation.md)** - Event-driven security validation
+
+### **Execution Architecture**
 - **[Main Execution Architecture](../README.md)** - Complete architectural overview
 - **[Types System](../types/core-types.ts)** - Security interface definitions
 - **[Communication Patterns](../communication/communication-patterns.md)** - Security integration with communication
 - **[Error Handling](../resilience/error-propagation.md)** - Security error handling and recovery
+
+### **Core Services Integration**
+- **[Secrets Management](../../core-services/secrets-management.md)** - Secure storage for API keys, sensitive run inputs/outputs
+- **[Authentication Service](../../core-services/authentication-service.md)** - Identity verification and session management
+- **[Event Bus System](../../core-services/event-bus-system.md)** - Security event distribution
+- **[Notification Service](../../core-services/notification-service.md)** - Security alerts and incident notifications
 
 This comprehensive security architecture ensures that Vrooli maintains the highest levels of protection while enabling flexible, intelligent execution across all tiers of the system. 
