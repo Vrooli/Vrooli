@@ -1,6 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+import { render } from "../../__test/testUtils.js";
 import { EmojiPicker } from "./EmojiPicker.js";
+
+// Mock the emoji data hook
+vi.mock("./useEmojiData.js", () => ({
+    useEmojiData: () => ({
+        emojiData: {},
+    }),
+}));
 
 describe("EmojiPicker", () => {
     it("renders the emoji picker button", () => {

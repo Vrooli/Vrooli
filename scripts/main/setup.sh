@@ -77,24 +77,12 @@ setup::parse_arguments() {
 }
 
 setup::main() {
-    # Only parse arguments if this script is being run directly, not sourced
-    if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-        setup::parse_arguments "$@"
-        # Validate target and canonicalize
-        if ! canonical=$(match_target "$TARGET"); then
-            args::usage "$DESCRIPTION"
-            exit "$ERROR_USAGE"
-        fi
-        export TARGET="$canonical"
-    else
-        # If sourced, set default values for variables that would normally be parsed
-        export CLEAN="${CLEAN:-no}"
-        export IS_CI="${IS_CI:-no}"
-        export SUDO_MODE="${SUDO_MODE:-error}"
-        export YES="${YES:-no}"
-        export LOCATION="${LOCATION:-}"
-        export ENVIRONMENT="${ENVIRONMENT:-development}"
+    # Validate target and canonicalize
+    if ! canonical=$(match_target "$TARGET"); then
+        args::usage "$DESCRIPTION"
+        exit "$ERROR_USAGE"
     fi
+    export TARGET="$canonical"
     
     log::header "🔨 Starting project setup for $(match_target "$TARGET")..."
 
@@ -185,4 +173,16 @@ setup::main() {
     fi
 }
 
-setup::main "$@"
+# Only parse arguments if this script is being run directly, not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    setup::parse_arguments "$@"
+    setup::main "$@"
+else
+    # If sourced, set default values for variables that would normally be parsed
+    export CLEAN="${CLEAN:-no}"
+    export IS_CI="${IS_CI:-no}"
+    export SUDO_MODE="${SUDO_MODE:-error}"
+    export YES="${YES:-no}"
+    export LOCATION="${LOCATION:-}"
+    export ENVIRONMENT="${ENVIRONMENT:-development}"
+fi

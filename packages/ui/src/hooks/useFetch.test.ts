@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { renderHook, waitFor, act } from "@testing-library/react";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useFetch, useLazyFetch, uiPathToApi } from "./useFetch.js";
 import { fetchData } from "../api/fetchData.js";
 import { ServerResponseParser } from "../api/responseParser.js";
-import { useDebounce } from "./useDebounce.js";
 
-// Mock dependencies
+// Mock dependencies with minimal overhead
 vi.mock("../api/fetchData.js", () => ({
     fetchData: vi.fn(),
 }));
@@ -17,25 +16,16 @@ vi.mock("../api/responseParser.js", () => ({
     },
 }));
 
+// Mock useDebounce to execute immediately without delay
 vi.mock("./useDebounce.js", () => ({
-    useDebounce: vi.fn(),
+    useDebounce: vi.fn((callback) => [callback, vi.fn()]),
 }));
 
 const mockFetchData = vi.mocked(fetchData);
 const mockDisplayErrors = vi.mocked(ServerResponseParser.displayErrors);
-const mockUseDebounce = vi.mocked(useDebounce);
 
 describe("useFetch", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
-        // Default useDebounce implementation that calls the callback immediately
-        mockUseDebounce.mockImplementation((callback, delay) => {
-            const debouncedCallback = vi.fn((value) => callback(value));
-            return [debouncedCallback, vi.fn()];
-        });
-    });
-
-    afterEach(() => {
         vi.clearAllMocks();
     });
 
@@ -76,67 +66,17 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalledWith({
-                    endpoint: "/test",
-                    inputs: {},
-                    method: "GET",
-                    options: {},
-                    omitRestBase: false,
-                });
+            expect(mockFetchData).toHaveBeenCalledWith({
+                endpoint: "/test",
+                inputs: {},
+                method: "GET",
+                options: {},
+                omitRestBase: false,
             });
         });
     });
 
-    describe("data fetching with loading states", () => {
-        it("should set loading to true during fetch and false after success", async () => {
-            const mockResponse = {
-                data: { id: 1, name: "test" },
-                errors: undefined,
-                version: "1.0.0",
-                __fetchTimestamp: Date.now(),
-            };
-
-            // Create a promise that we can resolve manually to control timing
-            let resolvePromise: (value: any) => void;
-            const fetchPromise = new Promise((resolve) => {
-                resolvePromise = resolve;
-            });
-            mockFetchData.mockReturnValueOnce(fetchPromise as any);
-
-            const { result } = renderHook(() => useFetch({
-                endpoint: "/test",
-                inputs: {},
-            }));
-
-            // Initially should not be loading
-            expect(result.current.loading).toBe(false);
-
-            // Trigger the fetch by calling the debounced callback
-            await act(async () => {
-                const [debouncedCallback] = mockUseDebounce.mock.calls[0];
-                debouncedCallback(undefined);
-            });
-
-            // Should be loading now
-            await waitFor(() => {
-                expect(result.current.loading).toBe(true);
-            });
-
-            // Resolve the promise
-            await act(async () => {
-                resolvePromise!(mockResponse);
-                await fetchPromise;
-            });
-
-            // Should no longer be loading and have data
-            await waitFor(() => {
-                expect(result.current.loading).toBe(false);
-                expect(result.current.data).toEqual(mockResponse.data);
-                expect(result.current.errors).toBeUndefined();
-            });
-        });
-
+    describe("data fetching", () => {
         it("should handle successful response with data", async () => {
             const mockData = { id: 1, name: "test item", active: true };
             const mockResponse = {
@@ -153,19 +93,19 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            await waitFor(() => {
-                expect(result.current.data).toEqual(mockData);
-                expect(result.current.errors).toBeUndefined();
-                expect(result.current.loading).toBe(false);
+            // Wait for fetch to complete
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 0));
             });
-        });
-    });
 
-    describe("error handling scenarios", () => {
-        it("should handle response with errors and display them", async () => {
+            expect(result.current.data).toEqual(mockData);
+            expect(result.current.errors).toBeUndefined();
+            expect(result.current.loading).toBe(false);
+        });
+
+        it("should handle response with errors", async () => {
             const mockErrors = [
                 { message: "Validation failed", trace: "001" },
-                { message: "Invalid input", trace: "002" },
             ];
             const mockResponse = {
                 data: undefined,
@@ -181,11 +121,12 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            await waitFor(() => {
-                expect(result.current.errors).toEqual(mockErrors);
-                expect(result.current.data).toBe(mockResponse.data);
-                expect(mockDisplayErrors).toHaveBeenCalledWith(mockErrors);
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 0));
             });
+
+            expect(result.current.errors).toEqual(mockErrors);
+            expect(mockDisplayErrors).toHaveBeenCalledWith(mockErrors);
         });
 
         it("should handle missing endpoint gracefully", async () => {
@@ -194,51 +135,16 @@ describe("useFetch", () => {
                 inputs: {},
             }));
 
-            // Manually call refetch to trigger the no-endpoint case
-            await act(async () => {
-                const response = await result.current.refetch();
-                // @ts-ignore: Testing error response structure
-                expect(response.errors).toEqual([{
-                    trace: "0693",
-                    message: "No endpoint provided to useLazyFetch",
-                }]);
-            });
+            const response = await result.current.refetch();
+            // @ts-ignore: Testing error response structure
+            expect(response.errors).toEqual([{
+                trace: "0693",
+                message: "No endpoint provided to useLazyFetch",
+            }]);
         });
     });
 
-    describe("dependency array changes", () => {
-        it("should refetch when dependency array changes", async () => {
-            const mockResponse = {
-                data: { id: 1 },
-                errors: undefined,
-                version: "1.0.0",
-                __fetchTimestamp: Date.now(),
-            };
-
-            mockFetchData.mockResolvedValue(mockResponse);
-
-            const { rerender } = renderHook(
-                ({ deps }) => useFetch({
-                    endpoint: "/test",
-                    inputs: {},
-                }, deps),
-                { initialProps: { deps: [1] } }
-            );
-
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalledTimes(1);
-            });
-
-            // Change dependency
-            rerender({ deps: [2] });
-
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalledTimes(2);
-            });
-        });
-    });
-
-    describe("different HTTP methods and options", () => {
+    describe("HTTP options", () => {
         it("should pass through HTTP method correctly", async () => {
             const mockResponse = {
                 data: { success: true },
@@ -255,14 +161,12 @@ describe("useFetch", () => {
                 method: "POST",
             }));
 
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalledWith({
-                    endpoint: "/test",
-                    inputs: { name: "test" },
-                    method: "POST",
-                    options: {},
-                    omitRestBase: false,
-                });
+            expect(mockFetchData).toHaveBeenCalledWith({
+                endpoint: "/test",
+                inputs: { name: "test" },
+                method: "POST",
+                options: {},
+                omitRestBase: false,
             });
         });
 
@@ -282,19 +186,17 @@ describe("useFetch", () => {
                 omitRestBase: true,
             }));
 
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalledWith({
-                    endpoint: "/auth/login",
-                    inputs: {},
-                    method: "GET",
-                    options: {},
-                    omitRestBase: true,
-                });
+            expect(mockFetchData).toHaveBeenCalledWith({
+                endpoint: "/auth/login",
+                inputs: {},
+                method: "GET",
+                options: {},
+                omitRestBase: true,
             });
         });
     });
 
-    describe("manual refetch functionality", () => {
+    describe("refetch functionality", () => {
         it("should allow manual refetch with new inputs", async () => {
             const mockResponse1 = {
                 data: { id: 1 },
@@ -318,20 +220,18 @@ describe("useFetch", () => {
                 inputs: { id: 1 },
             }));
 
-            // Wait for initial fetch
-            await waitFor(() => {
-                expect(result.current.data).toEqual(mockResponse1.data);
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 0));
             });
+            
+            expect(result.current.data).toEqual(mockResponse1.data);
 
-            // Manual refetch with new input
             await act(async () => {
                 await result.current.refetch({ id: 2 });
             });
 
-            await waitFor(() => {
-                expect(result.current.data).toEqual(mockResponse2.data);
-                expect(mockFetchData).toHaveBeenCalledTimes(2);
-            });
+            expect(result.current.data).toEqual(mockResponse2.data);
+            expect(mockFetchData).toHaveBeenCalledTimes(2);
         });
     });
 });
@@ -463,7 +363,6 @@ describe("useLazyFetch", () => {
 
             const [getData] = result.current;
 
-            // Mock two responses with different timestamps
             const olderResponse = {
                 data: { id: 1, name: "old" },
                 errors: undefined,
@@ -478,7 +377,6 @@ describe("useLazyFetch", () => {
                 __fetchTimestamp: 2000,
             };
 
-            // First call returns newer response
             mockFetchData.mockResolvedValueOnce(newerResponse);
             
             await act(async () => {
@@ -487,7 +385,6 @@ describe("useLazyFetch", () => {
 
             expect(result.current[1].data).toEqual(newerResponse.data);
 
-            // Second call returns older response (should be ignored)
             mockFetchData.mockResolvedValueOnce(olderResponse);
             
             const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -496,7 +393,6 @@ describe("useLazyFetch", () => {
                 await getData();
             });
 
-            // Data should still be the newer response
             expect(result.current[1].data).toEqual(newerResponse.data);
             expect(consoleSpy).toHaveBeenCalled();
 

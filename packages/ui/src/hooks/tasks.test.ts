@@ -3,7 +3,11 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vite
 
 // Mock the device module before importing anything that uses it
 vi.mock("../utils/display/device.js");
-vi.mock("../utils/display/chatTools.js");
+vi.mock("../utils/display/chatTools.js", () => ({
+    isTaskStale: vi.fn(),
+    taskToTaskInfo: vi.fn(),
+    STALE_TASK_THRESHOLD_MS: 600000,
+}));
 
 import { renderHook } from "@testing-library/react";
 import { LlmTask, TaskStatus, nanoid, noop, type LlmTaskInfo } from "@vrooli/shared";
@@ -314,6 +318,7 @@ describe("useChatTasks", () => {
 
     afterEach(() => {
         Object.assign(PubSub, originalPubSubMethods);
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 

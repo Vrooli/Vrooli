@@ -27,6 +27,8 @@ source "${MAIN_DIR}/../helpers/utils/zip.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/build/index.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/build/package.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/build/binaries/index.sh"
 
 build::parse_arguments() {
@@ -207,11 +209,11 @@ build::main() {
     source "${MAIN_DIR}/setup.sh" "$@"
 
     log::info "Cleaning previous build artifacts..."
-    clean_build
+    package::clean_build
 
     # Need to build packages first for tests to run correctly
-    build_packages
-    verify_build
+    package::build_packages
+    package::verify_build
 
     # Create Brave Rewards verification file after packages (specifically UI) are built
     if ! brave_rewards::create_verification_file; then

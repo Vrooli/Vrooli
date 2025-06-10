@@ -59,6 +59,7 @@ vi.mock('../utils/display/device.js', () => ({
 }));
 vi.mock('../utils/display/chatTools.js', () => ({
     taskToTaskInfo: () => ({ name: 'Test Task', description: 'Test Description' }),
+    isTaskStale: vi.fn(() => false),
     STALE_TASK_THRESHOLD_MS: 600000,
 }));
 vi.mock('@uiw/react-codemirror', () => ({ default: () => null }));

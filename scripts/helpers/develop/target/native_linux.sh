@@ -36,7 +36,7 @@ nativeLinux::start_development_native_linux() {
         "pnpm exec tsc -b packages/jobs --watch --preserveWatchOutput"
         "pnpm exec node --watch packages/server/dist/index.js"
         "pnpm exec node --watch packages/jobs/dist/index.js"
-        "pnpm --filter @vrooli/ui run dev -- --port 3000"
+        "pnpm --filter @vrooli/ui run start-development -- --port 3000"
     )
     if flow::is_yes "$DETACHED"; then
         log::info "Detached mode: launching individual watchers in background"

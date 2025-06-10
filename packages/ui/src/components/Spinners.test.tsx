@@ -1,7 +1,17 @@
 import React from "react";
-import { describe, test, expect } from "vitest";
+import { describe, test, expect, vi } from "vitest";
 import { render, screen } from "../__test/testUtils.js";
 import { DiagonalWaveLoader } from "./Spinners.js";
+
+// Mock the useMenu hook to prevent issues
+vi.mock("../hooks/useMenu.js", () => ({
+    useMenu: vi.fn(() => ({
+        anchorEl: null,
+        open: false,
+        openMenu: vi.fn(),
+        closeMenu: vi.fn(),
+    })),
+}));
 
 describe("<DiagonalWaveLoader />", () => {
     // Test 1: Renders without crashing

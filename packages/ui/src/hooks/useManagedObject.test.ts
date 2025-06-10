@@ -8,10 +8,13 @@ vi.mock("../api/responseParser.js", () => ({
     },
 }));
 
-vi.mock("../utils/display/listTools.js", () => ({
-    defaultYou: { canRead: true, canUpdate: false, canDelete: false },
-    getYou: vi.fn(),
-}));
+vi.mock("../utils/display/listTools.js", () => {
+    const mockDefaultYou = { canRead: true, canUpdate: false, canDelete: false };
+    return {
+        defaultYou: mockDefaultYou,
+        getYou: vi.fn(() => mockDefaultYou),
+    };
+});
 
 vi.mock("../utils/localStorage.js", () => ({
     getCookiePartialData: vi.fn(),
@@ -109,7 +112,6 @@ describe("useManagedObject", () => {
 
         (ServerResponseParser.hasErrorCode as Mock).mockReturnValue(false);
         
-        (defaultYou as any) = mockDefaultYou;
         mockGetYou.mockReturnValue(mockDefaultYou);
         
         (useStableObject as Mock).mockImplementation((obj) => obj);

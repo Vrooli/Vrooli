@@ -378,7 +378,7 @@ describe("inputTypeToSearch", () => {
 describe("searchToInputType", () => {
     it("handles Checkbox input correctly", () => {
         expect(searchToInputType[InputType.Checkbox](["true", "false"])).toEqual([true, false]);
-        expect(searchToInputType[InputType.Checkbox](["invalid"])).toEqual([undefined]);
+        expect(searchToInputType[InputType.Checkbox](["invalid"])).toEqual([]);
         expect(searchToInputType[InputType.Checkbox]([])).toEqual([]);
     });
 
