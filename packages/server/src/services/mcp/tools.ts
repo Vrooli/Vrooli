@@ -1,4 +1,4 @@
-import type { BotCreateInput, ResourceVersionCreateInput, SessionUser, SwarmSubTask, TeamCreateInput } from "@vrooli/shared";
+import type { BotCreateInput, BotUpdateInput, ResourceVersionCreateInput, ResourceVersionUpdateInput, SessionUser, SwarmSubTask, TeamCreateInput, TeamUpdateInput } from "@vrooli/shared";
 import { DEFAULT_LANGUAGE, DeleteType, McpToolName, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
@@ -17,22 +17,7 @@ import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
 import { type RunTask } from "../../tasks/taskTypes.js";
 import { type ConversationStateStore } from "../conversation/chatStore.js";
 import defineToolSchema from "../schemas/DefineTool/schema.json" with { type: "json" };
-import type {
-    BotAddAttributes,
-    NoteAddAttributes,
-    ProjectAddAttributes,
-    RoutineApiAddAttributes,
-    RoutineCodeAddAttributes,
-    RoutineDataAddAttributes,
-    RoutineGenerateAddAttributes,
-    RoutineInformationalAddAttributes,
-    RoutineMultiStepAddAttributes,
-    RoutineSmartContractAddAttributes,
-    RoutineWebAddAttributes,
-    StandardDataStructureAddAttributes,
-    StandardPromptAddAttributes,
-    TeamAddAttributes,
-} from "../types/resources.js";
+import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
 import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { type ToolResponse } from "./types.js";
 
@@ -131,6 +116,23 @@ type ResourceAddAttributes =
     | TeamAddAttributes
     | BotAddAttributes;
 
+// Discriminated union for all resource update attributes
+type ResourceUpdateAttributes =
+    | NoteUpdateAttributes
+    | ProjectUpdateAttributes
+    | RoutineMultiStepUpdateAttributes
+    | RoutineApiUpdateAttributes
+    | RoutineCodeUpdateAttributes
+    | RoutineDataUpdateAttributes
+    | RoutineGenerateUpdateAttributes
+    | RoutineInformationalUpdateAttributes
+    | RoutineSmartContractUpdateAttributes
+    | RoutineWebUpdateAttributes
+    | StandardDataStructureUpdateAttributes
+    | StandardPromptUpdateAttributes
+    | TeamUpdateAttributes
+    | BotUpdateAttributes;
+
 // Type guard for NoteAddAttributes
 function isNoteAddAttributes(attrs: unknown): attrs is NoteAddAttributes {
     if (typeof attrs !== "object" || attrs === null) {
@@ -209,6 +211,81 @@ function isStandardAddAttributes(attrs: unknown, subType: ResourceSubType): attr
     }
     const obj = attrs as Record<string, unknown>;
     return hasStandardVersionProperties(obj) && obj.resourceSubType === subType;
+}
+
+// Type guards for update attributes
+function isNoteUpdateAttributes(attrs: unknown): attrs is NoteUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    // All fields are optional for updates
+    return (obj.name === undefined || typeof obj.name === "string") &&
+        (obj.content === undefined || typeof obj.content === "string");
+}
+
+function isProjectUpdateAttributes(attrs: unknown): attrs is ProjectUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return (obj.name === undefined || typeof obj.name === "string") &&
+        (obj.config === undefined || typeof obj.config === "object");
+}
+
+function isTeamUpdateAttributes(attrs: unknown): attrs is TeamUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return (obj.config === undefined || typeof obj.config === "object") &&
+        (obj.memberInvitesCreate === undefined || Array.isArray(obj.memberInvitesCreate)) &&
+        (obj.memberInvitesDelete === undefined || Array.isArray(obj.memberInvitesDelete)) &&
+        (obj.membersDelete === undefined || Array.isArray(obj.membersDelete));
+}
+
+function isBotUpdateAttributes(attrs: unknown): attrs is BotUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return (obj.config === undefined || typeof obj.config === "object") &&
+        (obj.handle === undefined || typeof obj.handle === "string") &&
+        (obj.isPrivate === undefined || typeof obj.isPrivate === "boolean");
+}
+
+// Helper to check if attrs has routine version update properties
+function hasRoutineVersionUpdateProperties(attrs: Record<string, unknown>): boolean {
+    return "rootUpdate" in attrs &&
+        typeof attrs.rootUpdate === "object" &&
+        attrs.rootUpdate !== null &&
+        (attrs.rootUpdate as any).resourceType === ResourceType.Routine;
+}
+
+// Helper to check if attrs has standard version update properties
+function hasStandardVersionUpdateProperties(attrs: Record<string, unknown>): boolean {
+    return "rootUpdate" in attrs &&
+        typeof attrs.rootUpdate === "object" &&
+        attrs.rootUpdate !== null &&
+        (attrs.rootUpdate as any).resourceType === ResourceType.Standard;
+}
+
+// Generic type guard for routine update subtypes
+function isRoutineUpdateAttributes(attrs: unknown): attrs is RoutineMultiStepUpdateAttributes | RoutineApiUpdateAttributes | RoutineCodeUpdateAttributes | RoutineDataUpdateAttributes | RoutineGenerateUpdateAttributes | RoutineInformationalUpdateAttributes | RoutineSmartContractUpdateAttributes | RoutineWebUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return hasRoutineVersionUpdateProperties(obj);
+}
+
+// Generic type guard for standard update subtypes
+function isStandardUpdateAttributes(attrs: unknown): attrs is StandardDataStructureUpdateAttributes | StandardPromptUpdateAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return hasStandardVersionUpdateProperties(obj);
 }
 
 // Type-safe metadata accessors
@@ -555,8 +632,17 @@ export class BuiltInTools {
                 }
                 result = await createOneHelper({ info: {}, input: createInput, objectType, req: this.req });
             } else if (isResourceManageUpdateParams(args)) {
-                const updateInput = this._mapUpdateToInput(args.id, args.resource_type, args.attributes);
-                result = await updateOneHelper({ info: {}, input: updateInput, objectType: "ResourceVersion", req: this.req });
+                const updateInput = this._mapUpdateToInput(args.id, args.resource_type, args.attributes as ResourceUpdateAttributes);
+                // Determine the correct objectType based on the resource type
+                let objectType: string;
+                if (args.resource_type === "Team") {
+                    objectType = "Team";
+                } else if (args.resource_type === "Bot") {
+                    objectType = "User"; // Bots are stored in the User table
+                } else {
+                    objectType = "ResourceVersion";
+                }
+                result = await updateOneHelper({ info: {}, input: updateInput, objectType, req: this.req });
             } else if (isResourceManageDeleteParams(args)) {
                 result = await deleteOneHelper({ input: { id: args.id, objectType: DeleteType.ResourceVersion }, req: this.req });
             } else {
@@ -993,12 +1079,12 @@ export class BuiltInTools {
                 tagsConnect: attrs.rootCreate.tagsConnect,
             },
         };
-        
+
         // Only add resourceSubType if it's defined (for Routine and Standard subtypes)
         if (resourceSubType) {
             input.resourceSubType = resourceSubType;
         }
-        
+
         return input;
     }
 
@@ -1015,8 +1101,9 @@ export class BuiltInTools {
                 if (!isTeamAddAttributes(attrs)) {
                     throw new Error("Invalid attributes for Team");
                 }
+                const teamId = generatePK().toString();
                 return {
-                    id: generatePK().toString(),
+                    id: teamId,
                     isPrivate: attrs.isPrivate ?? false,
                     handle: attrs.handle,
                     tagsConnect: attrs.tagsConnect,
@@ -1024,6 +1111,7 @@ export class BuiltInTools {
                     memberInvitesCreate: attrs.memberInvitesCreate?.map(invite => ({
                         id: generatePK().toString(),
                         message: invite.message,
+                        teamConnect: teamId, // Connect to the team being created
                         userConnect: invite.userConnect,
                         willBeAdmin: invite.willBeAdmin ?? false,
                     })),
@@ -1153,19 +1241,207 @@ export class BuiltInTools {
     }
 
     /**
-     * Maps MCP 'update' operation attributes to the GraphQL update input for a ResourceVersion.
-     * @param resourceId The ID of the ResourceVersion to update.
-     * @param resourceType The type of resource (e.g., "Note").
-     * @param attrs The attributes to update.
-     * @returns The GraphQL input for updating a ResourceVersion.
+     * Helper to create ResourceVersionUpdateInput for ResourceVersion-based types
      */
-    _mapUpdateToInput(resourceId: string, resourceType: string, _attrs: Record<string, unknown>): Record<string, unknown> {
+    private _createResourceVersionUpdateInput(
+        resourceId: string,
+        translationsUpdate?: Array<{ id: string; language: string; name?: string; description?: string; details?: string; instructions?: string }>,
+        attrs?: { isPrivate?: boolean; versionLabel?: string; isComplete?: boolean; config?: any; rootUpdate?: any }
+    ): ResourceVersionUpdateInput {
+        const input: ResourceVersionUpdateInput = {
+            id: resourceId,
+        };
+
+        // Only add fields if they're defined
+        if (attrs?.isPrivate !== undefined) input.isPrivate = attrs.isPrivate;
+        if (attrs?.isComplete !== undefined) input.isComplete = attrs.isComplete;
+        if (attrs?.config !== undefined) input.config = attrs.config;
+        if (translationsUpdate && translationsUpdate.length > 0) {
+            input.translationsUpdate = translationsUpdate;
+        }
+        if (attrs?.rootUpdate) {
+            input.rootUpdate = {
+                id: attrs.rootUpdate.id,
+                isPrivate: attrs.rootUpdate.isPrivate,
+                tagsConnect: attrs.rootUpdate.tagsConnect,
+                tagsDisconnect: attrs.rootUpdate.tagsDisconnect,
+            };
+        }
+
+        return input;
+    }
+
+    /**
+     * Maps MCP 'update' operation attributes to the appropriate GraphQL update input.
+     * @param resourceId The ID of the resource to update.
+     * @param resourceType The type of resource (e.g., "Note", "Project", "Team").
+     * @param attrs The attributes to update.
+     * @returns The GraphQL update input (ResourceVersionUpdateInput, TeamUpdateInput, or BotUpdateInput).
+     */
+    _mapUpdateToInput(resourceId: string, resourceType: string, attrs: ResourceUpdateAttributes): ResourceVersionUpdateInput | TeamUpdateInput | BotUpdateInput {
+        // Handle non-ResourceVersion types first
         switch (resourceType) {
-            case "Note":
-                //TODO: Implement Note update
-                throw new Error(`Update for variant '${resourceType}' not implemented`);
+            case "Team": {
+                if (!isTeamUpdateAttributes(attrs)) {
+                    throw new Error("Invalid update attributes for Team");
+                }
+                const input: TeamUpdateInput = {
+                    id: resourceId,
+                };
+
+                // Only add fields if they're defined
+                if (attrs.isPrivate !== undefined) input.isPrivate = attrs.isPrivate;
+                if (attrs.handle !== undefined) input.handle = attrs.handle;
+                if (attrs.tagsConnect !== undefined) input.tagsConnect = attrs.tagsConnect;
+                if (attrs.tagsDisconnect !== undefined) input.tagsDisconnect = attrs.tagsDisconnect;
+                if (attrs.config !== undefined) input.config = attrs.config;
+
+                // Handle member operations
+                if (attrs.memberInvitesCreate) {
+                    input.memberInvitesCreate = attrs.memberInvitesCreate.map(invite => ({
+                        id: generatePK().toString(),
+                        message: invite.message,
+                        teamConnect: resourceId, // The team being updated
+                        userConnect: invite.userConnect,
+                        willBeAdmin: invite.willBeAdmin ?? false,
+                    }));
+                }
+                if (attrs.memberInvitesDelete) {
+                    input.memberInvitesDelete = attrs.memberInvitesDelete;
+                }
+                if (attrs.membersDelete) {
+                    input.membersDelete = attrs.membersDelete;
+                }
+
+                return input;
+            }
+
+            case "Bot": {
+                if (!isBotUpdateAttributes(attrs)) {
+                    throw new Error("Invalid update attributes for Bot");
+                }
+                const input: BotUpdateInput = {
+                    id: resourceId,
+                };
+
+                // Only add fields if they're defined
+                if (attrs.isPrivate !== undefined) input.isPrivate = attrs.isPrivate;
+                if (attrs.handle !== undefined) input.handle = attrs.handle;
+                if (attrs.config !== undefined) input.botSettings = attrs.config;
+
+                return input;
+            }
+
+            // ResourceVersion-based types
+            case "Note": {
+                if (!isNoteUpdateAttributes(attrs)) {
+                    throw new Error("Invalid update attributes for Note");
+                }
+
+                const translationsUpdate: Array<{ id: string; language: string; name?: string; description?: string }> = [];
+                if (attrs.name !== undefined || attrs.content !== undefined) {
+                    translationsUpdate.push({
+                        id: generatePK().toString(),
+                        language: DEFAULT_LANGUAGE,
+                        name: attrs.name,
+                        description: attrs.content,
+                    });
+                }
+
+                return this._createResourceVersionUpdateInput(
+                    resourceId,
+                    translationsUpdate,
+                    {
+                        rootUpdate: attrs.tagsConnect || attrs.tagsDisconnect ? {
+                            id: generatePK().toString(), // This should be the root ID, but we don't have it
+                            tagsConnect: attrs.tagsConnect,
+                            tagsDisconnect: attrs.tagsDisconnect,
+                        } : undefined,
+                    }
+                );
+            }
+
+            case "Project": {
+                if (!isProjectUpdateAttributes(attrs)) {
+                    throw new Error("Invalid update attributes for Project");
+                }
+
+                const translationsUpdate: Array<{ id: string; language: string; name?: string }> = [];
+                if (attrs.name !== undefined) {
+                    translationsUpdate.push({
+                        id: generatePK().toString(),
+                        language: DEFAULT_LANGUAGE,
+                        name: attrs.name,
+                    });
+                }
+
+                return this._createResourceVersionUpdateInput(
+                    resourceId,
+                    translationsUpdate,
+                    {
+                        isPrivate: attrs.isPrivate,
+                        config: attrs.config,
+                        rootUpdate: (attrs.isPrivate !== undefined || attrs.handle !== undefined || attrs.tagsConnect || attrs.tagsDisconnect) ? {
+                            id: generatePK().toString(), // This should be the root ID
+                            isPrivate: attrs.isPrivate,
+                            handle: attrs.handle,
+                            tagsConnect: attrs.tagsConnect,
+                            tagsDisconnect: attrs.tagsDisconnect,
+                        } : undefined,
+                    }
+                );
+            }
+
+            // Routine subtypes
+            case "RoutineMultiStep":
+            case "RoutineApi":
+            case "RoutineCode":
+            case "RoutineData":
+            case "RoutineGenerate":
+            case "RoutineInformational":
+            case "RoutineSmartContract":
+            case "RoutineWeb": {
+                if (!isRoutineUpdateAttributes(attrs)) {
+                    throw new Error(`Invalid update attributes for ${resourceType}`);
+                }
+                const routineAttrs = attrs as RoutineMultiStepUpdateAttributes; // All routine types have similar structure
+
+                return this._createResourceVersionUpdateInput(
+                    resourceId,
+                    [], // Routines typically don't have translations to update
+                    {
+                        isPrivate: routineAttrs.isPrivate,
+                        versionLabel: routineAttrs.versionLabel,
+                        isComplete: routineAttrs.isComplete,
+                        config: routineAttrs.config,
+                        rootUpdate: routineAttrs.rootUpdate,
+                    }
+                );
+            }
+
+            // Standard subtypes
+            case "StandardDataStructure":
+            case "StandardPrompt": {
+                if (!isStandardUpdateAttributes(attrs)) {
+                    throw new Error(`Invalid update attributes for ${resourceType}`);
+                }
+                const standardAttrs = attrs as StandardDataStructureUpdateAttributes; // All standard types have similar structure
+
+                return this._createResourceVersionUpdateInput(
+                    resourceId,
+                    [], // Standards typically don't have translations to update
+                    {
+                        isPrivate: standardAttrs.isPrivate,
+                        versionLabel: standardAttrs.versionLabel,
+                        isComplete: standardAttrs.isComplete,
+                        config: standardAttrs.config,
+                        rootUpdate: standardAttrs.rootUpdate,
+                    }
+                );
+            }
+
             default:
-                throw new Error(`Update for variant '${resourceType}' not implemented`);
+                throw new Error(`Update for resource type '${resourceType}' not implemented`);
         }
     }
 }
