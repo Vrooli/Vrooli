@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
+import { CircularProgress, OrbitalSpinner } from "../indicators/CircularProgress.js";
 import { cn } from "../../utils/tailwind-theme.js";
 
 // Define variant types
@@ -11,6 +11,7 @@ export interface TailwindButtonProps extends ButtonHTMLAttributes<HTMLButtonElem
     variant?: ButtonVariant;
     size?: ButtonSize;
     isLoading?: boolean;
+    loadingIndicator?: "circular" | "orbital";
     startIcon?: ReactNode;
     endIcon?: ReactNode;
     fullWidth?: boolean;
@@ -21,8 +22,8 @@ export interface TailwindButtonProps extends ButtonHTMLAttributes<HTMLButtonElem
 const variantStyles: Record<ButtonVariant, string> = {
     primary: "tw-bg-secondary-main tw-text-white hover:tw-bg-secondary-dark focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2 tw-shadow-md hover:tw-shadow-lg",
     secondary: "tw-bg-gray-200 tw-text-gray-800 hover:tw-bg-gray-300 focus:tw-ring-2 focus:tw-ring-gray-400 focus:tw-ring-offset-2 tw-shadow-sm hover:tw-shadow-md",
-    outline: "tw-border tw-border-secondary-main tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-text-white focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
-    ghost: "tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-bg-opacity-10 focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
+    outline: "tw-bg-transparent tw-border tw-border-secondary-main tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-text-white focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
+    ghost: "tw-bg-transparent tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-bg-opacity-10 focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
     danger: "tw-bg-red-600 tw-text-white hover:tw-bg-red-700 focus:tw-ring-2 focus:tw-ring-red-600 focus:tw-ring-offset-2 tw-shadow-md hover:tw-shadow-lg",
 };
 
@@ -52,6 +53,7 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
             variant = "primary",
             size = "md",
             isLoading = false,
+            loadingIndicator = "circular",
             startIcon,
             endIcon,
             fullWidth = false,
@@ -94,10 +96,24 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
         // Render loading spinner or start icon
         const renderStartElement = () => {
             if (isLoading) {
+                const spinnerSize = spinnerSizes[size];
+                
+                // Use Orbital Spinner for space-themed loading
+                if (loadingIndicator === "orbital") {
+                    return <OrbitalSpinner size={spinnerSize} />;
+                }
+                
+                // Default circular spinner
+                const spinnerVariant = 
+                    variant === "outline" || variant === "ghost" ? "current" :
+                    variant === "secondary" ? "secondary" :
+                    "white";
+                
                 return (
                     <CircularProgress 
-                        size={spinnerSizes[size]} 
-                        sx={{ color: variant === "outline" || variant === "ghost" ? "currentColor" : "inherit" }}
+                        size={spinnerSize} 
+                        variant={spinnerVariant}
+                        thickness={size === "sm" ? 2 : 3}
                     />
                 );
             }
