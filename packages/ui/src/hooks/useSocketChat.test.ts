@@ -406,37 +406,37 @@ describe("processResponseStream", () => {
     });
 
     it("should initialize and update stream for new messages", () => {
-        processResponseStream({ __type: "stream", botId: "bot123", message: "Hello" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current).toEqual({ __type: "stream", botId: "bot123", message: "Hello" });
-        expect(throttledSetMessageStream).toHaveBeenCalledWith({ __type: "stream", botId: "bot123", message: "Hello" });
+        processResponseStream({ __type: "stream", botId: "bot123", chunk: "Hello" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        expect(messageStreamRef.current).toEqual({ __type: "stream", botId: "bot123", accumulatedMessage: "Hello" });
+        expect(throttledSetMessageStream).toHaveBeenCalledWith({ __type: "stream", botId: "bot123", accumulatedMessage: "Hello" });
     });
 
     it("should append to the existing message on stream type", () => {
-        messageStreamRef.current = { __type: "stream", botId: "bot123", message: "Hello" };
-        processResponseStream({ __type: "stream", botId: "bot123", message: " World" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).toBe("Hello World");
+        messageStreamRef.current = { __type: "stream", botId: "bot123", accumulatedMessage: "Hello" };
+        processResponseStream({ __type: "stream", botId: "bot123", chunk: " World" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        expect(messageStreamRef.current.accumulatedMessage).toBe("Hello World");
     });
 
     it("should clear message and update botId on new bot message", () => {
-        messageStreamRef.current = { __type: "stream", botId: "bot123", message: "Hello" };
-        processResponseStream({ __type: "stream", botId: "bot456", message: "New message" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current).toEqual({ __type: "stream", botId: "bot456", message: "New message" });
+        messageStreamRef.current = { __type: "stream", botId: "bot123", accumulatedMessage: "Hello" };
+        processResponseStream({ __type: "stream", botId: "bot456", chunk: "New message" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        expect(messageStreamRef.current).toEqual({ __type: "stream", botId: "bot456", accumulatedMessage: "New message" });
     });
 
     it("should handle error type by continuing to append message", () => {
-        processResponseStream({ __type: "error", botId: "bot123", message: "Error occurred" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
-        expect(messageStreamRef.current.message).toBe("Error occurred");
+        processResponseStream({ __type: "error", botId: "bot123", error: { message: "Error occurred" } }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        expect(messageStreamRef.current.error?.message).toBe("Error occurred");
     });
 
     it("should clear the stream on end type", () => {
         console.log = vi.fn();
-        processResponseStream({ __type: "end", botId: "bot123", message: "Complete" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        processResponseStream({ __type: "end", botId: "bot123" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
         expect(messageStreamRef.current).toBeNull();
         expect(setMessageStream).toHaveBeenCalledWith(null);
     });
 
     it("should not call update functions when no changes are made", () => {
-        processResponseStream({ __type: "end", botId: "bot123", message: "Complete" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
+        processResponseStream({ __type: "end", botId: "bot123" }, messageStreamRef, setMessageStream, throttledSetMessageStream);
         expect(setMessageStream).toHaveBeenCalledWith(null);
         expect(throttledSetMessageStream).not.toHaveBeenCalled();
     });

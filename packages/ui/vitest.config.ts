@@ -40,9 +40,9 @@ export default defineConfig({
         pool: 'threads',
         poolOptions: {
             threads: {
-                maxThreads: 4,
+                maxThreads: 2,
                 minThreads: 1,
-                isolate: false,
+                isolate: true,
             },
         },
         
@@ -57,8 +57,13 @@ export default defineConfig({
         teardownTimeout: 1000,
         
         // Parallel execution for better performance
-        maxConcurrency: 4,
-        fileParallelism: true,
+        maxConcurrency: 2,
+        fileParallelism: false,
+        
+        // Better test isolation
+        clearMocks: true,
+        restoreMocks: true,
+        mockReset: true,
         
         // Disable expensive features during testing
         coverage: { enabled: false },

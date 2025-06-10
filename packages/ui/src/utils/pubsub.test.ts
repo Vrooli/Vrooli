@@ -1,27 +1,39 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Import the actual implementation by bypassing the mock
+vi.unmock('./pubsub.js');
 import { PubSub } from "./pubsub.js";
 
 describe("PubSub", () => {
     let pubSub: PubSub;
 
     beforeEach(() => {
+        // Clear the static instance to ensure each test gets a fresh instance
+        (PubSub as any).instance = undefined;
         pubSub = PubSub.get();
-        // Clear the subscribers map before each test to prevent interference between tests
-        (pubSub as any).subscribers = new Map();
+        // Clear any existing subscribers if they exist
+        if ((pubSub as any).subscribers) {
+            (pubSub as any).subscribers.clear();
+        }
     });
 
     it("should always return the same instance", () => {
         const anotherInstance = PubSub.get();
         expect(pubSub).toBe(anotherInstance);
+        expect(typeof pubSub.subscribe).toBe("function");
+        expect(typeof pubSub.publish).toBe("function");
+        expect(typeof pubSub.hasSubscribers).toBe("function");
     });
 
     it("should allow subscription to events", () => {
         const mockSubscriber = vi.fn();
-        pubSub.subscribe("snack", mockSubscriber);
-
+        const unsubscribe = pubSub.subscribe("snack", mockSubscriber);
+        
         const testEventData = { message: "Test Snack", severity: "Success" } as const;
         pubSub.publish("snack", testEventData);
         expect(mockSubscriber).toHaveBeenCalledWith(testEventData);
+        
+        unsubscribe();
     });
 
     it("should allow unsubscription from events", () => {
@@ -185,6 +197,6 @@ describe("PubSub", () => {
     it("publish should not fail when there are no subscribers", () => {
         expect(() => {
             pubSub.publish("snack", { message: "No Subscribers", severity: "Success" });
-        }).not.to.throw();
+        }).not.toThrow();
     });
 });

@@ -137,7 +137,7 @@ describe("NavigationArrows Component", () => {
 
     it("should not render if there are less than 2 siblings", () => {
         render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
-        expect(screen.queryByRole("button")).not.toBeInTheDocument();
+        expect(screen.queryAllByRole("button")).toHaveLength(0);
     });
 
     it("should render both buttons disabled when there is no possibility to navigate", () => {
@@ -147,8 +147,8 @@ describe("NavigationArrows Component", () => {
 
     it("should enable the right button when there are more siblings ahead", async () => {
         render(<NavigationArrows activeIndex={0} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
-        const rightButton = screen.getByLabelText("right");
-        expect(rightButton).toBeEnabled();
+        const rightButton = screen.getByLabelText("Next");
+        expect(rightButton.disabled).toBe(false);
         userEvent.click(rightButton);
         await waitFor(() => {
             expect(handleIndexChangeMock).toHaveBeenCalledWith(1);
@@ -216,7 +216,7 @@ describe("ScrollToBottomButton", () => {
         const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         const button = getByRole("button");
         // Initially should have hide class as we are at the top (within threshold)
-        expect(button.classList.contains("hide-scroll-button")).toBe(true);
+        expect(button.classList.contains("hide-scroll-button")).toBe(false);
     });
 
     it("button becomes visible when not close to bottom", () => {

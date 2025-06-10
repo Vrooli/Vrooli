@@ -5,11 +5,16 @@ import { asMockObject, goBack } from "./forms.js";
 
 describe("goBack function", () => {
     const mockSetLocation = vi.fn();
-    const mockHistoryBack = vi.spyOn(window.history, "back");
+    const mockHistoryBack = vi.fn();
 
     beforeEach(() => {
         sessionStorage.clear();
         vi.clearAllMocks();
+        // Mock window.history.back method
+        Object.defineProperty(window.history, 'back', {
+            value: mockHistoryBack,
+            writable: true
+        });
     });
 
     it("should navigate back if last path matches the target URL (ignoring query params)", () => {

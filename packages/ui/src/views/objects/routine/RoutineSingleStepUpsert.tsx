@@ -199,7 +199,7 @@ export function updateSchemaElements({
                 name: element.fieldName,
                 isRequired,
                 routineVersion: {
-                    __typename: "ResourceVersion",
+                    __typename: "RoutineVersion",
                     id: routineVersionId,
                 },
                 translations: newTranslation ? [newTranslation] : [],

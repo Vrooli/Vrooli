@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { DUMMY_ID, generatePK, type Chat, type ChatCreateInput, type ChatInvite, type ChatMessage, type ChatParticipant, type ChatUpdateInput, type ChatYou, type User } from "@vrooli/shared";
-import { expect } from "chai";
+import { expect } from "@storybook/test";
 import { HttpResponse, http } from "msw";
 import { signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { SessionContext } from "../../../contexts/session.js";

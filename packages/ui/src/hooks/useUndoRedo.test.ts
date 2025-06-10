@@ -52,7 +52,7 @@ describe("useUndoRedo", () => {
 
         // Fast forward past debounce time
         act(() => {
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
 
         // Now should be in stack
@@ -155,7 +155,7 @@ describe("useUndoRedo", () => {
         // Make a change that will be added to stack
         act(() => {
             result.current.changeInternalValue("change");
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
         expect(result.current.canUndo).to.equal(true);
 
@@ -179,9 +179,9 @@ describe("useUndoRedo", () => {
         // Make some changes
         act(() => {
             result.current.changeInternalValue("change 1");
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
             result.current.changeInternalValue("change 2");
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
         expect(result.current.canUndo).to.equal(true);
 
@@ -206,7 +206,7 @@ describe("useUndoRedo", () => {
         // Make changes
         act(() => {
             result.current.changeInternalValue("change");
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
 
         // Try undo/redo
@@ -259,7 +259,7 @@ describe("useUndoRedo", () => {
         // Use function updater
         act(() => {
             result.current.changeInternalValue((prev) => prev + " updated");
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
 
         expect(result.current.internalValue).to.equal("initial updated");
