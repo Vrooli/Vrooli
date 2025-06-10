@@ -102,32 +102,42 @@ describe("arrayTools", () => {
     });
 
     describe("deleteArrayObject", () => {
-        it("should handle the bug in deleteArrayObject implementation", () => {
+        it("should delete object from array", () => {
             const obj1 = { id: 1 };
             const obj2 = { id: 2 };
             const obj3 = { id: 3 };
             const array = [obj1, obj2, obj3];
-            
-            // The function has a bug - it's calling findIndex with the object
-            // as a parameter, but findIndex expects a predicate function
-            // This will throw a TypeError
-            expect(() => deleteArrayObject(array, obj2)).to.throw(TypeError);
+            const result = deleteArrayObject(array, obj2);
+            expect(result).to.deep.equal([obj1, obj3]);
+            expect(array).to.deep.equal([obj1, obj2, obj3]); // Original unchanged
         });
 
-        it("should throw TypeError when called with primitive values", () => {
-            const array = [1, 2, 3];
-            expect(() => deleteArrayObject(array, 4)).to.throw(TypeError);
+        it("should work with primitive values", () => {
+            const array = [1, 2, 3, 4, 5];
+            const result = deleteArrayObject(array, 3);
+            expect(result).to.deep.equal([1, 2, 4, 5]);
         });
 
-        // TODO: This is how the function should work if fixed:
-        // it("should delete object from array when fixed", () => {
-        //     const obj1 = { id: 1 };
-        //     const obj2 = { id: 2 };
-        //     const obj3 = { id: 3 };
-        //     const array = [obj1, obj2, obj3];
-        //     const result = deleteArrayObject(array, obj2);
-        //     expect(result).to.deep.equal([obj1, obj3]);
-        // });
+        it("should return original array if object not found", () => {
+            const obj1 = { id: 1 };
+            const obj2 = { id: 2 };
+            const obj3 = { id: 3 };
+            const obj4 = { id: 4 };
+            const array = [obj1, obj2, obj3];
+            const result = deleteArrayObject(array, obj4);
+            expect(result).to.equal(array); // Same reference since nothing changed
+        });
+
+        it("should work with empty array", () => {
+            const result = deleteArrayObject([], { id: 1 });
+            expect(result).to.deep.equal([]);
+        });
+
+        it("should delete first occurrence only", () => {
+            const array = [1, 2, 3, 2, 4];
+            const result = deleteArrayObject(array, 2);
+            expect(result).to.deep.equal([1, 3, 2, 4]);
+        });
     });
 
     describe("findWithAttr", () => {

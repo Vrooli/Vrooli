@@ -14,8 +14,8 @@ export function difference<T>(array1: T[], array2: T[]): T[] {
  * @param array The array to flatten
  * @returns The flattened array.
  */
-export function flatten<T>(array: T[]): T[] {
-    return array.reduce((acc, item) => acc.concat(item), [] as T[]);
+export function flatten<T>(array: readonly T[]): T extends readonly (infer U)[] ? U[] : T[] {
+    return array.flat() as T extends readonly (infer U)[] ? U[] : T[];
 }
 
 /**

@@ -13,6 +13,7 @@ import { CacheService, getRedisUrl } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { BillingWorker } from "./services/billing.js";
 import { setupHealthCheck } from "./services/health.js";
+import { setupMetrics } from "./services/metrics.js";
 import { setupMCP } from "./services/mcp/index.js";
 import { setupStripe } from "./services/stripe.js";
 import { SocketService } from "./sockets/io.js";
@@ -128,6 +129,9 @@ async function main() {
 
     // Set up health check endpoint
     setupHealthCheck(app);
+
+    // Set up metrics endpoint
+    setupMetrics(app);
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // Disable if API is open to the public

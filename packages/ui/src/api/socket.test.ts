@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { PubSub } from "../utils/pubsub.js";
 
-// First, unmock the socket module to override the global mock
+// First, unmock modules to override the global mock
 vi.unmock("./socket.js");
+vi.unmock("../utils/pubsub.js");
+
+// Import PubSub after unmocking
+import { PubSub } from "../utils/pubsub.js";
 
 // Store mock functions that will be accessible from tests
 const { mockSocketOn, mockSocketOff, mockSocketEmit, mockSocketConnect, mockSocketDisconnect } = vi.hoisted(() => {

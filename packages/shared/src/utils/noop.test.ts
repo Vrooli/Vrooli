@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { stub } from "sinon";
 import { noopSubmit, noop, noopAsync, funcTrue, funcFalse, preventFormSubmit } from "./noop.js";
 
 describe("noop utilities", () => {
@@ -8,14 +7,14 @@ describe("noop utilities", () => {
         let setSubmittingStub: any;
 
         beforeEach(() => {
-            // Stub console.warn to prevent output during tests
-            consoleWarnStub = stub(console, "warn");
-            setSubmittingStub = stub();
+            // Spy on console.warn to prevent output during tests
+            consoleWarnStub = vi.spyOn(console, "warn").mockImplementation(() => {});
+            setSubmittingStub = vi.fn();
         });
 
         afterEach(() => {
             // Restore the original console.warn
-            consoleWarnStub.restore();
+            consoleWarnStub.mockRestore();
         });
 
         it("should call console.warn with the provided values", () => {
@@ -24,8 +23,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledOnce).to.be.true;
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", values)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledOnce();
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
         });
 
         it("should call setSubmitting with false", () => {
@@ -34,8 +33,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(setSubmittingStub.calledOnce).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(setSubmittingStub).toHaveBeenCalledOnce();
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle null values", () => {
@@ -44,8 +43,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", null)).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", null);
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle undefined values", () => {
@@ -54,8 +53,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", undefined)).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", undefined);
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle empty object values", () => {
@@ -64,8 +63,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", {})).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", {});
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle complex nested values", () => {
@@ -83,8 +82,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", values)).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle array values", () => {
@@ -93,8 +92,8 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", values)).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should handle string values", () => {
@@ -103,18 +102,18 @@ describe("noop utilities", () => {
 
             noopSubmit(values, helpers);
 
-            expect(consoleWarnStub.calledWith("Formik onSubmit called unexpectedly with values:", values)).to.be.true;
-            expect(setSubmittingStub.calledWith(false)).to.be.true;
+            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
+            expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
         it("should work when setSubmitting throws an error", () => {
             const values = { test: "value" };
             const errorMessage = "setSubmitting failed";
-            const throwingSetSubmitting = stub().throws(new Error(errorMessage));
+            const throwingSetSubmitting = vi.fn().mockImplementation(() => { throw new Error(errorMessage); });
             const helpers = { setSubmitting: throwingSetSubmitting };
 
-            expect(() => noopSubmit(values, helpers)).to.throw(errorMessage);
-            expect(consoleWarnStub.calledOnce).to.be.true;
+            expect(() => noopSubmit(values, helpers)).toThrow(errorMessage);
+            expect(consoleWarnStub).toHaveBeenCalledOnce();
         });
 
         it("should be called multiple times without issues", () => {
@@ -125,10 +124,10 @@ describe("noop utilities", () => {
             noopSubmit(values1, helpers);
             noopSubmit(values2, helpers);
 
-            expect(consoleWarnStub.calledTwice).to.be.true;
-            expect(setSubmittingStub.calledTwice).to.be.true;
-            expect(consoleWarnStub.firstCall.args[1]).to.deep.equal(values1);
-            expect(consoleWarnStub.secondCall.args[1]).to.deep.equal(values2);
+            expect(consoleWarnStub).toHaveBeenCalledTimes(2);
+            expect(setSubmittingStub).toHaveBeenCalledTimes(2);
+            expect(consoleWarnStub).toHaveBeenNthCalledWith(1, "Formik onSubmit called unexpectedly with values:", values1);
+            expect(consoleWarnStub).toHaveBeenNthCalledWith(2, "Formik onSubmit called unexpectedly with values:", values2);
         });
     });
 

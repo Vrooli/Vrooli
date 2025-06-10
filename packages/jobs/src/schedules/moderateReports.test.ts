@@ -2,10 +2,9 @@ import { ReportStatus, ReportSuggestedAction, generatePK, generatePublicId } fro
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { moderateReports } from "./moderateReports.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+import { DbProvider } from "@vrooli/server/db/provider.js";
 
-// Mock the Trigger function
+// Mock the Trigger function only
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
@@ -13,25 +12,6 @@ vi.mock("@vrooli/server", async () => {
         Trigger: vi.fn(() => ({
             reportActivity: vi.fn().mockResolvedValue(undefined),
         })),
-        ModelMap: {
-            getLogic: vi.fn().mockImplementation((fields, objectType) => {
-                const modelConfigs = {
-                    Comment: { dbTable: "comment" },
-                    Issue: { dbTable: "issue" },
-                    Tag: { dbTable: "tag" },
-                    Team: { dbTable: "team" },
-                    User: { dbTable: "user" },
-                    ApiVersion: { dbTable: "api_version" },
-                    CodeVersion: { dbTable: "code_version" },
-                    NoteVersion: { dbTable: "note_version" },
-                    ProjectVersion: { dbTable: "project_version" },
-                    RoutineVersion: { dbTable: "routine_version" },
-                    StandardVersion: { dbTable: "standard_version" },
-                    Post: { dbTable: "post" },
-                };
-                return modelConfigs[objectType] || {};
-            }),
-        },
     };
 });
 

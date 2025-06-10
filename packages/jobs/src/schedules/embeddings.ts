@@ -11,6 +11,7 @@ import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
 import { RunStatus, type ModelType } from "@vrooli/shared";
 import { EmbeddingService } from "@vrooli/server/services/embedding.js";
+import { API_BATCH_SIZE } from "../constants.js";
 
 // WARNING: Setting RECALCULATE_EMBEDDINGS to true will cause the embeddings to be recalculated for ALL objects. 
 // This is extremely resource intensive, costly (OpenAI API calls), and should only be done:
@@ -20,7 +21,6 @@ import { EmbeddingService } from "@vrooli/server/services/embedding.js";
 // To enable: Set environment variable RECALCULATE_EMBEDDINGS=true
 const RECALCULATE_EMBEDDINGS = process.env.RECALCULATE_EMBEDDINGS === "true";
 
-const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embeddings generated at once
 
 // ===== EMBEDDING LOGIC CENTRALIZED =====
 

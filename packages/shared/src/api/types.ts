@@ -1,9 +1,9 @@
 /* c8 ignore start */
-import { type BaseConfigObject } from "../shape/configs/base.js";
-import { type TeamConfigObject } from "../shape/configs/team.js";
 import { type RunConfig } from "../run/types.js";
+import { type BaseConfigObject } from "../shape/configs/base.js";
 import { type BotConfigObject } from "../shape/configs/bot.js";
 import { type MessageConfigObject } from "../shape/configs/message.js";
+import { type TeamConfigObject } from "../shape/configs/team.js";
 
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
@@ -609,8 +609,7 @@ export type ChatYou = {
 };
 
 export type CheckTaskStatusesInput = {
-    taskIds: Array<Scalars["ID"]>;
-    taskType: TaskType;
+    taskIds: string[];
 };
 
 export type CheckTaskStatusesResult = {
@@ -3511,4 +3510,10 @@ export type WalletUpdateInput = {
 
 export type WriteAssetsInput = {
     files: Array<Scalars["Upload"]>;
+};
+
+export type SwarmTask = {
+    // TODO: This is a placeholder type to fix the build.
+    // The actual type should be defined here.
+    id: string;
 };

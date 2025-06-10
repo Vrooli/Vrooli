@@ -29,7 +29,7 @@ export function pascalCase(str: string): string {
 }
 
 /**
- * Converts a string to camcelCase
+ * Converts a string to camelCase
  * @example camelCase("HelloWorld") // "helloWorld"
  * @param str String to convert
  * @returns camelCased string

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { describe, it, expect } from "vitest";
-import sinon from "sinon";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { DUMMY_ID } from "../../id/index.js";
 import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, shouldConnect, updateOwner, updatePrims, updateRel, updateTranslationPrims, updateVersion } from "./tools.js";
 
@@ -12,44 +11,44 @@ describe("createOwner", () => {
     it("item with User owner", () => {
         const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item);
-        expect(result).to.deep.equal({ userConnect: "user123" });
+        expect(result).toEqual({ userConnect: "user123" });
     });
 
     it("item with Team owner", () => {
         const item = { owner: { __typename: "Team" as const, id: "team123" } };
         const result = createOwner(item);
-        expect(result).to.deep.equal({ teamConnect: "team123" });
+        expect(result).toEqual({ teamConnect: "team123" });
     });
 
     it("item with different prefixes", () => {
         const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item, "ownedBy");
-        expect(result).to.deep.equal({ ownedByUserConnect: "user123" });
+        expect(result).toEqual({ ownedByUserConnect: "user123" });
     });
 
     it("item with null owner", () => {
         const item = { owner: null };
         const result = createOwner(item);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("item with undefined owner", () => {
         const item = { owner: undefined };
         const result = createOwner(item);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("item with unexpected owner type", () => {
         const item = { owner: { __typename: "OtherType", id: "other123" } };
         // @ts-ignore: Testing runtime scenario
         const result = createOwner(item);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("item with empty prefix", () => {
         const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item, "");
-        expect(result).to.deep.equal({ userConnect: "user123" });
+        expect(result).toEqual({ userConnect: "user123" });
     });
 
     it("field name formatting with prefix", () => {
@@ -67,7 +66,7 @@ describe("createVersion", () => {
             versions: [{ data: "version1" }, { data: "version2" }],
         };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [
                 { data: "version1", root: { id: "123" }, shaped: true },
                 { data: "version2", root: { id: "123" }, shaped: true },
@@ -78,19 +77,19 @@ describe("createVersion", () => {
     it("root object with empty versions array", () => {
         const root = { id: "123", versions: [] };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("root object with null versions", () => {
         const root = { id: "123", versions: null };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("root object with undefined versions", () => {
         const root = { id: "123", versions: undefined };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("shape model modifies version data", () => {
@@ -99,7 +98,7 @@ describe("createVersion", () => {
             versions: [{ data: "version1" }],
         };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [{ data: "version1", root: { id: "123" }, shaped: true }],
         });
     });
@@ -108,7 +107,7 @@ describe("createVersion", () => {
         const root = { versions: [{ data: "version1" }] };
         // @ts-ignore: Testing runtime scenario
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [{ data: "version1", root: { id: undefined }, shaped: true }],
         });
     });
@@ -120,77 +119,78 @@ describe("createVersion", () => {
             extraField: "extra",
         };
         const result = createVersion(root, mockShapeCreateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [{ data: "version1", root: { id: "123" }, shaped: true }],
         });
     });
 });
 
 describe("createPrims", () => {
+    let consoleErrorSpy: any;
     let consoleErrorStub: sinon.SinonStub;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("simple object with specified fields", () => {
         const obj = { id: "123", name: "Test", value: null };
         const result = createPrims(obj, "id", "name");
-        expect(result).to.deep.equal({ id: "123", name: "Test" });
+        expect(result).toEqual({ id: "123", name: "Test" });
     });
 
     it("field with null value", () => {
         const obj = { id: "123", name: null };
         const result = createPrims(obj, "id", "name");
-        expect(result).to.deep.equal({ id: "123", name: null });
+        expect(result).toEqual({ id: "123", name: null });
     });
 
     it("field with transformation function", () => {
         const obj = { id: "123", value: 10 };
         const result = createPrims(obj, ["value", val => val * 2]);
-        expect(result).to.deep.equal({ value: 20 });
+        expect(result).toEqual({ value: 20 });
     });
 
     it("empty object with no fields", () => {
         // @ts-ignore: Testing runtime scenario
         const result = createPrims({}, "id", "name");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("fields not present in the object", () => {
         const obj = { id: "123" };
         // @ts-ignore: Testing runtime scenario
         const result = createPrims(obj, "name");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("transformation function returning null", () => {
         const obj = { id: "123", value: 10 };
         const result = createPrims(obj, ["value", () => null]);
-        expect(result).to.deep.equal({ value: null });
+        expect(result).toEqual({ value: null });
     });
 
     it("mix of fields with and without transformation functions", () => {
         const obj = { id: "123", name: "Test", value: 10 };
         const result = createPrims(obj, "id", ["value", val => val * 2]);
-        expect(result).to.deep.equal({ id: "123", value: 20 });
+        expect(result).toEqual({ id: "123", value: 20 });
     });
 
     it("non-object input should return empty object and log error", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(createPrims(null, "id")).to.deep.equal({});
+        expect(createPrims(null, "id")).toEqual({});
         // @ts-ignore: Testing runtime scenario
-        expect(createPrims(undefined, "id")).to.deep.equal({});
+        expect(createPrims(undefined, "id")).toEqual({});
         // @ts-ignore: Testing runtime scenario
-        expect(createPrims(123, "id")).to.deep.equal({});
+        expect(createPrims(123, "id")).toEqual({});
     });
 });
 
@@ -235,43 +235,43 @@ describe("createRel", () => {
     it("one-to-one relationship with Connect operation", () => {
         const item = { relation: { id: "123" } };
         const result = createRel(item, "relation", ["Connect"], "one");
-        expect(result).to.deep.equal({ relationConnect: "123" });
+        expect(result).toEqual({ relationConnect: "123" });
     });
 
     it("one-to-many relationship with Connect operation", () => {
         const item = { relation: [{ id: "123" }, { id: "456" }] };
         const result = createRel(item, "relation", ["Connect"], "many");
-        expect(result).to.deep.equal({ relationConnect: ["123", "456"] });
+        expect(result).toEqual({ relationConnect: ["123", "456"] });
     });
 
     it("one-to-one relationship with Create operation", () => {
         const item = { relation: { data: "data" } };
         const result = createRel(item, "relation", ["Create"], "one", mockShapeCreateModel);
-        expect(result).to.deep.equal({ relationCreate: { data: "data", shaped: true } });
+        expect(result).toEqual({ relationCreate: { data: "data", shaped: true } });
     });
 
     it("one-to-many relationship with Create operation", () => {
         const item = { relation: [{ data: "data1" }, { data: "data2" }] };
         const result = createRel(item, "relation", ["Create"], "many", mockShapeCreateModel);
-        expect(result).to.deep.equal({ relationCreate: [{ data: "data1", shaped: true }, { data: "data2", shaped: true }] });
+        expect(result).toEqual({ relationCreate: [{ data: "data1", shaped: true }, { data: "data2", shaped: true }] });
     });
 
     it("null relationship data", () => {
         const item = { relation: null };
         const result = createRel(item, "relation", ["Connect"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("undefined relationship data", () => {
         const item = { relation: undefined };
         const result = createRel(item, "relation", ["Connect"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("empty array for one-to-many relationship", () => {
         const item = { relation: [] };
         const result = createRel(item, "relation", ["Connect"], "many");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("missing shape model for Create operation", () => {
@@ -287,25 +287,25 @@ describe("createRel", () => {
             return { ...data, preShaped: true };
         }
         const result = createRel(item, "relation", ["Create"], "one", mockShapeCreateModel, preShape);
-        expect(result).to.deep.equal({ relationCreate: { data: "data", preShaped: true, shaped: true } });
+        expect(result).toEqual({ relationCreate: { data: "data", preShaped: true, shaped: true } });
     });
 
     it("filter items based on shouldConnect for Connect operation - id test 1", () => {
         const item = { relation: [{ id: "123" }, { data: "data" }] };
         const result = createRel(item, "relation", ["Connect", "Create"], "many", mockShapeCreateModel);
-        expect(result).to.deep.equal({ relationConnect: ["123"], relationCreate: [{ data: "data", shaped: true }] });
+        expect(result).toEqual({ relationConnect: ["123"], relationCreate: [{ data: "data", shaped: true }] });
     });
 
     it("filter items based on shouldConnect for Connect operation - id test 2", () => {
         const item = { relation: [{ __typename: "Boop", id: "123" }, { id: "456", data: "data" }] };
         const result = createRel(item, "relation", ["Connect", "Create"], "many", mockShapeCreateModel);
-        expect(result).to.deep.equal({ relationConnect: ["123"], relationCreate: [{ id: "456", data: "data", shaped: true }] });
+        expect(result).toEqual({ relationConnect: ["123"], relationCreate: [{ id: "456", data: "data", shaped: true }] });
     });
 
     it("filter items based on shouldConnect for Connect operation - __connect test", () => {
         const item = { relation: [{ id: "123", data: "dataa", __connect: true }, { id: "456", data: "data" }] };
         const result = createRel(item, "relation", ["Connect", "Create"], "many", mockShapeCreateModel);
-        expect(result).to.deep.equal({ relationConnect: ["123"], relationCreate: [{ id: "456", data: "data", shaped: true }] });
+        expect(result).toEqual({ relationConnect: ["123"], relationCreate: [{ id: "456", data: "data", shaped: true }] });
     });
 });
 
@@ -319,7 +319,7 @@ describe("updateOwner", () => {
         const originalItem = { owner: null };
         const updatedItem = { owner: null };
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("same owner in both original and updated items", () => {
@@ -328,7 +328,7 @@ describe("updateOwner", () => {
         const updatedItem = { owner: ownerData };
         // @ts-ignore: Testing runtime scenario
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("different owners in original and updated items", () => {
@@ -336,7 +336,7 @@ describe("updateOwner", () => {
         const updatedItem = { owner: { __typename: "Team", id: "team456" } };
         // @ts-ignore: Testing runtime scenario
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({ teamConnect: "team456" });
+        expect(result).toEqual({ teamConnect: "team456" });
     });
 
     it("owner present only in updated item", () => {
@@ -344,7 +344,7 @@ describe("updateOwner", () => {
         const updatedItem = { owner: { __typename: "User", id: "user123" } };
         // @ts-ignore: Testing runtime scenario
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({ userConnect: "user123" });
+        expect(result).toEqual({ userConnect: "user123" });
     });
 
     it("owner present only in original item", () => {
@@ -352,28 +352,28 @@ describe("updateOwner", () => {
         const updatedItem = { owner: null };
         // @ts-ignore: Testing runtime scenario where updatedItem.owner might not conform to OType if it were strictly typed based on OriginalItem
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({ userDisconnect: true });
+        expect(result).toEqual({ userDisconnect: true });
     });
 
     it("owner present only in original item (Team)", () => {
         const originalItem = { owner: { __typename: "Team" as const, id: "team456" } };
         const updatedItem = { owner: null };
         const result = updateOwner(originalItem, updatedItem);
-        expect(result).to.deep.equal({ teamDisconnect: true });
+        expect(result).toEqual({ teamDisconnect: true });
     });
 
     it("owner present only in original item (User with ownedBy prefix)", () => {
         const originalItem = { owner: { __typename: "User" as const, id: "user123" } };
         const updatedItem = { owner: null };
         const result = updateOwner(originalItem, updatedItem, "ownedBy");
-        expect(result).to.deep.equal({ ownedByUserDisconnect: true });
+        expect(result).toEqual({ ownedByUserDisconnect: true });
     });
 
     it("owner present only in original item (Team with ownedBy prefix)", () => {
         const originalItem = { owner: { __typename: "Team" as const, id: "team456" } };
         const updatedItem = { owner: null };
         const result = updateOwner(originalItem, updatedItem, "ownedBy");
-        expect(result).to.deep.equal({ ownedByTeamDisconnect: true });
+        expect(result).toEqual({ ownedByTeamDisconnect: true });
     });
 
     it("different prefixes", () => {
@@ -381,7 +381,7 @@ describe("updateOwner", () => {
         const updatedItem = { owner: { __typename: "User", id: "user123" } };
         // @ts-ignore: Testing runtime scenario
         const result = updateOwner(originalItem, updatedItem, "managedBy");
-        expect(result).to.deep.equal({ managedByUserConnect: "user123" });
+        expect(result).toEqual({ managedByUserConnect: "user123" });
     });
 });
 
@@ -391,14 +391,14 @@ describe("updateVersion", () => {
         const updatedRoot = { id: "123", versions: null };
         // @ts-ignore: Testing runtime scenario
         const result = updateVersion(originalRoot, updatedRoot, mockShapeUpdateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("new versions to create", () => {
         const originalRoot = { id: "123", versions: [{ id: "v1", data: "version1" }] };
         const updatedRoot = { id: "123", versions: [{ id: "v2", data: "version2" }] };
         const result = updateVersion(originalRoot, updatedRoot, mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [{ id: "v2", data: "version2", root: { id: "123" }, shaped: "create" }],
         });
     });
@@ -407,7 +407,7 @@ describe("updateVersion", () => {
         const originalRoot = { id: "123", versions: [{ id: "v1", data: "version1" }] };
         const updatedRoot = { id: "123", versions: [{ id: "v1", data: "updated version1" }] };
         const result = updateVersion(originalRoot, updatedRoot, mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsUpdate: [{ id: "v1", data: "updated version1", root: { id: "123" }, shaped: "update" }],
         });
     });
@@ -422,7 +422,7 @@ describe("updateVersion", () => {
             ],
         };
         const result = updateVersion(originalRoot, updatedRoot, mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             versionsCreate: [{ id: "v2", data: "version2", root: { id: "123" }, shaped: "create" }],
             versionsUpdate: [{ id: "v1", data: "updated version1", root: { id: "123" }, shaped: "update" }],
         });
@@ -432,7 +432,7 @@ describe("updateVersion", () => {
         const originalRoot = { id: "123", versions: [{ id: "v1", data: "version1" }] };
         const updatedRoot = { id: "123", versions: [{ id: "v1", data: "version1" }] };
         const result = updateVersion(originalRoot, updatedRoot, mockShapeUpdateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 });
 
@@ -440,33 +440,33 @@ describe("updatePrims", () => {
     it("no original or updated object", () => {
         // @ts-ignore: Testing runtime scenario
         const result = updatePrims(null, null, "id", "name", "value");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("no original object", () => {
         const updated = { id: "123", name: "Test", value: 10 };
         const result = updatePrims(null, updated, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123", name: "Test", value: 10 });
+        expect(result).toEqual({ id: "123", name: "Test", value: 10 });
     });
 
     it("no updated object", () => {
         const original = { id: "123", name: "Test", value: 10 };
         const result = updatePrims(original, null, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123" }); // Should always include the ID
+        expect(result).toEqual({ id: "123" }); // Should always include the ID
     });
 
     it("unchanged fields", () => {
         const original = { id: "123", name: "Test", value: 10 };
         const updated = { ...original };
         const result = updatePrims(original, updated, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123" }); // Should always include the ID
+        expect(result).toEqual({ id: "123" }); // Should always include the ID
     });
 
     it("changed fields", () => {
         const original = { id: "123", name: "Test", value: 10 };
         const updated = { ...original, name: "Updated", value: 20 };
         const result = updatePrims(original, updated, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123", name: "Updated", value: 20 });
+        expect(result).toEqual({ id: "123", name: "Updated", value: 20 });
     });
 
     it("primary key handling - no changes", () => {
@@ -474,7 +474,7 @@ describe("updatePrims", () => {
         const updated = { ...original, name: "Updated" };
         // @ts-ignore: Testing runtime scenario
         const result = updatePrims(original, updated, "name"); // Here "name" is being treated as the primary key
-        expect(result).to.deep.equal({ name: "Test" }); // Since only the ID changed, the result should be empty except for the original ID
+        expect(result).toEqual({ name: "Test" }); // Since only the ID changed, the result should be empty except for the original ID
     });
 
     it("primary key handling - with changes", () => {
@@ -482,7 +482,7 @@ describe("updatePrims", () => {
         const updated = { ...original, name: "Updated", value: "beep" };
         // @ts-ignore: Testing runtime scenario
         const result = updatePrims(original, updated, "name", "value"); // Here "name" is being treated as the primary key
-        expect(result).to.deep.equal({ name: "Test", value: "beep" }); // A field changed, so the result should have the original ID and the updated value
+        expect(result).toEqual({ name: "Test", value: "beep" }); // A field changed, so the result should have the original ID and the updated value
     });
 
     it("primary key is null", () => {
@@ -490,14 +490,14 @@ describe("updatePrims", () => {
         const updated = { ...original, name: "Updated" };
         // @ts-ignore: Testing runtime scenario
         const result = updatePrims(original, updated, null, "value");
-        expect(result).to.deep.equal({}); // Can't update without a primary key
+        expect(result).toEqual({}); // Can't update without a primary key
     });
 
     it("field with transformation function", () => {
         const original = { id: "123", value: 10 };
         const updated = { ...original, value: 20 };
         const result = updatePrims(original, updated, "id", ["value", val => val * 2]);
-        expect(result).to.deep.equal({ id: "123", value: 40 });
+        expect(result).toEqual({ id: "123", value: 40 });
     });
 
     it("primary key as id without DUMMY_ID", () => {
@@ -513,33 +513,33 @@ describe("updateTranslationPrims", () => {
     it("no original or updated object", () => {
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(null, null, "id", "name", "value");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("no original object", () => {
         const updated = { id: "123", name: "Test", value: 10, language: "fr" };
         const result = updateTranslationPrims(null, updated, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123", name: "Test", value: 10, language: "fr" });
+        expect(result).toEqual({ id: "123", name: "Test", value: 10, language: "fr" });
     });
 
     it("no updated object", () => {
         const original = { id: "123", name: "Test", value: 10, language: "fr" };
         const result = updateTranslationPrims(original, null, "id", "name", "value");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("unchanged fields", () => {
         const original = { id: "123", name: "Test", value: 10, language: "fr" };
         const updated = { ...original };
         const result = updateTranslationPrims(original, updated, "id", "name", "value");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("changed fields", () => {
         const original = { id: "123", name: "Test", value: 10, language: "fr" };
         const updated = { ...original, name: "Updated", value: 20 };
         const result = updateTranslationPrims(original, updated, "id", "name", "value");
-        expect(result).to.deep.equal({ id: "123", name: "Updated", value: 20, language: "fr" });
+        expect(result).toEqual({ id: "123", name: "Updated", value: 20, language: "fr" });
     });
 
     it("primary key handling - no changes", () => {
@@ -547,7 +547,7 @@ describe("updateTranslationPrims", () => {
         const updated = { ...original, name: "Updated" };
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(original, updated, "name"); // Here "name" is being treated as the primary key
-        expect(result).to.deep.equal({}); // Since only the ID changed, the result should be empty
+        expect(result).toEqual({}); // Since only the ID changed, the result should be empty
     });
 
     it("primary key handling - with changes", () => {
@@ -555,7 +555,7 @@ describe("updateTranslationPrims", () => {
         const updated = { ...original, name: "Updated", value: "beep" };
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(original, updated, "name", "value"); // Here "name" is being treated as the primary key
-        expect(result).to.deep.equal({ name: "Test", value: "beep", language: "fr" }); // A field changed, so the result should have the original ID and the updated value
+        expect(result).toEqual({ name: "Test", value: "beep", language: "fr" }); // A field changed, so the result should have the original ID and the updated value
     });
 
     it("primary key is null", () => {
@@ -563,14 +563,14 @@ describe("updateTranslationPrims", () => {
         const updated = { ...original, name: "Updated" };
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(original, updated, null, "value");
-        expect(result).to.deep.equal({}); // Can't update without a primary key
+        expect(result).toEqual({}); // Can't update without a primary key
     });
 
     it("field with transformation function", () => {
         const original = { id: "123", value: 10, language: "fr" };
         const updated = { ...original, value: 20, language: "fr" };
         const result = updateTranslationPrims(original, updated, "id", ["value", val => val * 2]);
-        expect(result).to.deep.equal({ id: "123", value: 40, language: "fr" });
+        expect(result).toEqual({ id: "123", value: 40, language: "fr" });
     });
 
     it("primary key as id without DUMMY_ID", () => {
@@ -602,20 +602,20 @@ describe("shapeUpdate", () => {
             return { ...data, name: "Updated" };
         }
         const result = shapeUpdate(updated, shapeFunc);
-        expect(result).to.deep.equal({ name: "Updated", other: "other" });
+        expect(result).toEqual({ name: "Updated", other: "other" });
     });
 
     it("shape as an object", () => {
         const updated = { name: "Test" };
         const shapeObj = { name: "Updated" };
         const result = shapeUpdate(updated, shapeObj);
-        expect(result).to.deep.equal({ name: "Updated" });
+        expect(result).toEqual({ name: "Updated" });
     });
 
     it("removal of undefined values", () => {
         const updated = { name: "Test", value: undefined };
         const result = shapeUpdate(updated, updated);
-        expect(result).to.deep.equal({ name: "Test" });
+        expect(result).toEqual({ name: "Test" });
     });
 });
 
@@ -624,14 +624,14 @@ describe("updateRel", () => {
         const original = {};
         const updated = { relation: [{ data: "newData" }] };
         const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationCreate: [{ data: "newData", shaped: "create" }] }); // Treated as create, since there is no original item
+        expect(result).toEqual({ relationCreate: [{ data: "newData", shaped: "create" }] }); // Treated as create, since there is no original item
     });
 
     it("no updated item", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = {};
         const result = updateRel(original, updated, "relation", ["Connect"], "many");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("create operation - test 1", () => {
@@ -639,28 +639,28 @@ describe("updateRel", () => {
         const updated = { relation: [{ id: "123", data: "newData" }] };
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({}); // Data is different, but it's the same ID that appears in the original item, so it's treated as an update. Since updates aren't allowed, the result is empty
+        expect(result).toEqual({}); // Data is different, but it's the same ID that appears in the original item, so it's treated as an update. Since updates aren't allowed, the result is empty
     });
 
     it("create operation - test 2", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "456", data: "newData" }] };
         const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationCreate: [{ id: "456", data: "newData", shaped: "create" }] });
+        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", shaped: "create" }] });
     });
 
     it("connect operation - test 1", () => {
         const original = { relation: [{ id: "456", data: "hello" }] };
         const updated = { relation: [{ id: "456", data: "hello" }] };
         const result = updateRel(original, updated, "relation", ["Connect"], "many");
-        expect(result).to.deep.equal({}); // Data appears in both original and updated items, so it's not a connect
+        expect(result).toEqual({}); // Data appears in both original and updated items, so it's not a connect
     });
 
     it("connect operation - test 3", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "456" }] };
         const result = updateRel(original, updated, "relation", ["Connect"], "many");
-        expect(result).to.deep.equal({ relationConnect: ["456"] });
+        expect(result).toEqual({ relationConnect: ["456"] });
     });
 
     it("disconnect operation", () => {
@@ -668,7 +668,7 @@ describe("updateRel", () => {
         const updated = { relation: [] };
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Disconnect"], "many");
-        expect(result).to.deep.equal({ relationDisconnect: ["123"] });
+        expect(result).toEqual({ relationDisconnect: ["123"] });
     });
 
     it("delete operation", () => {
@@ -676,21 +676,21 @@ describe("updateRel", () => {
         const updated = { relation: [] };
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Delete"], "many");
-        expect(result).to.deep.equal({ relationDelete: ["123"] });
+        expect(result).toEqual({ relationDelete: ["123"] });
     });
 
     it("update operation - test 1", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "123", data: "newData" }] };
         const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
     });
 
     it("update operation - test 2", () => {
         const original = { relation: [{ id: "123", data: "oldData" }] };
         const updated = { relation: [{ id: "123", data: "newData" }] };
         const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", shaped: "update" }] });
     });
 
     it("create and connect operations", () => {
@@ -704,7 +704,7 @@ describe("updateRel", () => {
             ],
         };
         const result = updateRel(original, updated, "relation", ["Create", "Connect"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
             relationConnect: ["456", "420"],
         });
@@ -721,7 +721,7 @@ describe("updateRel", () => {
         };
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create", "Disconnect"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
             relationDisconnect: ["123"],
         });
@@ -738,7 +738,7 @@ describe("updateRel", () => {
         };
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create", "Delete"], "many", mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationCreate: [{ id: "999", data: "newData", shaped: "create" }],
             relationDelete: ["123"],
         });
@@ -754,7 +754,7 @@ describe("updateRel", () => {
             ],
         };
         const result = updateRel(original, updated, "relation", ["Connect", "Disconnect"], "many");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationConnect: ["789"],
             relationDisconnect: ["123"],
         });
@@ -765,7 +765,7 @@ describe("updateRel", () => {
         const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since it has a different ID
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
+        expect(result).toEqual({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
     });
 
     it("one-to-one create operation - test 2", () => {
@@ -773,7 +773,7 @@ describe("updateRel", () => {
         const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since relation didn't exist in original
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
+        expect(result).toEqual({ relationCreate: { id: "456", data: "newData", shaped: "create" } });
     });
 
     it("one-to-one create operation - test 3", () => {
@@ -781,21 +781,21 @@ describe("updateRel", () => {
         const updated = { relation: { id: "123", data: "newData" } }; // Should be Update (which should be ignored in this test), since it has the same ID
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Create"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one connect operation - test 1", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "456" } };
         const result = updateRel(original, updated, "relation", ["Connect"], "one");
-        expect(result).to.deep.equal({ relationConnect: "456" });
+        expect(result).toEqual({ relationConnect: "456" });
     });
 
     it("one-to-one connect operation - test 2", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "123" } }; // Should be ignored, since it has the same ID as the original
         const result = updateRel(original, updated, "relation", ["Connect"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one disconnect operation - test 1", () => {
@@ -803,21 +803,21 @@ describe("updateRel", () => {
         const updated = { relation: null }; // Null indicates a Disconnect
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
-        expect(result).to.deep.equal({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
+        expect(result).toEqual({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
     });
 
     it("one-to-one disconnect operation - test 2", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "456" } }; // Should be able to determine that '123' should be disconnected
         const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
-        expect(result).to.deep.equal({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
+        expect(result).toEqual({ relationDisconnect: true }); // One-to-one disconnects use boolean values instead of IDs, since the ID is already known
     });
 
     it("one-to-one disconnect operation - test 3", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "123", data: "newData" } }; // Should be ignored, since it has the same ID as the original
         const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one disconnect operation - test 4", () => {
@@ -825,7 +825,7 @@ describe("updateRel", () => {
         const updated = { relation: undefined }; // Should be ignored, since only null is treated as a disconnect
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Disconnect"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one delete operation - test 1", () => {
@@ -833,21 +833,21 @@ describe("updateRel", () => {
         const updated = { relation: null }; // Null indicates a Delete
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Delete"], "one");
-        expect(result).to.deep.equal({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
+        expect(result).toEqual({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
     });
 
     it("one-to-one delete operation - test 2", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "456" } }; // Should be able to determine that '123' should be deleted
         const result = updateRel(original, updated, "relation", ["Delete"], "one");
-        expect(result).to.deep.equal({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
+        expect(result).toEqual({ relationDelete: true }); // One-to-one deletes use boolean values instead of IDs, since the ID is already known
     });
 
     it("one-to-one delete operation - test 3", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "123", data: "newData" } }; // Should be ignored, since it has the same ID as the original
         const result = updateRel(original, updated, "relation", ["Delete"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one delete operation - test 4", () => {
@@ -855,27 +855,27 @@ describe("updateRel", () => {
         const updated = { relation: undefined }; // Should be ignored, since only null is treated as a delete
         // @ts-ignore: Testing runtime scenario
         const result = updateRel(original, updated, "relation", ["Delete"], "one");
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one update operation - test 1", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "123", data: "newData" } };
         const result = updateRel(original, updated, "relation", ["Update"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({ relationUpdate: { id: "123", data: "newData", shaped: "update" } });
+        expect(result).toEqual({ relationUpdate: { id: "123", data: "newData", shaped: "update" } });
     });
 
     it("one-to-one update operation - test 2", () => {
         const original = { relation: { id: "123", data: "booop", other: { random: { data: "hi" } } } };
         const result = updateRel(original, { ...original }, "relation", ["Update"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({});
+        expect(result).toEqual({});
     });
 
     it("one-to-one create and connect operations - test 1", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "456", data: "newData" } }; // Should be Create, since it has more data than just an ID
         const result = updateRel(original, updated, "relation", ["Create", "Connect"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationCreate: { id: "456", data: "newData", shaped: "create" },
         });
     });
@@ -884,7 +884,7 @@ describe("updateRel", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { __typename: "Boop", id: "456" } }; // Should be Connect, since it has only an ID and a __typename
         const result = updateRel(original, updated, "relation", ["Create", "Connect"], "one", mockShapeUpdateModel);
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationConnect: "456",
         });
     });
@@ -893,7 +893,7 @@ describe("updateRel", () => {
         const original = { relation: { id: "123" } };
         const updated = { relation: { id: "456" } };
         const result = updateRel(original, updated, "relation", ["Connect", "Disconnect"], "one");
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             relationConnect: "456", // The disconnect is implicitly handled by the connect, since it's a one-to-one
         });
     });
@@ -905,7 +905,7 @@ describe("updateRel", () => {
             return { ...d, preShape: "bloop" };
         }
         const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeUpdateModel, preShape);
-        expect(result).to.deep.equal({ relationCreate: [{ id: "456", data: "newData", preShape: "bloop", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
+        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", preShape: "bloop", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
     });
 
     it("update with preShape function", () => {
@@ -915,7 +915,7 @@ describe("updateRel", () => {
             return { ...d, preShape: "bloop" };
         }
         const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeUpdateModel, preShape);
-        expect(result).to.deep.equal({ relationUpdate: [{ id: "123", data: "newData", preShape: "bloop", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", preShape: "bloop", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
     });
 });
 

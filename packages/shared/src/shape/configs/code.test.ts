@@ -1,5 +1,4 @@
-import { describe, it, expect } from "vitest";
-import sinon from "sinon";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { type ResourceVersion } from "../../api/types.js";
 import { CodeLanguage } from "../../consts/index.js";
 import { CodeVersionConfig, type CodeVersionConfigObject, type JsonSchema } from "./code.js";
@@ -11,18 +10,18 @@ type VersionInputForParse = Pick<ResourceVersion, "codeLanguage" | "config">;
 const DEFAULT_TEST_CONTENT = "function main() { return 'test'; }";
 
 describe("CodeVersionConfig", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(async () => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     describe("deserialization", () => {
@@ -36,8 +35,8 @@ describe("CodeVersionConfig", () => {
                 codeLanguage: CodeLanguage.Javascript,
                 initialContent: "",
             });
-            expect(config.export()).to.deep.equal(defaultConfig.export());
-            expect(consoleErrorStub.calledWithMatch(/Failed to parse CodeVersionConfig string/)).to.be.true;
+            expect(config.export()).toEqual(defaultConfig.export());
+            expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to parse CodeVersionConfig string. Initializing with default content.", expect.any(Object));
         });
 
         describe("inputs", () => {
@@ -64,10 +63,10 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
 
                 it("mixed type array", () => {
@@ -96,10 +95,10 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
             });
 
@@ -128,10 +127,10 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
 
                 it("nested object", () => {
@@ -168,10 +167,10 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
             });
 
@@ -185,8 +184,8 @@ describe("CodeVersionConfig", () => {
                     codeLanguage: CodeLanguage.Javascript,
                     initialContent: "",
                 });
-                expect(parsedConfig.export()).to.deep.equal(defaultConfig.export());
-                expect(consoleErrorStub.calledWithMatch(/Content was not available in parsed config/)).to.be.true;
+                expect(parsedConfig.export()).toEqual(defaultConfig.export());
+                expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/Content was not available in parsed config/));
             });
         });
 
@@ -206,11 +205,11 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).toEqual(configObject.outputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
 
                 it("object with properties", () => {
@@ -234,11 +233,11 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).toEqual(configObject.outputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
             });
 
@@ -264,11 +263,11 @@ describe("CodeVersionConfig", () => {
                         config: configString as any,
                     };
                     const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                    expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                    expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                    expect(parsedConfig.outputConfig).to.deep.equal(configObject.outputConfig);
-                    expect(parsedConfig.content).to.equal(configObject.content);
-                    expect(consoleErrorStub.called).to.be.false;
+                    expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                    expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                    expect(parsedConfig.outputConfig).toEqual(configObject.outputConfig);
+                    expect(parsedConfig.content).toBe(configObject.content);
+                    expect(consoleErrorSpy).not.toHaveBeenCalled();
                 });
             });
 
@@ -285,11 +284,11 @@ describe("CodeVersionConfig", () => {
                     config: configString as any,
                 };
                 const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-                expect(parsedConfig.__version).to.equal(LATEST_CONFIG_VERSION);
-                expect(parsedConfig.inputConfig).to.deep.equal(configObject.inputConfig);
-                expect(parsedConfig.outputConfig).to.deep.equal(CodeVersionConfig.defaultOutputConfig());
-                expect(parsedConfig.content).to.equal(configObject.content);
-                expect(consoleErrorStub.called).to.be.false;
+                expect(parsedConfig.__version).toBe(LATEST_CONFIG_VERSION);
+                expect(parsedConfig.inputConfig).toEqual(configObject.inputConfig);
+                expect(parsedConfig.outputConfig).toEqual(CodeVersionConfig.defaultOutputConfig());
+                expect(parsedConfig.content).toBe(configObject.content);
+                expect(consoleErrorSpy).not.toHaveBeenCalled();
             });
         });
     });
@@ -311,8 +310,8 @@ describe("CodeVersionConfig", () => {
                 config: configString as any,
             };
             const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-            expect(parsedConfig.export()).to.deep.equal(configObject);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(parsedConfig.export()).toEqual(configObject);
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("direct input and single schema output", () => {
@@ -331,8 +330,8 @@ describe("CodeVersionConfig", () => {
                 config: configString as any,
             };
             const parsedConfig = CodeVersionConfig.parse(versionInput, console);
-            expect(parsedConfig.export()).to.deep.equal(configObject);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(parsedConfig.export()).toEqual(configObject);
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -366,13 +365,13 @@ describe("CodeVersionConfig", () => {
                 return { output: 6 };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Simple addition",
                     passed: true,
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("runs a failing test case correctly with spread input", async () => {
@@ -404,14 +403,14 @@ describe("CodeVersionConfig", () => {
                 return { output: 6 };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Simple addition",
                     passed: false,
                     actualOutput: 6,
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("handles errors in runSandbox correctly", async () => {
@@ -443,14 +442,14 @@ describe("CodeVersionConfig", () => {
                 return { error: "Test error" };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Error case",
                     passed: false,
                     error: "Test error",
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("runs multiple test cases correctly", async () => {
@@ -489,7 +488,7 @@ describe("CodeVersionConfig", () => {
                 return { output: sum };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "First test",
                     passed: true,
@@ -499,7 +498,7 @@ describe("CodeVersionConfig", () => {
                     passed: true,
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("runs test cases with direct input correctly", async () => {
@@ -535,13 +534,13 @@ describe("CodeVersionConfig", () => {
                 return { output: input.a + input.b };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Object input",
                     passed: true,
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("runs test cases with complex object output correctly", async () => {
@@ -574,13 +573,13 @@ describe("CodeVersionConfig", () => {
                 return { output: { greeting: `Hello, ${input.name}` } };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Greeting test",
                     passed: true,
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("detects failing test case with object output", async () => {
@@ -613,14 +612,14 @@ describe("CodeVersionConfig", () => {
                 return { output: { greeting: `Hello, ${input.name}` } };
             }
             const results = await parsedConfig.runTestCases(runSandbox);
-            expect(results).to.deep.equal([
+            expect(results).toEqual([
                 {
                     description: "Greeting test",
                     passed: false,
                     actualOutput: { greeting: "Hello, Alice" },
                 },
             ]);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
     });
 });

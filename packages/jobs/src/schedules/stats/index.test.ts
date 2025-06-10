@@ -232,7 +232,7 @@ describe("stats index", () => {
 
         it("should handle unknown cron expression gracefully", async () => {
             // Should not throw even with unknown cron
-            await expect(initStatsPeriod("unknown cron")).resolves.not.toThrow();
+            expect(() => initStatsPeriod("unknown cron")).not.toThrow();
             
             // Should not call any stat functions with unknown cron
             const { logSiteStats } = await import("./site.js");

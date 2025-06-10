@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { describe, it, expect } from "vitest";
-import sinon from "sinon";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { OpenAIModel } from "../../ai/services.js";
 import { type User } from "../../api/types.js";
 import { BotConfig, DEFAULT_CREATIVITY, DEFAULT_PERSONA, DEFAULT_VERBOSITY, type BotConfigObject } from "./bot.js";
@@ -33,24 +32,24 @@ const validUserWithBotSettings: Pick<User, "botSettings"> = {
 };
 
 describe("BotConfig", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("parses valid bot settings object correctly", () => {
         const botConfigInstance = BotConfig.parse(validUserWithBotSettings, console);
-        expect(botConfigInstance.export()).to.deep.equal(validBotSettingsObject);
-        expect(consoleErrorStub.called).to.be.false;
+        expect(botConfigInstance.export()).toEqual(validBotSettingsObject);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     describe("handles botSettings property being null or undefined", () => {
@@ -62,10 +61,10 @@ describe("BotConfig", () => {
             // Should return default config because botSettings is null
             // parseBase handles null data by defaulting fields like __version and resources,
             // and BotConfig factory defaults persona.
-            expect(botConfigInstance.export()).to.deep.equal(BotConfig.default().export());
+            expect(botConfigInstance.export()).toEqual(BotConfig.default().export());
             // No error expected as null is a permissible value for botSettings (Maybe<BotConfigObject>)
             // and parseBase handles it gracefully by falling back to defaults.
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("botSettings is undefined", () => {
@@ -74,9 +73,9 @@ describe("BotConfig", () => {
             };
             const botConfigInstance = BotConfig.parse(userData, console);
             // Should return default config because botSettings is undefined
-            expect(botConfigInstance.export()).to.deep.equal(BotConfig.default().export());
+            expect(botConfigInstance.export()).toEqual(BotConfig.default().export());
             // No error expected as undefined is permissible and handled by parseBase.
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -84,19 +83,19 @@ describe("BotConfig", () => {
         it("User-like object is null", () => {
             const nullUserData = null as unknown as Pick<User, "botSettings">;
             const botConfigInstance = BotConfig.parse(nullUserData, console);
-            expect(botConfigInstance.export()).to.deep.equal(BotConfig.default().export());
+            expect(botConfigInstance.export()).toEqual(BotConfig.default().export());
             // If bot is null, bot?.botSettings is undefined. parseBase receives undefined and defaults.
             // No error is logged in this path.
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("User-like object is undefined", () => {
             const undefinedUserData = undefined as unknown as Pick<User, "botSettings">;
             const botConfigInstance = BotConfig.parse(undefinedUserData, console);
-            expect(botConfigInstance.export()).to.deep.equal(BotConfig.default().export());
+            expect(botConfigInstance.export()).toEqual(BotConfig.default().export());
             // If bot is undefined, bot?.botSettings is undefined. parseBase receives undefined and defaults.
             // No error is logged in this path.
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         // Removed test for "array input for User object" as it's less a direct concern of BotConfig.parse 
@@ -113,8 +112,8 @@ describe("BotConfig", () => {
         // So, `__version` will be LATEST_CONFIG_VERSION.
         // `resources` will be []. `persona` will be DEFAULT_PERSONA.
         // Effectively, an empty object becomes a default config.
-        expect(botConfigInstance.export()).to.deep.equal(BotConfig.default().export());
-        expect(consoleErrorStub.called).to.be.false; // No error, as it's gracefully defaulted.
+        expect(botConfigInstance.export()).toEqual(BotConfig.default().export());
+        expect(consoleErrorSpy).not.toHaveBeenCalled(); // No error, as it's gracefully defaulted.
     });
 
     it("retains valid fields from botSettings object and fills defaults for missing ones", () => {
@@ -141,8 +140,8 @@ describe("BotConfig", () => {
             persona: expectedFullPersona, // Defaulted by BotConfig factory
             resources: [], // Defaulted by parseBase
         };
-        expect(botConfigInstance.export()).to.deep.equal(expectedExport);
-        expect(consoleErrorStub.called).to.be.false;
+        expect(botConfigInstance.export()).toEqual(expectedExport);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it("parses a complete botSettings object correctly", () => {
@@ -162,8 +161,8 @@ describe("BotConfig", () => {
             botSettings: fullBotSettings,
         };
         const botConfigInstance = BotConfig.parse(userData, console);
-        expect(botConfigInstance.export()).to.deep.equal(fullBotSettings);
-        expect(consoleErrorStub.called).to.be.false;
+        expect(botConfigInstance.export()).toEqual(fullBotSettings);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     describe("persona handling with useFallbacks option", () => {
@@ -179,11 +178,11 @@ describe("BotConfig", () => {
             };
 
             const configWithFallback = BotConfig.parse(userData, console, { useFallbacks: true });
-            expect(configWithFallback.persona).to.deep.equal(DEFAULT_PERSONA);
+            expect(configWithFallback.persona).toEqual(DEFAULT_PERSONA);
 
             const configWithDefaultFallback = BotConfig.parse(userData, console); // useFallbacks is true by default
-            expect(configWithDefaultFallback.persona).to.deep.equal(DEFAULT_PERSONA);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(configWithDefaultFallback.persona).toEqual(DEFAULT_PERSONA);
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("should NOT use fallbacks for persona (leaving it undefined) when useFallbacks is false and persona is missing", () => {
@@ -198,7 +197,7 @@ describe("BotConfig", () => {
             };
             const configWithoutFallback = BotConfig.parse(userData, console, { useFallbacks: false });
             expect(configWithoutFallback.persona).to.be.undefined;
-            expect(consoleErrorStub.called).to.be.false;
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
         it("should correctly fill default persona fields if a partial persona is provided (with fallbacks enabled by default)", () => {
@@ -221,8 +220,8 @@ describe("BotConfig", () => {
                 occupation: "Engineer In Test",
                 tone: "Sarcastic",
             };
-            expect(botConfig.persona).to.deep.equal(expectedPersona);
-            expect(consoleErrorStub.called).to.be.false;
+            expect(botConfig.persona).toEqual(expectedPersona);
+            expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -233,9 +232,9 @@ describe("BotConfig", () => {
         expect(exportedDefault.__version).to.equal(LATEST_VERSION_STRING);
         expect(exportedDefault.model).to.be.undefined;
         expect(exportedDefault.maxTokens).to.be.undefined;
-        expect(exportedDefault.persona).to.deep.equal(DEFAULT_PERSONA);
-        expect(exportedDefault.resources).to.deep.equal([]);
-        expect(consoleErrorStub.called).to.be.false;
+        expect(exportedDefault.persona).toEqual(DEFAULT_PERSONA);
+        expect(exportedDefault.resources).toEqual([]);
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 });
 

@@ -481,6 +481,16 @@ export class CacheService {
         }
     }
 
+    /**
+     * Flush all keys from Redis (for testing purposes)
+     * WARNING: This will delete ALL data in the Redis database
+     */
+    async flushAll(): Promise<void> {
+        await this.ensure();
+        await this.client.flushall();
+        this.local?.clear();
+    }
+
     async close(): Promise<void> {
         this.local?.clear();
         if (!this.client) return;

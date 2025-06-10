@@ -1,25 +1,9 @@
-import { generatePK, generatePublicId } from "../__test__/setup-working-no-barrel.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DbProvider } from "../__test__/db-mock.js";
+import { generatePK, generatePublicId } from "@vrooli/shared";
+import { DbProvider } from "@vrooli/server/db/provider.js";
 import { countViews } from "./countViews.js";
 
-// Mock the specific server imports that countViews uses
-vi.mock("@vrooli/server/db/provider.js", () => ({
-    DbProvider: DbProvider,
-}));
-
-vi.mock("@vrooli/server/utils/batch.js", () => ({
-    batch: async ({ processBatch, ...args }) => {
-        // Simple batch implementation for testing
-        const db = DbProvider.get();
-        const tableName = args.objectType.toLowerCase();
-        const entities = await db[tableName].findMany({
-            select: args.select,
-            where: args.where,
-        });
-        await processBatch(entities);
-    }
-}));
+// Remove the batch mock - use the real implementation from testcontainers
 
 vi.mock("@vrooli/server/events/logger.js", () => ({
     logger: {

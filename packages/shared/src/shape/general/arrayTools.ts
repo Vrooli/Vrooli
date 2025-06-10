@@ -17,13 +17,14 @@ export function deleteArrayIndex<T>(array: T[], index: number) {
     return array.filter((_, i) => i !== index);
 }
 
-export function deleteArrayObject(array, obj) {
-    const index = array.findIndex(obj);
+export function deleteArrayObject<T>(array: T[], obj: T): T[] {
+    const index = array.findIndex(item => item === obj);
     if (index !== -1) {
         const copy = [...array];
         copy.splice(index, 1);
         return copy;
     }
+    return array;
 }
 
 // For an array of objects, return the first index where an object has a key/value 

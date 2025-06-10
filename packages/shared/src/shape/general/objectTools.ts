@@ -6,28 +6,32 @@ import { exists } from "../../utils/exists.js";
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
  */
-export function valueFromDot(object: any, notation: string): any {
+export function valueFromDot<T = unknown>(object: Record<string, unknown>, notation: string): T | null {
     // Utility function to index into object using string key
-    function index(obj: any, i: string) {
+    function index(obj: Record<string, unknown> | null, i: string): Record<string, unknown> | null {
         // Return null if obj is falsy
-        return exists(obj) ? obj[i] : null;
+        return exists(obj) ? (obj[i] as Record<string, unknown>) : null;
     }
     // Return null if either object or notation is falsy
     if (!object || !notation) return null;
     // Use reduce method to traverse the object using dot notation
     // If the final result is falsy, return null
     const value = notation.split(".").reduce(index, object);
-    return exists(value) ? value : null;
+    return exists(value) ? (value as T) : null;
 }
 
 /**
  * Maps the keys of an object to dot notation
  */
-export function convertToDot(obj: Record<string, any>, parent = [], keyValue = {}) {
+export function convertToDot(
+    obj: Record<string, unknown>, 
+    parent: string[] = [], 
+    keyValue: Record<string, unknown> = {}
+): Record<string, unknown> {
     for (const key in obj) {
-        const keyPath: any = [...parent, key];
+        const keyPath: string[] = [...parent, key];
         if (obj[key] !== null && typeof obj[key] === "object") {
-            Object.assign(keyValue, convertToDot(obj[key], keyPath, keyValue));
+            Object.assign(keyValue, convertToDot(obj[key] as Record<string, unknown>, keyPath, keyValue));
         } else {
             keyValue[keyPath.join(".")] = obj[key];
         }
@@ -55,7 +59,7 @@ export function hasObjectChanged(original: unknown, updated: unknown, fields: st
         return original !== updated;
     }
 
-    function checkField(original: any, updated: any, field: string): boolean {
+    function checkField(original: Record<string, unknown>, updated: Record<string, unknown>, field: string): boolean {
         const [topLevelField, ...rest] = field.split(".");
         if (typeof topLevelField !== "string") return false;
 
@@ -67,8 +71,8 @@ export function hasObjectChanged(original: unknown, updated: unknown, fields: st
         } else {
             if (Array.isArray(original[topLevelField]) && Array.isArray(updated[topLevelField])) {
                 if (original[topLevelField].length !== updated[topLevelField].length) return true;
-                for (let i = 0; i < original[topLevelField].length; i++) {
-                    if (hasObjectChanged(original[topLevelField][i], updated[topLevelField][i])) return true;
+                for (let i = 0; i < (original[topLevelField] as unknown[]).length; i++) {
+                    if (hasObjectChanged((original[topLevelField] as unknown[])[i], (updated[topLevelField] as unknown[])[i])) return true;
                 }
                 return false;
             } else if (isObject(original[topLevelField]) && isObject(updated[topLevelField])) {
@@ -79,13 +83,13 @@ export function hasObjectChanged(original: unknown, updated: unknown, fields: st
     }
 
     // Combine keys from both objects
-    const allKeys = new Set([...Object.keys(original), ...Object.keys(updated)]);
+    const allKeys = new Set([...Object.keys(original as Record<string, unknown>), ...Object.keys(updated as Record<string, unknown>)]);
 
     // Check specified fields, or all fields if none specified
     const fieldsToCheck = fields.length > 0 ? fields : Array.from(allKeys);
 
     for (const field of fieldsToCheck) {
-        if (checkField(original, updated, field)) {
+        if (checkField(original as Record<string, unknown>, updated as Record<string, unknown>, field)) {
             return true;
         }
     }

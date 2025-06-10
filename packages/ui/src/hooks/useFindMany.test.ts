@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiVersionSortBy, CommentSortBy, RoutineSortBy, stringifySearchParams } from "@vrooli/shared";
 import { describe, it, expect, afterEach, vi } from "vitest";
+
+// Unmock @vrooli/shared for this test
+vi.unmock("@vrooli/shared");
+
+import { CommentSortBy, ResourceSortBy, stringifySearchParams } from "@vrooli/shared";
 import { searchTypeToParams } from "../utils/search/objectToSearch.js";
 import { getUrlSearchParams, parseData, readyToSearch, updateSearchUrl, updateSortBy } from "./useFindMany.js";
 
@@ -10,6 +14,7 @@ function setWindowSearch(search) {
         value: {
             ...window.location,
             search,
+            pathname: "/",
         },
         writable: true,
     });
@@ -188,10 +193,10 @@ describe("getUrlSearchParams", () => {
     it("returns default values when not controlling URL", () => {
         setWindowSearch(stringifySearchParams({
             search: "query",
-            sort: RoutineSortBy.IssuesAsc,
+            sort: ResourceSortBy.DateUpdatedAsc,
             time: { after: new Date("2022-01-01") },
         }));
-        const result = getUrlSearchParams(false, "Routine");
+        const result = getUrlSearchParams(false, "Resource");
         expect(result).toEqual({
             searchString: "",
             sortBy: "",
@@ -246,7 +251,7 @@ describe("getUrlSearchParams", () => {
     it("works when other miscellaneous parameters are present", () => {
         setWindowSearch(stringifySearchParams({
             search: "query",
-            sort: ApiVersionSortBy.ForksAsc,
+            sort: CommentSortBy.DateUpdatedAsc,
             other1: "param",
             other2: 1,
             other3: [{ time: "value" }],
@@ -255,10 +260,10 @@ describe("getUrlSearchParams", () => {
                 before: new Date("2022-12-31").toISOString(),
             },
         }));
-        const result = getUrlSearchParams(true, "ApiVersion");
+        const result = getUrlSearchParams(true, "Comment");
         expect(result).toEqual({
             searchString: "query",
-            sortBy: ApiVersionSortBy.ForksAsc,
+            sortBy: CommentSortBy.DateUpdatedAsc,
             timeFrame: {
                 after: new Date("2022-01-01"),
                 before: new Date("2022-12-31"),

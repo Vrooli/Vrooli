@@ -34,7 +34,6 @@ import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import * as http from "http";
 import * as https from "https";
-import sinon from "sinon";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { vi, beforeAll, afterAll } from "vitest";
 
@@ -165,8 +164,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
 
-    // Restore all sinon stubs
-    sinon.restore();
+    // Restore all vitest mocks
+    vi.restoreAllMocks();
 
     // Skip queue shutdown since we didn't initialize queues
 

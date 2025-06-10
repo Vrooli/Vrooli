@@ -1,40 +1,23 @@
 import { act, renderHook } from "@testing-library/react";
-import { describe, it, expect, afterAll, beforeEach } from "vitest";
-import sinon from "sinon";
+import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { useUndoRedo } from "./useUndoRedo.js";
 
 describe("useUndoRedo", () => {
     const initialValue = "initial";
-    let onChange: sinon.SinonStub;
-    let clock: sinon.SinonFakeTimers;
+    let onChange: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        onChange = sinon.stub();
-        // Use fake timers but don't interfere with native timers used by the test framework
-        clock = sinon.useFakeTimers({
-            shouldAdvanceTime: true,
-            now: Date.now(),
-        });
+        onChange = vi.fn();
+        vi.useFakeTimers();
     });
 
     afterEach(() => {
-        // Restore all fakes and stubs
-        onChange.reset();
-        if (clock) {
-            // Restore the clock first
-            clock.restore();
-        }
-        // Then restore all other sinon fakes/stubs
-        sinon.restore();
+        vi.useRealTimers();
+        vi.clearAllMocks();
     });
 
-    // Add a describe-level after hook to ensure cleanup
     afterAll(() => {
-        // Ensure all timers are cleaned up
-        if (clock) {
-            clock.restore();
-        }
-        sinon.restore();
+        vi.useRealTimers();
     });
 
     it("should initialize with the initial value", () => {
@@ -295,12 +278,12 @@ describe("useUndoRedo", () => {
         act(() => {
             result.current.changeInternalValue("new value");
         });
-        sinon.assert.notCalled(onChange); // Not called immediately
+        expect(onChange).not.toHaveBeenCalled(); // Not called immediately
 
         // Advance time
         act(() => {
-            clock.tick(200);
+            vi.advanceTimersByTime(200);
         });
-        sinon.assert.calledWith(onChange, "new value");
+        expect(onChange).toHaveBeenCalledWith("new value");
     });
 }); 

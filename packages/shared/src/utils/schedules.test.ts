@@ -1,54 +1,53 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import moment from "moment";
-import sinon from "sinon";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api/types.js";
 import { HOURS_2_MS } from "../consts/numbers.js";
 import { DUMMY_ID, generatePublicId } from "../id/index.js";
 import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules.js";
 
 describe("validateTimeFrame", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("should return true for valid timeframes within a year", () => {
         const start = new Date("2022-01-01T00:00:00Z");
         const end = new Date("2022-12-31T00:00:00Z");
-        expect(validateTimeFrame(start, end)).to.be.ok;
+        expect(validateTimeFrame(start, end)).toBeTruthy();
     });
 
     it("should return false for timeframes longer than a year", () => {
         const start = new Date("2022-01-01T00:00:00Z");
         const end = new Date("2023-01-02T00:00:00Z");
-        expect(validateTimeFrame(start, end)).to.not.be.ok;
+        expect(validateTimeFrame(start, end)).toBeFalsy();
     });
 
     it("should return true for exact one-year timeframes", () => {
         const start = new Date("2022-01-01T00:00:00Z");
         const end = new Date("2023-01-01T00:00:00Z");
-        expect(validateTimeFrame(start, end)).to.be.ok;
+        expect(validateTimeFrame(start, end)).toBeTruthy();
     });
 
     it("should return true for very short timeframes", () => {
         const start = new Date("2022-01-01T00:00:00Z");
         const end = new Date("2022-01-01T00:01:00Z"); // 1 minute later
-        expect(validateTimeFrame(start, end)).to.be.ok;
+        expect(validateTimeFrame(start, end)).toBeTruthy();
     });
 
     it("should return false for timeframes with start date after end date", () => {
         const start = new Date("2022-01-02T00:00:00Z");
         const end = new Date("2022-01-01T00:00:00Z"); // Start is after end
-        expect(validateTimeFrame(start, end)).to.not.be.ok;
+        expect(validateTimeFrame(start, end)).toBeFalsy();
     });
 });
 
@@ -69,7 +68,7 @@ async function testRecurrence({
     const current = new Date(currentDate);
     const result = await func(current, recurrence, timeZone);
     const expectedResult = moment.tz(expected, timeZone ?? "UTC").toDate();
-    expect(result.toISOString()).to.equal(expectedResult.toISOString());
+    expect(result.toISOString()).toBe(expectedResult.toISOString());
 }
 
 describe("calculateNextDailyOccurrence", () => {
@@ -432,22 +431,22 @@ async function testJump({
     const timeframe = new Date(timeframeStart);
     const result = await func(start, recurrence, timeframe, timeZone);
     const expectedResult = new Date(expected);
-    expect(result.toISOString()).to.equal(expectedResult.toISOString());
+    expect(result.toISOString()).toBe(expectedResult.toISOString());
 }
 
 describe("jumpToFirstRelevantDailyOccurrence", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("should jump to the first relevant daily occurrence", async () => {
@@ -572,18 +571,18 @@ describe("jumpToFirstRelevantDailyOccurrence", () => {
 });
 
 describe("jumpToFirstRelevantWeeklyOccurrence", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("should jump to the first relevant weekly occurrence", async () => {
@@ -704,18 +703,18 @@ describe("jumpToFirstRelevantWeeklyOccurrence", () => {
 });
 
 describe("jumpToFirstRelevantMonthlyOccurrence", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("should jump to the first relevant monthly occurrence", async () => {
@@ -792,18 +791,18 @@ describe("jumpToFirstRelevantMonthlyOccurrence", () => {
 });
 
 describe("jumpToFirstRelevantYearlyOccurrence", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("should jump to the first relevant yearly occurrence", async () => {
@@ -917,15 +916,15 @@ function testApplyException({
     const result = applyExceptions(current, schedule, duration, timeZone);
 
     if (expected === null) {
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     } else if (expected === undefined) {
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     } else {
-        expect(result).not.to.be.null;
+        expect(result).not.toBeNull();
         const expectedStart = moment.tz(expected.start, timeZone ?? "UTC").toDate();
-        expect(result!.start.toISOString()).to.equal(expectedStart.toISOString());
+        expect(result!.start.toISOString()).toBe(expectedStart.toISOString());
         const expectedEnd = moment.tz(expected.end, timeZone ?? "UTC").toDate();
-        expect(result!.end.toISOString()).to.equal(expectedEnd.toISOString());
+        expect(result!.end.toISOString()).toBe(expectedEnd.toISOString());
     }
 }
 
@@ -1183,31 +1182,31 @@ async function testCalculateOccurrences({
     const occurrences = await calculateOccurrences(schedule, start, end);
 
     // Check if the number of occurrences is as expected
-    expect(occurrences).to.have.lengthOf(expectedOccurrences.length);
+    expect(occurrences).toHaveLength(expectedOccurrences.length);
 
     // Compare each occurrence against the expected value
     occurrences.forEach((occurrence, index) => {
         const expected = expectedOccurrences[index];
         const expectedStart = moment.tz(expected?.start, timeZone ?? "UTC").toDate();
-        expect(occurrence.start.toISOString()).to.equal(expectedStart.toISOString());
+        expect(occurrence.start.toISOString()).toBe(expectedStart.toISOString());
         const expectedEnd = moment.tz(expected?.end, timeZone ?? "UTC").toDate();
-        expect(occurrence.end.toISOString()).to.equal(expectedEnd.toISOString());
+        expect(occurrence.end.toISOString()).toBe(expectedEnd.toISOString());
     });
 }
 
 describe("calculateOccurrences", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
 
     beforeAll(() => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     it("calculates daily occurrence", async () => {

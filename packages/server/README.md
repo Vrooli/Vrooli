@@ -13,7 +13,7 @@ This package implements the core backend services for Vrooli, providing RESTful 
 - **Language**: TypeScript
 - **Database**: PostgreSQL
 - **Caching**: Redis
-- **Testing**: Mocha, Chai, Sinon
+- **Testing**: Vitest
 - **Documentation**: OpenAPI/Swagger
 - **Task Queue**: Bull
 - **WebSocket**: Socket.io

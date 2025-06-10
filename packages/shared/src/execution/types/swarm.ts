@@ -3,7 +3,7 @@
  * These types define the swarm coordination and metacognitive capabilities
  */
 
-import { type ResourceUsedFor } from "../../shape/configs/base.js";
+import type { ChatConfigObject } from "../../shape/configs/chat.js";
 
 /**
  * Swarm lifecycle states
@@ -37,30 +37,38 @@ export enum SwarmEventType {
     SWARM_COMPLETED = "SWARM_COMPLETED",
     SWARM_TERMINATED = "SWARM_TERMINATED",
     STATE_CHANGED = "STATE_CHANGED",
-    
+
     // Coordination events
     TEAM_FORMED = "TEAM_FORMED",
     TEAM_UPDATED = "TEAM_UPDATED",
     TEAM_DISBANDED = "TEAM_DISBANDED",
     AGENT_JOINED = "AGENT_JOINED",
     AGENT_LEFT = "AGENT_LEFT",
-    
+
     // Goal management events
     GOAL_ASSIGNED = "GOAL_ASSIGNED",
     GOAL_COMPLETED = "GOAL_COMPLETED",
     GOAL_FAILED = "GOAL_FAILED",
     SUBTASK_CREATED = "SUBTASK_CREATED",
-    
+
     // Resource events
     RESOURCE_ALLOCATED = "RESOURCE_ALLOCATED",
     RESOURCE_RELEASED = "RESOURCE_RELEASED",
     RESOURCE_EXHAUSTED = "RESOURCE_EXHAUSTED",
-    
+    RESOURCE_RESERVED = "RESOURCE_RESERVED",
+    RESOURCE_UNRESERVED = "RESOURCE_UNRESERVED",
+
+    // Parent-child swarm events
+    CHILD_SWARM_SPAWNED = "CHILD_SWARM_SPAWNED",
+    CHILD_SWARM_COMPLETED = "CHILD_SWARM_COMPLETED",
+    CHILD_SWARM_FAILED = "CHILD_SWARM_FAILED",
+    PARENT_SWARM_NOTIFIED = "PARENT_SWARM_NOTIFIED",
+
     // Communication events
     MESSAGE_SENT = "MESSAGE_SENT",
     CONSENSUS_REACHED = "CONSENSUS_REACHED",
     CONFLICT_DETECTED = "CONFLICT_DETECTED",
-    
+
     // Decision events
     DECISION_PROPOSED = "DECISION_PROPOSED",
     DECISION_EXECUTED = "DECISION_EXECUTED",
@@ -75,93 +83,6 @@ export interface SwarmEvent {
     timestamp: Date;
     swarmId: string;
     metadata?: Record<string, unknown>;
-}
-
-/**
- * Swarm resource definition
- * Compatible with existing ChatConfigObject structure
- */
-export interface SwarmResource {
-    id: string;
-    type: "Api" | "Team" | "Project" | "Routine" | "Code" | "Note" | "Prompt" | "Standard";
-    name: string;
-    description?: string;
-    listId?: string;
-    usedFor?: ResourceUsedFor | ResourceUsedFor[];
-    runnableObject?: unknown; // Can be Routine, Code, etc.
-}
-
-/**
- * Swarm subtask definition
- * Compatible with existing ChatConfigObject structure
- */
-export interface SwarmSubTask {
-    description: string;
-    status: "ready" | "pending" | "inProgress" | "completed" | "failed" | "cancelled";
-    result?: string;
-}
-
-/**
- * Blackboard item for shared memory
- */
-export interface BlackboardItem {
-    id: string;
-    value: string;
-    createdAt: Date;
-    updatedAt: Date;
-    createdBy: string; // Agent ID
-}
-
-/**
- * Tool call scheduling configuration
- */
-export interface SchedulingConfig {
-    mode: "BATCH" | "PARALLEL" | "SEQUENTIAL";
-    maxConcurrency?: number;
-    timeout?: number;
-}
-
-/**
- * Pending tool call entry
- */
-export interface PendingToolCallEntry {
-    name: string;
-    arguments?: Record<string, unknown>;
-    approved?: boolean;
-    id?: string;
-}
-
-/**
- * Resource usage limits
- */
-export interface ResourceLimits {
-    maxTokens?: number;
-    maxTime?: number;
-    maxCost?: number;
-    maxApiCalls?: number;
-}
-
-/**
- * Chat configuration object
- * Maintains full compatibility with existing system
- */
-export interface ChatConfigObject {
-    // Core configuration
-    goal: string;
-    subtasks: SwarmSubTask[];
-    resources: SwarmResource[];
-    
-    // Shared memory
-    blackboard: BlackboardItem[];
-    
-    // Execution configuration
-    limits: ResourceLimits;
-    scheduling: SchedulingConfig;
-    pendingToolCalls: PendingToolCallEntry[];
-    
-    // Metadata
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 /**
@@ -302,7 +223,7 @@ export interface SwarmConfig {
 /**
  * Agent capability type
  */
-export type AgentCapability = 
+export type AgentCapability =
     | "reasoning"
     | "planning"
     | "execution"
@@ -405,6 +326,24 @@ export interface TeamFormation {
 }
 
 /**
+ * Resource allocation for child swarms
+ */
+export interface SwarmResourceAllocation {
+    credits: number;
+    tokens: number;
+    time: number; // milliseconds
+}
+
+/**
+ * Child swarm reservation tracking
+ */
+export interface ChildSwarmReservation {
+    childSwarmId: string;
+    reserved: SwarmResourceAllocation;
+    createdAt: Date;
+}
+
+/**
  * Extended swarm definition
  */
 export interface Swarm {
@@ -418,4 +357,28 @@ export interface Swarm {
     createdAt: Date;
     updatedAt?: Date;
     completedAt?: Date;
+    
+    // Parent-child relationship fields
+    parentSwarmId?: string;
+    childSwarmIds: string[];
+    
+    // Resource management for hierarchical swarms
+    resources: {
+        allocated: SwarmResourceAllocation;
+        consumed: SwarmResourceAllocation;
+        remaining: SwarmResourceAllocation;
+        reservedByChildren: SwarmResourceAllocation;
+        childReservations: ChildSwarmReservation[];
+    };
+    
+    // Swarm performance metrics
+    metrics: {
+        tasksCompleted: number;
+        tasksFailed: number;
+        avgTaskDuration: number;
+        resourceEfficiency: number;
+    };
+    
+    // Error tracking
+    errors?: string[];
 }

@@ -1,3 +1,32 @@
+/**
+ * Vitest global test‑bed
+ * --------------------------------------------------------------------------
+ * This file is loaded once per worker before any test files execute.  Besides
+ * spinning up Docker containers, seeding the database, and configuring stubs, it also **globally mocks the `sharp` module** (see below).  Placing
+ * the mock at the *very top* guarantees it is applied before *any* import that
+ * might transitively require `sharp`, preventing the native addon from ever
+ * being loaded in the test environment.
+ */
+
+// ---------------------------------------------------------------------------
+// 1.  GLOBAL MOCK FOR `sharp`
+// ---------------------------------------------------------------------------
+// Why we mock it:
+//   • Vitest runs test files in isolated worker processes (threads or forks).
+//   • `sharp` is a native Node‑API addon; loading it more than once inside a
+//     single process, or inside Vitest’s thread pool, often fails with
+//       "Cannot find module '../build/Release/sharp-*.node'"  or
+//       "The module did not self‑register".
+//   • Our unit tests don’t need real image manipulation—returning empty
+//     buffers is enough to satisfy the code paths under test.
+//   • If an individual test *does* need to exercise `sharp` you can opt out
+//     locally by calling `vi.unmock('sharp')` *before* importing the module
+//     under test.
+//
+// The stub below re‑creates the fluent API most code relies on (`resize()`,
+// `jpeg()`, `toBuffer()`, …) but performs no work.
+// --
+
 import { initIdGenerator } from "@vrooli/shared";
 import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
@@ -5,8 +34,9 @@ import * as http from "http";
 import * as https from "https";
 import sinon from "sinon";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { vi } from "vitest";
 import { DbProvider } from "../index.js";
-import { closeRedis, initializeRedis } from "../redisConn.js";
+import { CacheService } from "../redisConn.js";
 import { AnthropicService } from "../tasks/llm/services/anthropic.js";
 import { MistralService } from "../tasks/llm/services/mistral.js";
 import { OpenAIService } from "../tasks/llm/services/openai.js";
@@ -16,6 +46,34 @@ import { initSingletons } from "../utils/singletons.js";
 
 const SETUP_TIMEOUT_MS = 120_000;
 const TEARDOWN_TIMEOUT_MS = 60_000;
+
+vi.mock("sharp", () => {
+    const makeChain = () => {
+        const chain: any = {};
+        const pass = () => chain; // keeps the chainable API intact
+
+        Object.assign(chain, {
+            resize: pass,
+            rotate: pass,
+            flatten: pass,
+            jpeg: pass,
+            png: pass,
+            webp: pass,
+            avif: pass,
+            toBuffer: async () => Buffer.alloc(0),
+            toFile: async () => ({ size: 0 }),
+            metadata: async () => ({}),
+        });
+
+        return chain;
+    };
+
+    const mockedSharp = () => makeChain();
+
+    // Support both `import sharp from 'sharp'` *and*
+    // `import * as sharp from 'sharp'` styles.
+    return { __esModule: true, default: mockedSharp };
+});
 
 let redisContainer: StartedTestContainer;
 let postgresContainer: StartedTestContainer;
@@ -88,7 +146,7 @@ before(async function setup() {
     // Setup queues
     await setupTaskQueues();
     // Setup databases
-    await initializeRedis();
+    // CacheService will initialize Redis connection on first use
     await DbProvider.init();
 
     // Add sinon mocks for LLM services
@@ -97,21 +155,21 @@ before(async function setup() {
 
 function setupLlmServiceMocks() {
     // Mock OpenAI service
-    sinon.stub(OpenAIService.prototype, "generateResponse").resolves({
+    sinon.stub(OpenAIService.prototype, "generateResponse" as keyof OpenAIService).resolves({
         attempts: 1,
         message: "Mocked OpenAI response",
         cost: 0.001,
     });
 
     // Mock Anthropic service
-    sinon.stub(AnthropicService.prototype, "generateResponse").resolves({
+    sinon.stub(AnthropicService.prototype, "generateResponse" as keyof AnthropicService).resolves({
         attempts: 1,
         message: "Mocked Anthropic response",
         cost: 0.001,
     });
 
     // Mock Mistral service
-    sinon.stub(MistralService.prototype, "generateResponse").resolves({
+    sinon.stub(MistralService.prototype, "generateResponse" as keyof MistralService).resolves({
         attempts: 1,
         message: "Mocked Mistral response",
         cost: 0.001,
@@ -119,9 +177,9 @@ function setupLlmServiceMocks() {
 
     // Ensure all methods that might make network requests are properly mocked
     const mockEstimateTokens = sinon.stub().returns({ model: "default", tokens: 10 });
-    sinon.stub(OpenAIService.prototype, "estimateTokens").callsFake(mockEstimateTokens);
-    sinon.stub(AnthropicService.prototype, "estimateTokens").callsFake(mockEstimateTokens);
-    sinon.stub(MistralService.prototype, "estimateTokens").callsFake(mockEstimateTokens);
+    sinon.stub(OpenAIService.prototype, "estimateTokens" as keyof OpenAIService).callsFake(mockEstimateTokens);
+    sinon.stub(AnthropicService.prototype, "estimateTokens" as keyof AnthropicService).callsFake(mockEstimateTokens);
+    sinon.stub(MistralService.prototype, "estimateTokens" as keyof MistralService).callsFake(mockEstimateTokens);
 }
 
 after(async function teardown() {
@@ -134,7 +192,7 @@ after(async function teardown() {
     await QueueService.get().shutdown();
 
     // Close the Redis client connection
-    await closeRedis();
+    await CacheService.get().close();
 
     // Close database connection
     await DbProvider.shutdown();

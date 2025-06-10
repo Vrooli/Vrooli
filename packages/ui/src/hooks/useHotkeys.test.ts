@@ -1,17 +1,16 @@
 import { renderHook } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import sinon from "sinon";
 import { useHotkeys } from "./useHotkeys.js";
 
 describe("useHotkeys", () => {
-    let mockCallback: sinon.SinonSpy;
+    let mockCallback: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        mockCallback = sinon.spy();
+        mockCallback = vi.fn();
     });
 
     afterEach(() => {
-        sinon.restore();
+        vi.clearAllMocks();
     });
 
     const scenarios = [

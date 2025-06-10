@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { describe, it, expect } from "vitest";
-import sinon from "sinon";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { McpToolName } from "../../consts/mcp.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { type SubroutineIOMapping } from "../../run/types.js";
@@ -10,17 +9,17 @@ import { CallDataActionConfig, CallDataCodeConfig } from "./routine.js";
 const LATEST_VERSION = "1.0.0";
 
 describe("CallDataActionConfig", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
     let config: CallDataActionConfig;
     let ioMapping: SubroutineIOMapping;
     let userLanguages: string[];
 
     beforeAll(async () => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
         config = new CallDataActionConfig({
             __version: LATEST_VERSION,
             schema: {
@@ -57,7 +56,7 @@ describe("CallDataActionConfig", () => {
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     describe("replacePlaceholders", () => {
@@ -560,15 +559,15 @@ describe("CallDataActionConfig", () => {
 });
 
 describe("CallDataCodeConfig", () => {
-    let consoleErrorStub: sinon.SinonStub;
+    let consoleErrorSpy: any;
     let config: CallDataCodeConfig;
 
     beforeAll(async () => {
-        consoleErrorStub = sinon.stub(console, "error");
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     beforeEach(() => {
-        consoleErrorStub.resetHistory();
+        consoleErrorSpy.mockClear();
         config = new CallDataCodeConfig({
             __version: LATEST_VERSION,
             schema: { inputTemplate: [], outputMappings: [] }, // Default, overridden in tests
@@ -576,7 +575,7 @@ describe("CallDataCodeConfig", () => {
     });
 
     afterAll(() => {
-        consoleErrorStub.restore();
+        consoleErrorSpy.mockRestore();
     });
 
     describe("buildSandboxInput", () => {

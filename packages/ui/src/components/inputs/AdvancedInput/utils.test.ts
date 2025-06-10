@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import sinon from "sinon";
 import { Headers, MarkdownUtils } from "./utils.js";
 
 describe("MarkdownUtils", () => {
@@ -94,15 +93,15 @@ describe("MarkdownUtils", () => {
             } as unknown as HTMLTextAreaElement;
         }
 
-        let consoleErrorStub: sinon.SinonStub;
+        let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
         beforeEach(() => {
             // Mock console.error to avoid cluttering test output
-            consoleErrorStub = sinon.stub(console, "error");
+            consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
         });
 
         afterEach(() => {
-            consoleErrorStub.restore();
+            consoleErrorSpy.mockRestore();
         });
 
         it("returns selection details for a valid textarea", () => {
@@ -127,7 +126,7 @@ describe("MarkdownUtils", () => {
                 selected: "",
                 inputElement: null,
             });
-            sinon.assert.calledWith(consoleErrorStub, "[MarkdownUtils.getTextSelection] Textarea not found");
+            expect(consoleErrorSpy).toHaveBeenCalledWith("[MarkdownUtils.getTextSelection] Textarea not found");
         });
 
         it("returns full text selection when all text is selected", () => {
