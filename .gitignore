@@ -195,3 +195,4 @@ upload-keystore.jks
 scripts/tests/helpers
 scripts/tests/tmp
 
+/scripts/__tests/helpers

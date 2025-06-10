@@ -32,7 +32,6 @@ import { execSync } from "child_process";
 import { generateKeyPairSync } from "crypto";
 import * as http from "http";
 import * as https from "https";
-import sinon from "sinon";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 import { vi } from "vitest";
 import { DbProvider } from "../index.js";
@@ -149,44 +148,44 @@ before(async function setup() {
     // CacheService will initialize Redis connection on first use
     await DbProvider.init();
 
-    // Add sinon mocks for LLM services
+    // Add vitest mocks for LLM services
     setupLlmServiceMocks();
 });
 
 function setupLlmServiceMocks() {
     // Mock OpenAI service
-    sinon.stub(OpenAIService.prototype, "generateResponse" as keyof OpenAIService).resolves({
+    vi.spyOn(OpenAIService.prototype, "generateResponse" as keyof OpenAIService).mockResolvedValue({
         attempts: 1,
         message: "Mocked OpenAI response",
         cost: 0.001,
     });
 
     // Mock Anthropic service
-    sinon.stub(AnthropicService.prototype, "generateResponse" as keyof AnthropicService).resolves({
+    vi.spyOn(AnthropicService.prototype, "generateResponse" as keyof AnthropicService).mockResolvedValue({
         attempts: 1,
         message: "Mocked Anthropic response",
         cost: 0.001,
     });
 
     // Mock Mistral service
-    sinon.stub(MistralService.prototype, "generateResponse" as keyof MistralService).resolves({
+    vi.spyOn(MistralService.prototype, "generateResponse" as keyof MistralService).mockResolvedValue({
         attempts: 1,
         message: "Mocked Mistral response",
         cost: 0.001,
     });
 
     // Ensure all methods that might make network requests are properly mocked
-    const mockEstimateTokens = sinon.stub().returns({ model: "default", tokens: 10 });
-    sinon.stub(OpenAIService.prototype, "estimateTokens" as keyof OpenAIService).callsFake(mockEstimateTokens);
-    sinon.stub(AnthropicService.prototype, "estimateTokens" as keyof AnthropicService).callsFake(mockEstimateTokens);
-    sinon.stub(MistralService.prototype, "estimateTokens" as keyof MistralService).callsFake(mockEstimateTokens);
+    const mockEstimateTokens = vi.fn().mockReturnValue({ model: "default", tokens: 10 });
+    vi.spyOn(OpenAIService.prototype, "estimateTokens" as keyof OpenAIService).mockImplementation(mockEstimateTokens);
+    vi.spyOn(AnthropicService.prototype, "estimateTokens" as keyof AnthropicService).mockImplementation(mockEstimateTokens);
+    vi.spyOn(MistralService.prototype, "estimateTokens" as keyof MistralService).mockImplementation(mockEstimateTokens);
 }
 
 after(async function teardown() {
     this.timeout(TEARDOWN_TIMEOUT_MS);
 
-    // Restore all sinon stubs
-    sinon.restore();
+    // Restore all vitest mocks
+    vi.restoreAllMocks();
 
     // Properly close all task queues and their Redis connections
     await QueueService.get().shutdown();

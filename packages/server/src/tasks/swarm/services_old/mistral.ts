@@ -1,4 +1,4 @@
-import { LlmServiceId, MistralModel, mistralServiceInfo } from "@local/shared";
+import { LlmServiceId, MistralModel, mistralServiceInfo } from "@vrooli/shared";
 import MistralClient, { type ChatCompletionResponse } from "@mistralai/mistralai";
 import { CustomError } from "../../../events/error.js";
 import { logger } from "../../../events/logger.js";

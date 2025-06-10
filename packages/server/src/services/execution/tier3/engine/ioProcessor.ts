@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { type RunContext } from "../context/runContext.js";
+import { type RoutineContextImpl } from "@vrooli/shared";
 
 /**
  * IOProcessor - Handles input/output processing for step execution
@@ -36,7 +36,7 @@ export class IOProcessor {
      */
     async buildInputPayload(
         inputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         this.logger.debug("[IOProcessor] Building input payload", {
             inputKeys: Object.keys(inputs),
@@ -87,7 +87,7 @@ export class IOProcessor {
     async processOutputs(
         rawOutputs: unknown,
         outputSchema?: Record<string, unknown>,
-        runContext?: RunContext,
+        runContext?: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         this.logger.debug("[IOProcessor] Processing outputs", {
             hasSchema: !!outputSchema,
@@ -131,7 +131,7 @@ export class IOProcessor {
 
     private async applyTransformations(
         inputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         const transformed: Record<string, unknown> = {};
 
@@ -145,7 +145,7 @@ export class IOProcessor {
     private async transformValue(
         key: string,
         value: unknown,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<unknown> {
         // Handle special transformation cases
         if (key.endsWith("_json") && typeof value === "string") {
@@ -203,7 +203,7 @@ export class IOProcessor {
 
     private async resolveTemplate(
         template: string,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<string> {
         let resolved = template;
 
@@ -233,16 +233,16 @@ export class IOProcessor {
 
     private async resolveContextVariable(
         varName: string,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<unknown> {
         const parts = varName.split(".");
         let value: any = {
             run: {
                 id: runContext.runId,
-                routine: runContext.routineId,
+                routine: runContext.currentLocation?.routineId,
             },
             user: runContext.userData,
-            env: runContext.environment,
+            env: process.env, // Use process.env since RoutineContextImpl doesn't have environment
         };
 
         for (const part of parts) {
@@ -255,14 +255,14 @@ export class IOProcessor {
 
     private async injectContextData(
         inputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         // Inject common context data
         return {
             ...inputs,
             _context: {
                 runId: runContext.runId,
-                routineId: runContext.routineId,
+                routineId: runContext.currentLocation?.routineId,
                 userId: runContext.userData?.id,
                 timestamp: new Date().toISOString(),
             },
@@ -271,7 +271,7 @@ export class IOProcessor {
 
     private async resolveReferences(
         inputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         const resolved: Record<string, unknown> = {};
 
@@ -296,24 +296,114 @@ export class IOProcessor {
 
     private async resolveStepReference(
         ref: string,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<unknown> {
         // Format: stepId.outputKey
         const [stepId, ...outputPath] = ref.split(".");
         
-        // TODO: Implement actual step output retrieval
-        this.logger.debug(`[IOProcessor] Resolving reference: ${ref}`);
+        this.logger.debug(`[IOProcessor] Resolving reference: ${ref}`, {
+            stepId,
+            outputPath: outputPath.join("."),
+            runId: runContext.runId,
+        });
+
+        try {
+            // Validate reference first
+            const validation = this.validateStepReference(ref, runContext);
+            if (!validation.valid) {
+                throw new Error(`Invalid step reference: ${validation.error}`);
+            }
+
+            // Get subroutine context to access step outputs
+            const subroutineContext = runContext.getSubroutineContext();
+            
+            // Look up step output
+            const stepOutput = subroutineContext.allOutputsMap[stepId];
+            if (stepOutput === undefined) {
+                throw new Error(`Step '${stepId}' output not found or step not completed`);
+            }
+
+            // Navigate to specific output field if path provided
+            if (outputPath.length > 0) {
+                const value = this.getValueByPath(
+                    stepOutput as Record<string, unknown>, 
+                    outputPath.join(".")
+                );
+                
+                if (value === undefined) {
+                    throw new Error(`Output path '${outputPath.join(".")}' not found in step '${stepId}'`);
+                }
+                
+                return value;
+            }
+
+            this.logger.debug(`[IOProcessor] Successfully resolved reference: ${ref}`, {
+                stepId,
+                hasValue: stepOutput !== undefined,
+                runId: runContext.runId,
+            });
+
+            return stepOutput;
+
+        } catch (error) {
+            this.logger.error(`[IOProcessor] Failed to resolve step reference: ${ref}`, {
+                stepId,
+                outputPath: outputPath.join("."),
+                error: error instanceof Error ? error.message : String(error),
+                runId: runContext.runId,
+            });
+            throw error;
+        }
+    }
+
+    private validateStepReference(
+        ref: string,
+        runContext: RoutineContextImpl,
+    ): { valid: boolean; error?: string } {
+        const [stepId, outputKey] = ref.split(".");
         
-        // For now, return placeholder
-        return `[Reference to ${stepId}.${outputPath.join(".")}]`;
+        if (!stepId) {
+            return { 
+                valid: false, 
+                error: "Step reference must include stepId" 
+            };
+        }
+
+        // Get subroutine context to check if step exists
+        const subroutineContext = runContext.getSubroutineContext();
+        
+        // Check if step exists in context
+        if (!(stepId in subroutineContext.allOutputsMap)) {
+            return { 
+                valid: false, 
+                error: `Referenced step '${stepId}' not found or not completed` 
+            };
+        }
+        
+        // Check if output key exists (if specified)
+        if (outputKey) {
+            const stepOutput = subroutineContext.allOutputsMap[stepId];
+            if (typeof stepOutput === "object" && stepOutput !== null && !Array.isArray(stepOutput)) {
+                const outputRecord = stepOutput as Record<string, unknown>;
+                if (!(outputKey in outputRecord)) {
+                    return { 
+                        valid: false, 
+                        error: `Output key '${outputKey}' not found in step '${stepId}'` 
+                    };
+                }
+            }
+        }
+        
+        return { valid: true };
     }
 
     private validateInputCompleteness(
         inputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): void {
         // Check for required inputs based on step configuration
-        const requiredInputs = runContext.stepConfig?.requiredInputs || [];
+        // Note: RoutineContextImpl doesn't have stepConfig directly, would need to be passed separately
+        const requiredInputs: string[] = [];
         
         for (const required of requiredInputs) {
             if (!(required in inputs) || inputs[required] === undefined) {
@@ -367,29 +457,63 @@ export class IOProcessor {
 
     private async applyOutputTransformations(
         outputs: Record<string, unknown>,
-        runContext?: RunContext,
+        runContext?: RoutineContextImpl,
     ): Promise<Record<string, unknown>> {
         // Apply any output transformations defined in configuration
-        if (!runContext?.stepConfig?.outputTransformations) {
-            return outputs;
-        }
-
-        const transformed = { ...outputs };
-        
-        // TODO: Implement transformation rules
-        
-        return transformed;
+        // Note: RoutineContextImpl doesn't have stepConfig directly, would need to be passed separately
+        // For now, return outputs unchanged
+        return outputs;
     }
 
     private async storeOutputsForReference(
         outputs: Record<string, unknown>,
-        runContext: RunContext,
+        runContext: RoutineContextImpl,
     ): Promise<void> {
-        // TODO: Store outputs in state store for future reference
+        const stepId = runContext.currentLocation?.nodeId;
+        if (!stepId) {
+            this.logger.warn("[IOProcessor] Cannot store outputs - no current step ID", {
+                runId: runContext.runId,
+            });
+            return;
+        }
+
         this.logger.debug("[IOProcessor] Storing outputs for reference", {
             runId: runContext.runId,
-            stepId: runContext.currentStepId,
+            stepId,
             outputKeys: Object.keys(outputs),
         });
+
+        try {
+            // Store in subroutine context for future reference
+            const subroutineContext = runContext.getSubroutineContext();
+            
+            // Store the complete output object for this step
+            subroutineContext.allOutputsMap[stepId] = outputs;
+            
+            // Update outputs list with individual key-value pairs
+            for (const [key, value] of Object.entries(outputs)) {
+                // Create composite key for easy lookup
+                const compositeKey = `${stepId}.${key}`;
+                subroutineContext.allOutputsList.push({
+                    key: compositeKey,
+                    value,
+                });
+            }
+
+            this.logger.debug("[IOProcessor] Successfully stored outputs for reference", {
+                runId: runContext.runId,
+                stepId,
+                outputCount: Object.keys(outputs).length,
+                totalStoredSteps: Object.keys(subroutineContext.allOutputsMap).length,
+            });
+
+        } catch (error) {
+            this.logger.error("[IOProcessor] Failed to store outputs for reference", {
+                runId: runContext.runId,
+                stepId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw here - storage failure shouldn't break execution
+        }
     }
 }

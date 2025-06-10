@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect } from "vitest";
 import type * as yup from "yup";
 
 /**
@@ -47,22 +47,22 @@ export async function testValidation(
             stripUnknown: true,
         });
         if (!shouldPass) {
-            expect.fail(`Expected validation to fail but it passed with: ${JSON.stringify(result)}`);
+            throw new Error(`Expected validation to fail but it passed with: ${JSON.stringify(result)}`);
         }
         return result;
     } catch (error: any) {
         if (shouldPass) {
-            expect.fail(`Expected validation to pass but got error: ${error.message}\nErrors: ${JSON.stringify(error.errors)}`);
+            throw new Error(`Expected validation to pass but got error: ${error.message}\nErrors: ${JSON.stringify(error.errors)}`);
         }
         if (expectedError) {
             if (expectedError instanceof RegExp) {
                 // Check both the main message and individual errors
                 const allErrorText = `${error.message} ${error.errors?.join(" ") || ""}`;
-                expect(allErrorText).to.match(expectedError);
+                expect(allErrorText).toMatch(expectedError);
             } else {
                 // Check both the main message and individual errors
                 const allErrorText = `${error.message} ${error.errors?.join(" ") || ""}`;
-                expect(allErrorText).to.include(expectedError);
+                expect(allErrorText).toContain(expectedError);
             }
         }
         return error;
@@ -102,11 +102,8 @@ export function runStandardValidationTests<TCreate, TUpdate>(
     describe(`${modelName}Validation - Standard Tests`, () => {
         const defaultParams = { omitFields: [] };
 
-        describe("create validation", () => {
-            if (!validationModel.create) {
-                it.skip("No create validation defined");
-                return;
-            }
+        if (validationModel.create) {
+            describe("create validation", () => {
 
             const createSchema = validationModel.create(defaultParams);
 
@@ -118,7 +115,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                 );
                 // Check that required fields are present
                 Object.keys(fixtures.minimal.create).forEach(key => {
-                    expect(result).to.have.property(key);
+                    expect(result).toHaveProperty(key);
                 });
             });
 
@@ -129,7 +126,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                     true,
                 );
                 // Verify key fields are preserved
-                expect(result).to.be.an("object");
+                expect(result).toBeTypeOf("object");
             });
 
             it("should reject missing required fields", async () => {
@@ -156,16 +153,14 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                     anotherUnknown: 123,
                 };
                 const result = await testValidation(createSchema, dataWithExtra, true);
-                expect(result).to.not.have.property("unknownField");
-                expect(result).to.not.have.property("anotherUnknown");
+                expect(result).not.toHaveProperty("unknownField");
+                expect(result).not.toHaveProperty("anotherUnknown");
             });
-        });
+            });
+        }
 
-        describe("update validation", () => {
-            if (!validationModel.update) {
-                it.skip("No update validation defined");
-                return;
-            }
+        if (validationModel.update) {
+            describe("update validation", () => {
 
             const updateSchema = validationModel.update(defaultParams);
 
@@ -175,7 +170,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                     fixtures.minimal.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
             });
 
             it("should accept complete valid data", async () => {
@@ -184,7 +179,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                     fixtures.complete.update,
                     true,
                 );
-                expect(result).to.be.an("object");
+                expect(result).toBeTypeOf("object");
             });
 
             it("should reject missing id", async () => {
@@ -200,9 +195,10 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                 // Use minimal update as base, which should have id
                 const partialUpdate = fixtures.minimal.update;
                 const result = await testValidation(updateSchema, partialUpdate, true);
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
             });
-        });
+            });
+        }
 
         describe("omitFields functionality", () => {
             it("should omit top-level fields", async () => {
@@ -217,7 +213,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
                     fixtures.complete.update;
                     
                 const result = await schema.validate(data, { stripUnknown: true });
-                expect(Object.keys(result).length).to.be.lessThan(Object.keys(data).length);
+                expect(Object.keys(result).length).toBeLessThan(Object.keys(data).length);
             });
         });
     });

@@ -31,14 +31,6 @@ export const DEFAULT_MAX_LOOP_DELAY_MS = MINUTES_1_MS;
  * Default behavior when a branch fails
  */
 export const DEFAULT_ON_BRANCH_FAILURE = "Stop";
-/**
- * Default behavior when a gateway fork fails
- */
-const DEFAULT_ON_GATEWAY_FORK_FAILURE = "Fail";
-/**
- * Default behavior when the only remaining branches are waiting at gateways
- */
-const DEFAULT_ON_ONLY_WAITING_BRANCHES = "Stop";
 
 // Cache limits
 export const BPMN_DEFINITIONS_CACHE_LIMIT = 1000;

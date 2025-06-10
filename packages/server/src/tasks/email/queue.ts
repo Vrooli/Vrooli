@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, LINKS } from "@local/shared";
+import { BUSINESS_NAME, LINKS } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,12 +10,17 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let welcomeTemplate: string;
 
-// Load templates
-const emailTemplatePath = path.join(dirname, "../../../dist/tasks/email/templates/welcome.html");
+// Load templates - check both src and dist paths
+const srcTemplatePath = path.join(dirname, "./templates/welcome.html");
+const distTemplatePath = path.join(dirname, "../../../dist/tasks/email/templates/welcome.html");
+
+// Try src path first (for tests), then dist path (for production)
+const emailTemplatePath = fs.existsSync(srcTemplatePath) ? srcTemplatePath : distTemplatePath;
+
 if (fs.existsSync(emailTemplatePath)) {
     welcomeTemplate = fs.readFileSync(emailTemplatePath).toString();
 } else {
-    logger.error(`Could not find welcome email template at ${emailTemplatePath}`);
+    logger.error(`Could not find welcome email template at ${srcTemplatePath} or ${distTemplatePath}`);
     welcomeTemplate = "";
 }
 

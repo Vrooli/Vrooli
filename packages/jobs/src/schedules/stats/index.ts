@@ -55,6 +55,12 @@ export const statsPeriodCron = {
 
 export function initStatsPeriod(cron: string) {
     const period = Object.keys(statsPeriodCron).find(key => statsPeriodCron[key as PeriodType] === cron) as PeriodType;
+    
+    // Return early if unknown cron expression
+    if (!period) {
+        return;
+    }
+    
     const periodStart = new Date(getPeriodStart(period)).toISOString();
     const periodEnd = new Date().toISOString();
     const params = [period, periodStart, periodEnd] as const;

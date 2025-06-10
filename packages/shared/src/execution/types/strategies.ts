@@ -76,8 +76,7 @@ export interface ExecutionStrategy {
     canHandle(stepType: string, config?: Record<string, unknown>): boolean;
     estimateResources(context: ExecutionContext): ResourceUsage;
     
-    // Learning and adaptation
-    learn(feedback: StrategyFeedback): void;
+    // Performance metrics
     getPerformanceMetrics(): StrategyPerformance;
 }
 

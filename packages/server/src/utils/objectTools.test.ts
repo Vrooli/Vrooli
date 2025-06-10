@@ -1,32 +1,32 @@
-import { expect } from "chai";
+import { describe, it, beforeEach, expect } from "vitest";
 import { parseJsonOrDefault, sortObjectKeys, sortify } from "./objectTools.js";
 
 describe("sortObjectKeys", () => {
     it("should return the same value for non-objects", () => {
-        expect(sortObjectKeys(123)).to.equal(123);
-        expect(sortObjectKeys("string")).to.equal("string");
-        expect(sortObjectKeys(null)).to.equal(null);
-        expect(sortObjectKeys(undefined)).to.equal(undefined);
+        expect(sortObjectKeys(123)).toEqual(123);
+        expect(sortObjectKeys("string")).toEqual("string");
+        expect(sortObjectKeys(null)).toEqual(null);
+        expect(sortObjectKeys(undefined)).toEqual(undefined);
     });
 
     it("should not modify arrays", () => {
         const array = [3, 1, 2];
-        expect(sortObjectKeys(array)).to.deep.equal([3, 1, 2]);
+        expect(sortObjectKeys(array)).toEqual([3, 1, 2]);
     });
 
     it("should handle date objects properly", () => {
         const date = new Date();
-        expect(sortObjectKeys(date)).to.equal(date);
+        expect(sortObjectKeys(date)).toEqual(date);
     });
 
     it("should return an empty object for an empty object", () => {
-        expect(sortObjectKeys({})).to.deep.equal({});
+        expect(sortObjectKeys({})).toEqual({});
     });
 
     it("should sort the keys of a simple object alphabetically", () => {
         const obj = { b: 2, a: 1, c: 3 };
         const expected = { a: 1, b: 2, c: 3 };
-        expect(sortObjectKeys(obj)).to.deep.equal(expected);
+        expect(sortObjectKeys(obj)).toEqual(expected);
     });
 
     it("should recursively sort the keys of nested objects", () => {
@@ -38,7 +38,7 @@ describe("sortObjectKeys", () => {
             alpha: { echo: 5, foxtrot: 6 },
             charlie: { bravo: 2, delta: 4 },
         };
-        expect(sortObjectKeys(nestedObj)).to.deep.equal(expected);
+        expect(sortObjectKeys(nestedObj)).toEqual(expected);
     });
 
     it("should not alter the internal data structure of objects", () => {
@@ -64,7 +64,7 @@ describe("sortObjectKeys", () => {
             },
             id: 1,
         };
-        expect(sortObjectKeys(complexObj)).to.deep.equal(expected);
+        expect(sortObjectKeys(complexObj)).toEqual(expected);
     });
 });
 
@@ -72,7 +72,7 @@ describe("sortify", () => {
     it("should parse, sort keys alphabetically, and restringify JSON", () => {
         const json = JSON.stringify({ b: 2, a: { d: 4, c: 3 } });
         const expected = JSON.stringify({ a: { c: 3, d: 4 }, b: 2 });
-        expect(sortify(json)).to.deep.equal(expected);
+        expect(sortify(json)).toEqual(expected);
     });
 
     it("should throw a CustomError with proper language and message on invalid JSON", () => {
@@ -83,58 +83,55 @@ describe("sortify", () => {
     it("should handle and sort nested objects correctly", () => {
         const nestedJson = JSON.stringify({ z: 1, y: { b: 2, a: 1 } });
         const expected = JSON.stringify({ y: { a: 1, b: 2 }, z: 1 });
-        expect(sortify(nestedJson)).to.deep.equal(expected);
+        expect(sortify(nestedJson)).toEqual(expected);
     });
 
     it("should correctly handle arrays without altering their order", () => {
         const arrayJson = JSON.stringify({ fruits: ["apple", "orange"], veggies: ["carrot", "beet"] });
         const expected = JSON.stringify({ fruits: ["apple", "orange"], veggies: ["carrot", "beet"] });
-        expect(sortify(arrayJson)).to.deep.equal(expected);
+        expect(sortify(arrayJson)).toEqual(expected);
     });
 
     it("should process empty objects and return an empty object string", () => {
         const emptyJson = JSON.stringify({});
-        expect(sortify(emptyJson)).to.deep.equal("{}");
+        expect(sortify(emptyJson)).toEqual("{}");
     });
 });
 
 describe("parseJsonOrDefault", () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
 
     it("should correctly parse valid JSON strings", () => {
         const json = "{\"name\":\"John\", \"age\":30}";
-        expect(parseJsonOrDefault(json, {})).to.deep.equal({ name: "John", age: 30 });
+        expect(parseJsonOrDefault(json, {})).toEqual({ name: "John", age: 30 });
     });
 
     it("should return the default value if parsing fails", () => {
         const invalidJson = "{\"name\": \"John\"";
         const defaultValue = { name: "Default", age: 25 };
-        expect(parseJsonOrDefault(invalidJson, defaultValue)).to.deep.equal(defaultValue);
+        expect(parseJsonOrDefault(invalidJson, defaultValue)).toEqual(defaultValue);
     });
 
     it("should return the default value if null is passed as JSON string", () => {
         const defaultValue = { name: "Default", age: 25 };
-        expect(parseJsonOrDefault(null, defaultValue)).to.deep.equal(defaultValue);
+        expect(parseJsonOrDefault(null, defaultValue)).toEqual(defaultValue);
     });
 
     it("should return the default value if an empty string is passed", () => {
         const defaultValue = { name: "Default", age: 25 };
-        expect(parseJsonOrDefault("", defaultValue)).to.deep.equal(defaultValue);
+        expect(parseJsonOrDefault("", defaultValue)).toEqual(defaultValue);
     });
 
     it("should handle different types of default values", () => {
-        expect(parseJsonOrDefault(null, "default string")).to.equal("default string");
-        expect(parseJsonOrDefault(null, 0)).to.equal(0);
-        expect(parseJsonOrDefault(null, false)).to.equal(false);
-        expect(parseJsonOrDefault(null, [])).to.deep.equal([]);
+        expect(parseJsonOrDefault(null, "default string")).toEqual("default string");
+        expect(parseJsonOrDefault(null, 0)).toEqual(0);
+        expect(parseJsonOrDefault(null, false)).toEqual(false);
+        expect(parseJsonOrDefault(null, [])).toEqual([]);
     });
 
     it("should handle complex and nested JSON objects", () => {
         const complexJson = "{\"data\": {\"list\": [1, 2, 3], \"valid\": true}}";
         const expected = { data: { list: [1, 2, 3], valid: true } };
-        expect(parseJsonOrDefault(complexJson, {})).to.deep.equal(expected);
+        expect(parseJsonOrDefault(complexJson, {})).toEqual(expected);
     });
 });
 

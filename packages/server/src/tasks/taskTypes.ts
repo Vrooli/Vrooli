@@ -29,6 +29,7 @@ export enum QueueTaskType {
     SANDBOX_EXECUTION = "sandbox-execution",
     SMS_MESSAGE = "sms-message",
     NOTIFICATION_CREATE = "notification-create",
+    SWARM_EXECUTION = "swarm-execution",
 }
 
 // --------- Base Task Interface ---------
@@ -95,8 +96,35 @@ export interface LLMCompletionTask extends Task {
     respondingBot?: { id?: string, publicId?: string, handle?: string };
 }
 
+/**
+ * New three-tier swarm execution task
+ */
+export interface SwarmExecutionTask extends Task {
+    type: QueueTaskType.SWARM_EXECUTION;
+    swarmId: string;
+    config: {
+        name: string;
+        description: string;
+        goal: string;
+        resources: {
+            maxCredits: number;
+            maxTokens: number;
+            maxTime: number;
+            tools: Array<{ name: string; description: string }>;
+        };
+        config: {
+            model: string;
+            temperature: number;
+            autoApproveTools: boolean;
+            parallelExecutionLimit: number;
+        };
+        organizationId?: string;
+    };
+    userData: SessionUser;
+}
+
 // All swarm-related task types
-export type SwarmTask = LLMCompletionTask;
+export type SwarmTask = LLMCompletionTask | SwarmExecutionTask;
 
 export type PushSubscription = {
     endpoint: string;

@@ -1,8 +1,9 @@
+// This is a comment to trigger a re-lint
 /* eslint-disable no-magic-numbers */
 import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
 import type { ActiveTaskRegistryLimits } from "../activeTaskRegistry.js";
 import { QueueService } from "../queues.js";
-import { type SwarmTask } from "../taskTypes.js";
+import { type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
 
 export const SWARM_QUEUE_LIMITS: ActiveTaskRegistryLimits = {
     maxActive: parseInt(process.env.WORKER_SWARM_MAX_ACTIVE || "10"),
@@ -58,6 +59,18 @@ export async function getSwarmTaskStatuses(taskIds: string[]): Promise<TaskStatu
         status: s.status as TaskStatus | null,
         queueName: s.queueName,
     }));
+}
+
+/**
+ * Schedule a new three-tier swarm execution
+ */
+export function processNewSwarmExecution(
+    data: Omit<SwarmExecutionTask, "status">,
+): Promise<Success> {
+    return QueueService.get().swarm.addTask(
+        { ...data, status: "Scheduled" },
+        { priority: determinePriority(data) },
+    );
 }
 
 /**

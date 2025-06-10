@@ -2,6 +2,19 @@ import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK, type Sche
 import ical, { type CalendarResponse, type DateWithTimeZone, type VCalendar, type VEvent } from "node-ical";
 import { type RequestFile } from "../types.js";
 
+// Type definitions for iCal date values
+type ICalDateValue = Date | DateWithTimeZone | string | { date: string; tz?: string } | null | undefined;
+
+// Type definition for RRULE
+interface ICalRRule {
+    freq?: string;
+    interval?: number;
+    byweekday?: string | string[];
+    bymonthday?: number | number[];
+    bymonth?: number | number[];
+    until?: Date | string;
+}
+
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 const SUNDAY_DAY_NUMBER = 7;
 
@@ -116,7 +129,7 @@ export function convertICalEventsToSchedules(events: CalendarResponse, userId: s
 /**
  * Extracts a Date from various iCal date formats.
  */
-function extractDate(dateValue: any): Date | null {
+function extractDate(dateValue: ICalDateValue): Date | null {
     if (!dateValue) return null;
 
     if (dateValue instanceof Date) {
@@ -137,7 +150,7 @@ function extractDate(dateValue: any): Date | null {
 /**
  * Extracts timezone from iCal date object.
  */
-function extractTimezone(dateValue: any): string | null {
+function extractTimezone(dateValue: ICalDateValue): string | null {
     if (typeof dateValue === "object" && dateValue.tz) {
         return dateValue.tz;
     }
@@ -147,7 +160,7 @@ function extractTimezone(dateValue: any): string | null {
 /**
  * Parses an RRULE object into a recurrence pattern.
  */
-function parseRRule(rrule: any, startTime: Date, endTime: Date | null): {
+function parseRRule(rrule: ICalRRule, startTime: Date, endTime: Date | null): {
     id: string;
     recurrenceType: ScheduleRecurrenceType;
     interval: number;
@@ -376,8 +389,8 @@ export function createICalEvent(
     };
 
     if (recurrence) {
-        const freq = recurrence.recurrenceType.toUpperCase() as any;
-        const rruleParams: any = { freq, interval: recurrence.interval || 1 };
+        const freq = recurrence.recurrenceType.toUpperCase();
+        const rruleParams: Record<string, string | number | string[] | Date | DateWithTimeZone> = { freq, interval: recurrence.interval || 1 };
 
         if (recurrence.dayOfWeek) {
             rruleParams.byweekday = Array.isArray(recurrence.dayOfWeek) ? recurrence.dayOfWeek : [recurrence.dayOfWeek];
@@ -391,7 +404,7 @@ export function createICalEvent(
         if (recurrence.endDate) {
             rruleParams.until = convertToDateWithTimeZone(recurrence.endDate, schedule.timezone);
         }
-        (event as any).rrule = rruleParams;
+        (event as VEvent & { rrule?: typeof rruleParams }).rrule = rruleParams;
     }
 
     const calendar: Partial<VCalendar> = {

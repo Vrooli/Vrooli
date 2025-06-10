@@ -127,7 +127,6 @@ describe("createVersion", () => {
 
 describe("createPrims", () => {
     let consoleErrorSpy: any;
-    let consoleErrorStub: sinon.SinonStub;
 
     beforeAll(() => {
         consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -219,7 +218,7 @@ describe("shouldConnect", () => {
 
     validCases.forEach(({ case: testCase, description }) => {
         it(`should return true for ${description}`, () => {
-            expect(shouldConnect(testCase)).to.equal(true);
+            expect(shouldConnect(testCase)).toBe(true);
         });
     });
 
