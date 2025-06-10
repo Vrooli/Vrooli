@@ -22,7 +22,6 @@ function setWindowSearch(search) {
 
 // Mock setLocation function
 const mockSetLocation = vi.fn((path, { replace, searchParams }) => {
-    console.log("in boop mockSetLocation", path, replace, searchParams);
     const search = stringifySearchParams(searchParams);
     setWindowSearch(`?${search}`);
 });

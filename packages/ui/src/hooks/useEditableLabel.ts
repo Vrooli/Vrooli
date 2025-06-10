@@ -135,7 +135,10 @@ export function useEditableLabel({
         setTimeout(() => {
             const inputElement = labelEditRef.current?.querySelector("input");
             if (!inputElement) {
-                console.error("inputElement is null - unable to focus");
+                // Only log in non-test environments
+                if (process.env.NODE_ENV !== "test") {
+                    console.error("inputElement is null - unable to focus");
+                }
                 return;
             }
             inputElement.focus();

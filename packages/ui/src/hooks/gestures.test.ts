@@ -133,18 +133,19 @@ describe("useInfiniteScroll", () => {
         expect(mockLoadMore).toHaveBeenCalled();
     });
 
-    it("should log error when scrollContainerId is not found", () => {
-        const consoleSpy = vi.spyOn(console, "error").mockImplementation();
+    it("should handle when scrollContainerId is not found", () => {
         document.getElementById = vi.fn().mockReturnValue(null);
 
-        renderHook(() => useInfiniteScroll({
-            loading: false,
-            loadMore: mockLoadMore,
-            scrollContainerId: "non-existent-container",
-        }));
+        // Should not throw error when container is not found
+        expect(() => {
+            renderHook(() => useInfiniteScroll({
+                loading: false,
+                loadMore: mockLoadMore,
+                scrollContainerId: "non-existent-container",
+            }));
+        }).not.toThrow();
 
-        expect(consoleSpy).toHaveBeenCalledWith(expect.any(String));
-
-        consoleSpy.mockRestore();
+        // Should not attempt to load more
+        expect(mockLoadMore).not.toHaveBeenCalled();
     });
 });

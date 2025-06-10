@@ -302,6 +302,7 @@ describe("useManagedObject", () => {
         });
 
         it("should detect data conflict", () => {
+            const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             const storedData = { __typename: "Project" as string, name: "Stored" };
             const initialData = { __typename: "Project" as string, name: "Initial" };
             
@@ -314,9 +315,12 @@ describe("useManagedObject", () => {
 
             expect(result.current.hasDataConflict).toBe(true);
             expect(result.current.hasStoredData).toBe(true);
+            
+            consoleSpy.mockRestore();
         });
 
         it("should show conflict resolution snack when data conflict detected", async () => {
+            const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             const storedData = { __typename: "Project" as string, name: "Stored" };
             const initialData = { __typename: "Project" as string, name: "Initial" };
             
@@ -335,9 +339,12 @@ describe("useManagedObject", () => {
                     severity: "Warning",
                 }));
             });
+            
+            consoleSpy.mockRestore();
         });
 
         it("should apply stored data when useStoredData is called", () => {
+            const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
             const storedData = { __typename: "Project" as string, name: "Stored" };
             const initialData = { __typename: "Project" as string, name: "Initial" };
             
@@ -353,6 +360,8 @@ describe("useManagedObject", () => {
             });
 
             expect(result.current.formData).toEqual(expect.objectContaining({ name: "Stored" }));
+            
+            consoleSpy.mockRestore();
         });
     });
 

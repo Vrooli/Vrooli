@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { cleanup, fireEvent } from "@testing-library/react";
+import { cleanup, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
@@ -121,6 +121,10 @@ import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 
 describe("NavigationArrows Component", () => {
     const handleIndexChangeMock = vi.fn();
+    
+    beforeEach(() => {
+        handleIndexChangeMock.mockClear();
+    });
 
     beforeAll(() => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -135,57 +139,86 @@ describe("NavigationArrows Component", () => {
         vi.clearAllMocks();
     });
 
-    it("should not render if there are less than 2 siblings", () => {
-        render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+    it("should not render if there are less than 2 siblings", async () => {
+        await act(async () => {
+            render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+        });
         expect(screen.queryAllByRole("button")).toHaveLength(0);
     });
 
-    it("should render both buttons disabled when there is no possibility to navigate", () => {
-        render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+    it("should render both buttons disabled when there is no possibility to navigate", async () => {
+        await act(async () => {
+            render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+        });
         expect(screen.queryAllByRole("button")).toHaveLength(0);
     });
 
     it("should enable the right button when there are more siblings ahead", async () => {
-        render(<NavigationArrows activeIndex={0} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
-        const rightButton = screen.getByLabelText("Next");
-        expect(rightButton.disabled).toBe(false);
-        userEvent.click(rightButton);
-        await waitFor(() => {
-            expect(handleIndexChangeMock).toHaveBeenCalledWith(1);
+        await act(async () => {
+            render(<NavigationArrows activeIndex={0} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
         });
+        
+        // Get all buttons and identify the right button (it should be the second one)
+        const buttons = screen.getAllByRole("button");
+        const rightButton = buttons[1]; // Second button is the right/next button
+        
+        expect(rightButton).toBeTruthy();
+        expect(rightButton.hasAttribute('disabled')).toBe(false);
+        
+        // Click the button
+        await act(async () => {
+            fireEvent.click(rightButton);
+        });
+        
+        expect(handleIndexChangeMock).toHaveBeenCalledWith(1);
     });
 
     it("should enable the left button when there are siblings behind", async () => {
-        render(<NavigationArrows activeIndex={1} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
+        await act(async () => {
+            render(<NavigationArrows activeIndex={1} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
+        });
+        
         const buttons = screen.getAllByRole("button");
         const leftButton = buttons[0];
-        expect(leftButton.disabled).toBe(false);
-        userEvent.click(leftButton);
-        await waitFor(() => {
-            expect(handleIndexChangeMock).toHaveBeenCalledWith(0);
+        expect(leftButton.hasAttribute('disabled')).toBe(false);
+        
+        await act(async () => {
+            await userEvent.click(leftButton);
         });
+        
+        expect(handleIndexChangeMock).toHaveBeenCalledWith(0);
     });
 
-    it("should display the current index and total siblings correctly", () => {
-        const { rerender } = render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+    it("should display the current index and total siblings correctly", async () => {
+        let rerender;
+        await act(async () => {
+            const result = render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+            rerender = result.rerender;
+        });
         expect(screen.getByText("1/3")).toBeTruthy();
 
-        rerender(<NavigationArrows activeIndex={1} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+        await act(async () => {
+            rerender(<NavigationArrows activeIndex={1} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+        });
         expect(screen.getByText("2/3")).toBeTruthy();
     });
 
-    it("should disable the left button when at the first sibling", () => {
-        render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+    it("should disable the left button when at the first sibling", async () => {
+        await act(async () => {
+            render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+        });
         const buttons = screen.getAllByRole("button");
         const leftButton = buttons[0]; // First button is the left/previous button
-        expect(leftButton.disabled).toBe(true);
+        expect(leftButton.hasAttribute('disabled')).toBe(true);
     });
 
-    it("should disable the right button when at the last sibling", () => {
-        render(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+    it("should disable the right button when at the last sibling", async () => {
+        await act(async () => {
+            render(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+        });
         const buttons = screen.getAllByRole("button");
         const rightButton = buttons[1]; // Second button is the right/next button
-        expect(rightButton.disabled).toBe(true);
+        expect(rightButton.hasAttribute('disabled')).toBe(true);
     });
 });
 
@@ -212,41 +245,78 @@ describe("ScrollToBottomButton", () => {
         vi.restoreAllMocks();
     });
 
-    it("renders button and checks initial visibility based on scroll", () => {
-        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+    it("renders button and checks initial visibility based on scroll", async () => {
+        let getByRole;
+        await act(async () => {
+            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+            getByRole = result.getByRole;
+        });
         const button = getByRole("button");
         // Initially should have hide class as we are at the top (within threshold)
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
     });
 
-    it("button becomes visible when not close to bottom", () => {
+    it("button becomes visible when not close to bottom", async () => {
         containerElement.scrollTop = 300; // Not close to the bottom
-        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-        fireEvent.scroll(containerElement);
+        let getByRole;
+        await act(async () => {
+            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+            getByRole = result.getByRole;
+        });
+        
+        await act(async () => {
+            fireEvent.scroll(containerElement);
+        });
+        
         const button = getByRole("button");
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
     });
 
     it("button becomes invisible when scrolled close to bottom", async () => {
         containerElement.scrollTop = 901; // Close to the bottom
-        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-        fireEvent.scroll(containerElement);
+        let getByRole;
+        await act(async () => {
+            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+            getByRole = result.getByRole;
+        });
+        
+        await act(async () => {
+            fireEvent.scroll(containerElement);
+        });
+        
         const button = getByRole("button");
         expect(button.classList.contains("hide-scroll-button")).toBe(true);
     });
 
-    it("scrolls to bottom on button click", () => {
-        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+    it("scrolls to bottom on button click", async () => {
+        let getByRole;
+        await act(async () => {
+            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+            getByRole = result.getByRole;
+        });
+        
         const button = getByRole("button");
-        fireEvent.click(button);
+        
+        await act(async () => {
+            fireEvent.click(button);
+        });
+        
         // Expected to be scrolled to the bottom (scrollHeight)
         expect(containerElement.scrollTop).toBe(containerElement.scrollHeight);
     });
 
-    it("cleans up event listener on unmount", () => {
+    it("cleans up event listener on unmount", async () => {
         const removeEventListenerSpy = vi.spyOn(containerElement, "removeEventListener");
-        const { unmount } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-        unmount();
+        let unmount;
+        await act(async () => {
+            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+            unmount = result.unmount;
+        });
+        
+        await act(async () => {
+            unmount();
+        });
+        
         expect(removeEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function));
     });
 });

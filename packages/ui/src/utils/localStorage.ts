@@ -591,7 +591,9 @@ export function updateCookiePartialTaskForChat(chatId: string, task: Partial<AIT
             if (taskIndex >= 0) {
                 existing.inactiveTasks[taskIndex] = { ...existing.inactiveTasks[taskIndex], ...task };
             } else {
-                console.error(`Task ${task.taskId} not found in active or inactive tasks`);
+                if (process.env.NODE_ENV !== "test") {
+                    console.error(`Task ${task.taskId} not found in active or inactive tasks`);
+                }
             }
         }
         llmTasksCache.set(chatId, existing);

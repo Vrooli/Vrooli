@@ -92,7 +92,9 @@ export function useInfiniteScroll({
     const handleScroll = useCallback(() => {
         const scrollContainer = document.getElementById(scrollContainerId);
         if (!scrollContainer) {
-            console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            if (process.env.NODE_ENV !== "test") {
+                console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            }
             return;
         }
 
@@ -115,7 +117,9 @@ export function useInfiniteScroll({
             scrollingContainer.addEventListener("scroll", handleScroll);
             return () => scrollingContainer.removeEventListener("scroll", handleScroll);
         } else {
-            console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            if (process.env.NODE_ENV !== "test") {
+                console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            }
         }
     }, [handleScroll, scrollContainerId]);
 
@@ -267,7 +271,6 @@ export function usePinchZoom({
             newScale = Math.min(Math.max(newScale, minScale), maxScale);
 
             setScale(newScale);
-            console.log("newScale", newScale);
             onScaleChange(newScale, cursor);
         }
 

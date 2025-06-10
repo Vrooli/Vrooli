@@ -816,7 +816,9 @@ export class MarkdownUtils {
         };
 
         if (!(style in styleFuncs)) {
-            console.error("Invalid style", style);
+            if (process.env.NODE_ENV !== "test") {
+                console.error("Invalid style", style);
+            }
             return { text, start, end };
         }
 

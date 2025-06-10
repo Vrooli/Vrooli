@@ -151,6 +151,7 @@ describe("useChatsStore", () => {
 
         it("should handle API errors", async () => {
             const mockErrors = [{ message: "Failed to fetch chats" }];
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
             mockFetchData.mockResolvedValue({
                 data: null,
@@ -166,10 +167,13 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().chats).toEqual([]);
             expect(useChatsStore.getState().isLoading).toBe(false);
             expect(useChatsStore.getState().error).toBe("Error fetching chats");
+            
+            consoleSpy.mockRestore();
         });
 
         it("should handle network errors", async () => {
             const networkError = new Error("Network error");
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             mockFetchData.mockRejectedValue(networkError);
 
             const result = await useChatsStore.getState().fetchChats();
@@ -178,6 +182,8 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().chats).toEqual([]);
             expect(useChatsStore.getState().isLoading).toBe(false);
             expect(useChatsStore.getState().error).toBe("Error fetching chats");
+            
+            consoleSpy.mockRestore();
         });
 
         it("should handle abort signal gracefully", async () => {

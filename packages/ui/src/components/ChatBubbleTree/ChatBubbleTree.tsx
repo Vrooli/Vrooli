@@ -104,36 +104,43 @@ export function NavigationArrows({
         handleActiveIndexChange(activeIndex + 1);
     }
 
+    const previousDisabled = activeIndex <= 0;
+    const nextDisabled = activeIndex >= numSiblings - 1;
+
     return (
         <NavigationBox>
             <Tooltip title="Previous">
-                <IconButton
-                    size="small"
-                    onClick={handlePrevious}
-                    disabled={activeIndex <= 0}
-                >
-                    <IconCommon
-                        decorative
-                        fill="background.textSecondary"
-                        name="ChevronLeft"
-                    />
-                </IconButton>
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={handlePrevious}
+                        disabled={previousDisabled}
+                    >
+                        <IconCommon
+                            decorative
+                            fill="background.textSecondary"
+                            name="ChevronLeft"
+                        />
+                    </IconButton>
+                </span>
             </Tooltip>
             <Typography variant="body2" color="textSecondary">
                 {activeIndex + 1}/{numSiblings}
             </Typography>
             <Tooltip title="Next">
-                <IconButton
-                    size="small"
-                    onClick={handleNext}
-                    disabled={activeIndex >= numSiblings - 1}
-                >
+                <span>
+                    <IconButton
+                        size="small"
+                        onClick={handleNext}
+                        disabled={nextDisabled}
+                    >
                     <IconCommon
                         decorative
                         fill="background.textSecondary"
                         name="ChevronRight"
                     />
                 </IconButton>
+                </span>
             </Tooltip>
         </NavigationBox>
     );

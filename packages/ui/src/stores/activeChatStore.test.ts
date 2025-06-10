@@ -50,7 +50,6 @@ describe("ActiveChatStore", () => {
 
     it("should have initial default values", () => {
         const state = useActiveChatStore.getState();
-        console.log("Available methods:", Object.keys(state));
         expect(state.activeChatId).toBeNull();
         expect(state.chats).toEqual({});
         expect(state.participants).toEqual([]);

@@ -72,13 +72,17 @@ export function useObjectData<TData extends UrlObject>(
 
     const fetchObjectData = useCallback(function fetchObjectDataCallback() {
         if (!shouldFetch) {
-            console.info("[useObjectData] Fetch skipped: shouldFetch is false");
+            if (process.env.NODE_ENV === "development") {
+                console.info("[useObjectData] Fetch skipped: shouldFetch is false");
+            }
             return false;
         }
 
         // Don't retry if we've already hit the maximum number of retries
         if (retryCountRef.current >= MAX_FETCH_RETRIES) {
-            console.warn(`[useObjectData] Max retry count (${MAX_FETCH_RETRIES}) reached, marking as failed`);
+            if (process.env.NODE_ENV === "development") {
+                console.warn(`[useObjectData] Max retry count (${MAX_FETCH_RETRIES}) reached, marking as failed`);
+            }
             setFetchFailed(true);
             return false;
         }
@@ -94,7 +98,9 @@ export function useObjectData<TData extends UrlObject>(
     }, [fetchData, onError, displayError, pathname, shouldFetch]);
 
     useEffect(function refetchOnPathnameChangeEffect() {
-        console.info("[useObjectData] Pathname changed, resetting retry count");
+        if (process.env.NODE_ENV === "development") {
+            console.info("[useObjectData] Pathname changed, resetting retry count");
+        }
         retryCountRef.current = 0;
         setFetchFailed(false);
         initialFetchDoneRef.current = false;
@@ -103,10 +109,14 @@ export function useObjectData<TData extends UrlObject>(
     // Mark as failed when errors occur
     useEffect(function trackErrorsEffect() {
         if (fetchResult.errors && fetchResult.errors.length > 0) {
-            console.error("[useObjectData] Fetch errors:", fetchResult.errors);
+            if (process.env.NODE_ENV === "development") {
+                console.error("[useObjectData] Fetch errors:", fetchResult.errors);
+            }
             // If we have errors and hit max retries, mark as failed
             if (retryCountRef.current >= MAX_FETCH_RETRIES) {
-                console.warn("[useObjectData] Max retries reached with errors, marking as failed");
+                if (process.env.NODE_ENV === "development") {
+                    console.warn("[useObjectData] Max retries reached with errors, marking as failed");
+                }
                 setFetchFailed(true);
             }
         }
@@ -339,7 +349,9 @@ export function useManagedObject<
     // We've reorganized to minimize dependencies
     useEffect(() => {
         if (disabled) {
-            console.info("Hook is disabled, skipping data update");
+            if (process.env.NODE_ENV === "development") {
+                console.info("Hook is disabled, skipping data update");
+            }
             return;
         }
 

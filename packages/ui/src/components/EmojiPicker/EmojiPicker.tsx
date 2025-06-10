@@ -696,7 +696,9 @@ function useEmojiData() {
 
                 Object.entries(newEmojisByCategory).forEach(([category, emojis]) => {
                     if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
-                        console.warn(`Invalid category "${category}" or emojis data for category`);
+                        if (process.env.NODE_ENV !== "test") {
+                            console.warn(`Invalid category "${category}" or emojis data for category`);
+                        }
                         return;
                     }
                     emojis.forEach((emojiData: DataEmoji) => {
