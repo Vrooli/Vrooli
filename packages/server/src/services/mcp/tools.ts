@@ -1,4 +1,4 @@
-import type { ResourceVersionCreateInput, SessionUser, SwarmSubTask } from "@vrooli/shared";
+import type { BotCreateInput, ResourceVersionCreateInput, SessionUser, SwarmSubTask, TeamCreateInput } from "@vrooli/shared";
 import { DEFAULT_LANGUAGE, DeleteType, McpToolName, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
@@ -17,7 +17,22 @@ import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
 import { type RunTask } from "../../tasks/taskTypes.js";
 import { type ConversationStateStore } from "../conversation/chatStore.js";
 import defineToolSchema from "../schemas/DefineTool/schema.json" with { type: "json" };
-import type { NoteAddAttributes } from "../types/resources.js";
+import type {
+    BotAddAttributes,
+    NoteAddAttributes,
+    ProjectAddAttributes,
+    RoutineApiAddAttributes,
+    RoutineCodeAddAttributes,
+    RoutineDataAddAttributes,
+    RoutineGenerateAddAttributes,
+    RoutineInformationalAddAttributes,
+    RoutineMultiStepAddAttributes,
+    RoutineSmartContractAddAttributes,
+    RoutineWebAddAttributes,
+    StandardDataStructureAddAttributes,
+    StandardPromptAddAttributes,
+    TeamAddAttributes,
+} from "../types/resources.js";
 import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { type ToolResponse } from "./types.js";
 
@@ -99,6 +114,23 @@ function isSpawnSwarmSimple(params: SpawnSwarmParams): params is Extract<SpawnSw
     return params.kind === "simple";
 }
 
+// Discriminated union for all resource add attributes
+type ResourceAddAttributes =
+    | NoteAddAttributes
+    | ProjectAddAttributes
+    | RoutineMultiStepAddAttributes
+    | RoutineApiAddAttributes
+    | RoutineCodeAddAttributes
+    | RoutineDataAddAttributes
+    | RoutineGenerateAddAttributes
+    | RoutineInformationalAddAttributes
+    | RoutineSmartContractAddAttributes
+    | RoutineWebAddAttributes
+    | StandardDataStructureAddAttributes
+    | StandardPromptAddAttributes
+    | TeamAddAttributes
+    | BotAddAttributes;
+
 // Type guard for NoteAddAttributes
 function isNoteAddAttributes(attrs: unknown): attrs is NoteAddAttributes {
     if (typeof attrs !== "object" || attrs === null) {
@@ -108,6 +140,75 @@ function isNoteAddAttributes(attrs: unknown): attrs is NoteAddAttributes {
     return typeof obj.name === "string" &&
         typeof obj.content === "string" &&
         (obj.tagsConnect === undefined || Array.isArray(obj.tagsConnect));
+}
+
+// Type guard for ProjectAddAttributes
+function isProjectAddAttributes(attrs: unknown): attrs is ProjectAddAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return typeof obj.name === "string" &&
+        (obj.config === undefined || typeof obj.config === "object");
+}
+
+// Type guard for TeamAddAttributes
+function isTeamAddAttributes(attrs: unknown): attrs is TeamAddAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return (obj.config === undefined || typeof obj.config === "object") &&
+        (obj.memberInvitesCreate === undefined || Array.isArray(obj.memberInvitesCreate));
+}
+
+// Type guard for BotAddAttributes
+function isBotAddAttributes(attrs: unknown): attrs is BotAddAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return (obj.config === undefined || typeof obj.config === "object");
+}
+
+// Helper to check if attrs has routine version properties
+function hasRoutineVersionProperties(attrs: Record<string, unknown>): boolean {
+    return "resourceSubType" in attrs &&
+        typeof attrs.resourceSubType === "string" &&
+        attrs.resourceSubType.startsWith("Routine") &&
+        "rootCreate" in attrs &&
+        typeof attrs.rootCreate === "object" &&
+        attrs.rootCreate !== null &&
+        (attrs.rootCreate as any).resourceType === ResourceType.Routine;
+}
+
+// Helper to check if attrs has standard version properties
+function hasStandardVersionProperties(attrs: Record<string, unknown>): boolean {
+    return "resourceSubType" in attrs &&
+        typeof attrs.resourceSubType === "string" &&
+        attrs.resourceSubType.startsWith("Standard") &&
+        "rootCreate" in attrs &&
+        typeof attrs.rootCreate === "object" &&
+        attrs.rootCreate !== null &&
+        (attrs.rootCreate as any).resourceType === ResourceType.Standard;
+}
+
+// Generic type guard for routine subtypes
+function isRoutineAddAttributes(attrs: unknown, subType: ResourceSubType): attrs is RoutineMultiStepAddAttributes | RoutineApiAddAttributes | RoutineCodeAddAttributes | RoutineDataAddAttributes | RoutineGenerateAddAttributes | RoutineInformationalAddAttributes | RoutineSmartContractAddAttributes | RoutineWebAddAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return hasRoutineVersionProperties(obj) && obj.resourceSubType === subType;
+}
+
+// Generic type guard for standard subtypes
+function isStandardAddAttributes(attrs: unknown, subType: ResourceSubType): attrs is StandardDataStructureAddAttributes | StandardPromptAddAttributes {
+    if (typeof attrs !== "object" || attrs === null) {
+        return false;
+    }
+    const obj = attrs as Record<string, unknown>;
+    return hasStandardVersionProperties(obj) && obj.resourceSubType === subType;
 }
 
 // Type-safe metadata accessors
@@ -442,8 +543,17 @@ export class BuiltInTools {
                 const input = this._mapFindToInput(args.resource_type, args.filters || {});
                 result = await readManyHelper({ info: {}, input, objectType: "ResourceVersion", req: this.req });
             } else if (isResourceManageAddParams(args)) {
-                const createInput = this._mapAddToInput(args.resource_type, args.attributes);
-                result = await createOneHelper({ info: {}, input: createInput, objectType: "ResourceVersion", req: this.req });
+                const createInput = this._mapAddToInput(args.resource_type, args.attributes as ResourceAddAttributes);
+                // Determine the correct objectType based on the resource type
+                let objectType: string;
+                if (args.resource_type === "Team") {
+                    objectType = "Team";
+                } else if (args.resource_type === "Bot") {
+                    objectType = "User"; // Bots are stored in the User table
+                } else {
+                    objectType = "ResourceVersion";
+                }
+                result = await createOneHelper({ info: {}, input: createInput, objectType, req: this.req });
             } else if (isResourceManageUpdateParams(args)) {
                 const updateInput = this._mapUpdateToInput(args.id, args.resource_type, args.attributes);
                 result = await updateOneHelper({ info: {}, input: updateInput, objectType: "ResourceVersion", req: this.req });
@@ -526,17 +636,17 @@ export class BuiltInTools {
                 if (mode === "sync") {
                     return {
                         isError: false,
-                        content: [{ 
-                            type: "text", 
-                            text: `Run started successfully. Run ID: ${runId}. Mode: ${mode}. Check status for completion.` 
+                        content: [{
+                            type: "text",
+                            text: `Run started successfully. Run ID: ${runId}. Mode: ${mode}. Check status for completion.`
                         }],
                     };
                 } else {
                     return {
                         isError: false,
-                        content: [{ 
-                            type: "text", 
-                            text: `Run scheduled successfully. Run ID: ${runId}. Mode: ${mode}.` 
+                        content: [{
+                            type: "text",
+                            text: `Run scheduled successfully. Run ID: ${runId}. Mode: ${mode}.`
                         }],
                     };
                 }
@@ -572,9 +682,9 @@ export class BuiltInTools {
                     const status = stateMachine.getCurrentSagaStatus();
                     return {
                         isError: false,
-                        content: [{ 
-                            type: "text", 
-                            text: `Run ${runId} current status: ${status}` 
+                        content: [{
+                            type: "text",
+                            text: `Run ${runId} current status: ${status}`
                         }],
                     };
                 }
@@ -584,17 +694,17 @@ export class BuiltInTools {
                     if (success) {
                         return {
                             isError: false,
-                            content: [{ 
-                                type: "text", 
-                                text: `Run ${runId} pause request initiated successfully` 
+                            content: [{
+                                type: "text",
+                                text: `Run ${runId} pause request initiated successfully`
                             }],
                         };
                     } else {
                         return {
                             isError: true,
-                            content: [{ 
-                                type: "text", 
-                                text: `Failed to pause run ${runId}` 
+                            content: [{
+                                type: "text",
+                                text: `Failed to pause run ${runId}`
                             }],
                         };
                     }
@@ -607,9 +717,9 @@ export class BuiltInTools {
                         if (result.success) {
                             return {
                                 isError: false,
-                                content: [{ 
-                                    type: "text", 
-                                    text: `Run ${runId} resume request initiated successfully` 
+                                content: [{
+                                    type: "text",
+                                    text: `Run ${runId} resume request initiated successfully`
                                 }],
                             };
                         } else {
@@ -618,9 +728,9 @@ export class BuiltInTools {
                     } catch (error) {
                         return {
                             isError: true,
-                            content: [{ 
-                                type: "text", 
-                                text: `Failed to resume run ${runId}: ${(error as Error).message}` 
+                            content: [{
+                                type: "text",
+                                text: `Failed to resume run ${runId}: ${(error as Error).message}`
                             }],
                         };
                     }
@@ -631,17 +741,17 @@ export class BuiltInTools {
                     if (success) {
                         return {
                             isError: false,
-                            content: [{ 
-                                type: "text", 
-                                text: `Run ${runId} cancellation request initiated successfully` 
+                            content: [{
+                                type: "text",
+                                text: `Run ${runId} cancellation request initiated successfully`
                             }],
                         };
                     } else {
                         return {
                             isError: true,
-                            content: [{ 
-                                type: "text", 
-                                text: `Failed to cancel run ${runId}` 
+                            content: [{
+                                type: "text",
+                                text: `Failed to cancel run ${runId}`
                             }],
                         };
                     }
@@ -740,9 +850,9 @@ export class BuiltInTools {
 
                 return {
                     isError: false,
-                    content: [{ 
-                        type: "text", 
-                        text: `Child swarm ${result.swarmId} spawned successfully with goal: "${args.goal}". Leader: ${args.swarmLeader}. Reserved resources: ${JSON.stringify(reservation)}.` 
+                    content: [{
+                        type: "text",
+                        text: `Child swarm ${result.swarmId} spawned successfully with goal: "${args.goal}". Leader: ${args.swarmLeader}. Reserved resources: ${JSON.stringify(reservation)}.`
                     }],
                 };
 
@@ -778,21 +888,21 @@ export class BuiltInTools {
 
                 return {
                     isError: false,
-                    content: [{ 
-                        type: "text", 
-                        text: `Rich child swarm ${result.swarmId} spawned successfully with team ${args.teamId} and goal: "${args.goal}". Reserved resources: ${JSON.stringify(reservation)}.` 
+                    content: [{
+                        type: "text",
+                        text: `Rich child swarm ${result.swarmId} spawned successfully with team ${args.teamId} and goal: "${args.goal}". Reserved resources: ${JSON.stringify(reservation)}.`
                     }],
                 };
             }
 
         } catch (error) {
             this.logger.error("Error in spawnSwarm:", error);
-            return { 
-                isError: true, 
-                content: [{ 
-                    type: "text", 
-                    text: `Failed to spawn child swarm: ${error instanceof Error ? error.message : "Unknown error"}` 
-                }] 
+            return {
+                isError: true,
+                content: [{
+                    type: "text",
+                    text: `Failed to spawn child swarm: ${error instanceof Error ? error.message : "Unknown error"}`
+                }]
             };
         }
     }
@@ -861,36 +971,184 @@ export class BuiltInTools {
     }
 
     /**
-     * Maps MCP 'add' operation attributes to the GraphQL create input for a ResourceVersion.
-     * @param resourceType The type of resource (e.g., "Note").
-     * @param attrs The attributes for the new resource.
-     * @returns The GraphQL ResourceVersionCreateInput.
+     * Helper to create ResourceVersionCreateInput for ResourceVersion-based types
      */
-    _mapAddToInput(resourceType: string, attrs: Record<string, unknown>): ResourceVersionCreateInput {
+    private _createResourceVersionInput(
+        resourceType: ResourceType,
+        resourceSubType: ResourceSubType | undefined,
+        translationsCreate: Array<{ id: string; language: string; name: string; description?: string; details?: string; instructions?: string }>,
+        attrs: { isPrivate?: boolean; versionLabel?: string; isComplete?: boolean; config?: any; rootCreate: any }
+    ): ResourceVersionCreateInput {
+        const input: ResourceVersionCreateInput = {
+            id: generatePK().toString(),
+            isPrivate: attrs.isPrivate ?? true,
+            versionLabel: attrs.versionLabel ?? "1.0.0",
+            isComplete: attrs.isComplete ?? false,
+            translationsCreate,
+            config: attrs.config,
+            rootCreate: {
+                id: generatePK().toString(),
+                isPrivate: attrs.rootCreate.isPrivate ?? true,
+                resourceType,
+                tagsConnect: attrs.rootCreate.tagsConnect,
+            },
+        };
+        
+        // Only add resourceSubType if it's defined (for Routine and Standard subtypes)
+        if (resourceSubType) {
+            input.resourceSubType = resourceSubType;
+        }
+        
+        return input;
+    }
+
+    /**
+     * Maps MCP 'add' operation attributes to the appropriate GraphQL create input.
+     * @param resourceType The type of resource (e.g., "Note", "Project", "Team").
+     * @param attrs The attributes for the new resource.
+     * @returns The GraphQL create input (ResourceVersionCreateInput, TeamCreateInput, or BotCreateInput).
+     */
+    _mapAddToInput(resourceType: string, attrs: ResourceAddAttributes): ResourceVersionCreateInput | TeamCreateInput | BotCreateInput {
+        // Handle non-ResourceVersion types first
         switch (resourceType) {
+            case "Team": {
+                if (!isTeamAddAttributes(attrs)) {
+                    throw new Error("Invalid attributes for Team");
+                }
+                return {
+                    id: generatePK().toString(),
+                    isPrivate: attrs.isPrivate ?? false,
+                    handle: attrs.handle,
+                    tagsConnect: attrs.tagsConnect,
+                    configCreate: attrs.config ? { __typename: "TeamConfig" as const, ...attrs.config } : undefined,
+                    memberInvitesCreate: attrs.memberInvitesCreate?.map(invite => ({
+                        id: generatePK().toString(),
+                        message: invite.message,
+                        userConnect: invite.userConnect,
+                        willBeAdmin: invite.willBeAdmin ?? false,
+                    })),
+                } as TeamCreateInput;
+            }
+
+            case "Bot": {
+                if (!isBotAddAttributes(attrs)) {
+                    throw new Error("Invalid attributes for Bot");
+                }
+                // Bot requires a name and uses UserTranslationCreateInput
+                return {
+                    id: generatePK().toString(),
+                    name: attrs.handle || "Bot", // Use handle as name, or default to "Bot"
+                    handle: attrs.handle,
+                    isPrivate: attrs.isPrivate ?? false,
+                    isBotDepictingPerson: false, // Default to false
+                    botSettings: attrs.config || {}, // botSettings is required
+                    translationsCreate: [], // Bots typically don't need translations at creation
+                } as BotCreateInput;
+            }
+
+            // ResourceVersion-based types
             case "Note": {
                 if (!isNoteAddAttributes(attrs)) {
                     throw new Error("Invalid attributes for Note: missing required properties 'name' or 'content'");
                 }
-                return {
-                    id: generatePK().toString(),
-                    isPrivate: true,
-                    versionLabel: "0.0.1",
-                    resourceSubType: resourceType as ResourceSubType,
-                    translationsCreate: [
-                        { id: generatePK().toString(), language: "en", name: attrs.name, description: attrs.content },
-                    ],
-                    rootCreate: {
+                return this._createResourceVersionInput(
+                    ResourceType.Note,
+                    undefined, // Note doesn't have a resourceSubType
+                    [{
                         id: generatePK().toString(),
+                        language: DEFAULT_LANGUAGE,
+                        name: attrs.name,
+                        description: attrs.content
+                    }],
+                    {
                         isPrivate: true,
-                        resourceType: ResourceType.Note,
-                        tagsConnect: attrs.tagsConnect,
-                    },
-                };
+                        versionLabel: "0.0.1",
+                        rootCreate: {
+                            isPrivate: true,
+                            tagsConnect: attrs.tagsConnect,
+                        },
+                    }
+                );
             }
+
+            case "Project": {
+                if (!isProjectAddAttributes(attrs)) {
+                    throw new Error("Invalid attributes for Project: missing required property 'name'");
+                }
+                return this._createResourceVersionInput(
+                    ResourceType.Project,
+                    undefined, // Project doesn't have a resourceSubType
+                    [{
+                        id: generatePK().toString(),
+                        language: DEFAULT_LANGUAGE,
+                        name: attrs.name,
+                        description: "" // Add empty description since it's optional but safer to include
+                    }],
+                    {
+                        isPrivate: attrs.isPrivate ?? true,
+                        versionLabel: "1.0.0",
+                        config: attrs.config,
+                        rootCreate: {
+                            isPrivate: attrs.isPrivate ?? true,
+                            tagsConnect: attrs.tagsConnect,
+                            handle: attrs.handle,
+                        },
+                    }
+                );
+            }
+
+            // Routine subtypes
+            case "RoutineMultiStep":
+            case "RoutineApi":
+            case "RoutineCode":
+            case "RoutineData":
+            case "RoutineGenerate":
+            case "RoutineInformational":
+            case "RoutineSmartContract":
+            case "RoutineWeb": {
+                const subType = resourceType as ResourceSubType;
+                if (!isRoutineAddAttributes(attrs, subType)) {
+                    throw new Error(`Invalid attributes for ${resourceType}`);
+                }
+                const routineAttrs = attrs as RoutineMultiStepAddAttributes; // All routine types have similar structure
+                return this._createResourceVersionInput(
+                    ResourceType.Routine,
+                    subType,
+                    [], // Routines typically don't have translations at creation
+                    {
+                        isPrivate: routineAttrs.isPrivate ?? true,
+                        versionLabel: routineAttrs.versionLabel,
+                        isComplete: routineAttrs.isComplete,
+                        config: routineAttrs.config,
+                        rootCreate: routineAttrs.rootCreate,
+                    }
+                );
+            }
+
+            // Standard subtypes
+            case "StandardDataStructure":
+            case "StandardPrompt": {
+                const subType = resourceType as ResourceSubType;
+                if (!isStandardAddAttributes(attrs, subType)) {
+                    throw new Error(`Invalid attributes for ${resourceType}`);
+                }
+                const standardAttrs = attrs as StandardDataStructureAddAttributes; // All standard types have similar structure
+                return this._createResourceVersionInput(
+                    ResourceType.Standard,
+                    subType,
+                    [], // Standards typically don't have translations at creation
+                    {
+                        isPrivate: standardAttrs.isPrivate ?? true,
+                        versionLabel: standardAttrs.versionLabel,
+                        isComplete: standardAttrs.isComplete,
+                        config: standardAttrs.config,
+                        rootCreate: standardAttrs.rootCreate,
+                    }
+                );
+            }
+
             default:
-                //TODO: Implement other resource types
-                throw new Error(`Add for variant '${resourceType}' not implemented`);
+                throw new Error(`Add for resource type '${resourceType}' not implemented`);
         }
     }
 
