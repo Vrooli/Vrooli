@@ -3,7 +3,7 @@ import { PasswordAuthService } from "../auth/email.js";
 import { DbProvider } from "../db/provider.js";
 import { Notify, isObjectSubscribable } from "../notify/notify.js";
 import { SocketService } from "../sockets/io.js";
-import { type PreMapMessageData, type PreMapMessageDataDelete } from "../utils/chat.js";
+import { type PreMapMessageData, type PreMapMessageDataDelete } from "../utils/messageTree.js";
 import { Award, objectAwardCategory } from "./awards.js";
 import { logger } from "./logger.js";
 import { Reputation, objectReputationEvent } from "./reputation.js";

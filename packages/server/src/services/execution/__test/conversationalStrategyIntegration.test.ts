@@ -165,19 +165,8 @@ describe("ConversationalStrategy Integration", () => {
             expect(updatedMetrics.averageConfidence).toBe(0.875);
         });
 
-        it("should provide learning capabilities", () => {
-            const logSpy = vi.spyOn(logger, "info");
-            
-            const successFeedback = {
-                outcome: "success" as const,
-                performanceScore: 0.9,
-                userSatisfaction: 0.95,
-            };
-            
-            enhancedStrategy.learn(successFeedback);
-            
-            expect(logSpy.calledWithMatch("[ConversationalStrategy] Learning from feedback")).toBe(true);
-        });
+        // Learning capabilities now happen through event-driven architecture
+        // Test removed: "should provide learning capabilities"
     });
 
     describe("Legacy Pattern Integration", () => {

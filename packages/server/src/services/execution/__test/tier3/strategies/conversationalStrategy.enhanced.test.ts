@@ -76,7 +76,6 @@ describe("ConversationalStrategy Enhanced (Legacy Patterns)", () => {
             expect(typeof strategy.canHandle).toBe("function");
             expect(typeof strategy.execute).toBe("function");
             expect(typeof strategy.estimateResources).toBe("function");
-            expect(typeof strategy.learn).toBe("function");
             expect(typeof strategy.getPerformanceMetrics).toBe("function");
         });
     });
@@ -251,29 +250,8 @@ describe("ConversationalStrategy Enhanced (Legacy Patterns)", () => {
         });
     });
 
-    describe("Learning Capabilities", () => {
-        it("should accept positive feedback", () => {
-            const feedback = {
-                outcome: "success" as const,
-                performanceScore: 0.9,
-                userSatisfaction: 0.95,
-                improvements: ["Better context handling"],
-            };
-
-            expect(() => strategy.learn(feedback)).not.toThrow();
-        });
-
-        it("should accept negative feedback", () => {
-            const feedback = {
-                outcome: "failure" as const,
-                performanceScore: 0.3,
-                userSatisfaction: 0.2,
-                issues: ["Response too generic", "Missed context"],
-            };
-
-            expect(() => strategy.learn(feedback)).not.toThrow();
-        });
-    });
+    // Learning capabilities now happen through event-driven architecture
+    // Tests removed: "Learning Capabilities" describe block
 
     describe("Legacy Pattern Support", () => {
         it("should handle instruction field properly", async () => {

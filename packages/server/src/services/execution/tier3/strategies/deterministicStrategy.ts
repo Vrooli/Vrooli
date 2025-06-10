@@ -284,26 +284,6 @@ export class DeterministicStrategy implements ExecutionStrategy {
         };
     }
 
-    /**
-     * Enhanced learning mechanism with performance tracking
-     */
-    learn(feedback: StrategyFeedback): void {
-        this.logger.info("[DeterministicStrategy] Learning from feedback", {
-            outcome: feedback.outcome,
-            performance: feedback.performanceScore,
-            satisfaction: feedback.userSatisfaction,
-        });
-        
-        // Adaptive learning based on feedback
-        if (feedback.outcome === "success" && feedback.performanceScore > 0.8) {
-            this.optimizeForSuccess(feedback);
-        } else if (feedback.outcome === "failure") {
-            this.adjustForFailure(feedback);
-        }
-        
-        // Update performance metrics
-        this.updatePerformanceMetrics(feedback);
-    }
 
     /**
      * Enhanced performance metrics tracking

@@ -88,7 +88,6 @@ describe("DeterministicStrategy Enhanced (Legacy Patterns)", () => {
             expect(typeof strategy.canHandle).toBe("function");
             expect(typeof strategy.execute).toBe("function");
             expect(typeof strategy.estimateResources).toBe("function");
-            expect(typeof strategy.learn).toBe("function");
             expect(typeof strategy.getPerformanceMetrics).toBe("function");
         });
     });
@@ -324,35 +323,8 @@ describe("DeterministicStrategy Enhanced (Legacy Patterns)", () => {
         });
     });
 
-    describe("Learning Mechanism", () => {
-        it("should learn from successful feedback", () => {
-            const logSpy = vi.spyOn(logger, "debug");
-
-            const feedback = {
-                outcome: "success" as const,
-                performanceScore: 0.95,
-                userSatisfaction: 0.9,
-            };
-
-            strategy.learn(feedback);
-
-            expect(logSpy.calledWith("[DeterministicStrategy] Optimizing for success")).toBe(true);
-        });
-
-        it("should learn from failure feedback", () => {
-            const logSpy = vi.spyOn(logger, "debug");
-
-            const feedback = {
-                outcome: "failure" as const,
-                performanceScore: 0.3,
-                issues: ["Validation failed", "Invalid input format"],
-            };
-
-            strategy.learn(feedback);
-
-            expect(logSpy.calledWith("[DeterministicStrategy] Adjusting for failure")).toBe(true);
-        });
-    });
+    // Learning mechanism now happens through event-driven architecture
+    // Tests removed: "Learning Mechanism" describe block
 
     describe("Enhanced Error Handling", () => {
         it("should handle input validation errors gracefully", async () => {

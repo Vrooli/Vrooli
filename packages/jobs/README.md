@@ -10,8 +10,8 @@ This package handles all background processing, scheduled tasks, and long-runnin
 
 - **Runtime**: Node.js
 - **Language**: TypeScript
-- **Database**: Redis
-- **Testing**: Mocha, Chai
+- **Database**: PostgreSQL (with pgvector), Redis
+- **Testing**: Vitest
 
 ## Directory Structure
 

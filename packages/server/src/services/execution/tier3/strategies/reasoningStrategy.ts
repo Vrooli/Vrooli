@@ -13,6 +13,8 @@ import { LegacyInputHandler } from "./reasoning/legacyInputHandler.js";
 import { FourPhaseExecutor } from "./reasoning/fourPhaseExecutor.js";
 import { LegacyOutputGenerator } from "./reasoning/legacyOutputGenerator.js";
 import { LegacyCostEstimator } from "./reasoning/legacyCostEstimator.js";
+import { StrategyMetricsStore } from "../metrics/strategyMetricsStore.js";
+import { StrategyEventEmitter } from "../events/strategyEventEmitter.js";
 
 /**
  * Reasoning framework types
@@ -83,6 +85,10 @@ export class ReasoningStrategy implements ExecutionStrategy {
     private readonly outputGenerator: LegacyOutputGenerator;
     private readonly costEstimator: LegacyCostEstimator;
     
+    // Event-driven metrics infrastructure
+    private readonly metricsStore: StrategyMetricsStore;
+    private readonly eventEmitter: StrategyEventEmitter;
+    
     // Configuration constants
     private readonly COMPLEXITY_MULTIPLIER = 500;
     private readonly CONFIDENCE_THRESHOLD = 0.7;
@@ -91,7 +97,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
     private readonly CONSTRAINT_COMPLEXITY = 0.5;
     private readonly BASE_SCORE = 0.6;
 
-    constructor(logger: Logger) {
+    constructor(logger: Logger, eventEmitter?: StrategyEventEmitter) {
         this.logger = logger;
         this.llmService = new LLMIntegrationService(logger);
         
@@ -100,6 +106,10 @@ export class ReasoningStrategy implements ExecutionStrategy {
         this.phaseExecutor = new FourPhaseExecutor(logger);
         this.outputGenerator = new LegacyOutputGenerator(logger);
         this.costEstimator = new LegacyCostEstimator();
+        
+        // Event-driven metrics infrastructure
+        this.metricsStore = new StrategyMetricsStore();
+        this.eventEmitter = eventEmitter || new StrategyEventEmitter(logger);
     }
 
     /**
@@ -156,30 +166,53 @@ export class ReasoningStrategy implements ExecutionStrategy {
             creditsUsed += refinementResult.creditsUsed;
             toolCallsCount += refinementResult.toolCallsCount;
 
+            const executionTime = Date.now() - startTime;
+
             // LEGACY INTEGRATION: Create success result with legacy metadata patterns
-            return this.outputGenerator.createLegacyCompatibleSuccessResult(
+            const result = this.outputGenerator.createLegacyCompatibleSuccessResult(
                 refinementResult.outputs,
                 creditsUsed,
                 toolCallsCount,
-                Date.now() - startTime,
+                executionTime,
                 analysisResult,
                 planningResult,
                 refinementResult
             );
 
+            // EVENT-DRIVEN METRICS: Record successful execution
+            await this.recordSuccessfulExecution(context, result, {
+                executionTime,
+                creditsUsed,
+                toolCallsCount,
+                confidence: result.metadata.confidence,
+            });
+
+            return result;
+
         } catch (error) {
+            const executionTime = Date.now() - startTime;
+            
             this.logger.error("[ReasoningStrategy] 4-phase execution failed", {
                 stepId,
                 error: error instanceof Error ? error.message : String(error),
             });
 
             // LEGACY INTEGRATION: Enhanced error handling
-            return this.outputGenerator.createLegacyCompatibleErrorResult(
+            const result = this.outputGenerator.createLegacyCompatibleErrorResult(
                 error as Error,
                 creditsUsed,
                 toolCallsCount,
-                Date.now() - startTime
+                executionTime
             );
+
+            // EVENT-DRIVEN METRICS: Record failed execution
+            await this.recordFailedExecution(context, error as Error, {
+                executionTime,
+                creditsUsed,
+                toolCallsCount,
+            });
+
+            return result;
         }
     }
 
@@ -211,30 +244,26 @@ export class ReasoningStrategy implements ExecutionStrategy {
         return this.costEstimator.estimateResources(context);
     }
 
-    /**
-     * Learning method
-     */
-    learn(feedback: import("@vrooli/shared").StrategyFeedback): void {
-        this.logger.info("[ReasoningStrategy] Learning from feedback", {
-            outcome: feedback.outcome,
-            performance: feedback.performanceScore,
-        });
-        // TODO: Implement actual learning mechanism
-    }
 
     /**
-     * Returns performance metrics
+     * Returns performance metrics - now using real tracked data
      */
     getPerformanceMetrics(): import("@vrooli/shared").StrategyPerformance {
-        // TODO: Implement actual metrics tracking
+        const metrics = this.metricsStore.getAggregatedMetrics();
+        
         return {
-            totalExecutions: 0,
-            successCount: 0,
-            failureCount: 0,
-            averageExecutionTime: 0,
-            averageResourceUsage: {},
-            averageConfidence: 0,
-            evolutionScore: 0.5, // Medium evolution
+            totalExecutions: metrics.totalExecutions,
+            successCount: metrics.successCount,
+            failureCount: metrics.failureCount,
+            averageExecutionTime: metrics.averageExecutionTime,
+            averageResourceUsage: {
+                tokens: metrics.averageTokens,
+                apiCalls: metrics.averageApiCalls,
+                computeTime: metrics.averageExecutionTime,
+                cost: metrics.averageCost,
+            },
+            averageConfidence: metrics.averageConfidence,
+            evolutionScore: this.calculateEvolutionScore(metrics),
         };
     }
 
@@ -1002,6 +1031,167 @@ export class ReasoningStrategy implements ExecutionStrategy {
         complexity += Math.min(context.history.recentSteps.length * HISTORY_COMPLEXITY_WEIGHT, MAX_HISTORY_COMPLEXITY);
 
         return Math.min(complexity, 3); // Cap at 3x
+    }
+
+    /**
+     * EVENT-DRIVEN METRICS: Record successful execution
+     */
+    private async recordSuccessfulExecution(
+        context: ExecutionContext,
+        result: StrategyExecutionResult,
+        performance: {
+            executionTime: number;
+            creditsUsed: number;
+            toolCallsCount: number;
+            confidence: number;
+        }
+    ): Promise<void> {
+        try {
+            // Record metrics in store
+            this.metricsStore.recordExecution({
+                stepId: context.stepId,
+                stepType: context.stepType,
+                success: true,
+                executionTime: performance.executionTime,
+                tokensUsed: performance.creditsUsed, // Approximate tokens from credits
+                apiCalls: performance.toolCallsCount,
+                cost: performance.creditsUsed * 0.001, // Rough cost estimate
+                confidence: performance.confidence,
+                timestamp: new Date(),
+                context: {
+                    inputSize: Object.keys(context.inputs).length,
+                    constraintsCount: Object.keys(context.constraints).length,
+                    historySize: context.history.recentSteps.length,
+                },
+            });
+
+            // Emit performance event
+            await this.eventEmitter.emitStrategyPerformance({
+                strategyType: this.type,
+                strategyName: this.name,
+                strategyVersion: this.version,
+                execution: {
+                    stepId: context.stepId,
+                    stepType: context.stepType,
+                    success: true,
+                    executionTime: performance.executionTime,
+                    resourceUsage: {
+                        credits: performance.creditsUsed,
+                        tokens: performance.creditsUsed,
+                        apiCalls: performance.toolCallsCount,
+                        cost: performance.creditsUsed * 0.001,
+                    },
+                    confidence: performance.confidence,
+                    outputs: result.result,
+                },
+                context: {
+                    stepType: context.stepType,
+                    inputComplexity: Object.keys(context.inputs).length,
+                    constraintCount: Object.keys(context.constraints).length,
+                    historyDepth: context.history.recentSteps.length,
+                },
+                timestamp: new Date(),
+            });
+        } catch (error) {
+            this.logger.error("[ReasoningStrategy] Failed to record successful execution", {
+                stepId: context.stepId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    /**
+     * EVENT-DRIVEN METRICS: Record failed execution
+     */
+    private async recordFailedExecution(
+        context: ExecutionContext,
+        error: Error,
+        performance: {
+            executionTime: number;
+            creditsUsed: number;
+            toolCallsCount: number;
+        }
+    ): Promise<void> {
+        try {
+            // Record metrics in store
+            this.metricsStore.recordExecution({
+                stepId: context.stepId,
+                stepType: context.stepType,
+                success: false,
+                executionTime: performance.executionTime,
+                tokensUsed: performance.creditsUsed,
+                apiCalls: performance.toolCallsCount,
+                cost: performance.creditsUsed * 0.001,
+                confidence: 0, // Failed executions have no confidence
+                timestamp: new Date(),
+                error: error.message,
+                context: {
+                    inputSize: Object.keys(context.inputs).length,
+                    constraintsCount: Object.keys(context.constraints).length,
+                    historySize: context.history.recentSteps.length,
+                },
+            });
+
+            // Emit failure event
+            await this.eventEmitter.emitStrategyFailure({
+                strategyType: this.type,
+                strategyName: this.name,
+                strategyVersion: this.version,
+                execution: {
+                    stepId: context.stepId,
+                    stepType: context.stepType,
+                    success: false,
+                    executionTime: performance.executionTime,
+                    resourceUsage: {
+                        credits: performance.creditsUsed,
+                        tokens: performance.creditsUsed,
+                        apiCalls: performance.toolCallsCount,
+                        cost: performance.creditsUsed * 0.001,
+                    },
+                    error: error.message,
+                },
+                context: {
+                    stepType: context.stepType,
+                    inputComplexity: Object.keys(context.inputs).length,
+                    constraintCount: Object.keys(context.constraints).length,
+                    historyDepth: context.history.recentSteps.length,
+                },
+                timestamp: new Date(),
+            });
+        } catch (emitError) {
+            this.logger.error("[ReasoningStrategy] Failed to record failed execution", {
+                stepId: context.stepId,
+                originalError: error.message,
+                emitError: emitError instanceof Error ? emitError.message : String(emitError),
+            });
+        }
+    }
+
+    /**
+     * Calculate evolution score based on performance trends
+     */
+    private calculateEvolutionScore(metrics: any): number {
+        if (metrics.totalExecutions === 0) {
+            return 0.5; // Default score for new strategies
+        }
+
+        // Calculate success rate
+        const successRate = metrics.successCount / metrics.totalExecutions;
+        
+        // Calculate efficiency (lower execution time is better)
+        const efficiencyScore = Math.max(0, 1 - (metrics.averageExecutionTime / 30000)); // 30s baseline
+        
+        // Calculate confidence score
+        const confidenceScore = metrics.averageConfidence;
+        
+        // Weighted combination
+        const evolutionScore = (
+            successRate * 0.4 + 
+            efficiencyScore * 0.3 + 
+            confidenceScore * 0.3
+        );
+        
+        return Math.max(0, Math.min(1, evolutionScore));
     }
 }
 

@@ -40,8 +40,13 @@ Key Files:
 # Run tests
 cd packages/server && pnpm test
 
-# Type checking
-pnpm run typecheck
+# Type checking (recommended: check smallest number of files possible due to large project size)
+pnpm run type-check                                  # All files in project
+cd packages/server && pnpm run type-check            # Server package only  
+cd packages/ui && pnpm run type-check                # UI package only
+cd packages/server && tsc --noEmit src/file.ts       # Single file
+cd packages/server && tsc --noEmit src/file1.ts src/file2.ts  # Multiple files
+cd packages/server && tsc --noEmit src/folder/**/*.ts         # Folder/pattern
 
 # Database commands
 cd packages/server && pnpm prisma generate  # After schema changes

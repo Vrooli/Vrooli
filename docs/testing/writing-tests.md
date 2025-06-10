@@ -1,6 +1,6 @@
 # Writing Effective Tests
 
-This document provides guidelines and best practices for writing unit and integration tests for the Vrooli platform using Mocha, Chai, and Sinon. Adhering to these practices will help ensure our tests are reliable, maintainable, and provide good coverage.
+This document provides guidelines and best practices for writing unit and integration tests for the Vrooli platform using Vitest. Adhering to these practices will help ensure our tests are reliable, maintainable, and provide good coverage.
 
 ## 1. Guiding Principles
 
@@ -17,11 +17,10 @@ A common pattern for structuring test cases is Arrange-Act-Assert (AAA):
 
 -   **Arrange:** Set up the necessary preconditions and inputs. This might involve initializing objects, mocking dependencies, or preparing test data.
 -   **Act:** Execute the code under test with the arranged parameters.
--   **Assert:** Verify that the outcome of the action is as expected. Use Chai assertions to check conditions.
+-   **Assert:** Verify that the outcome of the action is as expected. Use Vitest assertions to check conditions.
 
 ```typescript
-import { expect } from 'chai';
-import sinon from 'sinon';
+import { describe, it, expect, vi } from 'vitest';
 // import your module to test
 // import { functionToTest, classToTest } from '../your-module';
 
@@ -71,92 +70,81 @@ describe('MyModule', () => {
 
     Use `beforeEach` and `afterEach` to ensure tests are independent by resetting state or mocks.
 
-## 4. Using Chai for Assertions
+## 4. Using Vitest Assertions
 
-Chai provides a rich set of assertion styles. We primarily use the **Expect** and **Should** BDD styles.
-
--   **`expect(target).to...`**
--   **`target.should...`**
-
-Refer to the [Chai Assertion Guide](https://www.chaijs.com/guide/styles/#expect) for a full list of assertions.
+Vitest provides a comprehensive set of assertions through its `expect` API.
 
 **Common Assertions:**
 
--   `expect(value).to.equal(expected);` (strict equality ===)
--   `expect(object).to.deep.equal(expectedObject);` (deep equality for objects/arrays)
--   `expect(value).to.be.true;` / `expect(value).to.be.false;`
--   `expect(value).to.be.null;` / `expect(value).to.be.undefined;`
--   `expect(array).to.include(member);`
--   `expect(array).to.have.lengthOf(expectedLength);`
--   `expect(fn).to.throw(ErrorType, /message pattern/);`
+-   `expect(value).toBe(expected);` (strict equality ===)
+-   `expect(object).toEqual(expectedObject);` (deep equality for objects/arrays)
+-   `expect(value).toBeTruthy();` / `expect(value).toBeFalsy();`
+-   `expect(value).toBeNull();` / `expect(value).toBeUndefined();`
+-   `expect(array).toContain(member);`
+-   `expect(array).toHaveLength(expectedLength);`
+-   `expect(fn).toThrow(ErrorType);` / `expect(fn).toThrow(/message pattern/);`
 
-## 5. Using Sinon for Mocks, Spies, and Stubs
+## 5. Using Vitest for Mocks, Spies, and Stubs
 
-Sinon.JS helps isolate the code under test by replacing its dependencies with controllable test doubles.
+Vitest provides built-in mocking capabilities through its `vi` utility to isolate the code under test.
 
--   **Spies (`sinon.spy()`):** Record information about function calls (how many times called, with what arguments, etc.) without affecting their behavior.
+-   **Spies (`vi.spyOn()`):** Record information about function calls (how many times called, with what arguments, etc.) without affecting their behavior.
     ```typescript
     const myObject = { log: () => console.log('logged') };
-    const logSpy = sinon.spy(myObject, 'log');
+    const logSpy = vi.spyOn(myObject, 'log');
     myObject.log();
-    expect(logSpy.calledOnce).to.be.true;
-    logSpy.restore(); // Important to restore original method
+    expect(logSpy).toHaveBeenCalledOnce();
+    logSpy.mockRestore(); // Important to restore original method
     ```
 
--   **Stubs (`sinon.stub()`):** Replace functions and control their behavior (e.g., make them return specific values, throw errors, or execute custom logic). Stubs also have all the spying capabilities.
+-   **Stubs/Mocks (`vi.fn()`, `vi.spyOn()`):** Replace functions and control their behavior.
     ```typescript
-    const fs = require('fs');
-    const readFileStub = sinon.stub(fs, 'readFile').yields(null, 'file content'); // For async callback
-    // const readFileStub = sinon.stub(fs, 'readFile').resolves('file content'); // For Promise-based async
+    import * as fs from 'fs';
+    const readFileStub = vi.spyOn(fs, 'readFile').mockResolvedValue('file content'); // For Promise-based
+    // const readFileStub = vi.fn().mockImplementation((path, cb) => cb(null, 'file content')); // For callback
 
     // Act: call function that uses fs.readFile
 
-    expect(readFileStub.calledWith('/path/to/file')).to.be.true;
-    readFileStub.restore();
+    expect(readFileStub).toHaveBeenCalledWith('/path/to/file');
+    readFileStub.mockRestore();
     ```
-    -   **Controlling Stub Behavior:**
-        -   `stub.returns(value)`: Makes the stub return a specific value.
-        -   `stub.throws(new Error('Oops'))`: Makes the stub throw an error.
-        -   `stub.resolves(value)`: Makes the stub return a resolved promise.
-        -   `stub.rejects(new Error('Failed'))`: Makes the stub return a rejected promise.
-        -   `stub.yields(arg1, arg2, ...)`: Invokes a callback passed to the stub.
+    -   **Controlling Mock Behavior:**
+        -   `mock.mockReturnValue(value)`: Makes the mock return a specific value.
+        -   `mock.mockImplementation(() => { throw new Error('Oops'); })`: Makes the mock throw an error.
+        -   `mock.mockResolvedValue(value)`: Makes the mock return a resolved promise.
+        -   `mock.mockRejectedValue(new Error('Failed'))`: Makes the mock return a rejected promise.
 
--   **Mocks (`sinon.mock()`):** Create test doubles with pre-programmed expectations. Mocks are stricter than stubs and will fail if the specified expectations are not met. Use sparingly, as they can lead to more brittle tests.
+-   **Module Mocks (`vi.mock()`):** Mock entire modules.
     ```typescript
-    const myApi = { fetchData: () => { /* ... */ } };
-    const mockApi = sinon.mock(myApi);
-    mockApi.expects('fetchData').once().withArgs('endpoint').returns({ data: 'success' });
+    vi.mock('./myApi', () => ({
+        fetchData: vi.fn().mockResolvedValue({ data: 'success' })
+    }));
 
-    // Act: Code that calls myApi.fetchData('endpoint')
+    // Act: Code that calls imported fetchData('endpoint')
 
-    mockApi.verify(); // Verifies all expectations were met
-    mockApi.restore();
+    expect(fetchData).toHaveBeenCalledWith('endpoint');
     ```
 
--   **Sandbox (`sinon.createSandbox()`):** Useful for managing multiple spies/stubs. `sandbox.restore()` restores all test doubles created within that sandbox.
+-   **Cleanup:** Vitest automatically clears all mocks between tests when `restoreMocks: true` is set in config.
     ```typescript
     describe('MyService', () => {
-        let sandbox: sinon.SinonSandbox;
-
-        beforeEach(() => {
-            sandbox = sinon.createSandbox();
-        });
-
         afterEach(() => {
-            sandbox.restore();
+            vi.clearAllMocks(); // Clear mock history
+            // or vi.restoreAllMocks(); // Restore original implementations
         });
 
-        it('should do something with a stub', () => {
-            const stubbedMethod = sandbox.stub(someObject, 'methodToStub').returns('stubbed value');
+        it('should do something with a mock', () => {
+            const mockedMethod = vi.spyOn(someObject, 'methodToStub').mockReturnValue('mocked value');
             // ... test logic ...
         });
     });
     ```
 
--   **Using `sinon-chai`:** Integrates Sinon with Chai for more expressive assertions like:
-    -   `expect(spy).to.have.been.called;`
-    -   `expect(spy).to.have.been.calledWith(arg1, arg2);`
-    -   `expect(stub).to.have.returned(value);`
+-   **Common Mock Assertions:**
+    -   `expect(spy).toHaveBeenCalled();`
+    -   `expect(spy).toHaveBeenCalledWith(arg1, arg2);`
+    -   `expect(spy).toHaveBeenCalledTimes(n);`
+    -   `expect(spy).toHaveReturnedWith(value);`
 
 ## 6. Test Data Management
 
@@ -167,7 +155,7 @@ Sinon.JS helps isolate the code under test by replacing its dependencies with co
 
 ## 7. Asynchronous Tests
 
-Mocha handles asynchronous tests well.
+Vitest handles asynchronous tests seamlessly.
 
 -   **Callbacks:** If your test function takes a `done` callback, Mocha will wait until `done()` is called.
     ```typescript

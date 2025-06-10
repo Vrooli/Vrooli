@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { type IntelligentEvent, type AgentResponse } from "../events/eventBus.js";
+import { type AgentResponse, type IntelligentEvent } from "../events/eventBus.js";
 
 /**
  * Event Agent - Intelligent agent for processing events
@@ -35,10 +35,10 @@ export class EventAgent {
         try {
             // Analyze event context and patterns
             const analysis = await this.analyzeEvent(event);
-            
+
             // Generate response based on agent's capabilities and learning
             const response = await this.generateResponse(event, analysis);
-            
+
             // Update performance metrics
             const processingTime = Date.now() - startTime;
             this.updatePerformanceMetrics(processingTime);
@@ -66,57 +66,6 @@ export class EventAgent {
                 suggestedActions: ["manual_review", "error_investigation"],
             };
         }
-    }
-
-    /**
-     * Learn from event and response patterns
-     */
-    async learn(event: IntelligentEvent, response: AgentResponse): Promise<void> {
-        const eventPattern = this.extractEventPattern(event);
-        
-        let learningData = this.learningData.get(eventPattern);
-        if (!learningData) {
-            learningData = {
-                pattern: eventPattern,
-                occurrences: 0,
-                responses: [],
-                averageConfidence: 0,
-                successRate: 0,
-                lastSeen: new Date(),
-            };
-            this.learningData.set(eventPattern, learningData);
-        }
-
-        // Update learning data
-        learningData.occurrences++;
-        learningData.responses.push({
-            status: response.status,
-            confidence: response.confidence,
-            timestamp: new Date(),
-        });
-
-        // Keep only last 100 responses for memory efficiency
-        if (learningData.responses.length > 100) {
-            learningData.responses = learningData.responses.slice(-100);
-        }
-
-        // Recalculate metrics
-        learningData.averageConfidence = learningData.responses.reduce(
-            (sum, r) => sum + r.confidence, 0,
-        ) / learningData.responses.length;
-
-        learningData.successRate = learningData.responses.filter(
-            r => r.status === "OK",
-        ).length / learningData.responses.length;
-
-        learningData.lastSeen = new Date();
-
-        this.logger.debug(`[EventAgent:${this.agentId}] Updated learning data`, {
-            pattern: eventPattern,
-            occurrences: learningData.occurrences,
-            averageConfidence: learningData.averageConfidence,
-            successRate: learningData.successRate,
-        });
     }
 
     /**
@@ -371,12 +320,12 @@ export class EventAgent {
 
     private updatePerformanceMetrics(processingTime: number): void {
         this.performanceMetrics.eventsProcessed++;
-        
+
         // Update rolling average response time
         const alpha = 0.1; // Exponential moving average factor
-        this.performanceMetrics.averageResponseTime = 
+        this.performanceMetrics.averageResponseTime =
             (1 - alpha) * this.performanceMetrics.averageResponseTime + alpha * processingTime;
-        
+
         this.performanceMetrics.lastUpdated = new Date();
     }
 }

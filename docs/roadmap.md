@@ -7,7 +7,7 @@ Vrooli is currently undergoing a significant transformation, with several key co
 ### Current Development Status:
 
 - **UI/UX**: In the middle of a complete UX refresh to improve user experience and interface design
-- **Testing**: Transitioning to Mocha/Chai/Sinon for more comprehensive test coverage
+- **Testing**: Expanding test coverage with Vitest
 - **AI Chat**: Basic functionality implemented but requires updating for modern features
 - **Routines**: Core data models exist but execution functionality needs implementation
 - **Documentation**: Being improved to facilitate better developer and agent understanding

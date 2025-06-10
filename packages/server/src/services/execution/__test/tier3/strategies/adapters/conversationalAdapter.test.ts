@@ -31,7 +31,6 @@ describe("ConversationalStrategyAdapter", () => {
             expect(typeof adapter.canHandle).toBe("function");
             expect(typeof adapter.execute).toBe("function");
             expect(typeof adapter.estimateResources).toBe("function");
-            expect(typeof adapter.learn).toBe("function");
             expect(typeof adapter.getPerformanceMetrics).toBe("function");
         });
     });
@@ -228,19 +227,6 @@ describe("ConversationalStrategyAdapter", () => {
         });
     });
 
-    describe("Learning", () => {
-        it("should log feedback without errors", () => {
-            const logSpy = vi.spyOn(logger, "info");
-            
-            const feedback = {
-                outcome: "success" as const,
-                performanceScore: 0.8,
-                userSatisfaction: 0.9,
-            };
-
-            adapter.learn(feedback);
-
-            expect(logSpy).toHaveBeenCalledWith("[ConversationalStrategyAdapter] Learning from feedback");
-        });
-    });
+    // Learning now happens through event-driven architecture
+    // Tests removed: "Learning" describe block
 });

@@ -4,7 +4,7 @@ import {
     type SwarmKnowledge,
     type SwarmDecision,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { EventBus } from "../../cross-cutting/events/eventBus.js";
 import { ConversationBridge } from "./conversationBridge.js";
 
 /**

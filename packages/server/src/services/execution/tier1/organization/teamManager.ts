@@ -10,7 +10,7 @@ import {
     SwarmEventType as SwarmEventTypeEnum,
     generatePk,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 
 /**
  * Team performance metrics

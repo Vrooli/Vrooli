@@ -737,7 +737,7 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 ### Unit Test Issues
 
 **Symptoms:**
-- Mocha/Chai tests fail
+- Vitest tests fail
 - Import/export errors
 - Database connection issues in tests
 

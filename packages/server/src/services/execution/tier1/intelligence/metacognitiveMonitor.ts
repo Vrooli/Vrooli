@@ -6,7 +6,7 @@ import {
     type MetacognitiveReflection,
     type SwarmPerformance,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/eventBus.js";
+import { EventBus } from "../../cross-cutting/events/eventBus.js";
 
 /**
  * Performance analysis input

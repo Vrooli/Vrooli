@@ -11,7 +11,7 @@ Our testing strategy emphasizes a comprehensive approach, incorporating various 
 - **[Test Strategy](./test-strategy.md):** Outlines our high-level approach to testing, including the types of tests performed, tools and technologies used, and overall testing philosophy.
 - **[Test Plan](./test-plan.md):** Describes the scope of testing, specific objectives, resources, schedule, and entry/exit criteria for testing cycles.
 - **[Test Execution](./test-execution.md):** Provides practical instructions on how to run tests, set up testing environments (including mobile testing), and utilize linting for code quality.
-- **[Writing Tests](./writing-tests.md):** Offers guidelines and best practices for writing effective unit, integration, and other types of tests using our standard testing stack (Mocha, Chai, Sinon).
+- **[Writing Tests](./writing-tests.md):** Offers guidelines and best practices for writing effective unit, integration, and other types of tests using our standard testing stack (Vitest).
 - **[Defect Reporting](./defect-reporting.md):** Explains the process for reporting, tracking, and managing defects discovered during testing.
 
 ## Contribution

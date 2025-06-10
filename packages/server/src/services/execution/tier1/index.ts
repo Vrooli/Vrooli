@@ -15,7 +15,6 @@ export { InMemorySwarmStateStore, type ISwarmStateStore } from "./state/swarmSta
 export { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 export { TierOneCoordinator } from "./tierOneCoordinator.js";
 export { TierOneFactory } from "./tierOneFactory.js";
-export * from "./llm/index.js";
 
 // Re-export types
 export type {

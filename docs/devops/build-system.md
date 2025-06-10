@@ -350,7 +350,7 @@ npx electron-builder --win --mac --linux --parallel
 - Webpack for UI bundling
 
 # Testing tools
-- Mocha, Chai, Sinon for unit tests
+- Vitest for unit tests
 - BATS for shell script testing
 - Playwright for E2E testing
 ```
@@ -411,7 +411,7 @@ bash scripts/main/build.sh --test yes
 
 # Test execution order:
 1. Shell script tests (BATS)
-2. Unit tests (Mocha/Chai)  
+2. Unit tests (Vitest)  
 3. Integration tests (Playwright)
 ```
 

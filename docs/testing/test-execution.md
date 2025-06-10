@@ -4,7 +4,7 @@ This document provides guidelines on how to execute various types of tests for t
 
 ## 1. Running Automated Tests (Unit & Integration)
 
-Automated tests are crucial for verifying the functionality of individual components and their integrations. We use Mocha as our test runner, Chai for assertions, and Sinon for mocks/stubs.
+Automated tests are crucial for verifying the functionality of individual components and their integrations. We use Vitest as our test runner, which includes built-in assertion capabilities and mocking functionality.
 
 ### 1.1. Prerequisites
 

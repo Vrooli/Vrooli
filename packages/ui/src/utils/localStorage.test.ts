@@ -318,8 +318,8 @@ describe("LocalStorageLruCache", () => {
         expect(cache.get("key2")).toEqual("value2");
         expect(cache.get("key3")).toEqual("value3");
         
-        // Restore original setItem
-        vi.restoreAllMocks();
+        // Restore only localStorage mock
+        vi.mocked(localStorage.setItem).mockRestore();
     });
 
     it("should handle quota exceeded when saving keys", () => {
@@ -343,8 +343,8 @@ describe("LocalStorageLruCache", () => {
             "localStorage quota exceeded when saving cache keys. Cache state may be inconsistent."
         );
         
-        // Restore 
-        vi.restoreAllMocks();
+        // Restore only localStorage mock
+        vi.mocked(localStorage.setItem).mockRestore();
     });
 
     it("should skip items that exceed maxSize", () => {

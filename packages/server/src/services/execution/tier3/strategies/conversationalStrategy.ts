@@ -205,26 +205,6 @@ export class ConversationalStrategy extends StrategyBase {
         };
     }
 
-    /**
-     * Enhanced learning mechanism with performance tracking
-     */
-    learn(feedback: StrategyFeedback): void {
-        this.logger.info("[ConversationalStrategy] Learning from feedback", {
-            outcome: feedback.outcome,
-            satisfaction: feedback.userSatisfaction,
-            performance: feedback.performanceScore,
-        });
-        
-        // Adaptive learning based on feedback
-        if (feedback.outcome === "success" && feedback.performanceScore > 0.8) {
-            this.optimizeForSuccess(feedback);
-        } else if (feedback.outcome === "failure") {
-            this.adjustForFailure(feedback);
-        }
-        
-        // Update performance metrics
-        this.updatePerformanceMetrics(feedback);
-    }
 
     /**
      * Enhanced performance metrics tracking

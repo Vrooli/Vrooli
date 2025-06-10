@@ -160,22 +160,22 @@ const cronJobs: CronJobDefinition[] = [
         schedule: statsPeriodCron.Hourly,
     },
     {
-        description: "generate hourly stats",
+        description: "generate daily stats",
         jobFunction: initStatsPeriod,
         schedule: statsPeriodCron.Daily,
     },
     {
-        description: "generate hourly stats",
+        description: "generate weekly stats",
         jobFunction: initStatsPeriod,
         schedule: statsPeriodCron.Weekly,
     },
     {
-        description: "generate hourly stats",
+        description: "generate monthly stats",
         jobFunction: initStatsPeriod,
         schedule: statsPeriodCron.Monthly,
     },
     {
-        description: "generate hourly stats",
+        description: "generate yearly stats",
         jobFunction: initStatsPeriod,
         schedule: statsPeriodCron.Yearly,
     },

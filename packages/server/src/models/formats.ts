@@ -10,7 +10,6 @@ export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
         __typename: "ApiKey",
     },
     countFields: {},
-    hiddenFields: ["key"],
 };
 
 export const ApiKeyExternalFormat: Formatter<ApiKeyExternalModelInfo> = {

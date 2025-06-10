@@ -9,7 +9,7 @@ import { mergeDeep } from "./objects.js";
  * @param defaultItems - The items to return if existingItems is undefined or empty.
  * @return Merged existingItems if non-empty and defined, otherwise defaultItems.
  */
-export function orDefault<T extends Array<any> | { [key: string]: any } | null | undefined>(
+export function orDefault<T extends Array<unknown> | Record<string, unknown>>(
     existingItems: T | null | undefined,
     defaultItems: T,
 ): T {
@@ -18,8 +18,12 @@ export function orDefault<T extends Array<any> | { [key: string]: any } | null |
             return defaultItems;
         }
         // Ensure defaultItems is an array with at least one element for mapping
-        const defaultArrayItem = Array.isArray(defaultItems) && defaultItems.length > 0 ? defaultItems[0] : {} as any;
-        return existingItems.map(item => mergeDeep(item, defaultArrayItem)) as T;
+        if (Array.isArray(defaultItems) && defaultItems.length > 0) {
+            const defaultArrayItem = defaultItems[0];
+            return existingItems.map(item => mergeDeep(item, defaultArrayItem)) as T;
+        }
+        // If defaultItems is not an array or is empty, return existingItems as is
+        return existingItems as T;
     } else if (typeof existingItems === "object" && existingItems !== null) {
         return Object.keys(existingItems).length > 0
             ? mergeDeep(existingItems, defaultItems)

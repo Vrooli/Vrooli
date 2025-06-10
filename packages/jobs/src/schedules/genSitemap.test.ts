@@ -5,8 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import zlib from "zlib";
 import { genSitemap, isSitemapMissing } from "./genSitemap.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+import { DbProvider } from "@vrooli/server/db/provider.js";
 
 // Mock fs module
 vi.mock("fs", () => ({
@@ -27,55 +26,12 @@ vi.mock("zlib", () => ({
     },
 }));
 
-// Mock ModelMap
+// Mock only the UI_URL constant for testing
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
         ...actual,
         UI_URL_REMOTE: "https://test.vrooli.com",
-        ModelMap: {
-            init: vi.fn(),
-            getLogic: vi.fn().mockImplementation((fields, objectType) => {
-                const modelConfigs = {
-                    ResourceVersion: {
-                        dbTable: "resource_version",
-                        validate: () => ({
-                            visibility: {
-                                public: {
-                                    isDeleted: false,
-                                    root: {
-                                        isDeleted: false,
-                                        isPrivate: false,
-                                    },
-                                },
-                            },
-                        }),
-                    },
-                    Team: {
-                        dbTable: "team",
-                        validate: () => ({
-                            visibility: {
-                                public: {
-                                    isPrivate: false,
-                                },
-                            },
-                        }),
-                    },
-                    User: {
-                        dbTable: "user",
-                        validate: () => ({
-                            visibility: {
-                                public: {
-                                    isPrivate: false,
-                                    deletedAt: null,
-                                },
-                            },
-                        }),
-                    },
-                };
-                return modelConfigs[objectType] || {};
-            }),
-        },
     };
 });
 

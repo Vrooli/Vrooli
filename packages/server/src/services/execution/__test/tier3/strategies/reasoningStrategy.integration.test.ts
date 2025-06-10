@@ -479,36 +479,8 @@ describe("ReasoningStrategy Integration Tests", () => {
         });
     });
 
-    describe("Learning and Performance Tracking", () => {
-        it("should learn from feedback and track performance", () => {
-            const feedback = {
-                outcome: "success" as const,
-                userSatisfaction: 0.85,
-                performanceScore: 0.9,
-                issues: ["Could be faster"],
-                improvements: ["Add caching", "Optimize prompts"],
-            };
-
-            strategy.learn(feedback);
-
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                "[ReasoningStrategy] Learning from feedback",
-                {
-                    outcome: "success",
-                    performance: 0.9,
-                }
-            );
-
-            const metrics = strategy.getPerformanceMetrics();
-            expect(metrics).toHaveProperty("totalExecutions");
-            expect(metrics).toHaveProperty("successCount");
-            expect(metrics).toHaveProperty("failureCount");
-            expect(metrics).toHaveProperty("averageExecutionTime");
-            expect(metrics).toHaveProperty("averageResourceUsage");
-            expect(metrics).toHaveProperty("averageConfidence");
-            expect(metrics).toHaveProperty("evolutionScore");
-        });
-    });
+    // Learning and Performance Tracking now happens through event-driven architecture
+    // Tests removed: "should learn from feedback and track performance"
 
     describe("Strategy Selection Accuracy", () => {
         it("should correctly identify when it can handle different step types", () => {

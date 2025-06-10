@@ -67,12 +67,13 @@
  *  `tool_choice`.  Trimming Titles & boilerplate keeps payloads small so we  
  *  can send many of them in the same prompt.                                 
  * ========================================================================== */
+import { McpSwarmToolName, McpToolName } from "@vrooli/shared";
 import * as fs from "fs";
 import * as path from "path";
 import ts from "typescript"; // Import the 'ts' namespace for enums
 import * as TJS from "typescript-json-schema";
 import { fileURLToPath } from "url";
-import { McpRoutineToolName, McpSwarmToolName, McpToolName } from "../../services/types/tools.js";
+import { McpRoutineToolName } from "../../services/types/tools.js";
 // We need the Responses namespace to access the built-in Tool types
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 

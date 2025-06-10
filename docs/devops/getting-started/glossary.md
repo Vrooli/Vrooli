@@ -198,9 +198,7 @@ bash scripts/helpers/utils/log.sh
 
 ### Test Frameworks
 - **BATS** - Bash Automated Testing System
-- **Mocha** - JavaScript test framework
-- **Chai** - Assertion library
-- **Sinon** - Mocking library
+- **Vitest** - JavaScript test framework
 
 ## Infrastructure as Code
 

@@ -101,7 +101,7 @@ The `packages/ui/src/components` directory generally follows this pattern:
 -   **Component Files:** A common pattern for a component named `MyComponent` is:
     -   `MyComponent.tsx` (or `MyComponent.view.tsx`): The main component logic and JSX.
     -   `MyComponent.stories.tsx`: Storybook stories for component development and visual testing.
-    -   `MyComponent.test.tsx`: Unit tests using Mocha, Chai, and Sinon.
+    -   `MyComponent.test.tsx`: Unit tests using Vitest.
     -   `index.ts` (optional, often used in subdirectories): To export the component and related types/interfaces.
     -   Component-specific hooks or complex logic might be co-located or in separate utility files within the component's directory if warranted.
 
@@ -126,7 +126,7 @@ Accessibility is a top priority.
 
 ## Testing
 
--   Write unit tests for all components using **Mocha, Chai, and Sinon**.
+-   Write unit tests for all components using **Vitest**.
 -   Tests should cover different states, props, and user interactions.
 -   Aim for high test coverage.
 -   Storybook can be used for visual testing and developing components in isolation. (See `docs/tools.md` for Storybook commands).

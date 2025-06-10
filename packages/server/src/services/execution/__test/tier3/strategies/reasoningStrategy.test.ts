@@ -346,45 +346,8 @@ describe("ReasoningStrategy", () => {
         });
     });
 
-    describe("learn", () => {
-        it("should log learning feedback", () => {
-            const feedback = {
-                outcome: "success" as const,
-                performanceScore: 0.85,
-                userSatisfaction: 0.9,
-                improvements: ["Could be faster"],
-            };
-
-            strategy.learn(feedback);
-
-            expect(mockLogger.info).toHaveBeenCalledWith(
-                "[ReasoningStrategy] Learning from feedback",
-                {
-                    outcome: "success",
-                    performance: 0.85,
-                }
-            );
-        });
-
-        it("should handle different feedback outcomes", () => {
-            const feedbackTypes = [
-                { outcome: "success" as const, performanceScore: 0.9 },
-                { outcome: "partial" as const, performanceScore: 0.6 },
-                { outcome: "failure" as const, performanceScore: 0.2 },
-            ];
-
-            feedbackTypes.forEach(feedback => {
-                strategy.learn(feedback);
-                expect(mockLogger.info).toHaveBeenCalledWith(
-                    "[ReasoningStrategy] Learning from feedback",
-                    {
-                        outcome: feedback.outcome,
-                        performance: feedback.performanceScore,
-                    }
-                );
-            });
-        });
-    });
+    // Learning now happens through event-driven architecture
+    // Tests removed: "learn" describe block
 
     describe("getPerformanceMetrics", () => {
         it("should return performance metrics structure", () => {

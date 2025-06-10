@@ -222,7 +222,7 @@ You have no persistent memory between sessions. **After every memory reset, rely
   - Integration tests should use real database connections via testcontainers
 - Mock external APIs and services (LLM providers, Stripe, etc.) but not core infrastructure
 - Aim for >80% code coverage
-- Testing framework: Vitest (migrating from Mocha/Chai/Sinon)
+- Testing framework: Vitest
 
 ## Common Tasks
 
@@ -261,7 +261,7 @@ pnpm run test:coverage                           # All tests with coverage
 
 # Building and Type Checking
 pnpm run build                                   # Build all packages
-pnpm run typecheck                              # Check types across all packages
+pnpm run type-check                              # Check types across all packages
 pnpm run lint                                   # Run linter
 pnpm run lint -- --fix                         # Lint with auto-fix
 
@@ -272,11 +272,11 @@ cd packages/server && pnpm prisma generate     # Generate client after schema ch
 cd packages/server && pnpm prisma db seed      # Seed database
 
 # Package-specific commands
-cd packages/[package-name] && pnpm dev         # Start dev server
-cd packages/[package-name] && pnpm build       # Build for production
-cd packages/[package-name] && pnpm test        # Run tests
-cd packages/[package-name] && pnpm lint        # Run linter
-cd packages/[package-name] && pnpm typecheck   # Run TypeScript type checking
+cd packages/[package-name] && pnpm dev          # Start dev server
+cd packages/[package-name] && pnpm build        # Build for production
+cd packages/[package-name] && pnpm test         # Run tests
+cd packages/[package-name] && pnpm lint         # Run linter
+cd packages/[package-name] && pnpm type-check   # Run TypeScript type checking
 ```
 
 ## Emergent Capabilities

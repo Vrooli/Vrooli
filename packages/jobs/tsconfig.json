@@ -29,7 +29,6 @@
         "removeComments": true,
         "verbatimModuleSyntax": true,
         "types": [
-            "mocha",
         ]
     },
     "include": [

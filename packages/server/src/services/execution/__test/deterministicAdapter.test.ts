@@ -75,7 +75,6 @@ describe("DeterministicStrategy Adapter", () => {
             expect(typeof adapter.execute).toBe("function");
             expect(typeof adapter.canHandle).toBe("function");
             expect(typeof adapter.estimateResources).toBe("function");
-            expect(typeof adapter.learn).toBe("function");
             expect(typeof adapter.getPerformanceMetrics).toBe("function");
         });
     });
@@ -333,27 +332,8 @@ describe("DeterministicStrategy Adapter", () => {
         });
     });
 
-    describe("Learning Mechanism", () => {
-        it("should accept feedback without errors", () => {
-            const feedback = {
-                outcome: "success" as const,
-                performanceScore: 0.9,
-                userSatisfaction: 0.95,
-            };
-
-            expect(() => adapter.learn(feedback)).not.toThrow();
-        });
-
-        it("should handle failure feedback", () => {
-            const feedback = {
-                outcome: "failure" as const,
-                performanceScore: 0.2,
-                issues: ["Validation errors", "Resource timeout"],
-            };
-
-            expect(() => adapter.learn(feedback)).not.toThrow();
-        });
-    });
+    // Learning mechanism now happens through event-driven architecture
+    // Tests removed: "Learning Mechanism" describe block
 
     describe("Legacy Cost Model", () => {
         it("should calculate costs using legacy constants", () => {

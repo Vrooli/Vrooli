@@ -63,12 +63,7 @@ export class StrategySelector {
                     executionTime: result.metadata.executionTime,
                 });
                 
-                // Learn from success
-                primaryStrategy.learn({
-                    outcome: "success",
-                    performanceScore: result.feedback?.performanceScore || 0.8,
-                    userSatisfaction: 0.9, // Default high satisfaction for success
-                });
+                // Success - learning now happens through event emission
                 
                 return result;
             }
@@ -80,12 +75,7 @@ export class StrategySelector {
                 error: result.error,
             });
             
-            // Learn from failure
-            primaryStrategy.learn({
-                outcome: "failure",
-                performanceScore: 0,
-                issues: [result.error || "Unknown error"],
-            });
+            // Failure - learning now happens through event emission
             
         } catch (error) {
             this.logger.error("[StrategySelector] Primary strategy threw error", {
@@ -178,12 +168,7 @@ export class StrategySelector {
                     // Update metadata to indicate fallback was used
                     result.metadata.fallbackUsed = true;
                     
-                    // Learn from fallback success
-                    strategy.learn({
-                        outcome: "success",
-                        performanceScore: result.feedback?.performanceScore || 0.7,
-                        userSatisfaction: 0.8, // Slightly lower for fallback
-                    });
+                    // Fallback success - learning now happens through event emission
                     
                     this.logger.info("[StrategySelector] Fallback strategy successful", {
                         stepId: context.stepId,
@@ -194,12 +179,7 @@ export class StrategySelector {
                     return result;
                 }
                 
-                // Learn from fallback failure
-                strategy.learn({
-                    outcome: "failure",
-                    performanceScore: 0,
-                    issues: [result.error || "Unknown error"],
-                });
+                // Fallback failure - learning now happens through event emission
                 
             } catch (error) {
                 this.logger.error("[StrategySelector] Fallback strategy error", {

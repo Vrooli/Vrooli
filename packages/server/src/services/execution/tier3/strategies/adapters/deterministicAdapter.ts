@@ -162,16 +162,6 @@ export class DeterministicStrategyAdapter implements ExecutionStrategy {
         };
     }
 
-    /**
-     * Learning method (placeholder for future enhancement)
-     */
-    learn(feedback: StrategyFeedback): void {
-        this.logger.info("[DeterministicAdapter] Learning from feedback", {
-            outcome: feedback.outcome,
-            performance: feedback.performanceScore,
-        });
-        // Future: Implement parameter optimization based on feedback
-    }
 
     /**
      * Performance metrics (mock implementation matching legacy characteristics)

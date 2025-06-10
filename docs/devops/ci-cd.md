@@ -245,7 +245,7 @@ RUN_TEST: ${{ github.event.inputs.run_test != 'false' }}
 
 **Testing Framework:**
 - BATS for shell script testing
-- Mocha/Chai/Sinon for unit tests
+- Vitest for unit tests
 - Playwright for E2E testing (future)
 
 ## Deployment Strategies

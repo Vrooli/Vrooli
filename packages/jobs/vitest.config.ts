@@ -7,9 +7,16 @@ const typeImportPlugin = {
     resolveId(id: string, importer?: string) {
         // Handle ../types.js and ../../types.js
         if ((id === '../types.js' || id === '../../types.js') && importer) {
-            const srcDir = path.resolve(__dirname, 'src');
-            // Always resolve to src/types.d.ts
-            return path.join(srcDir, 'types.d.ts');
+            // Check if this is coming from the server package
+            if (importer && importer.includes('/server/src/')) {
+                // Resolve to server's types.d.ts
+                return path.resolve(__dirname, '../server/src/types.d.ts');
+            }
+            // Check if this is coming from the shared package  
+            if (importer && importer.includes('/shared/src/')) {
+                // Resolve to shared's types.d.ts
+                return path.resolve(__dirname, '../shared/src/types.d.ts');
+            }
         }
         return null;
     }
@@ -19,8 +26,8 @@ export default defineConfig({
     plugins: [typeImportPlugin],
     resolve: {
         alias: {
-            '@vrooli/server': path.resolve(__dirname, '../server/dist'),
-            '@vrooli/shared': path.resolve(__dirname, '../shared/dist'),
+            '@vrooli/server': path.resolve(__dirname, '../server/src'),
+            '@vrooli/shared': path.resolve(__dirname, '../shared/src'),
         },
     },
     esbuild: {
@@ -79,6 +86,6 @@ export default defineConfig({
         },
         // Increase timeout for complex execution tests
         testTimeout: 30000,
-        hookTimeout: 10000,
+        hookTimeout: 120000, // 2 minutes for testcontainer setup
     },
 });

@@ -30,7 +30,6 @@
         "verbatimModuleSyntax": true,
         "jsx": "react-jsx",
         "types": [
-            "mocha",
             "chrome"
         ]
     },

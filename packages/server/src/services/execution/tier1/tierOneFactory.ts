@@ -1,13 +1,12 @@
 /**
- * Tier One Factory - Creates and configures Tier 1 components with LLM integration
+ * Tier One Factory - Creates and configures Tier 1 components
  * 
- * Sets up the complete Tier 1 coordination intelligence with real LLM reasoning.
+ * Sets up the complete Tier 1 coordination intelligence using the ConversationBridge
+ * for real LLM reasoning through the existing conversation service infrastructure.
  */
 
 import { type Logger } from "winston";
-import { EventBus } from "../cross-cutting/eventBus.js";
-import { LLMService } from "./llm/llmService.js";
-import { MockLLMProvider } from "./llm/providers/mockProvider.js";
+import { EventBus } from "../cross-cutting/events/eventBus.js";
 import { StrategyEngine } from "./intelligence/strategyEngine.js";
 import { MetacognitiveMonitor } from "./intelligence/metacognitiveMonitor.js";
 
@@ -15,17 +14,14 @@ import { MetacognitiveMonitor } from "./intelligence/metacognitiveMonitor.js";
  * Tier 1 configuration
  */
 export interface TierOneConfig {
-    llm: {
-        defaultProvider?: string;
-        mockMode?: boolean; // Use mock provider for development
-    };
+    // Configuration can be extended as needed
+    enableMetacognition?: boolean;
 }
 
 /**
  * Tier 1 components
  */
 export interface TierOneComponents {
-    llmService: LLMService;
     strategyEngine: StrategyEngine;
     metacognitiveMonitor: MetacognitiveMonitor;
 }
@@ -40,62 +36,50 @@ export class TierOneFactory {
     static async create(
         logger: Logger,
         eventBus: EventBus,
-        config: TierOneConfig = { llm: { mockMode: true } },
+        config: TierOneConfig = { enableMetacognition: true },
     ): Promise<TierOneComponents> {
         logger.info("[TierOneFactory] Creating Tier 1 components", {
-            mockMode: config.llm.mockMode,
+            enableMetacognition: config.enableMetacognition,
         });
 
-        // Create LLM Service
-        const llmService = new LLMService(logger, eventBus);
+        // Create Strategy Engine (uses ConversationBridge for real LLM reasoning)
+        const strategyEngine = new StrategyEngine(logger, eventBus);
 
-        // Register providers
-        if (config.llm.mockMode) {
-            const mockProvider = new MockLLMProvider();
-            llmService.registerProvider(mockProvider);
-            logger.info("[TierOneFactory] Registered mock LLM provider");
-        }
-
-        // TODO: Add real LLM providers here
-        // if (config.llm.openai) {
-        //     const openaiProvider = new OpenAIProvider(config.llm.openai);
-        //     llmService.registerProvider(openaiProvider);
-        // }
-
-        // Set default provider
-        if (config.llm.defaultProvider) {
-            llmService.setDefaultProvider(config.llm.defaultProvider);
-        }
-
-        // Create Strategy Engine with LLM integration
-        const strategyEngine = new StrategyEngine(logger, eventBus, llmService);
-
-        // Create Metacognitive Monitor (simplified)
+        // Create Metacognitive Monitor (event-driven intelligence)
         const metacognitiveMonitor = new MetacognitiveMonitor(eventBus, logger);
 
         logger.info("[TierOneFactory] Tier 1 components created successfully");
 
         return {
-            llmService,
             strategyEngine,
             metacognitiveMonitor,
         };
     }
 
     /**
-     * Validates LLM integration
+     * Validates LLM integration through ConversationBridge
      */
     static async validateLLMIntegration(components: TierOneComponents): Promise<boolean> {
         try {
-            const providers = components.llmService.getProviders();
-            if (providers.length === 0) {
-                return false;
-            }
+            // Test if the conversation bridge can perform basic reasoning
+            const testResult = await components.strategyEngine.analyzeSituation({
+                goal: "Test LLM integration",
+                observations: { testMode: true },
+                knowledge: {
+                    swarmId: "validation-test",
+                    facts: new Map(),
+                    insights: [],
+                    decisions: [],
+                },
+                progress: {
+                    tasksCompleted: 0,
+                    tasksTotal: 1,
+                    currentPhase: "validation",
+                    milestones: [],
+                },
+            });
 
-            const status = await components.llmService.getProviderStatus();
-            const hasAvailableProvider = Object.values(status).some(s => s.available);
-
-            return hasAvailableProvider;
+            return testResult && testResult.length > 0;
         } catch (error) {
             return false;
         }

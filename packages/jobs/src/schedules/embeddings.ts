@@ -10,12 +10,15 @@
 import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
 import { RunStatus, type ModelType } from "@vrooli/shared";
-import { EmbeddingService } from "../../../server/src/services/embedding.js";
+import { EmbeddingService } from "@vrooli/server/services/embedding.js";
 
-// WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
-// This will take a long time and should only be done during development or if something is 
-// wrong with the existing embeddings.
-const RECALCULATE_EMBEDDINGS = true;
+// WARNING: Setting RECALCULATE_EMBEDDINGS to true will cause the embeddings to be recalculated for ALL objects. 
+// This is extremely resource intensive, costly (OpenAI API calls), and should only be done:
+// 1. During development when testing embedding changes
+// 2. If there's a critical issue with existing embeddings
+// 3. After major changes to the embedding generation logic
+// To enable: Set environment variable RECALCULATE_EMBEDDINGS=true
+const RECALCULATE_EMBEDDINGS = process.env.RECALCULATE_EMBEDDINGS === "true";
 
 const API_BATCH_SIZE = 100; // Size set in the API to limit the number of embeddings generated at once
 
@@ -356,6 +359,13 @@ async function batchEmbeddingsRun() {
 }
 
 export async function generateEmbeddings() {
+    if (RECALCULATE_EMBEDDINGS) {
+        logger.warn("RECALCULATE_EMBEDDINGS is enabled - regenerating ALL embeddings. This is resource intensive!", {
+            flag: "RECALCULATE_EMBEDDINGS",
+            value: true,
+        });
+    }
+    
     await batchEmbeddingsChat();
     await batchEmbeddingsIssue();
     await batchEmbeddingsMeeting();

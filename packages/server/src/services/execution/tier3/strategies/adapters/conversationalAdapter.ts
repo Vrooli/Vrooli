@@ -98,17 +98,6 @@ export class ConversationalStrategyAdapter {
         };
     }
 
-    /**
-     * Learning method - logs feedback for future improvements
-     */
-    learn(feedback: StrategyFeedback): void {
-        this.logger.info("[ConversationalStrategyAdapter] Learning from feedback", {
-            outcome: feedback.outcome,
-            satisfaction: feedback.userSatisfaction,
-            performance: feedback.performanceScore,
-        });
-        // Legacy strategy doesn't have learning - log for future migration
-    }
 
     /**
      * Returns performance metrics

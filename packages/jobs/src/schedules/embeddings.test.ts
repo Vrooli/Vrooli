@@ -2,11 +2,10 @@ import { generatePK, generatePublicId, RunStatus } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateEmbeddings } from "./embeddings.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+import { DbProvider } from "@vrooli/server/db/provider.js";
 
 // Mock the EmbeddingService
-vi.mock("../../../server/src/services/embedding.ts", () => ({
+vi.mock("@vrooli/server/services/embedding.js", () => ({
     EmbeddingService: {
         get: () => ({
             getEmbeddings: vi.fn().mockImplementation((objectType: string, sentences: string[]) => {
