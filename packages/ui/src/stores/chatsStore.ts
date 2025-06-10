@@ -46,7 +46,7 @@ export const useChatsStore = create<ChatsState>()((set, get) => ({
                 set({ error: "Failed to fetch chats", isLoading: false });
                 throw new Error("Failed to fetch chats");
             }
-            const chats = response.data?.edges.map(edge => edge.node) ?? [];
+            const chats = response.data?.edges?.map(edge => edge.node) ?? [];
 
             set({ chats, isLoading: false });
             return chats;

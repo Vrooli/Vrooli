@@ -29,14 +29,14 @@ type NonFunction<T> = T extends (...args: never[]) => never ? never : T;
  */
 export function useStableObject<T extends string | number | object | null | undefined>(obj: NonFunction<T>): NonFunction<T> {
     const prevObjRef = useRef<NonFunction<T>>(obj as NonFunction<T>);
-    const [, forceUpdate] = useState({});
+    const [stableObj, setStableObj] = useState<NonFunction<T>>(obj as NonFunction<T>);
 
     useEffect(function stableObjectEffect() {
         if (!deepEqual(prevObjRef.current, obj)) {
-            prevObjRef.current = obj;
-            forceUpdate({}); // Force a re-render
+            prevObjRef.current = obj as NonFunction<T>;
+            setStableObj(obj as NonFunction<T>);
         }
     }, [obj]);
 
-    return prevObjRef.current;
+    return stableObj;
 }

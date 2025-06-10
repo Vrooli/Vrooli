@@ -10,7 +10,9 @@ import { getTranslation } from "../translations/translationTools.js";
 import { RelatedResourceLabel, RelatedResourceUtils, type RelatedVersionLink } from "../utils/relatedResource.js";
 import { BranchManager } from "./branch.js";
 import { SubroutineContextManager } from "./context.js";
-import { BranchStatus, InputGenerationStrategy, SubroutineExecutionStrategy, type BranchLocationDataMap, type BranchProgress, type ExecuteStepResult, type IOMap, type InitializedRunState, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, type RunTriggeredBy, type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./types.js";
+import { BranchStatus, InputGenerationStrategy, SubroutineExecutionStrategy } from "./enums.js";
+import { type SubroutineIOMapping, type SubroutineInputDisplayInfo, type SubroutineOutputDisplayInfo, type SubroutineOutputDisplayInfoProps } from "./io-types.js";
+import { type BranchLocationDataMap, type BranchProgress, type ExecuteStepResult, type IOMap, type InitializedRunState, type Location, type RunConfig, type RunProgress, type RunProgressStep, type RunStateMachineServices, type RunTriggeredBy } from "./types.js";
 
 // NEW: Enhanced execution context types for the unified execution architecture
 /**

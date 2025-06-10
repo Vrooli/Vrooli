@@ -63,6 +63,24 @@ vi.mock('../utils/display/chatTools.js', () => ({
     STALE_TASK_THRESHOLD_MS: 600000,
 }));
 vi.mock('@uiw/react-codemirror', () => ({ default: () => null }));
+
+// Mock the problematic lexical components to prevent circular dependency errors
+vi.mock('../components/inputs/AdvancedInput/lexical/AdvancedInputLexical.js', () => ({
+    AdvancedInputLexical: () => null,
+    default: () => null,
+}));
+vi.mock('../components/inputs/RichInput/RichInput.js', () => ({
+    RichInput: () => null,
+    default: () => null,
+}));
+vi.mock('../components/inputs/AdvancedInput/AdvancedInput.js', () => ({
+    AdvancedInput: () => null,
+    default: () => null,
+}));
+vi.mock('../components/inputs/TagSelector/TagSelector.js', () => ({
+    TagSelector: () => null,
+    default: () => null,
+}));
 vi.mock('../utils/pubsub.js', () => ({
     PubSub: {
         get: () => ({

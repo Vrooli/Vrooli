@@ -56,9 +56,10 @@ export function DiagonalWaveLoader({
     color,
     size,
     sx,
+    "data-testid": testId,
 }: DiagonalWaveLoaderProps) {
     return (
-        <Loader size={size} sx={sx} data-testid="diagonal-wave-loader">
+        <Loader size={size} sx={sx} data-testid={testId || "diagonal-wave-loader"}>
             {Array.from({ length: BOX_WIDTH_IN_CIRCLES * BOX_WIDTH_IN_CIRCLES }, (_, i) => (
                 <Circle
                     key={`circle-${i}`} // Using the index as key is generally not recommended, but it's fine here

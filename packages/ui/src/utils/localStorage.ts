@@ -231,7 +231,7 @@ export class LocalStorageLruCache<ValueType> {
         this.cacheKeys = this.loadKeys();
     }
 
-    private loadKeys(): Array<KeyType> {
+    private loadKeys(): Array<string> {
         try {
             const keys = localStorageObj?.getItem(this.getNamespacedKey("cacheKeys"));
             if (keys) {
@@ -242,12 +242,29 @@ export class LocalStorageLruCache<ValueType> {
             }
         } catch (error) {
             console.error("Error loading keys from localStorage:", error);
+            // Clean up corrupted keys entry
+            localStorageObj?.removeItem(this.getNamespacedKey("cacheKeys"));
         }
         return [];
     }
 
     private saveKeys(): void {
-        localStorageObj?.setItem(this.getNamespacedKey("cacheKeys"), JSON.stringify(this.cacheKeys));
+        try {
+            localStorageObj?.setItem(this.getNamespacedKey("cacheKeys"), JSON.stringify(this.cacheKeys));
+        } catch (error) {
+            // Handle quota exceeded error when saving keys
+            if (error instanceof DOMException && 
+                (error.code === 22 || // Legacy browsers
+                 error.code === 1014 || // Firefox
+                 error.name === 'QuotaExceededError' || // Modern browsers
+                 error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) { // Firefox
+                
+                console.error("localStorage quota exceeded when saving cache keys. Cache state may be inconsistent.");
+            } else {
+                // Re-throw other errors
+                throw error;
+            }
+        }
     }
 
     private getNamespacedKey(key: string): string {
@@ -263,6 +280,8 @@ export class LocalStorageLruCache<ValueType> {
             }
         } catch (error) {
             console.error("Error parsing value from localStorage", key, error);
+            // Clean up corrupted entry
+            this.remove(key);
         }
         return undefined;
     }
@@ -275,7 +294,38 @@ export class LocalStorageLruCache<ValueType> {
         }
 
         this.touchKey(key);
-        localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);
+        
+        try {
+            localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);
+        } catch (error) {
+            // Handle quota exceeded error
+            if (error instanceof DOMException && 
+                (error.code === 22 || // Legacy browsers
+                 error.code === 1014 || // Firefox
+                 error.name === 'QuotaExceededError' || // Modern browsers
+                 error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) { // Firefox
+                
+                console.warn(`localStorage quota exceeded when setting key ${key}. Attempting to free space...`);
+                
+                // Try to free up space by removing the oldest item
+                if (this.cacheKeys.length > 0) {
+                    const oldestKey = this.cacheKeys[0];
+                    this.remove(oldestKey);
+                    
+                    // Try again
+                    try {
+                        localStorageObj?.setItem(this.getNamespacedKey(key), serializedValue);
+                    } catch (retryError) {
+                        console.error(`Failed to set key ${key} even after freeing space:`, retryError);
+                    }
+                } else {
+                    console.error(`Cannot free space: cache is empty but quota still exceeded for key ${key}`);
+                }
+            } else {
+                // Re-throw other errors
+                throw error;
+            }
+        }
     }
 
     remove(key: string): void {
@@ -288,12 +338,11 @@ export class LocalStorageLruCache<ValueType> {
     }
 
     removeKeysWithValue(predicate: (key: string, value: ValueType) => boolean): void {
-        console.log("in removeKeysWithValue", this.cacheKeys);
-        this.cacheKeys.forEach((key) => {
+        // Create a copy of keys to avoid modification during iteration
+        const keysToCheck = [...this.cacheKeys];
+        keysToCheck.forEach((key) => {
             const value = this.get(key);
-            console.log("key and value", key, value);
             if (value !== undefined && predicate(key, value)) {
-                console.log("removing key:", key);
                 this.remove(key);
             }
         });

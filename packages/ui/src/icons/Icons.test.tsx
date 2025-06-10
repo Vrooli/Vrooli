@@ -1,21 +1,17 @@
 import { screen } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import sinon from "sinon";
 import { render } from "../__test/testUtils.js";
 import { IconFavicon } from "./Icons.js";
 
 describe("<IconFavicon />", () => {
-    let consoleErrorStub: sinon.SinonStub;
-
     beforeEach(() => {
-        // Stub console.error to prevent error messages from cluttering test output
-        consoleErrorStub = sinon.stub(console, "error");
+        // Mock console.error to prevent error messages from cluttering test output
+        vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
     afterEach(() => {
-        // Restore console.error after each test
-        consoleErrorStub.restore();
+        vi.restoreAllMocks();
     });
 
     // Test cases for valid URLs
@@ -33,13 +29,12 @@ describe("<IconFavicon />", () => {
 
             const icon = screen.getByTestId(testId);
             expect(icon).toBeDefined();
-            expect(icon.tagName.toLowerCase()).toBe("svg");
+            expect(icon.tagName.toLowerCase()).toBe("img");
 
-            const useElement = icon.querySelector("use");
-            expect(useElement).toBeDefined();
-            expect(useElement?.getAttribute("href")).toBe(
-                `http://www.google.com/s2/favicons?domain=${new URL(url).hostname}`,
-            );
+            const imgElement = icon as HTMLImageElement;
+            expect(imgElement.src).toBeDefined();
+            // The first source should be the apple-touch-icon
+            expect(imgElement.src).toContain(new URL(url).hostname);
         });
     });
 
@@ -62,26 +57,26 @@ describe("<IconFavicon />", () => {
 
             const useElement = icon.querySelector("use");
             expect(useElement).toBeDefined();
-            expect(useElement?.getAttribute("href")).to.contain("#Website");
+            expect(useElement?.getAttribute("href")).toContain("#Website");
 
-            // Verify error was logged
-            expect(consoleErrorStub.calledOnce).toBe(true);
-            expect(consoleErrorStub.firstCall.args[0]).toContain("[IconFavicon] Invalid URL");
+            // Only expect console.error for URLs that actually throw when parsing
+            if (url === "not-a-url" || url === "") {
+                expect(console.error).toHaveBeenCalled();
+                expect(vi.mocked(console.error).mock.calls[0][0]).toContain("[IconFavicon] Invalid URL");
+            }
         });
     });
 
     // Test custom props
-    it("passes through custom props to svg element", () => {
+    it("passes through custom props to img element", () => {
         const testId = "favicon-icon";
         const customSize = 32;
-        const customFill = "#FF0000";
         const customClass = "custom-class";
 
         render(
             <IconFavicon
                 href="https://example.com"
                 size={customSize}
-                fill={customFill}
                 className={customClass}
                 data-testid={testId}
             />,
@@ -91,7 +86,6 @@ describe("<IconFavicon />", () => {
         expect(icon).toBeDefined();
         expect(icon.getAttribute("width")).toBe(customSize.toString());
         expect(icon.getAttribute("height")).toBe(customSize.toString());
-        expect(icon.getAttribute("fill")).toBe(customFill);
         expect(icon.classList.contains(customClass)).toBe(true);
     });
 
@@ -110,7 +104,8 @@ describe("<IconFavicon />", () => {
 
         const icon = screen.getByTestId(testId);
         expect(icon).toBeDefined();
-        expect(icon.getAttribute("aria-label")).toBe("Website Icon");
+        // For img elements, alt attribute is used instead of aria-label
+        expect(icon.getAttribute("alt")).toBe("Website Icon");
         expect(icon.getAttribute("aria-hidden")).toBeNull();
     });
 }); 

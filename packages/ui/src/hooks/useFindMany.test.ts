@@ -236,7 +236,7 @@ describe("getUrlSearchParams", () => {
                 before: new Date("2022-12-31").toISOString(),
             },
         }));
-        const result = getUrlSearchParams(true, "Organization");
+        const result = getUrlSearchParams(true, "Team");
         expect(result.timeFrame).toEqual({
             after: new Date("2022-01-01"),
             before: new Date("2022-12-31"),
@@ -268,10 +268,10 @@ describe("getUrlSearchParams", () => {
 
     it("returns default values when URL is malformed", () => {
         setWindowSearch("?search=&sort=");
-        const result = getUrlSearchParams(true, "Code");
+        const result = getUrlSearchParams(true, "Resource");
         expect(result).toEqual({
             searchString: "",
-            sortBy: searchTypeToParams.Code().defaultSortBy,
+            sortBy: searchTypeToParams.Resource().defaultSortBy,
             timeFrame: undefined,
         });
     });

@@ -975,7 +975,7 @@ export function getTutorialStepInfo(
 }
 
 export function isValidPlace(sections: TutorialSection[], place: Place) {
-    if (typeof place.section !== "number" || typeof place.step !== "number") return false;
+    if (!place || typeof place.section !== "number" || typeof place.step !== "number") return false;
     const section = sections[place.section];
     if (!section) return false;
     const step = section.steps[place.step];
@@ -986,27 +986,46 @@ export function getNextPlace(
     sections: TutorialSection[],
     place: Place,
 ): Place | null {
-    if (!isValidPlace(sections, place)) return { section: 0, step: 0 };
+    // Check if place object exists and has valid properties
+    if (!place || typeof place.section !== "number" || typeof place.step !== "number") {
+        return { section: 0, step: 0 };
+    }
 
+    // Check if section is valid
     const currentSection = sections[place.section];
-    const currentStep = currentSection?.steps[place.step];
-    const nextSection = sections[place.section + 1];
+    if (!currentSection) {
+        return null; // Invalid section
+    }
+
+    // Check if step is valid, if not but section is valid, move to next section
+    const currentStep = currentSection.steps[place.step];
+    if (!currentStep) {
+        const nextSection = sections[place.section + 1];
+        if (nextSection && nextSection.steps[0]) {
+            return { section: place.section + 1, step: 0 };
+        } else {
+            return null; // No next section
+        }
+    }
 
     // If the step has a specific next place, use that
-    if (currentStep?.next) return currentStep.next;
+    if (currentStep.next) return currentStep.next;
 
     // If current step has exactly one option, use that as next place
-    if (currentStep?.options?.length === 1) {
+    if (currentStep.options?.length === 1) {
         return currentStep.options[0].place;
     }
 
     // Otherwise follow normal sequential flow
-    if (currentSection && currentSection.steps[place.step + 1]) {
+    if (currentSection.steps[place.step + 1]) {
         return { section: place.section, step: place.step + 1 };
-    } else if (nextSection && nextSection.steps[0]) {
-        return { section: place.section + 1, step: 0 };
     } else {
-        return null; // No more steps
+        const nextSection = sections[place.section + 1];
+        if (nextSection && nextSection.steps[0]) {
+            return { section: place.section + 1, step: 0 };
+        } else {
+            return null; // No more steps
+        }
     }
 }
 
@@ -1014,22 +1033,44 @@ export function getPrevPlace(
     sections: TutorialSection[],
     place: Place,
 ): Place | null {
-    if (!isValidPlace(sections, place)) return { section: 0, step: 0 };
+    // Check if place object exists and has valid properties
+    if (!place || typeof place.section !== "number" || typeof place.step !== "number") {
+        return { section: 0, step: 0 };
+    }
 
+    // Check if section is valid
     const currentSection = sections[place.section];
-    const currentStep = currentSection?.steps[place.step];
-    const previousSection = sections[place.section - 1];
+    if (!currentSection) {
+        return null; // Invalid section
+    }
+
+    // Check if step is valid, if not but section is valid, move to previous section's last step
+    const currentStep = currentSection.steps[place.step];
+    if (!currentStep) {
+        const previousSection = sections[place.section - 1];
+        if (previousSection && previousSection.steps.length > 0) {
+            const prevStepIndex = previousSection.steps.length - 1;
+            return { section: place.section - 1, step: prevStepIndex };
+        } else {
+            return null; // No previous section
+        }
+    }
 
     // If the step has a specific previous place, use that
-    if (currentStep?.previous) return currentStep.previous;
+    if (currentStep.previous) return currentStep.previous;
 
-    if (currentSection && currentSection.steps[place.step - 1]) {
+    // Otherwise follow normal sequential flow
+    if (currentSection.steps[place.step - 1]) {
         return { section: place.section, step: place.step - 1 };
-    } else if (previousSection) {
-        const prevStepIndex = previousSection.steps.length - 1;
-        return { section: place.section - 1, step: prevStepIndex };
+    } else {
+        const previousSection = sections[place.section - 1];
+        if (previousSection && previousSection.steps.length > 0) {
+            const prevStepIndex = previousSection.steps.length - 1;
+            return { section: place.section - 1, step: prevStepIndex };
+        } else {
+            return null; // No previous steps
+        }
     }
-    return null; // No previous steps
 }
 
 export function getCurrentElement(

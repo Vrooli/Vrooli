@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, test, expect, vi } from "vitest";
+import { describe, test, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../__test/testUtils.js";
 import { DiagonalWaveLoader } from "./Spinners.js";
 
@@ -14,9 +14,13 @@ vi.mock("../hooks/useMenu.js", () => ({
 }));
 
 describe("<DiagonalWaveLoader />", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
     // Test 1: Renders without crashing
     test("renders without crashing", () => {
-        render(<DiagonalWaveLoader data-testid="diagonal-wave-loader" />);
+        render(<DiagonalWaveLoader />);
         const loader = screen.getByTestId("diagonal-wave-loader");
         expect(loader).toBeDefined();
     });

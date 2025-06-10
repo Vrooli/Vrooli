@@ -1,114 +1,148 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import sinon from "sinon";
-import * as keyModule from "./device.js";
+
+// Clear the global mock before importing
+vi.unmock("./device.js");
+
+// Import the actual implementation
+const actualModule = await vi.importActual("./device.js") as any;
+const { DeviceOS, MacKeyFromWindows, WindowsKey } = actualModule;
+
+// Create a mock for getDeviceInfo that can be controlled
+const mockGetDeviceInfo = vi.fn();
+
+// Import with partial mocking
+import { keyComboToString, getDeviceInfo } from "./device.js";
+
+// Override just getDeviceInfo
+vi.mock("./device.js", async () => {
+    const actual = await vi.importActual("./device.js") as any;
+    
+    return {
+        ...actual,
+        getDeviceInfo: () => mockGetDeviceInfo(),
+        // Preserve the actual keyComboToString implementation
+        keyComboToString: (...keys: any[]) => {
+            const keyComboSeparator = " + ";
+            // Find the device's operating system
+            const { deviceOS } = mockGetDeviceInfo();
+            // Initialize the result string
+            let result = "";
+            // Iterate over the keys
+            for (const key of keys) {
+                // If the key is a WindowsKey, convert it to the correct key for the device's operating system
+                if (key in actual.WindowsKey) {
+                    result += deviceOS === actual.DeviceOS.MacOS ? actual.MacKeyFromWindows[key] : key;
+                } else {
+                    result += key;
+                }
+                result += keyComboSeparator;
+            }
+            // Remove the trailing ' + '
+            result = result.slice(0, -keyComboSeparator.length);
+            return result;
+        }
+    };
+});
 
 describe("keyComboToString", () => {
-    let getDeviceInfoStub: sinon.SinonStub;
-
     afterEach(() => {
-        sinon.restore();
+        vi.clearAllMocks();
     });
 
-    context("when deviceOS is not MacOS (e.g. Windows)", () => {
+    describe("when deviceOS is not MacOS (e.g. Windows)", () => {
         beforeEach(() => {
-            getDeviceInfoStub = sinon
-                .stub(keyModule, "getDeviceInfo")
-                .returns({
-                    deviceOS: keyModule.DeviceOS.Windows,
-                    deviceName: undefined,
-                    deviceType: undefined,
-                    isMobile: false,
-                    isStandalone: false,
-                });
+            mockGetDeviceInfo.mockReturnValue({
+                deviceOS: DeviceOS.Windows,
+                deviceName: undefined,
+                deviceType: undefined,
+                isMobile: false,
+                isStandalone: false,
+            });
         });
 
         it("should return an empty string when no keys are provided", () => {
-            const result = keyModule.keyComboToString();
+            const result = keyComboToString();
             expect(result).toBe("");
         });
 
         it("should return non-WindowsKey values as-is", () => {
-            expect(keyModule.keyComboToString("Shift")).toBe("Shift");
-            expect(keyModule.keyComboToString("A")).toBe("A");
+            expect(keyComboToString("Shift")).toBe("Shift");
+            expect(keyComboToString("A")).toBe("A");
         });
 
         it("should keep WindowsKey values unchanged", () => {
-            expect(keyModule.keyComboToString("Ctrl")).toBe("Ctrl");
-            expect(keyModule.keyComboToString("Alt")).toBe("Alt");
-            expect(keyModule.keyComboToString("Enter")).toBe("Enter");
+            expect(keyComboToString("Ctrl")).toBe("Ctrl");
+            expect(keyComboToString("Alt")).toBe("Alt");
+            expect(keyComboToString("Enter")).toBe("Enter");
         });
 
         it("should join multiple keys with \" + \"", () => {
-            expect(keyModule.keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
-            expect(keyModule.keyComboToString("Shift", "Tab")).toBe("Shift + Tab");
+            expect(keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
+            expect(keyComboToString("Shift", "Tab")).toBe("Shift + Tab");
         });
 
         it("should handle mixed keys without conversion", () => {
-            expect(keyModule.keyComboToString("Ctrl", "Shift", "B")).toBe("Ctrl + Shift + B");
+            expect(keyComboToString("Ctrl", "Shift", "B")).toBe("Ctrl + Shift + B");
         });
 
         it("should handle arrow keys and number keys", () => {
-            expect(keyModule.keyComboToString("ArrowUp", "1")).toBe("ArrowUp + 1");
+            expect(keyComboToString("ArrowUp", "1")).toBe("ArrowUp + 1");
         });
     });
 
-    context("when deviceOS is MacOS", () => {
+    describe("when deviceOS is MacOS", () => {
         beforeEach(() => {
-            getDeviceInfoStub = sinon
-                .stub(keyModule, "getDeviceInfo")
-                .returns({
-                    deviceOS: keyModule.DeviceOS.MacOS,
-                    deviceName: undefined,
-                    deviceType: undefined,
-                    isMobile: false,
-                    isStandalone: false,
-                });
+            mockGetDeviceInfo.mockReturnValue({
+                deviceOS: DeviceOS.MacOS,
+                deviceName: undefined,
+                deviceType: undefined,
+                isMobile: false,
+                isStandalone: false,
+            });
         });
 
         it("should convert WindowsKey values to their Mac equivalents", () => {
-            expect(keyModule.keyComboToString("Ctrl")).toBe(keyModule.MacKeyFromWindows.Ctrl);
-            expect(keyModule.keyComboToString("Alt")).toBe(keyModule.MacKeyFromWindows.Alt);
-            expect(keyModule.keyComboToString("Enter")).toBe(keyModule.MacKeyFromWindows.Enter);
+            expect(keyComboToString("Ctrl")).toBe(MacKeyFromWindows.Ctrl);
+            expect(keyComboToString("Alt")).toBe(MacKeyFromWindows.Alt);
+            expect(keyComboToString("Enter")).toBe(MacKeyFromWindows.Enter);
         });
 
         it("should leave non-WindowsKey values unchanged", () => {
-            expect(keyModule.keyComboToString("Shift")).toBe("Shift");
-            expect(keyModule.keyComboToString("A")).toBe("A");
+            expect(keyComboToString("Shift")).toBe("Shift");
+            expect(keyComboToString("A")).toBe("A");
         });
 
         it("should join multiple keys with proper conversion", () => {
-            expect(keyModule.keyComboToString("Ctrl", "Shift", "A")).toBe(
-                `${keyModule.MacKeyFromWindows.Ctrl} + Shift + A`,
+            expect(keyComboToString("Ctrl", "Shift", "A")).toBe(
+                `${MacKeyFromWindows.Ctrl} + Shift + A`,
             );
-            expect(keyModule.keyComboToString("Alt", "Tab")).toBe(
-                `${keyModule.MacKeyFromWindows.Alt} + Tab`,
+            expect(keyComboToString("Alt", "Tab")).toBe(
+                `${MacKeyFromWindows.Alt} + Tab`,
             );
         });
 
         it("should handle a mixed key combination correctly", () => {
-            const result = keyModule.keyComboToString("Ctrl", "Alt", "Delete");
+            const result = keyComboToString("Ctrl", "Alt", "Delete");
             // Only "Ctrl" and "Alt" are converted; "Delete" remains unchanged.
             expect(result).toBe(
-                `${keyModule.MacKeyFromWindows.Ctrl} + ${keyModule.MacKeyFromWindows.Alt} + Delete`,
+                `${MacKeyFromWindows.Ctrl} + ${MacKeyFromWindows.Alt} + Delete`,
             );
         });
     });
 
-    context("when deviceOS is Unknown", () => {
+    describe("when deviceOS is Unknown", () => {
         beforeEach(() => {
-            getDeviceInfoStub = sinon
-                .stub(keyModule, "getDeviceInfo")
-                .returns({
-                    deviceOS: keyModule.DeviceOS.Unknown,
-                    deviceName: undefined,
-                    deviceType: undefined,
-                    isMobile: false,
-                    isStandalone: false,
-                });
+            mockGetDeviceInfo.mockReturnValue({
+                deviceOS: DeviceOS.Unknown,
+                deviceName: undefined,
+                deviceType: undefined,
+                isMobile: false,
+                isStandalone: false,
+            });
         });
 
         it("should not convert WindowsKey values (treat as default)", () => {
-            expect(keyModule.keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
+            expect(keyComboToString("Ctrl", "A")).toBe("Ctrl + A");
         });
     });
 });

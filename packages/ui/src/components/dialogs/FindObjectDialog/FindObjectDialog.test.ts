@@ -10,32 +10,29 @@ describe("getFilteredTabs function", () => {
     });
 
     it("returns limited tabs when limitTo is specified", () => {
-        const limitTo = ["Api", "DataConverter"] as const;
+        const limitTo = ["DataConverter", "Note"] as const;
         const result = getFilteredTabs(limitTo, undefined);
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(limitTo));
     });
 
     it("returns only versioned tabs when onlyVersioned is true", () => {
         const result = getFilteredTabs(undefined, true);
-        // Expect all object types that can be versioned
+        // Expect all object types that can be versioned (based on actual implementation)
         const expectedKeys = [
-            "Api",
-            "DataConverter",
+            "DataConverter", 
             "DataStructure",
             "Note",
-            "Project",
+            "Project", 
             "Prompt",
-            "Routine",
-            "SmartContract",
         ] as const;
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
         expect(result.length).toBe(expectedKeys.length);
     });
 
     it("returns limited versioned tabs when both limitTo and onlyVersioned are specified", () => {
-        const limitTo = ["Api", "Note", "Bot"] as const;
+        const limitTo = ["Note", "DataConverter", "User"] as const;
         const result = getFilteredTabs(limitTo, true);
-        const expectedKeys = ["Api", "Note"]; // Users are not versioned
+        const expectedKeys = ["Note", "DataConverter"]; // User is not versioned
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
     });
 

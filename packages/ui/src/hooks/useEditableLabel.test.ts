@@ -103,14 +103,22 @@ describe("useEditableLabel", () => {
     });
 
     it("updates editedLabel when label prop changes", () => {
-        const { result, rerender } = renderHook(() => useEditableLabel({
-            isEditable: true,
-            isMultiline: false,
-            label: "initial",
-            onUpdate: vi.fn(),
-        }));
+        const onUpdate = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ label }) => useEditableLabel({
+                isEditable: true,
+                isMultiline: false,
+                label,
+                onUpdate,
+            }),
+            {
+                initialProps: { label: "initial" },
+            }
+        );
 
-        rerender({ isEditable: true, isMultiline: false, label: "updated", onUpdate: vi.fn() });
+        expect(result.current.editedLabel).toBe("initial");
+        
+        rerender({ label: "updated" });
         expect(result.current.editedLabel).toBe("updated");
     });
 
@@ -151,12 +159,26 @@ describe("useEditableLabel", () => {
             onUpdate: onUpdateMock,
         }));
 
+        // Start editing
+        act(() => {
+            result.current.startEditingLabel({
+                clientX: 10,
+                currentTarget: { offsetWidth: 100, getBoundingClientRect: () => ({ left: 0 }) } as any,
+            } as React.MouseEvent<HTMLElement>);
+        });
+
+        // Change the label
         act(() => {
             result.current.handleLabelChange({ target: { value: "new label" } });
+        });
+
+        // Submit the change
+        act(() => {
             result.current.submitLabelChange();
         });
 
         expect(onUpdateMock).toHaveBeenCalledWith("new label");
+        expect(result.current.isEditingLabel).toBe(false);
     });
 
     it("does not submit label if editedLabel is unchanged", () => {

@@ -74,6 +74,7 @@ export interface DiagonalWaveLoaderProps {
     size?: number;
     color?: string;
     sx?: SxType;
+    "data-testid"?: string;
 }
 
 export interface PageTabsProps<TabList extends TabListType = TabListType> {

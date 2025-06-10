@@ -172,6 +172,8 @@ type IconFaviconProps = {
     "aria-hidden"?: boolean;
     /** Custom fallback icon info. If not provided, uses the Website icon */
     fallbackIcon?: IconInfo;
+    /** Test ID for testing */
+    "data-testid"?: string;
 };
 
 export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
@@ -184,6 +186,7 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
     decorative = DEFAULT_DECORATIVE,
     fill,
     fallbackIcon,
+    "data-testid": testId,
     ...props
 }, ref) => {
     // Extract the domain from the URL
@@ -243,6 +246,7 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
                 aria-hidden={decorative && ariaHidden !== false ? "true" : undefined}
                 alt={!decorative ? ariaLabel : ""}
                 onError={handleIconError}
+                data-testid={testId}
                 {...props}
             />
         );
@@ -264,6 +268,7 @@ export const IconFavicon = forwardRef<HTMLElement, IconFaviconProps>(({
             aria-hidden={ariaHidden}
             decorative={decorative}
             fill={fill}
+            data-testid={testId}
             {...props}
         />
     );

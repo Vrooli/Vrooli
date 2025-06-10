@@ -58,7 +58,7 @@ describe("asMockObject", () => {
     });
 
     it("should create a versioned object with root", () => {
-        const objectType = ModelType.CodeVersion;
+        const objectType = ModelType.ResourceVersion;
         const objectId = "123";
         const rootObjectId = "456";
         const result = asMockObject(objectType, objectId, rootObjectId);

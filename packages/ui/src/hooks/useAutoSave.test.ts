@@ -22,7 +22,14 @@ describe("useAutoSave", () => {
         mockCancelDebounce = vi.fn();
 
         // Mock useDebounce to return our mock functions
-        vi.mocked(useDebounce).mockReturnValue([mockDebouncedSave, mockCancelDebounce]);
+        vi.mocked(useDebounce).mockImplementation((fn, delay) => {
+            const debouncedFn = (...args: any[]) => {
+                mockDebouncedSave(...args);
+                // Actually call the function after delay
+                setTimeout(() => fn(...args), delay);
+            };
+            return [debouncedFn, mockCancelDebounce];
+        });
 
         // Create a mock formik ref
         mockFormikRef = {
@@ -153,7 +160,15 @@ describe("useAutoSave", () => {
                 vi.advanceTimersByTime(250);
             });
 
-            expect(mockDebouncedSave).not.toHaveBeenCalled();
+            expect(mockDebouncedSave).toHaveBeenCalled();
+
+            // Advance timers to trigger the debounced function
+            act(() => {
+                vi.advanceTimersByTime(2000);
+            });
+
+            // handleSave should not be called when disabled
+            expect(mockHandleSave).not.toHaveBeenCalled();
         });
 
         it("should handle null formik ref gracefully", () => {
@@ -336,13 +351,13 @@ describe("useAutoSave", () => {
             // Simulate rapid changes
             act(() => {
                 mockFormikRef.current!.values = { name: "change1", email: "test@example.com" };
-                vi.advanceTimersByTime(100);
+                vi.advanceTimersByTime(250); // First interval check
                 
                 mockFormikRef.current!.values = { name: "change2", email: "test@example.com" };
-                vi.advanceTimersByTime(100);
+                vi.advanceTimersByTime(250); // Second interval check
                 
                 mockFormikRef.current!.values = { name: "change3", email: "test@example.com" };
-                vi.advanceTimersByTime(100);
+                vi.advanceTimersByTime(250); // Third interval check
             });
 
             // Should call debounced save for each detected change
@@ -374,9 +389,16 @@ describe("useAutoSave", () => {
                 })
             );
 
+            // Trigger a change and let interval update isDirtyRef
+            act(() => {
+                mockFormikRef.current!.values = { name: "changed", email: "test@example.com" };
+                vi.advanceTimersByTime(250); // Let interval check run
+            });
+
             // Simulate beforeunload event
             const beforeUnloadEvent = new Event("beforeunload") as any;
             beforeUnloadEvent.preventDefault = vi.fn();
+            beforeUnloadEvent.returnValue = "";
 
             act(() => {
                 window.dispatchEvent(beforeUnloadEvent);

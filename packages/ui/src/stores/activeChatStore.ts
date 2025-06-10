@@ -1,4 +1,4 @@
-import { DUMMY_ID, SEEDED_PUBLIC_IDS, endpointsChat, type Chat, type ChatCreateInput, type ChatParticipantShape, type ChatShape, type FindByIdInput, type Session } from "@vrooli/shared";
+import { DUMMY_ID, SEEDED_PUBLIC_IDS, endpointsChat, validatePK, type Chat, type ChatCreateInput, type ChatParticipantShape, type ChatShape, type FindByIdInput, type Session } from "@vrooli/shared";
 import { type TFunction } from "i18next";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -80,7 +80,7 @@ interface ActiveChatState {
     calculateIsBotOnlyChat: (chat: ChatShape | null, session: Session) => boolean;
 }
 
-export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
+export const useActiveChatStore = create<ActiveChatState>((set, get) => {
     // Loading state tracking
     const isFetchingChat = { current: false };
     const hasTriedCreatingNewChat = { current: false };
@@ -196,7 +196,7 @@ export const useActiveChatStore = create<ActiveChatState>()((set, get) => {
             const existingChatId = getCookieMatchingChat([currentUser.publicId, SEEDED_PUBLIC_IDS.Valyxa]);
 
             // If stored chat is valid, fetch it
-            if (existingChatId && existingChatId !== DUMMY_ID && uuidValidate(existingChatId)) {
+            if (existingChatId && existingChatId !== DUMMY_ID && validatePK(existingChatId)) {
                 isFetchingChat.current = true;
                 set({ isLoading: true });
 

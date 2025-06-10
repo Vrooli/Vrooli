@@ -71,7 +71,7 @@ export interface ObjectOption {
     isBookmarked?: boolean;
     label: string;
     bookmarks?: number;
-    [key: string]: any;
+    [key: string]: unknown;
     runnableObject?: ListObject | null;
     to?: ListObject;
 }
@@ -207,12 +207,13 @@ export function stringifySearchParams(params: ParseSearchParamsResult) {
  */
 export function parseSearchParams(): ParseSearchParamsResult {
     const params = new URLSearchParams(window.location.search);
-    const obj = {};
+    const obj: ParseSearchParamsResult = {};
     for (const [key, value] of params) {
         try {
             obj[decodeURIComponent(key)] = JSON.parse(decodeURIComponent(value));
-        } catch (e: any) {
-            console.error(`Error decoding parameter "${key}": ${e.message}`);
+        } catch (e: unknown) {
+            const errorMessage = typeof e === "object" && e !== null && "message" in e ? (e as Error).message : String(e);
+            console.error(`Error decoding parameter "${key}": ${errorMessage}`);
         }
     }
     return obj;

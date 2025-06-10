@@ -8,7 +8,7 @@ import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { BookmarkFor, CodeLanguage, CommentFor, LINKS, SearchVersionPageTabOption, endpointsResource, exists, getTranslation, noopSubmit, type Resource, type ResourceVersion, type ResourceListShape, type ResourceList as ResourceListType, type Tag, type TagShape } from "@vrooli/shared";
+import { BookmarkFor, CodeLanguage, CommentFor, LINKS, SearchVersionPageTabOption, endpointsResource, exists, getTranslation, noopSubmit, type Resource, type ResourceLimit as ResourceListType, type ResourceVersion, type Tag, type TagShape } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -275,7 +275,7 @@ export function SmartContractView({
                                             <BookmarkButton
                                                 disabled={!canBookmark}
                                                 objectId={codeVersion?.id ?? ""}
-                                                bookmarkFor={BookmarkFor.Code}
+                                                bookmarkFor={BookmarkFor.ResourceVersion}
                                                 isBookmarked={codeVersion?.root?.you?.isBookmarked ?? false}
                                                 bookmarks={codeVersion?.root?.bookmarks ?? 0}
                                                 onChange={handleNoop}

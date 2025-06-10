@@ -3,6 +3,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { useStableObject } from "./useStableObject.js";
 
 describe("useStableObject", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
     it("should maintain the same reference for unchanged objects", () => {
         const initialObject = { a: 1, b: { c: 2 } };
         const { result, rerender } = renderHook(({ obj }) => useStableObject(obj), {

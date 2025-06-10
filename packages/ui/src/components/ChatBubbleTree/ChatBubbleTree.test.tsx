@@ -157,8 +157,9 @@ describe("NavigationArrows Component", () => {
 
     it("should enable the left button when there are siblings behind", async () => {
         render(<NavigationArrows activeIndex={1} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
-        const leftButton = screen.getByLabelText("left");
-        expect(leftButton).toBeEnabled();
+        const buttons = screen.getAllByRole("button");
+        const leftButton = buttons[0];
+        expect(leftButton.disabled).toBe(false);
         userEvent.click(leftButton);
         await waitFor(() => {
             expect(handleIndexChangeMock).toHaveBeenCalledWith(0);
@@ -167,22 +168,24 @@ describe("NavigationArrows Component", () => {
 
     it("should display the current index and total siblings correctly", () => {
         const { rerender } = render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        expect(screen.getByText("1/3")).toBeInTheDocument();
+        expect(screen.getByText("1/3")).toBeTruthy();
 
         rerender(<NavigationArrows activeIndex={1} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        expect(screen.getByText("2/3")).toBeInTheDocument();
+        expect(screen.getByText("2/3")).toBeTruthy();
     });
 
     it("should disable the left button when at the first sibling", () => {
         render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        const leftButton = screen.getByLabelText("left");
-        expect(leftButton).toBeDisabled();
+        const buttons = screen.getAllByRole("button");
+        const leftButton = buttons[0]; // First button is the left/previous button
+        expect(leftButton.disabled).toBe(true);
     });
 
     it("should disable the right button when at the last sibling", () => {
         render(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        const rightButton = screen.getByLabelText("right");
-        expect(rightButton).toBeDisabled();
+        const buttons = screen.getAllByRole("button");
+        const rightButton = buttons[1]; // Second button is the right/next button
+        expect(rightButton.disabled).toBe(true);
     });
 });
 
@@ -212,8 +215,8 @@ describe("ScrollToBottomButton", () => {
     it("renders button and checks initial visibility based on scroll", () => {
         const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         const button = getByRole("button");
-        // Initially not visible as we are at the top
-        expect(button).toHaveStyle("opacity: 0");
+        // Initially should have hide class as we are at the top (within threshold)
+        expect(button.classList.contains("hide-scroll-button")).toBe(true);
     });
 
     it("button becomes visible when not close to bottom", () => {
@@ -221,7 +224,7 @@ describe("ScrollToBottomButton", () => {
         const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         fireEvent.scroll(containerElement);
         const button = getByRole("button");
-        expect(button).toHaveStyle("opacity: 0.8");
+        expect(button.classList.contains("hide-scroll-button")).toBe(false);
     });
 
     it("button becomes invisible when scrolled close to bottom", async () => {
@@ -229,15 +232,15 @@ describe("ScrollToBottomButton", () => {
         const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         fireEvent.scroll(containerElement);
         const button = getByRole("button");
-        expect(button).toHaveStyle("opacity: 0");
+        expect(button.classList.contains("hide-scroll-button")).toBe(true);
     });
 
     it("scrolls to bottom on button click", () => {
         const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
         const button = getByRole("button");
         fireEvent.click(button);
-        // Expected to be scrolled to the bottom
-        expect(containerElement.scrollTop).toBe(containerElement.scrollHeight - containerElement.clientHeight);
+        // Expected to be scrolled to the bottom (scrollHeight)
+        expect(containerElement.scrollTop).toBe(containerElement.scrollHeight);
     });
 
     it("cleans up event listener on unmount", () => {

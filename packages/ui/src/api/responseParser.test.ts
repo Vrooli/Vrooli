@@ -4,7 +4,11 @@ import { type ServerResponse } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ServerResponseParser } from "./responseParser.js";
 
-vi.mock("i18next");
+vi.mock("i18next", () => ({
+    default: {
+        t: vi.fn((key) => key),
+    },
+}));
 // vi.mock("../utils/pubsub", () => ({
 //     PubSub: {
 //         get: vi.fn().mockReturnValue({
@@ -58,8 +62,9 @@ describe("ServerResponseParser", () => {
                 ],
             } as ServerResponse;
             const languages = ["en"];
-            ServerResponseParser.errorToMessage(response, languages);
-            expect(i18next.t).toHaveBeenCalledWith("NotFound", expect.any(Object));
+            const result = ServerResponseParser.errorToMessage(response, languages);
+            expect(i18next.t).toHaveBeenCalledWith("NotFound", { lng: "en", defaultValue: "Unknown error occurred." });
+            expect(result).toEqual("NotFound"); // The mock returns the key
         });
     });
 

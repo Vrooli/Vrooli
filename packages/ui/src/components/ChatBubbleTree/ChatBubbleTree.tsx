@@ -697,6 +697,9 @@ const ScrollToBottomIconButton = styled(IconButton)(({ theme }) => ({
     transition: "opacity 0.2s ease-in-out !important",
     zIndex: 1,
     boxShadow: theme.shadows[2],
+    "&.hide-scroll-button": {
+        opacity: 0,
+    },
 }));
 
 export function ScrollToBottomButton({

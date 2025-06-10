@@ -1229,3 +1229,9 @@ const LoadingContainer = styled(Box)(() => ({
     alignItems: "center",
     gap: 2,
 }));
+
+// Export helper functions for testing
+export const parseNativeEmoji = EmojiTools.parseNativeEmoji;
+export const unifiedWithoutSkinTone = EmojiTools.unifiedWithoutSkinTone;
+export const emojiUnified = EmojiTools.emojiUnified;
+export const emojiVariationUnified = EmojiTools.emojiVariationUnified;

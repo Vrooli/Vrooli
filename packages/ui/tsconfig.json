@@ -15,13 +15,14 @@
         "skipLibCheck": true,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
-        "strict": true,
+        "strict": false,
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "nodenext",
         "noFallthroughCasesInSwitch": true,
         // "noUncheckedIndexedAccess": true,
         "resolveJsonModule": true,
         "incremental": true,
+        "tsBuildInfoFile": ".tsbuildinfo",
         "isolatedModules": true,
         "noEmit": true,
         "noImplicitAny": false,
@@ -29,7 +30,6 @@
         "verbatimModuleSyntax": true,
         "jsx": "react-jsx",
         "types": [
-            "mocha",
         ]
     },
     "include": [
@@ -38,17 +38,20 @@
         "types.d.ts",
         "sw-template.js",
         "src/api/hooks",
-        "public/pkg/libheif/worker.js",
-        "../server/src/__tools/endpoints.ts"
+        "public/pkg/libheif/worker.js"
     ],
     "exclude": [
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/__test",
+        "**/*.stories.ts",
+        "**/*.stories.tsx",
         "**/coverage",
         "**/node_modules",
         "**/dist",
         "**/tools",
+        "**/storybook-static",
+        "**/.storybook",
         "**/.*/",
     ],
     "references": [

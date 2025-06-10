@@ -4,8 +4,9 @@
  * @param array2
  * @returns The difference of the two arrays.
  */
-export function difference(array1: any[], array2: any[]): any[] {
-    return array1.filter(item => array2.indexOf(item) === -1);
+export function difference<T>(array1: T[], array2: T[]): T[] {
+    const set2 = new Set(array2);
+    return array1.filter(item => !set2.has(item));
 }
 
 /**
@@ -23,9 +24,13 @@ export function flatten<T>(array: T[]): T[] {
  * @param iteratee Iteratee to use to find unique items.
  * @returns Array of unique items.
  */
-export function uniqBy(array: any[], iteratee: (item: any) => any): any[] {
-    return array.filter((item, index, self) => {
-        return self.findIndex(i => iteratee(i) === iteratee(item)) === index;
+export function uniqBy<T, K>(array: T[], iteratee: (item: T) => K): T[] {
+    const seen = new Set<K>();
+    return array.filter(item => {
+        const key = iteratee(item);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
     });
 }
 

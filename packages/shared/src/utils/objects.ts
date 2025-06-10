@@ -46,10 +46,10 @@ export function getDotNotationValue(obj: object | undefined, keyPath: string): u
 /**
  * Sets data in an object using dot notation (ex: 'parent.child.property' or 'array[1].property')
  */
-export function setDotNotationValue<T extends Record<string, any>>(
+export function setDotNotationValue<T extends Record<string, unknown>, V = unknown>(
     object: T,
     notation: string,
-    value: any,
+    value: V,
 ): T {
     if (!object || !notation) return object;
     // Split the key path into an array of keys, making sure to handle array indices
@@ -59,23 +59,30 @@ export function setDotNotationValue<T extends Record<string, any>>(
     // Pop last key from array, as it will be used to set the value
     const lastKey = keys.pop() as string;
     // Use the other keys to get the target object
-    const lastObj = keys.reduce((obj: any, key) => {
+    const lastObj = keys.reduce((obj: Record<string, unknown> | unknown[], key) => {
         // Check if the key is an array index
         if (/^\d+$/.test(key)) {
             const index = parseInt(key, 10);
-            if (!obj[index]) obj[index] = {};
-            return obj[index];
+            if (Array.isArray(obj)) {
+                if (!obj[index]) obj[index] = {};
+                return obj[index] as Record<string, unknown>;
+            } else {
+                const objectRef = obj as Record<string, unknown>;
+                if (!objectRef[index]) objectRef[index] = {};
+                return objectRef[index] as Record<string, unknown>;
+            }
         }
         // Ensure the key exists in the object
-        if (!(key in obj)) obj[key] = {};
-        return obj[key];
+        const objectRef = obj as Record<string, unknown>;
+        if (!(key in objectRef)) objectRef[key] = {};
+        return objectRef[key] as Record<string, unknown>;
     }, object);
     // Set the value
     if (Array.isArray(lastObj) && /^\d+$/.test(lastKey)) {
         const index = parseInt(lastKey, 10);
         lastObj[index] = value;
     } else {
-        lastObj[lastKey] = value;
+        (lastObj as Record<string, unknown>)[lastKey] = value;
     }
     // Return the updated object
     return object;
@@ -139,9 +146,9 @@ export function isObject(value: unknown): value is object {
  * @returns True if the object is of one of the provided types, false otherwise. 
  * The function is type safe, so code called after this function will be aware of the type of the object.
  */
-export function isOfType<T extends string>(obj: any, ...types: T[]): obj is { __typename: T } {
-    if (!obj || !obj.__typename) return false;
-    return types.includes(obj.__typename);
+export function isOfType<T extends string>(obj: unknown, ...types: T[]): obj is { __typename: T } {
+    if (!obj || typeof obj !== "object" || !("__typename" in obj)) return false;
+    return types.includes((obj as { __typename: unknown }).__typename as T);
 }
 
 export function deepClone<T>(obj: T): T {
@@ -179,15 +186,18 @@ export function mergeDeep<T>(target: T, reference: T): T {
         return target !== undefined && target !== null ? target : reference;
     }
 
-    const result: any = { ...reference };
+    const result: Record<string, unknown> = { ...(reference as Record<string, unknown>) };
 
     for (const key in target) {
-        if (typeof target[key] === "object" && target[key] !== null && !Array.isArray(target[key])) {
-            result[key] = mergeDeep(target[key] as object, reference[key] || {});
+        const targetValue = (target as Record<string, unknown>)[key];
+        const referenceValue = (reference as Record<string, unknown>)[key];
+        
+        if (typeof targetValue === "object" && targetValue !== null && !Array.isArray(targetValue)) {
+            result[key] = mergeDeep(targetValue, referenceValue || {});
         } else {
-            result[key] = target[key];
+            result[key] = targetValue;
         }
     }
 
-    return result;
+    return result as T;
 }

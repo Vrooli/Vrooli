@@ -1,4 +1,4 @@
-import { uuid, type Session, type SessionUser } from "@vrooli/shared";
+import { generatePK, type Session, type SessionUser } from "@vrooli/shared";
 import { describe, it, expect, afterAll, beforeEach, vi } from "vitest";
 import { checkIfLoggedIn, getCurrentUser } from "./session.js";
 
@@ -35,18 +35,18 @@ describe("getCurrentUser", () => {
         expect(getCurrentUser(session)).toEqual({});
     });
 
-    it("should return an empty object if user ID is not a valid UUID", () => {
+    it("should return an empty object if user ID is not a valid snowflake ID", () => {
         const session = {
             isLoggedIn: true,
-            users: [{ id: "invalid-uuid" }] as SessionUser[],
+            users: [{ id: "invalid-id" }] as SessionUser[],
         } as Session;
         expect(getCurrentUser(session)).toEqual({});
     });
 
-    it("should return user data if user ID is a valid UUID", () => {
-        const validUUID = uuid();
+    it("should return user data if user ID is a valid snowflake ID", () => {
+        const validId = generatePK().toString();
         const expectedUser = {
-            id: validUUID,
+            id: validId,
             languages: ["en", "fr"],
             name: "Test User",
             theme: "dark",

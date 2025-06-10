@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { type FieldInputProps, type FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
-import { i18nextTMock } from "../../__mocks__/i18next.js";
 import { addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields, type TranslationObject } from "./translationTools.js";
 
 // Mocks for navigator.language and navigator.languages
@@ -746,24 +745,30 @@ describe("combineErrorsWithTranslations", () => {
 });
 
 describe("addEmptyTranslation", () => {
-    const mockField = {
-        value: [
-            { id: "1234", language: "en", content: "Hello" },
-        ],
-        name: "translations",
-        onChange: vi.fn(),
-        onBlur: vi.fn(),
-    } as unknown as FieldInputProps<Array<TranslationObject>>;
+    let mockField: any;
+    let mockMeta: any;
+    let mockHelpers: any;
 
-    const mockMeta = {
-        initialValue: [
-            { id: "1234", language: "en", content: "" },
-        ],
-    } as unknown as FieldMetaProps<unknown>;
+    beforeEach(() => {
+        mockField = {
+            value: [
+                { id: "1234", language: "en", content: "Hello" },
+            ],
+            name: "translations",
+            onChange: vi.fn(),
+            onBlur: vi.fn(),
+        } as unknown as FieldInputProps<Array<TranslationObject>>;
 
-    const mockHelpers = {
-        setValue: vi.fn(),
-    };
+        mockMeta = {
+            initialValue: [
+                { id: "1234", language: "en", content: "" },
+            ],
+        } as unknown as FieldMetaProps<unknown>;
+
+        mockHelpers = {
+            setValue: vi.fn(),
+        };
+    });
 
     it("should correctly add an empty translation with determined fields", () => {
         const language = "es";
@@ -820,25 +825,31 @@ describe("addEmptyTranslation", () => {
 });
 
 describe("removeTranslation", () => {
-    const mockField = {
-        value: [
-            { language: "en", content: "Hello" },
-            { language: "es", content: "Hola" },
-            { language: "fr", content: "Bonjour" },
-        ],
-        name: "translations",
-        onChange: vi.fn(),
-        onBlur: vi.fn(),
-    } as unknown as FieldInputProps<Array<TranslationObject>>;
+    let mockField: any;
+    let mockMeta: any;
+    let mockHelpers: any;
 
-    const mockMeta = {
-        touched: [false, false, false],
-        error: [undefined, undefined, undefined],
-    } as unknown as FieldMetaProps<unknown>;
+    beforeEach(() => {
+        mockField = {
+            value: [
+                { language: "en", content: "Hello" },
+                { language: "es", content: "Hola" },
+                { language: "fr", content: "Bonjour" },
+            ],
+            name: "translations",
+            onChange: vi.fn(),
+            onBlur: vi.fn(),
+        } as unknown as FieldInputProps<Array<TranslationObject>>;
 
-    const mockHelpers = {
-        setValue: vi.fn(),
-    };
+        mockMeta = {
+            touched: [false, false, false],
+            error: [undefined, undefined, undefined],
+        } as unknown as FieldMetaProps<unknown>;
+
+        mockHelpers = {
+            setValue: vi.fn(),
+        };
+    });
 
     it("should correctly remove the translation for the given language", () => {
         const language = "es";
@@ -890,22 +901,42 @@ describe("removeTranslation", () => {
 });
 
 describe("translateSnackMessage", () => {
-    let originalI18nextMethods;
-
     beforeEach(() => {
-        // Save the original i18next methods
-        originalI18nextMethods = { ...i18next };
-
-        // Replace the i18next methods with mocks
-        Object.assign(i18next, { t: i18nextTMock }); // We're using a normal function instead of a mock, because the mock is inexplicably not working
-
-        // Reset all mock calls
-        vi.resetAllMocks();
+        vi.clearAllMocks();
+        // Configure the i18next.t mock for these tests
+        vi.mocked(i18next.t).mockImplementation((key: string, options?: any) => {
+            // Mock translations for the tests
+            const translations: Record<string, string> = {
+                "CannotConnectToServer": "Cannot connect to server",
+                "CannotConnectToServerDetails": "The details of cannot connect to server",
+                "ChangePassword": "Change password",
+            };
+            
+            // Check for defaultValue in options
+            if (options?.defaultValue) {
+                // If a translation exists, return it; otherwise return the defaultValue
+                return translations[key] || options.defaultValue;
+            }
+            
+            // Return the translation if it exists, otherwise return the key
+            if (translations[key]) {
+                let result = translations[key];
+                // Handle interpolation
+                if (options && typeof options === "object") {
+                    Object.entries(options).forEach(([k, v]) => {
+                        if (k !== "defaultValue") {
+                            result = result.replace(`{{${k}}}`, String(v));
+                        }
+                    });
+                }
+                return result;
+            }
+            return key;
+        });
     });
 
     afterEach(() => {
-        // Restore the original i18next methods after each test
-        Object.assign(i18next, originalI18nextMethods);
+        vi.resetAllMocks();
     });
 
     it("should return message with details if both are in i18next dictionary", () => {
@@ -925,18 +956,18 @@ describe("translateSnackMessage", () => {
 
     it("should handle undefined variables - test 2", () => {
         // @ts-ignore: Testing runtime scenario
-        i18next.t = (key, options) => {
-            return `Message with variable ${options.variable}`;
-        };
+        vi.mocked(i18next.t).mockImplementation((key, options) => {
+            return `Message with variable ${options?.variable}`;
+        });
         const result = translateSnackMessage("CannotConnectToServer", undefined);
         expect(result).toEqual({ message: "Message with variable undefined", details: "Message with variable undefined" }); // Limitation of i18next, so make sure your variables are defined
     });
 
     it("should interpolate variables into the message", () => {
         // @ts-ignore: Testing runtime scenario
-        i18next.t = (key, options) => {
-            return `Message with variable ${options.variable}`;
-        };
+        vi.mocked(i18next.t).mockImplementation((key, options) => {
+            return `Message with variable ${options?.variable}`;
+        });
         const result = translateSnackMessage("CannotConnectToServer", { variable: "value" });
         expect(result.message).toBe("Message with variable value");
     });
