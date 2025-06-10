@@ -2,7 +2,7 @@ import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
 import winston from "winston";
 import { SwarmExecutionService } from "../../swarmExecutionService.js";
 import { EventBus } from "../../cross-cutting/events/eventBus.js";
-import { redis } from "../../../../services/redisConn.js";
+import { redis } from "../../../../redisConn.js";
 import { SwarmStatus, RunStatus } from "@vrooli/shared";
 
 describe("Execution Flow Integration Tests", () => {

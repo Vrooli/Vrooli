@@ -1,7 +1,6 @@
 import { type Logger } from "winston";
-import { generatePK, type ChatMessage, type BotParticipant } from "@vrooli/shared";
+import { generatePK, type ChatMessage, type BotParticipant, type ChatConfigObject, type BotConfigObject, type SessionUser, ChatConfig, DEFAULT_LANGUAGE } from "@vrooli/shared";
 import { completionService } from "../../../conversation/responseEngine.js";
-import { type LLMCompletionTask } from "../../../../tasks/taskTypes.js";
 import { PromptTemplateService } from "./promptService.js";
 
 /**
@@ -21,7 +20,7 @@ export class ConversationBridge {
     }
 
     /**
-     * Generate AI response for a swarm agent
+     * Generate AI response for a swarm agent using direct ReasoningEngine integration
      */
     async generateAgentResponse(
         agent: BotParticipant,
@@ -38,30 +37,64 @@ export class ConversationBridge {
                 swarmConfig,
             );
 
-            // Create a minimal LLM completion task
-            const task: LLMCompletionTask = {
-                type: "LLM_COMPLETION",
-                chatId: chatId || generatePK(),
-                messageId: generatePK(),
-                participantId: agent.id,
-                userData: {
-                    id: "system", // System-initiated
-                    hasPremium: false,
-                },
-                messageContent: userPrompt,
-                systemPrompt,
-                // The responseEngine will handle loading tools based on agent role
+            // Get conversation state and user context
+            const conversationState = chatId ? 
+                await completionService.getConversationState(chatId) : null;
+            
+            // Create proper SessionUser for billing and permissions
+            const sessionUser: SessionUser = {
+                id: "swarm-system",
+                creditAccountId: "system-account", // TODO: Use proper account from swarm context
+                hasPremium: false,
+                languages: [DEFAULT_LANGUAGE],
             };
 
-            // Use the existing completion service
-            const response = await completionService.respond(task);
+            // Get available tools from conversation state or use defaults
+            const toolRegistry = completionService.getToolRegistry();
+            const availableToolNames = conversationState?.availableTools || [
+                "update_swarm_shared_state", 
+                "resource_manage", 
+                "run_routine", 
+                "spawn_swarm"
+            ];
             
-            // Extract the text response
-            if (response && typeof response === "object" && "content" in response) {
-                return response.content as string;
-            }
+            // Resolve tool names to full Tool objects
+            const availableTools = availableToolNames
+                .map(toolName => {
+                    const toolDef = toolRegistry.getToolDefinition(typeof toolName === "string" ? toolName : toolName.name);
+                    if (!toolDef) {
+                        this.logger.warn(`Tool definition not found: ${toolName}`);
+                        return null;
+                    }
+                    return toolDef;
+                })
+                .filter(tool => tool !== null);
 
-            return "";
+            // Get default conversation config if none exists
+            const config = conversationState?.config || {
+                goal: swarmConfig?.goal || "Process current task",
+                limits: ChatConfig.defaultLimits(),
+                stats: ChatConfig.defaultStats(),
+                __version: "1.0"
+            } as ChatConfigObject;
+
+            // Use ReasoningEngine.runLoop() directly - the native single-agent reasoning loop
+            const reasoningEngine = completionService.getReasoningEngine();
+            const response = await reasoningEngine.runLoop(
+                { text: userPrompt },     // Standalone prompt
+                systemPrompt,             // Agent-specific system message
+                availableTools,           // Full tool definitions  
+                agent,                    // Bot participant
+                sessionUser.creditAccountId,
+                config,
+                10,                       // Tool call allocation
+                BigInt(5000),            // Credit allocation (5000 credits)
+                sessionUser,
+                chatId,
+                agent.config?.model,     // Use agent's preferred model
+            );
+
+            return response.finalMessage.text;
         } catch (error) {
             this.logger.error("[ConversationBridge] Failed to generate agent response", {
                 agentId: agent.id,
@@ -81,9 +114,8 @@ export class ConversationBridge {
         const agent: BotParticipant = {
             id: generatePK(),
             name: "Reasoning Agent",
-            role: "analyzer",
-            model: "gpt-4",
-            meta: { temporary: true },
+            config: { __version: "1.0", model: "gpt-4" } as BotConfigObject,
+            meta: { role: "analyzer", temporary: true },
         };
 
         const swarmState = {
@@ -101,5 +133,20 @@ export class ConversationBridge {
             swarmConfig,
             prompt,
         );
+    }
+
+    /**
+     * Gets conversation state from the completion service
+     */
+    async getConversationState(conversationId: string) {
+        return completionService.getConversationState(conversationId);
+    }
+
+    /**
+     * Updates conversation configuration
+     */
+    updateConversationConfig(conversationId: string, config: ChatConfigObject): void {
+        // Delegate to completion service, which manages the conversation store
+        completionService.updateConversationConfig(conversationId, config);
     }
 }

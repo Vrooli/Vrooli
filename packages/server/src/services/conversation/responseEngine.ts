@@ -1061,6 +1061,20 @@ export class CompletionService {
     }
 
     /**
+     * Gets the reasoning engine for direct integration
+     */
+    public getReasoningEngine(): ReasoningEngine {
+        return this.reasoningEngine;
+    }
+
+    /**
+     * Gets the tool registry for tool resolution
+     */
+    public getToolRegistry(): ToolRegistry {
+        return this.toolRegistry;
+    }
+
+    /**
      * Fetches and attaches team config to the conversation state if a teamId is present.
      * This method handles authorization by ensuring the user has access to the team.
      */

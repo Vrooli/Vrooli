@@ -538,14 +538,7 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
     }
 
     private async getConversationState(conversationId: string): Promise<ConversationState | null> {
-        // In tier1, we'd get this from the state store
-        // For now, return a mock
-        return {
-            id: conversationId,
-            config: {} as ChatConfigObject,
-            participants: [],
-            availableTools: [],
-        };
+        return this.conversationBridge.getConversationState(conversationId);
     }
 
     private async createConversationState(
@@ -553,17 +546,25 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         goal: string, 
         user: SessionUser
     ): Promise<ConversationState> {
-        // Create a new conversation state
-        return {
-            id: conversationId,
-            config: {
-                goal,
-                subtasks: [],
-                stats: ChatConfig.defaultStats(),
-            } as ChatConfigObject,
-            participants: [],
-            availableTools: ["update_swarm_shared_state", "resource_manage", "run_routine", "spawn_swarm"],
-        };
+        // Check if conversation already exists
+        const state = await this.conversationBridge.getConversationState(conversationId);
+        
+        if (!state) {
+            throw new Error(
+                `Conversation ${conversationId} must be created through proper chat API first. ` +
+                `Swarms cannot create conversations directly.`
+            );
+        }
+        
+        // Update the goal in the existing conversation if needed
+        if (goal && goal !== state.config.goal) {
+            const updatedConfig = { ...state.config, goal };
+            // Update through proper channels
+            await this.conversationBridge.updateConversationConfig(conversationId, updatedConfig);
+            state.config = updatedConfig;
+        }
+        
+        return state;
     }
 
     private findLeaderBot(convoState: ConversationState): BotParticipant | null {

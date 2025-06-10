@@ -1,5 +1,5 @@
 import type { BotCreateInput, BotUpdateInput, ResourceVersionCreateInput, ResourceVersionUpdateInput, SessionUser, SwarmSubTask, TeamCreateInput, TeamUpdateInput } from "@vrooli/shared";
-import { DEFAULT_LANGUAGE, DeleteType, McpToolName, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, DeleteType, McpToolName, ModelType, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "path";
@@ -622,7 +622,7 @@ export class BuiltInTools {
             } else if (isResourceManageAddParams(args)) {
                 const createInput = this._mapAddToInput(args.resource_type, args.attributes as ResourceAddAttributes);
                 // Determine the correct objectType based on the resource type
-                let objectType: string;
+                let objectType: ModelType | `${ModelType}`;
                 if (args.resource_type === "Team") {
                     objectType = "Team";
                 } else if (args.resource_type === "Bot") {
