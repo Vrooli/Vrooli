@@ -1,24 +1,22 @@
 import { type ReminderList, type ReminderListCreateInput, type ReminderListUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsReminderList = {
     createOne: ApiEndpoint<ReminderListCreateInput, ReminderList>;
     updateOne: ApiEndpoint<ReminderListUpdateInput, ReminderList>;
 }
 
-const objectType = "ReminderList";
-export const reminderList: EndpointsReminderList = {
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return createOneHelper({ info, input, objectType, req });
+export const reminderList: EndpointsReminderList = createStandardCrudEndpoints({
+    objectType: "ReminderList",
+    endpoints: {
+        createOne: {
+            rateLimit: RateLimitPresets.STRICT,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.MEDIUM,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

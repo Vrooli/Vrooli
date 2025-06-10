@@ -1,9 +1,6 @@
 import { type FindByIdInput, type ReportResponse, type ReportResponseCreateInput, type ReportResponseSearchInput, type ReportResponseSearchResult, type ReportResponseUpdateInput } from "@vrooli/shared";
-import { createOneHelper } from "../../actions/creates.js";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsReportResponse = {
     findOne: ApiEndpoint<FindByIdInput, ReportResponse>;
@@ -12,26 +9,24 @@ export type EndpointsReportResponse = {
     updateOne: ApiEndpoint<ReportResponseUpdateInput, ReportResponse>;
 }
 
-const objectType = "ReportResponse";
-export const reportResponse: EndpointsReportResponse = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readOneHelper({ info, input, objectType, req });
+export const reportResponse: EndpointsReportResponse = createStandardCrudEndpoints({
+    objectType: "ReportResponse",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        createOne: {
+            rateLimit: RateLimitPresets.STRICT,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        RequestService.assertRequestFrom(req, { hasReadPublicPermissions: true });
-        return readManyHelper({ info, input, objectType, req });
-    },
-    createOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return createOneHelper({ info, input, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        RequestService.assertRequestFrom(req, { hasWritePrivatePermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-};
+});

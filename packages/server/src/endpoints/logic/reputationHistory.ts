@@ -1,21 +1,22 @@
 import { type FindByIdInput, type ReputationHistory, type ReputationHistorySearchInput, type ReputationHistorySearchResult } from "@vrooli/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsReputationHistory = {
     findOne: ApiEndpoint<FindByIdInput, ReputationHistory>;
     findMany: ApiEndpoint<ReputationHistorySearchInput, ReputationHistorySearchResult>;
 }
 
-const objectType = "ReputationHistory";
-export const reputationHistory: EndpointsReputationHistory = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const reputationHistory: EndpointsReputationHistory = createStandardCrudEndpoints({
+    objectType: "ReputationHistory",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PUBLIC,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
-    },
-};
+});

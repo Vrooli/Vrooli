@@ -1,17 +1,17 @@
 import { type Wallet, type WalletUpdateInput } from "@vrooli/shared";
-import { updateOneHelper } from "../../actions/updates.js";
-import { RequestService } from "../../auth/request.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsWallet = {
     updateOne: ApiEndpoint<WalletUpdateInput, Wallet>;
 }
 
-const objectType = "Wallet";
-export const wallet: EndpointsWallet = {
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        RequestService.assertRequestFrom(req, { hasWriteAuthPermissions: true });
-        return updateOneHelper({ info, input, objectType, req });
+export const wallet: EndpointsWallet = createStandardCrudEndpoints({
+    objectType: "Wallet",
+    endpoints: {
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: { hasWriteAuthPermissions: true },
+        },
     },
-};
+});

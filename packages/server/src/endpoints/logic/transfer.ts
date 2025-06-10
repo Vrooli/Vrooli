@@ -1,10 +1,10 @@
 import { type FindByIdInput, type Transfer, type TransferDenyInput, type TransferRequestReceiveInput, type TransferRequestSendInput, type TransferSearchInput, type TransferSearchResult, type TransferUpdateInput } from "@vrooli/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads.js";
-import { updateOneHelper } from "../../actions/updates.js";
+import { readOneHelper } from "../../actions/reads.js";
 import { RequestService } from "../../auth/request.js";
 import { CustomError } from "../../events/error.js";
 import { TransferModel } from "../../models/base/transfer.js";
 import { type ApiEndpoint } from "../../types.js";
+import { createStandardCrudEndpoints, PermissionPresets, RateLimitPresets } from "../helpers/endpointFactory.js";
 
 export type EndpointsTransfer = {
     findOne: ApiEndpoint<FindByIdInput, Transfer>;
@@ -18,50 +18,60 @@ export type EndpointsTransfer = {
 }
 
 const objectType = "Transfer";
-export const transfer: EndpointsTransfer = {
-    findOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readOneHelper({ info, input, objectType, req });
+export const transfer: EndpointsTransfer = createStandardCrudEndpoints({
+    objectType: "Transfer",
+    endpoints: {
+        findOne: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PRIVATE,
+        },
+        findMany: {
+            rateLimit: RateLimitPresets.HIGH,
+            permissions: PermissionPresets.READ_PRIVATE,
+        },
+        updateOne: {
+            rateLimit: RateLimitPresets.LOW,
+            permissions: PermissionPresets.WRITE_PRIVATE,
+        },
     },
-    findMany: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return readManyHelper({ info, input, objectType, req });
+    customEndpoints: {
+        requestSendOne: async (wrapped, { req }, info) => {
+            const input = wrapped?.input;
+            await RequestService.get().rateLimit({ maxUser: 100, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            const transferId = await TransferModel.transfer().requestSend(info, input, userData);
+            return readOneHelper({ info, input: { id: transferId }, objectType, req });
+        },
+        requestReceiveOne: async (wrapped, { req }, info) => {
+            const input = wrapped?.input;
+            await RequestService.get().rateLimit({ maxUser: 100, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            const transferId = await TransferModel.transfer().requestReceive(info, input, userData);
+            return readOneHelper({ info, input: { id: transferId }, objectType, req });
+        },
+        cancelOne: async (wrapped, { req }, info) => {
+            const input = wrapped?.input;
+            await RequestService.get().rateLimit({ maxUser: 250, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            throw new CustomError("0000", "NotImplemented");
+            // const transferId = await TransferModel.transfer().cancel(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
+        },
+        acceptOne: async (wrapped, { req }, info) => {
+            const input = wrapped?.input;
+            await RequestService.get().rateLimit({ maxUser: 250, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            throw new CustomError("0000", "NotImplemented");
+            // const transferId = await TransferModel.transfer().accept(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
+        },
+        denyOne: async (wrapped, { req }, info) => {
+            const input = wrapped?.input;
+            await RequestService.get().rateLimit({ maxUser: 250, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            throw new CustomError("0000", "NotImplemented");
+            // const transferId = await TransferModel.transfer().deny(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, req })
+        },
     },
-    requestSendOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        const transferId = await TransferModel.transfer().requestSend(info, input, userData);
-        return readOneHelper({ info, input: { id: transferId }, objectType, req });
-    },
-    requestReceiveOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 100, req });
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        const transferId = await TransferModel.transfer().requestReceive(info, input, userData);
-        return readOneHelper({ info, input: { id: transferId }, objectType, req });
-    },
-    updateOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        return updateOneHelper({ info, input, objectType, req });
-    },
-    cancelOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        throw new CustomError("0000", "NotImplemented");
-        // const transferId = await TransferModel.transfer().cancel(info, input, userData);
-        // return readOneHelper({ info, input: { id: transferId }, objectType, req })
-    },
-    acceptOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        throw new CustomError("0000", "NotImplemented");
-        // const transferId = await TransferModel.transfer().accept(info, input, userData);
-        // return readOneHelper({ info, input: { id: transferId }, objectType, req })
-    },
-    denyOne: async ({ input }, { req }, info) => {
-        await RequestService.get().rateLimit({ maxUser: 250, req });
-        const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        throw new CustomError("0000", "NotImplemented");
-        // const transferId = await TransferModel.transfer().deny(info, input, userData);
-        // return readOneHelper({ info, input: { id: transferId }, objectType, req })
-    },
-};
+});
