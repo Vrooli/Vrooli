@@ -3,7 +3,7 @@ import Typography from "@mui/material/Typography";
 import type { Meta, StoryObj } from "@storybook/react";
 import React, { useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
-import { DotsLoader, GradientRingLoader } from "../indicators/CircularProgress.js";
+import { DotsLoader, GradientRingLoader, OrbitalSpinner } from "../indicators/CircularProgress.js";
 import type { ButtonVariant } from "./TailwindButton.js";
 import { TailwindButton } from "./TailwindButton.js";
 
@@ -180,6 +180,138 @@ export const LoadingSizeComparison = () => {
                     <IconCommon name="Save" />
                 </TailwindButton>
             </Box>
+        </Box>
+    );
+};
+
+// Space Variant showcase
+export const SpaceVariantShowcase = () => {
+    const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
+    const handleClick = (key: string) => {
+        setLoadingStates(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => {
+            setLoadingStates(prev => ({ ...prev, [key]: false }));
+        }, 3000);
+    };
+
+    return (
+        <Box sx={{ 
+            p: 4, 
+            display: "flex", 
+            flexDirection: "column", 
+            gap: 4,
+            bgcolor: "#000",
+            borderRadius: 2,
+            minHeight: 600,
+            background: 'radial-gradient(ellipse at center, #001122 0%, #000 100%)'
+        }}>
+            <Typography variant="h4" sx={{ color: "#fff", textAlign: "center" }}>
+                Space-Inspired Button Variant
+            </Typography>
+            
+            <Typography variant="body1" sx={{ color: "#ccc", textAlign: "center", mb: 2 }}>
+                Deep space gradient with animated starfield and aurora hover effects
+            </Typography>
+
+            {/* Hero section */}
+            <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+                <TailwindButton
+                    variant="space"
+                    size="lg"
+                    loadingIndicator="orbital"
+                    isLoading={loadingStates["hero"] || false}
+                    onClick={() => handleClick("hero")}
+                    startIcon={!loadingStates["hero"] && <IconCommon name="Rocket" />}
+                >
+                    {loadingStates["hero"] ? "Launching..." : "Launch Into Space"}
+                </TailwindButton>
+            </Box>
+
+            {/* Size variations */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+                <Typography variant="h6" sx={{ color: "#fff" }}>Different Sizes</Typography>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+                    <TailwindButton variant="space" size="sm">
+                        Small Space Button
+                    </TailwindButton>
+                    <TailwindButton variant="space" size="md">
+                        Medium Space Button
+                    </TailwindButton>
+                    <TailwindButton variant="space" size="lg">
+                        Large Space Button
+                    </TailwindButton>
+                </Box>
+            </Box>
+
+            {/* With icons */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+                <Typography variant="h6" sx={{ color: "#fff" }}>With Icons</Typography>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                    <TailwindButton 
+                        variant="space" 
+                        startIcon={<IconCommon name="Star" />}
+                    >
+                        Explore Cosmos
+                    </TailwindButton>
+                    <TailwindButton 
+                        variant="space" 
+                        endIcon={<IconCommon name="ArrowForward" />}
+                    >
+                        Navigate Space
+                    </TailwindButton>
+                    <TailwindButton 
+                        variant="space"
+                        size="icon"
+                    >
+                        <IconCommon name="Explore" />
+                    </TailwindButton>
+                </Box>
+            </Box>
+
+            {/* Loading states */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+                <Typography variant="h6" sx={{ color: "#fff" }}>Loading States</Typography>
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                    <TailwindButton
+                        variant="space"
+                        loadingIndicator="orbital"
+                        isLoading={loadingStates["load1"] || false}
+                        onClick={() => handleClick("load1")}
+                    >
+                        {loadingStates["load1"] ? "Processing..." : "Click to Load"}
+                    </TailwindButton>
+                    <TailwindButton
+                        variant="space"
+                        loadingIndicator="circular"
+                        isLoading={loadingStates["load2"] || false}
+                        onClick={() => handleClick("load2")}
+                        startIcon={!loadingStates["load2"] && <IconCommon name="Save" />}
+                    >
+                        {loadingStates["load2"] ? "Saving..." : "Save to Space"}
+                    </TailwindButton>
+                </Box>
+            </Box>
+
+            {/* Multiple space buttons */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+                <Typography variant="h6" sx={{ color: "#fff" }}>Space Theme Collection</Typography>
+                <Typography variant="body2" sx={{ color: "#999", textAlign: "center", mb: 1 }}>
+                    Clean, professional space-inspired buttons with subtle effects
+                </Typography>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 2, width: "100%", maxWidth: 600 }}>
+                    <TailwindButton variant="space">Mission Control</TailwindButton>
+                    <TailwindButton variant="space">Launch Sequence</TailwindButton>
+                    <TailwindButton variant="space">Navigation</TailwindButton>
+                    <TailwindButton variant="space">Deep Space</TailwindButton>
+                    <TailwindButton variant="space">Exploration</TailwindButton>
+                    <TailwindButton variant="space">Discovery</TailwindButton>
+                </Box>
+            </Box>
+
+            <Typography variant="body2" sx={{ color: "#666", textAlign: "center", mt: 2 }}>
+                Hover over buttons to see the shimmer effect • Perfect contrast for readability
+            </Typography>
         </Box>
     );
 };
