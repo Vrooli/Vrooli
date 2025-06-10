@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure Roboto font is applied globally when using Tailwind classes */
+@layer base {
+  html {
+    font-family: Roboto, Helvetica, Arial, sans-serif;
+  }
+  
+  /* Reset button borders */
+  button {
+    border: 0;
+  }
+}

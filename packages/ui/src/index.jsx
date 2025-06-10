@@ -4,6 +4,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary/ErrorBoundary.js";
 import ReactDOM from "react-dom/client";
 import { App } from "./App.js";
 import "./i18n.js"; // Must import for translations to work
+import "./tailwind.css"; // Import Tailwind CSS
 import { Router } from "./route/router.js";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration.js";
 import { getDeviceInfo } from "./utils/display/device.js";

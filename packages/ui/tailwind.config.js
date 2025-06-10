@@ -1,0 +1,74 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      // Use the same font family as MUI
+      fontFamily: {
+        sans: ['Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+      },
+      // Sync with MUI theme colors
+      colors: {
+        primary: {
+          50: '#e3f2fd',
+          100: '#bbdefb',
+          200: '#90caf9',
+          300: '#64b5f6',
+          400: '#42a5f5',
+          500: '#2196f3',
+          600: '#1e88e5',
+          700: '#1976d2',
+          800: '#1565c0',
+          900: '#0d47a1',
+          main: 'var(--primary-main)',
+          dark: 'var(--primary-dark)',
+          light: 'var(--primary-light)',
+        },
+        secondary: {
+          main: 'var(--secondary-main)',
+          dark: 'var(--secondary-dark)',
+          light: 'var(--secondary-light)',
+        },
+        background: {
+          default: 'var(--background-default)',
+          paper: 'var(--background-paper)',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+        }
+      },
+      fontSize: {
+        // Dynamic font sizes that sync with theme
+        'dynamic-xs': ['var(--font-size-xs)', '1.25'],
+        'dynamic-sm': ['var(--font-size-sm)', '1.375'],
+        'dynamic-base': ['var(--font-size-base)', '1.5'],
+        'dynamic-lg': ['var(--font-size-lg)', '1.75'],
+        'dynamic-xl': ['var(--font-size-xl)', '1.75'],
+      },
+      spacing: {
+        // Add spacing that matches MUI's spacing function
+        '0.5': '0.125rem', // theme.spacing(0.5)
+        '1': '0.25rem',    // theme.spacing(1)
+        '2': '0.5rem',     // theme.spacing(2)
+        '3': '0.75rem',    // theme.spacing(3)
+        '4': '1rem',       // theme.spacing(4)
+        '5': '1.25rem',    // theme.spacing(5)
+        '6': '1.5rem',     // theme.spacing(6)
+        '7': '1.75rem',    // theme.spacing(7)
+        '8': '2rem',       // theme.spacing(8)
+        '9': '2.25rem',    // theme.spacing(9)
+        '10': '2.5rem',    // theme.spacing(10)
+      }
+    },
+  },
+  plugins: [],
+  // Important: Add prefix to avoid conflicts during transition
+  prefix: 'tw-',
+  corePlugins: {
+    // Disable Tailwind's CSS reset to avoid conflicts with MUI
+    preflight: false,
+  }
+}

@@ -142,7 +142,7 @@ export function getGlobalStyles(theme: Theme) {
 /**
  * Sets up CSS variables that can be shared across components.
  */
-export function useCssVariables() {
+export function useCssVariables(theme: Theme, fontSize: number) {
     const isMobile = useWindowSize(({ width }) => width <= BREAKPOINTS.md);
 
     useEffect(function pagPaddingBottomEffect() {
@@ -153,6 +153,34 @@ export function useCssVariables() {
             : "env(safe-area-inset-bottom)";
         document.documentElement.style.setProperty("--page-padding-bottom", paddingBottom);
     }, [isMobile]);
+
+    useEffect(function themeCSSVariablesEffect() {
+        const root = document.documentElement;
+        
+        // Colors
+        root.style.setProperty('--background-default', theme.palette.background.default);
+        root.style.setProperty('--background-paper', theme.palette.background.paper);
+        root.style.setProperty('--text-primary', theme.palette.text.primary);
+        root.style.setProperty('--text-secondary', theme.palette.text.secondary);
+        root.style.setProperty('--primary-main', theme.palette.primary.main);
+        root.style.setProperty('--primary-dark', theme.palette.primary.dark);
+        root.style.setProperty('--primary-light', theme.palette.primary.light);
+        root.style.setProperty('--secondary-main', theme.palette.secondary.main);
+        root.style.setProperty('--secondary-dark', theme.palette.secondary.dark);
+        root.style.setProperty('--secondary-light', theme.palette.secondary.light);
+        
+        // Dynamic font sizes based on MUI's typography
+        root.style.setProperty('--font-size-xs', `${fontSize * 0.75}px`);
+        root.style.setProperty('--font-size-sm', `${fontSize * 0.875}px`);
+        root.style.setProperty('--font-size-base', `${fontSize}px`);
+        root.style.setProperty('--font-size-lg', `${fontSize * 1.125}px`);
+        root.style.setProperty('--font-size-xl', `${fontSize * 1.25}px`);
+        
+        // Spacing scale
+        for (let i = 0; i <= 10; i++) {
+            root.style.setProperty(`--spacing-${i}`, theme.spacing(i));
+        }
+    }, [theme, fontSize]);
 }
 
 /** Adds font size to theme */
@@ -221,7 +249,7 @@ export function App() {
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
-    useCssVariables();
+    useCssVariables(theme, fontSize);
 
     const closePopupImage = useCallback(function closePopupImageCallback() {
         setOpenImageData(null);

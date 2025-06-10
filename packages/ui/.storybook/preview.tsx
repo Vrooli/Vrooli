@@ -5,6 +5,7 @@ import { HttpResponse, http } from 'msw';
 import { initialize, mswLoader } from 'msw-storybook-addon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
+import '../src/tailwind.css'; // Import Tailwind CSS for Storybook
 import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
 import { API_URL, baseSession } from '../src/__test/storybookConsts.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
@@ -235,7 +236,7 @@ const preview: Preview = {
                 clearMockedLocationForStorybook();
             }
 
-            useCssVariables();
+            useCssVariables(theme, fontSizeMapping[context.globals.fontSize] || fontSizeMapping.medium);
 
             const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
             const closePopupVideo = useCallback(function closePopupVideoCallback() {
