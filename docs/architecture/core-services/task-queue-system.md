@@ -614,7 +614,7 @@ The three-tier execution architecture needs to integrate seamlessly with the exi
 graph TB
     subgraph "🔄 Unified Queue Processing"
         subgraph "📥 Task Entry Points"
-            LegacyEntry[Legacy Entry Point<br/>📞 processSwarm()<br/>💭 LLM_COMPLETION tasks<br/>🔄 Existing chat flows]
+            LegacyEntry[Legacy Entry Point<br/>📞 processSwarm()<br/>💭 SWARM_EXECUTION tasks<br/>🔄 Existing chat flows]
             NewEntry[New Entry Point<br/>🚀 processNewSwarmExecution()<br/>🧠 SWARM_EXECUTION tasks<br/>🎯 Three-tier workflows]
         end
         
@@ -674,7 +674,7 @@ async function createSwarmForChat(chatId: string, userData: SessionUser) {
         });
     } else {
         return processSwarm({
-            type: QueueTaskType.LLM_COMPLETION,
+            type: QueueTaskType.SWARM_EXECUTION,
             chatId,
             messageId: latestMessageId,
             userData,
@@ -684,7 +684,7 @@ async function createSwarmForChat(chatId: string, userData: SessionUser) {
 ```
 
 #### **Phase 3: Complete Transition**
-- Remove legacy LLM_COMPLETION processing
+- Remove legacy SWARM_EXECUTION processing
 - Update all creation endpoints
 - Clean up legacy code paths
 
@@ -1128,7 +1128,7 @@ class RedisConnectionPool {
 **Short tasks** (< 30 seconds) are handled purely by the queue system. **Long-running tasks** (swarms, runs) also go to the Active Task Registry for timeout management, user control, and resource monitoring.
 
 ### **"How does the three-tier integration work?"**
-The integration uses a **dual-path approach**: legacy `LLM_COMPLETION` tasks continue using the conversation service, while new `SWARM_EXECUTION` tasks use the three-tier architecture. Both types are unified in the Active Task Registry through adapter pattern.
+The integration uses the `SWARM_EXECUTION` task type to use the three-tier architecture.
 
 ### **"What happens if Redis goes down?"**
 Jobs in progress continue running, but new jobs cannot be queued and completed jobs cannot update their status. On Redis recovery, all persistent queue data is restored and processing resumes automatically.
