@@ -12,8 +12,10 @@ import {
     type StepExecution,
 } from "@vrooli/shared";
 import { type ProcessRunContext } from "../context/contextManager.js";
-import { getRedisConnection } from "../../../../redisConn.js";
+import { redis } from "../../../../redisConn.js";
 import { logger } from "../../../../events/logger.js";
+import { RedisStore } from "../../shared/BaseStore.js";
+import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
 
 /**
  * Run configuration
@@ -82,24 +84,22 @@ export interface IRunStateStore {
 /**
  * Redis-based run state store
  */
-export class RedisRunStateStore implements IRunStateStore {
-    private client: Redis | null = null;
-    private readonly prefix = "run:state:";
-    private readonly ttl = 86400; // 24 hours
+export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunStateStore {
+    private readonly indexPrefix = "run_index:";
+    private readonly subsidiaryTtl = 86400; // 24 hours
+    private readonly indexManager: RedisIndexManager;
     
-    async initialize(): Promise<void> {
-        this.client = await getRedisConnection();
+    constructor() {
+        super(logger, redis, "run", 86400); // 24 hours TTL
+        this.indexManager = new RedisIndexManager(redis, logger, 86400);
     }
     
-    private getKey(runId: string, ...parts: string[]): string {
-        return [this.prefix, runId, ...parts].join(":");
+    async initialize(): Promise<void> {
+        // Base store doesn't need explicit initialization
     }
     
     async createRun(runId: string, config: RunConfig): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "config");
-        await this.client.setex(key, this.ttl, JSON.stringify(config));
+        await this.set(runId, config);
         
         // Initialize state
         await this.updateRunState(runId, RunState.PENDING);
@@ -115,28 +115,18 @@ export class RedisRunStateStore implements IRunStateStore {
             }],
         });
         
-        // Add to active runs set
-        await this.client.sadd(this.prefix + "active", runId);
-        
-        // Add to user's runs
-        await this.client.sadd(this.prefix + "by-user:" + config.userId, runId);
+        // Update indexes
+        await this.updateIndexes(runId, config);
         
         logger.info("Run created", { runId });
     }
     
     async getRun(runId: string): Promise<RunConfig | null> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "config");
-        const data = await this.client.get(key);
-        
-        return data ? JSON.parse(data) : null;
+        return this.get(runId);
     }
     
     async updateRun(runId: string, updates: Partial<RunConfig>): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const current = await this.getRun(runId);
+        const current = await this.get(runId);
         if (!current) {
             throw new Error(`Run ${runId} not found`);
         }
@@ -147,72 +137,61 @@ export class RedisRunStateStore implements IRunStateStore {
             updatedAt: new Date(),
         };
         
-        const key = this.getKey(runId, "config");
-        await this.client.setex(key, this.ttl, JSON.stringify(updated));
+        await this.set(runId, updated);
+        
+        // Update indexes if userId changed
+        if (updates.userId && updates.userId !== current.userId) {
+            await this.updateIndexes(runId, updated);
+        }
     }
     
     async deleteRun(runId: string): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const config = await this.getRun(runId);
+        const config = await this.get(runId);
         if (!config) return;
         
-        // Delete all run-related keys
-        const pattern = this.getKey(runId, "*");
-        const keys = await this.client.keys(pattern);
+        // Remove from indexes first
+        await this.removeFromIndexes(runId, config);
         
-        if (keys.length > 0) {
-            await this.client.del(...keys);
-        }
+        // Clean up subsidiary data
+        await this.cleanupRunData(runId);
         
-        // Remove from active runs
-        await this.client.srem(this.prefix + "active", runId);
-        
-        // Remove from user's runs
-        await this.client.srem(this.prefix + "by-user:" + config.userId, runId);
+        // Delete main run
+        await this.delete(runId);
         
         logger.info("Run deleted", { runId });
     }
     
     async getRunState(runId: string): Promise<RunState> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "state");
-        const state = await this.client.get(key);
+        const key = this.getStateKey(runId);
+        const state = await redis.get(key);
         
         return (state as RunState) || RunState.PENDING;
     }
     
     async updateRunState(runId: string, state: RunState): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
+        const oldState = await this.getRunState(runId);
+        const key = this.getStateKey(runId);
+        await redis.setex(key, this.subsidiaryTtl, state);
         
-        const key = this.getKey(runId, "state");
-        await this.client.setex(key, this.ttl, state);
-        
-        // Update state index
-        const stateKey = this.prefix + "by-state:" + state;
-        await this.client.sadd(stateKey, runId);
-        
-        // Remove from other state indexes
-        for (const s of Object.values(RunState)) {
-            if (s !== state) {
-                const oldStateKey = this.prefix + "by-state:" + s;
-                await this.client.srem(oldStateKey, runId);
-            }
-        }
+        // Update state index using IndexManager
+        await this.indexManager.updateStateIndex(
+            runId,
+            oldState === RunState.PENDING ? null : oldState,
+            state,
+            (s) => this.getStateIndexKey(s),
+            Object.values(RunState)
+        );
         
         // Remove from active if terminal state
         const terminalStates = [RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED];
         if (terminalStates.includes(state)) {
-            await this.client.srem(this.prefix + "active", runId);
+            await this.indexManager.removeFromSet(this.getActiveIndexKey(), runId);
         }
     }
     
     async getContext(runId: string): Promise<ProcessRunContext> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "context");
-        const data = await this.client.get(key);
+        const key = this.getContextKey(runId);
+        const data = await redis.get(key);
         
         if (!data) {
             return {
@@ -230,94 +209,74 @@ export class RedisRunStateStore implements IRunStateStore {
     }
     
     async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "context");
-        await this.client.setex(key, this.ttl, JSON.stringify(context));
+        const key = this.getContextKey(runId);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(context));
     }
     
     async setVariable(runId: string, name: string, value: unknown): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
         const context = await this.getContext(runId);
         context.variables[name] = value;
         await this.updateContext(runId, context);
     }
     
     async getVariable(runId: string, name: string): Promise<unknown> {
-        if (!this.client) throw new Error("Store not initialized");
-        
         const context = await this.getContext(runId);
         return context.variables[name];
     }
     
     async getCurrentLocation(runId: string): Promise<Location | null> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "current-location");
-        const data = await this.client.get(key);
+        const key = this.getCurrentLocationKey(runId);
+        const data = await redis.get(key);
         
         return data ? JSON.parse(data) : null;
     }
     
     async updateLocation(runId: string, location: Location): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
         // Update current location
-        const key = this.getKey(runId, "current-location");
-        await this.client.setex(key, this.ttl, JSON.stringify(location));
+        const key = this.getCurrentLocationKey(runId);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(location));
         
         // Add to location history
-        const historyKey = this.getKey(runId, "location-history");
-        await this.client.rpush(historyKey, JSON.stringify(location));
-        await this.client.expire(historyKey, this.ttl);
+        const historyKey = this.getLocationHistoryKey(runId);
+        await redis.rpush(historyKey, JSON.stringify(location));
+        await redis.expire(historyKey, this.subsidiaryTtl);
     }
     
     async getLocationHistory(runId: string): Promise<Location[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "location-history");
-        const history = await this.client.lrange(key, 0, -1);
+        const key = this.getLocationHistoryKey(runId);
+        const history = await redis.lrange(key, 0, -1);
         
         return history.map(item => JSON.parse(item));
     }
     
     async createBranch(runId: string, branch: BranchExecution): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
+        const key = this.getBranchKey(runId, branch.id);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(branch));
         
-        const key = this.getKey(runId, "branches", branch.id);
-        await this.client.setex(key, this.ttl, JSON.stringify(branch));
-        
-        // Add to branches set
-        await this.client.sadd(this.getKey(runId, "branch-ids"), branch.id);
+        // Add to branches set using IndexManager
+        await this.indexManager.addToSet(this.getBranchIndexKey(runId), branch.id, this.subsidiaryTtl);
     }
     
     async getBranch(runId: string, branchId: string): Promise<BranchExecution | null> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "branches", branchId);
-        const data = await this.client.get(key);
+        const key = this.getBranchKey(runId, branchId);
+        const data = await redis.get(key);
         
         return data ? JSON.parse(data) : null;
     }
     
     async updateBranch(runId: string, branchId: string, updates: Partial<BranchExecution>): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
         const current = await this.getBranch(runId, branchId);
         if (!current) {
             throw new Error(`Branch ${branchId} not found`);
         }
         
         const updated = { ...current, ...updates };
-        const key = this.getKey(runId, "branches", branchId);
-        await this.client.setex(key, this.ttl, JSON.stringify(updated));
+        const key = this.getBranchKey(runId, branchId);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(updated));
     }
     
     async listBranches(runId: string): Promise<BranchExecution[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const branchIds = await this.client.smembers(this.getKey(runId, "branch-ids"));
+        const branchIds = await this.indexManager.getSetMembers(this.getBranchIndexKey(runId));
         const branches: BranchExecution[] = [];
         
         for (const branchId of branchIds) {
@@ -331,31 +290,27 @@ export class RedisRunStateStore implements IRunStateStore {
     }
     
     async recordStepExecution(runId: string, step: StepExecution): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
+        const key = this.getStepKey(runId, step.stepId);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(step));
         
-        const key = this.getKey(runId, "steps", step.stepId);
-        await this.client.setex(key, this.ttl, JSON.stringify(step));
-        
-        // Add to steps list
-        const listKey = this.getKey(runId, "step-list");
-        await this.client.rpush(listKey, step.stepId);
-        await this.client.expire(listKey, this.ttl);
+        // Add to steps list using IndexManager
+        await this.indexManager.addToList(
+            this.getStepListKey(runId),
+            step.stepId,
+            'tail',
+            this.subsidiaryTtl
+        );
     }
     
     async getStepExecution(runId: string, stepId: string): Promise<StepExecution | null> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "steps", stepId);
-        const data = await this.client.get(key);
+        const key = this.getStepKey(runId, stepId);
+        const data = await redis.get(key);
         
         return data ? JSON.parse(data) : null;
     }
     
     async listStepExecutions(runId: string): Promise<StepExecution[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const listKey = this.getKey(runId, "step-list");
-        const stepIds = await this.client.lrange(listKey, 0, -1);
+        const stepIds = await this.indexManager.getListMembers(this.getStepListKey(runId));
         const steps: StepExecution[] = [];
         
         for (const stepId of stepIds) {
@@ -369,31 +324,27 @@ export class RedisRunStateStore implements IRunStateStore {
     }
     
     async createCheckpoint(runId: string, checkpoint: Checkpoint): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
+        const key = this.getCheckpointKey(runId, checkpoint.id);
+        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(checkpoint));
         
-        const key = this.getKey(runId, "checkpoints", checkpoint.id);
-        await this.client.setex(key, this.ttl, JSON.stringify(checkpoint));
-        
-        // Add to checkpoints list
-        const listKey = this.getKey(runId, "checkpoint-list");
-        await this.client.rpush(listKey, checkpoint.id);
-        await this.client.expire(listKey, this.ttl);
+        // Add to checkpoints list using IndexManager
+        await this.indexManager.addToList(
+            this.getCheckpointListKey(runId),
+            checkpoint.id,
+            'tail',
+            this.subsidiaryTtl
+        );
     }
     
     async getCheckpoint(runId: string, checkpointId: string): Promise<Checkpoint | null> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.getKey(runId, "checkpoints", checkpointId);
-        const data = await this.client.get(key);
+        const key = this.getCheckpointKey(runId, checkpointId);
+        const data = await redis.get(key);
         
         return data ? JSON.parse(data) : null;
     }
     
     async listCheckpoints(runId: string): Promise<Checkpoint[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const listKey = this.getKey(runId, "checkpoint-list");
-        const checkpointIds = await this.client.lrange(listKey, 0, -1);
+        const checkpointIds = await this.indexManager.getListMembers(this.getCheckpointListKey(runId));
         const checkpoints: Checkpoint[] = [];
         
         for (const checkpointId of checkpointIds) {
@@ -407,8 +358,6 @@ export class RedisRunStateStore implements IRunStateStore {
     }
     
     async restoreFromCheckpoint(runId: string, checkpointId: string): Promise<void> {
-        if (!this.client) throw new Error("Store not initialized");
-        
         const checkpoint = await this.getCheckpoint(runId, checkpointId);
         if (!checkpoint) {
             throw new Error(`Checkpoint ${checkpointId} not found`);
@@ -427,23 +376,114 @@ export class RedisRunStateStore implements IRunStateStore {
     }
     
     async listActiveRuns(): Promise<string[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        return await this.client.smembers(this.prefix + "active");
+        return await this.indexManager.getSetMembers(this.getActiveIndexKey());
     }
     
     async getRunsByState(state: RunState): Promise<string[]> {
-        if (!this.client) throw new Error("Store not initialized");
-        
-        const key = this.prefix + "by-state:" + state;
-        return await this.client.smembers(key);
+        return await this.indexManager.getSetMembers(this.getStateIndexKey(state));
     }
     
     async getRunsByUser(userId: string): Promise<string[]> {
-        if (!this.client) throw new Error("Store not initialized");
+        return await this.indexManager.getSetMembers(this.getUserIndexKey(userId));
+    }
+
+    /**
+     * Clean up all subsidiary data for a run
+     */
+    private async cleanupRunData(runId: string): Promise<void> {
+        try {
+            // Clean up all indexes for this run using patterns
+            const indexPatterns = [
+                `${this.keyPrefix}${runId}:*`,
+                `${this.indexPrefix}*`,
+            ];
+            
+            await this.indexManager.cleanupItemFromAllIndexes(runId, indexPatterns);
+            
+            // Clean up individual data keys using pattern
+            await this.indexManager.cleanupIndexesByPattern(`${this.keyPrefix}${runId}:*`);
+            
+            logger.debug("[RedisRunStateStore] Cleaned up run data", { runId });
+        } catch (error) {
+            logger.error("[RedisRunStateStore] Failed to cleanup run data", {
+                runId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    private async updateIndexes(runId: string, config: RunConfig): Promise<void> {
+        // Add to active runs set using IndexManager
+        await this.indexManager.addToSet(this.getActiveIndexKey(), runId);
         
-        const key = this.prefix + "by-user:" + userId;
-        return await this.client.smembers(key);
+        // Add to user's runs
+        await this.indexManager.addToSet(this.getUserIndexKey(config.userId), runId);
+    }
+
+    private async removeFromIndexes(runId: string, config: RunConfig): Promise<void> {
+        // Remove from active runs using IndexManager
+        await this.indexManager.removeFromSet(this.getActiveIndexKey(), runId);
+        
+        // Remove from user's runs
+        await this.indexManager.removeFromSet(this.getUserIndexKey(config.userId), runId);
+        
+        // Remove from all state indexes
+        for (const state of Object.values(RunState)) {
+            await this.indexManager.removeFromSet(this.getStateIndexKey(state as RunState), runId);
+        }
+    }
+
+    // Key generation helpers
+    private getStateKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:state`;
+    }
+
+    private getContextKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:context`;
+    }
+
+    private getCurrentLocationKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:current_location`;
+    }
+
+    private getLocationHistoryKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:location_history`;
+    }
+
+    private getBranchKey(runId: string, branchId: string): string {
+        return `${this.keyPrefix}${runId}:branch:${branchId}`;
+    }
+
+    private getBranchIndexKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:branches`;
+    }
+
+    private getStepKey(runId: string, stepId: string): string {
+        return `${this.keyPrefix}${runId}:step:${stepId}`;
+    }
+
+    private getStepListKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:steps`;
+    }
+
+    private getCheckpointKey(runId: string, checkpointId: string): string {
+        return `${this.keyPrefix}${runId}:checkpoint:${checkpointId}`;
+    }
+
+    private getCheckpointListKey(runId: string): string {
+        return `${this.keyPrefix}${runId}:checkpoints`;
+    }
+
+    private getActiveIndexKey(): string {
+        return `${this.indexPrefix}active`;
+    }
+
+    private getStateIndexKey(state: RunState): string {
+        return `${this.indexPrefix}state:${state}`;
+    }
+
+    private getUserIndexKey(userId: string): string {
+        return `${this.indexPrefix}user:${userId}`;
     }
 }
 

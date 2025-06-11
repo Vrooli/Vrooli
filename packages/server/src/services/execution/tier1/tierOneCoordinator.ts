@@ -1,7 +1,15 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
-import { type TierCommunicationInterface } from "../types/communication.js";
+import { 
+    type TierCommunicationInterface,
+    type TierExecutionRequest,
+    type ExecutionResult,
+    type ExecutionId,
+    type ExecutionStatus,
+    type TierCapabilities,
+    type RoutineExecutionInput,
+} from "@vrooli/shared";
 import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
 import { ConversationBridge } from "./intelligence/conversationBridge.js";
 import { TeamManager } from "./organization/teamManager.js";
@@ -30,7 +38,7 @@ import { type BotParticipant } from "../../../services/conversation/types.js";
  * Main entry point for Tier 1 coordination intelligence.
  * Manages swarm lifecycle, strategic planning, and metacognitive operations.
  */
-export class TierOneCoordinator {
+export class TierOneCoordinator implements TierCommunicationInterface {
     private readonly logger: Logger;
     private readonly eventBus: EventBus;
     private readonly tier2Orchestrator: TierCommunicationInterface;
@@ -454,7 +462,7 @@ export class TierOneCoordinator {
             throw new Error(`Swarm ${request.swarmId} not found`);
         }
 
-        // Get the swarm to find the conversationId
+        // Get the swarm to find the conversationId and resource allocation
         const swarm = await this.stateStore.getSwarm(request.swarmId);
         if (!swarm) {
             throw new Error(`Swarm state not found for ${request.swarmId}`);
@@ -462,18 +470,92 @@ export class TierOneCoordinator {
         
         const conversationId = swarm.metadata?.conversationId || request.swarmId;
 
-        // Create run execution event for swarm to handle
-        await stateMachine.handleEvent({
-            type: "internal_task_assignment",
-            conversationId,
-            sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
-            payload: {
+        try {
+            // Create run execution event for swarm coordination
+            await stateMachine.handleEvent({
+                type: "internal_task_assignment",
+                conversationId,
+                sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                payload: {
+                    runId: request.runId,
+                    routineVersionId: request.routineVersionId,
+                    inputs: request.inputs,
+                    config: request.config
+                }
+            });
+
+            // NEW: Also delegate to TierTwo through the standardized interface
+            const tier2Request: TierExecutionRequest<RoutineExecutionInput> = {
+                context: {
+                    executionId: request.runId,
+                    swarmId: request.swarmId,
+                    userId: swarm.metadata?.userId || "system",
+                    organizationId: swarm.metadata?.organizationId,
+                },
+                input: {
+                    routineId: request.routineVersionId,
+                    parameters: request.inputs,
+                    workflow: {
+                        steps: [], // Will be loaded by TierTwo from routineVersionId
+                        dependencies: [],
+                        parallelBranches: []
+                    }
+                },
+                allocation: {
+                    maxCredits: swarm.resources.remaining.credits,
+                    maxTokens: swarm.resources.remaining.tokens,
+                    maxTime: swarm.resources.remaining.time,
+                },
+                options: {
+                    strategy: request.config.strategy || "conversational",
+                    model: request.config.model,
+                    maxSteps: request.config.maxSteps,
+                    timeout: request.config.timeout,
+                }
+            };
+
+            // Delegate to Tier 2 for actual run execution
+            const result = await this.tier2Orchestrator.execute(tier2Request);
+            
+            this.logger.info("[TierOneCoordinator] Run execution delegated to Tier 2", {
                 runId: request.runId,
-                routineVersionId: request.routineVersionId,
-                inputs: request.inputs,
-                config: request.config
+                executionResult: result.status,
+            });
+
+            // Update swarm resource consumption based on execution result
+            if (result.resourceUsage) {
+                swarm.resources.consumed.credits += result.resourceUsage.credits;
+                swarm.resources.consumed.tokens += result.resourceUsage.tokens;
+                swarm.resources.consumed.time += result.resourceUsage.duration;
+                
+                swarm.resources.remaining.credits -= result.resourceUsage.credits;
+                swarm.resources.remaining.tokens -= result.resourceUsage.tokens;
+                swarm.resources.remaining.time -= result.resourceUsage.duration;
+                
+                await this.stateStore.updateSwarm(request.swarmId, swarm);
             }
-        });
+
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to execute run", {
+                runId: request.runId,
+                swarmId: request.swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            
+            // Notify swarm of execution failure
+            await stateMachine.handleEvent({
+                type: "internal_status_update",
+                conversationId,
+                sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
+                payload: { 
+                    type: "run_failed", 
+                    runId: request.runId,
+                    error: error instanceof Error ? error.message : String(error)
+                }
+            });
+            
+            throw error;
+        }
     }
 
     /**
@@ -715,6 +797,173 @@ export class TierOneCoordinator {
             });
             return { success: false, message: "Internal error during resource release" };
         }
+    }
+
+    // TierCommunicationInterface implementation
+
+    /**
+     * Execute a tier execution request
+     */
+    async execute<TInput, TOutput>(
+        request: TierExecutionRequest<TInput>
+    ): Promise<ExecutionResult<TOutput>> {
+        this.logger.info("[TierOneCoordinator] Executing tier request", {
+            contextType: typeof request.input,
+        });
+
+        try {
+            // Route based on input type/context
+            if (this.isSwarmStartRequest(request.input)) {
+                const swarmInput = request.input as any;
+                await this.startSwarm({
+                    swarmId: request.context.executionId,
+                    name: swarmInput.goal || "Swarm Execution",
+                    description: swarmInput.goal || "AI Swarm Task",
+                    goal: swarmInput.goal,
+                    resources: {
+                        maxCredits: request.allocation.maxCredits,
+                        maxTokens: request.allocation.maxTokens,
+                        maxTime: request.allocation.maxTime,
+                        tools: swarmInput.availableAgents?.map((agent: any) => ({
+                            name: agent.name,
+                            description: agent.capabilities?.join(", ") || ""
+                        })) || []
+                    },
+                    config: {
+                        model: "gpt-4",
+                        temperature: 0.7,
+                        autoApproveTools: false,
+                        parallelExecutionLimit: 3
+                    },
+                    userId: request.context.userId || "system",
+                    organizationId: request.context.organizationId,
+                });
+
+                return {
+                    executionId: request.context.executionId,
+                    status: "completed",
+                    result: { swarmId: request.context.executionId } as TOutput,
+                    resourceUsage: {
+                        credits: 0,
+                        tokens: 0,
+                        duration: 0
+                    },
+                    duration: 0
+                };
+            } else {
+                throw new Error(`Unsupported input type for Tier 1: ${typeof request.input}`);
+            }
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Execution failed", {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            
+            return {
+                executionId: request.context.executionId,
+                status: "failed",
+                error: {
+                    code: "EXECUTION_FAILED",
+                    message: error instanceof Error ? error.message : "Unknown error"
+                },
+                resourceUsage: {
+                    credits: 0,
+                    tokens: 0,
+                    duration: 0
+                },
+                duration: 0
+            };
+        }
+    }
+
+    /**
+     * Get execution status for a swarm
+     */
+    async getExecutionStatus(executionId: ExecutionId): Promise<ExecutionStatus> {
+        try {
+            const swarmStatus = await this.getSwarmStatus(executionId);
+            
+            // Map SwarmStatus to ExecutionStatus
+            const statusMap: Record<string, ExecutionStatus["status"]> = {
+                "Pending": "pending",
+                "Running": "running", 
+                "Paused": "paused",
+                "Completed": "completed",
+                "Failed": "failed",
+                "Cancelled": "cancelled",
+                "Unknown": "failed"
+            };
+
+            return {
+                executionId,
+                status: statusMap[swarmStatus.status] || "failed",
+                progress: swarmStatus.progress,
+                metadata: {
+                    currentPhase: swarmStatus.currentPhase,
+                    activeRuns: swarmStatus.activeRuns,
+                    completedRuns: swarmStatus.completedRuns,
+                    errors: swarmStatus.errors
+                }
+            };
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to get execution status", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            
+            return {
+                executionId,
+                status: "failed",
+                error: {
+                    code: "STATUS_ERROR",
+                    message: error instanceof Error ? error.message : "Unknown error"
+                }
+            };
+        }
+    }
+
+    /**
+     * Cancel an execution (swarm)
+     */
+    async cancelExecution(executionId: ExecutionId): Promise<void> {
+        try {
+            await this.cancelSwarm(executionId, "system", "Cancelled via tier interface");
+        } catch (error) {
+            this.logger.error("[TierOneCoordinator] Failed to cancel execution", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Get tier capabilities
+     */
+    async getCapabilities(): Promise<TierCapabilities> {
+        return {
+            tier: "tier1",
+            supportedInputTypes: ["SwarmCoordinationInput"],
+            maxConcurrency: 10,
+            estimatedLatency: {
+                p50: 5000,  // 5 seconds
+                p95: 15000, // 15 seconds  
+                p99: 30000  // 30 seconds
+            },
+            resourceLimits: {
+                maxCredits: "unlimited",
+                maxDurationMs: 3600000, // 1 hour
+                maxMemoryMB: 1024
+            }
+        };
+    }
+
+    /**
+     * Helper to determine if input is a swarm start request
+     */
+    private isSwarmStartRequest(input: unknown): boolean {
+        return typeof input === "object" && 
+               input !== null && 
+               "goal" in input;
     }
 
     /**

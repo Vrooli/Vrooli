@@ -10,142 +10,81 @@ import {
     SwarmStatus,
 } from "@vrooli/shared";
 import { redis } from "../../../../redisConn.js";
+import { RedisStore } from "../../shared/BaseStore.js";
+import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
 import { type ISwarmStateStore } from "./swarmStateStore.js";
 
 /**
  * Redis-based swarm state store for production use
  * 
- * This implementation provides persistent storage for swarm state
- * using Redis with proper key namespacing and TTL management.
+ * This implementation extends RedisStore for basic CRUD operations
+ * and adds swarm-specific functionality on top.
  */
-export class RedisSwarmStateStore implements ISwarmStateStore {
-    private readonly logger: Logger;
-    private readonly keyPrefix = "swarm:";
+export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmStateStore {
     private readonly indexPrefix = "swarm_index:";
-    private readonly ttl = 86400 * 7; // 7 days default TTL
+    private readonly indexManager: RedisIndexManager;
 
     constructor(logger: Logger) {
-        this.logger = logger;
+        super(logger, redis, "swarm", 86400 * 7); // 7 days TTL
+        this.indexManager = new RedisIndexManager(redis, logger, 86400 * 7);
     }
 
     /**
-     * Creates a new swarm in Redis
+     * Creates a new swarm - wraps base set method with index updates
      */
     async createSwarm(swarmId: string, swarm: Swarm): Promise<void> {
-        const key = this.getSwarmKey(swarmId);
-        const data = JSON.stringify(swarm);
-        
-        try {
-            // Store swarm data
-            await redis.set(key, data, "EX", this.ttl);
-            
-            // Update indexes
-            await this.updateIndexes(swarmId, swarm);
-            
-            this.logger.debug("[RedisSwarmStateStore] Created swarm", { swarmId });
-        } catch (error) {
-            this.logger.error("[RedisSwarmStateStore] Failed to create swarm", {
-                swarmId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
+        await this.set(swarmId, swarm);
+        await this.updateIndexes(swarmId, swarm);
     }
 
     /**
-     * Retrieves a swarm from Redis
+     * Gets a swarm - delegates to base get method
      */
     async getSwarm(swarmId: string): Promise<Swarm | null> {
-        const key = this.getSwarmKey(swarmId);
-        
-        try {
-            const data = await redis.get(key);
-            if (!data) {
-                return null;
-            }
-            
-            const swarm = JSON.parse(data) as Swarm;
-            
-            // Refresh TTL on access
-            await redis.expire(key, this.ttl);
-            
-            return swarm;
-        } catch (error) {
-            this.logger.error("[RedisSwarmStateStore] Failed to get swarm", {
-                swarmId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return null;
-        }
+        return this.get(swarmId);
     }
 
     /**
-     * Updates a swarm in Redis
+     * Updates a swarm - uses base methods with index updates
      */
     async updateSwarm(swarmId: string, updates: Partial<Swarm>): Promise<void> {
-        const swarm = await this.getSwarm(swarmId);
+        const swarm = await this.get(swarmId);
         if (!swarm) {
             throw new Error(`Swarm ${swarmId} not found`);
         }
         
-        try {
-            // Apply updates
-            const updatedSwarm = {
-                ...swarm,
-                ...updates,
-                updatedAt: new Date(),
-            };
-            
-            const key = this.getSwarmKey(swarmId);
-            const data = JSON.stringify(updatedSwarm);
-            
-            // Store updated swarm
-            await redis.set(key, data, "EX", this.ttl);
-            
-            // Update indexes if state changed
-            if (updates.state && updates.state !== swarm.state) {
-                await this.updateIndexes(swarmId, updatedSwarm);
-            }
-            
-            this.logger.debug("[RedisSwarmStateStore] Updated swarm", {
-                swarmId,
-                updates: Object.keys(updates),
-            });
-        } catch (error) {
-            this.logger.error("[RedisSwarmStateStore] Failed to update swarm", {
-                swarmId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
+        const oldState = swarm.state;
+        const updatedSwarm = {
+            ...swarm,
+            ...updates,
+            updatedAt: new Date(),
+        };
+        
+        await this.set(swarmId, updatedSwarm);
+        
+        // Update indexes if state changed
+        if (updates.state && updates.state !== oldState) {
+            await this.updateIndexes(swarmId, updatedSwarm);
         }
     }
 
     /**
-     * Deletes a swarm from Redis
+     * Deletes a swarm - uses base delete with index cleanup
      */
     async deleteSwarm(swarmId: string): Promise<void> {
-        const swarm = await this.getSwarm(swarmId);
+        const swarm = await this.get(swarmId);
         if (!swarm) {
             return;
         }
         
-        try {
-            const key = this.getSwarmKey(swarmId);
-            
-            // Remove from indexes
-            await this.removeFromIndexes(swarmId, swarm);
-            
-            // Delete swarm data
-            await redis.del(key);
-            
-            this.logger.debug("[RedisSwarmStateStore] Deleted swarm", { swarmId });
-        } catch (error) {
-            this.logger.error("[RedisSwarmStateStore] Failed to delete swarm", {
-                swarmId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error;
-        }
+        // Remove from indexes first
+        await this.removeFromIndexes(swarmId, swarm);
+        
+        // Clean up subsidiary data
+        await this.cleanupSwarmData(swarmId);
+        
+        // Delete main swarm
+        await this.delete(swarmId);
     }
 
     /**
@@ -160,7 +99,17 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
      * Updates the state of a swarm
      */
     async updateSwarmState(swarmId: string, state: SwarmState): Promise<void> {
+        const oldState = await this.getSwarmState(swarmId);
         await this.updateSwarm(swarmId, { state });
+        
+        // Use IndexManager for state transition
+        await this.indexManager.updateStateIndex(
+            swarmId,
+            oldState === SwarmState.UNINITIALIZED ? null : oldState,
+            state,
+            (s) => this.getStateIndexKey(s),
+            Object.values(SwarmState)
+        );
     }
 
     /**
@@ -209,7 +158,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         const key = this.getStateIndexKey(state);
         
         try {
-            const members = await redis.smembers(key);
+            const members = await this.indexManager.getSetMembers(key);
             
             // Verify swarms still exist and have correct state
             const valid: string[] = [];
@@ -219,7 +168,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
                     valid.push(swarmId);
                 } else {
                     // Clean up stale index entry
-                    await redis.srem(key, swarmId);
+                    await this.indexManager.removeFromSet(key, swarmId);
                 }
             }
             
@@ -240,7 +189,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         const key = this.getUserIndexKey(userId);
         
         try {
-            const members = await redis.smembers(key);
+            const members = await this.indexManager.getSetMembers(key);
             
             // Verify swarms still exist
             const valid: string[] = [];
@@ -250,7 +199,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
                     valid.push(swarmId);
                 } else {
                     // Clean up stale index entry
-                    await redis.srem(key, swarmId);
+                    await this.indexManager.removeFromSet(key, swarmId);
                 }
             }
             
@@ -274,8 +223,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             await redis.set(key, data, "EX", this.ttl);
             
-            // Add to teams index
-            await redis.sadd(this.getTeamsIndexKey(swarmId), team.id);
+            // Add to teams index using IndexManager
+            await this.indexManager.addToSet(this.getTeamsIndexKey(swarmId), team.id);
             
             this.logger.debug("[RedisSwarmStateStore] Created team", {
                 swarmId,
@@ -350,8 +299,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             const key = this.getTeamKey(swarmId, teamId);
             
-            // Remove from teams index
-            await redis.srem(this.getTeamsIndexKey(swarmId), teamId);
+            // Remove from teams index using IndexManager
+            await this.indexManager.removeFromSet(this.getTeamsIndexKey(swarmId), teamId);
             
             // Delete team data
             await redis.del(key);
@@ -372,7 +321,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
 
     async listTeams(swarmId: string): Promise<SwarmTeam[]> {
         try {
-            const teamIds = await redis.smembers(this.getTeamsIndexKey(swarmId));
+            const teamIds = await this.indexManager.getSetMembers(this.getTeamsIndexKey(swarmId));
             const teams: SwarmTeam[] = [];
             
             for (const teamId of teamIds) {
@@ -402,8 +351,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             await redis.set(key, data, "EX", this.ttl);
             
-            // Add to agents index
-            await redis.sadd(this.getAgentsIndexKey(swarmId), agent.id);
+            // Add to agents index using IndexManager
+            await this.indexManager.addToSet(this.getAgentsIndexKey(swarmId), agent.id);
             
             this.logger.debug("[RedisSwarmStateStore] Registered agent", {
                 swarmId,
@@ -478,8 +427,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             const key = this.getAgentKey(swarmId, agentId);
             
-            // Remove from agents index
-            await redis.srem(this.getAgentsIndexKey(swarmId), agentId);
+            // Remove from agents index using IndexManager
+            await this.indexManager.removeFromSet(this.getAgentsIndexKey(swarmId), agentId);
             
             // Delete agent data
             await redis.del(key);
@@ -500,7 +449,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
 
     async listAgents(swarmId: string): Promise<SwarmAgent[]> {
         try {
-            const agentIds = await redis.smembers(this.getAgentsIndexKey(swarmId));
+            const agentIds = await this.indexManager.getSetMembers(this.getAgentsIndexKey(swarmId));
             const agents: SwarmAgent[] = [];
             
             for (const agentId of agentIds) {
@@ -530,8 +479,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             await redis.set(key, data, "EX", this.ttl);
             
-            // Add to blackboard index
-            await redis.sadd(this.getBlackboardIndexKey(swarmId), item.id);
+            // Add to blackboard index using IndexManager
+            await this.indexManager.addToSet(this.getBlackboardIndexKey(swarmId), item.id);
             
             this.logger.debug("[RedisSwarmStateStore] Added blackboard item", {
                 swarmId,
@@ -549,7 +498,7 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
 
     async getBlackboardItems(swarmId: string, filter?: (item: BlackboardItem) => boolean): Promise<BlackboardItem[]> {
         try {
-            const itemIds = await redis.smembers(this.getBlackboardIndexKey(swarmId));
+            const itemIds = await this.indexManager.getSetMembers(this.getBlackboardIndexKey(swarmId));
             const items: BlackboardItem[] = [];
             
             for (const itemId of itemIds) {
@@ -609,8 +558,8 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
         try {
             const key = this.getBlackboardItemKey(swarmId, itemId);
             
-            // Remove from blackboard index
-            await redis.srem(this.getBlackboardIndexKey(swarmId), itemId);
+            // Remove from blackboard index using IndexManager
+            await this.indexManager.removeFromSet(this.getBlackboardIndexKey(swarmId), itemId);
             
             // Delete item data
             await redis.del(key);
@@ -693,10 +642,38 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
     }
 
     /**
-     * Private helper methods
+     * Clean up all subsidiary data for a swarm
      */
-    private getSwarmKey(swarmId: string): string {
-        return `${this.keyPrefix}${swarmId}`;
+    private async cleanupSwarmData(swarmId: string): Promise<void> {
+        try {
+            // Get all teams and clean them up
+            const teamIds = await redis.smembers(this.getTeamsIndexKey(swarmId));
+            for (const teamId of teamIds) {
+                await redis.del(this.getTeamKey(swarmId, teamId));
+            }
+            await redis.del(this.getTeamsIndexKey(swarmId));
+            
+            // Get all agents and clean them up
+            const agentIds = await redis.smembers(this.getAgentsIndexKey(swarmId));
+            for (const agentId of agentIds) {
+                await redis.del(this.getAgentKey(swarmId, agentId));
+            }
+            await redis.del(this.getAgentsIndexKey(swarmId));
+            
+            // Clean up blackboard items
+            const itemIds = await redis.smembers(this.getBlackboardIndexKey(swarmId));
+            for (const itemId of itemIds) {
+                await redis.del(this.getBlackboardItemKey(swarmId, itemId));
+            }
+            await redis.del(this.getBlackboardIndexKey(swarmId));
+            
+            this.logger.debug("[RedisSwarmStateStore] Cleaned up swarm data", { swarmId });
+        } catch (error) {
+            this.logger.error("[RedisSwarmStateStore] Failed to cleanup swarm data", {
+                swarmId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     private getStateIndexKey(state: SwarmState): string {
@@ -736,31 +713,32 @@ export class RedisSwarmStateStore implements ISwarmStateStore {
     }
 
     private async updateIndexes(swarmId: string, swarm: Swarm): Promise<void> {
-        // Update state index
+        // Update state index using IndexManager
         if (swarm.state) {
-            // Remove from all state indexes first
-            for (const state of Object.values(SwarmState)) {
-                await redis.srem(this.getStateIndexKey(state as SwarmState), swarmId);
-            }
-            // Add to current state index
-            await redis.sadd(this.getStateIndexKey(swarm.state), swarmId);
+            await this.indexManager.updateStateIndex(
+                swarmId,
+                null, // No old state for new swarms
+                swarm.state,
+                (s) => this.getStateIndexKey(s),
+                Object.values(SwarmState)
+            );
         }
         
         // Update user index
         if (swarm.metadata.userId) {
-            await redis.sadd(this.getUserIndexKey(swarm.metadata.userId), swarmId);
+            await this.indexManager.addToSet(this.getUserIndexKey(swarm.metadata.userId), swarmId);
         }
     }
 
     private async removeFromIndexes(swarmId: string, swarm: Swarm): Promise<void> {
-        // Remove from state index
+        // Remove from state index using IndexManager
         if (swarm.state) {
-            await redis.srem(this.getStateIndexKey(swarm.state), swarmId);
+            await this.indexManager.removeFromSet(this.getStateIndexKey(swarm.state), swarmId);
         }
         
         // Remove from user index
         if (swarm.metadata.userId) {
-            await redis.srem(this.getUserIndexKey(swarm.metadata.userId), swarmId);
+            await this.indexManager.removeFromSet(this.getUserIndexKey(swarm.metadata.userId), swarmId);
         }
     }
 }

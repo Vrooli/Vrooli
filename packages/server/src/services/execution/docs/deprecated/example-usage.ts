@@ -1,8 +1,13 @@
 /**
- * Example usage of the Unified Resource Management System
+ * Example usage of the Resource Monitoring System
  * 
- * This demonstrates how to use the resource management capabilities
- * across the three-tier execution architecture.
+ * DEPRECATED: Resource allocation is now handled by individual tier managers.
+ * This file demonstrates resource monitoring capabilities only.
+ * 
+ * For resource allocation:
+ * - Tier 1: Use tier1.organization.ResourceManager for swarm resources
+ * - Tier 2: Resources managed through RunStateMachine
+ * - Tier 3: Use tier3.engine.ResourceManager for step execution
  */
 
 import { logger } from "../../../../events/logger.js";

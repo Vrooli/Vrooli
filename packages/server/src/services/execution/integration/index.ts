@@ -12,8 +12,10 @@ export {
     type ExecutionArchitectureOptions,
 } from './executionArchitecture.js';
 
-// Export resource management
-export { UnifiedResourceManager } from './resources/index.js';
+// Export resource monitoring
+export { ResourceMonitor } from './monitoring/resourceMonitor.js';
+
+// Re-export resource types from shared (no longer from deprecated resources folder)
 export type {
     ResourceType,
     ResourceUnit,
@@ -24,7 +26,7 @@ export type {
     AllocationResult,
     OptimizationSuggestion,
     ResourceAccounting,
-} from './resources/index.js';
+} from '@vrooli/shared';
 
 // Export monitoring tools
 export {

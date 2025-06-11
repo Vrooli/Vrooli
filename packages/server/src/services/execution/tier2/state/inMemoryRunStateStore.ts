@@ -12,13 +12,13 @@ import {
 import { type IRunStateStore, type RunConfig } from "./runStateStore.js";
 import { type ProcessRunContext } from "../context/contextManager.js";
 import { logger } from "../../../../events/logger.js";
+import { InMemoryStore } from "../../shared/BaseStore.js";
 
 /**
  * In-memory implementation of run state store
  * Useful for development and testing without Redis dependency
  */
-export class InMemoryRunStateStore implements IRunStateStore {
-    private runs = new Map<string, RunConfig>();
+export class InMemoryRunStateStore extends InMemoryStore<RunConfig> implements IRunStateStore {
     private states = new Map<string, RunState>();
     private contexts = new Map<string, ProcessRunContext>();
     private locations = new Map<string, Location>();
@@ -31,9 +31,17 @@ export class InMemoryRunStateStore implements IRunStateStore {
     private activeRuns = new Set<string>();
     private runsByState = new Map<RunState, Set<string>>();
     private runsByUser = new Map<string, Set<string>>();
+
+    constructor() {
+        super(logger);
+    }
+
+    async initialize(): Promise<void> {
+        // No initialization needed for in-memory store
+    }
     
     async createRun(runId: string, config: RunConfig): Promise<void> {
-        this.runs.set(runId, config);
+        await this.set(runId, config);
         
         // Initialize state
         await this.updateRunState(runId, RunState.PENDING);
@@ -62,11 +70,11 @@ export class InMemoryRunStateStore implements IRunStateStore {
     }
     
     async getRun(runId: string): Promise<RunConfig | null> {
-        return this.runs.get(runId) || null;
+        return this.get(runId);
     }
     
     async updateRun(runId: string, updates: Partial<RunConfig>): Promise<void> {
-        const current = this.runs.get(runId);
+        const current = await this.get(runId);
         if (!current) {
             throw new Error(`Run ${runId} not found`);
         }
@@ -77,15 +85,15 @@ export class InMemoryRunStateStore implements IRunStateStore {
             updatedAt: new Date(),
         };
         
-        this.runs.set(runId, updated);
+        await this.set(runId, updated);
     }
     
     async deleteRun(runId: string): Promise<void> {
-        const config = this.runs.get(runId);
+        const config = await this.get(runId);
         if (!config) return;
         
         // Delete all run-related data
-        this.runs.delete(runId);
+        await this.delete(runId);
         this.states.delete(runId);
         this.contexts.delete(runId);
         this.locations.delete(runId);

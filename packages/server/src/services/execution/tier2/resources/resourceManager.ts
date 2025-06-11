@@ -10,6 +10,9 @@ import {
     generatePk,
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type ResourceAmount } from "../../cross-cutting/resources/resourceManager.js";
+import { RunResourceAdapter } from "../../cross-cutting/resources/adapters.js";
+import { BaseTierResourceManager } from "../../shared/BaseTierResourceManager.js";
 
 /**
  * Resource allocation for a routine run
@@ -55,58 +58,70 @@ interface StepResourceAllocation {
 /**
  * Tier 2 ResourceManager
  * 
- * Manages resources for routine runs, implementing the reserve-and-return pattern:
- * 1. Receives resource allocation from Tier 1 (Swarm level)
- * 2. Distributes resources to individual steps via Tier 3
- * 3. Tracks aggregate usage across all steps
- * 4. Returns unused resources to Tier 1 upon completion
+ * This component extends BaseTierResourceManager to provide run-specific
+ * resource management functionality using the RunResourceAdapter.
  * 
- * Key responsibilities:
- * - Manage resource distribution to parallel branches
- * - Enforce routine-level resource limits
- * - Aggregate step-level usage for reporting
- * - Handle resource allocation for sub-routines
+ * Complex behaviors like path optimization and branch balancing emerge from
+ * resource agents analyzing the events emitted by the unified manager.
  */
-export class ResourceManager {
-    private readonly logger: Logger;
-    private readonly eventBus?: EventBus;
-    private readonly allocations: Map<string, RunResourceAllocation> = new Map();
-    
-    constructor(logger: Logger, eventBus?: EventBus) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+export class ResourceManager extends BaseTierResourceManager<RunResourceAdapter> {
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus, 2);
+    }
+
+    /**
+     * Create the run resource adapter
+     */
+    protected createAdapter(): RunResourceAdapter {
+        return new RunResourceAdapter(this.unifiedManager);
     }
     
     /**
      * Reserve resources for a routine run from Tier 1
+     * Maps legacy interface to unified manager
      */
     async reserveRunResources(
         context: ExecutionContext,
         parentAllocation: AvailableResources,
         constraints: ExecutionConstraints,
     ): Promise<RunResourceAllocation> {
+        return this.withErrorHandling("reserve run resources", async () => {
         const runId = context.executionId;
         const routineId = context.routineId || generatePk();
         
-        // Calculate resource reservation based on routine requirements
+        // Use adapter to reserve resources
+        const allocation = await this.adapter.reserveForRun(
+            runId,
+            {
+                credits: Math.min(
+                    parentAllocation.credits,
+                    constraints.maxCost || parentAllocation.credits,
+                ),
+                time: Math.min(
+                    constraints.maxTime || Number.MAX_SAFE_INTEGER,
+                    constraints.maxExecutionTime || Number.MAX_SAFE_INTEGER,
+                ),
+                memory: parentAllocation.memoryMB * 1024 * 1024, // Convert MB to bytes
+                tokens: parentAllocation.credits * 10, // Estimate tokens from credits
+                apiCalls: 100, // Default API calls
+            },
+            context.parentSwarmId,
+        );
+        
+        // Convert to legacy format
         const reserved = {
-            credits: Math.min(
-                parentAllocation.credits,
-                constraints.maxCost || parentAllocation.credits,
-            ),
-            maxDurationMs: Math.min(
-                constraints.maxTime || Number.MAX_SAFE_INTEGER,
-                constraints.maxExecutionTime || Number.MAX_SAFE_INTEGER,
-            ),
+            credits: allocation.resources.credits || 0,
+            maxDurationMs: allocation.resources.time || 0,
             maxMemoryMB: 2048, // Default 2GB per routine
             maxConcurrentSteps: 10, // Default concurrency limit
             toolPermissions: parentAllocation.tools.map(t => t.name),
         };
         
-        const allocation: RunResourceAllocation = {
+        // Return simplified allocation
+        return {
             runId,
             routineId,
-            parentSwarmId: context.swarmId,
+            parentSwarmId: context.parentSwarmId,
             reserved,
             allocated: new Map(),
             usage: {
@@ -118,102 +133,49 @@ export class ResourceManager {
             createdAt: new Date(),
             updatedAt: new Date(),
         };
-        
-        this.allocations.set(runId, allocation);
-        
-        // Emit reservation event
-        if (this.eventBus) {
-            await this.eventBus.publish("run.resources.reserved", {
-                runId,
-                routineId,
-                reserved,
-                timestamp: new Date(),
-            });
-        }
-        
-        this.logger.debug("[Tier2 ResourceManager] Reserved run resources", {
-            runId,
-            routineId,
-            reserved,
         });
-        
-        return allocation;
     }
     
     /**
      * Allocate resources to a step (for Tier 3)
+     * Uses adapter to distribute resources
      */
     async allocateStepResources(
         runId: string,
         stepId: StepId,
         requirements: ExecutionConstraints,
     ): Promise<BudgetReservation> {
-        const allocation = this.allocations.get(runId);
+        return this.withErrorHandling("allocate step resources", async () => {
+        // Use adapter to distribute resources to steps
+        const stepAllocations = await this.adapter.distributeToSteps(
+            runId,
+            [stepId],
+            "equal",
+        );
+        
+        const allocation = stepAllocations.get(stepId);
         if (!allocation) {
-            throw new Error(`No resource allocation found for run ${runId}`);
+            throw new Error("Failed to allocate resources for step");
         }
         
-        // Check if we have enough resources
-        const currentUsage = this.calculateCurrentUsage(allocation);
-        const availableCredits = allocation.reserved.credits - Number(currentUsage.creditsUsed);
-        
-        if (availableCredits <= 0) {
-            throw new Error("Insufficient credits for step execution");
-        }
-        
-        // Check concurrent step limit
-        const activeSteps = Array.from(allocation.allocated.values())
-            .filter(s => s.status === "active").length;
-        
-        if (activeSteps >= allocation.reserved.maxConcurrentSteps) {
-            throw new Error("Maximum concurrent steps reached");
-        }
-        
-        // Create step allocation
-        const stepReservation: BudgetReservation = {
-            id: generatePk(),
-            credits: Math.min(availableCredits, requirements.maxCost || availableCredits / 10),
-            timeLimit: requirements.maxTime || 300000, // 5 min default
-            memoryLimit: 512, // 512MB per step default
+        // Convert to BudgetReservation format
+        return {
+            id: allocation.id,
+            credits: allocation.resources.credits || 0,
+            timeLimit: allocation.resources.time || 300000,
+            memoryLimit: (allocation.resources.memory || 0) / (1024 * 1024), // Convert bytes to MB
             allocated: true,
             metadata: {
                 runId,
                 stepId,
-                routineId: allocation.routineId,
             },
         };
-        
-        const stepAllocation: StepResourceAllocation = {
-            stepId,
-            reserved: stepReservation,
-            status: "reserved",
-            createdAt: new Date(),
-        };
-        
-        allocation.allocated.set(stepId, stepAllocation);
-        allocation.updatedAt = new Date();
-        
-        // Emit allocation event
-        if (this.eventBus) {
-            await this.eventBus.publish("run.step.allocated", {
-                runId,
-                stepId,
-                reservation: stepReservation,
-                timestamp: new Date(),
-            });
-        }
-        
-        this.logger.debug("[Tier2 ResourceManager] Allocated step resources", {
-            runId,
-            stepId,
-            reservation: stepReservation,
         });
-        
-        return stepReservation;
     }
     
     /**
      * Update step resource usage (from Tier 3)
+     * Uses unified manager to track usage
      */
     async updateStepUsage(
         runId: string,
@@ -221,226 +183,65 @@ export class ResourceManager {
         usage: ExecutionResourceUsage,
         status: "active" | "completed" | "failed",
     ): Promise<void> {
-        const allocation = this.allocations.get(runId);
-        if (!allocation) {
-            throw new Error(`No resource allocation found for run ${runId}`);
-        }
+        // Track usage for both run and step
+        const resourceUsage: ResourceAmount = {
+            credits: Number(usage.creditsUsed),
+            time: usage.durationMs,
+            memory: usage.memoryUsedMB * 1024 * 1024, // Convert MB to bytes
+            tokens: 0, // Not tracked in legacy format
+            apiCalls: 0, // Not tracked in legacy format
+        };
         
-        const stepAllocation = allocation.allocated.get(stepId);
-        if (!stepAllocation) {
-            throw new Error(`No step allocation found for step ${stepId}`);
-        }
-        
-        // Update step allocation
-        stepAllocation.actualUsage = usage;
-        stepAllocation.status = status;
-        if (status === "completed" || status === "failed") {
-            stepAllocation.completedAt = new Date();
-        }
-        
-        // Update run-level usage
-        allocation.usage = this.calculateCurrentUsage(allocation);
-        allocation.updatedAt = new Date();
-        
-        // Emit usage update event
-        if (this.eventBus) {
-            await this.eventBus.publish("run.step.usage", {
-                runId,
-                stepId,
-                usage,
-                status,
-                timestamp: new Date(),
-            });
-        }
-        
-        this.logger.debug("[Tier2 ResourceManager] Updated step usage", {
-            runId,
-            stepId,
-            usage,
-            status,
-        });
+        await this.unifiedManager.trackUsage(runId, resourceUsage);
+        await this.unifiedManager.trackUsage(stepId, resourceUsage);
     }
     
     /**
      * Complete run and return unused resources to Tier 1
+     * Uses adapter to return unused resources
      */
     async completeRun(runId: string): Promise<ExecutionResourceUsage> {
-        const allocation = this.allocations.get(runId);
-        if (!allocation) {
-            throw new Error(`No resource allocation found for run ${runId}`);
-        }
+        // Return unused resources
+        const unused = await this.adapter.returnUnused(runId);
         
-        // Calculate final usage
-        const finalUsage = this.calculateCurrentUsage(allocation);
-        allocation.usage = finalUsage;
-        allocation.completedAt = new Date();
-        allocation.updatedAt = new Date();
-        
-        // Calculate returned resources
-        const returned = {
-            credits: allocation.reserved.credits - Number(finalUsage.creditsUsed),
-            duration: allocation.reserved.maxDurationMs - finalUsage.durationMs,
-        };
-        
-        // Emit completion event
-        if (this.eventBus) {
-            await this.eventBus.publish("run.resources.completed", {
-                runId,
-                routineId: allocation.routineId,
-                finalUsage,
-                returned,
-                timestamp: new Date(),
-            });
-        }
-        
-        this.logger.info("[Tier2 ResourceManager] Completed run", {
-            runId,
-            finalUsage,
-            returned,
-        });
-        
-        // Clean up allocation after some time
-        setTimeout(() => {
-            this.allocations.delete(runId);
-        }, 300000); // Keep for 5 minutes for debugging
-        
-        return finalUsage;
-    }
-    
-    /**
-     * Get current resource state for a run
-     */
-    async getRunResourceState(runId: string): Promise<RunResourceAllocation | null> {
-        return this.allocations.get(runId) || null;
-    }
-    
-    /**
-     * Handle resource exhaustion scenarios
-     */
-    async handleResourceExhaustion(
-        runId: string,
-        resourceType: "credits" | "time" | "memory",
-    ): Promise<void> {
-        const allocation = this.allocations.get(runId);
-        if (!allocation) {
-            return;
-        }
-        
-        // Mark all active steps as failed
-        for (const [stepId, stepAlloc] of allocation.allocated) {
-            if (stepAlloc.status === "active") {
-                stepAlloc.status = "failed";
-                stepAlloc.completedAt = new Date();
-            }
-        }
-        
-        // Emit exhaustion event
-        if (this.eventBus) {
-            await this.eventBus.publish("run.resources.exhausted", {
-                runId,
-                routineId: allocation.routineId,
-                resourceType,
-                usage: allocation.usage,
-                timestamp: new Date(),
-            });
-        }
-        
-        this.logger.error("[Tier2 ResourceManager] Resource exhausted", {
-            runId,
-            resourceType,
-            usage: allocation.usage,
-        });
-    }
-    
-    /**
-     * Calculate current aggregate usage across all steps
-     */
-    private calculateCurrentUsage(allocation: RunResourceAllocation): ExecutionResourceUsage {
-        let totalCredits = 0;
-        let maxDuration = 0;
-        let peakMemory = 0;
-        let stepsExecuted = 0;
-        
-        for (const stepAlloc of allocation.allocated.values()) {
-            if (stepAlloc.actualUsage) {
-                totalCredits += Number(stepAlloc.actualUsage.creditsUsed);
-                maxDuration = Math.max(maxDuration, stepAlloc.actualUsage.durationMs);
-                peakMemory = Math.max(peakMemory, stepAlloc.actualUsage.memoryUsedMB);
-                
-                if (stepAlloc.status === "completed") {
-                    stepsExecuted++;
-                }
-            }
-        }
-        
-        // Calculate actual run duration
-        const runDuration = allocation.completedAt
-            ? allocation.completedAt.getTime() - allocation.createdAt.getTime()
-            : Date.now() - allocation.createdAt.getTime();
+        // Get final usage from unified manager
+        const usage = this.unifiedManager.getUsage(runId);
         
         return {
-            creditsUsed: totalCredits.toString(),
-            durationMs: runDuration,
-            memoryUsedMB: peakMemory,
-            stepsExecuted,
-            tokens: 0, // Aggregated from steps if available
-            apiCalls: 0, // Aggregated from steps if available
+            creditsUsed: String(usage.credits || 0),
+            durationMs: usage.time || 0,
+            memoryUsedMB: (usage.memory || 0) / (1024 * 1024),
+            stepsExecuted: 0, // Not tracked by unified manager
         };
     }
     
     /**
-     * Distribute resources among parallel branches
+     * Get current resource status for a run
      */
-    async distributeToParallelBranches(
-        runId: string,
-        branchCount: number,
-        strategy: "equal" | "weighted" = "equal",
-        weights?: number[],
-    ): Promise<BudgetReservation[]> {
-        const allocation = this.allocations.get(runId);
-        if (!allocation) {
-            throw new Error(`No resource allocation found for run ${runId}`);
-        }
+    async getRunStatus(runId: string): Promise<{
+        reserved: ResourceAmount;
+        used: ResourceAmount;
+        available: ResourceAmount;
+    }> {
+        const allocations = this.unifiedManager.getAllocations(runId);
+        const usage = this.unifiedManager.getUsage(runId);
         
-        const currentUsage = this.calculateCurrentUsage(allocation);
-        const availableCredits = allocation.reserved.credits - Number(currentUsage.creditsUsed);
+        const allocated = allocations[0]?.resources || {};
+        const available: ResourceAmount = {
+            credits: (allocated.credits || 0) - (usage.credits || 0),
+            time: (allocated.time || 0) - (usage.time || 0),
+            memory: (allocated.memory || 0) - (usage.memory || 0),
+            tokens: (allocated.tokens || 0) - (usage.tokens || 0),
+            apiCalls: (allocated.apiCalls || 0) - (usage.apiCalls || 0),
+        };
         
-        const branchReservations: BudgetReservation[] = [];
-        
-        if (strategy === "equal") {
-            const creditsPerBranch = availableCredits / branchCount;
-            for (let i = 0; i < branchCount; i++) {
-                branchReservations.push({
-                    id: generatePk(),
-                    credits: creditsPerBranch,
-                    timeLimit: allocation.reserved.maxDurationMs,
-                    memoryLimit: allocation.reserved.maxMemoryMB / branchCount,
-                    allocated: true,
-                    metadata: { runId, branchIndex: i },
-                });
-            }
-        } else if (strategy === "weighted" && weights) {
-            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-            for (let i = 0; i < branchCount; i++) {
-                const weight = weights[i] || 1;
-                branchReservations.push({
-                    id: generatePk(),
-                    credits: (availableCredits * weight) / totalWeight,
-                    timeLimit: allocation.reserved.maxDurationMs,
-                    memoryLimit: (allocation.reserved.maxMemoryMB * weight) / totalWeight,
-                    allocated: true,
-                    metadata: { runId, branchIndex: i, weight },
-                });
-            }
-        }
-        
-        this.logger.debug("[Tier2 ResourceManager] Distributed to branches", {
-            runId,
-            branchCount,
-            strategy,
-            totalCredits: availableCredits,
-        });
-        
-        return branchReservations;
+        return { reserved: allocated, used: usage, available };
+    }
+    
+    /**
+     * Clean up and shutdown
+     */
+    async shutdown(): Promise<void> {
+        await this.cleanup();
     }
 }

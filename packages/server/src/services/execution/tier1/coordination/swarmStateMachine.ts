@@ -202,8 +202,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * Override to ensure conversationId is provided
      */
     async handleEvent(ev: SwarmEvent): Promise<void> {
-        if (!ev.conversationId) {
-            this.logger.error("SwarmEvent missing conversationId", { event: ev });
+        if (!this.validateEvent(ev, ['conversationId'])) {
             return;
         }
         
@@ -234,6 +233,14 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             
             case "RejectedToolExecutionRequest":
                 await this.handleRejectedTool(event);
+                break;
+            
+            case "internal_task_assignment":
+                await this.handleInternalTaskAssignment(event);
+                break;
+            
+            case "internal_status_update":
+                await this.handleInternalStatusUpdate(event);
                 break;
             
             default:
@@ -359,7 +366,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * Implements abstract method from BaseStateMachine
      */
     protected async onPause(): Promise<void> {
-        this.logger.info(`[SwarmStateMachine] Paused`, {
+        this.logLifecycleEvent("Paused", {
             conversationId: this.conversationId,
         });
     }
@@ -369,7 +376,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
      * Implements abstract method from BaseStateMachine
      */
     protected async onResume(): Promise<void> {
-        this.logger.info(`[SwarmStateMachine] Resumed`, {
+        this.logLifecycleEvent("Resumed", {
             conversationId: this.conversationId,
         });
     }
@@ -464,6 +471,53 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         this.logger.info(`[SwarmStateMachine] Handling external message`, {
             conversationId: event.conversationId,
         });
+
+        try {
+            const convoState = await this.getConversationState(event.conversationId);
+            if (!convoState) {
+                this.logger.error(`Conversation state not found for ${event.conversationId}`);
+                return;
+            }
+
+            // Get the leader bot to handle the message
+            const leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                this.logger.error(`No leader bot found for ${event.conversationId}`);
+                return;
+            }
+
+            // Generate response through ConversationBridge
+            const messageText = event.payload?.message?.text || event.payload?.text || "External message received";
+            const response = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { state: this.state, messageReceived: true },
+                convoState.config,
+                `Process this message: "${messageText}"`,
+                event.conversationId
+            );
+
+            this.logger.info(`[SwarmStateMachine] Generated response to external message`, {
+                conversationId: event.conversationId,
+                responseLength: response.length,
+            });
+
+            // Emit response event for monitoring
+            await this.eventBus.publish("swarm.message.processed", {
+                type: "EXTERNAL_MESSAGE_RESPONSE",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    originalMessage: messageText,
+                    responseGenerated: true,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error(`[SwarmStateMachine] Failed to handle external message`, {
+                conversationId: event.conversationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 
     private async handleApprovedTool(event: SwarmEvent): Promise<void> {
@@ -472,6 +526,77 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             conversationId: event.conversationId,
             tool: event.payload?.pendingToolCall?.toolName,
         });
+
+        try {
+            const pendingToolCall = event.payload?.pendingToolCall;
+            if (!pendingToolCall) {
+                this.logger.error(`[SwarmStateMachine] No pending tool call in approved tool event`);
+                return;
+            }
+
+            const convoState = await this.getConversationState(event.conversationId);
+            if (!convoState) {
+                this.logger.error(`Conversation state not found for ${event.conversationId}`);
+                return;
+            }
+
+            // Get the leader bot to execute the tool
+            const leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                this.logger.error(`No leader bot found for ${event.conversationId}`);
+                return;
+            }
+
+            // Execute the approved tool through ConversationBridge
+            const toolPrompt = `Execute the approved tool: ${pendingToolCall.toolName} with parameters: ${JSON.stringify(pendingToolCall.params)}`;
+            const response = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { 
+                    state: this.state, 
+                    toolExecution: true,
+                    approvedTool: pendingToolCall 
+                },
+                convoState.config,
+                toolPrompt,
+                event.conversationId
+            );
+
+            this.logger.info(`[SwarmStateMachine] Executed approved tool`, {
+                conversationId: event.conversationId,
+                toolName: pendingToolCall.toolName,
+                responseLength: response.length,
+            });
+
+            // Emit tool execution event
+            await this.eventBus.publish("swarm.tool.executed", {
+                type: "TOOL_EXECUTED",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    toolName: pendingToolCall.toolName,
+                    toolParams: pendingToolCall.params,
+                    approved: true,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error(`[SwarmStateMachine] Failed to execute approved tool`, {
+                conversationId: event.conversationId,
+                tool: event.payload?.pendingToolCall?.toolName,
+                error: error instanceof Error ? error.message : String(error),
+            });
+
+            // Emit tool execution failure event
+            await this.eventBus.publish("swarm.tool.failed", {
+                type: "TOOL_EXECUTION_FAILED",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    toolName: event.payload?.pendingToolCall?.toolName,
+                    error: error instanceof Error ? error.message : String(error),
+                },
+            });
+        }
     }
 
     private async handleRejectedTool(event: SwarmEvent): Promise<void> {
@@ -481,5 +606,214 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             tool: event.payload?.pendingToolCall?.toolName,
             reason: event.payload?.reason,
         });
+
+        try {
+            const pendingToolCall = event.payload?.pendingToolCall;
+            const rejectionReason = event.payload?.reason || "Tool use was rejected";
+
+            if (!pendingToolCall) {
+                this.logger.error(`[SwarmStateMachine] No pending tool call in rejected tool event`);
+                return;
+            }
+
+            const convoState = await this.getConversationState(event.conversationId);
+            if (!convoState) {
+                this.logger.error(`Conversation state not found for ${event.conversationId}`);
+                return;
+            }
+
+            // Get the leader bot to handle the rejection
+            const leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                this.logger.error(`No leader bot found for ${event.conversationId}`);
+                return;
+            }
+
+            // Generate alternative approach through ConversationBridge
+            const fallbackPrompt = `The tool "${pendingToolCall.toolName}" was rejected. Reason: ${rejectionReason}. Please find an alternative approach to accomplish the goal without using this tool.`;
+            const response = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { 
+                    state: this.state, 
+                    toolRejected: true,
+                    rejectedTool: pendingToolCall,
+                    rejectionReason 
+                },
+                convoState.config,
+                fallbackPrompt,
+                event.conversationId
+            );
+
+            this.logger.info(`[SwarmStateMachine] Generated fallback strategy for rejected tool`, {
+                conversationId: event.conversationId,
+                toolName: pendingToolCall.toolName,
+                responseLength: response.length,
+            });
+
+            // Emit tool rejection handled event
+            await this.eventBus.publish("swarm.tool.rejected", {
+                type: "TOOL_REJECTED_HANDLED",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    toolName: pendingToolCall.toolName,
+                    rejectionReason,
+                    fallbackGenerated: true,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error(`[SwarmStateMachine] Failed to handle rejected tool`, {
+                conversationId: event.conversationId,
+                tool: event.payload?.pendingToolCall?.toolName,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    private async handleInternalTaskAssignment(event: SwarmEvent): Promise<void> {
+        // Handle internal task assignment (e.g., run execution requests)
+        this.logger.info(`[SwarmStateMachine] Handling internal task assignment`, {
+            conversationId: event.conversationId,
+            payload: event.payload,
+        });
+
+        try {
+            const convoState = await this.getConversationState(event.conversationId);
+            if (!convoState) {
+                this.logger.error(`Conversation state not found for ${event.conversationId}`);
+                return;
+            }
+
+            // Get the leader bot to handle the task assignment
+            const leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                this.logger.error(`No leader bot found for ${event.conversationId}`);
+                return;
+            }
+
+            // Generate task coordination response
+            const taskPrompt = `A new task has been assigned: ${JSON.stringify(event.payload)}. Coordinate the team to handle this task.`;
+            const response = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { 
+                    state: this.state, 
+                    taskAssignment: true,
+                    assignedTask: event.payload 
+                },
+                convoState.config,
+                taskPrompt,
+                event.conversationId
+            );
+
+            this.logger.info(`[SwarmStateMachine] Coordinated task assignment`, {
+                conversationId: event.conversationId,
+                taskType: event.payload?.runId ? "run_execution" : "general_task",
+                responseLength: response.length,
+            });
+
+            // Emit task coordination event
+            await this.eventBus.publish("swarm.task.assigned", {
+                type: "TASK_ASSIGNED",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    taskPayload: event.payload,
+                    coordinationGenerated: true,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error(`[SwarmStateMachine] Failed to handle task assignment`, {
+                conversationId: event.conversationId,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
+
+    private async handleInternalStatusUpdate(event: SwarmEvent): Promise<void> {
+        // Handle internal status updates (e.g., run completion, resource alerts)
+        this.logger.info(`[SwarmStateMachine] Handling internal status update`, {
+            conversationId: event.conversationId,
+            updateType: event.payload?.type,
+        });
+
+        try {
+            const convoState = await this.getConversationState(event.conversationId);
+            if (!convoState) {
+                this.logger.error(`Conversation state not found for ${event.conversationId}`);
+                return;
+            }
+
+            // Get the leader bot to process the status update
+            const leaderBot = this.findLeaderBot(convoState);
+            if (!leaderBot) {
+                this.logger.error(`No leader bot found for ${event.conversationId}`);
+                return;
+            }
+
+            // Generate status processing response based on update type
+            let statusPrompt = `Status update received: ${JSON.stringify(event.payload)}`;
+            
+            switch (event.payload?.type) {
+                case "run_completed":
+                    statusPrompt = `Run ${event.payload.runId} has completed successfully. Update the team and plan next actions.`;
+                    break;
+                case "run_failed":
+                    statusPrompt = `Run ${event.payload.runId} has failed with error: ${event.payload.error}. Analyze the failure and determine recovery actions.`;
+                    break;
+                case "resource_alert":
+                    statusPrompt = `Resource alert: ${JSON.stringify(event.payload)}. Review resource usage and optimize if needed.`;
+                    break;
+                case "metacognitive_insight":
+                    statusPrompt = `Metacognitive insight received: ${JSON.stringify(event.payload)}. Incorporate this insight into swarm operations.`;
+                    break;
+                case "child_swarm_completed":
+                    statusPrompt = `Child swarm ${event.payload.childSwarmId} has completed. Integrate results and continue with parent swarm goals.`;
+                    break;
+                case "child_swarm_failed":
+                    statusPrompt = `Child swarm ${event.payload.childSwarmId} has failed: ${event.payload.error}. Assess impact and adjust strategy.`;
+                    break;
+                default:
+                    statusPrompt = `Status update received: ${JSON.stringify(event.payload)}. Process this information and take appropriate action.`;
+            }
+
+            const response = await this.conversationBridge.generateAgentResponse(
+                leaderBot,
+                { 
+                    state: this.state, 
+                    statusUpdate: true,
+                    updateData: event.payload 
+                },
+                convoState.config,
+                statusPrompt,
+                event.conversationId
+            );
+
+            this.logger.info(`[SwarmStateMachine] Processed status update`, {
+                conversationId: event.conversationId,
+                updateType: event.payload?.type,
+                responseLength: response.length,
+            });
+
+            // Emit status processing event
+            await this.eventBus.publish("swarm.status.processed", {
+                type: "STATUS_UPDATE_PROCESSED",
+                swarmId: event.conversationId,
+                timestamp: new Date(),
+                metadata: {
+                    updateType: event.payload?.type,
+                    statusData: event.payload,
+                    processingGenerated: true,
+                },
+            });
+
+        } catch (error) {
+            this.logger.error(`[SwarmStateMachine] Failed to handle status update`, {
+                conversationId: event.conversationId,
+                updateType: event.payload?.type,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
     }
 }

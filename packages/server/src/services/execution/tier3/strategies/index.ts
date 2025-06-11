@@ -12,7 +12,6 @@ export * from "./reasoningStrategy.js";
 
 // Strategy management
 export * from "./strategyFactory.js";
-export * from "./strategySelector.js";
 
 // Re-export strategy types from shared
 export { StrategyType } from "@vrooli/shared";

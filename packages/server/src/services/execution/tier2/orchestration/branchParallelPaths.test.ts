@@ -85,12 +85,12 @@ describe("BranchCoordinator - Parallel Path Execution", () => {
         });
 
         // Create 3 parallel branches
-        const locations = [
-            { id: "loc1", routineId: run.routineId, nodeId: "parallel-node" },
-            { id: "loc2", routineId: run.routineId, nodeId: "parallel-node" },
-            { id: "loc3", routineId: run.routineId, nodeId: "parallel-node" },
-        ];
-        const branches = await coordinator.createBranches(run.id, locations, true);
+        const config = {
+            parentStepId: "parallel-node",
+            parallel: true,
+            branchCount: 3,
+        };
+        const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
         // Verify branch indices were assigned
         expect(branches[0].branchIndex).toBe(0);
@@ -158,12 +158,12 @@ describe("BranchCoordinator - Parallel Path Execution", () => {
         });
 
         // Create 3 branches but navigator only has 2 paths
-        const locations = [
-            { id: "loc1", routineId: run.routineId, nodeId: "parallel-node" },
-            { id: "loc2", routineId: run.routineId, nodeId: "parallel-node" },
-            { id: "loc3", routineId: run.routineId, nodeId: "parallel-node" },
-        ];
-        const branches = await coordinator.createBranches(run.id, locations, true);
+        const config = {
+            parentStepId: "parallel-node",
+            parallel: true,
+            branchCount: 3,
+        };
+        const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
         // Execute branches
         await coordinator.executeBranches(run, branches, mockNavigator, mockStepExecutor);
@@ -271,11 +271,12 @@ describe("BranchCoordinator - Parallel Path Execution", () => {
             duration: 100,
         });
 
-        const branches = await coordinator.createBranches(
-            run.id,
-            [{ id: "loc1", routineId: run.routineId, nodeId: "node" }],
-            true,
-        );
+        const config = {
+            parentStepId: "node",
+            parallel: true,
+            branchCount: 1,
+        };
+        const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
         await coordinator.executeBranches(run, branches, mockNavigator, mockStepExecutor);
 

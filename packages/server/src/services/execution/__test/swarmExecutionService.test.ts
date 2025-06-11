@@ -323,7 +323,7 @@ describe("SwarmExecutionService", () => {
         });
 
         it("should return failure on error", async () => {
-            tierOneStub.cancelSwarm.mockRejectedValue(new Error("Swarm not found"););
+            tierOneStub.cancelSwarm.mockRejectedValue(new Error("Swarm not found"));
 
             const result = await service.cancelSwarm("swarm-123", "user-123");
 

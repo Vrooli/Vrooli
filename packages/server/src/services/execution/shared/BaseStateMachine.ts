@@ -316,6 +316,54 @@ export abstract class BaseStateMachine<
         await this.eventBus.publish(type, data);
     }
 
+    /**
+     * Common error handling wrapper for event processing
+     */
+    protected async withEventErrorHandling<T>(
+        operation: string,
+        fn: () => Promise<T>,
+        fallback?: (error: unknown) => T
+    ): Promise<T> {
+        try {
+            return await fn();
+        } catch (error) {
+            this.logger.error(`[${this.constructor.name}] ${operation} failed`, {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            
+            if (fallback) {
+                return fallback(error);
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Common logging patterns for lifecycle events
+     */
+    protected logLifecycleEvent(event: string, metadata?: Record<string, unknown>): void {
+        this.logger.info(`[${this.constructor.name}] ${event}`, {
+            state: this.state,
+            ...metadata,
+        });
+    }
+
+    /**
+     * Common validation for events
+     */
+    protected validateEvent(event: TEvent, requiredFields: string[]): boolean {
+        for (const field of requiredFields) {
+            if (!(field in event) || (event as any)[field] == null) {
+                this.logger.error(`[${this.constructor.name}] Event missing required field: ${field}`, {
+                    eventType: event.type,
+                });
+                return false;
+            }
+        }
+        return true;
+    }
+
     // Abstract methods that subclasses must implement
 
     /**

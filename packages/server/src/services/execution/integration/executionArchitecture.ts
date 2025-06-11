@@ -23,7 +23,7 @@ import { ConversationalStrategy } from "../tier3/strategies/conversationalStrate
 import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
-import { UnifiedResourceManager } from "./resources/unifiedResourceManager.js";
+import { ResourceMonitor } from "./monitoring/resourceMonitor.js";
 
 /**
  * Strategy factory interface for creating execution strategies
@@ -89,7 +89,7 @@ export class ExecutionArchitecture {
     // Resource management
     private tier1ResourceManager: Tier1ResourceManager | null = null;
     private tier3ResourceManager: Tier3ResourceManager | null = null;
-    private unifiedResourceManager: UnifiedResourceManager | null = null;
+    private resourceMonitor: ResourceMonitor | null = null;
 
     private readonly logger: Logger;
     private readonly options: ExecutionArchitectureOptions;
@@ -217,16 +217,14 @@ export class ExecutionArchitecture {
         }
 
         // Initialize resource managers
-        this.tier1ResourceManager = new Tier1ResourceManager(this.logger);
-        this.tier3ResourceManager = new Tier3ResourceManager(this.logger);
+        this.tier1ResourceManager = new Tier1ResourceManager(this.logger, this.eventBus!);
+        this.tier3ResourceManager = new Tier3ResourceManager(this.logger, this.eventBus!);
 
-        // Initialize unified resource manager
-        this.unifiedResourceManager = new UnifiedResourceManager(
+        // Initialize resource monitor for cross-tier monitoring
+        this.resourceMonitor = new ResourceMonitor(
             this.logger,
-            this.tier1ResourceManager,
-            this.tier3ResourceManager,
+            this.eventBus!,
         );
-        await this.unifiedResourceManager.start();
 
         this.logger.debug("[ExecutionArchitecture] Shared services initialized");
     }
@@ -405,9 +403,9 @@ export class ExecutionArchitecture {
         this.logger.info("[ExecutionArchitecture] Stopping execution architecture");
 
         try {
-            // Stop unified resource manager
-            if (this.unifiedResourceManager) {
-                await this.unifiedResourceManager.stop();
+            // Stop resource monitor
+            if (this.resourceMonitor) {
+                this.resourceMonitor.shutdown();
             }
 
             // Stop event bus
@@ -469,13 +467,13 @@ export class ExecutionArchitecture {
     }
 
     /**
-     * Get Unified Resource Manager
+     * Get Resource Monitor
      */
-    getResourceManager(): UnifiedResourceManager {
-        if (!this.unifiedResourceManager) {
-            throw new Error("Unified resource manager not initialized");
+    getResourceMonitor(): ResourceMonitor {
+        if (!this.resourceMonitor) {
+            throw new Error("Resource monitor not initialized");
         }
-        return this.unifiedResourceManager;
+        return this.resourceMonitor;
     }
 
     /**

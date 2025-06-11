@@ -286,47 +286,53 @@ describe("BranchCoordinator - New Configuration API", () => {
         });
     });
 
-    describe("Backward Compatibility", () => {
-        it("should log deprecation warning for old createBranches API", async () => {
-            const locations = [
-                { id: "loc1", routineId: "r1", nodeId: "step1" },
-                { id: "loc2", routineId: "r1", nodeId: "step2" },
-            ];
+    describe("API Equivalence", () => {
+        it("should create equivalent branches using config API", async () => {
+            // Create branches using the modern config API
+            const config = {
+                parentStepId: "step1",
+                parallel: true,
+                branchCount: 2,
+            };
 
-            await coordinator.createBranches("run-123", locations, true);
+            const branches = await coordinator.createBranchesFromConfig("run-123", config);
 
-            expect(mockLogger.warn).toHaveBeenCalledWith(
-                "[BranchCoordinator] createBranches is deprecated, use createBranchesFromConfig instead",
-                expect.objectContaining({
-                    runId: "run-123",
-                    locationCount: 2,
-                    parallel: true,
-                }),
-            );
+            expect(branches).toHaveLength(2);
+            expect(branches[0].parallel).toBe(true);
+            expect(branches[1].parallel).toBe(true);
+            expect(branches[0].parentStepId).toBe("step1");
+            expect(branches[1].parentStepId).toBe("step1");
         });
 
-        it("should convert old API to new API correctly", async () => {
-            const locations = [
-                { id: "loc1", routineId: "r1", nodeId: "step1" },
-                { id: "loc2", routineId: "r1", nodeId: "step2" },
-                { id: "loc3", routineId: "r1", nodeId: "step3" },
-            ];
+        it("should support multiple branch creation patterns", async () => {
+            // Test explicit branch count pattern
+            const config1 = {
+                parentStepId: "step1",
+                parallel: true,
+                branchCount: 3,
+            };
 
-            const branches = await coordinator.createBranches("run-123", locations, true);
+            const branches1 = await coordinator.createBranchesFromConfig("run-123", config1);
 
-            // Should create 3 branches (length of locations array)
-            expect(branches).toHaveLength(3);
+            // Should create 3 branches 
+            expect(branches1).toHaveLength(3);
             
             // All should be parallel with proper indices
-            branches.forEach((branch, index) => {
+            branches1.forEach((branch, index) => {
                 expect(branch.parallel).toBe(true);
                 expect(branch.branchIndex).toBe(index);
-                expect(branch.parentStepId).toBe("step1"); // First location's nodeId
+                expect(branch.parentStepId).toBe("step1");
             });
         });
 
-        it("should handle empty locations array gracefully", async () => {
-            const branches = await coordinator.createBranches("run-123", [], true);
+        it("should handle zero branch count gracefully", async () => {
+            const config = {
+                parentStepId: "step1",
+                parallel: true,
+                branchCount: 0,
+            };
+
+            const branches = await coordinator.createBranchesFromConfig("run-123", config);
 
             expect(branches).toHaveLength(0);
         });

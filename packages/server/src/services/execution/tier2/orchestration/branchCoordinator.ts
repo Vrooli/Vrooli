@@ -209,39 +209,6 @@ export class BranchCoordinator {
         }
     }
 
-    /**
-     * Creates branches for execution (DEPRECATED)
-     * 
-     * @deprecated Use createBranchesFromConfig() instead for better API design
-     * This method is maintained for backward compatibility but has design limitations
-     */
-    async createBranches(
-        runId: string,
-        locations: Location[],
-        parallel: boolean,
-    ): Promise<BranchExecution[]> {
-        // Log deprecation warning
-        this.logger.warn("[BranchCoordinator] createBranches is deprecated, use createBranchesFromConfig instead", {
-            runId,
-            locationCount: locations.length,
-            parallel,
-        });
-        
-        // Handle empty locations array - create 0 branches
-        if (locations.length === 0) {
-            this.logger.debug("[BranchCoordinator] Empty locations array, creating 0 branches");
-            return [];
-        }
-        
-        // Convert old API to new API
-        const config: BranchConfig = {
-            parentStepId: locations[0].nodeId,
-            parallel,
-            branchCount: locations.length,
-        };
-        
-        return this.createBranchesFromConfig(runId, config);
-    }
 
     /**
      * Creates branches using the new configuration-based API

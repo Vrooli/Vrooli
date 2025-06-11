@@ -25,7 +25,7 @@ import {
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type IRunStateStore } from "../state/runStateStore.js";
-import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
+import { BaseStateMachine, BaseStates, type BaseState, type BaseEvent } from "../../shared/BaseStateMachine.js";
 
 /**
  * Run initialization parameters
@@ -40,10 +40,22 @@ export interface RunInitParams {
 }
 
 /**
+ * Run event for state machine
+ */
+interface RunStateMachineEvent extends BaseEvent {
+    runId: string;
+    executionRequest?: TierExecutionRequest;
+    executionResult?: ExecutionResult;
+    error?: unknown;
+}
+
+/**
  * Run State Machine
  * 
  * Manages basic run lifecycle and state transitions.
  * Delegates execution to Tier 3 and emits events for monitoring.
+ * 
+ * Now extends BaseStateMachine for consistency and shared functionality.
  * 
  * Does NOT implement:
  * - Complex orchestration logic
@@ -53,12 +65,11 @@ export interface RunInitParams {
  * 
  * These capabilities emerge from orchestration agents.
  */
-export class TierTwoRunStateMachine implements TierCommunicationInterface {
-    private readonly logger: Logger;
-    private readonly eventBus: EventBus;
+export class TierTwoRunStateMachine extends BaseStateMachine<BaseState, RunStateMachineEvent> implements TierCommunicationInterface {
     private readonly stateStore: IRunStateStore;
     private readonly tier3Executor: TierCommunicationInterface;
     private readonly activeRuns: Map<string, Run> = new Map();
+    private currentRunId: string | null = null;
 
     constructor(
         logger: Logger,
@@ -66,8 +77,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
         stateStore: IRunStateStore,
         tier3Executor: TierCommunicationInterface,
     ) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+        super(logger, eventBus, BaseStates.UNINITIALIZED);
         this.stateStore = stateStore;
         this.tier3Executor = tier3Executor;
 
@@ -129,7 +139,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
     }
 
     /**
-     * Creates a new run
+     * Creates a new run and queues start event
      */
     async createRun(params: RunInitParams): Promise<Run> {
         const runId = generatePk();
@@ -172,6 +182,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
         // Store run
         await this.stateStore.saveRun(run);
         this.activeRuns.set(runId, run);
+        this.currentRunId = runId;
 
         // Emit creation event
         await this.emitRunEvent(run, RunEventTypeEnum.Created);
@@ -180,7 +191,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
     }
 
     /**
-     * Starts run execution
+     * Starts run execution by queuing start event
      */
     async startRun(runId: string): Promise<void> {
         const run = await this.getRunState(runId);
@@ -188,36 +199,14 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
             throw new Error(`Run not found: ${runId}`);
         }
 
-        this.logger.info("[RunStateMachine] Starting run", { runId });
+        this.logger.info("[RunStateMachine] Queuing start for run", { runId });
 
-        // Update state
-        await this.updateRunState(runId, RunStateEnum.InProgress);
-
-        // Emit start event
-        await this.emitRunEvent(run, RunEventTypeEnum.Started);
-
-        // Delegate execution to Tier 3
-        const executionRequest: TierExecutionRequest = {
-            executionId: `exec-${runId}`,
-            tierOrigin: 2,
-            tierTarget: 3,
-            type: "routine",
-            payload: {
-                routineId: run.routineId,
-                inputs: run.inputs,
-                context: run.context,
-            },
-            metadata: {
-                runId,
-                userId: run.userId,
-                swarmId: run.swarmId,
-            },
-        };
-
-        // Execute asynchronously
-        this.tier3Executor.execute(executionRequest)
-            .then(result => this.handleExecutionResult(runId, result))
-            .catch(error => this.handleExecutionError(runId, error));
+        // Queue execution start event
+        await this.handleEvent({
+            type: "START_EXECUTION",
+            runId,
+            timestamp: new Date(),
+        });
     }
 
     /**
@@ -235,6 +224,7 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
 
         // Save to store
         await this.stateStore.saveRun(run);
+        this.activeRuns.set(runId, run);
 
         // Emit state change event
         await this.emitRunEvent(run, RunEventTypeEnum.StateChanged, {
@@ -403,5 +393,184 @@ export class TierTwoRunStateMachine implements TierCommunicationInterface {
         }
 
         this.logger.info("[RunStateMachine] Stopped");
+    }
+
+    //
+    // BaseStateMachine abstract method implementations
+    //
+
+    /**
+     * Get the task ID for this state machine
+     */
+    public getTaskId(): string {
+        return this.currentRunId || "no-active-run";
+    }
+
+    /**
+     * Process a single event
+     */
+    protected async processEvent(event: RunStateMachineEvent): Promise<void> {
+        switch (event.type) {
+            case "START_EXECUTION":
+                await this.handleStartExecution(event);
+                break;
+            case "EXECUTION_RESULT":
+                await this.handleExecutionResultEvent(event);
+                break;
+            case "EXECUTION_ERROR":
+                await this.handleExecutionErrorEvent(event);
+                break;
+            default:
+                this.logger.warn("[RunStateMachine] Unknown event type", { type: event.type });
+        }
+    }
+
+    /**
+     * Called when entering idle state
+     */
+    protected async onIdle(): Promise<void> {
+        this.logger.debug("[RunStateMachine] Entered idle state");
+    }
+
+    /**
+     * Called when pausing
+     */
+    protected async onPause(): Promise<void> {
+        this.logLifecycleEvent("Paused", {
+            activeRunsCount: this.activeRuns.size,
+        });
+        // Pause all active runs
+        for (const run of this.activeRuns.values()) {
+            if (run.state === RunStateEnum.InProgress) {
+                await this.updateRunState(run.id, RunStateEnum.Paused);
+            }
+        }
+    }
+
+    /**
+     * Called when resuming
+     */
+    protected async onResume(): Promise<void> {
+        this.logLifecycleEvent("Resumed", {
+            activeRunsCount: this.activeRuns.size,
+        });
+        // Resume all paused runs
+        for (const run of this.activeRuns.values()) {
+            if (run.state === RunStateEnum.Paused) {
+                await this.updateRunState(run.id, RunStateEnum.InProgress);
+            }
+        }
+    }
+
+    /**
+     * Called when stopping - return final state data
+     */
+    protected async onStop(mode: "graceful" | "force", reason?: string): Promise<unknown> {
+        this.logLifecycleEvent("Stopping", { 
+            mode, 
+            reason,
+            activeRunsCount: this.activeRuns.size,
+        });
+        
+        // Cancel all active runs
+        for (const runId of this.activeRuns.keys()) {
+            await this.failRun(runId, `State machine stopped: ${reason || "No reason"}`);
+        }
+
+        return {
+            activeRunsCount: this.activeRuns.size,
+            stopReason: reason,
+            stopMode: mode,
+        };
+    }
+
+    /**
+     * Determine if an error is fatal
+     */
+    protected async isErrorFatal(error: unknown, event: RunStateMachineEvent): Promise<boolean> {
+        // Most errors are not fatal for the state machine itself
+        // Individual runs may fail, but the machine continues
+        this.logger.error(`[${this.constructor.name}] Non-fatal error during event processing`, {
+            eventType: event.type,
+            runId: event.runId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        
+        // Only consider fatal if it's a critical system error
+        return false;
+    }
+
+    /**
+     * Helper method to get associated user ID (for ManagedTaskStateMachine interface)
+     */
+    public getAssociatedUserId(): string | undefined {
+        if (this.currentRunId) {
+            const run = this.activeRuns.get(this.currentRunId);
+            return run?.userId;
+        }
+        return undefined;
+    }
+
+    //
+    // Event handling methods for the new event-driven approach
+    //
+
+    private async handleStartExecution(event: RunStateMachineEvent): Promise<void> {
+        const run = await this.getRunState(event.runId);
+        if (!run) {
+            throw new Error(`Run not found: ${event.runId}`);
+        }
+
+        this.logger.info("[RunStateMachine] Starting execution for run", { runId: event.runId });
+
+        // Update state
+        await this.updateRunState(event.runId, RunStateEnum.InProgress);
+
+        // Emit start event
+        await this.emitRunEvent(run, RunEventTypeEnum.Started);
+
+        // Delegate execution to Tier 3
+        const executionRequest: TierExecutionRequest = {
+            executionId: `exec-${event.runId}`,
+            tierOrigin: 2,
+            tierTarget: 3,
+            type: "routine",
+            payload: {
+                routineId: run.routineId,
+                inputs: run.inputs,
+                context: run.context,
+            },
+            metadata: {
+                runId: event.runId,
+                userId: run.userId,
+                swarmId: run.swarmId,
+            },
+        };
+
+        // Execute asynchronously and queue result events
+        this.tier3Executor.execute(executionRequest)
+            .then(result => this.handleEvent({
+                type: "EXECUTION_RESULT",
+                runId: event.runId,
+                executionResult: result,
+                timestamp: new Date(),
+            }))
+            .catch(error => this.handleEvent({
+                type: "EXECUTION_ERROR",
+                runId: event.runId,
+                error,
+                timestamp: new Date(),
+            }));
+    }
+
+    private async handleExecutionResultEvent(event: RunStateMachineEvent): Promise<void> {
+        if (!event.executionResult) {
+            throw new Error("Missing execution result");
+        }
+        await this.handleExecutionResult(event.runId, event.executionResult);
+    }
+
+    private async handleExecutionErrorEvent(event: RunStateMachineEvent): Promise<void> {
+        await this.handleExecutionError(event.runId, event.error);
     }
 }

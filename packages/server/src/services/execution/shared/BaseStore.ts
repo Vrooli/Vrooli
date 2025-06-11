@@ -8,7 +8,7 @@
  */
 
 import { type Logger } from "winston";
-import { type RedisClient } from "../../../services/cache/cache.js";
+import { type Redis as RedisClient } from "ioredis";
 
 /**
  * Generic store interface

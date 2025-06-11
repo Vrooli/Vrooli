@@ -55,10 +55,12 @@ describe("BranchCoordinator - Context Isolation", () => {
             };
 
             // Create parallel branches
-            const branches = await coordinator.createBranches(run.id, [
-                { id: "loc1", routineId: run.routineId, nodeId: "node1" },
-                { id: "loc2", routineId: run.routineId, nodeId: "node2" },
-            ], true); // parallel = true
+            const config = {
+                parentStepId: "node1",
+                parallel: true,
+                branchCount: 2,
+            };
+            const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
             // Track which execution this is
             let executionCount = 0;
@@ -143,13 +145,13 @@ describe("BranchCoordinator - Context Isolation", () => {
 
             // Create multiple parallel branches
             const branchCount = 5;
-            const locations = Array.from({ length: branchCount }, (_, i) => ({
-                id: `loc${i}`,
-                routineId: run.routineId,
-                nodeId: `node${i}`,
-            }));
+            const config = {
+                parentStepId: "node0",
+                parallel: true,
+                branchCount,
+            };
 
-            const branches = await coordinator.createBranches(run.id, locations, true);
+            const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
             // Mock step executor to simulate concurrent operations
             mockStepExecutor.executeStep = vi.fn().mockImplementation(async (params) => {
@@ -288,9 +290,11 @@ describe("BranchCoordinator - Context Isolation", () => {
                 config: { recoveryStrategy: "fail" as const },
             };
 
-            const branches = await coordinator.createBranches(run.id, [
-                { id: "loc1", routineId: run.routineId, nodeId: "node1" },
-            ], false);
+            const config = {
+                parentStepId: "node1",
+                parallel: false,
+            };
+            const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
             // Mock step executor to modify deep nested values
             mockStepExecutor.executeStep = vi.fn().mockImplementation(async (params) => {
@@ -349,10 +353,12 @@ describe("BranchCoordinator - Context Isolation", () => {
             };
 
             // Create branches
-            const branches = await coordinator.createBranches(run.id, [
-                { id: "loc1", routineId: run.routineId, nodeId: "node1" },
-                { id: "loc2", routineId: run.routineId, nodeId: "node2" },
-            ], true);
+            const config = {
+                parentStepId: "node1", 
+                parallel: true,
+                branchCount: 2,
+            };
+            const branches = await coordinator.createBranchesFromConfig(run.id, config);
 
             // Track branch executions
             let executionCount = 0;

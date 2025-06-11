@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import winston from "winston";
-import { ConversationalStrategy } from "../conversationalStrategy.js";
+import { ConversationalStrategy } from "../../../tier3/strategies/conversationalStrategy.js";
 import { StrategyType } from "@vrooli/shared";
 
 describe("ConversationalStrategy Enhanced (Legacy Patterns)", () => {

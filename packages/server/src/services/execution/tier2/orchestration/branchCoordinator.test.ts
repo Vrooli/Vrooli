@@ -75,17 +75,17 @@ describe("BranchCoordinator", () => {
         branchCoordinator = new BranchCoordinator(mockEventBus as any, mockLogger, mockStateStore as any);
     });
 
-    describe("createBranches", () => {
+    describe("createBranchesFromConfig", () => {
         it("should create branches for parallel execution", async () => {
-            const locations = [
-                { id: "loc1", routineId: "routine1", nodeId: "step1" },
-                { id: "loc2", routineId: "routine1", nodeId: "step2" },
-            ];
+            const config = {
+                parentStepId: "step1",
+                parallel: true,
+                branchCount: 2,
+            };
 
-            const branches = await branchCoordinator.createBranches(
+            const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                locations,
-                true
+                config
             );
 
             expect(branches).toHaveLength(2);
@@ -99,14 +99,14 @@ describe("BranchCoordinator", () => {
         });
 
         it("should create branches for sequential execution", async () => {
-            const locations = [
-                { id: "loc1", routineId: "routine1", nodeId: "step1" },
-            ];
+            const config = {
+                parentStepId: "step1",
+                parallel: false,
+            };
 
-            const branches = await branchCoordinator.createBranches(
+            const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                locations,
-                false
+                config
             );
 
             expect(branches).toHaveLength(1);
@@ -314,15 +314,15 @@ describe("BranchCoordinator", () => {
     describe("cleanup", () => {
         it("should clean up completed and failed branches", async () => {
             // First create some branches
-            const locations = [
-                { id: "loc1", routineId: "routine1", nodeId: "step1" },
-                { id: "loc2", routineId: "routine1", nodeId: "step2" },
-            ];
+            const config = {
+                parentStepId: "step1",
+                parallel: true,
+                branchCount: 2,
+            };
 
-            const branches = await branchCoordinator.createBranches(
+            const branches = await branchCoordinator.createBranchesFromConfig(
                 "run-123",
-                locations,
-                true
+                config
             );
 
             // Manually mark one as completed and one as failed
@@ -346,11 +346,12 @@ describe("BranchCoordinator", () => {
 
     describe("state persistence and recovery", () => {
         it("should persist branch creation to state store", async () => {
-            const locations = [
-                { id: "loc1", routineId: "routine1", nodeId: "step1" },
-            ];
+            const config = {
+                parentStepId: "step1",
+                parallel: false,
+            };
 
-            await branchCoordinator.createBranches("run-123", locations, false);
+            await branchCoordinator.createBranchesFromConfig("run-123", config);
 
             // Verify state store was called
             expect(mockStateStore.createBranch).toHaveBeenCalledTimes(1);
@@ -364,8 +365,8 @@ describe("BranchCoordinator", () => {
         });
 
         it("should persist branch state updates", async () => {
-            const locations = [{ id: "loc1", routineId: "routine1", nodeId: "step1" }];
-            const branches = await branchCoordinator.createBranches("run-123", locations, false);
+            const config = { parentStepId: "step1", parallel: false };
+            const branches = await branchCoordinator.createBranchesFromConfig("run-123", config);
             
             // Clear previous calls
             vi.clearAllMocks();
@@ -427,10 +428,10 @@ describe("BranchCoordinator", () => {
         it("should handle state store errors gracefully", async () => {
             mockStateStore.createBranch.mockRejectedValueOnce(new Error("Redis connection failed"));
 
-            const locations = [{ id: "loc1", routineId: "routine1", nodeId: "step1" }];
+            const config = { parentStepId: "step1", parallel: false };
             
             // Should not throw - should continue with in-memory operation
-            const branches = await branchCoordinator.createBranches("run-123", locations, false);
+            const branches = await branchCoordinator.createBranchesFromConfig("run-123", config);
 
             expect(branches).toHaveLength(1);
             expect(mockLogger.error).toHaveBeenCalledWith(
@@ -451,9 +452,9 @@ describe("BranchCoordinator", () => {
         });
 
         it("should use instance ID in event publishing", async () => {
-            const locations = [{ id: "loc1", routineId: "routine1", nodeId: "step1" }];
+            const config = { parentStepId: "step1", parallel: false };
             
-            await branchCoordinator.createBranches("run-123", locations, false);
+            await branchCoordinator.createBranchesFromConfig("run-123", config);
 
             expect(mockEventBus.publish).toHaveBeenCalledWith(
                 expect.objectContaining({

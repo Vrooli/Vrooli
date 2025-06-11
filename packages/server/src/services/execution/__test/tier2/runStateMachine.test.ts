@@ -367,7 +367,7 @@ describe("RunStateMachine", () => {
 
         it("should complete run when navigation is done", async () => {
             navigatorRegistryStub.getNavigator.mockReturnValue({
-                navigate: vi.fn();.resolves({
+                navigate: vi.fn().resolves({
                     nextSteps: [],
                     branches: [],
                     isComplete: true,
