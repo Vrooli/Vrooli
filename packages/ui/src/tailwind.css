@@ -13,3 +13,226 @@
     border: 0;
   }
 }
+
+/* Icon Button Components */
+@layer components {
+  /* Solid variant - physical button with 3D appearance */
+  .tw-icon-button-solid {
+    @apply tw-cursor-pointer;
+    background: radial-gradient(circle at 30% 30%, var(--icon-button-gradient-light), var(--icon-button-gradient-dark));
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  }
+  
+  .tw-icon-button-solid:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.4),
+      0 4px 6px rgba(0, 0, 0, 0.3),
+      inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  }
+  
+  .tw-icon-button-solid:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Transparent variant */
+  .tw-icon-button-transparent {
+    @apply tw-cursor-pointer;
+    background: transparent;
+  }
+  
+  .tw-icon-button-transparent:hover:not(:disabled) {
+    background: var(--icon-button-transparent-hover);
+  }
+  
+  .tw-icon-button-transparent:active:not(:disabled) {
+    background: var(--icon-button-transparent-active);
+  }
+  
+  /* Space variant - handled via components in IconButton.tsx */
+  .tw-icon-button-space {
+    @apply tw-cursor-pointer;
+  }
+  
+  /* Microphone-specific listening state */
+  .tw-microphone-listening {
+    background: radial-gradient(circle at 30% 30%, var(--microphone-listening-light), var(--microphone-listening-dark)) !important;
+    animation: microphonePulse 2s ease-in-out infinite;
+  }
+  
+  .tw-microphone-listening:hover:not(:disabled) {
+    animation: microphonePulse 1.5s ease-in-out infinite;
+  }
+  
+  /* Wave animation bars for listening dialog */
+  .tw-wave-bar {
+    @apply tw-w-2 tw-rounded-md;
+    background: linear-gradient(to top, var(--microphone-wave-dark), var(--microphone-wave-light));
+    animation: waveAnimation 1s infinite ease-in-out;
+  }
+  
+  .tw-wave-bar:nth-child(1) { animation-delay: 0s; }
+  .tw-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .tw-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .tw-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .tw-wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+  /* Button Component Styles */
+  .tw-button-ripple {
+    @apply tw-absolute tw-pointer-events-none tw-rounded-full;
+    animation: buttonRippleExpand 0.6s ease-out forwards;
+    /* Performance optimizations */
+    will-change: transform, opacity;
+    contain: layout style paint;
+  }
+
+  /* Space variant container - provides gradient border effect */
+  .tw-button-space-container {
+    @apply tw-relative tw-overflow-hidden tw-rounded-md tw-p-0.5;
+    background: linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%);
+    transition: all 0.3s ease;
+  }
+
+  .tw-button-space-container:hover {
+    box-shadow: 0 8px 25px rgba(15, 170, 170, 0.25);
+  }
+
+  /* Space variant inner content area */
+  .tw-button-space-inner {
+    @apply tw-relative tw-w-full tw-h-full tw-rounded tw-overflow-hidden;
+    background: linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%);
+  }
+
+  /* Space variant background layers - kept for compatibility */
+  .tw-button-space-border {
+    @apply tw-absolute tw-inset-0 tw-rounded;
+    background: linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%);
+  }
+
+  .tw-button-space-background {
+    @apply tw-absolute tw-inset-0.5 tw-rounded;
+    background: linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%);
+  }
+
+  .tw-button-space-glow {
+    @apply tw-absolute tw-inset-0.5 tw-rounded tw-opacity-60;
+    background: radial-gradient(ellipse at center, rgba(22, 163, 97, 0.15) 0%, transparent 70%);
+  }
+
+  .tw-button-space-sweep {
+    @apply tw-absolute tw-inset-0.5 tw-rounded tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none;
+    background: linear-gradient(110deg, 
+      transparent 25%, 
+      rgba(15, 170, 170, 0.4) 45%, 
+      rgba(22, 163, 97, 0.4) 55%, 
+      transparent 75%
+    );
+    background-size: 200% 100%;
+    animation: buttonGradientSweep 3s ease-in-out infinite;
+    /* Performance optimization for animation */
+    will-change: background-position, opacity;
+  }
+
+  /* Enhanced button states for better UX */
+  .tw-button-loading {
+    @apply tw-pointer-events-none;
+  }
+
+  .tw-button-disabled {
+    @apply tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none;
+  }
+
+  /* Focus styles that work with all variants */
+  .tw-button-focus-ring {
+    @apply focus:tw-ring-2 focus:tw-ring-offset-2 focus:tw-ring-offset-background;
+  }
+  
+  /* Screen reader only text for accessibility */
+  .tw-sr-only {
+    @apply tw-absolute tw-w-px tw-h-px tw-p-0 -tw-m-px tw-overflow-hidden tw-whitespace-nowrap tw-border-0;
+    clip: rect(0, 0, 0, 0);
+  }
+}
+
+/* Custom animations */
+@keyframes microphonePulse {
+  0%, 100% { 
+    box-shadow: 
+      0 6px 12px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      inset 0 1px 2px rgba(255, 255, 255, 0.2),
+      0 0 0 0 var(--microphone-glow-color);
+  }
+  50% { 
+    box-shadow: 
+      0 8px 16px rgba(0, 0, 0, 0.4),
+      0 4px 6px rgba(0, 0, 0, 0.3),
+      inset 0 1px 2px rgba(255, 255, 255, 0.3),
+      0 0 0 8px var(--microphone-glow-color);
+  }
+}
+
+@keyframes waveAnimation {
+  0%, 40%, 100% { height: 20px; }
+  20% { height: 50px; }
+}
+
+@keyframes iconButtonGradientSweep {
+  0% { 
+    background-position: -200% 0%; 
+    transform: skewX(-12deg);
+  }
+  50% { 
+    background-position: 200% 0%; 
+    transform: skewX(-12deg);
+  }
+  100% { 
+    background-position: -200% 0%; 
+    transform: skewX(-12deg);
+  }
+}
+
+@keyframes iconButtonRippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Button component animations */
+@keyframes buttonRippleExpand {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes buttonGradientSweep {
+  0% { 
+    background-position: -200% 0%; 
+    transform: skewX(-12deg);
+  }
+  50% { 
+    background-position: 200% 0%; 
+    transform: skewX(-12deg);
+  }
+  100% { 
+    background-position: -200% 0%; 
+    transform: skewX(-12deg);
+  }
+}
