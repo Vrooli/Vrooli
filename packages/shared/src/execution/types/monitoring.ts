@@ -4,7 +4,8 @@
  */
 
 import type { BaseEvent } from "./events.js";
-import type { ResourceUsage, StrategyType } from "./core.js";
+import type { ResourceUsage } from "./core.js";
+import type { StrategyType } from "./strategies.js";
 
 /**
  * Monitoring event categories with standardized prefixes

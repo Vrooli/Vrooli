@@ -6,7 +6,7 @@
  */
 
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 
 /**
  * Performance metric

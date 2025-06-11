@@ -5,7 +5,7 @@ import {
     type RunState,
     type StepStatus,
     type ResourceUsage,
-    generatePk,
+    generatePK,
 } from "@vrooli/shared";
 
 /**
@@ -102,7 +102,7 @@ export class RunPersistenceService {
             for (const [key, value] of Object.entries(runData.inputs)) {
                 await this.prisma.run_io.create({
                     data: {
-                        id: BigInt(generatePk()),
+                        id: BigInt(generatePK()),
                         runId: BigInt(runData.id),
                         nodeInputName: key,
                         nodeName: "root",

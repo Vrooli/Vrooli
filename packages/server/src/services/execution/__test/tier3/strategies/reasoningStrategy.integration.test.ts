@@ -55,7 +55,7 @@ describe("ReasoningStrategy Integration Tests", () => {
     });
     
     afterEach(() => {
-        sinon.restore();
+        vi.restoreAllMocks();
     });
 
     describe("Complete Execution Flow", () => {
@@ -197,7 +197,7 @@ describe("ReasoningStrategy Integration Tests", () => {
                 "[LegacyInputHandler] Generating missing inputs",
                 expect.objectContaining({
                     stepId: "missing-inputs-test",
-                    missingInputs: sinon.match.array.contains(["threshold", "includeStats", "description"]),
+                    missingInputs: expect.arrayContaining(["threshold", "includeStats", "description"]),
                 })
             );
         });

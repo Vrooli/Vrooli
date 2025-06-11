@@ -3,11 +3,9 @@
  * Central registry of all event types in the system
  */
 
-import { 
-    SwarmEventType,
-    RunEventType,
-    EventCategory, 
-} from "../types/events.js";
+import { EventCategory } from "../types/events.js";
+import { SwarmEventType } from "../types/swarm.js";
+import { RunEventType } from "../types/routine.js";
 
 /**
  * Event type metadata
@@ -145,11 +143,15 @@ export class EventTypeRegistry {
     
     private getDescriptionForSwarmEvent(type: SwarmEventType): string {
         const descriptions: Record<SwarmEventType, string> = {
+            [SwarmEventType.SWARM_CREATED]: "Swarm has been created",
             [SwarmEventType.SWARM_STARTED]: "Swarm has been started",
             [SwarmEventType.SWARM_STOPPED]: "Swarm has been stopped",
             [SwarmEventType.SWARM_FAILED]: "Swarm has failed",
             [SwarmEventType.SWARM_COMPLETED]: "Swarm has completed its goal",
+            [SwarmEventType.SWARM_TERMINATED]: "Swarm has been terminated",
+            [SwarmEventType.STATE_CHANGED]: "Swarm state has changed",
             [SwarmEventType.TEAM_FORMED]: "New team has been formed",
+            [SwarmEventType.TEAM_UPDATED]: "Team has been updated",
             [SwarmEventType.TEAM_DISBANDED]: "Team has been disbanded",
             [SwarmEventType.AGENT_JOINED]: "Agent joined the swarm",
             [SwarmEventType.AGENT_LEFT]: "Agent left the swarm",
@@ -159,10 +161,19 @@ export class EventTypeRegistry {
             [SwarmEventType.SUBTASK_CREATED]: "New subtask created",
             [SwarmEventType.RESOURCE_ALLOCATED]: "Resource allocated to consumer",
             [SwarmEventType.RESOURCE_RELEASED]: "Resource released by consumer",
-            [SwarmEventType.RESOURCE_EXHAUSTED]: "Resource has been exhausted",
+            [SwarmEventType.RESOURCE_EXHAUSTED]: "Resource exhausted",
+            [SwarmEventType.RESOURCE_RESERVED]: "Resource reserved",
+            [SwarmEventType.RESOURCE_UNRESERVED]: "Resource unreserved",
+            [SwarmEventType.CHILD_SWARM_SPAWNED]: "Child swarm spawned",
+            [SwarmEventType.CHILD_SWARM_COMPLETED]: "Child swarm completed",
+            [SwarmEventType.CHILD_SWARM_FAILED]: "Child swarm failed",
+            [SwarmEventType.PARENT_SWARM_NOTIFIED]: "Parent swarm notified",
             [SwarmEventType.MESSAGE_SENT]: "Message sent between agents",
             [SwarmEventType.CONSENSUS_REACHED]: "Consensus reached by agents",
             [SwarmEventType.CONFLICT_DETECTED]: "Conflict detected between agents",
+            [SwarmEventType.DECISION_PROPOSED]: "Decision proposed by agent/swarm",
+            [SwarmEventType.DECISION_EXECUTED]: "Decision executed by agent/swarm",
+            [SwarmEventType.STRATEGY_ADAPTED]: "Strategy adapted based on feedback",
         };
         return descriptions[type] || "Unknown event";
     }

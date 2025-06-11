@@ -11,7 +11,7 @@ import {
     type Navigator,
     type StepInfo,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 
 /**
  * Path execution data

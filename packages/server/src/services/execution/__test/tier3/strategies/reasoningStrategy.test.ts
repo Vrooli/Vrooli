@@ -54,7 +54,7 @@ describe("ReasoningStrategy", () => {
     });
 
     afterEach(() => {
-        sinon.restore();
+        vi.restoreAllMocks();
     });
 
     describe("constructor", () => {

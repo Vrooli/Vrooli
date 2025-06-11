@@ -335,7 +335,7 @@ describe("RunStateMachine", () => {
 
             expect(checkpointManagerStub.createCheckpoint).toHaveBeenCalledWith(
                 "run-123",
-                sinon.match.any
+                expect.any(Object)
             );
         });
     });

@@ -1,7 +1,7 @@
 import { type Logger } from "winston";
 import {
-    type SwarmStatus,
-    type RunStatus,
+    SwarmStatus,
+    RunStatus,
     nanoid,
 } from "@vrooli/shared";
 import { TierOneCoordinator } from "./tier1/index.js";
@@ -11,6 +11,7 @@ import { EventBus } from "./cross-cutting/events/eventBus.js";
 import { RunPersistenceService } from "./integration/runPersistenceService.js";
 import { RoutineStorageService } from "./integration/routineStorageService.js";
 import { AuthIntegrationService } from "./integration/authIntegrationService.js";
+import { DbProvider } from "../../db/provider.js";
 
 /**
  * Main service entry point for the three-tier execution architecture
@@ -34,10 +35,13 @@ export class SwarmExecutionService {
         // Initialize event bus for cross-tier communication
         this.eventBus = new EventBus(logger);
         
-        // Initialize integration services
-        this.persistenceService = new RunPersistenceService(logger);
-        this.routineService = new RoutineStorageService(logger);
-        this.authService = new AuthIntegrationService(logger);
+        // Get PrismaClient from DbProvider
+        const prisma = DbProvider.get();
+        
+        // Initialize integration services with proper dependencies
+        this.persistenceService = new RunPersistenceService(prisma, logger);
+        this.routineService = new RoutineStorageService(prisma, logger);
+        this.authService = new AuthIntegrationService(prisma, logger);
         
         // Initialize tiers in dependency order (tier 3 -> tier 2 -> tier 1)
         this.tierThree = new TierThreeExecutor(logger, this.eventBus);
@@ -81,6 +85,7 @@ export class SwarmExecutionService {
         userId: string;
         organizationId?: string;
         parentSwarmId?: string; // NEW: For child swarms
+        leaderBotId?: string; // Optional bot ID, defaults to Valyxa
     }): Promise<{ swarmId: string }> {
         this.logger.info("[SwarmExecutionService] Starting new swarm", {
             swarmId: config.swarmId,
@@ -89,14 +94,13 @@ export class SwarmExecutionService {
         });
 
         try {
-            // Check user permissions
-            const hasPermission = await this.authService.checkPermission(
-                config.userId,
-                "swarm:create",
-                config.organizationId,
-            );
+            // Check user permissions - for now, just verify user exists and has basic permissions
+            const userData = await this.authService.getUserData(config.userId);
+            if (!userData) {
+                throw new Error("User not found");
+            }
 
-            if (!hasPermission) {
+            if (!userData.permissions.canCreateSwarms) {
                 throw new Error("User does not have permission to create swarms");
             }
 
@@ -111,6 +115,7 @@ export class SwarmExecutionService {
                 userId: config.userId,
                 organizationId: config.organizationId,
                 parentSwarmId: config.parentSwarmId, // NEW: Pass through parent relationship
+                leaderBotId: config.leaderBotId, // Pass through leader bot ID
             });
 
             return { swarmId: config.swarmId };
@@ -154,27 +159,28 @@ export class SwarmExecutionService {
             }
 
             // Check user permissions
-            const hasPermission = await this.authService.checkPermission(
+            const permissionResult = await this.authService.canUserExecuteRoutine(
                 config.userId,
-                "routine:run",
-                routine.root.ownerId,
+                config.routineVersionId,
             );
 
-            if (!hasPermission) {
-                throw new Error("User does not have permission to run this routine");
+            if (!permissionResult.allowed) {
+                throw new Error(`User does not have permission to run this routine: ${permissionResult.reason}`);
             }
 
             // Create run record in database
-            const run = await this.persistenceService.createRun({
+            await this.persistenceService.createRun({
                 id: config.runId,
-                routineVersionId: config.routineVersionId,
+                routineId: config.routineVersionId,
                 userId: config.userId,
-                name: routine.name || `Run of ${routine.root.name}`,
-                status: RunStatus.InProgress,
                 inputs: config.inputs,
-                completedComplexity: 0,
-                contextSwitches: 0,
-                timeElapsed: "0",
+                metadata: {
+                    swarmId: config.swarmId,
+                    executionArchitecture: "three-tier",
+                    routineName: routine.name || `Run of ${routine.root.name}`,
+                },
+                createdAt: new Date(),
+                updatedAt: new Date(),
             });
 
             // Start run through Tier 1 (which will delegate to Tier 2)
@@ -238,7 +244,7 @@ export class SwarmExecutionService {
     }> {
         try {
             // Get run from database
-            const run = await this.persistenceService.getRun(runId);
+            const run = await this.persistenceService.loadRun(runId);
             if (!run) {
                 return {
                     status: RunStatus.Unknown,
@@ -249,11 +255,21 @@ export class SwarmExecutionService {
             // Get detailed status from Tier 2
             const detailedStatus = await this.tierTwo.getRunStatus(runId);
 
+            // Map database status to RunStatus enum
+            const statusMap: Record<string, RunStatus> = {
+                "Scheduled": RunStatus.Scheduled,
+                "InProgress": RunStatus.InProgress,
+                "Completed": RunStatus.Completed,
+                "Failed": RunStatus.Failed,
+                "Cancelled": RunStatus.Cancelled,
+                "Paused": RunStatus.Paused,
+            };
+
             return {
-                status: run.status,
+                status: statusMap[run.status] || RunStatus.InProgress,
                 progress: detailedStatus?.progress,
                 currentStep: detailedStatus?.currentStep,
-                outputs: run.outputs,
+                outputs: run.metadata, // Using metadata for outputs since loadRun doesn't return outputs
                 errors: detailedStatus?.errors,
             };
 
@@ -300,7 +316,7 @@ export class SwarmExecutionService {
     }> {
         try {
             // Update run status
-            await this.persistenceService.updateRunStatus(runId, RunStatus.Cancelled);
+            await this.persistenceService.updateRunState(runId, "CANCELLED");
             
             // Cancel through Tier 2
             await this.tierTwo.cancelRun(runId, reason);
@@ -325,21 +341,26 @@ export class SwarmExecutionService {
         // Handle run completion events
         this.eventBus.on("run.completed", async (event) => {
             const { runId, outputs } = event.data;
-            await this.persistenceService.completeRun(runId, outputs);
+            await this.persistenceService.updateRunState(runId, "COMPLETED");
+            // TODO: Store outputs in run data - would need to extend persistence service
         });
 
         // Handle run failure events
         this.eventBus.on("run.failed", async (event) => {
             const { runId, error } = event.data;
-            await this.persistenceService.updateRunStatus(runId, RunStatus.Failed);
+            await this.persistenceService.updateRunState(runId, "FAILED");
         });
 
         // Handle step completion events
         this.eventBus.on("step.completed", async (event) => {
-            const { runId, stepId, outputs } = event.data;
-            await this.persistenceService.updateRunProgress(runId, {
-                lastCompletedStep: stepId,
-                outputs,
+            const { runId, stepId, outputs, resourceUsage } = event.data;
+            await this.persistenceService.recordStepExecution(runId, {
+                stepId,
+                status: "completed",
+                result: outputs,
+                resourceUsage: resourceUsage || { tokens: 0, credits: 0, duration: 0 },
+                startedAt: new Date(),
+                completedAt: new Date(),
             });
         });
     }

@@ -1,6 +1,5 @@
 import { type Logger } from "winston";
-import Ajv, { type JSONSchemaType } from "ajv";
-import addFormats from "ajv-formats";
+import * as yup from "yup";
 
 /**
  * Validation result from schema validation
@@ -51,30 +50,26 @@ interface ReasoningFramework {
         id: string;
         type: string;
         description: string;
-        inputs: string[];
-        outputs: string[];
+        input?: unknown;
+        output?: unknown;
+        reasoning?: string;
     }>;
 }
 
 /**
- * ValidationEngine - Output validation and security enforcement
+ * Validation Engine - Validates outputs and ensures data integrity
  * 
- * This component provides:
- * - JSON Schema-based output validation
- * - Type coercion and normalization
- * - Security scanning for malicious content
- * - Data sanitization
- * - Quality assurance checks
+ * This component provides comprehensive validation for execution outputs,
+ * including schema validation, security scanning, and quality checks.
  * 
  * Key features:
- * - Strict schema enforcement
+ * - Strict schema enforcement using Yup
  * - XSS and injection prevention
  * - PII detection and masking
  * - Data quality metrics
  */
 export class ValidationEngine {
     private readonly logger: Logger;
-    private readonly ajv: Ajv;
     
     // Common patterns for security scanning
     private readonly dangerousPatterns = {
@@ -94,33 +89,20 @@ export class ValidationEngine {
 
     constructor(logger: Logger) {
         this.logger = logger;
-        
-        // Initialize AJV with common formats
-        this.ajv = new Ajv({
-            allErrors: true,
-            coerceTypes: true,
-            useDefaults: true,
-            removeAdditional: "all",
-        });
-        
-        addFormats(this.ajv);
-        
-        // Add custom formats
-        this.addCustomFormats();
     }
 
     /**
      * Validates output against provided schema
      * 
      * This method:
-     * 1. Validates structure against JSON Schema
+     * 1. Validates structure against Yup Schema
      * 2. Performs security scanning
      * 3. Checks data quality
      * 4. Returns validated and sanitized data
      */
     async validate(
         output: unknown,
-        schema?: Record<string, unknown>,
+        schema?: Record<string, unknown> | yup.Schema,
     ): Promise<ValidationResult> {
         this.logger.debug("[ValidationEngine] Starting validation");
 
@@ -181,104 +163,196 @@ export class ValidationEngine {
         value: unknown,
         type: string,
         constraints?: Record<string, unknown>,
-    ): Promise<{ valid: boolean; value?: unknown; error?: string }> {
+    ): Promise<boolean> {
         try {
+            let schema: yup.Schema;
+            
             switch (type) {
                 case "string":
-                    return this.validateString(value, constraints);
+                    schema = yup.string();
+                    if (constraints?.minLength) {
+                        schema = (schema as yup.StringSchema).min(constraints.minLength as number);
+                    }
+                    if (constraints?.maxLength) {
+                        schema = (schema as yup.StringSchema).max(constraints.maxLength as number);
+                    }
+                    if (constraints?.pattern) {
+                        schema = (schema as yup.StringSchema).matches(new RegExp(constraints.pattern as string));
+                    }
+                    break;
+                    
                 case "number":
-                    return this.validateNumber(value, constraints);
+                    schema = yup.number();
+                    if (constraints?.min !== undefined) {
+                        schema = (schema as yup.NumberSchema).min(constraints.min as number);
+                    }
+                    if (constraints?.max !== undefined) {
+                        schema = (schema as yup.NumberSchema).max(constraints.max as number);
+                    }
+                    break;
+                    
                 case "boolean":
-                    return this.validateBoolean(value);
+                    schema = yup.boolean();
+                    break;
+                    
                 case "array":
-                    return this.validateArray(value, constraints);
+                    schema = yup.array();
+                    if (constraints?.minItems) {
+                        schema = (schema as yup.ArraySchema<any>).min(constraints.minItems as number);
+                    }
+                    if (constraints?.maxItems) {
+                        schema = (schema as yup.ArraySchema<any>).max(constraints.maxItems as number);
+                    }
+                    break;
+                    
                 case "object":
-                    return this.validateObject(value, constraints);
-                case "date":
-                    return this.validateDate(value, constraints);
-                case "email":
-                    return this.validateEmail(value);
-                case "url":
-                    return this.validateUrl(value);
+                    schema = yup.object();
+                    break;
+                    
                 default:
-                    return { valid: true, value };
+                    return true; // Unknown type, allow it
             }
+            
+            if (constraints?.required) {
+                schema = schema.required();
+            }
+            
+            await schema.validate(value);
+            return true;
+            
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Validates reasoning result structure
+     */
+    async validateReasoning(result: unknown): Promise<ReasoningValidationResult> {
+        try {
+            const reasoningSchema = yup.object({
+                conclusion: yup.mixed().required(),
+                reasoning: yup.array().of(yup.string()).required(),
+                evidence: yup.array().of(
+                    yup.object({
+                        type: yup.string().oneOf(["fact", "inference", "assumption"]).required(),
+                        content: yup.string().required(),
+                        source: yup.string(),
+                        confidence: yup.number().min(0).max(1).required(),
+                    })
+                ).required(),
+                confidence: yup.number().min(0).max(1).required(),
+                assumptions: yup.array().of(yup.string()).required(),
+            });
+
+            const validated = await reasoningSchema.validate(result);
+
+            return {
+                type: "structure",
+                passed: true,
+                message: "Valid reasoning structure",
+                details: { validated },
+            };
+            
         } catch (error) {
             return {
+                type: "structure",
+                passed: false,
+                message: error instanceof Error ? error.message : "Invalid reasoning structure",
+            };
+        }
+    }
+
+    private normalizeToObject(data: unknown): Record<string, unknown> {
+        if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+            return data as Record<string, unknown>;
+        }
+
+        // Wrap non-objects
+        return { value: data };
+    }
+
+    private async validateSchema(
+        data: Record<string, unknown>,
+        schema: Record<string, unknown> | yup.Schema,
+    ): Promise<ValidationResult> {
+        try {
+            // If schema is a yup schema, use it directly
+            let yupSchema: yup.Schema;
+            
+            if (schema && typeof schema === 'object' && 'validate' in schema) {
+                // It's already a yup schema
+                yupSchema = schema as yup.Schema;
+            } else {
+                // Convert JSON schema-like object to yup schema
+                yupSchema = this.convertToYupSchema(schema as Record<string, unknown>);
+            }
+            
+            // Validate data
+            const validatedData = await yupSchema.validate(data, {
+                abortEarly: false,
+                stripUnknown: true,
+            });
+
+            return {
+                valid: true,
+                data: validatedData as Record<string, unknown>,
+                errors: [],
+            };
+
+        } catch (error) {
+            if (error instanceof yup.ValidationError) {
+                return {
+                    valid: false,
+                    data,
+                    errors: error.errors,
+                };
+            }
+            
+            return {
                 valid: false,
-                error: error instanceof Error ? error.message : "Validation error",
+                data,
+                errors: [`Schema validation error: ${error}`],
             };
         }
     }
 
     /**
-     * Private helper methods
+     * Converts a JSON schema-like object to a yup schema
      */
-    private addCustomFormats(): void {
-        // Add custom format validators
-        this.ajv.addFormat("iso-date", {
-            validate: (data: string) => {
-                const date = new Date(data);
-                return !isNaN(date.getTime());
-            },
-        });
-
-        this.ajv.addFormat("positive-number", {
-            type: "number",
-            validate: (data: number) => data > 0,
-        });
-
-        this.ajv.addFormat("non-empty-string", {
-            type: "string",
-            validate: (data: string) => data.trim().length > 0,
-        });
-    }
-
-    private normalizeToObject(output: unknown): Record<string, unknown> {
-        if (typeof output === "object" && output !== null && !Array.isArray(output)) {
-            return output as Record<string, unknown>;
-        }
-
-        // Wrap primitive values
-        return { value: output };
-    }
-
-    private async validateSchema(
-        data: Record<string, unknown>,
-        schema: Record<string, unknown>,
-    ): Promise<ValidationResult> {
-        try {
-            // Compile schema
-            const validate = this.ajv.compile(schema as JSONSchemaType<unknown>);
-            
-            // Validate data
-            const valid = validate(data);
-
-            if (!valid) {
-                const errors = validate.errors?.map(err => 
-                    `${err.instancePath} ${err.message}`,
-                ) || ["Schema validation failed"];
-
-                return {
-                    valid: false,
-                    data,
-                    errors,
-                };
+    private convertToYupSchema(schema: Record<string, unknown>): yup.Schema {
+        const shape: Record<string, any> = {};
+        
+        // Simple conversion - can be expanded based on needs
+        for (const [key, value] of Object.entries(schema)) {
+            if (typeof value === 'object' && value !== null) {
+                const fieldSchema = value as any;
+                
+                if (fieldSchema.type === 'string') {
+                    shape[key] = yup.string();
+                    if (fieldSchema.required) shape[key] = shape[key].required();
+                    if (fieldSchema.minLength) shape[key] = shape[key].min(fieldSchema.minLength);
+                    if (fieldSchema.maxLength) shape[key] = shape[key].max(fieldSchema.maxLength);
+                    if (fieldSchema.pattern) shape[key] = shape[key].matches(new RegExp(fieldSchema.pattern));
+                } else if (fieldSchema.type === 'number') {
+                    shape[key] = yup.number();
+                    if (fieldSchema.required) shape[key] = shape[key].required();
+                    if (fieldSchema.min !== undefined) shape[key] = shape[key].min(fieldSchema.min);
+                    if (fieldSchema.max !== undefined) shape[key] = shape[key].max(fieldSchema.max);
+                } else if (fieldSchema.type === 'boolean') {
+                    shape[key] = yup.boolean();
+                    if (fieldSchema.required) shape[key] = shape[key].required();
+                } else if (fieldSchema.type === 'array') {
+                    shape[key] = yup.array();
+                    if (fieldSchema.required) shape[key] = shape[key].required();
+                } else if (fieldSchema.type === 'object') {
+                    shape[key] = yup.object();
+                    if (fieldSchema.required) shape[key] = shape[key].required();
+                }
             }
-
-            return {
-                valid: true,
-                data: data as Record<string, unknown>,
-                errors: [],
-            };
-
-        } catch (error) {
-            return {
-                valid: false,
-                data,
-                errors: [`Schema compilation error: ${error}`],
-            };
         }
+        
+        return yup.object(shape);
     }
 
     private async performSecurityScan(
@@ -351,357 +425,36 @@ export class ValidationEngine {
     private async checkDataQuality(
         data: Record<string, unknown>,
     ): Promise<ValidationResult> {
-        const qualityIssues: string[] = [];
+        const issues: string[] = [];
 
-        // Check for empty or null values in required fields
-        this.checkForEmptyValues(data, "", qualityIssues);
+        // Check for empty or minimal data
+        const dataKeys = Object.keys(data);
+        if (dataKeys.length === 0) {
+            issues.push("Output contains no data");
+        }
+
+        // Check for null/undefined values in critical fields
+        const criticalFields = ["result", "output", "value", "data"];
+        for (const field of criticalFields) {
+            if (field in data && (data[field] === null || data[field] === undefined)) {
+                issues.push(`Critical field '${field}' is null or undefined`);
+            }
+        }
 
         // Check for suspiciously large data
-        this.checkDataSize(data, "", qualityIssues);
-
-        // Check for data consistency
-        this.checkDataConsistency(data, qualityIssues);
+        const jsonSize = JSON.stringify(data).length;
+        if (jsonSize > 1000000) { // 1MB
+            issues.push("Output data exceeds size limit");
+        }
 
         return {
-            valid: qualityIssues.length === 0,
+            valid: issues.length === 0,
             data,
-            errors: qualityIssues,
+            errors: issues,
         };
-    }
-
-    private checkForEmptyValues(
-        obj: any,
-        path: string,
-        issues: string[],
-    ): void {
-        if (obj === null || obj === undefined) {
-            issues.push(`Empty value at ${path}`);
-        } else if (typeof obj === "string" && obj.trim() === "") {
-            issues.push(`Empty string at ${path}`);
-        } else if (Array.isArray(obj)) {
-            if (obj.length === 0) {
-                issues.push(`Empty array at ${path}`);
-            }
-            obj.forEach((item, index) => {
-                this.checkForEmptyValues(item, `${path}[${index}]`, issues);
-            });
-        } else if (typeof obj === "object" && obj !== null) {
-            const keys = Object.keys(obj);
-            if (keys.length === 0) {
-                issues.push(`Empty object at ${path}`);
-            }
-            for (const [key, value] of Object.entries(obj)) {
-                this.checkForEmptyValues(value, `${path}.${key}`, issues);
-            }
-        }
-    }
-
-    private checkDataSize(
-        obj: any,
-        path: string,
-        issues: string[],
-        maxStringLength = 10000,
-        maxArrayLength = 1000,
-    ): void {
-        if (typeof obj === "string" && obj.length > maxStringLength) {
-            issues.push(`String too long at ${path} (${obj.length} chars)`);
-        } else if (Array.isArray(obj) && obj.length > maxArrayLength) {
-            issues.push(`Array too large at ${path} (${obj.length} items)`);
-        } else if (typeof obj === "object" && obj !== null) {
-            for (const [key, value] of Object.entries(obj)) {
-                this.checkDataSize(value, `${path}.${key}`, issues, maxStringLength, maxArrayLength);
-            }
-        }
-    }
-
-    private checkDataConsistency(
-        data: Record<string, unknown>,
-        issues: string[],
-    ): void {
-        // Check for common consistency issues
-        
-        // Date consistency
-        if (data.startDate && data.endDate) {
-            const start = new Date(data.startDate as string);
-            const end = new Date(data.endDate as string);
-            if (start > end) {
-                issues.push("Start date is after end date");
-            }
-        }
-
-        // Numeric consistency
-        if (data.min !== undefined && data.max !== undefined) {
-            if ((data.min as number) > (data.max as number)) {
-                issues.push("Minimum value is greater than maximum value");
-            }
-        }
     }
 
     private deepClone<T>(obj: T): T {
         return JSON.parse(JSON.stringify(obj));
-    }
-
-    /**
-     * Type-specific validators
-     */
-    private validateString(
-        value: unknown,
-        constraints?: Record<string, unknown>,
-    ): { valid: boolean; value?: unknown; error?: string } {
-        const str = String(value);
-        
-        if (constraints?.minLength && str.length < (constraints.minLength as number)) {
-            return { valid: false, error: `String too short (min: ${constraints.minLength})` };
-        }
-        
-        if (constraints?.maxLength && str.length > (constraints.maxLength as number)) {
-            return { valid: false, error: `String too long (max: ${constraints.maxLength})` };
-        }
-        
-        if (constraints?.pattern) {
-            const regex = new RegExp(constraints.pattern as string);
-            if (!regex.test(str)) {
-                return { valid: false, error: "String does not match pattern" };
-            }
-        }
-        
-        return { valid: true, value: str };
-    }
-
-    private validateNumber(
-        value: unknown,
-        constraints?: Record<string, unknown>,
-    ): { valid: boolean; value?: unknown; error?: string } {
-        const num = Number(value);
-        
-        if (isNaN(num)) {
-            return { valid: false, error: "Not a valid number" };
-        }
-        
-        if (constraints?.min !== undefined && num < (constraints.min as number)) {
-            return { valid: false, error: `Number too small (min: ${constraints.min})` };
-        }
-        
-        if (constraints?.max !== undefined && num > (constraints.max as number)) {
-            return { valid: false, error: `Number too large (max: ${constraints.max})` };
-        }
-        
-        return { valid: true, value: num };
-    }
-
-    private validateBoolean(value: unknown): { valid: boolean; value?: unknown; error?: string } {
-        if (typeof value === "boolean") {
-            return { valid: true, value };
-        }
-        
-        if (typeof value === "string") {
-            const lower = value.toLowerCase();
-            if (["true", "false", "yes", "no", "1", "0"].includes(lower)) {
-                return { valid: true, value: ["true", "yes", "1"].includes(lower) };
-            }
-        }
-        
-        return { valid: false, error: "Not a valid boolean" };
-    }
-
-    private validateArray(
-        value: unknown,
-        constraints?: Record<string, unknown>,
-    ): { valid: boolean; value?: unknown; error?: string } {
-        if (!Array.isArray(value)) {
-            return { valid: false, error: "Not an array" };
-        }
-        
-        if (constraints?.minItems && value.length < (constraints.minItems as number)) {
-            return { valid: false, error: `Array too small (min: ${constraints.minItems})` };
-        }
-        
-        if (constraints?.maxItems && value.length > (constraints.maxItems as number)) {
-            return { valid: false, error: `Array too large (max: ${constraints.maxItems})` };
-        }
-        
-        return { valid: true, value };
-    }
-
-    private validateObject(
-        value: unknown,
-        constraints?: Record<string, unknown>,
-    ): { valid: boolean; value?: unknown; error?: string } {
-        if (typeof value !== "object" || value === null || Array.isArray(value)) {
-            return { valid: false, error: "Not an object" };
-        }
-        
-        const obj = value as Record<string, unknown>;
-        
-        if (constraints?.required) {
-            const required = constraints.required as string[];
-            for (const field of required) {
-                if (!(field in obj)) {
-                    return { valid: false, error: `Missing required field: ${field}` };
-                }
-            }
-        }
-        
-        return { valid: true, value };
-    }
-
-    private validateDate(
-        value: unknown,
-        constraints?: Record<string, unknown>,
-    ): { valid: boolean; value?: unknown; error?: string } {
-        const date = new Date(value as string);
-        
-        if (isNaN(date.getTime())) {
-            return { valid: false, error: "Not a valid date" };
-        }
-        
-        if (constraints?.min) {
-            const minDate = new Date(constraints.min as string);
-            if (date < minDate) {
-                return { valid: false, error: `Date too early (min: ${constraints.min})` };
-            }
-        }
-        
-        if (constraints?.max) {
-            const maxDate = new Date(constraints.max as string);
-            if (date > maxDate) {
-                return { valid: false, error: `Date too late (max: ${constraints.max})` };
-            }
-        }
-        
-        return { valid: true, value: date.toISOString() };
-    }
-
-    private validateEmail(value: unknown): { valid: boolean; value?: unknown; error?: string } {
-        const email = String(value);
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-        if (!emailRegex.test(email)) {
-            return { valid: false, error: "Not a valid email address" };
-        }
-        
-        return { valid: true, value: email.toLowerCase() };
-    }
-
-    private validateUrl(value: unknown): { valid: boolean; value?: unknown; error?: string } {
-        try {
-            const url = new URL(String(value));
-            return { valid: true, value: url.toString() };
-        } catch {
-            return { valid: false, error: "Not a valid URL" };
-        }
-    }
-
-    /**
-     * Reasoning-specific validation methods
-     * Consolidated from tier3/strategies/reasoning/validationEngine.ts
-     */
-
-    /**
-     * Validates reasoning results using multiple validation patterns
-     */
-    async validateReasoning(
-        result: ReasoningResult,
-        framework: ReasoningFramework
-    ): Promise<ReasoningValidationResult[]> {
-        this.logger.debug("[ValidationEngine] Starting reasoning validation", {
-            frameworkType: framework.type,
-            conclusionType: typeof result.conclusion,
-            reasoningStepsCount: result.reasoning.length,
-            evidenceCount: result.evidence.length,
-        });
-
-        const validations: ReasoningValidationResult[] = [];
-
-        // Logic validation
-        validations.push({
-            type: "logic",
-            passed: this.validateLogicalConsistency(result),
-            message: "Logical consistency check",
-            details: {
-                reasoningSteps: result.reasoning.length,
-                contradictionsFound: this.findContradictions(result),
-            },
-        });
-
-        // Completeness validation
-        validations.push({
-            type: "completeness",
-            passed: this.validateCompleteness(result, framework),
-            message: "Reasoning completeness check",
-            details: {
-                expectedSteps: framework.steps.length,
-                actualSteps: result.reasoning.length,
-                hasConclusion: result.conclusion !== undefined,
-            },
-        });
-
-        // Confidence validation
-        validations.push({
-            type: "confidence",
-            passed: result.confidence >= 0.7, // CONFIDENCE_THRESHOLD
-            message: "Confidence threshold check",
-            details: {
-                confidence: result.confidence,
-                threshold: 0.7,
-            },
-        });
-
-        // Evidence validation
-        validations.push({
-            type: "evidence",
-            passed: result.evidence.length >= 1, // MIN_EVIDENCE_THRESHOLD
-            message: "Evidence sufficiency check",
-            details: {
-                evidenceCount: result.evidence.length,
-                requiredMinimum: 1,
-            },
-        });
-
-        return validations;
-    }
-
-    private validateLogicalConsistency(result: ReasoningResult): boolean {
-        // Check for contradictions in reasoning
-        const reasoningText = result.reasoning.join(" ");
-        
-        // Simple contradiction patterns
-        const contradictionPatterns = [
-            /\b(not|never|cannot|impossible)\b[\s\w]*\b(is|are|can|possible|true)\b/gi,
-            /\b(always|must|definitely)\b[\s\w]*\b(never|not|cannot)\b/gi,
-            /\b(yes|true|correct)\b[\s\w]*\b(no|false|incorrect|wrong)\b/gi,
-        ];
-
-        return !contradictionPatterns.some(pattern => pattern.test(reasoningText));
-    }
-
-    private validateCompleteness(result: ReasoningResult, framework: ReasoningFramework): boolean {
-        // Check if all framework steps produced outputs
-        const expectedOutputs = framework.steps.flatMap(s => s.outputs);
-        const hasConclusion = result.conclusion !== undefined;
-        const hasReasoning = result.reasoning.length >= framework.steps.length;
-        const hasEvidence = result.evidence.length > 0;
-
-        return hasConclusion && hasReasoning && hasEvidence;
-    }
-
-    private findContradictions(result: ReasoningResult): string[] {
-        const contradictions: string[] = [];
-        const reasoningText = result.reasoning.join(" ");
-        
-        const contradictionPatterns = [
-            { pattern: /\b(not|never|cannot|impossible)\b[\s\w]*\b(is|are|can|possible|true)\b/gi, type: "logical" },
-            { pattern: /\b(always|must|definitely)\b[\s\w]*\b(never|not|cannot)\b/gi, type: "certainty" },
-            { pattern: /\b(yes|true|correct)\b[\s\w]*\b(no|false|incorrect|wrong)\b/gi, type: "truth" },
-        ];
-
-        for (const { pattern, type } of contradictionPatterns) {
-            const matches = reasoningText.match(pattern);
-            if (matches) {
-                contradictions.push(`${type}: ${matches[0]}`);
-            }
-        }
-
-        return contradictions;
     }
 }

@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
-import { type TierCommunicationInterface } from "@vrooli/shared";
+import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
+import { type TierCommunicationInterface } from "../types/communication.js";
 import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
 import { ConversationBridge } from "./intelligence/conversationBridge.js";
 import { TeamManager } from "./organization/teamManager.js";
@@ -14,8 +15,14 @@ import {
     type Swarm,
     SwarmState,
     type SessionUser,
-    nanoid,
+    generatePK,
+    generatePublicId,
+    BotConfig,
+    ChatConfig,
 } from "@vrooli/shared";
+import { DbProvider } from "../../../db/provider.js";
+import { PrismaChatStore } from "../../../services/conversation/chatStore.js";
+import { type BotParticipant } from "../../../services/conversation/types.js";
 
 /**
  * Tier One Coordinator
@@ -34,6 +41,8 @@ export class TierOneCoordinator {
     private readonly strategyEngine: StrategyEngine;
     private readonly metacognitiveMonitor: MetacognitiveMonitor;
     private readonly conversationBridge: ConversationBridge;
+    private readonly chatStore: PrismaChatStore;
+    private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
 
     constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
         this.logger = logger;
@@ -49,6 +58,7 @@ export class TierOneCoordinator {
         this.strategyEngine = new StrategyEngine(logger);
         this.metacognitiveMonitor = new MetacognitiveMonitor(logger, eventBus);
         this.conversationBridge = new ConversationBridge(logger);
+        this.chatStore = new PrismaChatStore();
         
         // Setup event handlers
         this.setupEventHandlers();
@@ -79,13 +89,107 @@ export class TierOneCoordinator {
         userId: string;
         organizationId?: string;
         parentSwarmId?: string; // NEW: For child swarms
+        leaderBotId?: string; // Optional bot ID, defaults to Valyxa
     }): Promise<void> {
         this.logger.info("[TierOneCoordinator] Starting swarm", {
             swarmId: config.swarmId,
             name: config.name,
         });
 
+        // Simple distributed lock to prevent concurrent creation
+        const existingLock = this.creationLocks.get(config.swarmId);
+        if (existingLock) {
+            this.logger.warn("[TierOneCoordinator] Swarm creation already in progress, waiting", {
+                swarmId: config.swarmId,
+            });
+            await existingLock;
+            // Check if swarm was created by the other process
+            const swarm = await this.stateStore.getSwarm(config.swarmId);
+            if (swarm) {
+                this.logger.info("[TierOneCoordinator] Swarm created by concurrent process", {
+                    swarmId: config.swarmId,
+                });
+                return;
+            }
+        }
+
+        // Create a lock for this swarm creation
+        const creationPromise = this.performSwarmCreation(config);
+        this.creationLocks.set(config.swarmId, creationPromise);
+        
         try {
+            await creationPromise;
+        } finally {
+            // Always clean up the lock
+            this.creationLocks.delete(config.swarmId);
+        }
+    }
+
+    /**
+     * Performs the actual swarm creation logic
+     */
+    private async performSwarmCreation(config: {
+        swarmId: string;
+        name: string;
+        description: string;
+        goal: string;
+        resources: {
+            maxCredits: number;
+            maxTokens: number;
+            maxTime: number;
+            tools: Array<{ name: string; description: string }>;
+        };
+        config: {
+            model: string;
+            temperature: number;
+            autoApproveTools: boolean;
+            parallelExecutionLimit: number;
+        };
+        userId: string;
+        organizationId?: string;
+        parentSwarmId?: string;
+        leaderBotId?: string;
+    }): Promise<void> {
+        let resourcesReserved = false;
+        let conversationId: string | null = null;
+        
+        try {
+            // Validate resource configuration
+            if (config.resources.maxCredits <= 0 || 
+                config.resources.maxTokens <= 0 || 
+                config.resources.maxTime <= 0) {
+                throw new Error("Invalid resource configuration: all limits must be positive");
+            }
+
+            // Validate swarmId format
+            if (!config.swarmId || typeof config.swarmId !== 'string') {
+                throw new Error("Invalid swarmId: must be a non-empty string");
+            }
+
+            // Check if swarm already exists (idempotency)
+            const existingSwarm = await this.stateStore.getSwarm(config.swarmId);
+            if (existingSwarm) {
+                // Check if chat exists and return existing swarm
+                const existingConversationId = existingSwarm.metadata?.conversationId;
+                if (existingConversationId) {
+                    const prisma = DbProvider.get();
+                    const existingChat = await prisma.chat.findUnique({
+                        where: { id: BigInt(existingConversationId) }
+                    });
+                    if (existingChat) {
+                        // Swarm already initialized, return success
+                        this.logger.info("[TierOneCoordinator] Swarm already exists, returning success", {
+                            swarmId: config.swarmId,
+                            conversationId: existingConversationId,
+                        });
+                        return;
+                    }
+                }
+                // If we get here, swarm exists but chat doesn't - continue with initialization
+                this.logger.warn("[TierOneCoordinator] Swarm exists but chat missing, reinitializing", {
+                    swarmId: config.swarmId,
+                });
+            }
             // If this is a child swarm, verify parent exists and reserve resources
             if (config.parentSwarmId) {
                 const reservationResult = await this.reserveResourcesForChild(
@@ -101,6 +205,95 @@ export class TierOneCoordinator {
                 if (!reservationResult.success) {
                     throw new Error(`Failed to reserve resources from parent swarm: ${reservationResult.message}`);
                 }
+                resourcesReserved = true;
+            }
+
+            // Generate numeric ID for conversation/chat
+            conversationId = generatePK().toString();
+            
+            // Fetch the leader bot user (use provided ID or default to Valyxa)
+            const leaderBotId = config.leaderBotId || SEEDED_PUBLIC_IDS.Valyxa;
+            const prisma = DbProvider.get();
+            
+            // Use transaction for atomic chat creation
+            const { chat, botUser, leaderBot } = await prisma.$transaction(async (tx) => {
+                // Fetch bot user
+                const botUser = await tx.user.findUnique({
+                    where: { id: leaderBotId },
+                    select: {
+                        id: true,
+                        name: true,
+                        handle: true,
+                        isBot: true,
+                        botSettings: true,
+                    },
+                });
+
+                if (!botUser || !botUser.isBot) {
+                    throw new Error(`Bot user not found or is not a bot: ${leaderBotId}`);
+                }
+                
+                // Validate bot has settings
+                if (!botUser.botSettings) {
+                    throw new Error(`Bot user ${leaderBotId} has no bot settings configured`);
+                }
+                
+                // Validate bot has required capabilities
+                const botConfig = BotConfig.parse(botUser, this.logger);
+                if (!botConfig.model) {
+                    throw new Error(`Bot ${leaderBotId} has no model configured`);
+                }
+
+                // Create the chat in the database
+                const chat = await tx.chat.create({
+                    data: {
+                        id: BigInt(conversationId),
+                        publicId: generatePublicId(),
+                        creators: {
+                            create: {
+                                user: { connect: { id: config.userId } }
+                            }
+                        },
+                        config: ChatConfig.default().export() as any,
+                        labels: ["swarm", config.name],
+                    },
+                });
+
+                // Add the bot as a participant
+                await tx.chat_participants.create({
+                    data: {
+                        chat: { connect: { id: chat.id } },
+                        user: { connect: { id: botUser.id } },
+                    },
+                });
+
+                // Create BotParticipant from the bot user
+                const leaderBot: BotParticipant = {
+                    id: botUser.id,
+                    name: botUser.name,
+                    config: botConfig, // Use already parsed config
+                    meta: { role: "leader" },
+                };
+
+                return { chat, botUser, leaderBot };
+            });
+
+            // Initialize conversation state in the chat store
+            const conversationState = {
+                id: conversationId,
+                config: ChatConfig.default().export(),
+                participants: [leaderBot],
+                availableTools: [],
+                initialLeaderSystemMessage: "",
+                teamConfig: undefined,
+            };
+            
+            await this.chatStore.saveState(conversationId, conversationState);
+            
+            // Force immediate write to ensure state is persisted with timeout
+            const saveSuccess = await this.chatStore.finalizeSave(5000);
+            if (!saveSuccess) {
+                throw new Error("Failed to persist conversation state within timeout");
             }
 
             // Create swarm object
@@ -159,6 +352,7 @@ export class TierOneCoordinator {
                     organizationId: config.organizationId,
                     version: "2.0.0",
                     parentSwarmId: config.parentSwarmId, // Also store in metadata for easy access
+                    conversationId: conversationId, // Store conversation ID mapping
                 },
             };
 
@@ -175,13 +369,13 @@ export class TierOneCoordinator {
 
             this.swarmMachines.set(config.swarmId, stateMachine);
 
-            // Start the swarm
+            // Start the swarm with the conversationId
             const initiatingUser = { 
                 id: config.userId, 
                 name: "User", 
                 hasPremium: false 
             } as SessionUser;
-            await stateMachine.start(config.swarmId, config.goal, initiatingUser);
+            await stateMachine.start(conversationId, config.goal, initiatingUser);
 
             // Emit swarm started event
             await this.eventBus.publish("swarm.started", {
@@ -195,6 +389,47 @@ export class TierOneCoordinator {
                 swarmId: config.swarmId,
                 error: error instanceof Error ? error.message : String(error),
             });
+            
+            // Cleanup: Release resources if they were reserved
+            if (resourcesReserved && config.parentSwarmId) {
+                try {
+                    await this.releaseResourcesFromChild(config.parentSwarmId, config.swarmId);
+                    this.logger.info("[TierOneCoordinator] Released reserved resources after failure", {
+                        parentSwarmId: config.parentSwarmId,
+                        swarmId: config.swarmId,
+                    });
+                } catch (cleanupError) {
+                    this.logger.error("[TierOneCoordinator] Failed to release resources during cleanup", {
+                        parentSwarmId: config.parentSwarmId,
+                        swarmId: config.swarmId,
+                        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+                    });
+                }
+            }
+            
+            // Try to cleanup orphaned chat if conversationId was generated
+            if (conversationId) {
+                try {
+                    const prisma = DbProvider.get();
+                    await prisma.chat.delete({
+                        where: { id: BigInt(conversationId) }
+                    });
+                    this.logger.info("[TierOneCoordinator] Cleaned up orphaned chat", {
+                        conversationId,
+                        swarmId: config.swarmId,
+                    });
+                } catch (cleanupError) {
+                    this.logger.error("[TierOneCoordinator] Failed to cleanup orphaned chat", {
+                        conversationId,
+                        swarmId: config.swarmId,
+                        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+                    });
+                }
+                
+                // Note: Chat store cleanup would require access to the cached store instance
+                // For now, the cache will expire naturally
+            }
+            
             throw error;
         }
     }
@@ -219,10 +454,18 @@ export class TierOneCoordinator {
             throw new Error(`Swarm ${request.swarmId} not found`);
         }
 
+        // Get the swarm to find the conversationId
+        const swarm = await this.stateStore.getSwarm(request.swarmId);
+        if (!swarm) {
+            throw new Error(`Swarm state not found for ${request.swarmId}`);
+        }
+        
+        const conversationId = swarm.metadata?.conversationId || request.swarmId;
+
         // Create run execution event for swarm to handle
         await stateMachine.handleEvent({
             type: "internal_task_assignment",
-            conversationId: request.swarmId,
+            conversationId,
             sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
             payload: {
                 runId: request.runId,
@@ -498,15 +741,25 @@ export class TierOneCoordinator {
     /**
      * Private helper methods
      */
+    private async getConversationIdForSwarm(swarmId: string): Promise<string> {
+        const swarm = await this.stateStore.getSwarm(swarmId);
+        if (!swarm) {
+            this.logger.warn(`[TierOneCoordinator] Swarm not found: ${swarmId}, using swarmId as conversationId`);
+            return swarmId;
+        }
+        return swarm.metadata?.conversationId || swarmId;
+    }
+    
     private setupEventHandlers(): void {
         // Handle run completion events from Tier 2
         this.eventBus.on("run.completed", async (event) => {
             const { swarmId, runId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
+                const conversationId = await this.getConversationIdForSwarm(swarmId);
                 await stateMachine.handleEvent({
                     type: "internal_status_update",
-                    conversationId: swarmId,
+                    conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
                     payload: { type: "run_completed", runId }
                 });
@@ -518,9 +771,10 @@ export class TierOneCoordinator {
             const { swarmId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
+                const conversationId = await this.getConversationIdForSwarm(swarmId);
                 await stateMachine.handleEvent({
                     type: "internal_status_update",
-                    conversationId: swarmId,
+                    conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
                     payload: { type: "resource_alert", ...event.data }
                 });
@@ -532,9 +786,10 @@ export class TierOneCoordinator {
             const { swarmId } = event.data;
             const stateMachine = this.swarmMachines.get(swarmId);
             if (stateMachine) {
+                const conversationId = await this.getConversationIdForSwarm(swarmId);
                 await stateMachine.handleEvent({
                     type: "internal_status_update",
-                    conversationId: swarmId,
+                    conversationId,
                     sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
                     payload: { type: "metacognitive_insight", ...event.data }
                 });
@@ -550,9 +805,10 @@ export class TierOneCoordinator {
             if (swarm?.parentSwarmId) {
                 const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
                 if (parentStateMachine) {
+                    const parentConversationId = await this.getConversationIdForSwarm(swarm.parentSwarmId);
                     await parentStateMachine.handleEvent({
                         type: "internal_status_update",
-                        conversationId: swarm.parentSwarmId,
+                        conversationId: parentConversationId,
                         sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
                         payload: { 
                             type: "child_swarm_completed", 
@@ -576,9 +832,10 @@ export class TierOneCoordinator {
             if (swarm?.parentSwarmId) {
                 const parentStateMachine = this.swarmMachines.get(swarm.parentSwarmId);
                 if (parentStateMachine) {
+                    const parentConversationId = await this.getConversationIdForSwarm(swarm.parentSwarmId);
                     await parentStateMachine.handleEvent({
                         type: "internal_status_update",
-                        conversationId: swarm.parentSwarmId,
+                        conversationId: parentConversationId,
                         sessionUser: { id: "system", name: "System", hasPremium: false } as SessionUser,
                         payload: { 
                             type: "child_swarm_failed", 

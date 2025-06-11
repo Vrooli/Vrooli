@@ -93,17 +93,8 @@ export interface ManagedTaskStateMachine {
     getAssociatedUserId?(): string | undefined;
 }
 
-/**
- * Conversation state interface (simplified for tier1)
- */
-export interface ConversationState {
-    id: string;
-    config: ChatConfigObject;
-    participants: BotParticipant[];
-    teamConfig?: any;
-    availableTools: string[];
-    initialLeaderSystemMessage?: string;
-}
+// Use ConversationState from the conversation types instead of defining our own
+import { type ConversationState } from "../../../services/conversation/types.js";
 
 /**
  * SwarmStateMachine
@@ -218,11 +209,11 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
                 convoState = await this.createConversationState(convoId, goal, initiatingUser);
             }
 
-            // Find or create leader bot
-            let leaderBot = this.findLeaderBot(convoState);
+            // Find leader bot
+            const leaderBot = this.findLeaderBot(convoState);
             if (!leaderBot) {
-                leaderBot = this.createDefaultLeaderBot();
-                this.logger.warn(`No leader found for ${convoId}, using default leader bot`);
+                this.logger.error(`No leader bot found for ${convoId}, cannot start swarm`);
+                throw new Error(`No leader bot found for swarm ${convoId}`);
             }
 
             // Generate system message for the leader
@@ -252,8 +243,15 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
                 sessionUser: initiatingUser,
             };
             
-            await this.handleEvent(startEvent);
             this.state = SwarmState.IDLE;
+            await this.handleEvent(startEvent);
+            
+            // Process any queued events
+            if (this.eventQueue.length > 0) {
+                this.drain(convoId).catch(err => 
+                    this.logger.error("Error draining initial event queue", { error: err, conversationId: convoId })
+                );
+            }
             
         } catch (error) {
             this.logger.error(`Failed to start swarm ${convoId}:`, error);
@@ -550,10 +548,17 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         const state = await this.conversationBridge.getConversationState(conversationId);
         
         if (!state) {
-            throw new Error(
-                `Conversation ${conversationId} must be created through proper chat API first. ` +
-                `Swarms cannot create conversations directly.`
-            );
+            // This should not happen anymore as TierOneCoordinator creates the conversation
+            // But log a warning and return a minimal state to avoid crashes
+            this.logger.warn(`[SwarmStateMachine] Conversation ${conversationId} not found, this shouldn't happen`);
+            return {
+                id: conversationId,
+                config: ChatConfig.default().export(),
+                participants: [],
+                availableTools: [],
+                initialLeaderSystemMessage: "",
+                teamConfig: undefined,
+            };
         }
         
         // Update the goal in the existing conversation if needed
@@ -572,16 +577,8 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         if (leaderId) {
             return convoState.participants.find(p => p.id === leaderId) || null;
         }
+        // Return first participant (which should be the leader bot added by TierOneCoordinator)
         return convoState.participants[0] || null;
-    }
-
-    private createDefaultLeaderBot(): BotParticipant {
-        return {
-            id: generatePK(),
-            name: "Swarm Leader",
-            config: { __version: "1.0", model: "gpt-4" } as BotConfigObject,
-            meta: { role: "leader" },
-        };
     }
 
     private async updateConversationConfig(

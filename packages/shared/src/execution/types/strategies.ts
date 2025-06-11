@@ -3,6 +3,8 @@
  * These types define the strategy-based execution capabilities
  */
 
+import type { ResourceUsage } from "./core.js";
+
 /**
  * Execution strategy types
  * Maintains compatibility with existing strategy system

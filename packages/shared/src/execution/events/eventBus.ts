@@ -31,7 +31,7 @@ export interface IEventBus {
  * Event builder for creating well-formed events
  */
 export class EventBuilder<T extends BaseEvent = BaseEvent> {
-    private event: Partial<T>;
+    private event: Partial<T> & { metadata: NonNullable<T["metadata"]> };
 
     constructor() {
         this.event = {
@@ -40,8 +40,8 @@ export class EventBuilder<T extends BaseEvent = BaseEvent> {
                 version: "1.0.0",
                 tags: [],
                 priority: "NORMAL" as any,
-            },
-        } as Partial<T>;
+            } as T["metadata"],
+        } as Partial<T> & { metadata: NonNullable<T["metadata"]> };
     }
 
     withId(id: string): this {
@@ -70,49 +70,31 @@ export class EventBuilder<T extends BaseEvent = BaseEvent> {
     }
 
     withUserId(userId: string): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.userId = userId;
         return this;
     }
 
     withSessionId(sessionId: string): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.sessionId = sessionId;
         return this;
     }
 
     withRequestId(requestId: string): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.requestId = requestId;
         return this;
     }
 
     withPriority(priority: "LOW" | "NORMAL" | "HIGH" | "CRITICAL"): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.priority = priority as any;
         return this;
     }
 
     withTags(...tags: string[]): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.tags = [...(this.event.metadata.tags || []), ...tags];
         return this;
     }
 
     withTTL(seconds: number): this {
-        if (!this.event.metadata) {
-            this.event.metadata = {} as any;
-        }
         this.event.metadata.ttl = seconds;
         return this;
     }

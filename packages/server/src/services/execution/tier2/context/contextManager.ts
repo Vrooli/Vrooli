@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
 import {
     type ContextScope,
+    deepClone,
 } from "@vrooli/shared";
 import { type IRunStateStore } from "../state/runStateStore.js";
 import { ContextValidator, type ValidationResult } from "../../shared/contextValidator.js";
@@ -40,11 +41,13 @@ export interface VariableAccess {
  * - Variable scoping (global, routine, branch, step)
  * - Context isolation between parallel branches
  * - Variable inheritance and shadowing
- * - Blackboard pattern for shared state
+ * - Isolated blackboard instances per branch
  * - Context serialization for checkpoints
  * 
  * The context system is critical for maintaining proper state isolation
  * in complex workflows with parallel execution and nested subroutines.
+ * Each branch gets its own deep-cloned blackboard to prevent race conditions
+ * and ensure data sharing only happens through explicit outputs.
  */
 export class ContextManager {
     private readonly stateStore: IRunStateStore;
@@ -80,13 +83,13 @@ export class ContextManager {
     }
 
     /**
-     * Clones a context for branching
+     * Clones a context for branching with proper isolation
      */
     async cloneContext(context: ProcessRunContext, branchId: string): Promise<ProcessRunContext> {
-        // Deep clone the context
+        // Deep clone the context including blackboard for complete isolation
         const cloned: ProcessRunContext = {
             variables: { ...context.variables },
-            blackboard: context.blackboard, // Blackboard is shared
+            blackboard: deepClone(context.blackboard), // Deep clone for isolated branch context
             scopes: context.scopes.map(scope => ({
                 ...scope,
                 variables: { ...scope.variables },

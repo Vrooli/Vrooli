@@ -8,8 +8,8 @@ import {
     type StrategyPerformance,
     StrategyType,
 } from "@vrooli/shared";
-import { ToolOrchestrator } from "../../engine/toolOrchestrator.js";
-import { ValidationEngine } from "../../engine/validationEngine.js";
+import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import { ValidationEngine } from "../engine/validationEngine.js";
 
 /**
  * Deterministic execution plan

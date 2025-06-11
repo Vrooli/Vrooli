@@ -32,6 +32,9 @@ export interface RunConfig {
  * Run state store interface
  */
 export interface IRunStateStore {
+    // Initialization
+    initialize(): Promise<void>;
+    
     // Run lifecycle
     createRun(runId: string, config: RunConfig): Promise<void>;
     getRun(runId: string): Promise<RunConfig | null>;

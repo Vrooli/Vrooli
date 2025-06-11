@@ -9,7 +9,7 @@ import { CheckpointManager } from "./persistence/checkpointManager.js";
 import { PerformanceMonitor } from "./intelligence/performanceMonitor.js";
 import { PathOptimizer } from "./intelligence/pathOptimizer.js";
 import { MOISEGate } from "./validation/moiseGate.js";
-import { type InMemoryRunStateStore } from "./state/runStateStore.js";
+import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
 import {
     type ExecutionId,
     type ExecutionResult,
@@ -44,7 +44,7 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
     private readonly performanceMonitor: PerformanceMonitor;
     private readonly pathOptimizer: PathOptimizer;
     private readonly moiseGate: MOISEGate;
-    private readonly stateStore: InMemoryRunStateStore;
+    private readonly stateStore: IRunStateStore;
 
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
@@ -55,9 +55,10 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
         this.tier3Executor = tier3Executor;
         
         // Initialize components
-        this.stateStore = new InMemoryRunStateStore(logger);
+        this.stateStore = getRunStateStore();
+        this.initializeStateStore();
         this.navigatorRegistry = new NavigatorRegistry(logger);
-        this.branchCoordinator = new BranchCoordinator(logger, eventBus);
+        this.branchCoordinator = new BranchCoordinator(eventBus, logger, this.stateStore);
         this.stepExecutor = new StepExecutor(logger, eventBus);
         this.contextManager = new ContextManager(logger);
         this.checkpointManager = new CheckpointManager(logger);
@@ -69,6 +70,19 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
         this.setupEventHandlers();
         
         this.logger.info("[TierTwoOrchestrator] Initialized");
+    }
+
+    /**
+     * Initialize the state store asynchronously
+     */
+    private async initializeStateStore(): Promise<void> {
+        try {
+            await this.stateStore.initialize();
+            this.logger.info("[TierTwoOrchestrator] State store initialized");
+        } catch (error) {
+            this.logger.error("[TierTwoOrchestrator] Failed to initialize state store", { error });
+            throw error;
+        }
     }
 
     /**

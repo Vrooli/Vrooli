@@ -10,9 +10,9 @@
 
 import { logger } from "../../../../events/logger.js";
 import { RedisEventBus } from "../events/eventBus.js";
-import { RateLimiter } from "../../../../services/shared/rateLimiter.js";
-import { ResourcePoolManager } from "../../../../services/shared/resourcePoolManager.js";
-import { UsageTracker } from "../../../../services/shared/usageTracker.js";
+import { RateLimiter } from "./rateLimiter.js";
+import { ResourcePool, ResourcePoolManager } from "./resourcePool.js";
+import { UsageTracker } from "./usageTracker.js";
 
 /**
  * Resource allocation

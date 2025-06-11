@@ -1,5 +1,5 @@
 import { type Logger } from "winston";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type ResourceManager } from "./resourceManager.js";
 import {
     type ToolResource,

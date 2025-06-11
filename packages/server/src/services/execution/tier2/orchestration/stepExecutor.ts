@@ -1,12 +1,117 @@
 import { type Logger } from "winston";
-import {
-    type Location,
-    type StepInfo,
-    type RunContext,
-    type ExecutionContext,
-    type StrategyExecutionResult,
-} from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+
+// Local type definitions
+interface Location {
+    id: string;
+    routineId: string;
+    nodeId: string;
+    branchId?: string;
+    index?: number;
+}
+
+interface StepInfo {
+    id: string;
+    name: string;
+    type: string;
+    description?: string;
+    inputs?: Record<string, unknown>;
+    outputs?: Record<string, unknown>;
+    config?: Record<string, unknown>;
+}
+
+interface ContextScope {
+    id: string;
+    name: string;
+    parentId?: string;
+    variables: Record<string, unknown>;
+}
+
+interface RunContext {
+    variables: Record<string, unknown>;
+    blackboard: Record<string, unknown>;
+    scopes: ContextScope[];
+}
+
+interface ExecutionContext {
+    readonly executionId: string;
+    readonly parentExecutionId?: string;
+    readonly swarmId: string;
+    readonly userId: string;
+    readonly timestamp: Date;
+    readonly correlationId: string;
+    readonly stepId?: string;
+    readonly routineId?: string;
+    readonly stepType?: string;
+    readonly inputs?: Record<string, unknown>;
+    readonly config?: Record<string, unknown>;
+    readonly resources?: AvailableResources;
+    readonly history?: ExecutionHistory;
+    readonly constraints?: ExecutionConstraints;
+}
+
+interface AvailableResources {
+    models: ModelResource[];
+    tools: ToolResource[];
+    apis: ApiResource[];
+    credits: number;
+    timeLimit?: number;
+}
+
+interface ModelResource {
+    provider: string;
+    model: string;
+    capabilities: string[];
+    cost: number;
+    available: boolean;
+}
+
+interface ToolResource {
+    name: string;
+    type: string;
+    description: string;
+    parameters: Record<string, unknown>;
+}
+
+interface ApiResource {
+    name: string;
+    endpoint: string;
+    authentication?: Record<string, unknown>;
+}
+
+interface ExecutionHistory {
+    recentSteps: StepExecution[];
+    totalExecutions: number;
+    successRate: number;
+}
+
+interface StepExecution {
+    stepId: string;
+    strategy: string;
+    result: "success" | "failure" | "partial";
+    duration: number;
+}
+
+interface ExecutionConstraints {
+    maxDuration?: number;
+    maxCredits?: number;
+    maxMemory?: number;
+    allowedModels?: string[];
+    blockedTools?: string[];
+    requireApproval?: boolean;
+}
+
+interface StrategyExecutionResult {
+    success: boolean;
+    outputs?: Record<string, unknown>;
+    error?: string;
+    strategy?: string;
+    resourcesUsed?: {
+        credits: number;
+        tokens?: number;
+        duration: number;
+    };
+}
 
 /**
  * Step execution parameters

@@ -17,13 +17,13 @@ import {
     type TierCapabilities,
     type ResourceAllocation,
 } from "@vrooli/shared";
-import { type EventBus } from "../../cross-cutting/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { StrategySelector } from "./strategySelector.js";
 import { ResourceManager } from "./resourceManager.js";
 import { IOProcessor } from "./ioProcessor.js";
 import { ToolOrchestrator } from "./toolOrchestrator.js";
 import { ValidationEngine } from "./validationEngine.js";
-import { TelemetryShim } from "./telemetryShim.js";
+import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
 import { type RunContext } from "../context/runContext.js";
 import { ContextExporter } from "../context/contextExporter.js";
 import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
@@ -146,8 +146,8 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             const budgetReservation = await this.resourceManager.reserveBudget(
                 stepContext.resources,
                 stepContext.constraints,
-                (stepContext as any).userId,
-                (stepContext as any).swarmId,
+                stepContext.userId,
+                stepContext.swarmId,
             );
 
             // Emit resource allocation telemetry

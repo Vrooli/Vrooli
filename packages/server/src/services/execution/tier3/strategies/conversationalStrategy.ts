@@ -11,8 +11,8 @@ import {
     StrategyType,
 } from "@vrooli/shared";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
-import { ToolOrchestrator } from "../../engine/toolOrchestrator.js";
-import { ValidationEngine } from "../../engine/validationEngine.js";
+import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
+import { ValidationEngine } from "../engine/validationEngine.js";
 import { StrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
 
 /**

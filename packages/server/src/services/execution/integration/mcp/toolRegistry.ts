@@ -3,7 +3,7 @@ import { type Logger } from "winston";
 import { ToolRegistry as MCPToolRegistry } from "../../../mcp/registry.js";
 import { BuiltInTools, SwarmTools } from "../../../mcp/tools.js";
 import { type Tool, type ToolResponse } from "../../../mcp/types.js";
-import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../legacy-execution/backup-2025-06-05-160205/conversation-infrastructure/toolRunner.js";
+import { CompositeToolRunner, McpToolRunner, OpenAIToolRunner } from "../../../conversation/toolRunner.js";
 import { type ConversationStateStore } from "../../../conversation/chatStore.js";
 import { type ToolMeta } from "../../../conversation/types.js";
 import type { 

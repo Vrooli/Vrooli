@@ -112,7 +112,7 @@ export class ConversationBridge {
         context?: Record<string, unknown>,
     ): Promise<string> {
         const agent: BotParticipant = {
-            id: generatePK(),
+            id: generatePK().toString(),
             name: "Reasoning Agent",
             config: { __version: "1.0", model: "gpt-4" } as BotConfigObject,
             meta: { role: "analyzer", temporary: true },
