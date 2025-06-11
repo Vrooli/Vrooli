@@ -17,9 +17,9 @@ describe("orDefault", () => {
         expect(orDefault({}, defaultObj)).to.deep.equal(defaultObj);
     });
 
-    it("should return the existing object if it is non-empty", () => {
+    it("should return the existing object merged with defaults", () => {
         const existingObj = { a: 10, y: 20 };
-        expect(orDefault(existingObj, { a: 1, b: 2 })).to.deep.include({ a: 10, b: 2 });
+        expect(orDefault(existingObj, { a: 1, b: 2 })).to.deep.equal({ a: 10, y: 20, b: 2 });
     });
 
     it("should return the default value if the existing value is null or undefined", () => {

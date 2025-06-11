@@ -846,7 +846,7 @@ export class RunStateMachine {
                 await this.stopRun(RunStatus.Paused); // stopRun initiates the pause
                 // Check if the status is now Paused. It might also have transitioned to Transitioning first.
                 // Success means the pause request was accepted and the machine is now in a paused state.
-                return this.state.status === StateMachineStatus.Paused;
+                return (this.state.status as StateMachineStatus) === StateMachineStatus.Paused;
             } catch (error) {
                 this.services.logger.error("RunStateMachine: Error during requestPause.", { error, previousStatus });
                 return false;
@@ -864,8 +864,8 @@ export class RunStateMachine {
                 await this.stopRun(RunStatus.Cancelled); // stopRun initiates the cancellation
                 // After cancellation, the machine should be in a terminal state (Completed or Failed) or Paused if stopRun handles it that way.
                 // Success means the stop request was accepted and the machine is no longer in its previous active/paused state.
-                return this.state.status === StateMachineStatus.Failed ||
-                    this.state.status === StateMachineStatus.Completed ||
+                return (this.state.status as StateMachineStatus) === StateMachineStatus.Failed ||
+                    (this.state.status as StateMachineStatus) === StateMachineStatus.Completed ||
                     (previousStatus !== StateMachineStatus.Paused && this.state.status === StateMachineStatus.Paused); // If it was running and is now paused due to stop
             } catch (error) {
                 this.services.logger.error("RunStateMachine: Error during requestStop.", { error, previousStatus });
@@ -934,10 +934,10 @@ export class RunStateMachine {
                 step: null, // Will be populated by updateRunAfterStep
                 subroutineRun: executionResult.success ? {
                     inputs: Object.fromEntries(
-                        Object.entries(executionResult.ioMapping.inputs).map(([key, info]) => [key, info.value]),
+                        Object.entries(executionResult.ioMapping.inputs).map(([key, info]) => [key, (info as any).value]),
                     ),
                     outputs: Object.fromEntries(
-                        Object.entries(executionResult.ioMapping.outputs).map(([key, info]) => [key, info.value]),
+                        Object.entries(executionResult.ioMapping.outputs).map(([key, info]) => [key, (info as any).value]),
                     ),
                 } : null,
                 ioRecordsToCreate: null,

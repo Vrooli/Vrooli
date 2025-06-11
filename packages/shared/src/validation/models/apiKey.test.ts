@@ -269,10 +269,10 @@ describe("apiKeyValidation", () => {
             it("should allow all fields to be optional except id", async () => {
                 const result = await testValidation(
                     updateSchema,
-                    { id: validIds.id1 },
+                    { id: "500000000000000001" },
                     true,
                 );
-                expect(result).to.deep.equal({ id: validIds.id1 });
+                expect(result).to.deep.equal({ id: "500000000000000001" });
             });
         });
     });
@@ -401,6 +401,45 @@ describe("apiKeyValidation", () => {
         it("should access test scenarios", () => {
             const invalidData = apiKeyTestDataFactory.forScenario("nameTooShort");
             expect(invalidData.create.name).to.have.lengthOf(2);
+        });
+
+        it("should apply default values when creating with empty object", () => {
+            const data = apiKeyTestDataFactory.createMinimal({});
+            expect(data.id).to.equal("500000000000000001");
+            expect(data.limitHard).to.equal("1000000");
+            expect(data.name).to.equal("Test API Key");
+            expect(data.stopAtLimit).to.equal(true);
+            expect(data.absoluteMax).to.equal(100000);
+        });
+
+        it("should preserve undefined and falsy values in customizers", () => {
+            const data = apiKeyTestDataFactory.createMinimal({ 
+                stopAtLimit: false,
+                absoluteMax: 0 
+            });
+            expect(data.stopAtLimit).to.equal(false);
+            expect(data.absoluteMax).to.equal(0);
+        });
+
+        it("should apply update customizer defaults", () => {
+            const data = apiKeyTestDataFactory.updateMinimal({});
+            expect(data.id).to.equal("500000000000000001");
+        });
+
+        it("should override factory defaults with provided values", () => {
+            const customId = "999999999999999999";
+            const data = apiKeyTestDataFactory.createMinimal({ 
+                id: customId,
+                limitHard: "5000000",
+                name: "Override Test",
+                stopAtLimit: false,
+                absoluteMax: 50000
+            });
+            expect(data.id).to.equal(customId);
+            expect(data.limitHard).to.equal("5000000");
+            expect(data.name).to.equal("Override Test");
+            expect(data.stopAtLimit).to.equal(false);
+            expect(data.absoluteMax).to.equal(50000);
         });
     });
 });

@@ -275,6 +275,60 @@ describe("FormBuilder", () => {
             });
         });
 
+        it("should handle JSON parsing errors in run.io data", () => {
+            const sampleInputSchema: FormSchema = {
+                elements: [
+                    { id: "name", label: "Name", type: InputType.Text, fieldName: "name", props: { defaultValue: "John" } },
+                ],
+                containers: [],
+            };
+            const sampleOutputSchema: FormSchema = {
+                elements: [
+                    { id: "result", label: "Result", type: InputType.Text, fieldName: "result", props: { defaultValue: "success" } },
+                ],
+                containers: [],
+            };
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    formInput: { __version: "1.0", schema: sampleInputSchema },
+                    formOutput: { __version: "1.0", schema: sampleOutputSchema },
+                },
+                resourceSubType: ResourceSubType.RoutineInternalAction,
+            });
+            
+            // Mock console.error to verify it's called
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            
+            const run = {
+                io: [
+                    {
+                        data: "invalid json {{{",
+                        nodeInputName: "name",
+                    },
+                    {
+                        data: "invalid json [[[",
+                        nodeName: "result",
+                    },
+                ],
+            } as unknown as Pick<Run, "io">;
+            
+            const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
+
+            // When JSON parsing fails, it should use the raw string
+            expect(result).to.deep.equal({
+                "input-name": "invalid json {{{",
+                "output-result": "invalid json [[[",
+            });
+            
+            // Verify console.error was called for both parsing errors
+            expect(consoleSpy).toHaveBeenCalledTimes(2);
+            expect(consoleSpy).toHaveBeenCalledWith("Error parsing input run.io data for name:", expect.any(Error));
+            expect(consoleSpy).toHaveBeenCalledWith("Error parsing output run.io data for result:", expect.any(Error));
+            
+            consoleSpy.mockRestore();
+        });
+
         it("should override values if run data is provided", () => {
             const sampleInputSchema: FormSchema = {
                 elements: [
@@ -740,6 +794,53 @@ describe("FormBuilder", () => {
                 expect.fail("validationSchema should not be null");
             }
             expect(validationSchema.fields).not.to.have.property("noValidation");
+        });
+
+
+        it("should handle validation methods with different parameter combinations", async () => {
+            const formSchema: FormSchema = {
+                elements: [
+                    {
+                        id: "field1",
+                        label: "Field 1",
+                        fieldName: "field1",
+                        type: InputType.Text,
+                        yup: {
+                            required: false,
+                            checks: [
+                                {
+                                    key: "trim", // Method with no parameters
+                                },
+                                {
+                                    key: "lowercase", // Another method with no parameters
+                                },
+                                {
+                                    key: "default", // Method that takes only a value
+                                    value: "default value",
+                                },
+                                {
+                                    key: "min", // Method that takes value and error
+                                    value: 3,
+                                    error: "Must be at least 3 characters",
+                                },
+                            ],
+                        },
+                        props: {},
+                    },
+                ],
+                containers: [],
+            };
+
+            const validationSchema = FormBuilder.generateYupSchema(formSchema);
+
+            if (!validationSchema) {
+                expect.fail("validationSchema should not be null");
+            }
+
+            // Test that the schema was created successfully
+            const result = await validationSchema.validate({ field1: "  TEST  " });
+            // Note: The actual behavior depends on how yup handles these methods
+            expect(result).to.be.an("object");
         });
 
         it("should throw an error for invalid check methods", () => {

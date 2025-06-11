@@ -31,15 +31,12 @@ export function getDotNotationValue(obj: object | undefined, keyPath: string): u
             }
             currentValue = currentValue[index];
         } else {
-            // Handle object properties with proper type checking
-            if (typeof currentValue !== "object" || currentValue === null) {
+            // Handle object properties
+            // TypeScript already knows currentValue is an object and not null from line 22
+            if (!(key in currentValue)) {
                 return undefined;
             }
-            const currentObj = currentValue as Record<string, unknown>;
-            if (!(key in currentObj)) {
-                return undefined;
-            }
-            currentValue = currentObj[key];
+            currentValue = (currentValue as Record<string, unknown>)[key];
         }
     }
 
@@ -74,7 +71,14 @@ export function setDotNotationValue<T extends Record<string, unknown>, V = unkno
                     throw new Error("Expected object for numeric key access");
                 }
                 const objectRef = obj as Record<string, unknown>;
-                if (!objectRef[index]) objectRef[index] = {};
+                if (!objectRef[index]) {
+                    objectRef[index] = {};
+                }
+                // Check if the value at this index is a primitive before returning it
+                const nextValue = objectRef[index];
+                if (nextValue !== null && typeof nextValue !== "object") {
+                    throw new Error("Expected object for numeric key access");
+                }
                 return objectRef[index] as Record<string, unknown>;
             }
         }
@@ -83,7 +87,14 @@ export function setDotNotationValue<T extends Record<string, unknown>, V = unkno
             throw new Error("Expected object for property access");
         }
         const objectRef = obj as Record<string, unknown>;
-        if (!(key in objectRef)) objectRef[key] = {};
+        if (!(key in objectRef)) {
+            objectRef[key] = {};
+        }
+        // Check if the value at this key is a primitive before returning it
+        const nextValue = objectRef[key];
+        if (nextValue !== null && typeof nextValue !== "object") {
+            throw new Error("Expected object for property access");
+        }
         return objectRef[key] as Record<string, unknown>;
     }, object);
     // Set the value
@@ -162,7 +173,7 @@ export function isOfType<T extends string>(obj: unknown, ...types: T[]): obj is 
 
 export function deepClone<T>(obj: T): T {
     if (obj === null) return null as T;
-    if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
+    if (obj instanceof Date) return new Date(obj.getTime()) as T;
 
     if (typeof obj !== "object") return obj;
 
@@ -171,7 +182,7 @@ export function deepClone<T>(obj: T): T {
         for (let i = 0; i < obj.length; i++) {
             arrCopy[i] = deepClone((obj as Array<unknown>)[i]);
         }
-        return arrCopy as unknown as T;
+        return arrCopy as T;
     } else {
         const objCopy: { [key: string]: unknown } = {};
         for (const key in obj) {

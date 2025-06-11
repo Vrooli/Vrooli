@@ -33,10 +33,7 @@ interface CacheEntry {
 const DEFAULT_OPTIONS: Required<Omit<FetchWrapperOptions, "transformResponse" | "transformError" | "defaultHeaders">> = {
     maxRetries: 3,
     retryDelay: 1000,
-    shouldRetry: (error: Error, attempt: number) => {
-        // This will be overridden with proper maxRetries logic
-        return false;
-    },
+    shouldRetry: undefined as any, // Will be set in fetchWrapper
     timeout: 30000,
 };
 
@@ -77,7 +74,7 @@ export async function fetchWrapper(
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
     
     // Set up default shouldRetry if not provided
-    if (!mergedOptions.shouldRetry || mergedOptions.shouldRetry === DEFAULT_OPTIONS.shouldRetry) {
+    if (!mergedOptions.shouldRetry) {
         mergedOptions.shouldRetry = (error: Error, attempt: number) => {
             // Retry on network errors and 5xx status codes
             if (error.name === "NetworkError" || error.name === "TimeoutError") {

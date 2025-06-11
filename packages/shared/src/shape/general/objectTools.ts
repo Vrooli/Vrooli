@@ -47,8 +47,14 @@ export function convertToDot(
  * @param fields The fields to check for changes, or empty array to check all fields
  */
 export function hasObjectChanged(original: unknown, updated: unknown, fields: string[] = []): boolean {
-    if (updated === null || updated === undefined) return false;
-    if (original === null || original === undefined) return true;
+    // If both are null/undefined, no change
+    if ((original === null || original === undefined) && (updated === null || updated === undefined)) {
+        return false;
+    }
+    // If one is null/undefined and the other isn't, there's a change
+    if ((original === null || original === undefined) || (updated === null || updated === undefined)) {
+        return true;
+    }
 
     function isObject(obj: unknown) {
         return obj && typeof obj === "object" && !Array.isArray(obj);
@@ -69,16 +75,19 @@ export function hasObjectChanged(original: unknown, updated: unknown, fields: st
             }
             return false;
         } else {
-            if (Array.isArray(original[topLevelField]) && Array.isArray(updated[topLevelField])) {
-                if (original[topLevelField].length !== updated[topLevelField].length) return true;
-                for (let i = 0; i < (original[topLevelField] as unknown[]).length; i++) {
-                    if (hasObjectChanged((original[topLevelField] as unknown[])[i], (updated[topLevelField] as unknown[])[i])) return true;
+            const originalValue = original[topLevelField];
+            const updatedValue = updated[topLevelField];
+            
+            if (Array.isArray(originalValue) && Array.isArray(updatedValue)) {
+                if (originalValue.length !== updatedValue.length) return true;
+                for (let i = 0; i < originalValue.length; i++) {
+                    if (hasObjectChanged(originalValue[i], updatedValue[i])) return true;
                 }
                 return false;
-            } else if (isObject(original[topLevelField]) && isObject(updated[topLevelField])) {
-                return hasObjectChanged(original[topLevelField], updated[topLevelField]);
+            } else if (isObject(originalValue) && isObject(updatedValue)) {
+                return hasObjectChanged(originalValue, updatedValue);
             }
-            return original[topLevelField] !== updated[topLevelField];
+            return originalValue !== updatedValue;
         }
     }
 

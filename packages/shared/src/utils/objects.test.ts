@@ -86,6 +86,38 @@ describe("setDotNotationValue", () => {
         setDotNotationValue(obj2, "foo", "updatedValue");
         expect(obj2.foo).to.equal("updatedValue");
     });
+
+    it("should handle numeric keys on non-array objects", () => {
+        const obj: Record<string, any> = {
+            data: { someField: "value" }
+        };
+        // Set a numeric key on a non-array object
+        setDotNotationValue(obj, "data[0]", "newValue");
+        expect(obj.data[0]).to.equal("newValue");
+    });
+
+    it("should create nested structures when setting numeric keys", () => {
+        const obj: Record<string, any> = {};
+        // This will create nested objects when using numeric indices
+        setDotNotationValue(obj, "foo[0][1]", "value");
+        expect(obj.foo[0][1]).to.equal("value");
+    });
+
+    it("should throw error when trying to access properties on non-objects", () => {
+        const obj: Record<string, any> = {
+            foo: "stringValue"
+        };
+        // Try to set a property on a string value (should throw)
+        expect(() => setDotNotationValue(obj, "foo.bar", "value")).to.throw("Expected object for property access");
+    });
+
+    it("should throw error when using numeric key on non-object", () => {
+        const obj: Record<string, any> = {
+            foo: 42
+        };
+        // Try to use numeric key on a number (should throw)
+        expect(() => setDotNotationValue(obj, "foo[0]", "value")).to.throw("Expected object for property access");
+    });
 });
 
 describe("splitDotNotation", () => {

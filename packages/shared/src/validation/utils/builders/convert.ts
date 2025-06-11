@@ -8,7 +8,15 @@ export function toPosDouble(str: string | number) {
     if (typeof str === "number") {
         return Math.max(str, 0);
     }
-    return parseFloat(str.replace(/[^0-9.]/g, ""));
+    // First handle scientific notation by parsing as-is
+    const scientificParsed = parseFloat(str);
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+        return Math.max(scientificParsed, 0);
+    }
+    // Otherwise strip non-numeric characters (except . for decimals)
+    const cleaned = str.replace(/[^0-9.]/g, "");
+    const result = parseFloat(cleaned);
+    return isNaN(result) ? NaN : Math.max(result, 0);
 }
 
 /**
@@ -18,14 +26,38 @@ export function toDouble(str: string | number) {
     if (typeof str === "number") {
         return str;
     }
-    return parseFloat(str.replace(/[^0-9.-]/g, ""));
+    // First handle scientific notation by parsing as-is
+    const scientificParsed = parseFloat(str);
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+        return scientificParsed;
+    }
+    // Otherwise strip non-numeric characters (except . for decimals and - for negatives)
+    // But preserve the position of the negative sign
+    const isNegative = str.trim().startsWith('-');
+    const cleaned = str.replace(/[^0-9.]/g, "");
+    const result = parseFloat(cleaned);
+    if (isNaN(result)) return NaN;
+    return isNegative ? -result : result;
 }
 
 /**
  * Strips non-numeric characters from a string, leaving a positive integer
  */
 export function toPosInt(str: string) {
-    return parseInt(str.replace(/[^0-9]/g, ""), 10);
+    // First handle scientific notation by parsing and truncating
+    const scientificParsed = parseFloat(str);
+    if (!isNaN(scientificParsed) && str.toLowerCase().includes('e')) {
+        return Math.max(Math.floor(Math.abs(scientificParsed)), 0);
+    }
+    // For decimal numbers, parse first then truncate
+    const decimalParsed = parseFloat(str);
+    if (!isNaN(decimalParsed) && str.includes('.')) {
+        return Math.max(Math.floor(Math.abs(decimalParsed)), 0);
+    }
+    // Otherwise strip non-numeric characters
+    const cleaned = str.replace(/[^0-9]/g, "");
+    const result = parseInt(cleaned, 10);
+    return isNaN(result) ? NaN : result;
 }
 
 
@@ -61,5 +93,5 @@ export function enumToYup(enumObj: { [x: string]: any } | (() => { [x: string]: 
         console.warn("enumToYup called with undefined enum. This may be due to circular dependencies.");
         return yup.string().trim().removeEmptyString();
     }
-    return yup.string().trim().removeEmptyString().oneOf(Object.values(actualEnum));
+    return yup.string().trim().removeEmptyString().oneOf(Object.values(actualEnum) as string[]);
 }

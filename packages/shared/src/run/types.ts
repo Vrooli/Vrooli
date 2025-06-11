@@ -3,6 +3,10 @@ import { type ResourceType, type ResourceVersion, type RunStatus, type RunStepSt
 import { type PassableLogger } from "../consts/commonTypes.js";
 import { type LlmModel } from "../shape/configs/bot.js";
 import { type ScheduleShape } from "../shape/models/models.js";
+import { BotStyle, BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "./enums.js";
+
+// Re-export enums for backward compatibility
+export { BotStyle, BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "./enums.js";
 import { type SubroutineExecutor } from "./executor.js";
 import { type RunLimitsManager } from "./limits.js";
 import { type RunLoader } from "./loader.js";
@@ -112,41 +116,8 @@ export type RunRequestLimits = {
     onMaxSteps?: RunLimitBehavior;
 }
 
-/** 
- * How subroutine inputs should be generated.
- */
-export enum InputGenerationStrategy {
-    /** Let the AI generate the inputs */
-    Auto = "Auto",
-    /** Let the user provide the inputs */
-    Manual = "Manual"
-}
 
-/**
- * The type of path selection strategy to use for the run, 
- * when we're in a situation where there are multiple outgoing branches 
- * and we can only pick one or a subset of them.
- */
-export enum PathSelectionStrategy {
-    /** Pick the first available branch */
-    AutoPickFirst = "AutoPickFirst",
-    /** Use an AI model to decide which branch to pick */
-    AutoPickLLM = "AutoPickLLM",
-    /** Pick a random branch */
-    AutoPickRandom = "AutoPickRandom",
-    /** Let the user decide which branch to pick */
-    ManualPick = "ManualPick"
-}
 
-/**
- * How subroutines should be executed.
- */
-export enum SubroutineExecutionStrategy {
-    /** Run the subroutine as soon as the inputs are generated */
-    Auto = "Auto",
-    /** Make the user press a button to run the subroutine */
-    Manual = "Manual"
-}
 
 export type RunDecisionConfig = {
     /** 
@@ -431,17 +402,6 @@ type RunUntilDoneConfig = {
     maxLoopDelayMs?: number;
 }
 
-/** The status of a run branch. */
-export enum BranchStatus {
-    /** The branch is currently running with no blockers. */
-    Active = "Active",
-    /** The branch has completed successfully. */
-    Completed = "Completed",
-    /** The branch has failed. */
-    Failed = "Failed",
-    /** The branch is waiting for some condition to be met before continuing. */
-    Waiting = "Waiting",
-}
 
 /**
  * Contains the context data for a subroutine in the run. 
@@ -612,17 +572,6 @@ export enum RunTriggeredFrom {
     Webhook = "Webhook",
 }
 
-/**
- * Determines which bot personas to use for a routine.
- */
-export enum BotStyle {
-    // The default bot
-    Default = "Default",
-    // Will use ConfigCallDataGenerate.respondingBot
-    Specific = "Specific",
-    // Don't use a bot
-    None = "None",
-}
 
 /**
  * A diff for a map of IOKey to IOValue.

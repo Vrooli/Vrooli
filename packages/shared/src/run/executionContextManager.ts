@@ -1,7 +1,7 @@
 import { type ExecutionContext, type ExecutionLimits, type ExecutionResult, type ExecutionStatus, type RoutineContext, type SwarmContext } from "./executor.js";
 import { BranchStatus, type BranchProgress, type RunConfig, type RunProgress, type RunTriggeredBy, type SubroutineContext, type SubroutineIOMapping } from "./types.js";
 
-// API_CREDITS_MULTIPLIER from shared would be ideal, but we'll use a default
+// Credit constants
 const API_CREDITS_MULTIPLIER = BigInt(1000000); // 1M credits per dollar
 const DEFAULT_CREDIT_DOLLARS = 10; // $10 default limit
 const DEFAULT_MAX_CREDITS = API_CREDITS_MULTIPLIER * BigInt(DEFAULT_CREDIT_DOLLARS);
@@ -43,8 +43,7 @@ export class ExecutionContextManager {
             // Default values for missing properties - these would normally come from the session
             hasPremium: false,
             languages: ["en"],
-            // Add timeZone if it exists in the owner data
-            ...(run.owner as any).timeZone ? { timeZone: (run.owner as any).timeZone } : {},
+            // timeZone would normally come from the session data, not available in run.owner
         };
 
         // Create the base execution context data
@@ -167,8 +166,8 @@ export class ExecutionContextManager {
 export class RoutineContextImpl implements ExecutionContext {
     // ExecutionContext properties
     public readonly subroutineInstanceId: string;
-    public readonly routine: any; // Will be set when we have the routine
-    public readonly ioMapping: SubroutineIOMapping = { inputs: {}, outputs: {} }; // Will be updated
+    public routine: any; // Will be set when we have the routine
+    public ioMapping: SubroutineIOMapping = { inputs: {}, outputs: {} }; // Will be updated
     public readonly currentLocation: any;
     public readonly parentSwarmContext?: SwarmContext;
     public readonly parentRoutineContext?: RoutineContext;
@@ -215,8 +214,8 @@ export class RoutineContextImpl implements ExecutionContext {
      * Sets the routine and IO mapping for this context.
      */
     setRoutineAndIO(routine: any, ioMapping: SubroutineIOMapping): void {
-        (this as any).routine = routine;
-        (this as any).ioMapping = ioMapping;
+        this.routine = routine;
+        this.ioMapping = ioMapping;
     }
 
     /**

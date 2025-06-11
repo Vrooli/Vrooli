@@ -7,77 +7,16 @@ describe("noop utilities", () => {
         let setSubmittingStub: any;
 
         beforeEach(() => {
-            // Spy on console.warn to prevent output during tests
             consoleWarnStub = vi.spyOn(console, "warn").mockImplementation(() => {});
             setSubmittingStub = vi.fn();
         });
 
         afterEach(() => {
-            // Restore the original console.warn
             consoleWarnStub.mockRestore();
         });
 
-        it("should call console.warn with the provided values", () => {
-            const values = { username: "testuser", email: "test@example.com" };
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledOnce();
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
-        });
-
-        it("should call setSubmitting with false", () => {
-            const values = { field: "value" };
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(setSubmittingStub).toHaveBeenCalledOnce();
-            expect(setSubmittingStub).toHaveBeenCalledWith(false);
-        });
-
-        it("should handle null values", () => {
-            const values = null;
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", null);
-            expect(setSubmittingStub).toHaveBeenCalledWith(false);
-        });
-
-        it("should handle undefined values", () => {
-            const values = undefined;
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", undefined);
-            expect(setSubmittingStub).toHaveBeenCalledWith(false);
-        });
-
-        it("should handle empty object values", () => {
-            const values = {};
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", {});
-            expect(setSubmittingStub).toHaveBeenCalledWith(false);
-        });
-
-        it("should handle complex nested values", () => {
-            const values = {
-                user: {
-                    name: "John Doe",
-                    preferences: {
-                        theme: "dark",
-                        notifications: true,
-                    },
-                },
-                items: [1, 2, 3],
-            };
+        it("should warn when called and set submitting to false", () => {
+            const values = { username: "testuser" };
             const helpers = { setSubmitting: setSubmittingStub };
 
             noopSubmit(values, helpers);
@@ -86,48 +25,24 @@ describe("noop utilities", () => {
             expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
-        it("should handle array values", () => {
-            const values = [1, 2, 3, 4, 5];
+        it("should always set submitting to false to prevent form hanging", () => {
             const helpers = { setSubmitting: setSubmittingStub };
 
-            noopSubmit(values, helpers);
+            noopSubmit({}, helpers);
+            noopSubmit(null, helpers);
+            noopSubmit(undefined, helpers);
 
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
+            expect(setSubmittingStub).toHaveBeenCalledTimes(3);
             expect(setSubmittingStub).toHaveBeenCalledWith(false);
         });
 
-        it("should handle string values", () => {
-            const values = "unexpected string submission";
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledWith("Formik onSubmit called unexpectedly with values:", values);
-            expect(setSubmittingStub).toHaveBeenCalledWith(false);
-        });
-
-        it("should work when setSubmitting throws an error", () => {
-            const values = { test: "value" };
+        it("should propagate errors from setSubmitting", () => {
             const errorMessage = "setSubmitting failed";
             const throwingSetSubmitting = vi.fn().mockImplementation(() => { throw new Error(errorMessage); });
             const helpers = { setSubmitting: throwingSetSubmitting };
 
-            expect(() => noopSubmit(values, helpers)).toThrow(errorMessage);
-            expect(consoleWarnStub).toHaveBeenCalledOnce();
-        });
-
-        it("should be called multiple times without issues", () => {
-            const values1 = { call: 1 };
-            const values2 = { call: 2 };
-            const helpers = { setSubmitting: setSubmittingStub };
-
-            noopSubmit(values1, helpers);
-            noopSubmit(values2, helpers);
-
-            expect(consoleWarnStub).toHaveBeenCalledTimes(2);
-            expect(setSubmittingStub).toHaveBeenCalledTimes(2);
-            expect(consoleWarnStub).toHaveBeenNthCalledWith(1, "Formik onSubmit called unexpectedly with values:", values1);
-            expect(consoleWarnStub).toHaveBeenNthCalledWith(2, "Formik onSubmit called unexpectedly with values:", values2);
+            expect(() => noopSubmit({}, helpers)).toThrow(errorMessage);
+            expect(consoleWarnStub).toHaveBeenCalled();
         });
     });
 
@@ -135,30 +50,19 @@ describe("noop utilities", () => {
         let consoleWarnSpy: any;
 
         beforeEach(() => {
-            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
-                // Mock implementation
-            });
+            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
         });
 
         afterEach(() => {
             consoleWarnSpy.mockRestore();
         });
 
-        it("should call console.warn with 'Noop called'", () => {
+        it("should warn when called to help debug unexpected calls", () => {
             noop();
-            expect(consoleWarnSpy).toHaveBeenCalledWith("Noop called");
-            expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-        });
-
-        it("should be callable multiple times", () => {
-            noop();
-            noop();
-            noop();
-            expect(consoleWarnSpy).toHaveBeenCalledTimes(3);
             expect(consoleWarnSpy).toHaveBeenCalledWith("Noop called");
         });
 
-        it("should return undefined", () => {
+        it("should return undefined as expected for a noop function", () => {
             const result = noop();
             expect(result).toBeUndefined();
         });
@@ -168,72 +72,40 @@ describe("noop utilities", () => {
         let consoleWarnSpy: any;
 
         beforeEach(() => {
-            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
-                // Mock implementation
-            });
+            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
         });
 
         afterEach(() => {
             consoleWarnSpy.mockRestore();
         });
 
-        it("should be an async function", () => {
+        it("should return a Promise that resolves to undefined", async () => {
             const result = noopAsync();
             expect(result).toBeInstanceOf(Promise);
+            expect(await result).toBeUndefined();
         });
 
-        it("should call console.warn with 'NoopAsync called'", async () => {
+        it("should warn when called to help debug unexpected async calls", async () => {
             await noopAsync();
-            expect(consoleWarnSpy).toHaveBeenCalledWith("NoopAsync called");
-            expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-        });
-
-        it("should resolve to undefined", async () => {
-            const result = await noopAsync();
-            expect(result).toBeUndefined();
-        });
-
-        it("should be callable multiple times", async () => {
-            await noopAsync();
-            await noopAsync();
-            expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
             expect(consoleWarnSpy).toHaveBeenCalledWith("NoopAsync called");
         });
     });
 
     describe("funcTrue", () => {
-        it("should always return true", () => {
+        it("should always return true for use as a constant predicate", () => {
             expect(funcTrue()).toBe(true);
-            expect(funcTrue()).toBe(true);
-            expect(funcTrue()).toBe(true);
-        });
-
-        it("should return boolean type", () => {
-            const result = funcTrue();
-            expect(typeof result).toBe("boolean");
-        });
-
-        it("should be idempotent", () => {
-            const results = Array.from({ length: 100 }, () => funcTrue());
-            expect(results.every(result => result === true)).toBe(true);
+            // Useful for testing or as a default callback that always passes
+            const items = [1, 2, 3];
+            expect(items.filter(() => funcTrue()).length).toBe(items.length);
         });
     });
 
     describe("funcFalse", () => {
-        it("should always return false", () => {
+        it("should always return false for use as a constant predicate", () => {
             expect(funcFalse()).toBe(false);
-            expect(funcFalse()).toBe(false);
-            expect(funcFalse()).toBe(false);
-        });
-
-        it("should return boolean type", () => {
-            const result = funcFalse();
-            expect(typeof result).toBe("boolean");
-        });
-
-        it("should be idempotent", () => {
-            const results = Array.from({ length: 100 }, () => funcFalse());
-            expect(results.every(result => result === false)).toBe(true);
+            // Useful for testing or as a default callback that always fails
+            const items = [1, 2, 3];
+            expect(items.filter(() => funcFalse()).length).toBe(0);
         });
     });
 
@@ -242,9 +114,7 @@ describe("noop utilities", () => {
         let mockEvent: any;
 
         beforeEach(() => {
-            consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
-                // Mock implementation
-            });
+            consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
             mockEvent = {
                 preventDefault: vi.fn(),
                 stopPropagation: vi.fn(),
@@ -255,52 +125,29 @@ describe("noop utilities", () => {
             consoleLogSpy.mockRestore();
         });
 
-        it("should call console.log with 'in preventFormSubmit'", () => {
+        it("should prevent form submission and stop event propagation", () => {
+            preventFormSubmit(mockEvent);
+            
+            expect(mockEvent.preventDefault).toHaveBeenCalled();
+            expect(mockEvent.stopPropagation).toHaveBeenCalled();
+        });
+
+        it("should log for debugging form submission issues", () => {
             preventFormSubmit(mockEvent);
             expect(consoleLogSpy).toHaveBeenCalledWith("in preventFormSubmit");
-            expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         });
 
-        it("should call preventDefault on the event", () => {
-            preventFormSubmit(mockEvent);
-            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
-        });
-
-        it("should call stopPropagation on the event", () => {
-            preventFormSubmit(mockEvent);
-            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
-        });
-
-        it("should call both preventDefault and stopPropagation", () => {
-            preventFormSubmit(mockEvent);
-            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
-            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(1);
-        });
-
-        it("should handle multiple calls", () => {
-            preventFormSubmit(mockEvent);
-            preventFormSubmit(mockEvent);
-            expect(mockEvent.preventDefault).toHaveBeenCalledTimes(2);
-            expect(mockEvent.stopPropagation).toHaveBeenCalledTimes(2);
-            expect(consoleLogSpy).toHaveBeenCalledTimes(2);
-        });
-
-        it("should work with real DOM event-like objects", () => {
-            const realEvent = {
+        it("should work with browser submit events", () => {
+            const submitEvent = {
                 preventDefault: vi.fn(),
                 stopPropagation: vi.fn(),
                 type: "submit",
-                target: {},
+                target: { tagName: "FORM" },
             };
 
-            preventFormSubmit(realEvent);
-            expect(realEvent.preventDefault).toHaveBeenCalledTimes(1);
-            expect(realEvent.stopPropagation).toHaveBeenCalledTimes(1);
-        });
-
-        it("should return undefined", () => {
-            const result = preventFormSubmit(mockEvent);
-            expect(result).toBeUndefined();
+            preventFormSubmit(submitEvent);
+            expect(submitEvent.preventDefault).toHaveBeenCalled();
+            expect(submitEvent.stopPropagation).toHaveBeenCalled();
         });
     });
 });

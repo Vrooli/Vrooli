@@ -20,15 +20,11 @@ describe("yupTools", () => {
         });
 
         it("should handle null without throwing", () => {
-            // The current implementation will throw TypeError for null
-            // This is a bug that should be fixed
-            expect(() => isYupValidationError(null)).to.throw(TypeError);
+            expect(isYupValidationError(null)).to.be.false;
         });
 
         it("should handle undefined without throwing", () => {
-            // The current implementation will throw TypeError for undefined
-            // This is a bug that should be fixed
-            expect(() => isYupValidationError(undefined)).to.throw(TypeError);
+            expect(isYupValidationError(undefined)).to.be.false;
         });
 
         it("should return false for object with name property", () => {
@@ -179,6 +175,28 @@ describe("yupTools", () => {
 
             const result = await validateAndGetYupErrors(schema, data);
             expect(result).to.have.property("field", "Custom validation error");
+        });
+
+        it("should handle validation error with inner errors missing path", async () => {
+            // Create a custom ValidationError with inner errors that have no path
+            const schema = yup.object({
+                field: yup.string().test("custom", "Custom error", () => {
+                    const error = new yup.ValidationError("Parent error", "value", "parentPath");
+                    // Add inner errors without path
+                    error.inner = [
+                        Object.assign(new yup.ValidationError("No path error 1", "value1"), { path: null }),
+                        Object.assign(new yup.ValidationError("No path error 2", "value2"), { path: undefined }),
+                        Object.assign(new yup.ValidationError("Has path error", "value3", "validPath"), { path: "validPath" }),
+                    ];
+                    throw error;
+                }),
+            });
+
+            const data = { field: "test" };
+
+            const result = await validateAndGetYupErrors(schema, data);
+            // Should only have the error with a valid path
+            expect(result).to.deep.equal({ validPath: "Has path error" });
         });
 
         it("should handle undefined values", async () => {

@@ -64,8 +64,9 @@ export function uniqBy<T, K>(array: T[], iteratee: (item: T) => K): T[] {
 export function arraysEqual<T>(a: T[], b: T[], comparator: (a: T, b: T) => boolean): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        if (!comparator(a[i]!, b[i]!)) return false;
+        // We've already checked that both arrays have the same length,
+        // so we know both elements exist at index i
+        if (!comparator(a[i] as T, b[i] as T)) return false;
     }
     return true;
 }

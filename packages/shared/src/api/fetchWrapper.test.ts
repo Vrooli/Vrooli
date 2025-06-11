@@ -529,6 +529,26 @@ describe("Edge cases and error scenarios", () => {
         mockFetch.mockReset();
     });
 
+    it("should override default shouldRetry function", async () => {
+        // Test that the default shouldRetry (which returns false) is properly overridden
+        const errorResponse = new MockResponse("Server Error", { status: 500, statusText: "Server Error" });
+        const successResponse = new MockResponse("OK", { status: 200 });
+        
+        mockFetch
+            .mockResolvedValueOnce(errorResponse)
+            .mockResolvedValueOnce(successResponse);
+
+        // Call without providing a custom shouldRetry - it should use the default retry logic
+        const response = await fetchWrapper("https://api.example.com/test", undefined, {
+            maxRetries: 1,
+            retryDelay: 1,
+        });
+
+        // Should have retried because 500 errors are retried by default
+        expect(response.status).toBe(200);
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
     it("should handle empty responses", async () => {
         const mockResponse = new MockResponse("", { status: 200 });
         mockFetch.mockResolvedValueOnce(mockResponse);

@@ -10,8 +10,9 @@ const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
 const DEFAULT_SLIDER_STEP = 20;
 
-function isNumeric(n: any) {
-    return !isNaN(parseFloat(n)) && isFinite(n);
+function isNumeric(n: unknown): n is number {
+    return typeof n === 'number' && !isNaN(n) && isFinite(n) ||
+           typeof n === 'string' && !isNaN(parseFloat(n)) && isFinite(parseFloat(n));
 }
 
 function nearest(value: number, min: number, max: number, steps: number) {
@@ -24,19 +25,20 @@ function nearest(value: number, min: number, max: number, steps: number) {
  * Maps a form input type to a function that sets/repairs its type-specific props
  * @returns The properly-shaped props for the given input type
  */
-export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } = {
-    [InputType.Checkbox]: function healCheckboxProps(props: Partial<CheckboxFormInputProps>): CheckboxFormInputProps {
+export const healFormInputPropsMap: { [key in InputType]: (props: unknown) => any } = {
+    [InputType.Checkbox]: function healCheckboxProps(props: unknown): CheckboxFormInputProps {
+        const typedProps = props as Partial<CheckboxFormInputProps>;
         return {
             color: "secondary",
-            defaultValue: props.defaultValue ?? new Array(props.options?.length ?? 1).fill(false),
-            options: props.options ?? [{
+            defaultValue: typedProps.defaultValue ?? new Array(typedProps.options?.length ?? 1).fill(false),
+            options: typedProps.options ?? [{
                 label: "Option 1",
                 value: "option-1",
             }],
             maxSelection: 0,
             minSelection: 0,
             row: false,
-            ...props,
+            ...typedProps,
         } as const;
     },
     [InputType.Dropzone]: function healDropzoneProps(props: Partial<DropzoneFormInputProps>): DropzoneFormInputProps {
@@ -85,7 +87,7 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
         } as const;
     },
     [InputType.Radio]: (props: Partial<RadioFormInputProps>): RadioFormInputProps => ({
-        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0]!.value : "",
+        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0]?.value ?? "" : "",
         options: [],
         ...props,
     }),
@@ -177,9 +179,9 @@ export class FormBuilder {
     static generateInitialValues(
         elements: readonly FormElement[] | null | undefined,
         prefix?: string,
-    ): Record<string, never> {
+    ): Record<string, any> {
         if (!Array.isArray(elements)) return {};
-        const result: Record<string, never> = {};
+        const result: Record<string, any> = {};
         // Loop through each element in the schema
         for (const element of elements) {
             // Skip non-input elements
@@ -188,16 +190,16 @@ export class FormBuilder {
             const key = prefix ? `${prefix}-${formInput.fieldName}` : formInput.fieldName;
             // If it exists in the heal map, pass it through and use the resulting default value
             if (formInput.type in healFormInputPropsMap) {
-                result[key] = healFormInputPropsMap[formInput.type](formInput.props ?? {}).defaultValue as never;
+                result[key] = healFormInputPropsMap[formInput.type](formInput.props ?? {}).defaultValue;
             }
             // If not, try using the defaultValue prop directly
             else if (formInput.props?.defaultValue !== undefined) {
-                result[key] = formInput.props.defaultValue as never;
+                result[key] = formInput.props.defaultValue;
             }
             // Otherwise, set it to an empty string. It's worse to have an undefined value than a
             // possibly incorrect value, at least according to Formike error messages
             else {
-                result[key] = "" as never;
+                result[key] = "";
             }
         }
         return result;
@@ -216,14 +218,14 @@ export class FormBuilder {
         config: RoutineVersionConfig,
         routineType: ResourceSubTypeRoutine,
         run?: Pick<Run, "io">,
-    ): Record<string, never> {
+    ): Record<string, any> {
         const formInputSchema = config.formInput?.schema ?? defaultConfigFormInputMap()[routineType]().schema;
         const formOutputSchema = config.formOutput?.schema ?? defaultConfigFormOutputMap()[routineType]().schema;
 
         const inputInitialValues = FormBuilder.generateInitialValues(formInputSchema?.elements, FormBuilder.INPUT_PREFIX);
         const outputInitialValues = FormBuilder.generateInitialValues(formOutputSchema?.elements, FormBuilder.OUTPUT_PREFIX);
 
-        const initialValues = {
+        const initialValues: Record<string, any> = {
             ...inputInitialValues,
             ...outputInitialValues,
         };
@@ -242,9 +244,9 @@ export class FormBuilder {
                     key = `${FormBuilder.INPUT_PREFIX}-${fieldName}`;
                     if (initialValues[key] !== undefined) {
                         try {
-                            initialValues[key] = JSON.parse(io.data) as never;
+                            initialValues[key] = JSON.parse(io.data);
                         } catch (error) {
-                            initialValues[key] = io.data as never; // Use raw string if JSON parsing fails
+                            initialValues[key] = io.data; // Use raw string if JSON parsing fails
                             console.error(`Error parsing input run.io data for ${fieldName}:`, error);
                         }
                         matched = true;
@@ -258,9 +260,9 @@ export class FormBuilder {
                         key = `${FormBuilder.OUTPUT_PREFIX}-${fieldName}`;
                         if (initialValues[key] !== undefined) {
                             try {
-                                initialValues[key] = JSON.parse(io.data) as never;
+                                initialValues[key] = JSON.parse(io.data);
                             } catch (error) {
-                                initialValues[key] = io.data as never; // Use raw string if JSON parsing fails
+                                initialValues[key] = io.data; // Use raw string if JSON parsing fails
                                 console.error(`Error parsing output run.io data for ${fieldName}:`, error);
                             }
                         }
@@ -314,16 +316,11 @@ export class FormBuilder {
                     case "boolean":
                         validator = Yup.boolean();
                         break;
-                    case "date":
-                        validator = Yup.date();
-                        break;
-                    case "object":
-                        validator = Yup.object();
-                        break;
                     case "array":
                         validator = Yup.array().of(Yup.boolean());
                         break;
                     default:
+                        // This should never happen since we check InputToYupType above
                         validator = Yup.mixed();
                         break;
                 }

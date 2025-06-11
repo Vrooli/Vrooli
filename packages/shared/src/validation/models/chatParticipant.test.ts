@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chatParticipantFixtures } from "./__test/fixtures/chatParticipantFixtures.js";
+import { chatParticipantFixtures, chatParticipantTestDataFactory } from "./__test/fixtures/chatParticipantFixtures.js";
 import { runStandardValidationTests, testValidation } from "./__test/validationTestUtils.js";
 import { chatParticipantValidation } from "./chatParticpant.js";
 
@@ -152,6 +152,25 @@ describe("chatParticipantValidation", () => {
     describe("create operation", () => {
         it("should not have create operation", () => {
             expect(chatParticipantValidation.create).to.be.undefined;
+        });
+    });
+
+    describe("TestDataFactory", () => {
+        it("should use customizers for update data", () => {
+            const updateData = chatParticipantTestDataFactory.updateMinimal();
+            expect(updateData).toHaveProperty("id");
+            expect(typeof updateData.id).toBe("string");
+        });
+
+        it("should use customizers for complete update data", () => {
+            const updateData = chatParticipantTestDataFactory.updateComplete();
+            expect(updateData).toHaveProperty("id");
+            expect(typeof updateData.id).toBe("string");
+        });
+
+        it("should generate create data even though no create operation exists", () => {
+            const createData = chatParticipantTestDataFactory.createMinimal();
+            expect(createData).toBeDefined();
         });
     });
 });

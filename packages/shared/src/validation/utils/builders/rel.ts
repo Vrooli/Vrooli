@@ -86,9 +86,9 @@ export function rel<
         } else {
             // For one-to-many relationships - don't strip arrays
             if (required) {
-                return req(yup.array().of(field)) as unknown as T;
+                return req(yup.array().of(field)) as T;
             } else {
-                return yup.array().of(field).notRequired().nullable() as unknown as T;
+                return yup.array().of(field).notRequired().nullable() as T;
             }
         }
     }

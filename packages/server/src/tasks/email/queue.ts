@@ -18,7 +18,7 @@ const distTemplatePath = path.join(dirname, "../../../dist/tasks/email/templates
 const emailTemplatePath = fs.existsSync(srcTemplatePath) ? srcTemplatePath : distTemplatePath;
 
 if (fs.existsSync(emailTemplatePath)) {
-    welcomeTemplate = fs.readFileSync(emailTemplatePath).toString();
+    welcomeTemplate = fs.readFileSync(emailTemplatePath, 'utf8');
 } else {
     logger.error(`Could not find welcome email template at ${srcTemplatePath} or ${distTemplatePath}`);
     welcomeTemplate = "";

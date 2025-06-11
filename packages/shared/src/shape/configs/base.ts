@@ -79,10 +79,11 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
      * Exports the config to a plain object
      */
     export(): T {
-        return {
+        const baseConfig: BaseConfigObject = {
             __version: this.__version,
             resources: this.resources,
-        } as unknown as T;
+        };
+        return baseConfig as T;
     }
 
     /**

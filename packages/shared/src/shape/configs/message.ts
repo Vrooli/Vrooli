@@ -28,6 +28,19 @@ export interface ToolFunctionCall {
 }
 
 /**
+ * Configuration for a single run within a chat message
+ */
+export interface ChatMessageRunConfig {
+    runId: string;
+    resourceVersionId: string;
+    resourceVersionName?: string;
+    taskId: string;
+    runStatus?: string; // Using string to avoid circular dependency with RunStatus
+    createdAt: string;
+    completedAt?: string;
+}
+
+/**
  * Shape of the JSON blob stored in ConversationMessage.meta.
  * Keep it minimal—new optional fields can be added without migrations.
  */
@@ -57,6 +70,11 @@ export interface MessageConfigObject extends BaseConfigObject {
      * Each tool call has a function name, arguments, and optional result.
      */
     toolCalls?: ToolFunctionCall[];
+    /**
+     * Run configurations for routine executions triggered by this message.
+     * Each entry represents a routine that was started from this message.
+     */
+    runs?: ChatMessageRunConfig[];
 }
 
 /**
@@ -70,6 +88,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
     role?: MessageConfigObject["role"];
     turnId?: MessageConfigObject["turnId"];
     toolCalls?: MessageConfigObject["toolCalls"];
+    runs?: MessageConfigObject["runs"];
 
     /* ---------------------------------------------------------------------- */
     /*  Constructors / Static helpers                                         */
@@ -83,6 +102,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
         this.role = config.role;
         this.turnId = config.turnId;
         this.toolCalls = config.toolCalls;
+        this.runs = config.runs;
     }
 
     /**
@@ -105,6 +125,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
                     cfg.role ??= "user";
                     cfg.turnId ??= null;
                     cfg.toolCalls ??= [];
+                    cfg.runs ??= [];
                 }
                 return new MessageConfig({ config: cfg });
             },
@@ -124,6 +145,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
             role: "user",
             turnId: null,
             toolCalls: [],
+            runs: [],
         };
         return new MessageConfig({ config });
     }
@@ -142,6 +164,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
             role: this.role,
             turnId: this.turnId,
             toolCalls: this.toolCalls,
+            runs: this.runs,
         };
     }
 
@@ -163,5 +186,8 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
     }
     setToolCalls(toolCalls: ToolFunctionCall[]): void {
         this.toolCalls = toolCalls;
+    }
+    setRuns(runs: ChatMessageRunConfig[]): void {
+        this.runs = runs;
     }
 }

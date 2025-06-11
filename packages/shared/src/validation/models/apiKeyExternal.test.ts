@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { API_KEY_EXTERNAL_MAX_LENGTH, NAME_MAX_LENGTH } from "../utils/validationConstants.js";
-import { apiKeyExternalFixtures } from "./__test/fixtures/apiKeyExternalFixtures.js";
+import { apiKeyExternalFixtures, apiKeyExternalTestDataFactory } from "./__test/fixtures/apiKeyExternalFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { apiKeyExternalValidation } from "./apiKeyExternal.js";
 
@@ -275,6 +275,26 @@ describe("apiKeyExternalValidation", () => {
                 false,
                 /required/i,
             );
+        });
+    });
+
+    describe("TestDataFactory", () => {
+        it("should use customizers for create data", () => {
+            const createData = apiKeyExternalTestDataFactory.createMinimal();
+            expect(createData).toHaveProperty("id");
+            expect(typeof createData.id).toBe("string");
+        });
+
+        it("should use customizers for update data", () => {
+            const updateData = apiKeyExternalTestDataFactory.updateMinimal();
+            expect(updateData).toHaveProperty("id");
+            expect(typeof updateData.id).toBe("string");
+        });
+
+        it("should use customizers with overrides", () => {
+            const createData = apiKeyExternalTestDataFactory.createMinimal({ key: "custom-key" });
+            expect(createData).toHaveProperty("id");
+            expect(createData.key).toBe("custom-key");
         });
     });
 });

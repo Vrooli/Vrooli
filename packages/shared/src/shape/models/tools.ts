@@ -196,8 +196,8 @@ export function createRel<
             filteredRelationData = filteredRelationData.filter((x) => !shouldConnect(x));
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
-                shape!.create(filteredRelationData[0]) :
-                filteredRelationData.map((x) => shape!.create(x));
+                shape.create(filteredRelationData[0]) :
+                filteredRelationData.map((x) => shape.create(x));
         }
     }
     // Return result
@@ -445,8 +445,8 @@ export function updateRel<
     // We do this by removing connect/create/update from relTypes
     const filteredRelTypes = updated[relation] === null ? relTypes.filter(x => !["Create", "Connect", "Update"].includes(x)) : relTypes;
     // Find relation data in item
-    const originalRelation = asArray(original[relation] as any);
-    const updatedRelation = asArray(updated[relation] as any);
+    const originalRelation = asArray(original[relation]);
+    const updatedRelation = asArray(updated[relation]);
     const idField = shape?.idField ?? "id";
     const preShaper = preShape ?? ((x) => x);
     // Check connect

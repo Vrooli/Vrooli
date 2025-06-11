@@ -42,7 +42,7 @@ describe("Yup validation tests", () => {
                 [undefined, undefined],
                 [1, "1"], // yup automatically converts numbers to strings, so we have no choice but to accept them
                 [true, "true"], // yup automatically converts booleans to strings, so we have no choice but to accept them
-                [{}, undefined],
+                [{}, "[object Object]"], // Objects without custom toString get their default representation
                 ["a", "a"],
                 [" a", " a"],
                 ["a ", "a "],

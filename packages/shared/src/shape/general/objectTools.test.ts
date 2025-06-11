@@ -77,12 +77,294 @@ describe("hasObjectChanged", () => {
         const updated = { a: 1, b: 3, c: 3 };
         expect(hasObjectChanged(original, updated, ["b"])).to.be.true;
         expect(hasObjectChanged(original, updated, ["a"])).to.be.false;
+        expect(hasObjectChanged(original, updated, ["a", "c"])).to.be.false;
+        expect(hasObjectChanged(original, updated, ["a", "b", "c"])).to.be.true;
     });
 
-    it("should handle null and undefined", () => {
+    it("should handle missing fields in updated object", () => {
+        const original = { a: 1, b: 2, c: 3 };
+        const updated = { a: 1, b: 2 };
+        // When checking all fields, missing field should be detected as change
+        expect(hasObjectChanged(original, updated)).to.be.true;
+        // When checking specific fields that exist in both, no change
+        expect(hasObjectChanged(original, updated, ["a", "b"])).to.be.false;
+    });
+
+    it("should handle new fields in updated object", () => {
+        const original = { a: 1, b: 2 };
+        const updated = { a: 1, b: 2, c: 3 };
+        // New field should be detected as change
+        expect(hasObjectChanged(original, updated)).to.be.true;
+        // When checking only existing fields, no change
+        expect(hasObjectChanged(original, updated, ["a", "b"])).to.be.false;
+    });
+
+    it("should handle null and undefined correctly", () => {
+        // When original is null/undefined but updated has value, it's a change
         expect(hasObjectChanged(null, { a: 1 })).to.be.true;
-        expect(hasObjectChanged({ a: 1 }, null)).to.be.false;
         expect(hasObjectChanged(undefined, { a: 1 })).to.be.true;
-        expect(hasObjectChanged({ a: 1 }, undefined)).to.be.false;
+        
+        // When updated is null/undefined but original has value, it's a change
+        expect(hasObjectChanged({ a: 1 }, null)).to.be.true;
+        expect(hasObjectChanged({ a: 1 }, undefined)).to.be.true;
+        
+        // Both null/undefined should be no change
+        expect(hasObjectChanged(null, null)).to.be.false;
+        expect(hasObjectChanged(undefined, undefined)).to.be.false;
+        expect(hasObjectChanged(null, undefined)).to.be.false; // Both represent "no value"
+        expect(hasObjectChanged(undefined, null)).to.be.false; // Both represent "no value"
+    });
+
+    it("should handle non-object values", () => {
+        // Primitive comparisons
+        expect(hasObjectChanged(5, 5)).to.be.false;
+        expect(hasObjectChanged(5, 6)).to.be.true;
+        expect(hasObjectChanged("hello", "hello")).to.be.false;
+        expect(hasObjectChanged("hello", "world")).to.be.true;
+        expect(hasObjectChanged(true, true)).to.be.false;
+        expect(hasObjectChanged(true, false)).to.be.true;
+    });
+
+    it("should handle dot notation in field names", () => {
+        const original = { 
+            user: { 
+                profile: { 
+                    name: "John",
+                    age: 25
+                },
+                settings: {
+                    theme: "dark"
+                }
+            } 
+        };
+        const updated = { 
+            user: { 
+                profile: { 
+                    name: "Jane",
+                    age: 25
+                },
+                settings: {
+                    theme: "dark"
+                }
+            } 
+        };
+        
+        // Check specific nested field
+        expect(hasObjectChanged(original, updated, ["user.profile.name"])).to.be.true;
+        expect(hasObjectChanged(original, updated, ["user.profile.age"])).to.be.false;
+        expect(hasObjectChanged(original, updated, ["user.settings.theme"])).to.be.false;
+        
+        // Check multiple fields with dot notation
+        expect(hasObjectChanged(original, updated, ["user.profile.age", "user.settings.theme"])).to.be.false;
+        expect(hasObjectChanged(original, updated, ["user.profile.name", "user.settings.theme"])).to.be.true;
+    });
+
+    it("should handle arrays with different lengths", () => {
+        const original = { arr: [1, 2, 3] };
+        const updated1 = { arr: [1, 2] };
+        const updated2 = { arr: [1, 2, 3, 4] };
+        
+        expect(hasObjectChanged(original, updated1)).to.be.true;
+        expect(hasObjectChanged(original, updated2)).to.be.true;
+    });
+
+    it("should handle arrays of objects", () => {
+        const original = { 
+            items: [
+                { id: 1, name: "Item 1" },
+                { id: 2, name: "Item 2" }
+            ] 
+        };
+        const updated = { 
+            items: [
+                { id: 1, name: "Item 1" },
+                { id: 2, name: "Item 2 Updated" }
+            ] 
+        };
+        
+        expect(hasObjectChanged(original, updated)).to.be.true;
+        expect(hasObjectChanged(original, updated, ["items"])).to.be.true;
+    });
+
+    it("should handle deeply nested changes", () => {
+        const original = {
+            level1: {
+                level2: {
+                    level3: {
+                        level4: {
+                            value: "original"
+                        }
+                    }
+                }
+            }
+        };
+        const updated = {
+            level1: {
+                level2: {
+                    level3: {
+                        level4: {
+                            value: "updated"
+                        }
+                    }
+                }
+            }
+        };
+        
+        expect(hasObjectChanged(original, updated)).to.be.true;
+        expect(hasObjectChanged(original, updated, ["level1.level2.level3.level4.value"])).to.be.true;
+    });
+
+    it("should handle mixed types in comparisons", () => {
+        const original = { value: "5" };
+        const updated = { value: 5 };
+        
+        // String vs number should be detected as change
+        expect(hasObjectChanged(original, updated)).to.be.true;
+    });
+
+    it("should handle empty arrays and objects", () => {
+        expect(hasObjectChanged({ arr: [] }, { arr: [] })).to.be.false;
+        expect(hasObjectChanged({ obj: {} }, { obj: {} })).to.be.false;
+        expect(hasObjectChanged({ arr: [] }, { arr: [1] })).to.be.true;
+        expect(hasObjectChanged({ obj: {} }, { obj: { a: 1 } })).to.be.true;
+    });
+
+    it("should handle fields that don't exist in either object", () => {
+        const original = { a: 1 };
+        const updated = { a: 1 };
+        
+        // Check for non-existent field
+        expect(hasObjectChanged(original, updated, ["nonExistent"])).to.be.false;
+    });
+
+    it("should handle checking nested fields when parent is not an object", () => {
+        const original = { user: "string value" };
+        const updated = { user: "string value" };
+        
+        // Trying to access nested field on non-object should return false
+        expect(hasObjectChanged(original, updated, ["user.profile.name"])).to.be.false;
+    });
+
+    it("should handle array comparisons with specific fields", () => {
+        const original = { data: [1, 2, 3], other: "value" };
+        const updated = { data: [1, 2, 3], other: "changed" };
+        
+        expect(hasObjectChanged(original, updated, ["data"])).to.be.false;
+        expect(hasObjectChanged(original, updated, ["other"])).to.be.true;
+    });
+});
+
+describe("valueFromDot edge cases", () => {
+    it("should handle null object", () => {
+        expect(valueFromDot(null as any, "test")).to.be.null;
+    });
+
+    it("should handle nested null values", () => {
+        const obj = { parent: null };
+        expect(valueFromDot(obj, "parent.child")).to.be.null;
+    });
+
+    it("should handle arrays in path", () => {
+        const obj = { items: [{ name: "first" }, { name: "second" }] };
+        expect(valueFromDot(obj, "items.0.name")).to.equal("first");
+        expect(valueFromDot(obj, "items.1.name")).to.equal("second");
+    });
+
+    it("should handle false values correctly", () => {
+        const obj = { flag: false, zero: 0 };
+        expect(valueFromDot(obj, "flag")).to.equal(false); // exists() returns true for false
+        expect(valueFromDot(obj, "zero")).to.equal(0); // exists() returns true for 0
+    });
+
+    it("should handle empty string values", () => {
+        const obj = { empty: "" };
+        expect(valueFromDot(obj, "empty")).to.equal(""); // exists() returns true for empty string
+    });
+
+    it("should handle complex nested structures", () => {
+        const obj = {
+            users: {
+                admin: {
+                    permissions: {
+                        read: true,
+                        write: true
+                    }
+                }
+            }
+        };
+        expect(valueFromDot(obj, "users.admin.permissions.read")).to.equal(true);
+        expect(valueFromDot(obj, "users.admin.permissions.delete")).to.be.null;
+    });
+});
+
+describe("convertToDot edge cases", () => {
+    it("should handle null values", () => {
+        const obj = { a: null, b: { c: null } };
+        expect(convertToDot(obj)).to.deep.equal({
+            "a": null,
+            "b.c": null
+        });
+    });
+
+    it("should handle arrays", () => {
+        const obj = { arr: [1, 2, 3] };
+        // Arrays are converted to dot notation with numeric indices
+        // This is the intended behavior for deep object comparison
+        expect(convertToDot(obj)).to.deep.equal({
+            "arr.0": 1,
+            "arr.1": 2,
+            "arr.2": 3
+        });
+    });
+
+    it("should handle deeply nested structures", () => {
+        const obj = {
+            level1: {
+                level2: {
+                    level3: {
+                        level4: {
+                            value: "deep"
+                        }
+                    }
+                }
+            }
+        };
+        expect(convertToDot(obj)).to.deep.equal({
+            "level1.level2.level3.level4.value": "deep"
+        });
+    });
+
+    it("should handle mixed value types", () => {
+        const obj = {
+            string: "text",
+            number: 42,
+            boolean: true,
+            null: null,
+            undefined: undefined,
+            nested: {
+                array: [1, 2, 3],
+                object: { key: "value" }
+            }
+        };
+        expect(convertToDot(obj)).to.deep.equal({
+            "string": "text",
+            "number": 42,
+            "boolean": true,
+            "null": null,
+            "undefined": undefined,
+            "nested.array.0": 1,
+            "nested.array.1": 2,
+            "nested.array.2": 3,
+            "nested.object.key": "value"
+        });
+    });
+
+    it("should handle objects with numeric keys", () => {
+        const obj = { "0": "first", "1": "second", "2": { "3": "nested" } };
+        expect(convertToDot(obj)).to.deep.equal({
+            "0": "first",
+            "1": "second",
+            "2.3": "nested"
+        });
     });
 });

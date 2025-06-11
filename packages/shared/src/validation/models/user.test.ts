@@ -629,3 +629,57 @@ describe("profileEmailUpdateValidation", () => {
         );
     });
 });
+
+describe("user test data factory", () => {
+    it("should apply default values when creating bot with empty object", () => {
+        const data = userTestDataFactory.createMinimal({});
+        expect(data.id).to.match(/^\d+$/); // Snowflake ID
+        expect(data.handle).to.equal("testbot123");
+        expect(data.isPrivate).to.equal(false);
+        expect(data.name).to.equal("Test Bot");
+        expect(data.isBotDepictingPerson).to.equal(false);
+        expect(data.botSettings).to.deep.equal({});
+    });
+
+    it("should preserve undefined and falsy values in bot creation", () => {
+        const data = userTestDataFactory.createMinimal({ 
+            isPrivate: true,
+            isBotDepictingPerson: true,
+            botSettings: null
+        });
+        expect(data.isPrivate).to.equal(true);
+        expect(data.isBotDepictingPerson).to.equal(true);
+        expect(data.botSettings).to.be.null;
+    });
+
+    it("should apply update customizer defaults", () => {
+        const data = userTestDataFactory.updateMinimal({});
+        expect(data.id).to.equal("300000000000000001");
+    });
+
+    it("should override factory defaults with provided values", () => {
+        const customId = "999999999999999999";
+        const data = userTestDataFactory.createMinimal({ 
+            id: customId,
+            handle: "custombot",
+            isPrivate: true,
+            name: "Custom Bot",
+            isBotDepictingPerson: true,
+            botSettings: { model: "gpt-4" }
+        });
+        expect(data.id).to.equal(customId);
+        expect(data.handle).to.equal("custombot");
+        expect(data.isPrivate).to.equal(true);
+        expect(data.name).to.equal("Custom Bot");
+        expect(data.isBotDepictingPerson).to.equal(true);
+        expect(data.botSettings).to.deep.equal({ model: "gpt-4" });
+    });
+
+    it("should handle undefined botSettings differently than empty object", () => {
+        const dataWithUndefined = userTestDataFactory.createMinimal({ botSettings: undefined });
+        expect(dataWithUndefined.botSettings).to.be.undefined;
+        
+        const dataWithoutField = userTestDataFactory.createMinimal({});
+        expect(dataWithoutField.botSettings).to.deep.equal({});
+    });
+});

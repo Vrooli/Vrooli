@@ -32,7 +32,7 @@ export class RunLimitsManager {
      */
     private checkTimeLimit(run: RunProgress, runLimits: RunRequestLimits, startTime: number): LimitReachedResult | undefined {
         const elapsed = Date.now() - startTime;
-        if (!runLimits.maxTime || elapsed < runLimits.maxTime) {
+        if (!runLimits.maxTime || elapsed <= runLimits.maxTime) {
             return undefined;
         }
 
@@ -57,7 +57,7 @@ export class RunLimitsManager {
 
         const spent = BigInt(run.metrics.creditsSpent || "0");
         const limit = BigInt(runLimits.maxCredits);
-        if (spent < limit) {
+        if (spent <= limit) {
             return undefined;
         }
 
@@ -76,7 +76,7 @@ export class RunLimitsManager {
      * @returns Undefined if the limit has not been reached, or LimitReachedResult if it has.
      */
     private checkStepsLimit(run: RunProgress, runLimits: RunRequestLimits): LimitReachedResult | undefined {
-        if (runLimits.maxSteps === undefined || run.metrics.stepsRun < runLimits.maxSteps) {
+        if (runLimits.maxSteps === undefined || (run.metrics.stepsRun ?? 0) <= runLimits.maxSteps) {
             return undefined;
         }
 
