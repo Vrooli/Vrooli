@@ -9,6 +9,7 @@ import {
     type SwarmTeam,
     type SwarmResource,
 } from "@vrooli/shared";
+import { InMemoryStore, type IStore } from "../../shared/BaseStore.js";
 
 /**
  * Swarm state store interface
@@ -59,26 +60,32 @@ export interface ISwarmStateStore {
 
 /**
  * In-memory swarm state store (for development)
+ * Refactored to use BaseStore for consistent storage patterns
  */
 export class InMemorySwarmStateStore implements ISwarmStateStore {
-    private readonly swarms: Map<string, Swarm> = new Map();
-    private readonly teams: Map<string, Map<string, SwarmTeam>> = new Map();
-    private readonly agents: Map<string, Map<string, SwarmAgent>> = new Map();
-    private readonly blackboards: Map<string, Map<string, BlackboardItem>> = new Map();
-    private readonly resourceAllocations: Map<string, Map<string, Set<string>>> = new Map();
+    private readonly swarmStore: IStore<Swarm>;
+    private readonly teamStore: IStore<Map<string, SwarmTeam>>;
+    private readonly agentStore: IStore<Map<string, SwarmAgent>>;
+    private readonly blackboardStore: IStore<Map<string, BlackboardItem>>;
+    private readonly resourceStore: IStore<Map<string, Set<string>>>;
     private readonly logger: Logger;
 
     constructor(logger: Logger) {
         this.logger = logger;
+        this.swarmStore = new InMemoryStore<Swarm>(logger);
+        this.teamStore = new InMemoryStore<Map<string, SwarmTeam>>(logger);
+        this.agentStore = new InMemoryStore<Map<string, SwarmAgent>>(logger);
+        this.blackboardStore = new InMemoryStore<Map<string, BlackboardItem>>(logger);
+        this.resourceStore = new InMemoryStore<Map<string, Set<string>>>(logger);
     }
 
     async createSwarm(swarmId: string, swarm: Swarm): Promise<void> {
-        this.swarms.set(swarmId, swarm);
+        await this.swarmStore.set(swarmId, swarm);
         this.logger.debug("[SwarmStateStore] Created swarm", { swarmId });
     }
 
     async getSwarm(swarmId: string): Promise<Swarm | null> {
-        return this.swarms.get(swarmId) || null;
+        return await this.swarmStore.get(swarmId);
     }
 
     async updateSwarm(swarmId: string, updates: Partial<Swarm>): Promise<void> {
@@ -87,12 +94,13 @@ export class InMemorySwarmStateStore implements ISwarmStateStore {
             throw new Error(`Swarm ${swarmId} not found`);
         }
         
-        Object.assign(swarm, updates, { updatedAt: new Date() });
+        const updatedSwarm = { ...swarm, ...updates, updatedAt: new Date() };
+        await this.swarmStore.set(swarmId, updatedSwarm);
         this.logger.debug("[SwarmStateStore] Updated swarm", { swarmId });
     }
 
     async deleteSwarm(swarmId: string): Promise<void> {
-        this.swarms.delete(swarmId);
+        await this.swarmStore.delete(swarmId);
         this.logger.debug("[SwarmStateStore] Deleted swarm", { swarmId });
     }
 
@@ -116,7 +124,8 @@ export class InMemorySwarmStateStore implements ISwarmStateStore {
 
     async listActiveSwarms(): Promise<string[]> {
         const active: string[] = [];
-        for (const [id, swarm] of this.swarms) {
+        const allSwarms = await this.swarmStore.getAll();
+        for (const [id, swarm] of allSwarms) {
             if (![SwarmState.STOPPED, SwarmState.FAILED, SwarmState.TERMINATED].includes(swarm.state)) {
                 active.push(id);
             }
@@ -126,7 +135,8 @@ export class InMemorySwarmStateStore implements ISwarmStateStore {
 
     async getSwarmsByState(state: SwarmState): Promise<string[]> {
         const matches: string[] = [];
-        for (const [id, swarm] of this.swarms) {
+        const allSwarms = await this.swarmStore.getAll();
+        for (const [id, swarm] of allSwarms) {
             if (swarm.state === state) {
                 matches.push(id);
             }
@@ -136,7 +146,8 @@ export class InMemorySwarmStateStore implements ISwarmStateStore {
 
     async getSwarmsByUser(userId: string): Promise<string[]> {
         const matches: string[] = [];
-        for (const [id, swarm] of this.swarms) {
+        const allSwarms = await this.swarmStore.getAll();
+        for (const [id, swarm] of allSwarms) {
             if (swarm.metadata.userId === userId) {
                 matches.push(id);
             }
@@ -146,15 +157,18 @@ export class InMemorySwarmStateStore implements ISwarmStateStore {
 
     // Team management - Enhanced
     async createTeam(swarmId: string, team: SwarmTeam): Promise<void> {
-        if (!this.teams.has(swarmId)) {
-            this.teams.set(swarmId, new Map());
+        let teams = await this.teamStore.get(swarmId);
+        if (!teams) {
+            teams = new Map();
         }
-        this.teams.get(swarmId)!.set(team.id, team);
+        teams.set(team.id, team);
+        await this.teamStore.set(swarmId, teams);
         this.logger.debug("[SwarmStateStore] Created team", { swarmId, teamId: team.id });
     }
 
     async getTeamById(swarmId: string, teamId: string): Promise<SwarmTeam | null> {
-        return this.teams.get(swarmId)?.get(teamId) || null;
+        const teams = await this.teamStore.get(swarmId);
+        return teams?.get(teamId) || null;
     }
 
     async updateTeamById(swarmId: string, teamId: string, updates: Partial<SwarmTeam>): Promise<void> {

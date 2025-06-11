@@ -34,6 +34,7 @@ import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type ConversationBridge } from "../intelligence/conversationBridge.js";
 import { SocketService } from "../../../../sockets/io.js";
+import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
 
 /**
  * Swarm event types
@@ -50,7 +51,7 @@ export type SwarmEventType =
 /**
  * Base swarm event interface
  */
-export interface SwarmEvent {
+export interface SwarmEvent extends BaseEvent {
     type: SwarmEventType;
     conversationId: string;
     sessionUser: SessionUser;
@@ -66,32 +67,9 @@ export interface SwarmStartedEvent extends SwarmEvent {
     goal: string;
 }
 
-/**
- * Available states for the swarm state machine
- */
-export const SwarmState = {
-    UNINITIALIZED: "UNINITIALIZED",
-    STARTING: "STARTING",
-    RUNNING: "RUNNING",
-    IDLE: "IDLE",
-    PAUSED: "PAUSED",
-    STOPPED: "STOPPED",
-    FAILED: "FAILED",
-    TERMINATED: "TERMINATED",
-} as const;
-
-export type State = (typeof SwarmState)[keyof typeof SwarmState];
-
-/**
- * Interface for managed task state machines
- */
-export interface ManagedTaskStateMachine {
-    getTaskId(): string;
-    getCurrentSagaStatus(): string;
-    requestPause(): Promise<boolean>;
-    requestStop(reason: string): Promise<boolean>;
-    getAssociatedUserId?(): string | undefined;
-}
+// Use the shared state definitions
+export const SwarmState = BaseStates;
+export type State = keyof typeof SwarmState;
 
 // Use ConversationState from the conversation types instead of defining our own
 import { type ConversationState } from "../../../services/conversation/types.js";
@@ -119,21 +97,18 @@ import { type ConversationState } from "../../../services/conversation/types.js"
  * - spawn_swarm: Create child swarms for complex subtasks
  * - run_routine: Execute discovered routines
  */
-export class SwarmStateMachine implements ManagedTaskStateMachine {
-    private disposed = false;
-    private processingLock = false;
-    private pendingDrainTimeout: NodeJS.Timeout | null = null;
-    private state: State = SwarmState.UNINITIALIZED;
-    private readonly eventQueue: SwarmEvent[] = [];
+export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
 
     constructor(
-        private readonly logger: Logger,
-        private readonly eventBus: EventBus,
+        logger: Logger,
+        eventBus: EventBus,
         private readonly stateStore: ISwarmStateStore,
         private readonly conversationBridge: ConversationBridge,
-    ) {}
+    ) {
+        super(logger, eventBus, SwarmState.UNINITIALIZED);
+    }
 
     // Implementation of ManagedTaskStateMachine methods
     public getTaskId(): string {
@@ -144,44 +119,6 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         return this.conversationId;
     }
 
-    public getCurrentSagaStatus(): string {
-        switch (this.state) {
-            case SwarmState.UNINITIALIZED:
-                return "UNINITIALIZED";
-            case SwarmState.STARTING:
-                return "STARTING";
-            case SwarmState.RUNNING:
-                return "RUNNING";
-            case SwarmState.IDLE:
-                return "IDLE";
-            case SwarmState.PAUSED:
-                return "PAUSED";
-            case SwarmState.STOPPED:
-                return "STOPPED";
-            case SwarmState.FAILED:
-                return "FAILED";
-            case SwarmState.TERMINATED:
-                return "TERMINATED";
-            default:
-                this.logger.warn(`SwarmStateMachine: Unknown state in getCurrentSagaStatus: ${this.state}`);
-                return "UNKNOWN";
-        }
-    }
-
-    public async requestPause(): Promise<boolean> {
-        if (this.state === SwarmState.RUNNING || this.state === SwarmState.IDLE) {
-            await this.pause();
-            return true;
-        }
-        this.logger.warn(`SwarmStateMachine: requestPause called in non-pausable state: ${this.state}`);
-        return false;
-    }
-
-    public async requestStop(reason: string): Promise<boolean> {
-        this.logger.info(`SwarmStateMachine: requestStop called for ${this.conversationId}. Reason: ${reason}`);
-        const result = await this.stop("graceful", reason, this.initiatingUser ?? undefined);
-        return result.success;
-    }
 
     public getAssociatedUserId(): string | undefined {
         return this.initiatingUser?.id;
@@ -262,92 +199,22 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
 
     /**
      * Handles incoming events by queuing them
+     * Override to ensure conversationId is provided
      */
     async handleEvent(ev: SwarmEvent): Promise<void> {
-        if (this.state === SwarmState.TERMINATED) return;
-        
-        this.eventQueue.push(ev);
-        
-        if (this.state === SwarmState.IDLE && ev.conversationId) {
-            this.drain(ev.conversationId).catch(err => 
-                this.logger.error("Error draining swarm queue from handleEvent", { error: err, event: ev })
-            );
+        if (!ev.conversationId) {
+            this.logger.error("SwarmEvent missing conversationId", { event: ev });
+            return;
         }
+        
+        // Delegate to parent class which handles queuing and draining
+        await super.handleEvent(ev);
     }
 
     /**
-     * Processes queued events (the heart of autonomous operation)
+     * Process a single event (implements abstract method from BaseStateMachine)
      */
-    private async drain(convoId: string): Promise<void> {
-        if (this.state === SwarmState.PAUSED || 
-            this.state === SwarmState.TERMINATED || 
-            this.state === SwarmState.FAILED) {
-            this.logger.info(`Drain called in state ${this.state}, not processing queue for ${convoId}.`);
-            return;
-        }
-        
-        if (this.processingLock) {
-            this.logger.info(`Drain already in progress for ${convoId}, skipping.`);
-            return;
-        }
-
-        this.processingLock = true;
-        this.state = SwarmState.RUNNING;
-
-        if (this.eventQueue.length === 0) {
-            this.processingLock = false;
-            this.state = SwarmState.IDLE;
-            // Could trigger autonomous monitoring here
-            return;
-        }
-
-        const ev = this.eventQueue.shift()!;
-        if (ev.conversationId !== convoId) {
-            this.logger.warn("Swarm drain called with convoId mismatch", { 
-                expected: convoId, 
-                actual: ev.conversationId 
-            });
-            this.eventQueue.unshift(ev);
-            this.processingLock = false;
-            this.state = SwarmState.IDLE;
-            return;
-        }
-
-        try {
-            await this.handleInternalEvent(ev);
-        } catch (error) {
-            this.logger.error("Error processing event in SwarmStateMachine drain", { error, event: ev });
-        }
-
-        // Release processing lock
-        this.processingLock = false;
-
-        if (this.eventQueue.length === 0) {
-            this.state = SwarmState.IDLE;
-        } else {
-            // Schedule next drain with optional delay
-            const delayMs = await this.getDrainDelay(convoId);
-            if (delayMs > 0) {
-                this.pendingDrainTimeout = setTimeout(() => {
-                    this.pendingDrainTimeout = null;
-                    this.drain(convoId).catch(err => 
-                        this.logger.error("Error in delayed drain", { error: err, conversationId: convoId })
-                    );
-                }, delayMs);
-            } else {
-                setImmediate(() => 
-                    this.drain(convoId).catch(err => 
-                        this.logger.error("Error in immediate drain", { error: err, conversationId: convoId })
-                    )
-                );
-            }
-        }
-    }
-
-    /**
-     * Handles internal event processing
-     */
-    private async handleInternalEvent(event: SwarmEvent): Promise<void> {
+    protected async processEvent(event: SwarmEvent): Promise<void> {
         this.logger.debug(`[SwarmStateMachine] Handling event: ${event.type}`, {
             conversationId: event.conversationId,
         });
@@ -417,30 +284,9 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         });
     }
 
-    /**
-     * Pauses the swarm
-     */
-    async pause(): Promise<void> {
-        if (this.state === SwarmState.RUNNING || this.state === SwarmState.IDLE) {
-            this._clearPendingDrainTimeout();
-            this.state = SwarmState.PAUSED;
-            this.logger.info(`SwarmStateMachine for ${this.conversationId} paused.`);
-        }
-    }
 
     /**
-     * Resumes the swarm
-     */
-    async resume(convoId: string): Promise<void> {
-        if (this.state === SwarmState.PAUSED) {
-            this.state = SwarmState.IDLE;
-            this.logger.info(`SwarmStateMachine for ${convoId} resumed.`);
-            await this.drain(convoId);
-        }
-    }
-
-    /**
-     * Gracefully stops the swarm
+     * Override stop to add requesting user parameter
      */
     async stop(
         mode: "graceful" | "force" = "graceful",
@@ -452,87 +298,106 @@ export class SwarmStateMachine implements ManagedTaskStateMachine {
         finalState?: any;
         error?: string;
     }> {
+        // Delegate to parent class
+        return super.stop(mode, reason);
+    }
+
+    /**
+     * Called when stopping - return final state data
+     * Implements abstract method from BaseStateMachine
+     */
+    protected async onStop(mode: "graceful" | "force", reason?: string): Promise<any> {
         if (!this.conversationId) {
-            const errorMsg = "SwarmStateMachine: stop() called before conversationId was set.";
-            this.logger.error(errorMsg);
-            return { success: false, message: errorMsg, error: "CONVERSATION_ID_NOT_SET" };
+            throw new Error("SwarmStateMachine: onStop() called before conversationId was set.");
         }
 
-        if (this.state === SwarmState.STOPPED || this.state === SwarmState.TERMINATED) {
-            const message = `Swarm ${this.conversationId} is already in state ${this.state}.`;
-            this.logger.warn(message);
-            return { success: true, message };
+        const convoState = await this.getConversationState(this.conversationId);
+        if (!convoState) {
+            throw new Error("Conversation state not found");
         }
 
-        this.logger.info(`Stopping swarm ${this.conversationId} with mode: ${mode}, reason: ${reason || "No reason"}`);
+        // Calculate final statistics
+        const subtasks = convoState.config.subtasks || [];
+        const totalSubTasks = subtasks.length;
+        const completedSubTasks = subtasks.filter((task: SwarmSubTask) => 
+            task.status === "done"
+        ).length;
 
-        try {
-            const convoState = await this.getConversationState(this.conversationId);
-            if (!convoState) {
-                throw new Error("Conversation state not found");
+        const finalState = {
+            endedAt: new Date().toISOString(),
+            reason: reason || "Swarm stopped",
+            mode,
+            totalSubTasks,
+            completedSubTasks,
+            totalCreditsUsed: convoState.config.stats?.totalCredits || "0",
+            totalToolCalls: convoState.config.stats?.totalToolCalls || 0,
+        };
+
+        // Emit swarm stopped event
+        await this.emitEvent("swarm.stopped", {
+            swarmId: this.conversationId,
+            finalState,
+        });
+
+        return finalState;
+    }
+
+    /**
+     * Called when entering idle state
+     * Implements abstract method from BaseStateMachine
+     */
+    protected async onIdle(): Promise<void> {
+        // Could implement autonomous monitoring here
+        // For now, just log
+        this.logger.debug(`[SwarmStateMachine] Entered IDLE state`, {
+            conversationId: this.conversationId,
+        });
+    }
+
+    /**
+     * Called when pausing
+     * Implements abstract method from BaseStateMachine
+     */
+    protected async onPause(): Promise<void> {
+        this.logger.info(`[SwarmStateMachine] Paused`, {
+            conversationId: this.conversationId,
+        });
+    }
+
+    /**
+     * Called when resuming
+     * Implements abstract method from BaseStateMachine
+     */
+    protected async onResume(): Promise<void> {
+        this.logger.info(`[SwarmStateMachine] Resumed`, {
+            conversationId: this.conversationId,
+        });
+    }
+
+    /**
+     * Determine if an error is fatal
+     * Implements abstract method from BaseStateMachine
+     */
+    protected async isErrorFatal(error: unknown, event: SwarmEvent): Promise<boolean> {
+        // For now, only certain errors are considered fatal
+        if (error instanceof Error) {
+            // Network errors are recoverable
+            if (error.message.includes("ECONNREFUSED") || 
+                error.message.includes("ETIMEDOUT") ||
+                error.message.includes("ENOTFOUND")) {
+                return false;
             }
-
-            // Calculate final statistics
-            const subtasks = convoState.config.subtasks || [];
-            const totalSubTasks = subtasks.length;
-            const completedSubTasks = subtasks.filter((task: SwarmSubTask) => 
-                task.status === "done"
-            ).length;
-
-            const finalState = {
-                endedAt: new Date().toISOString(),
-                reason: reason || "Swarm stopped",
-                mode,
-                totalSubTasks,
-                completedSubTasks,
-                totalCreditsUsed: convoState.config.stats?.totalCredits || "0",
-                totalToolCalls: convoState.config.stats?.totalToolCalls || 0,
-            };
-
-            // Clear pending operations
-            this._clearPendingDrainTimeout();
-            this.state = SwarmState.STOPPED;
-            this.processingLock = false;
-
-            this.logger.info(`Swarm ${this.conversationId} stopped successfully`, finalState);
-
-            return {
-                success: true,
-                message: `Swarm stopped ${mode === "graceful" ? "gracefully" : "forcefully"}`,
-                finalState,
-            };
-
-        } catch (error) {
-            this.state = SwarmState.FAILED;
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
-            this.logger.error(`Error stopping swarm ${this.conversationId}:`, error);
-            return {
-                success: false,
-                message: `Failed to stop swarm: ${errorMessage}`,
-                error: "STOP_OPERATION_FAILED",
-            };
+            
+            // Configuration errors are fatal
+            if (error.message.includes("No leader bot") ||
+                error.message.includes("Conversation state not found") ||
+                error.message.includes("Invalid configuration")) {
+                return true;
+            }
         }
-    }
-
-    /**
-     * Shuts down the swarm completely
-     */
-    async shutdown(): Promise<void> {
-        this._clearPendingDrainTimeout();
-        this.disposed = true;
-        this.eventQueue.length = 0;
-        this.state = SwarmState.TERMINATED;
-        this.logger.info("SwarmStateMachine shutdown complete.");
-    }
-
-    /**
-     * Helper methods
-     */
-    private _clearPendingDrainTimeout(): void {
-        if (this.pendingDrainTimeout) {
-            clearTimeout(this.pendingDrainTimeout);
-            this.pendingDrainTimeout = null;
-        }
+        
+        // Default to non-fatal to allow recovery
+        return false;
     }
 
     private async getConversationState(conversationId: string): Promise<ConversationState | null> {
