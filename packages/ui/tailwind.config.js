@@ -9,6 +9,11 @@ export default {
       fontFamily: {
         sans: ['Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
+      // Custom animations for spinners
+      animation: {
+        'spin': 'spin 1s linear infinite',
+        'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
       // Sync with MUI theme colors
       colors: {
         primary: {

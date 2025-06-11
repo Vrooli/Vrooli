@@ -1,13 +1,13 @@
-import { forwardRef, useMemo, useState, useCallback } from "react";
-import type { ButtonHTMLAttributes, ReactNode, CSSProperties, MouseEvent } from "react";
-import { CircularProgress, OrbitalSpinner } from "../indicators/CircularProgress.js";
+import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from "react";
+import { forwardRef, useCallback, useState } from "react";
 import { cn } from "../../utils/tailwind-theme.js";
+import { CircularProgress, OrbitalSpinner } from "../indicators/CircularProgress.js";
 
 // Define variant types
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "space";
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
 
-export interface TailwindButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: ButtonVariant;
     size?: ButtonSize;
     isLoading?: boolean;
@@ -25,7 +25,13 @@ const variantStyles: Record<ButtonVariant, string> = {
     outline: "tw-bg-transparent tw-border tw-border-secondary-main tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-text-white focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
     ghost: "tw-bg-transparent tw-text-secondary-main hover:tw-bg-secondary-main hover:tw-bg-opacity-10 focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
     danger: "tw-bg-red-600 tw-text-white hover:tw-bg-red-700 focus:tw-ring-2 focus:tw-ring-red-600 focus:tw-ring-offset-2 tw-shadow-md hover:tw-shadow-lg",
-    space: "tw-relative tw-overflow-hidden tw-text-white tw-border tw-border-cyan-400 tw-border-opacity-50 hover:tw-border-opacity-100 tw-transition-all tw-duration-300 tw-shadow-lg hover:tw-shadow-cyan-400/25",
+    /* ✦ space variant: gradient border + inner padding */
+    space: cn(
+        "tw-relative tw-overflow-hidden tw-text-white",
+        "tw-rounded-md tw-p-[2px]",
+        "tw-bg-gradient-to-br tw-from-[#1a3a4a] tw-via-[#2a4a6a] tw-to-[#1a3a4a]",
+        "tw-transition-all tw-duration-300 tw-shadow-lg hover:tw-shadow-cyan-400/25"
+    ),
 };
 
 // Size styles mapping
@@ -51,34 +57,97 @@ interface Ripple {
     y: number;
 }
 
-// Space background component for the space variant - clean and functional
-const SpaceBackground = ({ 
-    ripples, 
-    onRippleComplete 
-}: { 
-    ripples: Ripple[]; 
-    onRippleComplete: (id: number) => void; 
+// Ripple colors for each variant
+const rippleColors: Record<ButtonVariant, string> = {
+    primary: "rgba(255, 255, 255, 0.5)",
+    secondary: "rgba(0, 0, 0, 0.3)",
+    outline: "rgba(22, 163, 97, 0.3)",
+    ghost: "rgba(22, 163, 97, 0.3)",
+    danger: "rgba(255, 255, 255, 0.5)",
+    space: "rgba(15, 170, 170, 0.8)",
+};
+
+// Generic Ripple component
+const RippleEffect = ({
+    ripples,
+    onRippleComplete,
+    color
+}: {
+    ripples: Ripple[];
+    onRippleComplete: (id: number) => void;
+    color: string;
 }) => {
     return (
         <>
+            {ripples.map((ripple) => (
+                <div
+                    key={ripple.id}
+                    className="tw-absolute tw-pointer-events-none tw-rounded-full"
+                    style={{
+                        left: ripple.x - 25,
+                        top: ripple.y - 25,
+                        width: 50,
+                        height: 50,
+                        background: `radial-gradient(circle, ${color} 0%, ${color.replace(/[\d.]+\)/, '0.1)')} 50%, transparent 70%)`,
+                        animation: 'rippleExpand 0.6s ease-out forwards',
+                    }}
+                    onAnimationEnd={() => onRippleComplete(ripple.id)}
+                />
+            ))}
+
+            {/* CSS animation for ripple */}
+            <style jsx>{`
+                @keyframes rippleExpand {
+                    0% {
+                        transform: scale(0);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: scale(4);
+                        opacity: 0;
+                    }
+                }
+            `}</style>
+        </>
+    );
+};
+
+// Space background component for the space variant - clean and functional
+const SpaceBackground = ({
+    ripples,
+    onRippleComplete
+}: {
+    ripples: Ripple[];
+    onRippleComplete: (id: number) => void;
+}) => {
+    return (
+        <>
+            {/* Border that matches the gradient theme */}
+            <div
+                className="tw-absolute tw-inset-0 tw-rounded"
+                style={{
+                    background: `linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%)`,
+                }}
+            />
+
             {/* Clean gradient background with subtle space feel */}
-            <div 
+            <div
                 className="tw-absolute tw-inset-0.5 tw-rounded"
                 style={{
                     background: `linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%)`,
                 }}
             />
-            
+
             {/* Subtle glow effect */}
-            <div 
+            <div
                 className="tw-absolute tw-inset-0.5 tw-rounded tw-opacity-60"
                 style={{
                     background: `radial-gradient(ellipse at center, rgba(22, 163, 97, 0.15) 0%, transparent 70%)`,
                 }}
             />
-            
+
             {/* Improved animated gradient sweep on hover */}
-            <div 
+            <div
                 className="tw-absolute tw-inset-0.5 tw-rounded tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none"
                 style={{
                     background: `
@@ -93,7 +162,7 @@ const SpaceBackground = ({
                     animation: ripples.length > 0 ? 'none' : 'gradientSweep 3s ease-in-out infinite',
                 }}
             />
-            
+
             {/* Click ripple effects */}
             {ripples.map((ripple) => (
                 <div
@@ -110,7 +179,7 @@ const SpaceBackground = ({
                     onAnimationEnd={() => onRippleComplete(ripple.id)}
                 />
             ))}
-            
+
             {/* CSS animations */}
             <style jsx>{`
                 @keyframes gradientSweep {
@@ -147,7 +216,7 @@ const SpaceBackground = ({
  * A performant, accessible Tailwind CSS button component with multiple variants and sizes.
  * Supports loading states, icons, and full keyboard/screen reader support.
  */
-export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>(
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     (
         {
             variant = "primary",
@@ -167,33 +236,33 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
     ) => {
         // Determine if button should be disabled (either explicitly or when loading)
         const isDisabled = disabled || isLoading;
-        
-        // Ripple effect state for space variant
+
+        // Ripple effect state for all variants
         const [ripples, setRipples] = useState<Ripple[]>([]);
-        
+
         // Handle click for ripple effect
         const handleClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-            // Only add ripple effect for space variant
-            if (variant === "space" && !isDisabled) {
+            // Add ripple effect for all variants
+            if (!isDisabled) {
                 const rect = event.currentTarget.getBoundingClientRect();
                 const x = event.clientX - rect.left;
                 const y = event.clientY - rect.top;
-                
+
                 const newRipple: Ripple = {
                     id: Date.now(),
                     x,
                     y,
                 };
-                
+
                 setRipples(prev => [...prev, newRipple]);
             }
-            
+
             // Call the original onClick handler
             if (props.onClick) {
                 props.onClick(event);
             }
-        }, [variant, isDisabled, props.onClick]);
-        
+        }, [isDisabled, props.onClick]);
+
         // Remove completed ripples
         const handleRippleComplete = useCallback((id: number) => {
             setRipples(prev => prev.filter(ripple => ripple.id !== id));
@@ -209,19 +278,22 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
             "focus:tw-ring-offset-background",
             // Add group class for space variant hover effects
             variant === "space" && "tw-group",
-            
+
             // Width styles
             fullWidth ? "tw-w-full" : "tw-w-auto",
-            
+
+            // Add relative positioning for ripple effect (except space which already has it)
+            variant !== "space" && "tw-relative tw-overflow-hidden",
+
             // Variant styles
             variantStyles[variant],
-            
+
             // Size styles
             sizeStyles[size],
-            
+
             // Disabled/loading styles
             isDisabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
-            
+
             // Custom className (allows overrides)
             className
         );
@@ -230,21 +302,21 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
         const renderStartElement = () => {
             if (isLoading) {
                 const spinnerSize = spinnerSizes[size];
-                
+
                 // Use Orbital Spinner for space-themed loading
                 if (loadingIndicator === "orbital") {
                     return <OrbitalSpinner size={spinnerSize} />;
                 }
-                
+
                 // Default circular spinner
-                const spinnerVariant = 
+                const spinnerVariant =
                     variant === "outline" || variant === "ghost" ? "current" :
-                    variant === "secondary" ? "secondary" :
-                    "white";
-                
+                        variant === "secondary" ? "secondary" :
+                            "white";
+
                 return (
-                    <CircularProgress 
-                        size={spinnerSize} 
+                    <CircularProgress
+                        size={spinnerSize}
                         variant={spinnerVariant}
                         thickness={size === "sm" ? 2 : 3}
                     />
@@ -267,19 +339,34 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
             >
                 {/* Space background for space variant */}
                 {variant === "space" && (
-                    <SpaceBackground 
-                        ripples={ripples} 
-                        onRippleComplete={handleRippleComplete} 
+                    <SpaceBackground
+                        ripples={ripples}
+                        onRippleComplete={handleRippleComplete}
                     />
                 )}
-                
+
+                {/* Ripple effects for non-space variants */}
+                {variant !== "space" && (
+                    <RippleEffect
+                        ripples={ripples}
+                        onRippleComplete={handleRippleComplete}
+                        color={rippleColors[variant]}
+                    />
+                )}
+
                 {/* Button content with relative positioning */}
-                <span className={variant === "space" ? "tw-relative tw-z-10" : ""}>
+                <span className={cn(
+                    "tw-inline-flex tw-items-center tw-justify-center",
+                    variant === "space" ? "tw-relative tw-z-10" : ""
+                )}>
                     {renderStartElement()}
                 </span>
                 {children && <span className={variant === "space" ? "tw-relative tw-z-10" : ""}>{children}</span>}
                 {!isLoading && endIcon && (
-                    <span className={variant === "space" ? "tw-relative tw-z-10" : ""}>
+                    <span className={cn(
+                        "tw-inline-flex tw-items-center tw-justify-center",
+                        variant === "space" ? "tw-relative tw-z-10" : ""
+                    )}>
                         {endIcon}
                     </span>
                 )}
@@ -288,26 +375,26 @@ export const TailwindButton = forwardRef<HTMLButtonElement, TailwindButtonProps>
     }
 );
 
-TailwindButton.displayName = "TailwindButton";
+Button.displayName = "Button";
 
 // Export a typed component factory for common use cases
-export const Button = {
-    Primary: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="primary" {...props} />
+export const ButtonFactory = {
+    Primary: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="primary" {...props} />
     ),
-    Secondary: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="secondary" {...props} />
+    Secondary: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="secondary" {...props} />
     ),
-    Outline: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="outline" {...props} />
+    Outline: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="outline" {...props} />
     ),
-    Ghost: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="ghost" {...props} />
+    Ghost: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="ghost" {...props} />
     ),
-    Danger: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="danger" {...props} />
+    Danger: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="danger" {...props} />
     ),
-    Space: (props: Omit<TailwindButtonProps, "variant">) => (
-        <TailwindButton variant="space" {...props} />
+    Space: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="space" {...props} />
     ),
 };
