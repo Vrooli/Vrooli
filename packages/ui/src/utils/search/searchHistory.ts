@@ -148,10 +148,22 @@ export class SearchHistory {
         const existingHistory = SearchHistory.getSearchHistory(searchBarId, userId);
         const label = option.label;
         if (!(label in existingHistory) && Object.keys(existingHistory).length >= SearchHistory.MAX_HISTORY_LENGTH) {
-            const oldestKey = Object.keys(existingHistory).reduce((a, b) =>
-                existingHistory[a].timestamp < existingHistory[b].timestamp ? a : b,
-            );
-            delete existingHistory[oldestKey];
+            // Find oldest item more efficiently
+            let oldestKey = "";
+            let oldestTimestamp = Infinity;
+            
+            // Iterate once through all keys to find the oldest
+            for (const key in existingHistory) {
+                const timestamp = existingHistory[key].timestamp;
+                if (timestamp < oldestTimestamp) {
+                    oldestTimestamp = timestamp;
+                    oldestKey = key;
+                }
+            }
+            
+            if (oldestKey) {
+                delete existingHistory[oldestKey];
+            }
         }
         existingHistory[label] = {
             timestamp: Date.now(),

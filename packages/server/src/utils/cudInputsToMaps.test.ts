@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { uuid } from "@vrooli/shared";
+import { } from "@vrooli/shared";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import sinon from "sinon";
 import { DbProvider } from "../db/provider.js";
@@ -10,9 +10,9 @@ import { type IdsByAction, type IdsByType, type InputsByType } from "./types.js"
 
 describe("fetchAndMapPlaceholder", () => {
     let placeholderToIdMap;
-    const userId = uuid();
-    const premiumId = uuid();
-    const teamId = uuid();
+    const userId = "user-10001";
+    const premiumId = "premium-10002";
+    const teamId = "team-10003";
 
     beforeAll(async function beforeAll() {
         // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
@@ -60,7 +60,7 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should return undefined if object is not found", async () => {
-        const placeholder = `user|${uuid()}.prof|profile`;
+        const placeholder = `user|${"user-10004"}.prof|profile`;
 
         try {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
@@ -99,7 +99,7 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should handle valid objectType but invalid rootId", async () => {
-        const placeholder = `user|${uuid()}.prem|premium`;
+        const placeholder = `user|${"user-10005"}.prem|premium`;
         try {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
             expect.fail("Expected fetchAndMapPlaceholder to throw");
@@ -109,7 +109,7 @@ describe("fetchAndMapPlaceholder", () => {
     });
 
     it("should handle unnecessary placeholders (placeholders which contain the ID already)", async () => {
-        const noteId = uuid();
+        const noteId = "note-10006";
         const placeholder = `Note|${noteId}`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
@@ -119,10 +119,10 @@ describe("fetchAndMapPlaceholder", () => {
 
 describe("replacePlaceholdersInMap", () => {
     let placeholderToIdMap;
-    const userId = uuid();
-    const premiumId = uuid();
-    const teamId = uuid();
-    const noteId = uuid();
+    const userId = "user-10001";
+    const premiumId = "premium-10002";
+    const teamId = "team-10003";
+    const noteId = "note-10007";
 
     beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
@@ -205,8 +205,8 @@ describe("replacePlaceholdersInMap", () => {
     });
 
     it("should leave non-placeholder IDs unchanged", async () => {
-        const id1 = uuid();
-        const id2 = uuid();
+        const id1 = "id-10008";
+        const id2 = "id-10009";
         const testCases = [
             [id1, id1],
             [`User|${userId}.Premium|premium`, premiumId],
@@ -245,9 +245,9 @@ describe("replacePlaceholdersInMap", () => {
 
 describe("replacePlaceholdersInInputsById", () => {
     let placeholderToIdMap;
-    const userId = uuid();
-    const premiumId = uuid();
-    const teamId = uuid();
+    const userId = "user-10001";
+    const premiumId = "premium-10002";
+    const teamId = "team-10003";
 
     beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
@@ -353,9 +353,9 @@ describe("replacePlaceholdersInInputsById", () => {
 
 describe("replacePlaceholdersInInputsByType", () => {
     let placeholderToIdMap;
-    const userId = uuid();
-    const premiumId = uuid();
-    const teamId = uuid();
+    const userId = "user-10001";
+    const premiumId = "premium-10002";
+    const teamId = "team-10003";
 
     beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
@@ -490,10 +490,10 @@ describe("convertPlaceholders", () => {
     const initialIdsByType = {};
     const initialInputsById = {};
     const initialInputsByType = {};
-    const userId1 = uuid();
-    const userId2 = uuid();
-    const premiumId = uuid();
-    const teamId = uuid();
+    const userId1 = "user-10010";
+    const userId2 = "user-10011";
+    const premiumId = "premium-10012";
+    const teamId = "team-10013";
 
     beforeAll(async function beforeAll() {
         await DbProvider.deleteAll();
@@ -554,7 +554,7 @@ describe("convertPlaceholders", () => {
     });
 
     it("should not replace placeholders for objects that don't exist", async () => {
-        const userIdNotInDb = uuid();
+        const userIdNotInDb = "user-10014";
         const placeholder = `User|${userIdNotInDb}.Premium|premium`;
         idsByType = { "Premium": [placeholder] };
         idsByAction = { "Create": [placeholder] };

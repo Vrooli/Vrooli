@@ -22,49 +22,45 @@ describe("<IconFavicon />", () => {
         "https://subdomain.example.com:8080/path?query=value",
     ];
 
-    validUrls.forEach(url => {
-        it(`renders favicon for valid URL: ${url}`, () => {
-            const testId = "favicon-icon";
-            render(<IconFavicon href={url} data-testid={testId} />);
+    it.each(validUrls)("renders favicon for valid URL: %s", (url) => {
+        const testId = "favicon-icon";
+        render(<IconFavicon href={url} data-testid={testId} />);
 
-            const icon = screen.getByTestId(testId);
-            expect(icon).toBeDefined();
-            expect(icon.tagName.toLowerCase()).toBe("img");
+        const icon = screen.getByTestId(testId);
+        expect(icon).toBeDefined();
+        expect(icon.tagName.toLowerCase()).toBe("img");
 
-            const imgElement = icon as HTMLImageElement;
-            expect(imgElement.src).toBeDefined();
-            // The first source should be the apple-touch-icon
-            expect(imgElement.src).toContain(new URL(url).hostname);
-        });
+        const imgElement = icon as HTMLImageElement;
+        expect(imgElement.src).toBeDefined();
+        // The first source should be the apple-touch-icon
+        expect(imgElement.src).toContain(new URL(url).hostname);
     });
 
     // Test cases for invalid URLs
     const invalidUrls = [
-        "not-a-url",
-        "mailto:user@example.com",
-        "tel:+1234567890",
-        "",
-    ];
+        ["not-a-url", true],
+        ["mailto:user@example.com", false],
+        ["tel:+1234567890", false],
+        ["", true],
+    ] as const;
 
-    invalidUrls.forEach(url => {
-        it(`falls back to default icon for invalid URL: ${url}`, () => {
-            const testId = "favicon-icon";
-            render(<IconFavicon href={url} data-testid={testId} />);
+    it.each(invalidUrls)("falls back to default icon for invalid URL: %s", (url, shouldError) => {
+        const testId = "favicon-icon";
+        render(<IconFavicon href={url} data-testid={testId} />);
 
-            const icon = screen.getByTestId(testId);
-            expect(icon).toBeDefined();
-            expect(icon.tagName.toLowerCase()).toBe("svg");
+        const icon = screen.getByTestId(testId);
+        expect(icon).toBeDefined();
+        expect(icon.tagName.toLowerCase()).toBe("svg");
 
-            const useElement = icon.querySelector("use");
-            expect(useElement).toBeDefined();
-            expect(useElement?.getAttribute("href")).toContain("#Website");
+        const useElement = icon.querySelector("use");
+        expect(useElement).toBeDefined();
+        expect(useElement?.getAttribute("href")).toContain("#Website");
 
-            // Only expect console.error for URLs that actually throw when parsing
-            if (url === "not-a-url" || url === "") {
-                expect(console.error).toHaveBeenCalled();
-                expect(vi.mocked(console.error).mock.calls[0][0]).toContain("[IconFavicon] Invalid URL");
-            }
-        });
+        // Only expect console.error for URLs that actually throw when parsing
+        if (shouldError) {
+            expect(console.error).toHaveBeenCalled();
+            expect(vi.mocked(console.error).mock.calls[0][0]).toContain("[IconFavicon] Invalid URL");
+        }
     });
 
     // Test custom props

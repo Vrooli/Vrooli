@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
-import sinon from "sinon";
+import { expect, vi, beforeEach, afterEach, describe, it } from "vitest";
 import { hashString, randomString, validateCode } from "./codes.js";
 
 describe("randomString function", () => {
@@ -9,7 +8,7 @@ describe("randomString function", () => {
         const length = 10;
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         const result = randomString(length, chars);
-        expect(result).to.have.lengthOf(length);
+        expect(result).toHaveLength(length);
     });
 
     // Test to ensure the string uses only specified characters
@@ -18,7 +17,7 @@ describe("randomString function", () => {
         const chars = "ABC123";
         const result = randomString(length, chars);
         const isValid = [...result].every(char => chars.includes(char));
-        expect(isValid).to.be.true;
+        expect(isValid).toBe(true);
     });
 
     // Test for error thrown on invalid length parameters
@@ -26,7 +25,7 @@ describe("randomString function", () => {
     invalidLengths.forEach(length => {
         it(`should throw an error for invalid length: ${length}`, () => {
             // @ts-ignore: Testing runtime scenario
-            expect(() => randomString(length)).to.throw();
+            expect(() => randomString(length)).toThrow();
         });
     });
 
@@ -34,7 +33,7 @@ describe("randomString function", () => {
     const invalidChars = ["", "A".repeat(257)]; // Empty string and string longer than 256 characters
     invalidChars.forEach(chars => {
         it(`should throw an error for invalid chars set: ${chars.length} characters long`, () => {
-            expect(() => randomString(10, chars)).to.throw();
+            expect(() => randomString(10, chars)).toThrow();
         });
     });
 
@@ -45,21 +44,20 @@ describe("randomString function", () => {
 
 describe("validateCode function", () => {
     const storedCode = "123456";
-    let clock: sinon.SinonFakeTimers;
-    const timeoutInMs = 100000;
-
     beforeEach(() => {
-        clock = sinon.useFakeTimers(new Date());
+        vi.useFakeTimers();
     });
 
     afterEach(() => {
-        clock.restore();
+        vi.useRealTimers();
     });
+    const timeoutInMs = 100000;
+
 
     it("should return true if providedCode matches storedCode and is within timeout", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        clock.tick(timeoutInMs - 1000);
+        vi.advanceTimersByTime(timeoutInMs - 1000);
 
         expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.true;
     });
@@ -67,49 +65,49 @@ describe("validateCode function", () => {
     it("should return false if providedCode matches storedCode but is outside timeout", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        clock.tick(timeoutInMs + 1000);
+        vi.advanceTimersByTime(timeoutInMs + 1000);
 
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.false;
+        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).toBe(false);
     });
 
     it("should return false if providedCode does not match storedCode", () => {
         const providedCode = "654321";
         const dateRequested = new Date();
 
-        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).to.be.false;
+        expect(validateCode(providedCode, storedCode, dateRequested, timeoutInMs)).toBe(false);
     });
 
     it("should return false if either providedCode or storedCode is null", () => {
         const dateRequested = new Date();
-        expect(validateCode(null, storedCode, dateRequested, timeoutInMs)).to.be.false;
-        expect(validateCode(storedCode, null, dateRequested, timeoutInMs)).to.be.false;
+        expect(validateCode(null, storedCode, dateRequested, timeoutInMs)).toBe(false);
+        expect(validateCode(storedCode, null, dateRequested, timeoutInMs)).toBe(false);
     });
 
     it("should return false if dateRequested is null", () => {
         const providedCode = "123456";
-        expect(validateCode(providedCode, storedCode, null, timeoutInMs)).to.be.false;
+        expect(validateCode(providedCode, storedCode, null, timeoutInMs)).toBe(false);
     });
 
     it("should return false is timeout is null", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
         // @ts-ignore: Testing runtime scenario
-        expect(validateCode(providedCode, storedCode, dateRequested, null)).to.be.false;
+        expect(validateCode(providedCode, storedCode, dateRequested, null)).toBe(false);
     });
 
     it("should return false if timeout is less than 0", () => {
         const providedCode = "123456";
         const dateRequested = new Date();
-        expect(validateCode(providedCode, storedCode, dateRequested, -1)).to.be.false;
+        expect(validateCode(providedCode, storedCode, dateRequested, -1)).toBe(false);
     });
 
     // Additional test for robustness: check behavior when dateRequested is significantly in the past
     it("should return false if dateRequested is far in the past (well outside timeoutInMs)", () => {
         const providedCode = "123456";
         const pastDate = new Date();
-        clock.tick(timeoutInMs * 2); // Double the timeout
+        vi.advanceTimersByTime(timeoutInMs * 2); // Double the timeout
 
-        expect(validateCode(providedCode, storedCode, pastDate, timeoutInMs)).to.be.false;
+        expect(validateCode(providedCode, storedCode, pastDate, timeoutInMs)).toBe(false);
     });
 });
 

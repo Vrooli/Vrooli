@@ -94,8 +94,9 @@ describe("TranslatedTextInput", () => {
         },
     ];
 
-    testCases.forEach(({ name, initialValues, language, newValue, expectedValue }) => {
-        it(`renders TranslatedTextInput and handles change with ${name}`, async () => {
+    it.each(testCases)(
+        "renders TranslatedTextInput and handles change with $name",
+        async ({ initialValues, language, newValue, expectedValue }) => {
             render(
                 <Formik initialValues={initialValues} onSubmit={vi.fn()}>
                     {({ values }) => (
@@ -116,6 +117,6 @@ describe("TranslatedTextInput", () => {
             const formValues = JSON.parse(screen.getByTestId("form-values").textContent || "{}");
             const updatedTranslation = formValues.translations?.find(t => t.language === language);
             expect(updatedTranslation?.testName).toBe(expectedValue);
-        });
-    });
+        }
+    );
 });

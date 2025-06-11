@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { HOURS_2_MS, MINUTES_1_MS, MINUTES_5_MS, RunTriggeredFrom, SECONDS_10_MS, type Success, type TaskStatus, type TaskStatusInfo } from "@local/shared";
+import { HOURS_2_MS, MINUTES_1_MS, MINUTES_5_MS, RunTriggeredFrom, SECONDS_10_MS, type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
 import type { ActiveTaskRegistryLimits } from "../activeTaskRegistry.js";
 import { QueueService } from "../queues.js";
 import { QueueTaskType, type RunTask } from "../taskTypes.js";

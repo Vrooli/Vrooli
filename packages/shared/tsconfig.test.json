@@ -2,8 +2,6 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "types": [
-            "mocha",
-            "chai",
             "node"
         ],
         "sourceMap": true

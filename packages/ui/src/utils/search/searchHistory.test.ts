@@ -277,16 +277,22 @@ describe("SearchHistory", () => {
         const maxLength = SearchHistory["MAX_HISTORY_LENGTH"];
         const userId = "user1";
 
-        // Add 500 items
+        // Build a full history object directly to avoid 500 sequential operations
+        const fullHistory: { [label: string]: { timestamp: number; option: AutocompleteOption } } = {};
         for (let i = 1; i <= maxLength; i++) {
-            const option = { label: `option${i}`, __typename: "SomeType" } as unknown as AutocompleteOption;
-            SearchHistory.addSearchHistoryItem(searchBarId, userId, option);
+            fullHistory[`option${i}`] = {
+                timestamp: 100 + i, // option1 has oldest timestamp
+                option: { label: `option${i}`, __typename: "SomeType", isFromHistory: true } as unknown as AutocompleteOption
+            };
         }
+        
+        // Set the full history at once
+        localStorage.setItem(`${SearchHistory["SEARCH_HISTORY_PREFIX"]}${searchBarId}-${userId}`, JSON.stringify(fullHistory));
 
         // Capture initial keys
         const initialKeys = Object.keys(SearchHistory.getSearchHistory(searchBarId, userId));
 
-        // Add 501st item
+        // Add 501st item - this is what we're actually testing
         const newOption = { label: "newOption", __typename: "SomeType" } as unknown as AutocompleteOption;
         SearchHistory.addSearchHistoryItem(searchBarId, userId, newOption);
 
@@ -296,7 +302,7 @@ describe("SearchHistory", () => {
 
         expect(updatedKeys.length).toBe(maxLength);           // Length stays at 500
         expect(updatedKeys).to.include("newOption");             // New item is added
-        expect(initialKeys.filter(k => !updatedKeys.includes(k)).length).toBe(1); // One item removed
+        expect(updatedKeys).not.to.include("option1");        // option1 should be removed (oldest timestamp)
     });
 
     it("should add items and then update their bookmarks correctly", () => {

@@ -3,7 +3,12 @@ import moment from "moment";
 import type { Schedule, ScheduleException, ScheduleRecurrence } from "../api/types.js";
 import { HOURS_2_MS } from "../consts/numbers.js";
 import { DUMMY_ID, generatePublicId } from "../id/index.js";
-import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, validateTimeFrame } from "./schedules.js";
+import { applyExceptions, calculateNextDailyOccurrence, calculateNextMonthlyOccurrence, calculateNextWeeklyOccurrence, calculateNextYearlyOccurrence, calculateOccurrences, jumpToFirstRelevantDailyOccurrence, jumpToFirstRelevantMonthlyOccurrence, jumpToFirstRelevantWeeklyOccurrence, jumpToFirstRelevantYearlyOccurrence, preloadMomentTimezone, validateTimeFrame } from "./schedules.js";
+
+// Preload moment-timezone once for all tests
+beforeAll(async () => {
+    await preloadMomentTimezone();
+});
 
 describe("validateTimeFrame", () => {
     let consoleErrorSpy: any;

@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import jwt from "jsonwebtoken";
-import sinon from "sinon";
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { type SessionData, type SessionToken } from "../types.js";
@@ -16,12 +15,12 @@ let testUser: { id: string };
 let testAuth: { id: string; user_id: string };
 
 describe("AuthTokensService", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorSpy: any;
+    let loggerInfoSpy: any;
 
     beforeAll(() => {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
     });
 
     beforeEach(async function beforeEach() {
@@ -29,14 +28,14 @@ describe("AuthTokensService", () => {
         // Create test user and auth for all tests
         testUser = await DbProvider.get().user.create({
             data: {
-                id: uuid(),
+                id: "user-9001",
                 name: "Test User",
                 theme: "light",
             },
         });
         testAuth = await DbProvider.get().user_auth.create({
             data: {
-                id: uuid(),
+                id: "auth-9002",
                 user_id: testUser.id,
                 provider: "local",
             },
@@ -46,8 +45,8 @@ describe("AuthTokensService", () => {
     afterAll(async function afterAll() {
         await DbProvider.deleteAll();
 
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorSpy.mockRestore();
+        loggerInfoSpy.mockRestore();
     });
 
     describe("Singleton Behavior", () => {
@@ -108,7 +107,7 @@ describe("AuthTokensService", () => {
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9003",
                         },
                     ] as SessionUser[],
                 };
@@ -119,9 +118,9 @@ describe("AuthTokensService", () => {
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9005",
                             session: {
-                                id: uuid(),
+                                id: "session-9004",
                             },
                         },
                     ] as SessionUser[],
@@ -130,11 +129,11 @@ describe("AuthTokensService", () => {
             });
 
             it("session not in database", async () => {
-                const nonExistingSessionId = uuid(); // Generate a different session ID
+                const nonExistingSessionId = "session-9006"; // Generate a different session ID
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9007",
                             session: {
                                 id: nonExistingSessionId,
                                 lastRefreshAt,
@@ -147,11 +146,11 @@ describe("AuthTokensService", () => {
             });
 
             it("session is revoked", async () => {
-                const revokedSessionId = uuid(); // Use uuid() instead of baseSessionId + "-revoked"
+                const revokedSessionId = "session-9008"; // Use hard-coded ID instead of baseSessionId + "-revoked"
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9009",
                             session: {
                                 id: revokedSessionId,
                                 lastRefreshAt,
@@ -173,11 +172,11 @@ describe("AuthTokensService", () => {
             });
 
             it("session is expired", async () => {
-                const expiredSessionId = uuid(); // Use uuid() instead of baseSessionId + "-expired"
+                const expiredSessionId = "session-9010"; // Use hard-coded ID instead of baseSessionId + "-expired"
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9011",
                             session: {
                                 id: expiredSessionId,
                                 lastRefreshAt,
@@ -199,11 +198,11 @@ describe("AuthTokensService", () => {
             });
 
             it("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
-                const mismatchSessionId = uuid(); // Use uuid() instead of baseSessionId + "-mismatch"
+                const mismatchSessionId = "session-9012"; // Use hard-coded ID instead of baseSessionId + "-mismatch"
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9013",
                             session: {
                                 id: mismatchSessionId,
                                 lastRefreshAt,
@@ -227,11 +226,11 @@ describe("AuthTokensService", () => {
 
         describe("true", () => {
             it("all conditions are met", async () => {
-                const validSessionId = uuid(); // Use uuid() instead of baseSessionId + "-valid"
+                const validSessionId = "session-9014"; // Use hard-coded ID instead of baseSessionId + "-valid"
                 const payload: SessionData = {
                     users: [
                         {
-                            id: uuid(),
+                            id: "user-9015",
                             session: {
                                 id: validSessionId,
                                 lastRefreshAt,
@@ -438,9 +437,9 @@ describe("AuthTokensService", () => {
         });
 
         it("handles token with complex user data structure correctly", async function testComplexUserData() {
-            const sessionId = uuid();
+            const sessionId = "session-9016";
             const lastRefreshAt = new Date();
-            const userId = uuid();
+            const userId = "user-9017";
 
             // Create session for this test
             await DbProvider.get().session.create({
@@ -539,7 +538,7 @@ describe("AuthTokensService", () => {
         });
 
         it("refreshes the token if access token expired and can be refreshed", async function testTokenRefresh() {
-            const sessionId = uuid();
+            const sessionId = "session-9021";
             const lastRefreshAt = new Date();
 
             const payload: SessionToken = {
@@ -549,7 +548,7 @@ describe("AuthTokensService", () => {
                 timeZone: "UTC",
                 users: [
                     {
-                        id: uuid(),
+                        id: "user-9018",
                         session: {
                             id: sessionId,
                             lastRefreshAt: lastRefreshAt.toISOString(),
@@ -607,7 +606,7 @@ describe("AuthTokensService", () => {
             const initialTime = 1000000000000;
             const dateNowStub = sinon.stub(Date, "now").returns(initialTime);
 
-            const sessionId = uuid();
+            const sessionId = "session-9022";
             const lastRefreshAt = new Date(initialTime - DAYS_30_MS).toISOString();
 
             const payload: SessionToken = {
@@ -617,7 +616,7 @@ describe("AuthTokensService", () => {
                 timeZone: "UTC",
                 users: [
                     {
-                        id: uuid(),
+                        id: "user-9023",
                         session: {
                             id: sessionId,
                             lastRefreshAt,
@@ -692,7 +691,7 @@ describe("AuthTokensService", () => {
                 [ApiKeyPermission.ReadAuth]: false,
                 [ApiKeyPermission.WriteAuth]: false,
             };
-            const userId = uuid();
+            const userId = "user-9019";
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
@@ -725,7 +724,7 @@ describe("AuthTokensService", () => {
                 [ApiKeyPermission.ReadAuth]: false,
                 [ApiKeyPermission.WriteAuth]: false,
             };
-            const userId = uuid();
+            const userId = "user-9020";
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 

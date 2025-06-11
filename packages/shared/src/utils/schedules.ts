@@ -8,17 +8,32 @@ const OCCURRENCE_LOOP_LIMIT = 5000;
 // Native Date objects don't handle time zones well, so we use moment-timezone instead.
 // This must be loaded asynchronously so the UI can code-split it.
 let moment;
+let momentPromise: Promise<any> | null = null;
+
 async function ensureMomentTimezone() {
-    if (!moment) {
-        moment = (await import("moment-timezone")).default;
-        // if (typeof window !== "undefined") {
-        //     // Client-side: Use dynamic import
-        //     moment = (await import("moment-timezone")).default;
-        // } else {
-        //     // Server-side: Use regular require
-        //     moment = require("moment-timezone");
-        // }
+    if (moment) return;
+    
+    // If we're already loading, wait for that promise
+    if (momentPromise) {
+        await momentPromise;
+        return;
     }
+    
+    // Start loading and cache the promise
+    momentPromise = import("moment-timezone").then(m => {
+        moment = m.default;
+        return moment;
+    });
+    
+    await momentPromise;
+}
+
+/**
+ * Preload moment-timezone for performance optimization.
+ * Useful for tests or when you know you'll need it soon.
+ */
+export async function preloadMomentTimezone(): Promise<void> {
+    await ensureMomentTimezone();
 }
 
 /**
@@ -103,22 +118,21 @@ export async function calculateNextMonthlyOccurrence(currentStartTime: Date, rec
     // Convert the current start time to the desired time zone.
     const currentMoment = moment.utc(currentStartTime);
 
-    const nextOccurrence = currentMoment.clone();
     if (recurrence.dayOfMonth) {
         // Check if the current day of the month is already past the desired dayOfMonth.
         if (currentMoment.date() >= recurrence.dayOfMonth) {
             // Advance by the interval
-            nextOccurrence.add(recurrence.interval, "months");
+            currentMoment.add(recurrence.interval, "months");
         }
         // Set to the desired dayOfMonth or the last day of the next month if it doesn't exist
-        nextOccurrence.date(Math.min(recurrence.dayOfMonth, nextOccurrence.daysInMonth()));
+        currentMoment.date(Math.min(recurrence.dayOfMonth, currentMoment.daysInMonth()));
     } else {
         // If there is no dayOfMonth specified, just add the interval months
-        nextOccurrence.add(recurrence.interval, "months");
+        currentMoment.add(recurrence.interval, "months");
     }
 
     // Convert the result to the desired time zone and return.
-    return nextOccurrence.tz(timeZone).toDate();
+    return currentMoment.tz(timeZone).toDate();
 }
 
 /**
@@ -135,37 +149,30 @@ export async function calculateNextYearlyOccurrence(currentStartTime: Date, recu
     // Keep the current start time in UTC.
     const currentMoment = moment.utc(currentStartTime);
 
-    // Capture the time components to apply them later
-    const timeComponents = {
-        hours: currentMoment.hours(),
-        minutes: currentMoment.minutes(),
-        seconds: currentMoment.seconds(),
-    };
-
-    let nextOccurrence: Moment;
     // If month and dayOfMonth are set, calculate the occurrence for the current year.
     if (recurrence.month !== null && recurrence.month !== undefined && recurrence.dayOfMonth !== null && recurrence.dayOfMonth !== undefined) {
-        // Create a moment for the potential next occurrence this year, keeping the time
-        nextOccurrence = currentMoment.clone().month(recurrence.month).startOf("month").add(timeComponents);
-
+        // Create a moment for the potential next occurrence this year
+        const nextOccurrence = currentMoment.clone();
+        nextOccurrence.month(recurrence.month);
+        
         // Set to the desired dayOfMonth or the last day of the month if it doesn't exist
         const daysInMonth = nextOccurrence.daysInMonth();
         nextOccurrence.date(Math.min(recurrence.dayOfMonth, daysInMonth));
 
-        // If the date has already passed, then set the next occurrence to next year's month
-        if (nextOccurrence.isSameOrBefore(currentMoment, "day")) {
-            // Add years first, then set month and day to avoid rolling over
-            nextOccurrence.add(recurrence.interval, "years").month(recurrence.month).startOf("month").add(timeComponents);
-            const daysInNextOccurrenceMonth = nextOccurrence.daysInMonth();
-            nextOccurrence.date(Math.min(recurrence.dayOfMonth, daysInNextOccurrenceMonth));
+        // If the date has already passed, then set the next occurrence to next interval
+        if (nextOccurrence.isSameOrBefore(currentMoment)) {
+            nextOccurrence.add(recurrence.interval, "years");
+            // Re-check days in month after adding years (for leap years)
+            const daysInNextMonth = nextOccurrence.clone().month(recurrence.month).daysInMonth();
+            nextOccurrence.month(recurrence.month).date(Math.min(recurrence.dayOfMonth, daysInNextMonth));
         }
+        
+        return nextOccurrence.tz(timeZone).toDate();
     } else {
         // If no specific month and dayOfMonth, add the interval to the year while preserving the original date and time.
-        nextOccurrence = currentMoment.clone().add(recurrence.interval, "years");
+        currentMoment.add(recurrence.interval, "years");
+        return currentMoment.tz(timeZone).toDate();
     }
-
-    // Convert the result to the desired time zone and return.
-    return nextOccurrence.tz(timeZone).toDate();
 }
 
 /**
@@ -281,32 +288,32 @@ export async function jumpToFirstRelevantMonthlyOccurrence(
 ): Promise<Date> {
     await ensureMomentTimezone();
 
-    const relevantStart = moment.utc(scheduleStart);
-    let timeframeStartMoment = moment.utc(timeframeStart);
+    const scheduleStartMoment = moment.utc(scheduleStart);
+    const timeframeStartMoment = moment.utc(timeframeStart);
 
-    // Check if the timeframe start is before the schedule start
-    if (timeframeStartMoment.isBefore(relevantStart)) {
-        timeframeStartMoment = relevantStart.clone();
-    }
+    // Use the later of schedule start or timeframe start
+    const effectiveStart = timeframeStartMoment.isAfter(scheduleStartMoment) 
+        ? timeframeStartMoment.clone()
+        : scheduleStartMoment.clone();
 
-    const nextOccurrence = relevantStart.clone();
+    // Calculate months difference
+    const monthsDiff = effectiveStart.diff(scheduleStartMoment, "months");
+    const intervalsPassed = Math.ceil(monthsDiff / recurrence.interval);
+    
+    // Jump to the calculated month
+    const nextOccurrence = scheduleStartMoment.clone().add(intervalsPassed * recurrence.interval, "months");
 
     if (recurrence.dayOfMonth) {
-        // Set to the first occurrence of the day of the month after the timeframe start
-        nextOccurrence.date(recurrence.dayOfMonth);
-        if (nextOccurrence.isBefore(timeframeStartMoment) || nextOccurrence.date() !== recurrence.dayOfMonth) {
+        // Adjust to the specific day of month
+        const maxDay = nextOccurrence.daysInMonth();
+        nextOccurrence.date(Math.min(recurrence.dayOfMonth, maxDay));
+        
+        // If we're still before the effective start, jump one more interval
+        if (nextOccurrence.isBefore(effectiveStart)) {
             nextOccurrence.add(recurrence.interval, "months");
+            const maxDayNext = nextOccurrence.daysInMonth();
+            nextOccurrence.date(Math.min(recurrence.dayOfMonth, maxDayNext));
         }
-    } else {
-        // If dayOfMonth isn't specified, simply set to the same day on the next interval that's on or after timeframe start
-        while (nextOccurrence.isBefore(timeframeStartMoment)) {
-            nextOccurrence.add(recurrence.interval, "months");
-        }
-    }
-
-    // Ensure the next occurrence falls on or after the timeframe start
-    while (nextOccurrence.isBefore(timeframeStartMoment)) {
-        nextOccurrence.add(recurrence.interval, "months");
     }
 
     // Convert the result to the desired time zone and return.
@@ -411,17 +418,25 @@ export function applyExceptions(
     duration: number,
     timeZone: string,
 ): { start: Date; end: Date } | null | undefined {
+    // Early exit if no exceptions
+    if (!schedule.exceptions || schedule.exceptions.length === 0) {
+        return undefined;
+    }
+
+    const currentTimeMs = currentStartTime.getTime();
+    
     // Iterate through the list of exceptions in the schedule
     for (const exception of schedule.exceptions) {
-        const exceptionOriginalStartTime = new Date(exception.originalStartTime.toLocaleString("en-US", { timeZone }));
+        // Direct comparison since both should be in the same timezone already
+        const exceptionTimeMs = new Date(exception.originalStartTime).getTime();
 
         // Check for exceptions within a 1-minute window of the current start time
-        if (Math.abs(exceptionOriginalStartTime.getTime() - currentStartTime.getTime()) < MINUTES_1_MS) {
+        if (Math.abs(exceptionTimeMs - currentTimeMs) < MINUTES_1_MS) {
             // The occurrence has an exception
             if (exception.newStartTime || exception.newEndTime) {
                 // If there's a new start time, use it, otherwise set it original start time
-                const newStart = exception.newStartTime ? new Date(exception.newStartTime) : exceptionOriginalStartTime;
-                // If there's a new end time, use it, otherwise set it to 1 hour after the new start time
+                const newStart = exception.newStartTime ? new Date(exception.newStartTime) : new Date(exceptionTimeMs);
+                // If there's a new end time, use it, otherwise set it to duration after the new start time
                 const newEnd = exception.newEndTime ? new Date(exception.newEndTime) : new Date(newStart.getTime() + duration);
 
                 return { start: newStart, end: newEnd }; // Return the rescheduled occurrence
@@ -477,6 +492,11 @@ export async function calculateOccurrences(
 
     const scheduleStartTime = new Date(schedule.startTime); // Direct Date object in UTC
     const scheduleEndTime = new Date(schedule.endTime);   // Direct Date object in UTC
+    
+    // Early exit if schedule is entirely outside timeframe
+    if (scheduleEndTime < timeframeStart || scheduleStartTime > timeframeEnd) {
+        return occurrences;
+    }
 
     // Handle schedules with recurrences
     if (schedule.recurrences && schedule.recurrences.length > 0) {

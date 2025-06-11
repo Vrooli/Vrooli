@@ -39,30 +39,18 @@ function createSession(languages: string[] | null | undefined) {
 }
 
 describe("loadLocale", () => {
-    it("should load the specified valid locale", async () => {
-        const locale = await loadLocale("de");
-        expect(locale.code).toEqual("de");
-    });
+    const localeTestCases = [
+        { input: "de", expected: "de", description: "load the specified valid locale" },
+        { input: "unknown-locale", expected: "en-US", description: "fallback to en-US when an unknown locale is requested" },
+        { input: undefined, expected: "en-US", description: "load en-US by default when no locale is specified" },
+        { input: "en-GB", expected: "en-GB", description: "handle the loading of locales with region codes" },
+        { input: "en-ZZ", expected: "en-US", description: "pick default region code when requested one doesn't exist" },
+    ];
 
-    it("should fallback to en-US when an unknown locale is requested", async () => {
-        const locale = await loadLocale("unknown-locale");
-        expect(locale.code).toEqual("en-US");
-    });
-
-    it("should load en-US by default when no locale is specified", async () => {
+    it.each(localeTestCases)("should $description", async ({ input, expected }) => {
         // @ts-ignore: Testing runtime scenario
-        const locale = await loadLocale(undefined);
-        expect(locale.code).toEqual("en-US");
-    });
-
-    it("should handle the loading of locales with region codes", async () => {
-        const locale = await loadLocale("en-GB");
-        expect(locale.code).toEqual("en-GB");
-    });
-
-    it("should pick default region code when requested one doesn't exist", async () => {
-        const locale = await loadLocale("en-ZZ");
-        expect(locale.code).toEqual("en-US"); // See the "en" entry in localeLoaders. Note how it points to "en-US"
+        const locale = await loadLocale(input);
+        expect(locale.code).toEqual(expected);
     });
 });
 

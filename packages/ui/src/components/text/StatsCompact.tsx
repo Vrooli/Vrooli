@@ -1,10 +1,10 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
-import { ReactionFor, type ListObject } from "@vrooli/shared";
+import { ReactionFor, setDotNotationValue, type ListObject } from "@vrooli/shared";
 import { useCallback, useMemo } from "react";
 import { IconCommon } from "../../icons/Icons.js";
-import { getCounts, getYou } from "../../utils/display/listTools.js";
+import { getCounts, getYou, getYouDot } from "../../utils/display/listTools.js";
 import { ReportsLink } from "../buttons/ReportsLink.js";
 import { VoteButton } from "../buttons/VoteButton.js";
 import { type StatsCompactProps } from "./types.js";
@@ -31,11 +31,22 @@ export function StatsCompact<T extends ListObject>({
 
     const handleChange = useCallback(function handleChangeCallback(newEmoji: string | null, newScore: number) {
         if (!object) return;
-        handleObjectUpdate({
-            ...object,
-            reaction: newEmoji, // TODO
-            score: newScore, //TODO
-        });
+        // Try to find existing reaction path
+        let reactionPath = getYouDot(object, "reaction");
+        
+        // If no path found, determine where to store the reaction based on object type
+        if (!reactionPath) {
+            // For versioned objects, reactions go in root.you.reaction
+            if (object.root?.id) {
+                reactionPath = "root.you.reaction";
+            } else {
+                // For direct objects, reactions go in you.reaction  
+                reactionPath = "you.reaction";
+            }
+        }
+        
+        const updatedObject = setDotNotationValue(object, reactionPath, newEmoji);
+        handleObjectUpdate(updatedObject);
     }, [object, handleObjectUpdate]);
 
     return (

@@ -33,7 +33,6 @@
         "declaration": true,
         "verbatimModuleSyntax": true,
         "types": [
-            "mocha",
         ]
     },
     "include": [
