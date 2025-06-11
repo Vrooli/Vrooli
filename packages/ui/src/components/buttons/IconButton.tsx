@@ -1,155 +1,168 @@
-import React, { type ButtonHTMLAttributes, type MouseEvent, type ReactNode, forwardRef, useCallback, useState } from "react";
+import React, { type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
+import { forwardRef, useCallback, useMemo } from "react";
 import { cn } from "../../utils/tailwind-theme.js";
+import { useRippleEffect } from "../../hooks/index.js";
+import {
+    ICON_BUTTON_COLORS,
+    buildIconButtonClasses,
+    createIconRippleStyle,
+    getNumericSize,
+    getRippleColor,
+    SPACE_BACKGROUND_STYLES,
+    type IconButtonVariant,
+    type IconButtonSize,
+} from "./iconButtonStyles.js";
 
-// Define variant types
-export type IconButtonVariant = "solid" | "transparent" | "space";
-export type IconButtonSize = "sm" | "md" | "lg" | number;
+// Export types from styles file to maintain public API
+export type { IconButtonVariant, IconButtonSize } from "./iconButtonStyles.js";
 
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+    /** Visual style variant of the icon button */
     variant?: IconButtonVariant;
+    /** Size of the icon button (predefined or custom number) */
     size?: IconButtonSize;
+    /** Icon button content (typically an icon component) */
     children: ReactNode;
+    /** Additional CSS classes */
     className?: string;
 }
 
-// Size mappings for predefined sizes
-const sizeMap: Record<string, number> = {
-    sm: 32,
-    md: 48,
-    lg: 64,
-};
-
-// Helper function to get numeric size
-function getNumericSize(size: IconButtonSize): number {
-    if (typeof size === "number") return size;
-    return sizeMap[size] || sizeMap.md;
-}
-
-// Helper function to calculate padding based on size
-function calculatePadding(size: number): string {
-    if (size <= 16) return "tw-p-0";
-    if (size <= 32) return "tw-p-1";
-    if (size <= 48) return "tw-p-2";
-    return "tw-p-3";
-}
-
-// Ripple effect interface
-interface Ripple {
-    id: number;
-    x: number;
-    y: number;
-}
-
-// Ripple colors for each variant - using simple rgba values
-const rippleColors: Record<IconButtonVariant, string> = {
-    solid: "rgba(255, 255, 255, 0.5)",
-    transparent: "rgba(100, 100, 100, 0.3)",
-    space: "rgba(15, 170, 170, 0.8)",
-};
-
-// Space background component
-const SpaceBackground = ({
-    ripples,
-    onRippleComplete
-}: {
-    ripples: Ripple[];
-    onRippleComplete: (id: number) => void;
-}) => {
+/**
+ * Icon wrapper component to ensure icons inherit button state colors and scale properly
+ * Provides consistent icon styling across all variants with size-responsive scaling
+ */
+const ButtonIcon = ({ children, size }: { children: ReactNode; size: number }) => {
+    // Calculate icon size based on button size - roughly 50% of button size
+    const iconSize = Math.max(16, Math.min(32, Math.round(size * 0.5)));
+    
     return (
-        <>
-            {/* Border that matches the gradient theme */}
-            <div
-                className="tw-absolute tw-inset-0 tw-rounded-full"
-                style={{
-                    background: `linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%)`,
-                }}
-            />
-
-            {/* Clean gradient background with subtle space feel */}
-            <div
-                className="tw-absolute tw-inset-0.5 tw-rounded-full"
-                style={{
-                    background: `linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%)`,
-                }}
-            />
-
-            {/* Subtle glow effect */}
-            <div
-                className="tw-absolute tw-inset-0.5 tw-rounded-full tw-opacity-60"
-                style={{
-                    background: `radial-gradient(ellipse at center, rgba(22, 163, 97, 0.15) 0%, transparent 70%)`,
-                }}
-            />
-
-            {/* Animated gradient sweep on hover */}
-            <div
-                className="tw-absolute tw-inset-0.5 tw-rounded-full tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none"
-                style={{
-                    background: `linear-gradient(110deg, transparent 25%, rgba(15, 170, 170, 0.4) 45%, rgba(22, 163, 97, 0.4) 55%, transparent 75%)`,
-                    backgroundSize: '200% 100%',
-                    animation: 'iconButtonGradientSweep 3s ease-in-out infinite',
-                }}
-            />
-
-            {/* Click ripple effects */}
-            {ripples.map((ripple) => (
-                <div
-                    key={ripple.id}
-                    className="tw-absolute tw-pointer-events-none tw-rounded-full"
-                    style={{
-                        left: ripple.x - 25,
-                        top: ripple.y - 25,
-                        width: 50,
-                        height: 50,
-                        background: 'radial-gradient(circle, rgba(15, 170, 170, 0.8) 0%, rgba(22, 163, 97, 0.4) 50%, transparent 70%)',
-                        animation: 'iconButtonRippleExpand 0.6s ease-out forwards',
-                    }}
-                    onAnimationEnd={() => onRippleComplete(ripple.id)}
-                />
-            ))}
-        </>
+        <span 
+            className="tw-inline-flex [&>svg]:tw-fill-current"
+            style={{
+                fontSize: iconSize,
+                width: iconSize,
+                height: iconSize,
+            }}
+        >
+            {React.cloneElement(children as React.ReactElement, {
+                size: iconSize,
+            })}
+        </span>
     );
 };
 
-// Generic Ripple component
+/**
+ * Generic Ripple Effect Component
+ * Reusable ripple effect for all icon button variants except space
+ */
 const RippleEffect = ({
     ripples,
     onRippleComplete,
     color
 }: {
-    ripples: Ripple[];
+    ripples: Array<{ id: number; x: number; y: number }>;
     onRippleComplete: (id: number) => void;
     color: string;
+}) => (
+    <>
+        {ripples.map((ripple) => (
+            <div
+                key={ripple.id}
+                className="tw-absolute tw-pointer-events-none tw-rounded-full"
+                style={{
+                    ...createIconRippleStyle(ripple, color),
+                    animation: 'iconButtonRippleExpand 0.6s ease-out forwards',
+                }}
+                onAnimationEnd={() => onRippleComplete(ripple.id)}
+            />
+        ))}
+    </>
+);
+
+/**
+ * Space Background Component
+ * Special background effects for the space variant with anti-aliasing optimizations
+ */
+const SpaceBackground = ({
+    ripples,
+    onRippleComplete
+}: {
+    ripples: Array<{ id: number; x: number; y: number }>;
+    onRippleComplete: (id: number) => void;
 }) => {
-    // Create a faded version of the color - simplified approach
-    const fadeColor = color.includes('rgba') 
-        ? color.replace(/[\d.]+(?=\))/, '0.1')
-        : 'rgba(100, 100, 100, 0.1)'; // Safe fallback
+    // Memoize static styles for performance
+    const styles = useMemo(() => SPACE_BACKGROUND_STYLES, []);
     
     return (
         <>
-            {ripples.map((ripple) => (
-                <div
-                    key={ripple.id}
-                    className="tw-absolute tw-pointer-events-none tw-rounded-full"
-                    style={{
-                        left: ripple.x - 25,
-                        top: ripple.y - 25,
-                        width: 50,
-                        height: 50,
-                        background: `radial-gradient(circle, ${color} 0%, ${fadeColor} 50%, transparent 70%)`,
-                        animation: 'iconButtonRippleExpand 0.6s ease-out forwards',
-                    }}
-                    onAnimationEnd={() => onRippleComplete(ripple.id)}
-                />
-            ))}
+            {/* Border gradient background - using pseudo-element approach */}
+            <div
+                className="tw-absolute tw-inset-0 tw-rounded-full -tw-z-10"
+                style={styles.borderGradient}
+            />
+
+            {/* Main background with combined gradients and anti-aliasing */}
+            <div
+                className="tw-absolute tw-inset-0.5 tw-rounded-full tw-antialiased"
+                style={{
+                    ...styles.main,
+                    // Force hardware acceleration for smoother rendering
+                    willChange: 'transform',
+                    transform: 'translateZ(0)',
+                }}
+            />
+
+            {/* Animated gradient sweep on hover - pauses on active */}
+            <div
+                className="tw-absolute tw-inset-0.5 tw-rounded-full tw-opacity-0 
+                         group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 
+                         tw-pointer-events-none group-active:tw-animation-pause tw-antialiased"
+                style={{
+                    ...styles.sweep,
+                    // Ensure smooth animation
+                    willChange: 'opacity, background-position',
+                    transform: 'translateZ(0)',
+                }}
+            />
+
+            {/* Click ripple effects */}
+            <RippleEffect
+                ripples={ripples}
+                onRippleComplete={onRippleComplete}
+                color={ICON_BUTTON_COLORS.RIPPLE.space}
+            />
         </>
     );
 };
 
 /**
- * A versatile icon button component with multiple variants
- * Supports solid (3D physical), transparent, and space-themed styles
+ * A performant, accessible icon button component with multiple variants.
+ * 
+ * Features:
+ * - 3 variants: solid (3D physical), transparent, and space-themed
+ * - Flexible sizing with predefined and custom sizes
+ * - Ripple effects for visual feedback
+ * - Full accessibility support with ARIA attributes
+ * - Optimized performance with memoization
+ * - Consistent with Button component patterns
+ * 
+ * @example
+ * ```tsx
+ * // Predefined size
+ * <IconButton variant="solid" size="md">
+ *   <Icon />
+ * </IconButton>
+ * 
+ * // Custom size
+ * <IconButton variant="space" size={72}>
+ *   <SpaceIcon />
+ * </IconButton>
+ * 
+ * // With listening state for microphone
+ * <IconButton variant="solid" size="lg" className="tw-microphone-listening">
+ *   <MicrophoneIcon />
+ * </IconButton>
+ * ```
  */
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     (
@@ -165,56 +178,34 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         },
         ref
     ) => {
-        const numericSize = getNumericSize(size);
-        const [ripples, setRipples] = useState<Ripple[]>([]);
+        // Convert size to numeric value
+        const numericSize = useMemo(() => getNumericSize(size), [size]);
+        
+        // Use the ripple effect hook for interactive feedback
+        const { ripples, handleRippleClick, handleRippleComplete } = useRippleEffect();
 
-        // Handle click for ripple effect
-        const handleClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
-            // Add ripple effect
-            if (!disabled) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-
-                const newRipple: Ripple = {
-                    id: Date.now(),
-                    x,
-                    y,
-                };
-
-                setRipples(prev => [...prev, newRipple]);
-            }
-
-            // Call the original onClick handler
-            if (onClick) {
-                onClick(event);
-            }
-        }, [disabled, onClick]);
-
-        // Remove completed ripples
-        const handleRippleComplete = useCallback((id: number) => {
-            setRipples(prev => prev.filter(ripple => ripple.id !== id));
-        }, []);
-
-        // Build the complete className
-        const buttonClasses = cn(
-            // Base classes for all icon buttons
-            "tw-relative tw-rounded-full tw-transition-all tw-duration-150",
-            "tw-inline-flex tw-items-center tw-justify-center",
-            "tw-border-0 tw-outline-none tw-overflow-hidden",
-            calculatePadding(numericSize),
-            
-            // Variant-specific classes
-            variant === "solid" && "tw-icon-button-solid",
-            variant === "transparent" && "tw-icon-button-transparent",
-            variant === "space" && "tw-icon-button-space tw-group",
-            
-            // Disabled state
-            disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
-            
-            // Custom className (allows overrides and additions like listening state)
-            className
+        // Memoize button classes for performance
+        const buttonClasses = useMemo(() => 
+            buildIconButtonClasses({
+                variant,
+                size: numericSize,
+                disabled,
+                className,
+            }),
+            [variant, numericSize, disabled, className]
         );
+
+        // Memoize ripple color based on variant
+        const rippleColor = useMemo(() => getRippleColor(variant), [variant]);
+
+        // Handle click events with ripple effect
+        const handleClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+            // Add ripple effect if not disabled
+            handleRippleClick(event, disabled);
+            
+            // Call the user's onClick handler
+            onClick?.(event);
+        }, [disabled, onClick, handleRippleClick]);
 
         return (
             <button
@@ -227,6 +218,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                     height: numericSize,
                 }}
                 onClick={handleClick}
+                aria-disabled={disabled}
+                aria-label={props['aria-label'] || 'Icon button'}
                 {...props}
             >
                 {/* Space background for space variant */}
@@ -242,20 +235,46 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                     <RippleEffect
                         ripples={ripples}
                         onRippleComplete={handleRippleComplete}
-                        color={rippleColors[variant]}
+                        color={rippleColor}
                     />
                 )}
 
-                {/* Icon content with relative positioning for space variant */}
+                {/* Icon content with proper z-index for space variant */}
                 <span className={cn(
                     "tw-relative",
                     variant === "space" && "tw-z-10"
                 )}>
-                    {children}
+                    <ButtonIcon size={numericSize}>{children}</ButtonIcon>
                 </span>
+                
+                {/* Screen reader support for disabled state */}
+                {disabled && (
+                    <span className="tw-sr-only" role="status">
+                        Button disabled
+                    </span>
+                )}
             </button>
         );
     }
 );
 
 IconButton.displayName = "IconButton";
+
+/**
+ * Pre-configured icon button components for common use cases
+ * Provides convenience components with locked variants
+ */
+export const IconButtonFactory = {
+    /** Solid 3D-style icon button */
+    Solid: (props: Omit<IconButtonProps, "variant">) => (
+        <IconButton variant="solid" {...props} />
+    ),
+    /** Transparent icon button */
+    Transparent: (props: Omit<IconButtonProps, "variant">) => (
+        <IconButton variant="transparent" {...props} />
+    ),
+    /** Space-themed icon button */
+    Space: (props: Omit<IconButtonProps, "variant">) => (
+        <IconButton variant="space" {...props} />
+    ),
+} as const;

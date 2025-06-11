@@ -86,7 +86,7 @@ const SpaceBackground = ({
         <div className="tw-button-space-border" />
         <div className="tw-button-space-background" />
         <div className="tw-button-space-glow" />
-        <div className="tw-button-space-sweep" />
+        <div className="tw-button-space-sweep group-active:tw-animation-pause" />
         
         {/* Space-specific ripple effects */}
         {ripples.map((ripple) => (

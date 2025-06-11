@@ -1,275 +1,297 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import React from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Radio from "@mui/material/Radio";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
 import { IconCommon } from "../../icons/Icons.js";
 import { IconButton } from "./IconButton.js";
-import type { IconButtonVariant } from "./IconButton.js";
+import type { IconButtonVariant, IconButtonSize } from "./iconButtonStyles.js";
+import { getCustomIconButtonStyle, getContrastTextColor } from "./iconButtonStyles.js";
 
 const meta: Meta<typeof IconButton> = {
     title: "Components/Buttons/IconButton",
     component: IconButton,
     parameters: {
-        layout: "centered",
-    },
-    argTypes: {
-        variant: {
-            control: "select",
-            options: ["solid", "transparent", "space"],
-            description: "The visual style variant of the icon button",
-            table: {
-                type: { summary: "IconButtonVariant" },
-                defaultValue: { summary: "transparent" },
-            },
-        },
-        size: {
-            control: "select",
-            options: ["sm", "md", "lg", 24, 32, 48, 64, 80],
-            description: "Size of the button (predefined or custom in pixels)",
-            table: {
-                type: { summary: '"sm" | "md" | "lg" | number' },
-                defaultValue: { summary: "md" },
-            },
-        },
-        disabled: {
-            control: "boolean",
-            description: "Whether the button is disabled",
-            table: {
-                type: { summary: "boolean" },
-                defaultValue: { summary: "false" },
-            },
-        },
+        layout: "fullscreen",
     },
 };
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// Default story with controls
-export const Default: Story = {
-    args: {
-        variant: "solid",
-        size: "md",
-        disabled: false,
-        children: <IconCommon name="Star" />,
-    },
-    decorators: [
-        (Story, context) => {
-            const backgroundColor = (context.globals as any)?.backgrounds?.value || "#ffffff";
-            return (
-                <Box sx={{ 
-                    minWidth: 300, 
-                    minHeight: 200, 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    backgroundColor,
-                    padding: 4,
-                }}>
-                    <Story />
-                </Box>
-            );
-        },
-    ],
-};
-
-// All variants showcase
-export const AllVariants: Story = {
-    render: () => (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 4, p: 4, minWidth: 800 }}>
-            <Typography variant="h4">Icon Button Variants</Typography>
-            
-            {(["solid", "transparent", "space"] as IconButtonVariant[]).map(variant => (
-                <Box key={variant} sx={{ 
-                    p: 3, 
-                    borderRadius: 2,
-                    backgroundColor: variant === "space" ? "#001122" : "#f5f5f5",
-                }}>
-                    <Typography 
-                        variant="h6" 
-                        sx={{ 
-                            mb: 2,
-                            color: variant === "space" ? "#fff" : "#000",
-                            textTransform: "capitalize",
-                        }}
-                    >
-                        {variant} Variant
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                        <IconButton variant={variant} size="sm">
-                            <IconCommon name="Save" />
-                        </IconButton>
-                        <IconButton variant={variant} size="md">
-                            <IconCommon name="Edit" />
-                        </IconButton>
-                        <IconButton variant={variant} size="lg">
-                            <IconCommon name="Delete" />
-                        </IconButton>
-                        <IconButton variant={variant} size={80}>
-                            <IconCommon name="Star" />
-                        </IconButton>
-                        <IconButton variant={variant} size="md" disabled>
-                            <IconCommon name="Add" />
-                        </IconButton>
-                    </Box>
-                </Box>
-            ))}
-        </Box>
-    ),
-};
-
-// Icon showcase
-export const IconShowcase: Story = {
+// Interactive Icon Button Playground with all variants
+export const IconButtonShowcase: Story = {
     render: () => {
-        const icons = [
+        const [variant, setVariant] = useState<IconButtonVariant>("solid");
+        const [sizeType, setSizeType] = useState<"preset" | "custom">("preset");
+        const [presetSize, setPresetSize] = useState<"sm" | "md" | "lg">("md");
+        const [customSize, setCustomSize] = useState(48);
+        const [iconName, setIconName] = useState("Save");
+        const [disabled, setDisabled] = useState(false);
+        const [customColor, setCustomColor] = useState("#9333EA");
+
+        const variants: IconButtonVariant[] = ["solid", "transparent", "space", "custom"];
+        const iconOptions = [
             "Save", "Edit", "Delete", "Add", "Remove", 
-            "Star", "StarOutline", "Team", "Bot", "Routine",
-            "Search", "Settings", "Close", "Check", "Info"
+            "Settings", "Search", "Close", "Info", "Home",
+            "Download", "Upload", "Copy", "Refresh", "Play",
+            "Pause", "Filter", "Menu", "User", "Team"
         ];
+        
+        // Determine final size based on size type
+        const finalSize: IconButtonSize = sizeType === "preset" ? presetSize : customSize;
 
         return (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, p: 4 }}>
-                <Typography variant="h5">Icon Button Gallery</Typography>
-                
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 2 }}>
-                    {icons.map(icon => (
-                        <Box
-                            key={icon}
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: 1,
-                                p: 2,
-                                borderRadius: 1,
-                                backgroundColor: "#f0f0f0",
-                            }}
-                        >
-                            <IconButton variant="solid" size="md">
-                                <IconCommon name={icon} />
-                            </IconButton>
-                            <Typography variant="caption">{icon}</Typography>
+            <Box sx={{ 
+                p: 2, 
+                height: "100vh", 
+                overflow: "auto",
+                bgcolor: "background.default" 
+            }}>
+                <Box sx={{ 
+                    display: "flex", 
+                    gap: 2, 
+                    flexDirection: "column",
+                    maxWidth: 1400, 
+                    mx: "auto" 
+                }}>
+                    {/* Controls Section */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        height: "fit-content",
+                        width: "100%"
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>Icon Button Controls</Typography>
+                        
+                        <Box sx={{ 
+                            display: "grid", 
+                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(5, 1fr)" },
+                            gap: 3 
+                        }}>
+                            {/* Variant Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Variant</FormLabel>
+                                <RadioGroup
+                                    value={variant}
+                                    onChange={(e) => setVariant(e.target.value as IconButtonVariant)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="solid" control={<Radio size="small" />} label="Solid (3D)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="transparent" control={<Radio size="small" />} label="Transparent" sx={{ m: 0 }} />
+                                    <FormControlLabel value="space" control={<Radio size="small" />} label="Space" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
+
+                            {/* Size Type Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Size Type</FormLabel>
+                                <RadioGroup
+                                    value={sizeType}
+                                    onChange={(e) => setSizeType(e.target.value as "preset" | "custom")}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="preset" control={<Radio size="small" />} label="Preset" sx={{ m: 0 }} />
+                                    <FormControlLabel value="custom" control={<Radio size="small" />} label="Custom" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
+
+                            {/* Size Control */}
+                            {sizeType === "preset" ? (
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Preset Size</FormLabel>
+                                    <RadioGroup
+                                        value={presetSize}
+                                        onChange={(e) => setPresetSize(e.target.value as "sm" | "md" | "lg")}
+                                        sx={{ gap: 0.5 }}
+                                    >
+                                        <FormControlLabel value="sm" control={<Radio size="small" />} label="Small (32px)" sx={{ m: 0 }} />
+                                        <FormControlLabel value="md" control={<Radio size="small" />} label="Medium (48px)" sx={{ m: 0 }} />
+                                        <FormControlLabel value="lg" control={<Radio size="small" />} label="Large (64px)" sx={{ m: 0 }} />
+                                    </RadioGroup>
+                                </FormControl>
+                            ) : (
+                                <FormControl component="fieldset" size="small">
+                                    <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Custom Size (px)</FormLabel>
+                                    <TextField
+                                        type="number"
+                                        value={customSize}
+                                        onChange={(e) => setCustomSize(Number(e.target.value))}
+                                        size="small"
+                                        inputProps={{ min: 16, max: 128, step: 4 }}
+                                        sx={{ width: '100%' }}
+                                    />
+                                </FormControl>
+                            )}
+
+                            {/* Icon Selection */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Icon</FormLabel>
+                                <TextField
+                                    select
+                                    SelectProps={{ native: true }}
+                                    value={iconName}
+                                    onChange={(e) => setIconName(e.target.value)}
+                                    size="small"
+                                    sx={{ width: '100%' }}
+                                >
+                                    {iconOptions.map(icon => (
+                                        <option key={icon} value={icon}>{icon}</option>
+                                    ))}
+                                </TextField>
+                            </FormControl>
+
+                            {/* Disabled Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>State</FormLabel>
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={disabled}
+                                            onChange={(e) => setDisabled(e.target.checked)}
+                                            size="small"
+                                        />
+                                    }
+                                    label="Disabled"
+                                    sx={{ m: 0 }}
+                                />
+                            </FormControl>
+                            
+                            {/* Custom Color Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Custom Color</FormLabel>
+                                <TextField
+                                    type="color"
+                                    value={customColor}
+                                    onChange={(e) => setCustomColor(e.target.value)}
+                                    size="small"
+                                    sx={{ width: '100%' }}
+                                />
+                            </FormControl>
                         </Box>
-                    ))}
-                </Box>
-            </Box>
-        );
-    },
-};
+                    </Box>
 
-// Physical button showcase
-export const PhysicalButton: Story = {
-    render: () => (
-        <Box sx={{ 
-            p: 4, 
-            bgcolor: "#2a2a2a",
-            borderRadius: 2,
-            minHeight: 400,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-        }}>
-            <Typography variant="h4" sx={{ color: "#fff", textAlign: "center" }}>
-                3D Physical Icon Buttons
-            </Typography>
-            <Typography variant="body1" sx={{ color: "#aaa", textAlign: "center", maxWidth: 500 }}>
-                Solid variant features a physical appearance with hover lift effect and press-down animation
-            </Typography>
-            
-            <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
-                <IconButton variant="solid" size="lg">
-                    <IconCommon name="Rocket" />
-                </IconButton>
-                <IconButton variant="solid" size="lg">
-                    <IconCommon name="Star" />
-                </IconButton>
-                <IconButton variant="solid" size="lg">
-                    <IconCommon name="Save" />
-                </IconButton>
-                <IconButton variant="solid" size="lg" disabled>
-                    <IconCommon name="Delete" />
-                </IconButton>
-            </Box>
-
-            <Typography variant="body2" sx={{ color: "#666", textAlign: "center" }}>
-                Hover and click to see 3D effects
-            </Typography>
-        </Box>
-    ),
-};
-
-// Space variant showcase
-export const SpaceVariant: Story = {
-    render: () => (
-        <Box sx={{ 
-            p: 4, 
-            bgcolor: "#000",
-            borderRadius: 2,
-            minHeight: 400,
-            background: 'radial-gradient(ellipse at center, #001122 0%, #000 100%)',
-        }}>
-            <Typography variant="h4" sx={{ color: "#fff", textAlign: "center", mb: 4 }}>
-                Space-Themed Icon Buttons
-            </Typography>
-            
-            <Box sx={{ display: "flex", justifyContent: "center", gap: 3, flexWrap: "wrap" }}>
-                <IconButton variant="space" size="sm">
-                    <IconCommon name="Star" />
-                </IconButton>
-                <IconButton variant="space" size="md">
-                    <IconCommon name="Rocket" />
-                </IconButton>
-                <IconButton variant="space" size="lg">
-                    <IconCommon name="Bot" />
-                </IconButton>
-                <IconButton variant="space" size={80}>
-                    <IconCommon name="Team" />
-                </IconButton>
-            </Box>
-
-            <Typography variant="body2" sx={{ color: "#666", textAlign: "center", mt: 4 }}>
-                Features gradient background with shimmer hover effect and click ripples
-            </Typography>
-        </Box>
-    ),
-};
-
-// Interactive states demo
-export const InteractiveStates: Story = {
-    render: () => {
-        const [clickCounts, setClickCounts] = React.useState<Record<string, number>>({});
-
-        const handleClick = (key: string) => {
-            setClickCounts(prev => ({
-                ...prev,
-                [key]: (prev[key] || 0) + 1
-            }));
-        };
-
-        return (
-            <Box sx={{ p: 4, display: "flex", flexDirection: "column", gap: 3 }}>
-                <Typography variant="h5">Interactive Icon Buttons</Typography>
-                <Typography variant="body2" color="text.secondary">
-                    Click the buttons to see click counts
-                </Typography>
-                
-                <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                    {(["solid", "transparent", "space"] as IconButtonVariant[]).map(variant => (
-                        <Box key={variant} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                            <IconButton
-                                variant={variant}
-                                size="md"
-                                onClick={() => handleClick(variant)}
-                            >
-                                <IconCommon name="Add" />
-                            </IconButton>
-                            <Typography variant="caption">
-                                {variant}: {clickCounts[variant] || 0}
-                            </Typography>
+                    {/* Icon Buttons Display */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        width: "100%"
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>All Icon Button Variants</Typography>
+                        
+                        <Box sx={{ 
+                            display: "grid", 
+                            gridTemplateColumns: { 
+                                xs: "repeat(1, 1fr)", 
+                                sm: "repeat(3, 1fr)"
+                            }, 
+                            gap: 3 
+                        }}>
+                            {variants.map(v => (
+                                <Box 
+                                    key={v} 
+                                    sx={{ 
+                                        p: 3,
+                                        borderRadius: 2,
+                                        backgroundColor: v === "space" ? "#001122" : "transparent",
+                                        textAlign: "center"
+                                    }}
+                                >
+                                    <Typography 
+                                        variant="subtitle2" 
+                                        sx={{ 
+                                            mb: 2, 
+                                            textTransform: "capitalize",
+                                            color: v === "space" ? "#fff" : "inherit"
+                                        }}
+                                    >
+                                        {v === "solid" ? "Solid (3D)" : v === "custom" ? "Custom" : v}
+                                    </Typography>
+                                    <IconButton
+                                        variant={v}
+                                        size={finalSize}
+                                        disabled={disabled}
+                                        aria-label={`${iconName} button`}
+                                        style={v === "custom" ? getCustomIconButtonStyle(customColor) : undefined}
+                                        className={v === "custom" ? "hover:tw-opacity-90" : undefined}
+                                    >
+                                        <IconCommon name={iconName} />
+                                    </IconButton>
+                                    {sizeType === "custom" && (
+                                        <Typography variant="caption" display="block" sx={{ mt: 1, color: v === "space" ? "#aaa" : "text.secondary" }}>
+                                            {customSize}px × {customSize}px
+                                        </Typography>
+                                    )}
+                                </Box>
+                            ))}
                         </Box>
-                    ))}
+                    </Box>
+
+                    {/* Common Use Cases */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        width: "100%"
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>Common Use Cases</Typography>
+                        
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {/* Toolbar Example */}
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Toolbar Actions</Typography>
+                                <Box sx={{ display: "flex", gap: 1, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
+                                    <IconButton variant="transparent" size="sm" aria-label="Save">
+                                        <IconCommon name="Save" />
+                                    </IconButton>
+                                    <IconButton variant="transparent" size="sm" aria-label="Edit">
+                                        <IconCommon name="Edit" />
+                                    </IconButton>
+                                    <IconButton variant="transparent" size="sm" aria-label="Delete">
+                                        <IconCommon name="Delete" />
+                                    </IconButton>
+                                    <Box sx={{ mx: 1, borderLeft: 1, borderColor: "divider" }} />
+                                    <IconButton variant="transparent" size="sm" aria-label="Settings">
+                                        <IconCommon name="Settings" />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+
+                            {/* Floating Action Example */}
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Floating Action</Typography>
+                                <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
+                                    <IconButton variant="solid" size="lg" aria-label="Add new item">
+                                        <IconCommon name="Add" />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+
+                            {/* Navigation Example */}
+                            <Box>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Navigation</Typography>
+                                <Box sx={{ display: "flex", gap: 2, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
+                                    <IconButton variant="transparent" size="md" aria-label="Previous">
+                                        <IconCommon name="ChevronLeft" />
+                                    </IconButton>
+                                    <IconButton variant="transparent" size="md" aria-label="Next">
+                                        <IconCommon name="ChevronRight" />
+                                    </IconButton>
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
                 </Box>
             </Box>
         );
