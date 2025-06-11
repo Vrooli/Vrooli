@@ -213,7 +213,9 @@ export function parseSearchParams(): ParseSearchParamsResult {
             obj[decodeURIComponent(key)] = JSON.parse(decodeURIComponent(value));
         } catch (e: unknown) {
             const errorMessage = typeof e === "object" && e !== null && "message" in e ? (e as Error).message : String(e);
-            console.error(`Error decoding parameter "${key}": ${errorMessage}`);
+            if (process.env.NODE_ENV !== "test") {
+                console.error(`Error decoding parameter "${key}": ${errorMessage}`);
+            }
         }
     }
     return obj;

@@ -50,7 +50,7 @@ export function createOwner<
     let fieldName = `${prefix}${ownerData.__typename}Connect`;
     fieldName = fieldName.charAt(0).toLowerCase() + fieldName.slice(1);
     // Return shaped field
-    return { [fieldName]: ownerData.id } as any;
+    return { [fieldName]: ownerData.id } as { [K in `${Prefix}${OType}Connect`]?: string };
 }
 
 /**
@@ -197,7 +197,7 @@ export function createRel<
             if (filteredRelationData.length === 0) continue;
             result[`${relation}${t}`] = isOneToOne === "one" ?
                 shape!.create(filteredRelationData[0]) :
-                (filteredRelationData as any).map((x: any) => shape!.create(x));
+                filteredRelationData.map((x) => shape!.create(x));
         }
     }
     // Return result
@@ -232,7 +232,7 @@ export function updateOwner<
     originalItem: OriginalItem,
     updatedItem: UpdatedItem,
     prefix: Prefix = "" as Prefix,
-): { [K in `${Prefix}${OType}Connect` | `${Prefix}${OType}Disconnect`]?: string | boolean } {
+): { [K in `${Prefix}${OType}Connect`]?: string } & { [K in `${Prefix}${OType}Disconnect`]?: boolean } {
     const originalOwnerData = originalItem.owner;
     const updatedOwnerData = updatedItem.owner;
 
@@ -252,7 +252,7 @@ export function updateOwner<
         return { [disconnectFieldName]: true } as any;
     }
 
-    return createOwner(updatedItem as any, prefix) as any;
+    return createOwner(updatedItem, prefix) as { [K in `${Prefix}${OType}Connect`]?: string } & { [K in `${Prefix}${OType}Disconnect`]?: boolean };
 }
 
 /**
@@ -321,7 +321,7 @@ export function updatePrims<T, K extends keyof T, PK extends keyof T>(
     function getPrimaryValue(): string | undefined {
         if (!primary) return undefined;
         const primaryValue = original?.[primary] ?? updated?.[primary];
-        return primaryValue;
+        return primaryValue as string | undefined;
     }
     const primaryValue = getPrimaryValue();
 

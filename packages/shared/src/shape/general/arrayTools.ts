@@ -60,7 +60,7 @@ export function rotateArray(array: any[], to_right = true) {
 }
 
 // If dot notation key exists in object, perform operation and return the results
-export function mapIfExists<S, T>(object: S, notation: string, operation: (obj: S) => T) {
+export function mapIfExists<S extends Record<string, unknown>, T>(object: S, notation: string, operation: (obj: S) => T) {
     const value = valueFromDot(object, notation);
     if (!Array.isArray(value)) return null;
     return value.map(v => operation(v));

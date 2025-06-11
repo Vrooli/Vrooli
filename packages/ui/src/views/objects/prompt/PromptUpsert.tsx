@@ -247,7 +247,6 @@ function PromptForm({
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const updatedValues = {} as any; //TODO
-        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
         return { originalValues, updatedValues };
     }, [language, values]);
 

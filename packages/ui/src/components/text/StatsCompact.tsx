@@ -21,7 +21,7 @@ const OuterBox = styled(Box)(({ theme }) => ({
  * Displays basic stats about an object, in a short format.
  * Displays votes, views, date created, and reports
  */
-export function StatsCompact<T extends ListObject>({
+export function StatsCompact<T extends ListObject & { views?: number; reportsCount?: number }>({
     handleObjectUpdate,
     object,
 }: StatsCompactProps<T>) {
@@ -59,11 +59,11 @@ export function StatsCompact<T extends ListObject>({
                     size={32}
                 />
                 <Typography variant="body2">
-                    {(object as any)?.views ?? 1}
+                    {object?.views ?? 1}
                 </Typography>
             </Box>
             {/* Reports */}
-            {object?.id && <ReportsLink object={object as any} />}
+            {object?.id && <ReportsLink object={object} />}
             {/* Votes. Show even if you can't vote */}
             {object && object.__typename.replace("Version", "") in ReactionFor && <VoteButton
                 disabled={!you.canReact}

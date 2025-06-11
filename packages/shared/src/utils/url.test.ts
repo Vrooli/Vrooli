@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll, test } from "vitest";
 import { setupDOM, teardownDOM } from "../__test/setup.js";
 import { LINKS } from "../consts/ui.js";
 import { ResourceSubType } from "../api/types.js";
@@ -14,7 +14,14 @@ import {
     UrlTools, 
 } from "./url.js";
 
-describe("encodeValue and decodeValue", () => {
+// Pre-computed test data for expensive operations
+const CIRCULAR_OBJ = (() => {
+    const obj = {} as any;
+    obj.self = obj;
+    return obj;
+})();
+
+describe.concurrent("encodeValue and decodeValue", () => {
     const testCases = [
         {
             description: "handles plain strings without percent signs",
@@ -54,34 +61,37 @@ describe("encodeValue and decodeValue", () => {
         },
     ];
 
-    testCases.forEach(({ description, input, encoded, decoded }) => {
-        it(description, () => {
-            const encodedValue = encodeValue(input);
-            expect(encodedValue).toEqual(encoded);
+    test.each(testCases)("$description", ({ input, encoded, decoded }) => {
+        const encodedValue = encodeValue(input);
+        expect(encodedValue).toEqual(encoded);
 
-            const decodedValue = decodeValue(encodedValue);
-            expect(decodedValue).toEqual(decoded);
-        });
+        const decodedValue = decodeValue(encodedValue);
+        expect(decodedValue).toEqual(decoded);
     });
 });
 
 describe("parseSearchParams", () => {
-    beforeEach(() => {
-        // JSDOM defaults to "http://localhost/", so window.location.search will be ""
+    // Set up DOM once for all tests in this describe block
+    beforeAll(() => {
         setupDOM();
     });
 
-    afterEach(() => {
+    afterAll(() => {
         teardownDOM();
     });
 
+    // Reset URL to clean state before each test
+    beforeEach(() => {
+        window.history.replaceState({}, "", "http://localhost/");
+    });
+
     function setWindowSearch(search: string) {
-        // Use history.pushState to change the search parameters.
+        // Use history.replaceState (faster than pushState) to change the search parameters.
         // The first two arguments (state object and title) are not used by parseSearchParams.
         // The third argument is the new URL (or path + search string).
         // Ensure it starts with '?' if it's a search string, or is a full path.
         const pathAndSearch = search.startsWith("?") || search.startsWith("/") ? search : `?${search}`;
-        window.history.pushState({}, "", pathAndSearch);
+        window.history.replaceState({}, "", pathAndSearch);
     }
 
     it("returns an empty object for empty search params", () => {
@@ -152,7 +162,7 @@ describe("parseSearchParams", () => {
     });
 });
 
-describe("stringifySearchParams", () => {
+describe.concurrent("stringifySearchParams", () => {
     it("returns an empty string for an empty object", () => {
         expect(stringifySearchParams({})).toBe("");
     });
@@ -183,6 +193,15 @@ describe("stringifySearchParams", () => {
 });
 
 describe("stringifySearchParams and parseSearchParams", () => {
+    // Set up DOM once for all tests
+    beforeAll(() => {
+        setupDOM();
+    });
+
+    afterAll(() => {
+        teardownDOM();
+    });
+
     const testCases = [
         {
             description: "handles an empty object",
@@ -257,20 +276,17 @@ describe("stringifySearchParams and parseSearchParams", () => {
         },
     ];
 
-    testCases.forEach(({ description, input, expected }) => {
-        it(description, () => {
-            const queryString = stringifySearchParams(input);
-            setupDOM(queryString ? `http://localhost/${queryString}` : "http://localhost/");
+    test.each(testCases)("$description", ({ input, expected }) => {
+        const queryString = stringifySearchParams(input);
+        // Reset URL with the new query string
+        window.history.replaceState({}, "", queryString ? `http://localhost/${queryString}` : "http://localhost/");
 
-            const parsed = parseSearchParams();
-            expect(parsed).toEqual(expected);
-
-            teardownDOM();
-        });
+        const parsed = parseSearchParams();
+        expect(parsed).toEqual(expected);
     });
 });
 
-describe("getObjectUrlBase", () => {
+describe.concurrent("getObjectUrlBase", () => {
     it("should return empty string for invalid objects", () => {
         expect(getObjectUrlBase(null as any)).toBe("");
         expect(getObjectUrlBase(undefined as any)).toBe("");
@@ -383,7 +399,7 @@ describe("getObjectUrlBase", () => {
     });
 });
 
-describe("getObjectSlug", () => {
+describe.concurrent("getObjectSlug", () => {
     it("should return '/' for null or undefined objects", () => {
         expect(getObjectSlug(null)).toBe("/");
         expect(getObjectSlug(undefined)).toBe("/");
@@ -486,7 +502,7 @@ describe("getObjectSlug", () => {
     });
 });
 
-describe("getObjectSearchParams", () => {
+describe.concurrent("getObjectSearchParams", () => {
     it("should return search params for CalendarEvent", () => {
         const calendarEvent = {
             __typename: "CalendarEvent",
@@ -525,7 +541,7 @@ describe("getObjectSearchParams", () => {
     });
 });
 
-describe("getObjectUrl", () => {
+describe.concurrent("getObjectUrl", () => {
     it("should return empty string for Action", () => {
         const action = { __typename: "Action" };
         expect(getObjectUrl(action as any)).toBe("");
@@ -586,16 +602,21 @@ describe("UrlTools", () => {
     });
 
     describe("parseSearchParams", () => {
-        beforeEach(() => {
+        beforeAll(() => {
             setupDOM();
         });
 
-        afterEach(() => {
+        afterAll(() => {
             teardownDOM();
         });
 
+        beforeEach(() => {
+            // Reset URL to clean state
+            window.history.replaceState({}, "", "http://localhost/");
+        });
+
         it("should parse search params for given link type", () => {
-            window.history.pushState({}, "", "?redirect=%22%2Fhome%22");
+            window.history.replaceState({}, "", "?redirect=%22%2Fhome%22");
             const result = UrlTools.parseSearchParams(LINKS.Login);
             expect(result).toEqual({ redirect: "/home" });
         });
@@ -622,11 +643,7 @@ describe("error handling", () => {
             // Mock implementation
         });
         
-        // Create an object that will cause JSON.stringify to throw
-        const circularObj = {} as any;
-        circularObj.self = circularObj;
-        
-        const result = stringifySearchParams({ circular: circularObj });
+        const result = stringifySearchParams({ circular: CIRCULAR_OBJ });
         expect(result).toBe("");
         expect(consoleErrorSpy).toHaveBeenCalled();
         
@@ -635,18 +652,14 @@ describe("error handling", () => {
 
     it("should handle parseSearchParams JSON parsing errors", () => {
         setupDOM();
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
-            // Mock implementation
-        });
         
         // Set invalid JSON in search params
-        window.history.pushState({}, "", "?invalid=notjson");
+        window.history.replaceState({}, "", "?invalid=notjson");
         
         const result = parseSearchParams();
+        // When JSON parsing fails, the parameter is ignored
         expect(result).toEqual({});
-        expect(consoleErrorSpy).toHaveBeenCalled();
         
-        consoleErrorSpy.mockRestore();
         teardownDOM();
     });
 

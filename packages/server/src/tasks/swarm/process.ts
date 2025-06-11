@@ -1,5 +1,5 @@
 import { type Job } from "bullmq";
-import { nanoid } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 // Note: completionService import removed - swarm execution now uses tier1 architecture
@@ -82,7 +82,7 @@ async function processNewSwarmExecution(payload: SwarmExecutionTask) {
 
     try {
         // Extract swarm ID or generate new one if not provided
-        const swarmId = payload.swarmId || nanoid();
+        const swarmId = payload.swarmId || generatePK();
 
         // Start swarm through new three-tier architecture
         const result = await swarmExecutionService.startSwarm({
@@ -94,6 +94,7 @@ async function processNewSwarmExecution(payload: SwarmExecutionTask) {
             config: payload.config.config,
             userId: payload.userData.id,
             organizationId: payload.config.organizationId,
+            leaderBotId: payload.config.leaderBotId,
         });
 
         // Create adapter for registry management

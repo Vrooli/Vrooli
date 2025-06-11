@@ -327,7 +327,7 @@ export function FormBuildView({
                 category: "Text Inputs",
                 items: [
                     { type: InputType.Text, iconInfo: { name: "CaseSensitive", type: "Text" } as const, label: "Text" },
-                    { type: InputType.JSON, iconInfo: { name: "Object", type: "Common" } as const, label: "JSON (structured text)" }, //TODO
+                    { type: InputType.JSON, iconInfo: { name: "Object", type: "Common" } as const, label: "JSON (structured data)" },
                 ],
             },
             {
@@ -335,15 +335,15 @@ export function FormBuildView({
                 items: [
                     { type: InputType.Checkbox, iconInfo: { name: "ListCheck", type: "Text" } as const, label: "Checkbox (Select multiple from list)" },
                     { type: InputType.Radio, iconInfo: { name: "ListBullet", type: "Text" } as const, label: "Radio (Select one from list)" },
-                    { type: InputType.Selector, iconInfo: { name: "List", type: "Text" } as const, label: "Selector (Select one from list)" }, // TODO waiting on InputType.JSON to define item shape (standard) and InputType.LinkItem to connect standard
+                    { type: InputType.Selector, iconInfo: { name: "List", type: "Text" } as const, label: "Selector (Dynamic dropdown)" },
                     { type: InputType.Switch, iconInfo: { name: "Switch", type: "Common" } as const, label: "Switch (Toggle on/off or true/false)" },
                 ],
             },
             {
                 category: "Link Inputs",
                 items: [
-                    { type: InputType.LinkUrl, iconInfo: { name: "Link", type: "Common" } as const, label: "Link any URL" }, //TODO
-                    { type: InputType.LinkItem, iconInfo: { name: "Vrooli", type: "Common" } as const, label: "Link Vrooli object" }, //TODO
+                    { type: InputType.LinkUrl, iconInfo: { name: "Link", type: "Common" } as const, label: "Link external URL" },
+                    { type: InputType.LinkItem, iconInfo: { name: "Vrooli", type: "Common" } as const, label: "Link Vrooli object" },
                 ],
             },
             {

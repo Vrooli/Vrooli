@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { ResourceSubType, ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { RoutineVersionConfig, type FormInputConfigObject, type FormOutputConfigObject, type RoutineVersionConfigObject } from "../shape/index.js";
-import { FormBuilder } from "./builder.js";
+import { FormBuilder, createFormInput, getFormikFieldName } from "./builder.js";
 import { FormStructureType, type FormElement, type FormSchema } from "./types.js";
 
 describe("FormBuilder", () => {
@@ -992,6 +992,205 @@ describe("FormBuilder", () => {
             const yupSchema = FormBuilder.generateYupSchemaFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineApi);
             // Expect that no validation exists for the field since yup is not provided.
             expect(yupSchema.fields).to.not.have.property("input-noValidation");
+        });
+    });
+
+    describe("createFormInput", () => {
+        it("should create a form input with valid type and heal props", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                id: "test-id",
+                label: "Test Field",
+                type: InputType.Text,
+                props: { defaultValue: "hello", maxChars: 500 },
+                yup: { required: true, checks: [] }
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.fieldName).to.equal("testField");
+            expect(input!.id).to.equal("test-id");
+            expect(input!.label).to.equal("Test Field");
+            expect(input!.type).to.equal(InputType.Text);
+            expect(input!.props.defaultValue).to.equal("hello");
+            expect(input!.props.maxChars).to.equal(500);
+            expect(input!.yup.required).to.equal(true);
+        });
+
+        it("should return null for invalid input type", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                type: "InvalidType" as any,
+                props: {},
+                yup: {}
+            });
+
+            expect(input).to.be.null;
+        });
+
+        it("should parse stringified props", () => {
+            const propsString = JSON.stringify({ defaultValue: "parsed", maxChars: 200 });
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: propsString,
+                yup: { required: false, checks: [] }
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.props.defaultValue).to.equal("parsed");
+            expect(input!.props.maxChars).to.equal(200);
+        });
+
+        it("should parse stringified yup", () => {
+            const yupString = JSON.stringify({ required: true, checks: [{ key: "min", value: 5 }] });
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: {},
+                yup: yupString
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.yup.required).to.equal(true);
+            expect(input!.yup.checks).to.have.length(1);
+            expect(input!.yup.checks[0].key).to.equal("min");
+        });
+
+        it("should handle invalid JSON in props and return null", () => {
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: "invalid json {",
+                yup: {}
+            });
+
+            expect(input).to.be.null;
+            expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
+            
+            consoleSpy.mockRestore();
+        });
+
+        it("should handle invalid JSON in yup and return null", () => {
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: {},
+                yup: "invalid json ["
+            });
+
+            expect(input).to.be.null;
+            expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
+            
+            consoleSpy.mockRestore();
+        });
+
+        it("should handle null/undefined props and yup", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: null,
+                yup: undefined
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.props).to.be.an("object");
+            expect(input!.yup.checks).to.be.an("array");
+        });
+
+        it("should generate nanoid when id is not provided", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: {},
+                yup: {}
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.id).to.be.a("string");
+            expect(input!.id.length).to.be.greaterThan(0);
+        });
+
+        it("should use empty strings for missing fieldName and label", () => {
+            const input = createFormInput({
+                type: InputType.Text,
+                props: {},
+                yup: {}
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.fieldName).to.equal("");
+            expect(input!.label).to.equal("");
+        });
+
+        it("should handle non-object parsed props by using empty object", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: '"string instead of object"',
+                yup: {}
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.props).to.be.an("object");
+        });
+
+        it("should handle non-object parsed yup by using empty object", () => {
+            const input = createFormInput({
+                fieldName: "testField", 
+                type: InputType.Text,
+                props: {},
+                yup: '"string instead of object"'
+            });
+
+            expect(input).not.to.be.null;
+            expect(input!.yup).to.be.an("object");
+            // When parsing fails or returns non-object, it should default to { checks: [] }
+            if (input!.yup.checks) {
+                expect(input!.yup.checks).to.be.an("array");
+            }
+        });
+
+        it("should pass through additional properties via rest parameter", () => {
+            const input = createFormInput({
+                fieldName: "testField",
+                type: InputType.Text,
+                props: {},
+                yup: {},
+                customProperty: "customValue"
+            } as any);
+
+            expect(input).not.to.be.null;
+            expect((input as any).customProperty).to.equal("customValue");
+        });
+    });
+
+    describe("getFormikFieldName", () => {
+        it("should return fieldName when no prefix is provided", () => {
+            const result = getFormikFieldName("username");
+            expect(result).to.equal("username");
+        });
+
+        it("should return prefixed fieldName when prefix is provided", () => {
+            const result = getFormikFieldName("username", "input");
+            expect(result).to.equal("input-username");
+        });
+
+        it("should handle empty strings", () => {
+            const result1 = getFormikFieldName("", "prefix");
+            expect(result1).to.equal("prefix-");
+
+            // Empty prefix is falsy, so it returns just the fieldName
+            const result2 = getFormikFieldName("field", "");
+            expect(result2).to.equal("field");
+        });
+
+        it("should handle special characters in fieldName and prefix", () => {
+            const result = getFormikFieldName("field_name", "form.input");
+            expect(result).to.equal("form.input-field_name");
         });
     });
 });

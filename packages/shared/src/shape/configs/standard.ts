@@ -1,4 +1,4 @@
-import { type ResourceSubType, type ResourceVersion } from "../../api/types.js";
+import { ResourceSubType, type ResourceVersion } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { BaseConfig, type BaseConfigObject } from "./base.js";
 
@@ -100,7 +100,7 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
             logger,
             (cfg) => {
                 // Add fallback properties as needed
-                return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
+                return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType ?? ResourceSubType.StandardDataStructure });
             },
         );
     }

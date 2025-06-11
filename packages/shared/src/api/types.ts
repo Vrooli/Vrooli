@@ -2163,7 +2163,9 @@ export type ResourceUpdateInput = {
     isInternal?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     ownedByTeamConnect?: InputMaybe<Scalars["ID"]>;
+    ownedByTeamDisconnect?: InputMaybe<Scalars["Boolean"]>;
     ownedByUserConnect?: InputMaybe<Scalars["ID"]>;
+    ownedByUserDisconnect?: InputMaybe<Scalars["Boolean"]>;
     permissions?: InputMaybe<Scalars["String"]>;
     tagsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     tagsCreate?: InputMaybe<Array<TagCreateInput>>;

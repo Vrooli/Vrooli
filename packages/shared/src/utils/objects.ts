@@ -31,7 +31,10 @@ export function getDotNotationValue(obj: object | undefined, keyPath: string): u
             }
             currentValue = currentValue[index];
         } else {
-            // Handle object properties using type assertion after checks
+            // Handle object properties with proper type checking
+            if (typeof currentValue !== "object" || currentValue === null) {
+                return undefined;
+            }
             const currentObj = currentValue as Record<string, unknown>;
             if (!(key in currentObj)) {
                 return undefined;
@@ -67,12 +70,18 @@ export function setDotNotationValue<T extends Record<string, unknown>, V = unkno
                 if (!obj[index]) obj[index] = {};
                 return obj[index] as Record<string, unknown>;
             } else {
+                if (typeof obj !== "object" || obj === null) {
+                    throw new Error("Expected object for numeric key access");
+                }
                 const objectRef = obj as Record<string, unknown>;
                 if (!objectRef[index]) objectRef[index] = {};
                 return objectRef[index] as Record<string, unknown>;
             }
         }
         // Ensure the key exists in the object
+        if (typeof obj !== "object" || obj === null) {
+            throw new Error("Expected object for property access");
+        }
         const objectRef = obj as Record<string, unknown>;
         if (!(key in objectRef)) objectRef[key] = {};
         return objectRef[key] as Record<string, unknown>;

@@ -167,7 +167,7 @@ export class BranchManager {
                         services.logger.error(`advanceBranches: No parent location data found for branch ${branch.branchId}.`);
                         continue;
                     }
-                    const parentRoutine = parentLocationData.object as RoutineVersion;
+                    const parentRoutine = parentLocationData.object;
                     // Deserialize the parent's graph configuration.
                     const { graph: parentGraph } = RoutineVersionConfig.parse(parentRoutine, services.logger, { useFallbacks: true });
                     if (!parentGraph) {

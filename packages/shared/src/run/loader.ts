@@ -1,4 +1,4 @@
-import { type DbObject, ModelType, type ProjectVersion, type RoutineVersion } from "../api/types.js";
+import { type DbObject, ModelType, type ResourceVersion, ResourceType } from "../api/types.js";
 import { LRUCache } from "../utils/lruCache.js";
 import { PROJECT_CACHE_LIMIT, PROJECT_CACHE_MAX_SIZE_BYTES, ROUTINE_CACHE_LIMIT, ROUTINE_CACHE_MAX_SIZE_BYTES } from "./consts.js";
 import { type Id, type Location, type LocationData, type LocationStack, type RunConfig } from "./types.js";
@@ -12,14 +12,14 @@ export abstract class RunLoader {
     /**
      * Map of loaded routine versions, keyed by routine ID.
      */
-    protected routineCache: LRUCache<Id, RoutineVersion> = new LRUCache({
+    protected routineCache: LRUCache<Id, ResourceVersion> = new LRUCache({
         limit: ROUTINE_CACHE_LIMIT,
         maxSizeBytes: ROUTINE_CACHE_MAX_SIZE_BYTES,
     });
     /**
      * Map of loaded project versions, keyed by project ID.
      */
-    protected projectCache: LRUCache<Id, ProjectVersion> = new LRUCache({
+    protected projectCache: LRUCache<Id, ResourceVersion> = new LRUCache({
         limit: PROJECT_CACHE_LIMIT,
         maxSizeBytes: PROJECT_CACHE_MAX_SIZE_BYTES,
     });
@@ -85,11 +85,11 @@ export abstract class RunLoader {
      * 
      * @param object The object to cache
      */
-    private addToCache(object: DbObject<"ProjectVersion" | "RoutineVersion">): void {
-        if (object.__typename === ModelType.RoutineVersion) {
-            this.routineCache.set(object.id, object as RoutineVersion);
-        } else if (object.__typename === ModelType.ProjectVersion) {
-            this.projectCache.set(object.id, object as ProjectVersion);
+    private addToCache(object: ResourceVersion): void {
+        if (object.root.resourceType === ResourceType.Routine) {
+            this.routineCache.set(object.id, object);
+        } else if (object.root.resourceType === ResourceType.Project) {
+            this.projectCache.set(object.id, object);
         }
         this.onCacheChange();
     }
@@ -101,10 +101,10 @@ export abstract class RunLoader {
      * @returns The cached object, or null if not found
      */
     private findInCache(location: Location): LocationData | null {
-        const cachedObject = location.__typename === ModelType.RoutineVersion
+        const cachedObject = location.objectType === "Routine"
             ? this.routineCache.get(location.objectId)
             : this.projectCache.get(location.objectId);
-        const cachedSubroutine = location.__typename === ModelType.RoutineVersion && location.subroutineId
+        const cachedSubroutine = location.objectType === "Routine" && location.subroutineId
             ? this.routineCache.get(location.subroutineId)
             : null;
         if (!cachedObject) {
