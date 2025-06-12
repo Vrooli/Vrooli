@@ -3,12 +3,12 @@
  * Extracted common patterns to reduce code duplication
  */
 
-export { PerformanceTracker } from './performanceTracker.js';
+export { PerformanceTrackerAdapter as PerformanceTracker } from '../../../monitoring/adapters/PerformanceTrackerAdapter.js';
 export type { 
     PerformanceEntry, 
     PerformanceMetrics, 
     PerformanceFeedback 
-} from './performanceTracker.js';
+} from '../../../monitoring/adapters/PerformanceTrackerAdapter.js';
 
 export { StrategyBase } from './strategyBase.js';
 export type { 

@@ -1,4 +1,4 @@
-import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ToolCallRecord } from "@vrooli/shared";
+import { type BotConfigObject, type ChatConfigObject, type ChatMessage, type PendingToolCallEntry, type SessionUser, type SwarmResource, type SwarmSubTask, type TeamConfigObject, type ChatToolCallRecord } from "@vrooli/shared";
 import type OpenAI from "openai";
 import { type ConversationEvent } from "../bus.js";
 import type { Tool } from "../mcp/types.js";
@@ -193,7 +193,7 @@ export interface SwarmToolCallFinishedEvent {
     type: "ToolCallFinished";
     conversationId: string;
     sessionUser: SessionUser;
-    record: ToolCallRecord;
+    record: ChatToolCallRecord;
 }
 
 /** Event triggered when a previously deferred tool call has been approved and needs execution. */

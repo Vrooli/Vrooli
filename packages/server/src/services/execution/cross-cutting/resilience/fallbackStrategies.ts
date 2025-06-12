@@ -14,7 +14,7 @@
  * - Comprehensive telemetry and metrics
  */
 
-import { TelemetryShim } from "../monitoring/telemetryShim.js";
+import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { EventBus } from "../events/eventBus.js";
 import {
     FallbackType,

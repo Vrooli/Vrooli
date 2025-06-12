@@ -1,6 +1,6 @@
 import { type Logger } from "winston";
 import { getExecutionArchitecture } from "./executionArchitecture.js";
-import { type RollingHistory } from "../cross-cutting/monitoring/index.js";
+import { type RollingHistoryAdapter as RollingHistory } from "../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * Example: Emergent Monitoring Capabilities

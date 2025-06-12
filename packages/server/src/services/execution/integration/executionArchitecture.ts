@@ -9,7 +9,7 @@ import { type Logger } from "winston";
 import { logger } from "../../../events/logger.js";
 import { CachedConversationStateStore, PrismaChatStore } from "../../conversation/chatStore.js";
 import { getEventBus, type RedisEventBus } from "../cross-cutting/events/eventBus.js";
-import { RollingHistory } from "../cross-cutting/monitoring/index.js";
+import { RollingHistoryAdapter as RollingHistory } from "../monitoring/adapters/RollingHistoryAdapter.js";
 import { SwarmStateMachine } from "../tier1/coordination/swarmStateMachine.js";
 import { ResourceManager as Tier1ResourceManager } from "../tier1/organization/resourceManager.js";
 import { RedisSwarmStateStore } from "../tier1/state/redisSwarmStateStore.js";
@@ -23,7 +23,7 @@ import { ConversationalStrategy } from "../tier3/strategies/conversationalStrate
 import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
-import { ResourceMonitor } from "./monitoring/resourceMonitor.js";
+import { ResourceMonitorAdapter as ResourceMonitor } from "../monitoring/adapters/ResourceMonitorAdapter.js";
 
 /**
  * Strategy factory interface for creating execution strategies

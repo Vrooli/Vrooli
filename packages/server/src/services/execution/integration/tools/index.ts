@@ -14,7 +14,7 @@ import { ResilienceTools } from "./resilienceTools.js";
 import { SecurityTools } from "./securityTools.js";
 import { type SessionUser } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
+import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * Monitoring tool definitions for MCP registry

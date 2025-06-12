@@ -13,7 +13,7 @@ import { LegacyInputHandler } from "./reasoning/legacyInputHandler.js";
 import { FourPhaseExecutor } from "./reasoning/fourPhaseExecutor.js";
 import { LegacyOutputGenerator } from "./reasoning/legacyOutputGenerator.js";
 import { LegacyCostEstimator } from "./reasoning/legacyCostEstimator.js";
-import { StrategyMetricsStore } from "../metrics/strategyMetricsStore.js";
+import { StrategyMetricsStoreAdapter as StrategyMetricsStore } from "../../monitoring/adapters/StrategyMetricsStoreAdapter.js";
 import { StrategyEventEmitter } from "../events/strategyEventEmitter.js";
 
 /**

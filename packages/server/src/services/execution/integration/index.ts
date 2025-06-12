@@ -12,8 +12,7 @@ export {
     type ExecutionArchitectureOptions,
 } from './executionArchitecture.js';
 
-// Export resource monitoring
-export { ResourceMonitor } from './monitoring/resourceMonitor.js';
+// ResourceMonitor now available through ResourceMonitorAdapter
 
 // Re-export resource types from shared (no longer from deprecated resources folder)
 export type {

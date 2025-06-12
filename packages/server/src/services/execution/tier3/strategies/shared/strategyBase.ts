@@ -8,7 +8,7 @@ import {
     type ResourceUsage,
     StrategyType,
 } from "@vrooli/shared";
-import { PerformanceTracker, type PerformanceEntry } from "./performanceTracker.js";
+import { PerformanceTrackerAdapter as PerformanceTracker, type PerformanceEntry } from "../../../monitoring/adapters/PerformanceTrackerAdapter.js";
 
 /**
  * Strategy configuration options

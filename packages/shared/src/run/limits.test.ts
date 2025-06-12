@@ -88,9 +88,18 @@ describe("RunLimitsManager", () => {
                     maxTime: 5000,
                     onMaxTime: "Stop",
                 };
-                const startTime = Date.now() - 5000; // Exactly 5 seconds ago
+                // Use a fixed time to avoid timing precision issues
+                const fixedNow = 1000000; // Fixed timestamp
+                const startTime = fixedNow - 5000; // Exactly 5 seconds ago
+                
+                // Mock Date.now to return our fixed time
+                const originalNow = Date.now;
+                Date.now = vi.fn(() => fixedNow);
 
                 const result = limitsManager.checkLimits(mockRun, runLimits, startTime);
+
+                // Restore Date.now
+                Date.now = originalNow;
 
                 // When elapsed time equals max time, it should still be within limits
                 // Users should get the full time duration they configured

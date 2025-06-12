@@ -2,7 +2,7 @@ import { type Logger } from "winston";
 import { type SessionUser } from "@vrooli/shared";
 import { type ToolResponse } from "../../../mcp/types.js";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
+import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * Security tool parameters

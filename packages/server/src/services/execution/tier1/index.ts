@@ -6,7 +6,7 @@
  * Orient, Decide, Act) for high-level decision making and adaptation.
  */
 export { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
-export { MetacognitiveMonitor } from "./intelligence/metacognitiveMonitor.js";
+export { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
 export { StrategyEngine } from "./intelligence/strategyEngine.js";
 export { ResourceManager } from "./organization/resourceManager.js";
 export { TeamManager } from "./organization/teamManager.js";

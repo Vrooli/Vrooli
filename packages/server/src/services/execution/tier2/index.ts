@@ -23,7 +23,7 @@ export { NativeNavigator } from "./navigation/navigators/nativeNavigator.js";
 
 // Intelligence components
 export { PathOptimizer } from "./intelligence/pathOptimizer.js";
-export { PerformanceMonitor } from "./intelligence/performanceMonitor.js";
+export { PerformanceMonitorAdapter as PerformanceMonitor } from "../monitoring/adapters/PerformanceMonitorAdapter.js";
 
 // Persistence and validation
 export { CheckpointManager } from "./persistence/checkpointManager.js";

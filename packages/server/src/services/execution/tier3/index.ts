@@ -33,7 +33,7 @@ export { ResourceManager, type BudgetReservation } from "./engine/resourceManage
 export { IOProcessor } from "./engine/ioProcessor.js";
 export { ToolOrchestrator, type MCPTool, type ToolApprovalStatus } from "./engine/toolOrchestrator.js";
 export { ValidationEngine, type ValidationResult } from "./engine/validationEngine.js";
-export { TelemetryShim } from "../cross-cutting/monitoring/telemetryShim.js";
+export { TelemetryShimAdapter as TelemetryShim } from "../monitoring/adapters/TelemetryShimAdapter.js";
 
 // Context management
 export { RunContext, RunContextFactory, type RunContextConfig, type UserData, type StepConfig } from "./context/runContext.js";

@@ -20,7 +20,7 @@
 import { 
     type SessionUser, 
     type PendingToolCallEntry,
-    type ToolCallRecord,
+    type ChatToolCallRecord,
     type ChatConfigObject,
     type BotParticipant,
     type BotConfigObject,

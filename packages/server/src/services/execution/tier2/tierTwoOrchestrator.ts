@@ -6,7 +6,7 @@ import { BranchCoordinator } from "./orchestration/branchCoordinator.js";
 import { StepExecutor } from "./orchestration/stepExecutor.js";
 import { ContextManager } from "./context/contextManager.js";
 import { CheckpointManager } from "./persistence/checkpointManager.js";
-import { PerformanceMonitor } from "./intelligence/performanceMonitor.js";
+import { PerformanceMonitorAdapter as PerformanceMonitor } from "../monitoring/adapters/PerformanceMonitorAdapter.js";
 import { PathOptimizer } from "./intelligence/pathOptimizer.js";
 import { MOISEGate } from "./validation/moiseGate.js";
 import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";

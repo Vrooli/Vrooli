@@ -13,7 +13,7 @@ import type {
 } from "@vrooli/shared";
 import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
+import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * Tool approval status

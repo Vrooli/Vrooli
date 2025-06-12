@@ -15,6 +15,8 @@ import { EventEmitter } from "events";
 export interface BaseEvent {
     id: string;
     type: string;
+    category?: string;
+    subcategory?: string;
     timestamp: Date;
     source: {
         tier: 1 | 2 | 3 | "cross-cutting";

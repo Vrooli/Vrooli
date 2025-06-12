@@ -6,7 +6,7 @@ import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
 import { ResourceManager } from "./engine/resourceManager.js";
 import { ValidationEngine } from "./engine/validationEngine.js";
 import { IOProcessor } from "./engine/ioProcessor.js";
-import { TelemetryShim } from "../cross-cutting/monitoring/telemetryShim.js";
+import { TelemetryShimAdapter as TelemetryShim } from "../monitoring/adapters/TelemetryShimAdapter.js";
 import { ExecutionRunContext } from "./context/runContext.js";
 import { ContextExporter } from "./context/contextExporter.js";
 import { ConversationalStrategy } from "./strategies/conversationalStrategy.js";
@@ -49,7 +49,15 @@ export class TierThreeExecutor implements TierCommunicationInterface {
         const resourceManager = new ResourceManager(logger);
         const validationEngine = new ValidationEngine(logger);
         const ioProcessor = new IOProcessor(logger);
-        const telemetryShim = new TelemetryShim(eventBus, 'tier3', { enabled: true });
+        const telemetryShim = new TelemetryShim(
+            eventBus,
+            {
+                tier: 3,
+                component: "TierThreeExecutor",
+                instanceId: "singleton",
+            },
+            { enabled: true }
+        );
         
         // Register strategies
         strategySelector.registerStrategy(new ConversationalStrategy(logger));

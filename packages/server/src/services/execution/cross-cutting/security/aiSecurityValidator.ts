@@ -15,7 +15,7 @@ import type {
     SecurityAudit,
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
-import { TelemetryShim } from "../monitoring/telemetryShim.js";
+import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { RedisEventBus } from "../events/eventBus.js";
 import { generatePK } from "@vrooli/shared";
 

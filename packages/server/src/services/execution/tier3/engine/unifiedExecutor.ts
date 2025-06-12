@@ -23,11 +23,11 @@ import { ResourceManager } from "./resourceManager.js";
 import { IOProcessor } from "./ioProcessor.js";
 import { ToolOrchestrator } from "./toolOrchestrator.js";
 import { ValidationEngine } from "./validationEngine.js";
-import { TelemetryShim } from "../../cross-cutting/monitoring/telemetryShim.js";
+import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { type RunContext } from "../context/runContext.js";
 import { ContextExporter } from "../context/contextExporter.js";
 import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
-import { type RollingHistory } from "../../cross-cutting/monitoring/index.js";
+import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * UnifiedExecutor - The heart of Tier 3 Execution Intelligence
@@ -73,7 +73,15 @@ export class UnifiedExecutor implements TierCommunicationInterface {
         this.validationEngine = new ValidationEngine(logger);
         this.resourceManager = new ResourceManager(logger, eventBus);
         this.ioProcessor = new IOProcessor(logger);
-        this.telemetryShim = new TelemetryShim(eventBus, config.telemetryEnabled);
+        this.telemetryShim = new TelemetryShim(
+            eventBus, 
+            {
+                tier: 3,
+                component: "UnifiedExecutor",
+                instanceId: "singleton",
+            },
+            { enabled: config.telemetryEnabled }
+        );
         this.contextExporter = new ContextExporter(eventBus, logger);
         
         // Initialize strategy selector with enhanced configuration
