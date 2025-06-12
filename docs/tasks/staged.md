@@ -1,3 +1,99 @@
+# Enhance Redis Connection Management with Unified Pool
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Build upon the existing connection caching in `queueFactory.ts` to create a unified Redis connection manager with health checks, metrics, and pool-like features that all services can use instead of creating individual connections. This will improve resource efficiency, provide better monitoring, and reduce connection overhead across the three-tier AI architecture.
+
+**Current Implementation Analysis:**
+- **Connection Caching**: `buildRedis()` in `/packages/server/src/tasks/queueFactory.ts` provides basic connection reuse with URL-based caching
+- **Cache Service**: Independent Redis management in `/packages/server/src/redisConn.ts` with singleton pattern
+- **Queue Service**: Uses `buildRedis()` for queue connections with proper lifecycle management
+- **Fragmented Usage**: Multiple services (`bus.ts`, `metrics.ts`, `health.ts`, etc.) create individual connections
+- **Missing**: Unified health monitoring, connection pooling, metrics aggregation, graceful failover
+
+**Key Deliverables:**
+
+**Phase 1: Unified Connection Manager Design**
+- [ ] Analyze all current Redis usage patterns across the codebase (55+ files identified)
+- [ ] Design unified `RedisConnectionManager` class extending existing `buildRedis()` patterns
+- [ ] Create connection configuration interface supporting different connection types (queue, cache, pub/sub, general)
+- [ ] Design health check and metrics collection interfaces
+- [ ] Plan backward compatibility strategy for existing `CacheService` and `buildRedis()` users
+
+**Phase 2: Core Implementation**
+- [ ] Create `/packages/server/src/services/redis/connectionManager.ts` with unified connection management
+- [ ] Implement connection pooling with configurable limits and timeout handling
+- [ ] Add comprehensive health monitoring with connection status tracking
+- [ ] Create metrics collection for connection usage, performance, and errors
+- [ ] Implement graceful failover and circuit breaker patterns
+
+**Phase 3: Integration with Existing Services**
+- [ ] Migrate `CacheService` to use unified connection manager while maintaining API compatibility
+- [ ] Update `QueueService` to leverage enhanced connection management
+- [ ] Refactor event bus, metrics service, and other Redis consumers to use unified manager
+- [ ] Ensure proper connection sharing based on usage patterns (queues vs cache vs pub/sub)
+
+**Phase 4: Enhanced Features**
+- [ ] Add connection multiplexing for high-throughput scenarios
+- [ ] Implement Redis Cluster and Sentinel support with automatic discovery
+- [ ] Create connection lifecycle events for monitoring and debugging
+- [ ] Add configurable retry policies and exponential backoff strategies
+- [ ] Implement connection prewarming and connection validation
+
+**Phase 5: Monitoring and Diagnostics**
+- [ ] Create Redis connection dashboard endpoint (`/api/redis/status`)
+- [ ] Implement real-time connection metrics with Prometheus-compatible exports
+- [ ] Add connection tracing for debugging connection issues
+- [ ] Create automated alerts for connection health degradation
+- [ ] Implement connection usage analytics and optimization recommendations
+
+**Phase 6: Testing and Documentation**
+- [ ] Create comprehensive unit tests for connection manager
+- [ ] Add integration tests with testcontainers for Redis scenarios
+- [ ] Test failover scenarios and connection recovery
+- [ ] Performance test connection pooling under load
+- [ ] Create migration guide and best practices documentation
+
+**Technical Implementation Notes:**
+- Build upon existing `buildRedis()` function rather than replacing it entirely
+- Maintain compatibility with current `IORedis` usage patterns
+- Use TypeScript interfaces for connection configuration and monitoring
+- Implement lazy connection initialization to avoid startup dependencies
+- Follow existing error handling patterns with enhanced logging
+- Ensure minimal performance overhead (target <1% impact)
+
+**File Structure:**
+```
+packages/server/src/services/redis/
+├── connectionManager.ts          # Main unified connection manager
+├── types.ts                      # Connection types and interfaces  
+├── healthMonitor.ts              # Connection health monitoring
+├── metrics.ts                    # Connection metrics collection
+├── config.ts                     # Connection configuration management
+└── __test/
+    ├── connectionManager.test.ts # Unit tests
+    └── integration.test.ts       # Integration tests with testcontainers
+```
+
+**Success Criteria:**
+- All services use unified connection manager with zero breaking changes
+- 30% reduction in total Redis connections across the application
+- Sub-100ms connection establishment for cached connections
+- 99.9% connection availability with automatic failover
+- Comprehensive metrics available for all Redis operations
+- Zero performance degradation for existing functionality
+
+**Migration Strategy:**
+- Phase 1-2: Build new system alongside existing implementations
+- Phase 3: Gradual migration with feature flags for rollback capability
+- Phase 4-5: Enhanced features after core migration is stable
+- Phase 6: Documentation and optimization
+
+---
+
 # Create Integration Tests for Cross-Tier Communication
 Priority: HIGH  
 Status: TODO
@@ -1535,3 +1631,197 @@ Complete the implementation of CameraButton component that allows users to captu
 - `/packages/ui/src/components/inputs/AdvancedInput/AdvancedInput.tsx` - Integrate button
 - `/packages/ui/src/components/buttons/CameraButton.test.tsx` - Unit tests
 - `/packages/ui/src/components/buttons/CameraButton.stories.tsx` - Storybook stories
+
+---
+
+# Implement Environment Variable Validation System
+Priority: HIGH  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Create a comprehensive environment variable validation system that validates all configuration at startup with clear error messages for missing or invalid configurations. This system will improve production reliability, enhance developer experience, and prevent runtime configuration issues by validating the 50+ environment variables documented in .env-example.
+
+**Current Implementation Analysis:**
+- **Basic Validation**: Hardcoded check for 7 critical variables in `/packages/server/src/index.ts` (lines 33-48)
+- **Widespread Usage**: 72+ files use `process.env.*` across the codebase with no centralized validation
+- **Configuration Scope**: .env-example documents 50+ variables across categories (debug, ports, credentials, API keys, third-party integrations)
+- **Inconsistent Patterns**: Environment variables loaded individually by services with minimal validation
+- **Missing**: Type safety, format validation, comprehensive error messages, development tooling
+
+**Key Deliverables:**
+
+**Phase 1: Environment Variable Audit and Classification**
+- [ ] Catalog all environment variable usage across the 72+ identified files
+- [ ] Classify variables by criticality (required vs optional) and environment (dev/staging/production)
+- [ ] Document variable dependencies and conditional requirements
+- [ ] Create comprehensive mapping of variables to services and features
+- [ ] Identify variables missing from .env-example or used but not documented
+
+**Phase 2: Validation Schema Design**
+- [ ] Design TypeScript interfaces for environment configuration with proper typing
+- [ ] Create validation schema using Yup (following existing patterns in `/packages/shared/src/validation/`)
+- [ ] Define validation rules for each variable category:
+  - [ ] Database and Redis connection strings with URL validation
+  - [ ] API keys with format validation (length, prefixes)
+  - [ ] Port numbers with range validation (1-65535)
+  - [ ] Email addresses and domains with format validation
+  - [ ] File paths and directory validation
+  - [ ] Boolean flags with proper parsing
+- [ ] Implement conditional validation (variables required only in certain environments)
+
+**Phase 3: Core Validation Service Implementation**
+- [ ] Create `/packages/server/src/services/validation/environmentValidator.ts` as main validation service
+- [ ] Implement startup validation integration with existing process in `index.ts`
+- [ ] Add comprehensive error handling with clear, actionable error messages
+- [ ] Create validation result aggregation and formatted console output
+- [ ] Implement graceful degradation for non-critical variables with warnings
+- [ ] Add validation caching for performance optimization
+
+**Phase 4: Integration and Migration**
+- [ ] Replace existing hardcoded validation in `index.ts` with new validation service
+- [ ] Update services to use type-safe environment variable access
+- [ ] Create migration guide for existing environment variable usage patterns
+- [ ] Add backward compatibility layer to prevent breaking changes
+- [ ] Integrate validation with existing error handling and logging systems
+- [ ] Add validation to CI/CD pipeline for early detection of configuration issues
+
+**Phase 5: Developer Experience Enhancements**
+- [ ] Enhance `.env-example` with detailed comments explaining each variable's purpose and format
+- [ ] Create environment variable documentation with examples and troubleshooting
+- [ ] Add development tools for environment validation (CLI commands)
+- [ ] Implement helpful error messages that reference .env-example and provide fix suggestions
+- [ ] Create environment health check endpoint for runtime validation monitoring
+- [ ] Add VS Code workspace settings for environment variable IntelliSense
+
+**Phase 6: Testing and Documentation**
+- [ ] Create comprehensive test suite covering all validation scenarios
+- [ ] Add edge case testing (malformed values, missing dependencies, invalid formats)
+- [ ] Implement integration tests with testcontainers for environment-dependent services
+- [ ] Create environment validation performance tests
+- [ ] Document validation rules and add troubleshooting guide
+- [ ] Create deployment checklist for environment configuration
+- [ ] Add configuration management best practices documentation
+
+**Technical Implementation Notes:**
+- Build upon existing validation patterns from `/packages/shared/src/validation/utils/`
+- Use Yup schema validation library (already in use across the codebase)
+- Follow error handling patterns from CustomError system in `/packages/server/src/events/error.ts`
+- Integrate with existing startup sequence without breaking current functionality
+- Ensure validation overhead is minimal (<100ms additional startup time)
+- Support both development and production environment validation rules
+- Provide environment-specific validation (some variables only required in production)
+
+**File Structure:**
+```
+packages/server/src/services/validation/
+├── environmentValidator.ts      # Main validation service
+├── validationRules.ts          # Environment variable schemas and rules
+├── validationUtils.ts          # Helper functions and utilities
+├── types.ts                    # TypeScript interfaces
+└── __test/
+    ├── environmentValidator.test.ts
+    └── validationRules.test.ts
+```
+
+**Success Criteria:**
+- All 50+ environment variables from .env-example have validation rules
+- Clear, actionable error messages for all validation failures
+- Type-safe environment variable access throughout the application
+- Zero production issues due to missing or invalid environment configuration
+- Improved developer onboarding with better configuration guidance
+- <100ms additional startup time for validation
+- 100% test coverage for validation logic
+- Comprehensive documentation and troubleshooting guides
+
+**Migration Strategy:**
+- Phase 1-2: Build validation system alongside existing implementation
+- Phase 3-4: Gradual migration with feature flags for rollback capability
+- Phase 5-6: Enhanced developer experience and comprehensive documentation
+
+---
+
+# Implement WebSocket Connection Pool Management
+Priority: MEDIUM  
+Status: TODO
+Dependencies: None
+ParentTask: None
+
+**Description:**  
+Enhance the existing Socket.IO WebSocket implementation with comprehensive connection pool management, resource limits, and monitoring. The current implementation uses Socket.IO with Redis adapter for horizontal scaling but lacks explicit connection pooling, per-user limits, and health monitoring capabilities.
+
+**Current Implementation Analysis:**
+- **Socket.IO Server**: Singleton pattern with Redis adapter in `/packages/server/src/sockets/io.ts`
+- **Redis Scaling**: Pub/sub for cross-instance communication, supports cluster operations
+- **Client Management**: Single socket instance with auto-reconnection in `/packages/ui/src/api/socket.ts`
+- **Room System**: Chat, run, and user rooms with JWT authentication
+- **Missing**: Connection limits, pooling, health monitoring, resource management
+
+**Key Deliverables:**
+
+**Phase 1: Connection Limits and Rate Limiting**
+- [ ] Implement per-user connection limits (max connections per user)
+- [ ] Add IP-based connection rate limiting
+- [ ] Create connection throttling middleware
+- [ ] Add configuration for connection limits via environment variables
+- [ ] Implement connection rejection with appropriate error messages
+
+**Phase 2: Redis Connection Pool Enhancement**
+- [ ] Create shared Redis connection pool for Socket.IO adapter
+- [ ] Implement connection pool monitoring and metrics
+- [ ] Add connection pool size configuration
+- [ ] Optimize pub/sub client creation and reuse
+- [ ] Add health checks for Redis adapter connections
+
+**Phase 3: Client-Side Connection Management**
+- [ ] Implement exponential backoff for reconnection attempts
+- [ ] Add connection quality monitoring (latency, stability)
+- [ ] Create connection state persistence across page reloads
+- [ ] Add network condition detection for optimized reconnections
+- [ ] Implement connection timeout configuration
+
+**Phase 4: Monitoring and Metrics**
+- [ ] Add WebSocket connection metrics endpoint
+- [ ] Implement per-connection resource tracking (memory, CPU)
+- [ ] Create connection lifecycle logging
+- [ ] Add real-time connection dashboard data
+- [ ] Implement alerting for connection anomalies
+
+**Phase 5: Resource Management**
+- [ ] Implement automatic cleanup of stale connections
+- [ ] Add connection TTL configuration
+- [ ] Create memory usage limits per connection
+- [ ] Implement connection migration for load balancing
+- [ ] Add graceful connection draining for deployments
+
+**Technical Implementation Notes:**
+- Build upon existing Socket.IO infrastructure without breaking changes
+- Maintain compatibility with Redis adapter horizontal scaling
+- Use existing authentication and room management patterns
+- Leverage testcontainers for integration testing
+- Ensure minimal performance overhead (<2% impact)
+
+**File Structure:**
+```
+packages/server/src/sockets/
+├── pool/
+│   ├── connectionManager.ts      # Connection pool management
+│   ├── rateLimiter.ts           # Connection rate limiting
+│   ├── metrics.ts               # Connection metrics collection
+│   └── healthMonitor.ts         # Connection health monitoring
+├── middleware/
+│   ├── connectionLimits.ts      # Per-user/IP limits
+│   └── resourceTracking.ts      # Resource usage tracking
+└── __test/
+    ├── connectionPool.test.ts    # Pool management tests
+    └── rateLimiting.test.ts      # Rate limiting tests
+```
+
+**Success Criteria:**
+- Per-user connection limits enforced without breaking existing functionality
+- Connection pool metrics available via monitoring endpoint
+- Reconnection handling improved with exponential backoff
+- Resource usage tracked and limited per connection
+- Zero downtime migration from current implementation
+- <2% performance overhead from pooling and monitoring
