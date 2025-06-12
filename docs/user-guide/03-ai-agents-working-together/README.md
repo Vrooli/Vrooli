@@ -37,6 +37,62 @@ By the end of this section, users will:
 - Live example of agent coordination
 - Comparison: single AI vs. agent swarm capabilities
 
+**Tutorial Implementation:**
+```typescript
+location: {
+    element: ELEMENT_IDS.ChatBubbleTree,
+    page: LINKS.Home
+}
+
+// Agent swarms introduction using existing + essential types
+content: [
+    {
+        type: FormStructureType.Header,
+        label: "Understanding Agent Swarms",
+        tag: "h2",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Video,
+        src: "/tutorial/agent-swarm-collaboration.mp4",
+        label: "Watch agents work together"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Think of agent swarms like a specialized team where each member has different expertise:",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Research Agent**: Gathers information and analyzes data"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Planning Agent**: Creates strategies and organizes workflows"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Execution Agent**: Completes tasks and uses tools"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Coordination Agent**: Manages the team and synthesizes results"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**The magic**: They work simultaneously, share knowledge instantly, and produce results no single AI could achieve alone.",
+        tag: "body1",
+        isMarkdown: true
+    }
+]
+```
+
+**Expected User Action**: User observes and understands agent specialization concept
+
 ### **3.2 Watching Agents Collaborate**
 **Duration**: 2-3 minutes  
 **Component Anchor**: Real-time agent coordination display
@@ -55,6 +111,57 @@ By the end of this section, users will:
 - Live demonstration of multi-agent task execution
 - Real-time coordination visualization
 - Progress indicators for parallel agent work
+
+**Tutorial Implementation:**
+```typescript
+// Triggers during an active agent collaboration
+location: {
+    element: ELEMENT_IDS.ChatBubbleTree,
+    page: LINKS.Home
+}
+
+action: () => {
+    // Highlight active collaboration indicators
+    highlightElement("agent-coordination-indicators");
+},
+
+// Live collaboration display using existing types
+content: [
+    {
+        type: FormStructureType.Header,
+        label: "Watch the agents collaborate",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Notice how the AI response shows evidence of multiple agents working together:",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **Comprehensive analysis**: Multiple perspectives synthesized\n• **Structured approach**: Different aspects organized clearly\n• **Specialized insights**: Expert knowledge from different domains\n• **Coordinated output**: Seamless integration of agent contributions",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "You don't need to manage the agents - they coordinate automatically behind the scenes"
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "research", label: "Research agents gather information", completed: true },
+            { id: "analysis", label: "Analysis agents process data", completed: true },
+            { id: "planning", label: "Planning agents create strategy", completed: false },
+            { id: "synthesis", label: "Coordination agents integrate results", completed: false }
+        ]
+    }
+]
+```
+
+**Expected User Action**: User observes agent collaboration patterns in real responses
 
 ### **3.3 Three-Tier Intelligence System**
 **Duration**: 1-2 minutes  
@@ -75,6 +182,89 @@ By the end of this section, users will:
 - Example showing each tier in action
 - Benefits explanation for users
 
+**Tutorial Implementation:**
+```typescript
+location: {
+    element: ELEMENT_IDS.RunProgressDisplay,
+    page: LINKS.Home
+}
+
+// Three-tier system explanation using existing types
+content: [
+    {
+        type: FormStructureType.Header,
+        label: "Three-Tier Intelligence Architecture",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/three-tier-diagram.png",
+        alt: "Three-tier intelligence system diagram"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Vrooli uses three layers of AI intelligence that work together seamlessly:",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Tier 1 - Coordination Intelligence**",
+        tag: "h4",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Strategic planning and goal setting\n• Resource allocation and team formation\n• High-level decision making",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Tier 2 - Process Intelligence**",
+        tag: "h4",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Task orchestration and workflow management\n• Progress monitoring and adaptation\n• Quality assurance and optimization",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Tier 3 - Execution Intelligence**",
+        tag: "h4",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Direct task completion and tool usage\n• Real-time problem solving\n• Result delivery and integration",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "This architecture ensures your tasks are handled intelligently at every level - from strategy to execution"
+    }
+]
+```
+
+**Expected User Action**: User understands the systematic approach to task handling
+
 ### **3.4 When Agents Need Your Input**
 **Duration**: 1-2 minutes  
 **Component Anchor**: Decision point interface in chat
@@ -93,6 +283,80 @@ By the end of this section, users will:
 - Example decision point interaction
 - Common types of input requests
 - How to provide effective guidance to agents
+
+**Tutorial Implementation:**
+```typescript
+location: {
+    element: ELEMENT_IDS.ChatBubbleTree,
+    page: LINKS.Home
+}
+
+// Human-AI interaction patterns using existing + essential types
+content: [
+    {
+        type: FormStructureType.Header,
+        label: "When agents need your guidance",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Agents are designed to work autonomously, but they'll ask for your input in specific situations:",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Important decisions**: Choices that affect project direction or priorities"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Missing information**: When they need more details to proceed effectively"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Preference learning**: Understanding your style and preferences for better future assistance"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Quality confirmation**: Checking if results meet your expectations before finalizing"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Example interaction:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Agent**: I've found three approaches for your project. Would you prefer the faster method (2 days) or the more comprehensive approach (5 days)?",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Faster approach", action: "select_fast", variant: "contained" },
+            { label: "Comprehensive approach", action: "select_thorough", variant: "outlined" },
+            { label: "Tell me more about both", action: "request_details", variant: "text" }
+        ]
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "You remain in control of key decisions while agents handle all the execution details"
+    }
+]
+```
+
+**Expected User Action**: User understands when and how to provide input to agents
 
 ## Success Criteria
 

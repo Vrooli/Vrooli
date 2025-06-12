@@ -47,24 +47,44 @@ location: {
     page: LINKS.Create + '/routine'
 }
 
+// Custom routine creation using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Build your first custom routine",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.RoutineBuilder,
-        steps: [
-            { id: "define-goal", label: "Define the goal", status: "active" },
-            { id: "set-inputs", label: "Specify inputs", status: "pending" },
-            { id: "design-process", label: "Design process", status: "pending" },
-            { id: "configure-output", label: "Configure output", status: "pending" }
+        type: FormStructureType.Header,
+        label: "Custom routines automate workflows you do repeatedly. Start by describing what you want to accomplish.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Video,
+        src: "/tutorial/routine-builder-demo.mp4",
+        label: "Watch routine creation process"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Routine Building Steps:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "goal", label: "Define the goal and purpose", completed: false },
+            { id: "inputs", label: "Specify required inputs", completed: false },
+            { id: "process", label: "Design the process steps", completed: false },
+            { id: "output", label: "Configure output format", completed: false }
         ]
     },
     {
-        type: FormStructureType.Text,
-        label: "Custom routines automate workflows you do repeatedly. Start by describing what you want to accomplish."
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Describe the workflow you want to automate...",
+        action: "start_routine_builder"
     }
 ]
 ```
@@ -97,31 +117,74 @@ location: {
     page: LINKS.Settings + '/integrations'
 }
 
+// API integrations using existing types
 content: [
     {
-        type: FormStructureType.IntegrationGallery,
-        categories: [
-            {
-                name: "Productivity",
-                integrations: [
-                    { name: "Google Workspace", status: "available", setup: "oauth" },
-                    { name: "Microsoft 365", status: "available", setup: "oauth" },
-                    { name: "Notion", status: "available", setup: "api-key" }
-                ]
-            },
-            {
-                name: "Development",
-                integrations: [
-                    { name: "GitHub", status: "available", setup: "oauth" },
-                    { name: "GitLab", status: "available", setup: "oauth" },
-                    { name: "Jira", status: "available", setup: "api-key" }
-                ]
-            }
-        ]
+        type: FormStructureType.Header,
+        label: "Connect Your Tools",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Connect your existing tools to enhance AI capabilities with real-time data and actions."
+        type: FormStructureType.Header,
+        label: "Connect your existing tools to enhance AI capabilities with real-time data and actions.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/integrations-overview.png",
+        alt: "Available integrations gallery"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Productivity Integrations:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Google Workspace**: Connect Gmail, Drive, Calendar, and Docs"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Microsoft 365**: Integrate Outlook, OneDrive, and Office apps"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Notion**: Sync databases, pages, and workspace content"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Development Integrations:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**GitHub**: Access repositories, issues, and pull requests"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**GitLab**: Connect projects and pipeline data"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Jira**: Sync tickets, projects, and workflow data"
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Browse Integrations", action: "browse_integrations", variant: "contained" },
+            { label: "Setup Custom API", action: "custom_api", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -154,30 +217,61 @@ location: {
     page: LINKS.Search + '?advanced=true'
 }
 
+// Advanced search using existing types
 content: [
     {
-        type: FormStructureType.SearchTutorial,
-        techniques: [
-            {
-                operator: "type:project tag:urgent",
-                description: "Find urgent projects",
-                example: "Search for projects tagged as urgent"
-            },
-            {
-                operator: "author:me modified:last-week",
-                description: "Find your recent edits",
-                example: "Content you modified in the last week"
-            },
-            {
-                operator: "\"exact phrase\" -exclude",
-                description: "Exact phrase excluding terms",
-                example: "Find exact phrases while excluding unwanted terms"
-            }
-        ]
+        type: FormStructureType.Header,
+        label: "Master Advanced Search",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Master these search techniques to find information instantly, even in large workspaces."
+        type: FormStructureType.Header,
+        label: "Master these search techniques to find information instantly, even in large workspaces.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Search Operators:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**type:project tag:urgent** - Find urgent projects by combining type and tag filters"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**author:me modified:last-week** - Find content you modified recently"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**\"exact phrase\" -exclude** - Search exact phrases while excluding unwanted terms"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Advanced Filters:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **Date ranges**: created:2024 or modified:yesterday\n• **Content types**: type:note, type:routine, type:chat\n• **Team filters**: team:marketing or private:true\n• **Status filters**: status:active or completed:true",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try searching: type:project tag:important modified:this-week",
+        action: "test_search"
     }
 ]
 ```
@@ -215,19 +309,63 @@ action: () => {
     showCommandPalette();
 },
 
+// Keyboard shortcuts using existing types
 content: [
     {
-        type: FormStructureType.ShortcutTrainer,
-        essentialShortcuts: [
-            { keys: "Ctrl+P", action: "Open command palette", category: "Navigation" },
-            { keys: "Ctrl+K", action: "Quick search", category: "Search" },
-            { keys: "Ctrl+N", action: "New chat/project", category: "Creation" },
-            { keys: "Ctrl+/", action: "Help and shortcuts", category: "Help" }
-        ]
+        type: FormStructureType.Header,
+        label: "Master Keyboard Shortcuts",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Master these shortcuts to work at the speed of thought. Practice makes perfect!"
+        type: FormStructureType.Header,
+        label: "Master these shortcuts to work at the speed of thought. Practice makes perfect!",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Essential Shortcuts:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ctrl+P (Cmd+P)**: Open command palette for instant access to any feature"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ctrl+K (Cmd+K)**: Quick search across all your content and projects"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ctrl+N (Cmd+N)**: Create new chat, project, or routine"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ctrl+/ (Cmd+/)**: Show help and complete shortcuts reference"
+    },
+    {
+        type: FormStructureType.QrCode,
+        value: "vrooli://shortcuts/practice",
+        label: "Practice shortcuts interactively"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Pro Tips:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Practice one shortcut at a time until it becomes automatic\n• Customize shortcuts for your most frequent actions\n• Use the command palette to discover new features\n• Combine shortcuts for maximum efficiency",
+        tag: "body1",
+        isMarkdown: true
     }
 ]
 ```
@@ -260,18 +398,65 @@ location: {
     page: LINKS.Inbox
 }
 
+// Notification management using existing types
 content: [
     {
-        type: FormStructureType.NotificationFlow,
-        stages: [
-            { name: "Incoming", filters: ["Source", "Type", "Priority"] },
-            { name: "Processing", actions: ["Route", "Batch", "Schedule"] },
-            { name: "Action", outcomes: ["Respond", "Archive", "Defer"] }
-        ]
+        type: FormStructureType.Header,
+        label: "Manage Notifications Effectively",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Design notification flows that keep you informed while protecting your focus time."
+        type: FormStructureType.Header,
+        label: "Design notification flows that keep you informed while protecting your focus time.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/notification-flow-diagram.png",
+        alt: "Notification processing flow visualization"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Notification Processing Stages:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Incoming**: Filter by source, type, and priority to reduce noise"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Processing**: Route, batch, or schedule notifications for optimal timing"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Action**: Respond immediately, archive for later, or defer to specific times"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Smart Management Strategies:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **Focus Hours**: Batch non-urgent notifications during deep work\n• **Priority Routing**: Immediate alerts for critical items only\n• **Smart Grouping**: Combine related notifications to reduce interruptions\n• **Context Awareness**: Adjust notifications based on current activity",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Configure Rules", action: "setup_rules", variant: "contained" },
+            { label: "Test Notifications", action: "test_flow", variant: "outlined" }
+        ]
     }
 ]
 ```

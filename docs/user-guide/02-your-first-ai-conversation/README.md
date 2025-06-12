@@ -44,27 +44,27 @@ location: {
     page: LINKS.Home
 }
 
+// Content using existing + essential new types
 content: [
     {
         type: FormStructureType.Header,
         label: "Start your first conversation",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Click in the message area below and type what you want to work on. Here are some ideas to get started:"
+        type: FormStructureType.Header,
+        label: "Click in the message area below and type what you want to work on. Here are some ideas to get started:",
+        tag: "body1"
     },
     {
-        type: FormStructureType.ExampleList,
-        examples: [
-            "Help me organize my daily tasks",
-            "I need to plan a project presentation",
-            "Create a workout routine for busy professionals",
-            "Help me write a professional email"
-        ]
+        type: FormStructureType.Header,
+        label: "**Examples to try:**\n• Help me organize my daily tasks\n• I need to plan a project presentation\n• Create a workout routine for busy professionals\n• Help me write a professional email",
+        tag: "body1",
+        isMarkdown: true
     },
     {
-        type: FormStructureType.InteractivePrompt,
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
         placeholder: "Try typing one of the examples above or your own request...",
         action: "SendMessage"
     }
@@ -102,24 +102,23 @@ location: {
     page: LINKS.Home
 }
 
+// Conversation highlighting using existing types
 content: [
     {
-        type: FormStructureType.ConversationHighlight,
-        highlight: "user-message",
+        type: FormStructureType.Tip,
+        icon: "Info",
         label: "Great! You sent your first message naturally"
     },
     {
-        type: FormStructureType.Text,
-        label: "Notice how you wrote that like you were talking to a person? That's exactly right. Valyxa understands natural language, so you can:"
+        type: FormStructureType.Header,
+        label: "Notice how you wrote that like you were talking to a person? That's exactly right. Valyxa understands natural language, so you can:",
+        tag: "body1"
     },
     {
-        type: FormStructureType.TipList,
-        tips: [
-            "Ask questions: 'How should I approach this?'",
-            "Request actions: 'Create a schedule for my week'",
-            "Brainstorm: 'What are some creative solutions for...'",
-            "Problem-solve: 'I'm stuck with this issue...'"
-        ]
+        type: FormStructureType.Header,
+        label: "• **Ask questions**: 'How should I approach this?'\n• **Request actions**: 'Create a schedule for my week'\n• **Brainstorm**: 'What are some creative solutions for...'\n• **Problem-solve**: 'I'm stuck with this issue...'",
+        tag: "body1",
+        isMarkdown: true
     }
 ]
 ```
@@ -158,28 +157,27 @@ action: () => {
     highlightElement("latest-ai-message");
 },
 
+// AI response structure using existing types
 content: [
     {
-        type: FormStructureType.ConversationHighlight,
-        highlight: "ai-response",
+        type: FormStructureType.Tip,
+        icon: "Info",
         label: "Look how Valyxa structured the response"
     },
     {
-        type: FormStructureType.Text,
-        label: "AI responses typically include:"
+        type: FormStructureType.Header,
+        label: "AI responses typically include:",
+        tag: "body1"
     },
     {
-        type: FormStructureType.FeatureList,
-        features: [
-            "Clear understanding of your request",
-            "Specific suggestions or solutions",
-            "Follow-up questions for clarification",
-            "Action buttons for immediate next steps"
-        ]
+        type: FormStructureType.Header,
+        label: "• Clear understanding of your request\n• Specific suggestions or solutions\n• Follow-up questions for clarification\n• Action buttons for immediate next steps",
+        tag: "body1",
+        isMarkdown: true
     },
     {
         type: FormStructureType.Tip,
-        icon: "Lightbulb",
+        icon: "Info",
         label: "The AI builds context from everything you've said. No need to repeat yourself!"
     }
 ]
@@ -213,35 +211,36 @@ location: {
     page: LINKS.Home
 }
 
+// Follow-up options using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Continue the conversation",
-        tag: "h3"
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Now respond to Valyxa's suggestions. You can:"
+        type: FormStructureType.Header,
+        label: "Now respond to Valyxa's suggestions. You can:",
+        tag: "body1"
     },
     {
-        type: FormStructureType.ActionOptions,
-        options: [
-            {
-                label: "Ask for more details",
-                example: "Can you elaborate on the second suggestion?"
-            },
-            {
-                label: "Request changes",
-                example: "That's good, but make it simpler"
-            },
-            {
-                label: "Try something different",
-                example: "Actually, let's focus on time management instead"
-            }
-        ]
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ask for more details**: 'Can you elaborate on the second suggestion?'"
     },
     {
-        type: FormStructureType.InteractivePrompt,
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Request changes**: 'That's good, but make it simpler'"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Try something different**: 'Actually, let's focus on time management instead'"
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
         placeholder: "Continue your conversation...",
         action: "SendFollowUp"
     }

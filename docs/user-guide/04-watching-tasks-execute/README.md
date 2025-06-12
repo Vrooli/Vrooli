@@ -44,20 +44,37 @@ location: {
     page: LINKS.Home
 }
 
+// Routine initiation using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Watch your task come to life",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "When your request requires multiple steps, agents automatically create and execute a routine. You'll see the execution begin immediately."
+        type: FormStructureType.Header,
+        label: "When your request requires multiple steps, agents automatically create and execute a routine. You'll see the execution begin immediately.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.ExecutionIndicator,
-        status: "starting",
-        label: "Agents are preparing your routine..."
+        type: FormStructureType.Video,
+        src: "/tutorial/routine-execution-start.mp4",
+        label: "Watch routine execution begin"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Execution Starting**: Agents are analyzing your request and preparing the routine"
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "analysis", label: "Analyze request requirements", completed: true },
+            { id: "planning", label: "Create execution plan", completed: true },
+            { id: "setup", label: "Initialize routine environment", completed: false },
+            { id: "execution", label: "Begin task execution", completed: false }
+        ]
     }
 ]
 ```
@@ -88,18 +105,44 @@ location: {
     page: LINKS.Home
 }
 
+// Timeline visualization using existing types
 content: [
     {
-        type: FormStructureType.TimelineGuide,
-        steps: [
-            { status: "completed", label: "Analysis complete" },
-            { status: "in-progress", label: "Research in progress" },
-            { status: "pending", label: "Synthesis awaiting completion" }
+        type: FormStructureType.Header,
+        label: "Real-time execution progress",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Watch how the timeline updates as agents complete each step. Multiple agents can work simultaneously on different parts of your task.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/execution-timeline-demo.png",
+        alt: "Example execution timeline showing step progression"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Current Execution Status:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "analysis", label: "Initial analysis and planning", completed: true },
+            { id: "research", label: "Information gathering and research", completed: false },
+            { id: "synthesis", label: "Data synthesis and integration", completed: false },
+            { id: "output", label: "Final output generation", completed: false }
         ]
     },
     {
-        type: FormStructureType.Text,
-        label: "Watch how the timeline updates as agents complete each step. Multiple agents can work simultaneously on different parts of your task."
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "✅ Completed  🔄 In Progress  ⏳ Pending  ❌ Failed"
     }
 ]
 ```
@@ -130,19 +173,51 @@ location: {
     page: LINKS.Home
 }
 
+// Decision point interaction using existing + essential types
 content: [
     {
-        type: FormStructureType.DecisionPrompt,
-        question: "How would you like to prioritize the research?",
-        options: [
-            { id: "depth", label: "Focus on comprehensive analysis", impact: "More thorough but slower" },
-            { id: "speed", label: "Prioritize quick insights", impact: "Faster results with key points" },
-            { id: "balanced", label: "Balanced approach", impact: "Good mix of speed and depth" }
-        ]
+        type: FormStructureType.Header,
+        label: "Agent needs your decision",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "When agents need your guidance, they'll present clear options with explanations. Your choice directs how they proceed."
+        type: FormStructureType.Header,
+        label: "When agents need your guidance, they'll present clear options with explanations. Your choice directs how they proceed.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Agent Question**: How would you like to prioritize the research?",
+        tag: "body1",
+        color: "secondary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Option 1: Comprehensive Analysis** - More thorough but slower approach"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Option 2: Quick Insights** - Faster results with key points highlighted"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Option 3: Balanced Approach** - Good mix of speed and depth"
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Comprehensive", action: "select_thorough", variant: "contained" },
+            { label: "Quick Insights", action: "select_fast", variant: "outlined" },
+            { label: "Balanced", action: "select_balanced", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -173,18 +248,61 @@ location: {
     page: LINKS.Home
 }
 
+// Results presentation using existing types
 content: [
     {
-        type: FormStructureType.ResultsDisplay,
-        summary: "Task completed successfully",
-        outputs: [
-            { type: "document", title: "Research Summary", description: "Comprehensive analysis with key findings" },
-            { type: "action-plan", title: "Next Steps", description: "Recommended actions based on research" }
-        ]
+        type: FormStructureType.Header,
+        label: "Task completed successfully! ✅",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "When tasks complete, you'll see all deliverables organized clearly. You can immediately ask for changes or build on the results."
+        type: FormStructureType.Header,
+        label: "When tasks complete, you'll see all deliverables organized clearly. You can immediately ask for changes or build on the results.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Deliverables:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📄 Research Summary** - Comprehensive analysis with key findings and data"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📋 Action Plan** - Recommended next steps based on research insights"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📊 Supporting Data** - Charts, references, and detailed analysis"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**What would you like to do next?**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Review in detail", action: "review_results", variant: "contained" },
+            { label: "Request changes", action: "modify_results", variant: "outlined" },
+            { label: "Start new task", action: "new_task", variant: "text" }
+        ]
     }
 ]
 ```

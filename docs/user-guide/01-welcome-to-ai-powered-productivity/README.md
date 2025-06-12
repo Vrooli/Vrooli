@@ -46,20 +46,28 @@ location: {
 }
 
 // Content structure
+// Content using existing form types
 content: [
     {
         type: FormStructureType.Header,
         label: "Welcome to the future of productivity",
-        tag: "h1"
+        tag: "h1",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Vrooli uses AI agent swarms - teams of specialized AI that collaborate to accomplish your goals. Think of it as having a brilliant team that never sleeps, working 24/7 to make your ideas reality."
+        type: FormStructureType.Header,
+        label: "Vrooli uses AI agent swarms - teams of specialized AI that collaborate to accomplish your goals. Think of it as having a brilliant team that never sleeps, working 24/7 to make your ideas reality.",
+        tag: "body1"
     },
     {
         type: FormStructureType.Video,
         src: "/tutorial/agent-swarm-intro.mp4",
         label: "Watch how AI agents collaborate"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "AI agent swarms coordinate automatically - no micromanagement needed!"
     }
 ]
 ```
@@ -92,20 +100,28 @@ location: {
     page: LINKS.Home
 }
 
+// Content using existing + essential new types
 content: [
     {
         type: FormStructureType.Header,
         label: "Meet your new workspace",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "This chat interface is your primary workspace. Instead of navigating menus or filling forms, you simply type what you want to accomplish."
+        type: FormStructureType.Header,
+        label: "This chat interface is your primary workspace. Instead of navigating menus or filling forms, you simply type what you want to accomplish.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.Example,
-        label: "Try typing: 'Help me plan my weekly schedule'",
-        interactive: true
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "Example: Try typing 'Help me plan my weekly schedule'"
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // NEW ESSENTIAL TYPE
+        placeholder: "Type your request here...",
+        action: "practice"
     }
 ]
 ```
@@ -138,14 +154,25 @@ location: {
     page: LINKS.Home
 }
 
+// Chat message using existing Header types
 content: [
     {
-        type: FormStructureType.ChatMessage,
-        sender: "Valyxa",
-        message: "Hello! I'm Valyxa, your AI assistant. I coordinate with specialized AI agents to help you accomplish any task. What would you like to work on today?"
+        type: FormStructureType.Header,
+        label: "Valyxa - AI Assistant",
+        tag: "body2",
+        color: "secondary"
     },
     {
-        type: FormStructureType.Text,
+        type: FormStructureType.Header,
+        label: "Hello! I'm Valyxa, your AI assistant. I coordinate with specialized AI agents to help you accomplish any task. What would you like to work on today?",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
         label: "Valyxa can help with everything from simple reminders to complex project planning. Just describe what you need in natural language."
     }
 ]
@@ -179,17 +206,23 @@ location: {
     page: LINKS.Home
 }
 
+// Layout guide using existing types
 content: [
     {
-        type: FormStructureType.LayoutGuide,
-        highlights: [
-            { element: "left-panel", label: "Navigation & History" },
-            { element: "center-chat", label: "Main Conversation" },
-            { element: "right-panel", label: "Context & Tools" }
-        ]
+        type: FormStructureType.Header,
+        label: "Interface Overview",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Left Panel**: Navigation & History\n**Center**: Main Conversation\n**Right Panel**: Context & Tools",
+        tag: "body1",
+        isMarkdown: true
     },
     {
         type: FormStructureType.Tip,
+        icon: "Info",
         label: "The layout automatically adjusts to your screen size and preferences"
     }
 ]

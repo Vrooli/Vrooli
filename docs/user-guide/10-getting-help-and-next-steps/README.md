@@ -46,19 +46,50 @@ location: {
     page: LINKS.Home
 }
 
+// Help commands using existing types
 content: [
     {
-        type: FormStructureType.HelpCommands,
-        commands: [
-            { command: "/help", description: "General help and available commands" },
-            { command: "/docs [topic]", description: "Access documentation on specific topics" },
-            { command: "/tutorial [section]", description: "Replay tutorial sections" },
-            { command: "How do I...?", description: "Ask questions in natural language" }
-        ]
+        type: FormStructureType.Header,
+        label: "Get Help Anytime",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Help is always just a chat message away. Ask Valyxa anything!"
+        type: FormStructureType.Header,
+        label: "Help is always just a chat message away. Ask Valyxa anything!",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Built-in Help Commands:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/help** - General help and available commands overview"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/docs [topic]** - Access documentation on specific topics"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/tutorial [section]** - Replay any tutorial section"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**\"How do I...?\"** - Ask questions in natural language"
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try asking: 'How do I create a new project?'",
+        action: "ask_help"
     }
 ]
 ```
@@ -91,31 +122,72 @@ location: {
     page: LINKS.Help
 }
 
+// Community resources using existing types
 content: [
     {
-        type: FormStructureType.ResourceGallery,
-        categories: [
-            {
-                name: "Community",
-                resources: [
-                    { title: "User Forums", type: "link", description: "Connect with other users" },
-                    { title: "Discord Community", type: "link", description: "Real-time chat and support" },
-                    { title: "Success Stories", type: "collection", description: "Learn from user experiences" }
-                ]
-            },
-            {
-                name: "Learning",
-                resources: [
-                    { title: "Video Tutorials", type: "video", description: "Visual learning materials" },
-                    { title: "Knowledge Base", type: "documentation", description: "Comprehensive guides" },
-                    { title: "Best Practices", type: "guide", description: "Proven strategies and tips" }
-                ]
-            }
-        ]
+        type: FormStructureType.Header,
+        label: "Community and Learning Resources",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Engage with the community to accelerate your learning and share your discoveries."
+        type: FormStructureType.Header,
+        label: "Engage with the community to accelerate your learning and share your discoveries.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Community Resources:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**💬 User Forums**: Connect with other users, ask questions, share tips"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**💬 Discord Community**: Real-time chat and instant support from the community"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**🏆 Success Stories**: Learn from user experiences and proven workflows"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Learning Materials:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**🎥 Video Tutorials**: Visual learning materials and step-by-step guides"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📚 Knowledge Base**: Comprehensive guides and detailed documentation"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**✨ Best Practices**: Proven strategies, tips, and optimization techniques"
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Join Community", action: "join_community", variant: "contained" },
+            { label: "Browse Resources", action: "browse_resources", variant: "outlined" }
+        ]
     }
 ]
 ```

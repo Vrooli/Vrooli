@@ -44,29 +44,66 @@ location: {
     page: LINKS.Home
 }
 
+// AI behavior customization using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Customize your AI interactions",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.SettingsPanel,
-        categories: [
-            {
-                name: "Communication Style",
-                settings: [
-                    { id: "formality", label: "Formality Level", type: "slider", range: ["Casual", "Professional"] },
-                    { id: "detail", label: "Detail Level", type: "select", options: ["Brief", "Moderate", "Comprehensive"] },
-                    { id: "creativity", label: "Creativity", type: "slider", range: ["Practical", "Creative"] }
-                ]
-            }
-        ]
+        type: FormStructureType.Header,
+        label: "Customize how AI agents communicate to match your working style. Different settings work better for different types of tasks.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.PreviewBox,
-        label: "Preview how these settings affect AI responses",
-        interactive: true
+        type: FormStructureType.Video,
+        src: "/tutorial/ai-customization-demo.mp4",
+        label: "Watch AI behavior customization in action"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Communication Style Settings:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Formality Level**: Adjust from casual conversation to professional business communication"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Detail Level**: Choose brief summaries, moderate explanations, or comprehensive analysis"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Creativity Mode**: Balance between practical solutions and creative, innovative approaches"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Example Response Styles:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Professional + Comprehensive**: 'I recommend implementing a systematic approach to project management with clearly defined milestones, resource allocation strategies, and risk mitigation protocols.'\n\n**Casual + Brief**: 'Try breaking your project into smaller chunks with clear deadlines. Set up a simple tracking system to stay on top of things.'",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try asking: 'How should I organize my week?' to test your settings",
+        action: "test_ai_settings"
     }
 ]
 ```
@@ -99,36 +136,69 @@ location: {
     page: LINKS.Settings + '/ai'
 }
 
+// Model selection using existing types
 content: [
     {
-        type: FormStructureType.ModelComparison,
-        models: [
-            {
-                name: "GPT-4",
-                strengths: ["Complex reasoning", "Creative tasks", "Analysis"],
-                bestFor: "Complex projects and creative work",
-                speed: "Medium",
-                cost: "Higher"
-            },
-            {
-                name: "Claude-3",
-                strengths: ["Long documents", "Code analysis", "Research"],
-                bestFor: "Research and document analysis",
-                speed: "Fast",
-                cost: "Medium"
-            },
-            {
-                name: "GPT-3.5",
-                strengths: ["Quick responses", "General tasks", "Efficiency"],
-                bestFor: "Quick tasks and general assistance",
-                speed: "Very Fast",
-                cost: "Lower"
-            }
-        ]
+        type: FormStructureType.Header,
+        label: "Choose the Right AI Model",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Choose models based on your task requirements. The system can also auto-select the best model for each situation."
+        type: FormStructureType.Header,
+        label: "Choose models based on your task requirements. The system can also auto-select the best model for each situation.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/model-comparison-chart.png",
+        alt: "Comparison chart of available AI models"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Available Models:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**GPT-4**: Best for complex reasoning, creative tasks, and deep analysis. Medium speed, higher cost."
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Claude-3**: Excellent for long documents, code analysis, and research. Fast speed, medium cost."
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**GPT-3.5**: Ideal for quick responses, general tasks, and efficiency. Very fast, lower cost."
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Model Selection Guide:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **Quick questions**: GPT-3.5 for fast, efficient responses\n• **Creative projects**: GPT-4 for innovative and complex work\n• **Research tasks**: Claude-3 for document analysis and investigation\n• **Auto-select**: Let the system choose the best model for each task",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Set Default Model", action: "set_default", variant: "contained" },
+            { label: "Test Models", action: "test_models", variant: "outlined" },
+            { label: "Enable Auto-Select", action: "auto_select", variant: "text" }
+        ]
     }
 ]
 ```
@@ -161,29 +231,78 @@ location: {
     page: LINKS.Home
 }
 
+// Context management using existing types
 content: [
     {
-        type: FormStructureType.ContextBuilder,
-        sections: [
-            {
-                name: "Project Context",
-                items: [
-                    { type: "project", name: "Marketing Campaign", connected: true },
-                    { type: "project", name: "Product Development", connected: false }
-                ]
-            },
-            {
-                name: "Resources",
-                items: [
-                    { type: "document", name: "Brand Guidelines", connected: true },
-                    { type: "note", name: "Meeting Notes", connected: false }
-                ]
-            }
+        type: FormStructureType.Header,
+        label: "Manage Context and Connections",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Connect relevant projects and resources to give AI agents better context for your requests.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Project Context:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "marketing", label: "Marketing Campaign (Connected)", completed: true },
+            { id: "product", label: "Product Development", completed: false },
+            { id: "sales", label: "Sales Strategy", completed: false }
         ]
     },
     {
-        type: FormStructureType.Text,
-        label: "Connect relevant projects and resources to give AI agents better context for your requests."
+        type: FormStructureType.Header,
+        label: "**Connected Resources:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "📄 **Brand Guidelines** - Connected for consistent messaging"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "📋 **Meeting Notes** - Available to connect for context"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "📈 **Market Research** - Link for data-driven insights"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Benefits of Context Connections:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• AI agents understand your project goals and constraints\n• Responses are tailored to your specific context\n• Consistent information across all interactions\n• Reduced need to repeat background information",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Connect Project", action: "connect_project", variant: "contained" },
+            { label: "Add Resources", action: "add_resources", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -221,23 +340,83 @@ action: () => {
     triggerCommandPalette();
 },
 
+// Shortcuts and commands using existing types
 content: [
     {
-        type: FormStructureType.ShortcutDemo,
-        trigger: "Ctrl+P (or Cmd+P)",
-        description: "Opens the command palette for quick access to any feature"
+        type: FormStructureType.Header,
+        label: "Commands and Shortcuts",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.CustomShortcuts,
-        examples: [
-            { command: "/plan", action: "Start project planning session" },
-            { command: "/research", action: "Begin research on topic" },
-            { command: "/review", action: "Review and summarize content" }
-        ]
+        type: FormStructureType.Header,
+        label: "Create custom commands and shortcuts for your most frequent tasks.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.Text,
-        label: "Create custom commands and shortcuts for your most frequent tasks."
+        type: FormStructureType.Header,
+        label: "**Quick Access:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Ctrl+P (or Cmd+P)**: Opens the command palette for quick access to any feature"
+    },
+    {
+        type: FormStructureType.QrCode,
+        value: "vrooli://shortcut/command-palette",
+        label: "Try the command palette now"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Custom Command Examples:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/plan**: Start project planning session with structured templates"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/research**: Begin research on topic with source gathering"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/review**: Review and summarize content with key insights"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**/brainstorm**: Start creative brainstorming session"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Keyboard Shortcuts:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **Ctrl+Enter**: Send message\n• **Ctrl+Shift+N**: New conversation\n• **Ctrl+/**: Toggle command mode\n• **Ctrl+K**: Quick search",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try typing /plan to see custom commands in action",
+        action: "test_commands"
     }
 ]
 ```

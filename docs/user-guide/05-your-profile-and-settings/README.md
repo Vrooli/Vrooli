@@ -45,23 +45,50 @@ location: {
     page: LINKS.Settings + '/profile'
 }
 
+// Profile setup using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Personalize your profile",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Your profile information helps AI agents provide more personalized assistance. You control what's public and what remains private."
+        type: FormStructureType.Header,
+        label: "Your profile information helps AI agents provide more personalized assistance. You control what's public and what remains private.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.ProfileForm,
-        fields: [
-            { name: "displayName", label: "Display Name", required: true },
-            { name: "bio", label: "Bio (optional)", type: "textarea" },
-            { name: "profession", label: "Profession/Role", required: false }
-        ]
+        type: FormStructureType.Image,
+        src: "/tutorial/profile-setup-example.png",
+        alt: "Example profile setup interface"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Key Profile Fields:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Display Name**: How you appear to other users and AI agents"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Bio (Optional)**: Brief description to help AI understand your context"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Profession/Role**: Helps AI tailor responses to your expertise level"
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try updating your display name...",
+        action: "update_profile"
     }
 ]
 ```
@@ -94,18 +121,51 @@ location: {
     page: LINKS.Settings + '/security'
 }
 
+// Security configuration using existing + essential types
 content: [
     {
-        type: FormStructureType.SecurityChecklist,
+        type: FormStructureType.Header,
+        label: "Account Security Setup",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Security protects your work and ensures only you can access your AI agents and data.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Video,
+        src: "/tutorial/security-setup-guide.mp4",
+        label: "Security setup walkthrough"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Security Checklist:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
         items: [
-            { id: "strong-password", label: "Strong password set", status: "check" },
-            { id: "2fa-enabled", label: "Two-factor authentication", status: "setup" },
-            { id: "privacy-reviewed", label: "Privacy settings reviewed", status: "pending" }
+            { id: "password", label: "Strong password set", completed: true },
+            { id: "2fa", label: "Two-factor authentication enabled", completed: false },
+            { id: "privacy", label: "Privacy settings reviewed", completed: false },
+            { id: "sessions", label: "Active sessions reviewed", completed: false }
         ]
     },
     {
-        type: FormStructureType.Text,
-        label: "Security protects your work and ensures only you can access your AI agents and data."
+        type: FormStructureType.Tip,
+        icon: "Warning",
+        label: "Two-factor authentication is highly recommended for protecting your AI work and data"
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Enable 2FA", action: "setup_2fa", variant: "contained" },
+            { label: "Review Privacy", action: "privacy_settings", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -138,18 +198,61 @@ location: {
     page: LINKS.Settings + '/display'
 }
 
+// Display preferences using existing types
 content: [
     {
-        type: FormStructureType.ThemeSelector,
-        options: [
-            { id: "light", label: "Light", preview: "light-theme-preview" },
-            { id: "dark", label: "Dark", preview: "dark-theme-preview" },
-            { id: "system", label: "System", preview: "system-theme-preview" }
-        ]
+        type: FormStructureType.Header,
+        label: "Customize Your Display",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Choose the appearance that works best for you. All changes apply immediately."
+        type: FormStructureType.Header,
+        label: "Choose the appearance that works best for you. All changes apply immediately.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Theme Options:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/theme-options-preview.png",
+        alt: "Light, dark, and system theme previews"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Light Theme**: Clean, bright interface ideal for daytime use"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Dark Theme**: Easy on the eyes for low-light environments"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**System Theme**: Automatically matches your device settings"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Accessibility Options:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Text size adjustment\n• High contrast mode\n• Reduced motion settings\n• Screen reader compatibility",
+        tag: "body1",
+        isMarkdown: true
     }
 ]
 ```
@@ -182,18 +285,68 @@ location: {
     page: LINKS.Settings + '/notifications'
 }
 
+// Notification preferences using existing types
 content: [
     {
-        type: FormStructureType.NotificationMatrix,
-        types: [
-            { id: "ai-updates", label: "AI Task Updates", methods: ["in-app", "email"] },
-            { id: "messages", label: "Messages", methods: ["in-app", "push"] },
-            { id: "completions", label: "Task Completions", methods: ["in-app", "email", "push"] }
-        ]
+        type: FormStructureType.Header,
+        label: "Notification Preferences",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Configure how and when you want to be notified about different activities."
+        type: FormStructureType.Header,
+        label: "Configure how and when you want to be notified about different activities.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Notification Types:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**AI Task Updates**: Progress notifications while agents work on your tasks"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Task Completions**: Alerts when your routines and projects finish"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Messages**: Direct communication from AI agents or team members"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Decision Points**: When agents need your input to proceed"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Delivery Methods:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• **In-App**: Real-time notifications while using Vrooli\n• **Email**: Important updates sent to your inbox\n• **Push**: Mobile notifications for urgent items\n• **Focus Mode**: Batch notifications during deep work",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Configure Notifications", action: "setup_notifications", variant: "contained" },
+            { label: "Test Notification", action: "test_notification", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -226,18 +379,69 @@ location: {
     page: LINKS.Settings + '/data'
 }
 
+// Data management using existing types
 content: [
     {
-        type: FormStructureType.DataControls,
-        actions: [
-            { id: "export", label: "Export My Data", description: "Download all your information" },
-            { id: "backup", label: "Backup Settings", description: "Configure automatic backups" },
-            { id: "retention", label: "Data Retention", description: "Understand storage policies" }
-        ]
+        type: FormStructureType.Header,
+        label: "Your Data, Your Control",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "You have complete control over your data, including export, backup, and deletion options."
+        type: FormStructureType.Header,
+        label: "You have complete control over your data, including export, backup, and deletion options.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Data Management Options:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Export My Data**: Download all your conversations, routines, and AI interactions"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Backup Settings**: Configure automatic backups to protect against data loss"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Data Retention**: Understand what's stored, where, and for how long"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Warning",
+        label: "**Account Deletion**: Permanently remove your account and all associated data"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Your Rights:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Access to all your data at any time\n• Export in standard formats (JSON, CSV)\n• Immediate deletion upon request\n• Full transparency about data usage",
+        tag: "body1",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Export Data", action: "export_data", variant: "contained" },
+            { label: "Backup Settings", action: "backup_config", variant: "outlined" },
+            { label: "Learn More", action: "data_policy", variant: "text" }
+        ]
     }
 ]
 ```

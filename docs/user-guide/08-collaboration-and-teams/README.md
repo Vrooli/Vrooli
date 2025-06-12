@@ -46,24 +46,50 @@ location: {
     page: LINKS.Teams + '/create'
 }
 
+// Team creation using existing + essential types
 content: [
     {
         type: FormStructureType.Header,
         label: "Create your first team",
-        tag: "h2"
+        tag: "h2",
+        color: "primary"
     },
     {
-        type: FormStructureType.TeamSetup,
-        fields: [
-            { name: "teamName", label: "Team Name", required: true },
-            { name: "description", label: "Team Purpose", type: "textarea" },
-            { name: "teamType", label: "Team Type", type: "select", 
-              options: ["Project Team", "Department", "Interest Group", "Study Group"] }
-        ]
+        type: FormStructureType.Header,
+        label: "Teams provide shared workspace for collaborative AI-assisted productivity.",
+        tag: "body1"
     },
     {
-        type: FormStructureType.Text,
-        label: "Teams provide shared workspace for collaborative AI-assisted productivity."
+        type: FormStructureType.Video,
+        src: "/tutorial/team-creation-walkthrough.mp4",
+        label: "Watch team creation process"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Team Setup Fields:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Team Name**: Choose a clear, descriptive name that reflects your team's purpose"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Team Purpose**: Brief description to help members understand goals and scope"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Team Type**: Project Team, Department, Interest Group, or Study Group"
+    },
+    {
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Try creating a test team now...",
+        action: "create_team"
     }
 ]
 ```
@@ -96,18 +122,52 @@ location: {
     page: LINKS.Teams + '/workspace'
 }
 
+// Shared workspace using existing types
 content: [
     {
-        type: FormStructureType.WorkspaceOverview,
-        sections: [
-            { name: "Shared Projects", count: 3, access: "all-members" },
-            { name: "Team Resources", count: 12, access: "all-members" },
-            { name: "Private Projects", count: 2, access: "you-only" }
-        ]
+        type: FormStructureType.Header,
+        label: "Your Team Workspace",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Shared workspaces combine individual and collaborative work in one organized environment."
+        type: FormStructureType.Header,
+        label: "Shared workspaces combine individual and collaborative work in one organized environment.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Image,
+        src: "/tutorial/shared-workspace-overview.png",
+        alt: "Team workspace interface overview"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Workspace Sections:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📁 Shared Projects** (3 active) - Projects accessible to all team members"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**📚 Team Resources** (12 items) - Shared documents, notes, and references"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**🔒 Private Projects** (2 items) - Your personal projects within the team space"
+    },
+    {
+        type: FormStructureType.ActionButtons, // ESSENTIAL NEW TYPE
+        buttons: [
+            { label: "Create Shared Project", action: "create_project", variant: "contained" },
+            { label: "Add Resource", action: "add_resource", variant: "outlined" }
+        ]
     }
 ]
 ```
@@ -140,19 +200,69 @@ location: {
     page: LINKS.Teams + '/members'
 }
 
+// Team member management using existing types
 content: [
     {
-        type: FormStructureType.MemberInvitation,
-        roles: [
-            { name: "Admin", permissions: ["Full access", "Manage members", "Edit settings"] },
-            { name: "Editor", permissions: ["Edit content", "Create projects", "Invite members"] },
-            { name: "Contributor", permissions: ["View content", "Comment", "Create resources"] },
-            { name: "Viewer", permissions: ["View content", "Comment"] }
+        type: FormStructureType.Header,
+        label: "Manage Team Members",
+        tag: "h3",
+        color: "primary"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "Assign roles based on each member's responsibilities and trust level.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Team Roles and Permissions:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Admin**: Full access, manage members, edit settings, delete team"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Editor**: Edit content, create projects, invite members, manage resources"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Contributor**: View content, comment, create resources, participate in discussions"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "**Viewer**: View content, comment on existing items (read-only access)"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Invitation Process:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.ProgressChecklist, // ESSENTIAL NEW TYPE
+        items: [
+            { id: "email", label: "Enter member's email address", completed: false },
+            { id: "role", label: "Select appropriate role", completed: false },
+            { id: "message", label: "Add personal invitation message", completed: false },
+            { id: "send", label: "Send invitation", completed: false }
         ]
     },
     {
-        type: FormStructureType.Text,
-        label: "Assign roles based on each member's responsibilities and trust level."
+        type: FormStructureType.InteractivePrompt, // ESSENTIAL NEW TYPE
+        placeholder: "Enter email address to invite team member...",
+        action: "invite_member"
     }
 ]
 ```
@@ -185,19 +295,74 @@ location: {
     page: LINKS.Teams + '/chat'
 }
 
+// Collaborative AI sessions using existing types
 content: [
     {
-        type: FormStructureType.CollabChat,
-        participants: [
-            { name: "You", role: "Team Lead", status: "active" },
-            { name: "Sarah", role: "Designer", status: "active" },
-            { name: "Mike", role: "Developer", status: "typing" }
-        ],
-        aiAgent: { name: "Valyxa", status: "processing", context: "Team Project Alpha" }
+        type: FormStructureType.Header,
+        label: "Collaborative AI Sessions",
+        tag: "h3",
+        color: "primary"
     },
     {
-        type: FormStructureType.Text,
-        label: "Team AI sessions combine everyone's expertise with AI capabilities for better outcomes."
+        type: FormStructureType.Header,
+        label: "Team AI sessions combine everyone's expertise with AI capabilities for better outcomes.",
+        tag: "body1"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Active Participants:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "🟢 **You** (Team Lead) - Active in conversation"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "🟢 **Sarah** (Designer) - Active in conversation"
+    },
+    {
+        type: FormStructureType.Tip,
+        icon: "Info",
+        label: "🟡 **Mike** (Developer) - Currently typing response"
+    },
+    {
+        type: FormStructureType.Divider
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**AI Agent Status:**",
+        tag: "body2",
+        color: "secondary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Valyxa** is processing team input with context from Team Project Alpha",
+        tag: "body1",
+        color: "secondary"
+    },
+    {
+        type: FormStructureType.Video,
+        src: "/tutorial/collaborative-ai-demo.mp4",
+        label: "Watch team AI collaboration in action"
+    },
+    {
+        type: FormStructureType.Header,
+        label: "**Collaboration Benefits:**",
+        tag: "body2",
+        color: "primary",
+        isMarkdown: true
+    },
+    {
+        type: FormStructureType.Header,
+        label: "• Multiple perspectives enhance AI responses\n• Team knowledge builds shared understanding\n• Real-time collaboration improves decision-making\n• Collective intelligence exceeds individual capabilities",
+        tag: "body1",
+        isMarkdown: true
     }
 ]
 ```
