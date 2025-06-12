@@ -1,10 +1,25 @@
 # User Guide
 
-A comprehensive tutorial and onboarding system for Vrooli's AI-powered productivity platform.
+A comprehensive documentation system for Vrooli's AI-powered productivity platform, featuring interactive tutorials and video content designed for the LandingView component.
 
 ## Overview
 
-This user guide provides a complete tutorial flow designed around Vrooli's chat-first, AI agent swarm architecture. Users learn to interact with AI agents through natural conversation rather than traditional web interface navigation.
+This user guide combines interactive tutorials with video content scripts to provide multiple learning pathways for Vrooli's chat-first, AI agent swarm architecture. Users learn to interact with AI agents through natural conversation rather than traditional web interface navigation.
+
+## Documentation Structure
+
+### 📚 [Interactive Tutorial](tutorial/)
+Complete step-by-step tutorial system with 10 sequential sections for in-app learning.
+
+### 🎥 [Video Content Scripts](video-scripts/)
+Four video content areas designed for the LandingView.tsx component:
+- **[Tour Video](video-scripts/tour/)** - Platform overview and navigation 
+- **[Conversation Video](video-scripts/conversation/)** - AI chat interactions and swarm control
+- **[Routine/Swarm Video](video-scripts/routine-swarm/)** - Automation building and execution
+- **[Team Video](video-scripts/team/)** - Collaboration and team management
+
+### 📖 [Legacy Documentation](old/)
+Original documentation preserved for reference and video script development.
 
 ## Philosophy
 
@@ -32,9 +47,9 @@ Power user features and customization.
 
 ---
 
-## Tutorial Sections
+## Interactive Tutorial Sections
 
-### **🚀 [Section 1: Welcome to AI-Powered Productivity](01-welcome-to-ai-powered-productivity/)**
+### **🚀 [Section 1: Welcome to AI-Powered Productivity](tutorial/01-welcome-to-ai-powered-productivity/)**
 **Duration**: 3-5 minutes | **Path**: Essential, Complete, Quick Start
 
 Introduction to AI agent swarms and chat-first interaction model.
@@ -53,7 +68,7 @@ Introduction to AI agent swarms and chat-first interaction model.
 
 ---
 
-### **💬 [Section 2: Your First AI Conversation](02-your-first-ai-conversation/)**
+### **💬 [Section 2: Your First AI Conversation](tutorial/02-your-first-ai-conversation/)**
 **Duration**: 5-7 minutes | **Path**: Essential, Complete, Quick Start
 
 Learn natural language interaction with AI agents.
@@ -72,7 +87,7 @@ Learn natural language interaction with AI agents.
 
 ---
 
-### **🤖 [Section 3: AI Agents Working Together](03-ai-agents-working-together/)**
+### **🤖 [Section 3: AI Agents Working Together](tutorial/03-ai-agents-working-together/)**
 **Duration**: 5-7 minutes | **Path**: Essential, Complete
 
 Understanding swarm coordination and multi-agent collaboration.
@@ -91,7 +106,7 @@ Understanding swarm coordination and multi-agent collaboration.
 
 ---
 
-### **⚡ [Section 4: Watching Tasks Execute](04-watching-tasks-execute/)**
+### **⚡ [Section 4: Watching Tasks Execute](tutorial/04-watching-tasks-execute/)**
 **Duration**: 5-8 minutes | **Path**: Essential, Complete
 
 Real-time task execution and routine monitoring.
@@ -110,7 +125,7 @@ Real-time task execution and routine monitoring.
 
 ---
 
-### **👤 [Section 5: Your Profile and Settings](05-your-profile-and-settings/)**
+### **👤 [Section 5: Your Profile and Settings](tutorial/05-your-profile-and-settings/)**
 **Duration**: 5-8 minutes | **Path**: Essential, Complete
 
 Account management, security, and personalization.
@@ -131,7 +146,7 @@ Account management, security, and personalization.
 
 ---
 
-### **🎨 [Section 6: Personalizing Your AI Experience](06-personalizing-your-ai-experience/)**
+### **🎨 [Section 6: Personalizing Your AI Experience](tutorial/06-personalizing-your-ai-experience/)**
 **Duration**: 5-8 minutes | **Path**: Essential, Complete
 
 AI behavior customization and advanced preferences.
@@ -150,7 +165,7 @@ AI behavior customization and advanced preferences.
 
 ---
 
-### **📁 [Section 7: Organization and Workspace](07-organization-and-workspace/)**
+### **📁 [Section 7: Organization and Workspace](tutorial/07-organization-and-workspace/)**
 **Duration**: 8-12 minutes | **Path**: Complete
 
 Project management, resource organization, and workspace customization.
@@ -171,7 +186,7 @@ Project management, resource organization, and workspace customization.
 
 ---
 
-### **👥 [Section 8: Collaboration and Teams](08-collaboration-and-teams/)**
+### **👥 [Section 8: Collaboration and Teams](tutorial/08-collaboration-and-teams/)**
 **Duration**: 8-12 minutes | **Path**: Complete
 
 Team collaboration, shared workspaces, and group AI interactions.
@@ -190,7 +205,7 @@ Team collaboration, shared workspaces, and group AI interactions.
 
 ---
 
-### **🔧 [Section 9: Advanced Features](09-advanced-features/)**
+### **🔧 [Section 9: Advanced Features](tutorial/09-advanced-features/)**
 **Duration**: 15-20 minutes | **Path**: Advanced
 
 Power user capabilities, customization, and integrations.
@@ -211,7 +226,7 @@ Power user capabilities, customization, and integrations.
 
 ---
 
-### **🆘 [Section 10: Getting Help and Next Steps](10-getting-help-and-next-steps/)**
+### **🆘 [Section 10: Getting Help and Next Steps](tutorial/10-getting-help-and-next-steps/)**
 **Duration**: 3-5 minutes | **Path**: Complete, Advanced
 
 Support resources, community engagement, and continued learning.
@@ -327,13 +342,28 @@ Support resources, community engagement, and continued learning.
 
 ---
 
-## Related Documentation
+---
 
-- **[Platform Architecture](../architecture/)** - Technical implementation details
-- **[API Documentation](../server/)** - Integration and development guides  
-- **[Development Workflows](../devops/development-workflows.md)** - Contributing to tutorials
-- **[Testing Strategy](../testing/)** - Tutorial testing and validation
+## Video Content Integration
+
+The four video scripts are designed to integrate seamlessly with the LandingView.tsx component:
+
+- **[Tour Video](video-scripts/tour/)** - Corresponds to `videoUrls.Tour` - Platform overview shown on first slide  
+- **[Conversation Video](video-scripts/conversation/)** - Corresponds to `videoUrls.Convo` - AI chat demonstration on conversation slide
+- **[Routine/Swarm Video](video-scripts/routine-swarm/)** - Corresponds to `videoUrls.Routine` - Automation building on routines slide
+- **[Team Video](video-scripts/team/)** - Corresponds to `videoUrls.Team` - Team management on teams slide
+
+Each video is designed for 3-7 minute duration and optimized for landing page engagement.
 
 ---
 
-**Next Steps**: Explore individual tutorial sections or select a learning path that matches your needs and available time.
+## Related Documentation
+
+- **[Platform Architecture](../../architecture/)** - Technical implementation details
+- **[API Documentation](../../server/)** - Integration and development guides  
+- **[Development Workflows](../../devops/development-workflows.md)** - Contributing to tutorials
+- **[Testing Strategy](../../testing/)** - Tutorial testing and validation
+
+---
+
+**Next Steps**: Explore the [interactive tutorial](tutorial/) sections, review [video content scripts](video-scripts/) for production, or select a learning path that matches your needs and available time.
