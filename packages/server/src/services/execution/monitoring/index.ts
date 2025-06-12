@@ -2,15 +2,15 @@
  * Unified monitoring exports
  */
 
-export { UnifiedMonitoringService } from "./UnifiedMonitoringService";
-export { MetricsCollector } from "./core/MetricsCollector";
-export { MetricsStore } from "./core/MetricsStore";
-export { EventProcessor } from "./core/EventProcessor";
-export { CircularBuffer, TimeBasedCircularBuffer } from "./storage/CircularBuffer";
-export { MetricsIndex } from "./storage/MetricsIndex";
-export { StatisticalEngine } from "./analytics/StatisticalEngine";
-export { PatternDetector } from "./analytics/PatternDetector";
-export { QueryInterface } from "./api/QueryInterface";
-export { MCPToolAdapter } from "./api/MCPToolAdapter";
+export { UnifiedMonitoringService } from "./UnifiedMonitoringService.js";
+export { MetricsCollector } from "./core/MetricsCollector.js";
+export { MetricsStore } from "./core/MetricsStore.js";
+export { EventProcessor } from "./core/EventProcessor.js";
+export { CircularBuffer, TimeBasedCircularBuffer } from "./storage/CircularBuffer.js";
+export { MetricsIndex } from "./storage/MetricsIndex.js";
+export { StatisticalEngine } from "./analytics/StatisticalEngine.js";
+export { PatternDetector } from "./analytics/PatternDetector.js";
+export { QueryInterface } from "./api/QueryInterface.js";
+export { MCPToolAdapter } from "./api/MCPToolAdapter.js";
 
-export * from "./types";
+export * from "./types.js";

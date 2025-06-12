@@ -181,6 +181,7 @@ export class MonitoringTools {
             const metrics = this.calculateMetrics(filteredEvents, params.aggregationWindow);
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify({
@@ -248,6 +249,7 @@ export class MonitoringTools {
             analysis.overallPatterns = patterns;
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify(analysis, null, 2),
@@ -312,6 +314,7 @@ export class MonitoringTools {
             const result = this.performAggregation(events, params);
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify(result, null, 2),
@@ -346,7 +349,17 @@ export class MonitoringTools {
             };
 
             // Publish to event bus
-            await this.eventBus.publish("monitoring.report", report);
+            await this.eventBus.publish({
+                id: report.id,
+                type: "monitoring.report",
+                timestamp: report.timestamp,
+                source: {
+                    tier: "cross-cutting" as const,
+                    component: "monitoring-tools",
+                    instanceId: this.user.id,
+                },
+                data: report,
+            });
 
             // Log the report
             this.logger.info(`[MonitoringTools] Published ${params.type} report`, {
@@ -356,6 +369,7 @@ export class MonitoringTools {
             });
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify({
@@ -402,6 +416,7 @@ export class MonitoringTools {
 
             if (metricValues.length < 10) {
                 return {
+                    isError: false,
                     content: [{
                         type: "text",
                         text: JSON.stringify({
@@ -438,6 +453,7 @@ export class MonitoringTools {
             }
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify({
@@ -486,6 +502,7 @@ export class MonitoringTools {
 
             if (metricValues.length === 0) {
                 return {
+                    isError: false,
                     content: [{
                         type: "text",
                         text: JSON.stringify({
@@ -519,6 +536,7 @@ export class MonitoringTools {
             }
 
             return {
+                isError: false,
                 content: [{
                     type: "text",
                     text: JSON.stringify({

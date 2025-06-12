@@ -3,7 +3,7 @@
  * and provides advanced analytics capabilities.
  */
 
-import { UnifiedMetric, MetricSummary } from "../types";
+import { UnifiedMetric, MetricSummary } from "../types.js";
 
 /**
  * Statistical engine for metric analysis

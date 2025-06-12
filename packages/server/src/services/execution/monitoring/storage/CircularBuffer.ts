@@ -217,28 +217,60 @@ export class TimeBasedCircularBuffer<T> extends CircularBuffer<T> {
      * Evict entries older than maxAge
      */
     private evictOldEntries(): void {
-        const now = new Date();
-        const cutoffTime = new Date(now.getTime() - this.maxAgeMs);
-        
-        // Get all items and filter out old ones
-        const validItems = this.getAll().filter(item => {
-            const timestamp = this.timestampGetter(item);
-            return timestamp > cutoffTime;
-        });
-        
-        // If we removed items, rebuild the buffer
-        if (validItems.length < this.size()) {
-            this.clear();
-            this.addBatch(validItems);
+        try {
+            const now = new Date();
+            const cutoffTime = new Date(now.getTime() - this.maxAgeMs);
+            
+            // Validate cutoff time to prevent issues with invalid dates
+            if (isNaN(cutoffTime.getTime()) || cutoffTime > now) {
+                console.warn("Invalid cutoff time calculated, skipping eviction", { 
+                    now: now.toISOString(), 
+                    maxAgeMs: this.maxAgeMs 
+                });
+                return;
+            }
+            
+            // Get all items and filter out old ones with timestamp validation
+            const validItems = this.getAll().filter(item => {
+                try {
+                    const timestamp = this.timestampGetter(item);
+                    // Validate timestamp is a valid date
+                    if (!timestamp || isNaN(timestamp.getTime())) {
+                        console.warn("Invalid timestamp found in buffer item, removing", { item });
+                        return false;
+                    }
+                    return timestamp > cutoffTime;
+                } catch (error) {
+                    console.warn("Error getting timestamp from buffer item, removing", { error, item });
+                    return false;
+                }
+            });
+            
+            // If we removed items, rebuild the buffer
+            if (validItems.length < this.size()) {
+                this.clear();
+                if (validItems.length > 0) {
+                    this.addBatch(validItems);
+                }
+            }
+        } catch (error) {
+            console.error("Error during buffer eviction", { error });
+            // Don't clear buffer on error - safer to keep data
         }
     }
     
     /**
-     * Stop the eviction timer
+     * Stop the eviction timer with proper cleanup
      */
     stop(): void {
-        if (this.evictionTimer) {
-            clearInterval(this.evictionTimer);
+        try {
+            if (this.evictionTimer) {
+                clearInterval(this.evictionTimer);
+                this.evictionTimer = undefined;
+            }
+        } catch (error) {
+            console.warn("Error clearing eviction timer", { error });
+            // Force clear the timer reference even if clearInterval fails
             this.evictionTimer = undefined;
         }
     }

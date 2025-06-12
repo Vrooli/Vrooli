@@ -3,14 +3,14 @@
  * across all storage backends.
  */
 
-import { MetricsStore } from "../core/MetricsStore";
-import { StatisticalEngine } from "../analytics/StatisticalEngine";
+import { MetricsStore } from "../core/MetricsStore.js";
+import { StatisticalEngine } from "../analytics/StatisticalEngine.js";
 import { 
     MetricQuery, 
     MetricQueryResult, 
     UnifiedMetric,
     MetricSummary,
-} from "../types";
+} from "../types.js";
 
 /**
  * Unified query interface for metrics

@@ -1,8 +1,7 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 
-describe("Simple Test", () => {
-    it("should work", () => {
-        expect(1 + 1).to.equal(2);
+describe("simple", () => {
+    it("should be implemented", () => {
+        throw new Error("Test not implemented: Please implement tests for simple");
     });
 });

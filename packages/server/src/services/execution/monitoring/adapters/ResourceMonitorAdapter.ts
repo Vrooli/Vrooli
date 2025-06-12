@@ -124,7 +124,7 @@ export class ResourceMonitorAdapter extends BaseMonitoringAdapter {
             {
                 periodStart: start,
                 periodEnd: end,
-                totalCost: cost.total,
+                totalCost: cost.reduce((sum, c) => sum + c.totalCost, 0),
             }
         );
 
@@ -145,7 +145,7 @@ export class ResourceMonitorAdapter extends BaseMonitoringAdapter {
         // Generate suggestions based on analysis
         if (costAnalysis.optimizationPotential > 100) {
             suggestions.push({
-                type: 'reduce_waste',
+                type: 'reduce',
                 description: 'High optimization potential detected in resource usage',
                 estimatedSavings: costAnalysis.optimizationPotential,
                 impact: 'high',
@@ -155,7 +155,7 @@ export class ResourceMonitorAdapter extends BaseMonitoringAdapter {
 
         if (utilization.utilizationRate < 0.3) {
             suggestions.push({
-                type: 'increase_efficiency',
+                type: 'batch',
                 description: 'Low resource utilization detected',
                 estimatedSavings: 0,
                 impact: 'medium',
@@ -341,67 +341,75 @@ export class ResourceMonitorAdapter extends BaseMonitoringAdapter {
      * Private helper methods
      */
 
-    private aggregateUsage(metrics: any[]): ResourceUsageSummary {
-        const credits = this.sumMetricValues(metrics.filter(m => m.name.includes('credits')));
-        const tokens = this.sumMetricValues(metrics.filter(m => m.name.includes('tokens')));
-        const toolCalls = this.sumMetricValues(metrics.filter(m => m.name.includes('tool')));
+    private aggregateUsage(metrics: any[]): ResourceUsageSummary[] {
+        const resourceTypes = [
+            { type: ResourceType.CREDITS, filter: 'credits' },
+            { type: ResourceType.TOKENS, filter: 'tokens' },
+            { type: ResourceType.API_CALLS, filter: 'tool' },
+        ];
 
-        return {
-            totalCredits: credits,
-            totalTokens: tokens,
-            totalToolCalls: toolCalls,
-            byTier: {
-                tier1: {
-                    credits: this.sumMetricValues(metrics.filter(m => m.tier === 1 && m.name.includes('credits'))),
-                    tokens: this.sumMetricValues(metrics.filter(m => m.tier === 1 && m.name.includes('tokens'))),
-                    toolCalls: this.sumMetricValues(metrics.filter(m => m.tier === 1 && m.name.includes('tool'))),
-                },
-                tier2: {
-                    credits: this.sumMetricValues(metrics.filter(m => m.tier === 2 && m.name.includes('credits'))),
-                    tokens: this.sumMetricValues(metrics.filter(m => m.tier === 2 && m.name.includes('tokens'))),
-                    toolCalls: this.sumMetricValues(metrics.filter(m => m.tier === 2 && m.name.includes('tool'))),
-                },
-                tier3: {
-                    credits: this.sumMetricValues(metrics.filter(m => m.tier === 3 && m.name.includes('credits'))),
-                    tokens: this.sumMetricValues(metrics.filter(m => m.tier === 3 && m.name.includes('tokens'))),
-                    toolCalls: this.sumMetricValues(metrics.filter(m => m.tier === 3 && m.name.includes('tool'))),
-                },
-            },
-        };
+        return resourceTypes.map(({ type, filter }) => {
+            const relevantMetrics = metrics.filter(m => m.name.includes(filter));
+            const total = this.sumMetricValues(relevantMetrics);
+            const values = relevantMetrics.map(m => Number(m.value));
+            
+            return {
+                resourceType: type,
+                totalConsumed: total,
+                peakUsage: Math.max(...values, 0),
+                averageUsage: values.length > 0 ? total / values.length : 0,
+                utilizationRate: 0.8, // Would calculate based on limits
+            };
+        });
     }
 
-    private calculateCost(usage: ResourceUsageSummary): ResourceCostSummary {
-        // Simple cost model
-        const creditCost = usage.totalCredits * 0.01;
-        const tokenCost = (usage.totalTokens / 1000) * 0.02;
-        const toolCost = usage.totalToolCalls * 0.05;
-        const total = creditCost + tokenCost + toolCost;
-
-        return {
-            total,
-            breakdown: {
-                credits: creditCost,
-                tokens: tokenCost,
-                toolCalls: toolCost,
-            },
-            projectedMonthly: total * 30, // Simplified projection
+    private calculateCost(usageSummaries: ResourceUsageSummary[]): ResourceCostSummary[] {
+        const costModels = {
+            [ResourceType.CREDITS]: 0.01,
+            [ResourceType.TOKENS]: 0.00002, // per token
+            [ResourceType.API_CALLS]: 0.05,
         };
+
+        return usageSummaries.map(usage => {
+            const unitCost = costModels[usage.resourceType] || 0;
+            const totalCost = usage.totalConsumed * unitCost;
+
+            return {
+                resourceType: usage.resourceType,
+                totalCost,
+                breakdown: [
+                    {
+                        category: 'base',
+                        amount: totalCost,
+                        percentage: 100,
+                    }
+                ],
+            };
+        });
     }
 
-    private calculateEfficiency(usage: ResourceUsageSummary, metrics: any[]): SharedEfficiencyMetrics {
+    private calculateEfficiency(usageSummaries: ResourceUsageSummary[], metrics: any[]): SharedEfficiencyMetrics {
         const successMetrics = metrics.filter(m => m.name.includes('success'));
         const failureMetrics = metrics.filter(m => m.name.includes('failure'));
         
         const totalOperations = successMetrics.length + failureMetrics.length;
         const successRate = totalOperations > 0 ? successMetrics.length / totalOperations : 0;
         
-        const avgCreditsPerOp = totalOperations > 0 ? usage.totalCredits / totalOperations : 0;
+        const totalCredits = usageSummaries.find(u => u.resourceType === ResourceType.CREDITS)?.totalConsumed || 0;
+        const avgCreditsPerOp = totalOperations > 0 ? totalCredits / totalOperations : 0;
         const utilizationRate = avgCreditsPerOp > 0 ? Math.min(1, 100 / avgCreditsPerOp) : 0;
         
         const wasteRate = 1 - successRate;
         const optimizationScore = (successRate * 0.6) + (utilizationRate * 0.4);
-        const costPerOutcome = totalOperations > 0 ? 
-            (usage.totalCredits * 0.01 + (usage.totalTokens / 1000) * 0.02 + usage.totalToolCalls * 0.05) / (successMetrics.length || 1) : 0;
+        const totalCost = usageSummaries.reduce((sum, usage) => {
+            const costModels = {
+                [ResourceType.CREDITS]: 0.01,
+                [ResourceType.TOKENS]: 0.00002,
+                [ResourceType.API_CALLS]: 0.05,
+            };
+            return sum + (usage.totalConsumed * (costModels[usage.resourceType] || 0));
+        }, 0);
+        const costPerOutcome = successMetrics.length > 0 ? totalCost / successMetrics.length : 0;
 
         return {
             utilizationRate,

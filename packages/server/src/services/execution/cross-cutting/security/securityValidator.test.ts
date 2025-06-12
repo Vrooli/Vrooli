@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-describe("SecurityValidator", () => {
-    it.skip("should be implemented", () => {
-        expect(true).toBe(true);
+describe("securityValidator", () => {
+    it("should be implemented", () => {
+        throw new Error("Test not implemented: Please implement tests for securityValidator");
     });
 });

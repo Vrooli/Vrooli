@@ -4,8 +4,8 @@
  */
 
 // logger will be console for now
-import { CircularBuffer, TimeBasedCircularBuffer } from "../storage/CircularBuffer";
-import { MetricsIndex } from "../storage/MetricsIndex";
+import { CircularBuffer, TimeBasedCircularBuffer } from "../storage/CircularBuffer.js";
+import { MetricsIndex } from "../storage/MetricsIndex.js";
 import {
     UnifiedMetric,
     MonitoringConfig,
@@ -13,7 +13,7 @@ import {
     MetricQueryResult,
     RetentionPolicy,
     MetricType,
-} from "../types";
+} from "../types.js";
 
 /**
  * Storage bucket for a specific metric type/tier combination
@@ -375,9 +375,26 @@ export class MetricsStore {
             this.maintenanceTimer = undefined;
         }
         
-        // Stop all time-based buffers
-        for (const bucket of this.buckets.values()) {
-            bucket.buffer.stop();
+        // Stop all time-based buffers with proper async handling
+        const stopPromises = Array.from(this.buckets.values()).map(async (bucket) => {
+            try {
+                // Stop the buffer and wait a brief moment for cleanup
+                bucket.buffer.stop();
+                // Give buffers time to finish any ongoing operations
+                await new Promise(resolve => setTimeout(resolve, 10));
+            } catch (error) {
+                console.warn("Error stopping bucket buffer", { error });
+            }
+        });
+        
+        // Wait for all buffers to stop with timeout
+        try {
+            await Promise.race([
+                Promise.all(stopPromises),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+            ]);
+        } catch (error) {
+            console.warn("Some buffers may not have stopped cleanly", { error });
         }
         
         this.buckets.clear();

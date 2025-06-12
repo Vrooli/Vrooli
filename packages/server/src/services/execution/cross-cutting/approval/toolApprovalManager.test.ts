@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-describe("ToolApprovalManager", () => {
-    it.skip("should be implemented", () => {
-        expect(true).toBe(true);
+describe("toolApprovalManager", () => {
+    it("should be implemented", () => {
+        throw new Error("Test not implemented: Please implement tests for toolApprovalManager");
     });
 });

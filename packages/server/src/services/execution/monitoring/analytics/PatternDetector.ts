@@ -3,8 +3,8 @@
  * for monitoring metrics.
  */
 
-import { UnifiedMetric, AnomalyDetection } from "../types";
-import { StatisticalEngine } from "./StatisticalEngine";
+import { UnifiedMetric, AnomalyDetection } from "../types.js";
+import { StatisticalEngine } from "./StatisticalEngine.js";
 
 /**
  * Pattern detection and anomaly identification

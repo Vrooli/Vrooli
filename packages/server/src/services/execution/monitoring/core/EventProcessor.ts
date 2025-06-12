@@ -3,18 +3,18 @@
  * them into unified metrics for storage.
  */
 
-import { generatePK } from "@vrooli/shared/id/snowflake.js";
+import { generatePK } from "@vrooli/shared";
 import { type BaseEvent } from "../../cross-cutting/events/eventBus.js";
-import { MetricsStore } from "./MetricsStore";
+import { MetricsStore } from "./MetricsStore.js";
 import {
-    UnifiedMetric,
-    MonitoringConfig,
-    MetricType,
-    SwarmPerformanceSnapshot,
-    RunPerformanceMetrics,
-    StrategyExecutionMetrics,
-    ResourceUsageMetrics,
-} from "../types";
+    type UnifiedMetric,
+    type MonitoringConfig,
+    type MetricType,
+    type SwarmPerformanceSnapshot,
+    type RunPerformanceMetrics,
+    type StrategyExecutionMetrics,
+    type ResourceUsageMetrics,
+} from "../types.js";
 
 /**
  * Event processing statistics
@@ -542,7 +542,7 @@ export class EventProcessor {
             id: generatePK().toString(),
             timestamp,
             tier,
-            component: event.source || "unknown",
+            component: event.source?.component || "unknown",
             type: "health",
             name: `health.${event.subcategory || "status"}`,
             value: event.data?.status === "healthy" ? 1 : 0,
@@ -630,19 +630,25 @@ export class EventProcessor {
      */
     private extractTierFromEvent(event: BaseEvent): 1 | 2 | 3 | "cross-cutting" {
         // Check event source for tier information
-        if (event.source?.includes("Tier1") || event.source?.includes("Swarm")) {
+        if (event.source?.tier) {
+            return event.source.tier === "cross-cutting" ? "cross-cutting" : event.source.tier;
+        }
+        
+        // Check component name for tier hints
+        const component = event.source?.component || "";
+        if (component.includes("Tier1") || component.includes("Swarm")) {
             return 1;
         }
-        if (event.source?.includes("Tier2") || event.source?.includes("Run")) {
+        if (component.includes("Tier2") || component.includes("Run")) {
             return 2;
         }
-        if (event.source?.includes("Tier3") || event.source?.includes("Strategy") || event.source?.includes("Executor")) {
+        if (component.includes("Tier3") || component.includes("Strategy") || component.includes("Executor")) {
             return 3;
         }
         
-        // Check metadata for tier information
-        if (event.metadata?.tier) {
-            return event.metadata.tier as 1 | 2 | 3;
+        // Check data for tier information
+        if (event.data?.tier && typeof event.data.tier === "number") {
+            return event.data.tier as 1 | 2 | 3;
         }
         
         // Default to cross-cutting

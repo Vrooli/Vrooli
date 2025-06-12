@@ -3,7 +3,7 @@
  * while routing all metrics through the UnifiedMonitoringService.
  */
 
-import { UnifiedMonitoringService } from "../UnifiedMonitoringService";
+import { UnifiedMonitoringService } from "../UnifiedMonitoringService.js";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import {
     type MonitoringEvent,

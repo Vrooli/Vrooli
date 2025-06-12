@@ -10,13 +10,13 @@
  */
 
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { generatePK } from "@vrooli/shared/id/snowflake.js";
+import { generatePK } from "@vrooli/shared";
 import { CircularBuffer } from "../storage/CircularBuffer.js";
 import {
-    UnifiedMetric,
-    MonitoringConfig,
-    MetricType,
-    MonitoringEvent,
+    type UnifiedMetric,
+    type MonitoringConfig,
+    type MetricType,
+    type MonitoringEvent,
 } from "../types.js";
 
 /**
@@ -255,19 +255,38 @@ export class MetricsCollector {
                 };
                 
                 if (this.eventBus) {
-                    promises.push(this.eventBus.publish(event));
+                    // Wrap in error handling to prevent unhandled rejections
+                    const publishPromise = this.eventBus.publish(event).catch(error => {
+                        console.error("Failed to publish monitoring event", { error, eventType: event.type });
+                        throw error; // Re-throw to be caught by allSettled
+                    });
+                    promises.push(publishPromise);
                 }
             }
             
-            // Wait for all emissions (with timeout)
-            await Promise.race([
-                Promise.all(promises),
-                new Promise(resolve => setTimeout(resolve, 1000)),
-            ]);
+            // Wait for all emissions with proper error handling
+            if (promises.length > 0) {
+                const results = await Promise.allSettled(promises);
+                const failed = results.filter(r => r.status === 'rejected');
+                if (failed.length > 0) {
+                    const errors = failed.map(r => (r as PromiseRejectedResult).reason);
+                    console.warn("Some event publications failed", { 
+                        failedCount: failed.length, 
+                        totalCount: promises.length,
+                        errors: errors.slice(0, 3) // Log first 3 errors to avoid spam
+                    });
+                }
+            }
             
         } catch (error) {
-            // Log but don't throw - maintain fire-and-forget pattern
-            console.error("Error emitting metrics", { error, count: metrics.length });
+            // Enhanced error logging with more context
+            console.error("Critical error in metric emission", { 
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+                count: metrics.length,
+                timestamp: new Date().toISOString()
+            });
+            // Don't throw - maintain fire-and-forget pattern
         }
     }
     

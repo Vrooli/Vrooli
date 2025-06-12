@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-describe("N8nNavigator", () => {
-    it.skip("should be implemented", () => {
-        expect(true).toBe(true);
+describe("n8nNavigator", () => {
+    it("should be implemented", () => {
+        throw new Error("Test not implemented: Please implement tests for n8nNavigator");
     });
 });

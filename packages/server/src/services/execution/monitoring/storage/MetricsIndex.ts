@@ -3,7 +3,7 @@
  * Maintains indexes for common query patterns to improve performance.
  */
 
-import { UnifiedMetric, MetricType } from "../types";
+import { UnifiedMetric, MetricType } from "../types.js";
 
 /**
  * Index entry for fast lookups

@@ -3,14 +3,14 @@
  * integration, allowing AI agents to query and analyze monitoring data.
  */
 
-import { QueryInterface } from "./QueryInterface";
-import { PatternDetector } from "../analytics/PatternDetector";
+import { QueryInterface } from "./QueryInterface.js";
+import { PatternDetector } from "../analytics/PatternDetector.js";
 import { 
     UnifiedMetric, 
     MetricQuery, 
     MetricSummary,
     MetricQueryResult,
-} from "../types";
+} from "../types.js";
 
 /**
  * MCP tool definitions for monitoring

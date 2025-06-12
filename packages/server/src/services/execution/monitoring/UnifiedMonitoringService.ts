@@ -8,26 +8,27 @@
 
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { type Logger } from "winston";
-import { MetricsCollector } from "./core/MetricsCollector";
-import { MetricsStore } from "./core/MetricsStore";
-import { EventProcessor } from "./core/EventProcessor";
-import { StatisticalEngine } from "./analytics/StatisticalEngine";
-import { PatternDetector } from "./analytics/PatternDetector";
-import { QueryInterface } from "./api/QueryInterface";
-import { MCPToolAdapter } from "./api/MCPToolAdapter";
+import { MetricsCollector } from "./core/MetricsCollector.js";
+import { MetricsStore } from "./core/MetricsStore.js";
+import { EventProcessor } from "./core/EventProcessor.js";
+import { StatisticalEngine } from "./analytics/StatisticalEngine.js";
+import { PatternDetector } from "./analytics/PatternDetector.js";
+import { QueryInterface } from "./api/QueryInterface.js";
+import { MCPToolAdapter } from "./api/MCPToolAdapter.js";
 import {
-    MonitoringConfig,
-    UnifiedMetric,
-    MetricQuery,
-    MetricQueryResult,
-    MetricType,
-    MonitoringEvent,
-    MetricSummary,
-} from "./types";
+    type MonitoringConfig,
+    type UnifiedMetric,
+    type MetricQuery,
+    type MetricQueryResult,
+    type MetricType,
+    type MonitoringEvent,
+    type MetricSummary,
+} from "./types.js";
 
 /**
  * Default configuration for the monitoring service
  */
+
 const DEFAULT_CONFIG: MonitoringConfig = {
     maxOverheadMs: 5,
     samplingRates: {
@@ -114,18 +115,80 @@ export class UnifiedMonitoringService {
     }
     
     /**
-     * Get singleton instance
+     * Validate monitoring configuration
      */
+    private static validateConfig(config?: Partial<MonitoringConfig>): Partial<MonitoringConfig> {
+        if (!config) return {};
+        
+        // Validate maxOverheadMs
+        if (config.maxOverheadMs !== undefined && config.maxOverheadMs < 0) {
+            throw new Error("maxOverheadMs must be non-negative");
+        }
+        
+        // Validate sampling rates
+        if (config.samplingRates) {
+            for (const [type, rate] of Object.entries(config.samplingRates)) {
+                if (typeof rate !== 'number' || rate < 0 || rate > 1) {
+                    throw new Error(`Invalid sampling rate for ${type}: ${rate}. Must be between 0 and 1.`);
+                }
+            }
+        }
+        
+        // Validate buffer sizes
+        if (config.bufferSizes) {
+            for (const [tier, size] of Object.entries(config.bufferSizes)) {
+                if (typeof size !== 'number' || size <= 0 || !Number.isInteger(size)) {
+                    throw new Error(`Invalid buffer size for ${tier}: ${size}. Must be a positive integer.`);
+                }
+            }
+        }
+        
+        return config;
+    }
+    
+    /**
+     * Get singleton instance with thread-safe initialization
+     */
+    private static readonly instanceLock = { locked: false };
+    
     static getInstance(
         config?: Partial<MonitoringConfig>,
         eventBus?: EventBus,
         logger?: Logger
     ): UnifiedMonitoringService {
+        // Double-checked locking pattern for thread safety
         if (!UnifiedMonitoringService.instance) {
-            UnifiedMonitoringService.instance = new UnifiedMonitoringService(config, eventBus, logger);
+            if (!UnifiedMonitoringService.instanceLock.locked) {
+                UnifiedMonitoringService.instanceLock.locked = true;
+                try {
+                    if (!UnifiedMonitoringService.instance) {
+                        // Validate configuration before creating instance
+                        const validatedConfig = UnifiedMonitoringService.validateConfig(config);
+                        UnifiedMonitoringService.instance = new UnifiedMonitoringService(validatedConfig, eventBus, logger);
+                    }
+                } finally {
+                    UnifiedMonitoringService.instanceLock.locked = false;
+                }
+            } else {
+                // Wait for lock to be released and retry
+                const maxWaitMs = 5000;
+                const startTime = Date.now();
+                while (UnifiedMonitoringService.instanceLock.locked && (Date.now() - startTime) < maxWaitMs) {
+                    // Busy wait with small delay
+                    const delay = Math.min(10, maxWaitMs - (Date.now() - startTime));
+                    if (delay > 0) {
+                        // Synchronous delay for simplicity in singleton context
+                        const endTime = Date.now() + delay;
+                        while (Date.now() < endTime) { /* busy wait */ }
+                    }
+                }
+                if (!UnifiedMonitoringService.instance) {
+                    throw new Error("Failed to initialize UnifiedMonitoringService - timeout waiting for lock");
+                }
+            }
         } else if (config || eventBus || logger) {
             // Use logger if available, otherwise console
-            const log = logger || console;
+            const log = logger || UnifiedMonitoringService.instance.logger || console;
             log.warn?.("UnifiedMonitoringService already initialized - ignoring configuration parameters. Use reset() to create new instance.");
         }
         return UnifiedMonitoringService.instance;
@@ -135,12 +198,20 @@ export class UnifiedMonitoringService {
      * Reset singleton instance (useful for testing and environment changes)
      */
     static async reset(): Promise<void> {
+        // Lock during reset to prevent race conditions
+        if (UnifiedMonitoringService.instanceLock.locked) {
+            throw new Error("Cannot reset while instance is being created");
+        }
+        
         const instance = UnifiedMonitoringService.instance;
         if (instance) {
-            // Clear reference first to prevent race conditions
-            UnifiedMonitoringService.instance = null as any;
-            // Then shutdown the instance
-            await instance.shutdown();
+            try {
+                // Shutdown the instance first
+                await instance.shutdown();
+            } finally {
+                // Always clear reference even if shutdown fails
+                UnifiedMonitoringService.instance = undefined as any;
+            }
         }
     }
     

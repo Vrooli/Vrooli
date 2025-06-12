@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-describe("SwarmStateStoreFactory", () => {
-    it.skip("should be implemented", () => {
-        expect(true).toBe(true);
+describe("swarmStateStoreFactory", () => {
+    it("should be implemented", () => {
+        throw new Error("Test not implemented: Please implement tests for swarmStateStoreFactory");
     });
 });

@@ -1,22 +1,12 @@
-/**
- * Tier 1: Coordination Intelligence
- * 
- * This tier provides strategic coordination and metacognitive capabilities
- * for autonomous swarm operations. It implements the OODA loop (Observe,
- * Orient, Decide, Act) for high-level decision making and adaptation.
- */
-export { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
-export { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
-export { StrategyEngine } from "./intelligence/strategyEngine.js";
-export { ResourceManager } from "./organization/resourceManager.js";
-export { TeamManager } from "./organization/teamManager.js";
-export { RedisSwarmStateStore } from "./state/redisSwarmStateStore.js";
-export { InMemorySwarmStateStore, type ISwarmStateStore } from "./state/swarmStateStore.js";
-export { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
-export { TierOneCoordinator } from "./tierOneCoordinator.js";
-export { TierOneFactory } from "./tierOneFactory.js";
+export * from "./coordination/index.js";
+export * from "./intelligence/index.js";
+export * from "./organization/index.js";
+export * from "./state/index.js";
+export * from "./tierOneCoordinator.js";
+export * from "./tierOneFactory.js";
 
-// Re-export types
+export { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
+
 export type {
     MetacognitiveReflection,
     StrategySelectionResult, SwarmAgent, SwarmConfig, SwarmDecision, SwarmInitParams, SwarmPerformance, SwarmState, SwarmTeam, TeamFormation
