@@ -34,6 +34,7 @@ export const profileValidation: YupModel<["update"]> = {
     // Can't create a non-bot user directly - must use sign up form(s)
     update: (d) => yupObj({
         bannerImage: opt(imageFile),
+        creditSettings: opt(config),
         handle: opt(handle),
         id: req(id),
         isPrivate: opt(bool),
@@ -64,6 +65,7 @@ export const userValidation: YupModel<["create", "update"]> = {
         botSettings: opt(config),
         // Profile part
         bannerImage: opt(imageFile),
+        creditSettings: opt(config),
         handle: opt(handle),
         id: req(id),
         isPrivate: opt(bool),
@@ -129,3 +131,4 @@ export const profileEmailUpdateValidation: YupModel<["update"]> = {
         ["emails", ["Create", "Delete"], "many", "opt", emailValidation],
     ], [], d),
 };
+

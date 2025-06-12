@@ -57,7 +57,10 @@ export function setDotNotationValue<T extends Record<string, unknown>, V = unkno
         .map(key => key.replace(/^\[|\]$/g, ""))
         .filter(key => !["", "."].includes(key));
     // Pop last key from array, as it will be used to set the value
-    const lastKey = keys.pop() as string;
+    const lastKey = keys.pop();
+    if (!lastKey) {
+        throw new Error("Invalid notation: no key found");
+    }
     // Use the other keys to get the target object
     const lastObj = keys.reduce((obj: Record<string, unknown> | unknown[], key) => {
         // Check if the key is an array index
@@ -102,6 +105,9 @@ export function setDotNotationValue<T extends Record<string, unknown>, V = unkno
         const index = parseInt(lastKey, 10);
         lastObj[index] = value;
     } else {
+        if (typeof lastObj !== "object" || lastObj === null) {
+            throw new Error("Expected object for property assignment");
+        }
         (lastObj as Record<string, unknown>)[lastKey] = value;
     }
     // Return the updated object
@@ -168,11 +174,12 @@ export function isObject(value: unknown): value is object {
  */
 export function isOfType<T extends string>(obj: unknown, ...types: T[]): obj is { __typename: T } {
     if (!obj || typeof obj !== "object" || !("__typename" in obj)) return false;
-    return types.includes((obj as { __typename: unknown }).__typename as T);
+    const typedObj = obj as { __typename: unknown };
+    return typeof typedObj.__typename === "string" && types.includes(typedObj.__typename as T);
 }
 
 export function deepClone<T>(obj: T): T {
-    if (obj === null) return null as T;
+    if (obj === null) return obj;
     if (obj instanceof Date) return new Date(obj.getTime()) as T;
 
     if (typeof obj !== "object") return obj;
@@ -199,12 +206,19 @@ export function deepClone<T>(obj: T): T {
  * 
  * @param target - The target object to be merged.
  * @param reference - The default object providing fallback values.
+ * @param seen - WeakSet to track visited objects and prevent circular reference loops.
  * @returns A new object with properties from both target and reference.
  */
-export function mergeDeep<T>(target: T, reference: T): T {
+export function mergeDeep<T>(target: T, reference: T, seen = new WeakSet()): T {
     if (target === null || typeof target !== "object" || Array.isArray(target)) {
         return target !== undefined && target !== null ? target : reference;
     }
+
+    // Check for circular reference
+    if (seen.has(target as object)) {
+        return target; // Return the circular reference as-is
+    }
+    seen.add(target as object);
 
     const result: Record<string, unknown> = { ...(reference as Record<string, unknown>) };
 
@@ -213,7 +227,12 @@ export function mergeDeep<T>(target: T, reference: T): T {
         const referenceValue = (reference as Record<string, unknown>)[key];
         
         if (typeof targetValue === "object" && targetValue !== null && !Array.isArray(targetValue)) {
-            result[key] = mergeDeep(targetValue, referenceValue || {});
+            // Don't deep merge class instances (check constructor)
+            if (targetValue.constructor && targetValue.constructor !== Object) {
+                result[key] = targetValue;
+            } else {
+                result[key] = mergeDeep(targetValue, referenceValue || {}, seen);
+            }
         } else {
             result[key] = targetValue;
         }

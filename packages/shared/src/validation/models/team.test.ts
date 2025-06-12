@@ -413,7 +413,7 @@ describe("teamValidation", () => {
                 );
             });
 
-            it("should not allow translations updates", async () => {
+            it("should filter out translation operations from update schema", async () => {
                 const dataWithTranslations = {
                     id: "123456789012345678",
                     translationsCreate: [
@@ -425,7 +425,10 @@ describe("teamValidation", () => {
                     ],
                 };
 
+                // The update schema should strip unknown fields but still validate successfully
                 const result = await testValidation(updateSchema, dataWithTranslations, true);
+                expect(result).to.have.property("id", "123456789012345678");
+                // Translation operations should be filtered out by the schema
                 expect(result).to.not.have.property("translationsCreate");
             });
         });

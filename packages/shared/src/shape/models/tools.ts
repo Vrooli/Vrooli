@@ -195,6 +195,9 @@ export function createRel<
             let filteredRelationData = Array.isArray(shapedRelationData) ? shapedRelationData : [shapedRelationData];
             filteredRelationData = filteredRelationData.filter((x) => !shouldConnect(x));
             if (filteredRelationData.length === 0) continue;
+            if (!shape) {
+                throw new Error(`Shape is required for Create operation on relation: ${relation}`);
+            }
             result[`${relation}${t}`] = isOneToOne === "one" ?
                 shape.create(filteredRelationData[0]) :
                 filteredRelationData.map((x) => shape.create(x));
@@ -391,8 +394,9 @@ export function shapeUpdate<
     return result;
 }
 
-function asArray<T>(value: T | T[]): T[] {
+function asArray<T>(value: T | T[] | null | undefined): T[] {
     if (Array.isArray(value)) return value;
+    if (value === null || value === undefined) return [];
     return [value];
 }
 

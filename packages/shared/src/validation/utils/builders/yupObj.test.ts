@@ -191,197 +191,219 @@ describe("yupObj", () => {
         );
     });
 
-    describe("should handle relationship with omitted fields", () => {
-        it("test1", async () => {
-            const relSchema = createDummyYupModel("dummyField");
+    describe("omitted fields in relationships", () => {
+        it("should omit specified fields from required relationships", async () => {
+            const userSchema = createDummyYupModel("email");
             const schema = yupObj(
-                { testField: req(yup.string()) },
+                { name: req(yup.string()) },
                 // @ts-ignore: Testing runtime scenario
-                [["dummyRel", ["Create"], "one", "req", relSchema, ["dummyField"]]],
+                [["user", ["Create"], "one", "req", userSchema, ["email"]]], // Omit email field
                 [],
                 {},
             );
-            // Should pass and strip unknown fields
+            
+            // Should accept data without the omitted field
             await assertValid(
                 schema,
-                { testField: "boop", dummyRelCreate: { dummyField: "test", anotherField: "yeet" } },
-                { testField: "boop", dummyRelCreate: {} },
+                { name: "John", userCreate: { email: "test@example.com", extraField: "ignored" } },
+                { name: "John", userCreate: {} },
             );
-            // Not providing the omitted required field should pass because it's converted to an optional field
+            
+            // Should also accept data that doesn't provide the omitted field at all
             await assertValid(
                 schema,
-                { testField: "boop", dummyRelCreate: { anotherField: "yeet" } },
-                { testField: "boop", dummyRelCreate: {} },
+                { name: "John", userCreate: { extraField: "ignored" } },
+                { name: "John", userCreate: {} },
             );
         });
-        it("test2", async () => {
-            const relSchema = createDummyYupModel("dummyField1", "dummyField2");
+        
+        it("should omit only specified fields while keeping others", async () => {
+            const profileSchema = createDummyYupModel("name", "bio");
             const schema = yupObj(
-                { testField: req(yup.string()) },
+                { title: req(yup.string()) },
                 // @ts-ignore: Testing runtime scenario
-                [["dummyRel", ["Create"], "one", "req", relSchema, ["dummyField1"]]],
+                [["profile", ["Create"], "one", "req", profileSchema, ["name"]]], // Omit only name
                 [],
                 {},
             );
-            // Should pass and strip unknown fields
+            
+            // Should keep non-omitted fields while stripping omitted ones
             await assertValid(
                 schema,
-                { testField: "boop", dummyRelCreate: { dummyField1: "test", dummyField2: "yeet" } },
-                { testField: "boop", dummyRelCreate: { dummyField2: "yeet" } },
+                { title: "Article", profileCreate: { name: "ignored", bio: "kept" } },
+                { title: "Article", profileCreate: { bio: "kept" } },
             );
-            // Not providing the omitted required field should pass because it's converted to an optional field
-            await assertValid(
-                schema,
-                { testField: "boop", dummyRelCreate: { dummyField2: "test" } },
-                { testField: "boop", dummyRelCreate: { dummyField2: "test" } },
-            );
-            // Not providing the non-omitted required field should fail
+            
+            // Should still validate that non-omitted required fields are present
             await assertInvalid(
                 schema,
-                { testField: "boop", dummyRelCreate: { dummyField1: "test" } },
+                { title: "Article", profileCreate: { name: "ignored" } }, // Missing required bio
             );
         });
-        it("test3", async () => {
-            const grandchildSchema = createDummyYupModel("dummyField1", "dummyField2");
-            const childSchema = {
+        it("should handle nested relationship omissions", async () => {
+            const addressSchema = createDummyYupModel("street", "city");
+            const userSchema = {
                 create: (d) => yupObj(
-                    { testField: req(yup.string()) },
+                    { name: req(yup.string()) },
                     // @ts-ignore: Testing runtime scenario
-                    [["grandchild", ["Create", "Update"], "one", "req", grandchildSchema, ["dummyField1"]]],
+                    [["address", ["Create", "Update"], "one", "req", addressSchema, ["street"]]],
                     [],
                     d,
                 ),
                 update: (d) => yupObj(
-                    { testField: req(yup.string()) },
+                    { name: req(yup.string()) },
                     // @ts-ignore: Testing runtime scenario
-                    [["grandchild", ["Create", "Update"], "one", "req", grandchildSchema, ["dummyField1"]]],
+                    [["address", ["Create", "Update"], "one", "req", addressSchema, ["street"]]],
                     [],
                     d,
                 ),
             };
-            const parentSchema = yupObj(
-                {},
+            
+            const orderSchema = yupObj(
+                { total: req(yup.number()) },
                 // @ts-ignore: Testing runtime scenario
-                [["child", ["Create", "Update", "Delete"], "one", "req", childSchema, ["grandchild"]]], // Should exclude all grandchild fields, not just grandchildCreate, grandchildUpdate, etc.
+                [["user", ["Create"], "one", "req", userSchema, ["address"]]], // Omit entire address relationship
                 [],
                 {},
             );
-            // The whole grandchild object should be excluded
+            
+            // Should omit the entire nested relationship
             await assertValid(
-                parentSchema,
-                { childCreate: { testField: "boop", grandchildCreate: { dummyField1: "test", dummyField2: "yeet" } } },
-                { childCreate: { testField: "boop" } },
+                orderSchema,
+                { total: 100, userCreate: { name: "John", addressCreate: { street: "123 Main", city: "Boston" } } },
+                { total: 100, userCreate: { name: "John" } },
             );
-            // Shouldn't need to provide grandchild because it's excluded
+            
+            // Should work without providing the omitted nested relationship
             await assertValid(
-                parentSchema,
-                { childCreate: { testField: "boop" } },
-                { childCreate: { testField: "boop" } },
+                orderSchema,
+                { total: 100, userCreate: { name: "John" } },
+                { total: 100, userCreate: { name: "John" } },
             );
         });
     });
 
-    describe("should enforce exclusion pairs on primitive fields", () => {
-        it("test 1", async () => {
+    describe("mutual exclusion constraints", () => {
+        it("should enforce required mutual exclusion (exactly one field required)", async () => {
             const schema = yupObj(
                 {
-                    field1: opt(yup.string()),
-                    field2: opt(yup.string()),
+                    email: opt(yup.string()),
+                    username: opt(yup.string()),
                 },
                 [],
-                [["field1", "field2", true]],
+                [["email", "username", true]], // Exactly one required
                 {},
             );
 
-            // One field provided - should pass
-            await assertValid(schema, { field1: "test" }, { field1: "test" });
-            await assertValid(schema, { field2: "test" }, { field2: "test" });
-            // Both fields provided - should fail
-            await assertInvalid(schema, { field1: "test", field2: "test" });
-            // No fields provided - should fail because we set the pair to "true" (required)
+            // Should accept one field
+            await assertValid(schema, { email: "user@example.com" }, { email: "user@example.com" });
+            await assertValid(schema, { username: "user123" }, { username: "user123" });
+            
+            // Should reject both fields
+            await assertInvalid(schema, { email: "user@example.com", username: "user123" });
+            
+            // Should reject neither field when one is required
             await assertInvalid(schema, {});
         });
 
-        it("test 2", async () => {
+        it("should enforce optional mutual exclusion (at most one field allowed)", async () => {
             const schema = yupObj(
                 {
-                    field1: opt(yup.string()),
-                    field2: opt(yup.string()),
+                    primaryPhone: opt(yup.string()),
+                    secondaryPhone: opt(yup.string()),
                 },
                 [],
-                [["field1", "field2", false]],
+                [["primaryPhone", "secondaryPhone", false]], // At most one allowed
                 {},
             );
 
-            // One field provided - should pass
-            await assertValid(schema, { field1: "test" }, { field1: "test" });
-            await assertValid(schema, { field2: "test" }, { field2: "test" });
-            // Both fields provided - should fail 
-            await assertInvalid(schema, { field1: "test", field2: "test" });
-            // No fields provided - should pass because we set the pair to "false" (optional)
+            // Should accept one field
+            await assertValid(schema, { primaryPhone: "123-456-7890" }, { primaryPhone: "123-456-7890" });
+            await assertValid(schema, { secondaryPhone: "098-765-4321" }, { secondaryPhone: "098-765-4321" });
+            
+            // Should reject both fields
+            await assertInvalid(schema, { primaryPhone: "123-456-7890", secondaryPhone: "098-765-4321" });
+            
+            // Should accept neither field when both are optional
             await assertValid(schema, {}, {});
         });
     });
 
-    describe("should enforce exclusion pairs on relationship fields", () => {
-        it("test1", async () => {
-            const relSchema = createDummyYupModel("dummyField");
+    describe("relationship mutual exclusion", () => {
+        it("should enforce exclusion between different relationships", async () => {
+            const userSchema = createDummyYupModel("name");
             const schema = yupObj(
-                {},
+                { title: req(yup.string()) },
                 [
                     // @ts-ignore: Testing runtime scenario
-                    ["rel1", ["Create"], "one", "opt", relSchema],
+                    ["author", ["Create"], "one", "opt", userSchema],
                     // @ts-ignore: Testing runtime scenario
-                    ["rel2", ["Create"], "one", "opt", relSchema],
+                    ["editor", ["Create"], "one", "opt", userSchema],
                 ],
-                [["rel1Create", "rel2Create", true]],
+                [["authorCreate", "editorCreate", true]], // Exactly one required
                 {},
             );
 
-            // One field provided - should pass
+            // Should accept creating an author
             await assertValid(
                 schema,
-                { rel1Create: { dummyField: "test" } },
-                { rel1Create: { dummyField: "test" } },
+                { title: "Article", authorCreate: { name: "John" } },
+                { title: "Article", authorCreate: { name: "John" } },
             );
+            
+            // Should accept creating an editor
             await assertValid(
                 schema,
-                { rel2Create: { dummyField: "test" } },
-                { rel2Create: { dummyField: "test" } },
+                { title: "Article", editorCreate: { name: "Jane" } },
+                { title: "Article", editorCreate: { name: "Jane" } },
             );
-            // Both fields provided - should fail
-            await assertInvalid(schema, { rel1Create: { dummyField: "test" }, rel2Create: { dummyField: "test" } });
-            // No fields provided - should fail because we set the pair to "true" (required)
-            await assertInvalid(schema, {});
+            
+            // Should reject both author and editor
+            await assertInvalid(schema, { 
+                title: "Article", 
+                authorCreate: { name: "John" }, 
+                editorCreate: { name: "Jane" } 
+            });
+            
+            // Should reject neither when one is required
+            await assertInvalid(schema, { title: "Article" });
         });
 
-        it("test2", async () => {
-            const relSchema = createDummyYupModel("dummyField");
+        it("should enforce exclusion between create and update operations", async () => {
+            const userSchema = createDummyYupModel("name");
             const schema = yupObj(
-                {},
+                { title: req(yup.string()) },
                 [
                     // @ts-ignore: Testing runtime scenario
-                    ["rel1", ["Create", "Update"], "one", "opt", relSchema],
+                    ["author", ["Create", "Update"], "one", "opt", userSchema],
                 ],
-                [["rel1Create", "rel1Update", false]],
+                [["authorCreate", "authorUpdate", false]], // At most one allowed
                 {},
             );
 
-            // One field provided - should pass
+            // Should accept creating an author
             await assertValid(
                 schema,
-                { rel1Create: { dummyField: "test" } },
-                { rel1Create: { dummyField: "test" } },
+                { title: "Article", authorCreate: { name: "John" } },
+                { title: "Article", authorCreate: { name: "John" } },
             );
+            
+            // Should accept updating an author
             await assertValid(
                 schema,
-                { rel1Update: { dummyField: "test" } },
-                { rel1Update: { dummyField: "test" } },
+                { title: "Article", authorUpdate: { name: "John Updated" } },
+                { title: "Article", authorUpdate: { name: "John Updated" } },
             );
-            // Both fields provided - should fail
-            await assertInvalid(schema, { rel1Create: { dummyField: "test" }, rel1Update: { dummyField: "test" } });
-            // No fields provided - should pass because we set the pair to "false" (optional)
-            await assertValid(schema, {}, {});
+            
+            // Should reject both create and update
+            await assertInvalid(schema, { 
+                title: "Article", 
+                authorCreate: { name: "John" }, 
+                authorUpdate: { name: "John Updated" } 
+            });
+            
+            // Should accept neither when both are optional
+            await assertValid(schema, { title: "Article" }, { title: "Article" });
         });
     });
 
@@ -548,7 +570,7 @@ describe("yupObj", () => {
         await assertValid(schema, { testField: "boop" }, { testField: "boop" });
     });
 
-    it("should warn when requireOneGroup contains a required field", async () => {
+    it("should fail validation when requireOneGroup contains a required field", async () => {
         const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
         
         const schema = yupObj(
@@ -557,20 +579,22 @@ describe("yupObj", () => {
                 field2: opt(yup.string()),
             },
             [],
-            [["field1", "field2", false]],
+            [["field1", "field2", false]], // Require exactly one
             {},
         );
 
-        // Trigger validation to execute the test function
-        try {
-            await schema.validate({ field1: "test", field2: "test" });
-        } catch (error) {
-            // Expected to fail
-        }
+        // Should fail validation because field1 is required, making "exactly one" impossible
+        await expect(schema.validate({ field1: "test" })).rejects.toThrow();
+        await expect(schema.validate({ field2: "test" })).rejects.toThrow(); // Missing required field1
+        await expect(schema.validate({ field1: "test", field2: "test" })).rejects.toThrow(); // Both provided
 
+        // Console warning should be emitted
         expect(consoleSpy).toHaveBeenCalledWith(
             "[yupObj] One of the following fields is marked as required, so this require-one test will always fail: field1, field2"
         );
+        
+        // The schema configuration is contradictory - field1 is required but requireOneGroup 
+        // says exactly one of field1 or field2 should be provided
         
         consoleSpy.mockRestore();
     });
@@ -645,18 +669,25 @@ describe("yupObj", () => {
             { omitFields: ["relCreate.field1", "relUpdate.field2"] },
         );
 
-        // With dotted omitFields, specific nested fields should be omitted from relationships
+        // Test relCreate: field1 should be omitted
         await assertValid(
             schema,
             { relCreate: { field1: "ignored", field2: "kept", field3: "kept" } },
-            { relCreate: { field3: "kept" } }, // Only field3 remains (field1 omitted, field2 might be getting omitted by another mechanism)
+            { relCreate: { field2: "kept", field3: "kept" } }, // field1 omitted as specified
         );
 
-        // Different field omitted for relUpdate (field2 gets omitted, field1 might also get omitted by some mechanism)
+        // Test relUpdate: field2 should be omitted
         await assertValid(
             schema,
             { relUpdate: { field1: "kept", field2: "ignored", field3: "kept" } },
-            { relUpdate: { field3: "kept" } },
+            { relUpdate: { field1: "kept", field3: "kept" } }, // field2 omitted as specified
+        );
+        
+        // Test that omitFields doesn't affect other operations or relationships
+        await assertValid(
+            schema,
+            { relCreate: { field2: "value2", field3: "value3" } }, // field1 not provided
+            { relCreate: { field2: "value2", field3: "value3" } },
         );
     });
 
@@ -728,33 +759,31 @@ describe("yupObj", () => {
         );
     });
 
-    it("should handle value as non-object in requireOneGroup test", async () => {
+    it("should reject non-object values when requireOneGroup is specified", async () => {
         const schema = yupObj(
             {
                 field1: opt(yup.string()),
                 field2: opt(yup.string()),
             },
             [],
-            [["field1", "field2", true]],
+            [["field1", "field2", true]], // At least one required
             {},
         );
 
-        // The requireTest function checks if value is an object
-        // This tests the edge case where somehow a non-object value is passed
-        const testSchema = schema.test(
-            "test-non-object",
-            "Testing non-object value",
-            function(value) {
-                // Override the value to be a non-object to test the edge case
-                if (typeof value === "string") {
-                    // This simulates the fieldCounts = 0 branch in requireTest
-                    return false;
-                }
-                return true;
-            }
-        );
-
-        await assertInvalid(testSchema, "not-an-object");
+        // The schema expects an object with at least one of field1 or field2
+        // Non-object values should fail validation
+        
+        // Test with string value - should fail
+        await expect(schema.validate("not-an-object")).rejects.toThrow();
+        
+        // Test with number value - should fail
+        await expect(schema.validate(42)).rejects.toThrow();
+        
+        // Test with array value - should fail
+        await expect(schema.validate(["array", "value"])).rejects.toThrow();
+        
+        // Test with valid object - should pass
+        await expect(schema.validate({ field1: "value" })).resolves.toEqual({ field1: "value" });
     });
 
     it("should handle requireOneGroup with both fields missing from schema", async () => {

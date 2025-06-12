@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import zlib from "zlib";
+import type { MockedFunction } from "vitest";
 import { genSitemap, isSitemapMissing } from "./genSitemap.js";
 
 import { DbProvider } from "@vrooli/server/db/provider.js";
@@ -16,6 +17,14 @@ vi.mock("fs", () => ({
     },
 }));
 
+// Type the mocked fs functions
+type MockedFs = {
+    existsSync: MockedFunction<typeof fs.existsSync>;
+    mkdirSync: MockedFunction<typeof fs.mkdirSync>;
+    writeFileSync: MockedFunction<typeof fs.writeFileSync>;
+};
+const mockedFs = fs as unknown as MockedFs;
+
 // Mock zlib module
 vi.mock("zlib", () => ({
     default: {
@@ -25,6 +34,12 @@ vi.mock("zlib", () => ({
         }),
     },
 }));
+
+// Type the mocked zlib functions
+type MockedZlib = {
+    gzip: MockedFunction<typeof zlib.gzip>;
+};
+const mockedZlib = zlib as unknown as MockedZlib;
 
 // Mock only the UI_URL constant for testing
 vi.mock("@vrooli/server", async () => {
@@ -94,16 +109,14 @@ describe("genSitemap tests", () => {
 
     describe("isSitemapMissing", () => {
         it("should return true when sitemap.xml does not exist", async () => {
-            const mockExistsSync = fs.existsSync as any;
-            mockExistsSync.mockReturnValue(false);
+            mockedFs.existsSync.mockReturnValue(false);
 
             const result = await isSitemapMissing();
             expect(result).toBe(true);
         });
 
         it("should return false when sitemap.xml exists", async () => {
-            const mockExistsSync = fs.existsSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             const result = await isSitemapMissing();
             expect(result).toBe(false);
@@ -112,15 +125,12 @@ describe("genSitemap tests", () => {
 
     describe("genSitemap", () => {
         it("should create sitemap directory if it doesn't exist", async () => {
-            const mockExistsSync = fs.existsSync as any;
-            const mockMkdirSync = fs.mkdirSync as any;
-            
             // First call checks sitemap directory, second checks routes sitemap
-            mockExistsSync.mockReturnValueOnce(false).mockReturnValueOnce(true);
+            mockedFs.existsSync.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
             await genSitemap();
 
-            expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining("/sitemaps"));
+            expect(mockedFs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining("/sitemaps"));
         });
 
         it("should generate sitemap for public users with handles", async () => {
@@ -170,9 +180,7 @@ describe("genSitemap tests", () => {
             });
             testUserIds.push(privateUser.id);
 
-            const mockExistsSync = fs.existsSync as any;
-            const mockWriteFileSync = fs.writeFileSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
@@ -180,13 +188,13 @@ describe("genSitemap tests", () => {
             expect(zlib.gzip).toHaveBeenCalled();
             
             // Check that sitemap files were written
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("User-0.xml.gz"),
                 expect.any(Uint8Array)
             );
             
             // Check that sitemap index was written
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("sitemap.xml"),
                 expect.stringContaining("User-0.xml.gz")
             );
@@ -249,14 +257,12 @@ describe("genSitemap tests", () => {
             });
             testTeamIds.push(privateTeam.id);
 
-            const mockExistsSync = fs.existsSync as any;
-            const mockWriteFileSync = fs.writeFileSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
             // Check that Team sitemap was generated
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("Team-0.xml.gz"),
                 expect.any(Uint8Array)
             );
@@ -439,14 +445,12 @@ describe("genSitemap tests", () => {
             });
             testResourceVersionIds.push(deletedVersion.id);
 
-            const mockExistsSync = fs.existsSync as any;
-            const mockWriteFileSync = fs.writeFileSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
             // Check that ResourceVersion sitemap was generated
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("ResourceVersion-0.xml.gz"),
                 expect.any(Uint8Array)
             );
@@ -514,8 +518,7 @@ describe("genSitemap tests", () => {
                 testResourceVersionIds.push(version.id);
             }
 
-            const mockExistsSync = fs.existsSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
@@ -524,44 +527,39 @@ describe("genSitemap tests", () => {
 
         it("should handle empty results gracefully", async () => {
             // Don't create any test data
-            const mockExistsSync = fs.existsSync as any;
-            const mockWriteFileSync = fs.writeFileSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
             // Should still write the index file
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("sitemap.xml"),
                 expect.any(String)
             );
             
             // But should not write any object-specific sitemaps
-            expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
                 expect.stringContaining("User-0.xml.gz"),
                 expect.any(Uint8Array)
             );
-            expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
                 expect.stringContaining("Team-0.xml.gz"),
                 expect.any(Uint8Array)
             );
-            expect(mockWriteFileSync).not.toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
                 expect.stringContaining("ResourceVersion-0.xml.gz"),
                 expect.any(Uint8Array)
             );
         });
 
         it("should handle missing route sitemap file", async () => {
-            const mockExistsSync = fs.existsSync as any;
-            const mockWriteFileSync = fs.writeFileSync as any;
-            
             // First call for sitemap dir exists, second for routes file doesn't exist
-            mockExistsSync.mockReturnValueOnce(true).mockReturnValueOnce(false);
+            mockedFs.existsSync.mockReturnValueOnce(true).mockReturnValueOnce(false);
 
             await genSitemap();
 
             // Index should still be created but without routes file
-            expect(mockWriteFileSync).toHaveBeenCalledWith(
+            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining("sitemap.xml"),
                 expect.not.stringContaining("sitemap-routes.xml")
             );
@@ -582,12 +580,10 @@ describe("genSitemap tests", () => {
             });
             testUserIds.push(owner.id);
 
-            const mockExistsSync = fs.existsSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             // Mock zlib to return an error
-            const mockGzip = zlib.gzip as any;
-            mockGzip.mockImplementationOnce((data, callback) => {
+            mockedZlib.gzip.mockImplementationOnce((data, callback) => {
                 callback(new Error("Compression failed"), null);
             });
 
@@ -617,8 +613,7 @@ describe("genSitemap tests", () => {
             const users = await Promise.all(userPromises);
             users.forEach(u => testUserIds.push(u.id));
 
-            const mockExistsSync = fs.existsSync as any;
-            mockExistsSync.mockReturnValue(true);
+            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 

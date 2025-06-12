@@ -9,7 +9,7 @@
  */
 import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
-import { RunStatus, type ModelType } from "@vrooli/shared";
+import { RunStatus, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
 import { EmbeddingService } from "@vrooli/server/services/embedding.js";
 import { API_BATCH_SIZE } from "../constants.js";
 
@@ -100,6 +100,13 @@ const typedEmbedGetMap: {
 
 // ===== END CENTRALIZED LOGIC =====
 
+// Type guard to check if a value is a valid ModelType
+function isValidModelType(value: string): value is ModelType {
+    const modelTypeValues: readonly string[] = Object.values(ModelTypeEnum);
+    return modelTypeValues.includes(value) || 
+           value.endsWith("Translation");
+}
+
 async function updateEmbedding(
     objectType: EmbeddableType, // Simplified type
     isTranslatableTable: boolean,
@@ -114,10 +121,17 @@ async function updateEmbedding(
     // Construct the key for ModelMap
     const modelKey: ConstructedModelKey = isTranslatableTable ? `${objectType}Translation` : objectType;
 
-    // Explicitly cast to ModelType. This cast assumes that any value of type
-    // 'ConstructedModelKey' is also a valid 'ModelType'. This assumption
-    // should ideally be validated against the actual definition of 'ModelType'.
-    const modelInfo = ModelMap.get(modelKey as ModelType);
+    // Validate that the constructed key is a valid ModelType
+    if (!isValidModelType(modelKey)) {
+        logger.error("Invalid ModelType constructed", {
+            objectType,
+            isTranslatableTable,
+            constructedKey: modelKey,
+        });
+        throw new Error(`Invalid ModelType: ${modelKey}`);
+    }
+    
+    const modelInfo = ModelMap.get(modelKey);
 
     if (!modelInfo || !modelInfo.dbTable) {
         logger.error("Failed to find model information or dbTable in ModelMap", {
@@ -129,13 +143,20 @@ async function updateEmbedding(
         throw new Error(`Could not determine database table for objectType: ${objectType}, derived key: ${modelKey}`);
     }
     const tableName = modelInfo.dbTable;
-    const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
-    await DbProvider.get().$executeRawUnsafe(
-        `UPDATE ${tableName}
-       SET "embedding" = ${embeddingsText}, "embeddingExpiredAt" = NOW()
-       WHERE id = $1::BIGINT;`,
-        id,
-    );
+    
+    // Validate table name to prevent SQL injection
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
+        logger.error("Invalid table name detected", {
+            objectType,
+            tableName,
+            isTranslatableTable,
+        });
+        throw new Error(`Invalid table name: ${tableName}`);
+    }
+    
+    // Use Prisma.sql for safe query construction with dynamic table names
+    const query = Prisma.sql`UPDATE ${Prisma.raw(`"${tableName}"`)} SET "embedding" = ${embeddings}::float[], "embeddingExpiredAt" = NOW() WHERE id = ${BigInt(id)}`;
+    await DbProvider.get().$executeRaw(query);
 }
 
 // Helper type guard
@@ -153,9 +174,9 @@ async function processEmbeddingBatch<
     batchOfP: P[],
     objectType: K, // objectType is now K
 ): Promise<void> {
-    // getFn is now correctly typed based on K, no assertion needed
-    const getFn: TypedEmbedGetFn<K> | undefined = typedEmbedGetMap[objectType];
-    if (!getFn) {
+    // Safely get the embedding function for this object type
+    const getFn = typedEmbedGetMap[objectType];
+    if (!getFn || typeof getFn !== 'function') {
         logger.warn("No embed get function found for object type", { objectType });
         return;
     }
@@ -163,7 +184,38 @@ async function processEmbeddingBatch<
     const itemsToEmbed: { sentence: string; targetId: string; updateTranslationTable: boolean }[] = [];
 
     batchOfP.forEach((row) => { // row is of type P
-        const sentencesForRow = getFn(row);
+        let sentencesForRow: string[];
+        
+        try {
+            // Type safety: getFn expects the specific payload type for this objectType
+            // The type system ensures row is compatible, but we add runtime validation
+            if (!row || typeof row !== 'object' || !('id' in row)) {
+                logger.error("Invalid row structure", {
+                    objectType,
+                    rowType: typeof row,
+                    hasId: row && typeof row === 'object' && 'id' in row,
+                });
+                return; // Skip this row
+            }
+            sentencesForRow = getFn(row);
+        } catch (error) {
+            logger.error("getFn threw an error", {
+                objectType,
+                rowId: row.id.toString(),
+                error,
+            });
+            return; // Skip this row
+        }
+        
+        // Validate that getFn returned a valid array
+        if (!Array.isArray(sentencesForRow)) {
+            logger.error("getFn did not return an array", {
+                objectType,
+                rowId: row.id.toString(),
+                returnType: typeof sentencesForRow,
+            });
+            return; // Skip this row
+        }
 
         if (hasPopulatedTranslations(row)) {
             // This path is for types that have a translations array (Chat, Issue, User, Team, etc.)
@@ -229,28 +281,39 @@ async function processEmbeddingBatch<
 }
 
 // Type for EmbeddingBatchProps
-type EmbeddingBatchProps<K extends EmbeddableType, P extends SpecificPayloadMap[K]> = { // K extends EmbeddableType
-    objectType: K; // Use K
-    processBatch: (batch: P[], objectType: K) => Promise<void>; // Use K
+type EmbeddingBatchProps<K extends EmbeddableType, P extends SpecificPayloadMap[K]> = {
+    objectType: K;
+    processBatch: (batch: P[], objectType: K) => Promise<void>;
     trace: string;
     traceObject?: Record<string, any>;
-    select: ModelFindManyArgsMap[K]["select"]; // Use ModelFindManyArgsMap
-    where: ModelFindManyArgsMap[K]["where"];   // Use ModelFindManyArgsMap
+    select: ModelFindManyArgsMap[K]["select"];
+    where: ModelFindManyArgsMap[K]["where"];
 };
 
-async function embeddingBatch<K extends EmbeddableType, P extends SpecificPayloadMap[K]>({ // K extends EmbeddableType
+async function embeddingBatch<K extends EmbeddableType>({ 
     objectType,
     processBatch: processBatchCallback,
     trace,
     traceObject,
     select,
     where,
-}: EmbeddingBatchProps<K, P>) { // Use K
+}: EmbeddingBatchProps<K, SpecificPayloadMap[K]>) { 
     try {
-        await batch<ModelFindManyArgsMap[K], P>({ // Use ModelFindManyArgsMap[K] for the first generic argument
+        await batch<ModelFindManyArgsMap[K], SpecificPayloadMap[K]>({ 
             batchSize: API_BATCH_SIZE,
             objectType,
-            processBatch: async (rows) => processBatchCallback(rows, objectType),
+            processBatch: async (rows: SpecificPayloadMap[K][]) => {
+                // Validate that rows is an array and contains expected payload structure
+                if (!Array.isArray(rows)) {
+                    logger.error("Invalid rows received in embeddingBatch", { 
+                        objectType, 
+                        rowsType: typeof rows,
+                        trace,
+                    });
+                    return;
+                }
+                await processBatchCallback(rows, objectType);
+            },
             select,
             where,
         });
@@ -262,7 +325,7 @@ async function embeddingBatch<K extends EmbeddableType, P extends SpecificPayloa
 // --- Update all batchEmbeddingsXYZ functions ---
 
 async function batchEmbeddingsChat() {
-    return embeddingBatch<"Chat", ChatEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Chat">({
         objectType: "Chat",
         select: embedSelectMap.Chat,
         processBatch: processEmbeddingBatch,
@@ -272,7 +335,7 @@ async function batchEmbeddingsChat() {
 }
 
 async function batchEmbeddingsIssue() {
-    return embeddingBatch<"Issue", IssueEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Issue">({
         objectType: "Issue",
         select: embedSelectMap.Issue,
         processBatch: processEmbeddingBatch,
@@ -282,7 +345,7 @@ async function batchEmbeddingsIssue() {
 }
 
 async function batchEmbeddingsMeeting() {
-    return embeddingBatch<"Meeting", MeetingEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Meeting">({
         objectType: "Meeting",
         select: embedSelectMap.Meeting,
         processBatch: processEmbeddingBatch,
@@ -292,7 +355,7 @@ async function batchEmbeddingsMeeting() {
 }
 
 async function batchEmbeddingsTeam() {
-    return embeddingBatch<"Team", TeamEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Team">({
         objectType: "Team",
         select: embedSelectMap.Team,
         processBatch: processEmbeddingBatch,
@@ -302,7 +365,7 @@ async function batchEmbeddingsTeam() {
 }
 
 async function batchEmbeddingsResourceVersion() {
-    return embeddingBatch<"ResourceVersion", ResourceVersionEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"ResourceVersion">({
         objectType: "ResourceVersion",
         select: embedSelectMap.ResourceVersion,
         processBatch: processEmbeddingBatch,
@@ -316,7 +379,7 @@ async function batchEmbeddingsResourceVersion() {
 }
 
 async function batchEmbeddingsTag() {
-    return embeddingBatch<"Tag", TagEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Tag">({
         objectType: "Tag",
         select: embedSelectMap.Tag,
         processBatch: processEmbeddingBatch,
@@ -326,7 +389,7 @@ async function batchEmbeddingsTag() {
 }
 
 async function batchEmbeddingsUser() {
-    return embeddingBatch<"User", UserEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"User">({
         objectType: "User",
         select: embedSelectMap.User,
         processBatch: processEmbeddingBatch,
@@ -336,7 +399,7 @@ async function batchEmbeddingsUser() {
 }
 
 async function batchEmbeddingsReminder() {
-    return embeddingBatch<"Reminder", ReminderEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Reminder">({
         objectType: "Reminder",
         select: embedSelectMap.Reminder,
         processBatch: processEmbeddingBatch,
@@ -346,7 +409,7 @@ async function batchEmbeddingsReminder() {
 }
 
 async function batchEmbeddingsRun() {
-    return embeddingBatch<"Run", RunEmbedPayload>({ // Explicitly type K and P
+    return embeddingBatch<"Run">({
         objectType: "Run",
         select: embedSelectMap.Run,
         processBatch: processEmbeddingBatch,

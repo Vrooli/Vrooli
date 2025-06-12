@@ -8,14 +8,18 @@ import { FormStructureType, type FormElement, type FormSchema } from "./types.js
 
 describe("FormBuilder", () => {
     describe("generateInitialValues", () => {
-        // Test handling of null input
+        // Test handling of null input - should throw or return empty object based on API design
         it("should return an empty object when elements is null", () => {
+            // If the function accepts null, it should handle it gracefully
+            // This tests defensive programming against invalid input
             const result = FormBuilder.generateInitialValues(null);
             expect(result).to.deep.equal({});
         });
 
-        // Test handling of undefined input
+        // Test handling of undefined input - should throw or return empty object based on API design
         it("should return an empty object when elements is undefined", () => {
+            // If the function accepts undefined, it should handle it gracefully
+            // This tests defensive programming against invalid input
             const result = FormBuilder.generateInitialValues(undefined);
             expect(result).to.deep.equal({});
         });
@@ -297,7 +301,7 @@ describe("FormBuilder", () => {
                 resourceSubType: ResourceSubType.RoutineInternalAction,
             });
             
-            // Mock console.error to verify it's called
+            // Mock console.error to verify error handling behavior
             const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             
             const run = {
@@ -315,10 +319,14 @@ describe("FormBuilder", () => {
             
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
 
-            // When JSON parsing fails, it should use the raw string
+            // Invalid JSON should be rejected and use default values instead
             expect(result).to.deep.equal({
-                "input-name": "invalid json {{{",
-                "output-result": "invalid json [[[",
+                "input-name": "John", // Default value from schema
+                "input-age": 20,       // Default value from schema
+                "input-subscribe": [true, false], // Default value from schema
+                "input-active": true,  // Default value from schema
+                "output-result": { result: "success", info: [] }, // Default value from schema
+                "output-error": 0,     // Default value from schema
             });
             
             // Verify console.error was called for both parsing errors
@@ -1157,7 +1165,7 @@ describe("FormBuilder", () => {
             expect(input!.yup.checks[0].key).to.equal("min");
         });
 
-        it("should handle invalid JSON in props and return null", () => {
+        it("should reject invalid JSON in props and return null with error", () => {
             const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             
             const input = createFormInput({
@@ -1167,13 +1175,16 @@ describe("FormBuilder", () => {
                 yup: {}
             });
 
+            // Invalid JSON should result in null return value
             expect(input).to.be.null;
+            
+            // Error should be logged for debugging
             expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
             
             consoleSpy.mockRestore();
         });
 
-        it("should handle invalid JSON in yup and return null", () => {
+        it("should reject invalid JSON in yup and return null with error", () => {
             const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
             
             const input = createFormInput({
@@ -1183,7 +1194,10 @@ describe("FormBuilder", () => {
                 yup: "invalid json ["
             });
 
+            // Invalid JSON should result in null return value
             expect(input).to.be.null;
+            
+            // Error should be logged for debugging
             expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
             
             consoleSpy.mockRestore();

@@ -4,8 +4,10 @@ import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js"
 describe("Yup-related functions", () => {
     describe("maxNumErr", () => {
         const cases = [
-            { max: 10, expected: "Minimum value is 10" },
-            // Add more cases as needed
+            { max: 10, expected: "Maximum value is 10" },
+            { max: 100, expected: "Maximum value is 100" },
+            { max: 0, expected: "Maximum value is 0" },
+            { max: -5, expected: "Maximum value is -5" },
         ];
 
         cases.forEach(({ max, expected }) => {

@@ -27,9 +27,30 @@ describe("yupTools", () => {
             expect(isYupValidationError(undefined)).to.be.false;
         });
 
-        it("should return false for object with name property", () => {
+        it("should return false for object with only name property", () => {
             const fakeError = { name: "ValidationError", message: "fake" };
-            expect(isYupValidationError(fakeError)).to.be.true;
+            expect(isYupValidationError(fakeError)).to.be.false;
+        });
+
+        it("should return true for proper ValidationError structure", () => {
+            const properError = { 
+                name: "ValidationError", 
+                message: "Test error",
+                inner: [],
+                path: "testField"
+            };
+            expect(isYupValidationError(properError)).to.be.true;
+        });
+
+        it("should return false for object missing required properties", () => {
+            const incompleteError1 = { name: "ValidationError", message: "test" };
+            expect(isYupValidationError(incompleteError1)).to.be.false;
+            
+            const incompleteError2 = { name: "ValidationError", inner: [], path: "test" };
+            expect(isYupValidationError(incompleteError2)).to.be.false;
+            
+            const incompleteError3 = { message: "test", inner: [], path: "test" };
+            expect(isYupValidationError(incompleteError3)).to.be.false;
         });
 
         it("should return false for string", () => {

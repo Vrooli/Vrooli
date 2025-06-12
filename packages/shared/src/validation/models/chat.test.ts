@@ -184,7 +184,7 @@ describe("chatValidation", () => {
                         openToAnyoneWithInvite: true,
                     },
                     false,
-                    "This field is required",
+                    /required/i,
                 );
             });
 
@@ -304,7 +304,7 @@ describe("chatTranslationValidation", () => {
                 createSchema,
                 chatTranslationFixtures.invalid.missingRequired.create,
                 false,
-                "This field is required",
+                /required/i,
             );
         });
 

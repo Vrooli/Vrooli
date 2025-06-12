@@ -4,7 +4,7 @@ interface MessageParams {
 
 /** Error message for max number */
 export function maxNumErr(params: { max: number }) {
-    return `Minimum value is ${params.max}`;
+    return `Maximum value is ${params.max}`;
 }
 
 /** Error message for max string length */

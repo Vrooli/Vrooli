@@ -50,6 +50,10 @@ describe("userValidation", () => {
                 true,
             );
             expect(result.botSettings).to.deep.equal({});
+            expect(result).to.have.property("handle");
+            expect(result).to.have.property("isPrivate");
+            expect(result).to.have.property("name");
+            expect(result.isBotDepictingPerson).to.be.a("boolean");
         });
 
         it("should accept bot with complex settings", async () => {
@@ -58,8 +62,20 @@ describe("userValidation", () => {
                 userFixtures.edgeCases.complexBotSettings.create,
                 true,
             );
-            // botSettings is validated as a generic config object
+            // botSettings should be a valid config object with expected structure
             expect(result.botSettings).to.be.an("object");
+            expect(result.botSettings).to.not.be.null;
+            // Complex settings should preserve their structure
+            if (typeof result.botSettings === "object" && result.botSettings !== null) {
+                // The validation might transform or filter the botSettings,
+                // but it should still be a valid object
+                expect(result.botSettings).to.be.an("object");
+                // Should have required bot fields
+                expect(result).to.have.property("handle", "complexbot");
+                expect(result).to.have.property("name", "Complex Bot");
+                expect(result).to.have.property("isPrivate", false);
+                expect(result).to.have.property("isBotDepictingPerson", false);
+            }
         });
 
         it("should validate handle length", async () => {
@@ -90,15 +106,35 @@ describe("userValidation", () => {
         it("should validate image formats", async () => {
             const validBot = userTestDataFactory.createComplete();
             const result = await testValidation(createSchema, validBot, true);
-            expect(result.bannerImage).to.be.a("string");
-            expect(result.profileImage).to.be.a("string");
+            
+            // Images should be valid file names or URLs if present
+            if (result.bannerImage) {
+                expect(result.bannerImage).to.be.a("string");
+                expect(result.bannerImage.length).to.be.greaterThan(0);
+            }
+            if (result.profileImage) {
+                expect(result.profileImage).to.be.a("string");
+                expect(result.profileImage.length).to.be.greaterThan(0);
+            }
         });
 
-        it("should validate translations", async () => {
+        it("should validate translations structure", async () => {
             const botWithTranslations = userTestDataFactory.createComplete();
             const result = await testValidation(createSchema, botWithTranslations, true);
-            // Translations might be processed but not included in result
-            expect(result).to.be.an("object");
+            
+            // Should have required bot properties
+            expect(result).to.have.property("id");
+            expect(result).to.have.property("handle");
+            expect(result).to.have.property("name");
+            expect(result).to.have.property("isPrivate");
+            
+            // If translations are present, they should be properly structured
+            if (result.translationsCreate && Array.isArray(result.translationsCreate)) {
+                result.translationsCreate.forEach((translation: any) => {
+                    expect(translation).to.have.property("language");
+                    expect(translation.language).to.be.a("string");
+                });
+            }
         });
 
         it("should reject bio exceeding max length", async () => {
@@ -146,13 +182,30 @@ describe("userValidation", () => {
             expect(result.botSettings).to.be.an("object");
         });
 
-        it("should handle translation operations", async () => {
-            // Just verify that validation passes with translation operations
-            await testValidation(
+        it("should handle translation operations correctly", async () => {
+            const result = await testValidation(
                 updateSchema,
                 userFixtures.complete.update,
                 true,
             );
+            
+            // Should preserve required ID
+            expect(result).to.have.property("id");
+            
+            // Translation operations should be structured correctly if present
+            if (result.translationsCreate && Array.isArray(result.translationsCreate)) {
+                result.translationsCreate.forEach((translation: any) => {
+                    expect(translation).to.have.property("language");
+                    expect(translation.language).to.be.a("string");
+                });
+            }
+            
+            if (result.translationsUpdate && Array.isArray(result.translationsUpdate)) {
+                result.translationsUpdate.forEach((translation: any) => {
+                    expect(translation).to.have.property("id");
+                    expect(translation).to.have.property("language");
+                });
+            }
         });
     });
 });

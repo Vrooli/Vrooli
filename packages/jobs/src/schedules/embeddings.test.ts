@@ -1,5 +1,6 @@
 import { generatePK, generatePublicId, RunStatus } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockedFunction } from "vitest";
 import { generateEmbeddings } from "./embeddings.js";
 
 import { DbProvider } from "@vrooli/server/db/provider.js";
@@ -13,7 +14,7 @@ vi.mock("@vrooli/server/services/embedding.js", () => ({
                 return sentences.map(() => Array(1536).fill(0.1));
             }),
         }),
-        getEmbeddableString: vi.fn().mockImplementation((data: any, language?: string) => {
+        getEmbeddableString: vi.fn().mockImplementation((data: string | Record<string, any>, language?: string) => {
             // Simple mock implementation
             const parts = [];
             if (data.name) parts.push(data.name);
@@ -502,7 +503,7 @@ describe("generateEmbeddings integration tests", () => {
 
         // Verify that the embedding service was not called for this user
         const { EmbeddingService } = await import("../../../server/src/services/embedding.ts");
-        const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as any;
+        const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as vi.MockedFunction<typeof EmbeddingService.get().getEmbeddings>;
         
         // The mock should not have been called with this user's data
         expect(mockGetEmbeddings).not.toHaveBeenCalledWith("User", expect.arrayContaining(["User with Current Embedding currentembedding Already has embedding"]));

@@ -125,6 +125,34 @@ describe("difference", () => {
         const arr2 = [null, 3];
         expect(difference(arr1, arr2)).to.deep.equal([1, 2, undefined]);
     });
+
+    it("should handle arrays with identical elements", () => {
+        const arr1 = [1, 2, 3];
+        const arr2 = [1, 2, 3];
+        expect(difference(arr1, arr2)).to.deep.equal([]);
+    });
+
+    it("should handle large arrays efficiently", () => {
+        const arr1 = Array.from({ length: 1000 }, (_, i) => i);
+        const arr2 = Array.from({ length: 500 }, (_, i) => i * 2);
+        
+        const result = difference(arr1, arr2);
+        
+        // Should contain odd numbers and even numbers not in arr2
+        expect(result).toContain(1); // Odd number
+        expect(result).toContain(3); // Odd number
+        expect(result).not.toContain(0); // In arr2
+        expect(result).not.toContain(2); // In arr2
+    });
+
+    it("should maintain order of elements from first array", () => {
+        const arr1 = [3, 1, 4, 1, 5, 9, 2, 6];
+        const arr2 = [1, 5, 9];
+        const result = difference(arr1, arr2);
+        
+        expect(result).to.deep.equal([3, 4, 2, 6]);
+        // Should maintain original order: 3, 4, 2, 6
+    });
 });
 
 describe("flatten", () => {
@@ -165,6 +193,43 @@ describe("flatten", () => {
     it("should handle arrays with different types", () => {
         const mixed = [[1, "two"], [true, null], [undefined, { key: "value" }]];
         expect(flatten(mixed)).to.deep.equal([1, "two", true, null, undefined, { key: "value" }]);
+    });
+
+    it("should handle sparse arrays by skipping holes", () => {
+        const sparse = [, [1, 2], , [3, 4], ,]; // Array with holes
+        const result = flatten(sparse);
+        // Array.flat() skips sparse array elements (holes)
+        expect(result).to.deep.equal([1, 2, 3, 4]);
+    });
+
+    it("should maintain object references", () => {
+        const obj1 = { id: 1 };
+        const obj2 = { id: 2 };
+        const nested = [[obj1], [obj2]];
+        const result = flatten(nested);
+        
+        expect(result[0]).toBe(obj1); // Same reference
+        expect(result[1]).toBe(obj2); // Same reference
+    });
+
+    it("should handle very large nested arrays", () => {
+        const large = Array.from({ length: 1000 }, (_, i) => [i, i + 1000]);
+        const result = flatten(large);
+        
+        expect(result).toHaveLength(2000);
+        expect(result[0]).toBe(0);
+        expect(result[1]).toBe(1000);
+        expect(result[result.length - 2]).toBe(999);
+        expect(result[result.length - 1]).toBe(1999);
+    });
+
+    it("should preserve array prototype methods", () => {
+        const nested = [[1, 2], [3, 4]];
+        const result = flatten(nested);
+        
+        expect(Array.isArray(result)).toBe(true);
+        expect(result.length).toBe(4);
+        expect(typeof result.map).toBe("function");
     });
 });
 
@@ -233,5 +298,63 @@ describe("uniqBy", () => {
         const items = [null, undefined, null, 1, undefined, 2, 1];
         const unique = uniqBy(items, item => item);
         expect(unique).to.deep.equal([null, undefined, 1, 2]);
+    });
+
+    it("should handle empty iteratee results", () => {
+        const items = [
+            { name: "" },
+            { name: "test" },
+            { name: "" },
+            { name: "other" },
+        ];
+        const unique = uniqBy(items, item => item.name);
+        expect(unique).toHaveLength(3);
+        expect(unique[0].name).toBe("");
+        expect(unique[1].name).toBe("test");
+        expect(unique[2].name).toBe("other");
+    });
+
+    it("should handle complex object comparisons", () => {
+        const items = [
+            { user: { id: 1, name: "Alice" }, role: "admin" },
+            { user: { id: 2, name: "Bob" }, role: "user" },
+            { user: { id: 1, name: "Alice Updated" }, role: "admin" },
+            { user: { id: 3, name: "Charlie" }, role: "user" },
+        ];
+        
+        const unique = uniqBy(items, item => `${item.user.id}-${item.role}`);
+        expect(unique).toHaveLength(3);
+        expect(unique[0].user.name).toBe("Alice"); // First occurrence preserved
+        expect(unique[1].user.name).toBe("Bob");
+        expect(unique[2].user.name).toBe("Charlie");
+    });
+
+    it("should work with large datasets efficiently", () => {
+        const large = Array.from({ length: 10000 }, (_, i) => ({
+            id: Math.floor(i / 2), // Create duplicates
+            value: `item-${i}`,
+        }));
+        
+        const unique = uniqBy(large, item => item.id);
+        expect(unique).toHaveLength(5000); // Half should be unique
+        expect(unique[0].value).toBe("item-0"); // First occurrence preserved
+    });
+
+    it("should handle iteratee that throws for some values", () => {
+        const items = [
+            { value: "safe1" },
+            null,
+            { value: "safe2" },
+            undefined,
+            { value: "safe1" }, // duplicate
+        ];
+        
+        const unique = uniqBy(items, item => {
+            if (!item || !item.value) return "null-or-undefined";
+            return item.value;
+        });
+        
+        expect(unique).toHaveLength(3);
+        expect(unique.map(item => item?.value || "falsy")).toEqual(["safe1", "falsy", "safe2"]);
     });
 });

@@ -108,7 +108,7 @@ export async function logSiteStats(
             resourcesCompletedByType[type] = count;
 
             if (count > 0) {
-                const result: [{ time: bigint | null }] = await DbProvider.get().$queryRaw`
+                const result = await DbProvider.get().$queryRaw<[{ time: bigint | null }]>`
                     SELECT SUM(EXTRACT(EPOCH FROM (completedAt - createdAt))) AS time
                     FROM resource
                     WHERE resourceType = ${type}
@@ -117,7 +117,7 @@ export async function logSiteStats(
                       AND isDeleted = false
                       ${(type === ResourceType.Routine || type === ResourceType.Standard) ? Prisma.sql`AND isInternal = false` : Prisma.empty}`; // Add isInternal filter conditionally - Use PascalCase
 
-                const sumSeconds = result[0]?.time ? Number(result[0].time) : 0;
+                const sumSeconds = result && Array.isArray(result) && result.length > 0 && result[0]?.time ? Number(result[0].time) : 0;
                 resourceCompletionTimeSumByType[type] = sumSeconds;
                 resourceCompletionTimeAverageByType[type] = sumSeconds / count;
             } else {
@@ -173,11 +173,11 @@ export async function logSiteStats(
         let totalRunContextSwitchesSum = 0;
 
         if (runsCompleted > 0) {
-            const resultRunTime: [{ time: bigint | null }] = await DbProvider.get().$queryRaw`
+            const resultRunTime = await DbProvider.get().$queryRaw<[{ time: bigint | null }]>`
                 SELECT SUM(EXTRACT(EPOCH FROM (completedAt - startedAt))) AS time
                 FROM run
                 WHERE completedAt >= ${periodStart}::timestamptz AND completedAt <= ${periodEnd}::timestamptz`;
-            totalRunCompletionTimeSum = resultRunTime[0]?.time ? Number(resultRunTime[0].time) : 0;
+            totalRunCompletionTimeSum = resultRunTime && Array.isArray(resultRunTime) && resultRunTime.length > 0 && resultRunTime[0]?.time ? Number(resultRunTime[0].time) : 0;
 
             const resultRunSwitches = await DbProvider.get().run.aggregate({
                 where: {

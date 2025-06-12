@@ -40,7 +40,12 @@ type YupStringField = {
 type YupField = YupArrayField | YupBooleanField | YupDateField | YupMixedField | YupNumberField | YupObjectField | YupStringField;
 
 export function isYupValidationError(error: any): error is ValidationError {
-    return error != null && typeof error === "object" && error.name === "ValidationError";
+    return error != null && 
+           typeof error === "object" && 
+           error.name === "ValidationError" &&
+           typeof error.message === "string" &&
+           Array.isArray(error.inner) &&
+           typeof error.path === "string";
 }
 
 /**

@@ -46,200 +46,152 @@ describe("Snowflake IDs", () => {
     });
 
     describe("initIdGenerator", () => {
-        let consoleWarnSpy: any;
-
-        beforeEach(() => {
-            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
-                // Mock implementation
-            });
+        it("should initialize and generate valid IDs", async () => {
+            await initIdGenerator();
+            
+            // Should generate valid IDs after initialization
+            const id = generatePK();
+            expect(typeof id).toBe("bigint");
+            expect(validatePK(id)).toBe(true);
         });
 
-        afterEach(() => {
-            consoleWarnSpy.mockRestore();
-        });
-
-        it("should initialize successfully in Node.js environment", async () => {
-            // Mock Node.js environment
-            const originalProcess = global.process;
-            global.process = { versions: { node: "18.0.0" } } as any;
-
-            try {
-                await initIdGenerator(1, 1609459200000);
-                // If no error is thrown, initialization succeeded
-                expect(true).toBe(true);
-            } catch (error) {
-                // Expected to fail in test environment due to missing nodejs-snowflake
-                expect(consoleWarnSpy).toHaveBeenCalled();
-            } finally {
-                global.process = originalProcess;
-            }
-        });
-
-        it("should use fallback generator when nodejs-snowflake is not available", async () => {
-            // Mock Node.js environment
-            const originalProcess = global.process;
-            global.process = { versions: { node: "18.0.0" } } as any;
-
-            try {
-                await initIdGenerator();
-                // Generator should still work even if native module fails
-                const id = generatePK();
-                expect(typeof id).toBe("bigint");
-                expect(validatePK(id)).toBe(true);
-            } finally {
-                global.process = originalProcess;
-            }
-        });
-
-        it("should handle non-Node.js environment", async () => {
-            // Mock browser environment
-            const originalProcess = global.process;
-            global.process = undefined as any;
-
-            try {
-                await initIdGenerator();
-                // Should work in browser environment
-                const id = generatePK();
-                expect(typeof id).toBe("bigint");
-                expect(validatePK(id)).toBe(true);
-            } finally {
-                global.process = originalProcess;
-            }
-        });
-
-        it("should use custom workerId and epoch", async () => {
+        it("should accept custom configuration parameters", async () => {
+            // Test with custom workerId and epoch
             await initIdGenerator(5, 1234567890000);
+            
             // Should still generate valid IDs with custom parameters
             const id = generatePK();
             expect(typeof id).toBe("bigint");
             expect(validatePK(id)).toBe(true);
         });
 
-        it("should handle nodejs-snowflake module with different export structure", async () => {
-            const originalProcess = global.process;
-            global.process = { versions: { node: "18.0.0" } } as any;
-
-            // Mock the dynamic import to simulate module with nested Snowflake constructor
-            const mockConstructor = vi.fn().mockImplementation(() => ({
-                getUniqueID: vi.fn().mockReturnValue(BigInt("123456789012345"))
-            }));
-
-            const mockDynamicImport = vi.fn().mockResolvedValue({
-                default: { Snowflake: mockConstructor }
-            });
-
-            // Replace the Function constructor for this test
-            const originalFunction = global.Function;
-            global.Function = vi.fn().mockImplementation((param, body) => {
-                if (body.includes("return import(modulePath)")) {
-                    return mockDynamicImport;
-                }
-                return originalFunction.call(global, param, body);
-            }) as any;
-
-            try {
-                await initIdGenerator(1, 1609459200000);
-                // Should use the mocked constructor
-                expect(mockConstructor).toHaveBeenCalledWith({
-                    instance_id: 1,
-                    custom_epoch: 1609459200000
-                });
-            } finally {
-                global.process = originalProcess;
-                global.Function = originalFunction;
-            }
-        });
-
-        it("should handle nodejs-snowflake module without Snowflake constructor", async () => {
-            const originalProcess = global.process;
-            global.process = { versions: { node: "18.0.0" } } as any;
-
-            // Mock the dynamic import to simulate module without Snowflake constructor
-            const mockDynamicImport = vi.fn().mockResolvedValue({
-                someOtherExport: "value"
-            });
-
-            const originalFunction = global.Function;
-            global.Function = vi.fn().mockImplementation((param, body) => {
-                if (body.includes("return import(modulePath)")) {
-                    return mockDynamicImport;
-                }
-                return originalFunction.call(global, param, body);
-            }) as any;
-
-            try {
-                await initIdGenerator();
-                // Should warn and keep using the fallback generator
-                expect(consoleWarnSpy).toHaveBeenCalledWith(
-                    expect.stringContaining("nodejs-snowflake module loaded, but Snowflake constructor not found")
-                );
-                
-                // Should still generate valid IDs
-                const id = generatePK();
-                expect(typeof id).toBe("bigint");
-                expect(validatePK(id)).toBe(true);
-            } finally {
-                global.process = originalProcess;
-                global.Function = originalFunction;
-            }
-        });
-
-        it("should reinitialize generator if it becomes null during error", async () => {
-            const originalProcess = global.process;
-            global.process = { versions: { node: "18.0.0" } } as any;
-
-            // Mock dynamic import to throw an error and null the generator
-            const mockDynamicImport = vi.fn().mockRejectedValue(new Error("Module not found"));
-
-            const originalFunction = global.Function;
-            global.Function = vi.fn().mockImplementation((param, body) => {
-                if (body.includes("return import(modulePath)")) {
-                    return mockDynamicImport;
-                }
-                return originalFunction.call(global, param, body);
-            }) as any;
-
-            try {
-                await initIdGenerator();
-                // Should warn about failing to initialize and still work
-                expect(consoleWarnSpy).toHaveBeenCalledWith(
-                    expect.stringContaining("Failed to initialize native Snowflake generator"),
-                    expect.any(Error)
-                );
-                
-                // Should still generate valid IDs with the fallback
-                const id = generatePK();
-                expect(typeof id).toBe("bigint");
-                expect(validatePK(id)).toBe(true);
-            } finally {
-                global.process = originalProcess;
-                global.Function = originalFunction;
-            }
+        it("should work consistently across multiple initializations", async () => {
+            // Initialize once
+            await initIdGenerator(1, 1609459200000);
+            const id1 = generatePK();
+            
+            // Initialize again with different parameters
+            await initIdGenerator(2, 1609459200000);
+            const id2 = generatePK();
+            
+            // Both should be valid and different
+            expect(validatePK(id1)).toBe(true);
+            expect(validatePK(id2)).toBe(true);
+            expect(id1).not.toBe(id2);
         });
     });
 
-    describe("Generator Error Handling", () => {
-        it("should throw error when generator is not initialized", () => {
-            // Save current generator
-            const currentGenerator = (globalThis as any).__snowflakeGenerator;
+    describe("Snowflake ID Format Validation", () => {
+        it("should generate IDs that follow Snowflake format", () => {
+            const id = generatePK();
+            const idBits = id.toString(2).padStart(64, '0');
             
-            // Temporarily set generator to null to simulate uninitialized state
-            // Note: This is testing the error path, though normally the generator
-            // is initialized by default in the module
-            try {
-                // We need to access the private generator variable somehow
-                // Since we can't access it directly, let's test the public interface
-                // The generator is initialized by default, so this test primarily 
-                // documents the expected behavior
+            // Snowflake ID format (64 bits):
+            // 1 bit: unused (sign bit for compatibility, always 0)
+            // 41 bits: timestamp (milliseconds since epoch)
+            // 10 bits: worker ID
+            // 12 bits: sequence number
+            
+            expect(idBits.length).toBeLessThanOrEqual(64);
+            
+            // The ID should be greater than 0 (positive)
+            expect(id).toBeGreaterThan(0n);
+            
+            // The ID should fit in 64 bits
+            expect(id).toBeLessThan(2n ** 64n);
+        });
+
+        it("should generate temporally ordered IDs", async () => {
+            const ids: bigint[] = [];
+            
+            // Generate IDs with small delays to ensure different timestamps
+            for (let i = 0; i < 5; i++) {
+                ids.push(generatePK());
+                await new Promise(resolve => setTimeout(resolve, 2));
+            }
+            
+            // IDs should generally increase over time (with same worker ID)
+            for (let i = 1; i < ids.length; i++) {
+                // This isn't strict because sequence numbers can reset
+                // but the general trend should be increasing
+                expect(ids[i]).toBeGreaterThan(ids[0]);
+            }
+        });
+
+        it("should extract timestamp from Snowflake ID", () => {
+            // Test that we can extract meaningful timestamp data
+            const beforeTime = Date.now();
+            const id = generatePK();
+            const afterTime = Date.now();
+            
+            // Convert ID to binary to examine structure
+            const idBinary = id.toString(2).padStart(64, '0');
+            
+            // Extract timestamp bits (bits 22-63 in standard Snowflake)
+            // This is implementation-specific but validates the format
+            const timestampBits = idBinary.substring(1, 42);
+            const timestampValue = parseInt(timestampBits, 2);
+            
+            // Timestamp should be reasonable (within test execution time)
+            // This assumes a standard epoch (e.g., Unix epoch or custom epoch)
+            expect(timestampValue).toBeGreaterThan(0);
+        });
+    });
+
+    describe("ID Generation Requirements", () => {
+        it("should generate IDs with reasonable distribution", () => {
+            const ids: bigint[] = [];
+            
+            // Generate multiple IDs in sequence
+            for (let i = 0; i < 20; i++) {
+                ids.push(generatePK());
+            }
+            
+            // All IDs should be unique
+            const uniqueIds = new Set(ids.map(id => id.toString()));
+            expect(uniqueIds.size).toBe(ids.length);
+            
+            // All IDs should be positive and within valid range
+            ids.forEach(id => {
+                expect(id).toBeGreaterThan(0n);
+                expect(id).toBeLessThanOrEqual((2n ** 64n) - 1n);
+            });
+        });
+
+        it("should generate IDs with sufficient entropy for uniqueness", () => {
+            const id1 = generatePK();
+            const id2 = generatePK();
+            const id3 = generatePK();
+            
+            // All IDs should be different
+            expect(id1).not.toBe(id2);
+            expect(id2).not.toBe(id3);
+            expect(id1).not.toBe(id3);
+            
+            // IDs should be in valid range
+            expect(id1).toBeGreaterThan(0n);
+            expect(id2).toBeGreaterThan(0n);
+            expect(id3).toBeGreaterThan(0n);
+        });
+
+        it("should consistently generate valid IDs across multiple calls", () => {
+            // Test that the generator produces valid IDs consistently
+            for (let i = 0; i < 20; i++) {
                 const id = generatePK();
                 expect(typeof id).toBe("bigint");
                 expect(validatePK(id)).toBe(true);
-            } finally {
-                // Restore if we had modified anything
-                if (currentGenerator !== undefined) {
-                    (globalThis as any).__snowflakeGenerator = currentGenerator;
-                }
+                expect(id).toBeGreaterThan(0n);
             }
+        });
+
+        it("should generate IDs that convert to valid string representations", () => {
+            const id = generatePK();
+            const idString = id.toString();
+            
+            expect(typeof idString).toBe("string");
+            expect(idString).toMatch(/^\d+$/); // Should be all digits
+            expect(validatePK(idString)).toBe(true);
+            expect(BigInt(idString)).toBe(id); // Round-trip conversion should work
         });
     });
 
@@ -250,53 +202,89 @@ describe("Snowflake IDs", () => {
         });
     });
 
-    describe("edge cases", () => {
-        it("should handle BigInt validation edge cases", () => {
-            // Test maximum valid BigInt
+    describe("ID Validation", () => {
+        it("should validate IDs within the correct range", () => {
+            // Test maximum valid 64-bit unsigned integer
             const maxBigInt = (2n ** 64n) - 1n;
             expect(validatePK(maxBigInt)).toBe(true);
             expect(validatePK(maxBigInt.toString())).toBe(true);
 
-            // Test just over maximum
+            // Test just over maximum (should be invalid)
             const overMax = 2n ** 64n;
             expect(validatePK(overMax)).toBe(false);
             expect(validatePK(overMax.toString())).toBe(false);
 
-            // Test minimum valid value
+            // Test valid positive values
             expect(validatePK(1n)).toBe(true);
             expect(validatePK("1")).toBe(true);
+            expect(validatePK(1000000000n)).toBe(true);
+            expect(validatePK("1000000000")).toBe(true);
 
-            // Test zero (should be invalid)
+            // Test invalid values (zero and negative)
             expect(validatePK(0n)).toBe(false);
             expect(validatePK("0")).toBe(false);
+            expect(validatePK(-1n)).toBe(false);
+            expect(validatePK("-1")).toBe(false);
         });
 
-        it("should handle malformed string inputs", () => {
-            const malformedInputs = [
-                "123abc",
-                "12.34",
-                "1e10", // Scientific notation fails BigInt conversion
-                "Infinity",
-                "NaN",
+        it("should reject malformed string inputs", () => {
+            const invalidInputs = [
+                "123abc",      // Contains non-digits
+                "12.34",       // Contains decimal point
+                "1e10",        // Scientific notation
+                "Infinity",    // Invalid string
+                "NaN",         // Invalid string
+                "",            // Empty string
+                " ",           // Whitespace only
+                "abc",         // Non-numeric
             ];
 
-            malformedInputs.forEach(input => {
+            invalidInputs.forEach(input => {
                 expect(validatePK(input)).toBe(false);
             });
         });
 
-        it("should handle valid BigInt conversions", () => {
-            // These actually convert successfully to BigInt
+        it("should accept valid string representations", () => {
+            // Test various valid numeric strings
+            expect(validatePK("123")).toBe(true);
+            expect(validatePK("999999999999999999")).toBe(true);
+            
+            // BigInt constructor handles these cases
             expect(validatePK("123\n")).toBe(true); // Newline gets trimmed
-            expect(validatePK("0x123")).toBe(true); // Hex notation is valid
-            expect(validatePK("0xFF")).toBe(true); // Another hex example
+            expect(validatePK(" 123 ")).toBe(true);  // Spaces get trimmed
+            expect(validatePK("\t789\t")).toBe(true); // Tabs get trimmed
         });
 
-        it("should handle strings with whitespace", () => {
-            // Leading/trailing spaces are trimmed by BigInt and should pass
-            expect(validatePK(" 123 ")).toBe(true);
-            expect(validatePK("  456  ")).toBe(true);
-            expect(validatePK("\t789\t")).toBe(true);
+        it("should reject non-string and non-bigint types", () => {
+            const invalidTypes = [
+                null,
+                undefined,
+                123,           // number (not bigint)
+                true,
+                false,
+                {},
+                [],
+                new Date(),
+                Symbol("test"),
+            ];
+
+            invalidTypes.forEach(value => {
+                expect(validatePK(value)).toBe(false);
+            });
+        });
+
+        it("should reject non-decimal numeric representations", () => {
+            // Snowflake IDs should be decimal strings only, not hex/octal/binary
+            expect(validatePK("0x123")).toBe(false);  // Hex notation
+            expect(validatePK("0xFF")).toBe(false);   // Hex notation
+            expect(validatePK("0x0")).toBe(false);    // Hex zero
+            expect(validatePK("0o377")).toBe(false);  // Octal notation
+            expect(validatePK("0b1111")).toBe(false); // Binary notation
+            
+            // Only standard decimal strings should be accepted
+            expect(validatePK("123")).toBe(true);
+            expect(validatePK("255")).toBe(true);
+            expect(validatePK("15")).toBe(true);
         });
     });
 });

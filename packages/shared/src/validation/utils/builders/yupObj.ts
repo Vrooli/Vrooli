@@ -25,7 +25,9 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
     data: YupMutateParams,
 ) {
     // Find fields which should be omitted from the top level object
-    const [topFields] = splitDotNotation(data.omitFields ?? []);
+    // Only include fields that don't contain dots (i.e., true top-level fields)
+    const topLevelOmitFields = (data.omitFields ?? []).filter(field => !field.includes('.'));
+    const [topFields] = splitDotNotation(topLevelOmitFields);
     // Convert every relationship into yup fields
     let relFields: Partial<AllFields> = {};
     rels.forEach((params) => {
@@ -37,7 +39,7 @@ export function yupObj<AllFields extends { [key: string]: yup.AnySchema }>(
         if (!filteredRelTypes.length) return;
         // Find nested omitFields for this relationship. Can either start with `${params[0]}.` or `${params[0]}${type}.`
         const nestedFieldStarts = [`${params[0]}.`, ...filteredRelTypes.map((type) => `${params[0]}${type}.`)];
-        const fullNestedFields = Object.keys(data.omitFields ?? []).filter((field) => nestedFieldStarts.some((start) => field.startsWith(start)));
+        const fullNestedFields = (data.omitFields ?? []).filter((field) => nestedFieldStarts.some((start) => field.startsWith(start)));
         const [, relNestedFields] = splitDotNotation(fullNestedFields);
         // Create relationship
         const relResult = rel({

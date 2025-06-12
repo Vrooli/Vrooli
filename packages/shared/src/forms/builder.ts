@@ -41,110 +41,132 @@ export const healFormInputPropsMap: { [key in InputType]: (props: unknown) => an
             ...typedProps,
         } as const;
     },
-    [InputType.Dropzone]: function healDropzoneProps(props: Partial<DropzoneFormInputProps>): DropzoneFormInputProps {
+    [InputType.Dropzone]: function healDropzoneProps(props: unknown): DropzoneFormInputProps {
+        const typedProps = props as Partial<DropzoneFormInputProps>;
         return {
             defaultValue: [],
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.JSON]: function healJsonProps(props: Partial<CodeFormInputProps>): CodeFormInputProps {
+    [InputType.JSON]: function healJsonProps(props: unknown): CodeFormInputProps {
+        const typedProps = props as Partial<CodeFormInputProps>;
         return {
             defaultValue: "",
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.LanguageInput]: function healLanguageInputProps(props: Partial<LanguageFormInputProps>): LanguageFormInputProps {
+    [InputType.LanguageInput]: function healLanguageInputProps(props: unknown): LanguageFormInputProps {
+        const typedProps = props as Partial<LanguageFormInputProps>;
         return {
             defaultValue: [],
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.LinkItem]: function healLinkItemProps(props: Partial<LinkItemFormInputProps>): LinkItemFormInputProps {
+    [InputType.LinkItem]: function healLinkItemProps(props: unknown): LinkItemFormInputProps {
+        const typedProps = props as Partial<LinkItemFormInputProps>;
         return {
             defaultValue: "",
             limitTo: [],
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.LinkUrl]: function healLinkUrlProps(props: Partial<LinkUrlFormInputProps>): LinkUrlFormInputProps {
+    [InputType.LinkUrl]: function healLinkUrlProps(props: unknown): LinkUrlFormInputProps {
+        const typedProps = props as Partial<LinkUrlFormInputProps>;
         return {
             acceptedHosts: [],
             defaultValue: "",
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.IntegerInput]: function healIntegerInputProps(props: Partial<IntegerFormInputProps>): IntegerFormInputProps {
-        const max = (isNumeric(props.max) ? props.max : Number.MAX_SAFE_INTEGER) as number;
-        const min = (isNumeric(props.min) ? props.min : Number.MIN_SAFE_INTEGER) as number;
-        const step = (isNumeric(props.step) ? props.step : 1) as number;
-        const defaultValue = (isNumeric(props.defaultValue) ? props.defaultValue : 0) as number;
+    [InputType.IntegerInput]: function healIntegerInputProps(props: unknown): IntegerFormInputProps {
+        const typedProps = props as Partial<IntegerFormInputProps>;
+        const max = (isNumeric(typedProps.max) ? typedProps.max : Number.MAX_SAFE_INTEGER) as number;
+        const min = (isNumeric(typedProps.min) ? typedProps.min : Number.MIN_SAFE_INTEGER) as number;
+        const step = (isNumeric(typedProps.step) ? typedProps.step : 1) as number;
+        const defaultValue = (isNumeric(typedProps.defaultValue) ? typedProps.defaultValue : 0) as number;
         return {
             defaultValue,
             max,
             min,
             step,
-            ...props,
+            ...typedProps,
         } as const;
     },
-    [InputType.Radio]: (props: Partial<RadioFormInputProps>): RadioFormInputProps => ({
-        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0]?.value ?? "" : "",
-        options: [],
-        ...props,
-    }),
-    [InputType.Selector]: (props: Partial<SelectorFormInputProps<any>>): SelectorFormInputProps<any> => ({
-        options: [],
-        getOptionDescription: (option: SelectorFormInputOption) =>
-            typeof option === "object"
-                && Object.prototype.hasOwnProperty.call(option, "description")
-                && typeof option.description === "string"
-                ? option.description
-                : null,
-        getOptionLabel: (option: SelectorFormInputOption) =>
-            typeof option === "object"
-                && Object.prototype.hasOwnProperty.call(option, "label")
-                && typeof option.label === "string"
-                ? option.label
-                : null,
-        getOptionValue: (option: SelectorFormInputOption) =>
-            typeof option === "object"
-                && Object.prototype.hasOwnProperty.call(option, "value")
-                ? option.value
-                : null,
-        ...props,
-    }),
-    [InputType.Slider]: (props: Partial<SliderFormInputProps>): SliderFormInputProps => {
-        const max = (isNumeric(props.max) ? props.max : DEFAULT_SLIDER_MAX) as number;
-        const min = (isNumeric(props.min) ? props.min : DEFAULT_SLIDER_MIN) as number;
-        const step = (isNumeric(props.step) ? props.step : (max - min) / DEFAULT_SLIDER_STEP) as number; // Default to 20 steps
-        const defaultValue = (isNumeric(props.defaultValue) ? props.defaultValue : nearest((min + max) / 2, min, max, step)) as number;
+    [InputType.Radio]: (props: unknown): RadioFormInputProps => {
+        const typedProps = props as Partial<RadioFormInputProps>;
         return {
-            ...props, // Props go first this time because we're fixing invalid values
+            defaultValue: (Array.isArray(typedProps.options) && typedProps.options.length > 0) ? typedProps.options[0]?.value ?? "" : "",
+            options: [],
+            ...typedProps,
+        };
+    },
+    [InputType.Selector]: (props: unknown): SelectorFormInputProps<any> => {
+        const typedProps = props as Partial<SelectorFormInputProps<any>>;
+        return {
+            options: [],
+            getOptionDescription: (option: SelectorFormInputOption) =>
+                typeof option === "object"
+                    && Object.prototype.hasOwnProperty.call(option, "description")
+                    && typeof option.description === "string"
+                    ? option.description
+                    : null,
+            getOptionLabel: (option: SelectorFormInputOption) =>
+                typeof option === "object"
+                    && Object.prototype.hasOwnProperty.call(option, "label")
+                    && typeof option.label === "string"
+                    ? option.label
+                    : null,
+            getOptionValue: (option: SelectorFormInputOption) =>
+                typeof option === "object"
+                    && Object.prototype.hasOwnProperty.call(option, "value")
+                    ? option.value
+                    : null,
+            ...typedProps,
+        };
+    },
+    [InputType.Slider]: (props: unknown): SliderFormInputProps => {
+        const typedProps = props as Partial<SliderFormInputProps>;
+        const max = (isNumeric(typedProps.max) ? typedProps.max : DEFAULT_SLIDER_MAX) as number;
+        const min = (isNumeric(typedProps.min) ? typedProps.min : DEFAULT_SLIDER_MIN) as number;
+        const step = (isNumeric(typedProps.step) ? typedProps.step : (max - min) / DEFAULT_SLIDER_STEP) as number; // Default to 20 steps
+        const defaultValue = (isNumeric(typedProps.defaultValue) ? typedProps.defaultValue : nearest((min + max) / 2, min, max, step)) as number;
+        return {
+            ...typedProps, // Props go first this time because we're fixing invalid values
             defaultValue,
             min,
             max,
             step,
         };
     },
-    [InputType.Switch]: (props: Partial<SwitchFormInputProps>): SwitchFormInputProps => ({
-        defaultValue: false,
-        color: "secondary",
-        label: "",
-        size: "medium",
-        ...props,
-    }),
-    [InputType.TagSelector]: (props: Partial<TagSelectorFormInputProps>): TagSelectorFormInputProps => ({
-        defaultValue: [],
-        ...props,
-    }),
-    [InputType.Text]: (props: Partial<TextFormInputProps>): TextFormInputProps => ({
-        autoComplete: "off",
-        defaultValue: "",
-        isMarkdown: true,
-        maxChars: 1000,
-        maxRows: 2,
-        minRows: 4,
-        ...props,
-    }),
+    [InputType.Switch]: (props: unknown): SwitchFormInputProps => {
+        const typedProps = props as Partial<SwitchFormInputProps>;
+        return {
+            defaultValue: false,
+            color: "secondary",
+            label: "",
+            size: "medium",
+            ...typedProps,
+        };
+    },
+    [InputType.TagSelector]: (props: unknown): TagSelectorFormInputProps => {
+        const typedProps = props as Partial<TagSelectorFormInputProps>;
+        return {
+            defaultValue: [],
+            ...typedProps,
+        };
+    },
+    [InputType.Text]: (props: unknown): TextFormInputProps => {
+        const typedProps = props as Partial<TextFormInputProps>;
+        return {
+            autoComplete: "off",
+            defaultValue: "",
+            isMarkdown: true,
+            maxChars: 1000,
+            maxRows: 2,
+            minRows: 4,
+            ...typedProps,
+        };
+    },
 };
 
 /**

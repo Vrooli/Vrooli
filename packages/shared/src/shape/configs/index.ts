@@ -4,6 +4,7 @@ export * from "./base.js";
 export * from "./bot.js";
 export * from "./chat.js";
 export * from "./code.js";
+export * from "./credit.js";
 export * from "./message.js";
 export * from "./note.js";
 export * from "./project.js";

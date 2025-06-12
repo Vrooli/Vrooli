@@ -74,7 +74,7 @@ export function rel<
     }
 
     // Helper function to wrap the field in an optional or required object or array
-    function wrap<T extends yup.AnySchema>(field: T, required: boolean): T {
+    function wrap<T extends yup.AnySchema>(field: T, required: boolean): yup.AnySchema {
         if (isOneToOne === "one") {
             // For one-to-one relationships
             if (required) {
@@ -86,9 +86,9 @@ export function rel<
         } else {
             // For one-to-many relationships - don't strip arrays
             if (required) {
-                return req(yup.array().of(field)) as T;
+                return req(yup.array().of(field));
             } else {
-                return yup.array().of(field).notRequired().nullable() as T;
+                return yup.array().of(field).notRequired().nullable();
             }
         }
     }

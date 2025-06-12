@@ -232,7 +232,7 @@ describe("scheduleRecurrenceValidation", () => {
                     createSchema,
                     dataWithInvalidDay,
                     false,
-                    /Minimum value is 7/i,
+                    /Maximum value is 7/i,
                 );
             });
         });
@@ -290,7 +290,7 @@ describe("scheduleRecurrenceValidation", () => {
                     createSchema,
                     dataWithInvalidDay,
                     false,
-                    /Minimum value is 31/i,
+                    /Maximum value is 31/i,
                 );
             });
         });
@@ -545,7 +545,7 @@ describe("scheduleRecurrenceValidation", () => {
                     updateSchema,
                     scheduleRecurrenceFixtures.invalid.invalidDayOfWeek.update,
                     false,
-                    /Minimum value is 7/i,
+                    /Maximum value is 7/i,
                 );
             });
 
@@ -554,7 +554,7 @@ describe("scheduleRecurrenceValidation", () => {
                     updateSchema,
                     scheduleRecurrenceFixtures.invalid.invalidDayOfMonth.update,
                     false,
-                    /Minimum value is 31/i,
+                    /Maximum value is 31/i,
                 );
             });
         });

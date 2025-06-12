@@ -66,7 +66,7 @@ export function arraysEqual<T>(a: T[], b: T[], comparator: (a: T, b: T) => boole
     for (let i = 0; i < a.length; i++) {
         // We've already checked that both arrays have the same length,
         // so we know both elements exist at index i
-        if (!comparator(a[i] as T, b[i] as T)) return false;
+        if (!comparator(a[i], b[i])) return false;
     }
     return true;
 }

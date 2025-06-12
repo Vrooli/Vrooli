@@ -48,9 +48,15 @@ describe("getDotNotationValue", () => {
         expect(getDotNotationValue({}, "foo")).to.be.undefined;
     });
 
-    it("should return the whole object when a single dot is passed", () => {
+    it("should handle invalid dot notation paths", () => {
         const obj = { foo: "bar", baz: 42 };
-        expect(getDotNotationValue(obj, ".")).to.deep.equal(obj);
+        // A single dot is not a valid dot notation path and should return undefined
+        expect(getDotNotationValue(obj, ".")).to.be.undefined;
+        // Empty path should return undefined
+        expect(getDotNotationValue(obj, "")).to.be.undefined;
+        // Path with only dots should return undefined
+        expect(getDotNotationValue(obj, "..")).to.be.undefined;
+        expect(getDotNotationValue(obj, "...")).to.be.undefined;
     });
 });
 
@@ -163,18 +169,20 @@ describe("splitDotNotation", () => {
         expect(remainders).to.deep.equal(["", ""]);
     });
 
-    it("handles null input", () => {
+    it("should treat null as empty string for safety", () => {
         const input = [null, "valid.string", null];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
+        // null values should be treated as empty strings to avoid errors
         expect(fields).to.deep.equal(["", "valid", ""]);
         expect(remainders).to.deep.equal(["", "string", ""]);
     });
 
-    it("handles undefined input", () => {
+    it("should treat undefined as empty string for safety", () => {
         const input = [undefined, "test.value", undefined];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
+        // undefined values should be treated as empty strings to avoid errors
         expect(fields).to.deep.equal(["", "test", ""]);
         expect(remainders).to.deep.equal(["", "value", ""]);
     });
@@ -335,5 +343,155 @@ describe("mergeDeep", () => {
         expect(mergeDeep({}, { a: 1 })).to.deep.equal({ a: 1 });
         expect(mergeDeep([], [1, 2, 3])).to.have.lengthOf(0);
         expect(mergeDeep({ a: {} }, { a: { b: 2 } })).to.deep.equal({ a: { b: 2 } });
+    });
+
+    it("should handle circular references without infinite recursion", () => {
+        const circular: any = { a: 1 };
+        circular.self = circular;
+        
+        const defaults = { b: 2 };
+        
+        // mergeDeep should handle circular references without throwing
+        const result = mergeDeep(circular, defaults);
+        expect(result.a).to.equal(1);
+        expect(result.b).to.equal(2);
+        expect(result.self).to.equal(circular); // Should maintain the circular reference
+        
+        // Test that circular reference doesn't cause infinite loop
+        const startTime = Date.now();
+        mergeDeep(circular, defaults);
+        const endTime = Date.now();
+        expect(endTime - startTime).to.be.lessThan(100); // Should complete quickly
+        
+        // Test nested circular reference
+        const obj1: any = { name: "obj1" };
+        const obj2: any = { name: "obj2", ref: obj1 };
+        obj1.ref = obj2; // Create circular reference
+        
+        const defaults2 = { extra: "value" };
+        const result2 = mergeDeep(obj1, defaults2);
+        expect(result2.name).to.equal("obj1");
+        expect(result2.extra).to.equal("value");
+        // Should preserve circular structure without infinite recursion
+        expect(result2.ref.name).to.equal("obj2");
+        expect(result2.ref.ref).to.equal(result2); // Should point back to result2
+        
+        // Test circular reference in defaults
+        const circularDefaults: any = { defaultValue: 10 };
+        circularDefaults.circular = circularDefaults;
+        
+        const source = { sourceValue: 20 };
+        const result3 = mergeDeep(source, circularDefaults);
+        expect(result3.sourceValue).to.equal(20);
+        expect(result3.defaultValue).to.equal(10);
+        // Circular structure in defaults should be handled properly
+        expect(result3.circular).to.be.an('object');
+        
+        // Test merging two objects with circular references
+        const circular1: any = { value: 1 };
+        circular1.self = circular1;
+        const circular2: any = { value: 2, other: 3 };
+        circular2.self = circular2;
+        
+        const result4 = mergeDeep(circular1, circular2);
+        expect(result4.value).to.equal(1); // Source value takes precedence
+        expect(result4.other).to.equal(3); // Added from defaults
+        expect(result4.self).to.equal(circular1); // Maintains source circular reference
+    });
+
+    it("should handle class instances by not deep merging them", () => {
+        class CustomClass {
+            constructor(public value: number) {}
+            method() { return this.value * 2; }
+        }
+        
+        const customObj = { instance: new CustomClass(5) };
+        const defaults = { instance: new CustomClass(10), extra: "property" };
+        
+        const result = mergeDeep(customObj, defaults);
+        
+        // Should preserve the target's class instance, not merge it
+        expect(result.instance).to.be.instanceOf(CustomClass);
+        expect(result.instance.value).to.equal(5); // From target, not defaults
+        expect(result.extra).to.equal("property"); // From defaults
+    });
+
+
+    it("should only merge enumerable properties", () => {
+        const source = Object.defineProperty({}, 'hidden', {
+            value: 'secret',
+            enumerable: false
+        });
+        source.visible = 'public';
+        
+        const defaults = { visible: 'fallback', other: 'default' };
+        const result = mergeDeep(source, defaults);
+        
+        // Should preserve enumerable properties from source
+        expect(result.visible).to.equal('public');
+        // Should include properties from defaults that aren't in source
+        expect(result.other).to.equal('default');
+        // Non-enumerable properties should not be copied during merge
+        expect((result as any).hidden).to.be.undefined;
+    });
+
+    it("should handle deeply nested merging correctly", () => {
+        const source = {
+            level1: {
+                level2: {
+                    source: "value",
+                    overwrite: "source",
+                },
+                sourceOnly: "source",
+            },
+        };
+        
+        const defaults = {
+            level1: {
+                level2: {
+                    default: "value",
+                    overwrite: "default",
+                },
+                defaultOnly: "default",
+            },
+        };
+        
+        const result = mergeDeep(source, defaults);
+        
+        expect(result).to.deep.equal({
+            level1: {
+                level2: {
+                    source: "value",
+                    overwrite: "source",
+                    default: "value",
+                },
+                sourceOnly: "source",
+                defaultOnly: "default",
+            },
+        });
+    });
+
+    it("should handle merging with undefined and null values correctly", () => {
+        const source = { a: null, b: undefined, c: "value" };
+        const defaults = { a: "default", b: "default", d: "default" };
+        
+        const result = mergeDeep(source, defaults);
+        
+        expect(result.a).to.be.null;
+        expect(result.b).to.be.undefined;
+        expect(result.c).to.equal("value");
+        expect(result.d).to.equal("default");
+    });
+
+    it("should handle function properties correctly", () => {
+        const fn = () => "test";
+        const source = { func: fn, value: "source" };
+        const defaults = { func: () => "default", other: "default" };
+        
+        const result = mergeDeep(source, defaults);
+        
+        expect(result.func).to.equal(fn);
+        expect(result.value).to.equal("source");
+        expect(result.other).to.equal("default");
     });
 });
