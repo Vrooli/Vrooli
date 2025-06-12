@@ -41,10 +41,8 @@ RUN pnpm --filter @vrooli/ui run build
 # Build jobs package
 RUN pnpm --filter @vrooli/jobs run build
 
-# Build server package: shared, compile, and copy static files
-RUN pnpm --filter @vrooli/server run build:shared \
-    && pnpm --filter @vrooli/server run build:compile \
-    && pnpm --filter @vrooli/server run copy
+# Build server package
+RUN pnpm --filter @vrooli/server run build
 
 
 ### Server image: run compiled server code
