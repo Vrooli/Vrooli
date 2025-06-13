@@ -1,17 +1,21 @@
 import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import LinearProgress from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
 import { AwardCategory, awardNames, endpointsAward, type Award, type AwardSearchInput, type AwardSearchResult, type TranslationKeyAward } from "@vrooli/shared";
 import { type TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
 import { PageContainer } from "../../components/Page/Page.js";
-import { ContentCollapse } from "../../components/containers/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
-import { TIDCardBase, TIDContent, TIDIcon, TIDTextBox } from "../../components/lists/TIDCard/TIDCard.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useFetch } from "../../hooks/useFetch.js";
+import { IconCommon, IconRoutine } from "../../icons/Icons.js";
 import { ScrollBox } from "../../styles.js";
 import { type AwardDisplay, type ViewProps } from "../../types.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
@@ -19,17 +23,6 @@ import { getUserLanguages } from "../../utils/display/translationTools.js";
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
 const PERCENTS = 100;
-const ALMOST_THERE_PERCENT = 90;
-
-//TODO store tiers in @vrooli/shared, so we can show tier progress and stuff
-//TODO store title and description for category (i.e. no tier) in awards.json
-
-const awardIconInfo = { name: "Award", type: "Common" } as const;
-const completionBarStyle = {
-    root: { display: "block" },
-    barBox: { maxWidth: "unset" },
-} as const;
-const almostThereStyle = { fontStyle: "italic" } as const;
 
 /**
  * Converts a queried award object into an AwardDisplay object.
@@ -51,7 +44,9 @@ export function awardToDisplay(award: Award, t: TFunction<"common", undefined, "
     // Find next tier
     const nextTierDisplay = awardNames[award.category](award.progress, true);
     let nextTier: AwardDisplay["nextTier"] | undefined = undefined;
-    if (nextTierDisplay.name && nextTierDisplay.body) {
+    // Only set nextTier if it's actually a higher level than the earned tier
+    if (nextTierDisplay.name && nextTierDisplay.body &&
+        (!earnedTier || nextTierDisplay.level > earnedTierDisplay.level)) {
         nextTier = {
             title: t(`${nextTierDisplay.name}`, { ns: "award", ...nextTierDisplay.nameVariables }),
             description: t(`${nextTierDisplay.body}`, { ns: "award", ...nextTierDisplay.bodyVariables }),
@@ -68,82 +63,249 @@ export function awardToDisplay(award: Award, t: TFunction<"common", undefined, "
     };
 }
 
-function AwardCard({
-    award,
-    isEarned,
-}: {
-    award: AwardDisplay;
-    isEarned: boolean;
-}) {
-    // Display highest earned tier or next tier,
-    // depending on isEarned
-    const { title, description, level } = useMemo(() => {
-        // If not earned, display next tier
-        if (!isEarned) {
-            if (award.nextTier) return award.nextTier;
-            // Default to earned tier if no next tier
-            if (award.earnedTier) return award.earnedTier;
+function AwardCard({ award }: { award: AwardDisplay }) {
+    const theme = useTheme();
+
+    // Determine if this award is fully completed
+    const isFullyCompleted = useMemo(() => {
+        return Boolean(award.earnedTier) && !award.nextTier;
+    }, [award.earnedTier, award.nextTier]);
+
+    // Get category-specific icon
+    const getCategoryIcon = (category: AwardCategory) => {
+        switch (category) {
+            case AwardCategory.RoutineCreate:
+                return <IconRoutine name="Routine" size={24} />;
+            case AwardCategory.RunRoutine:
+                return <IconCommon name="Launch" size={24} />;
+            case AwardCategory.RunProject:
+                return <IconCommon name="Launch" size={24} />;
+            case AwardCategory.ProjectCreate:
+                return <IconCommon name="Project" size={24} />;
+            case AwardCategory.Reputation:
+                return <IconCommon name="Stats" size={24} />;
+            case AwardCategory.Streak:
+                return <IconCommon name="Today" size={24} />;
+            case AwardCategory.CommentCreate:
+                return <IconCommon name="Comment" size={24} />;
+            case AwardCategory.ApiCreate:
+                return <IconCommon name="Api" size={24} />;
+            case AwardCategory.SmartContractCreate:
+                return <IconCommon name="SmartContract" size={24} />;
+            case AwardCategory.OrganizationCreate:
+            case AwardCategory.OrganizationJoin:
+                return <IconCommon name="Team" size={24} />;
+            case AwardCategory.UserInvite:
+                return <IconCommon name="User" size={24} />;
+            case AwardCategory.ObjectBookmark:
+                return <IconCommon name="BookmarkFilled" size={24} />;
+            case AwardCategory.ObjectReact:
+                return <IconCommon name="HeartFilled" size={24} />;
+            case AwardCategory.PullRequestCreate:
+            case AwardCategory.PullRequestComplete:
+                return <IconCommon name="Share" size={24} />;
+            case AwardCategory.IssueCreate:
+                return <IconCommon name="Report" size={24} />;
+            case AwardCategory.NoteCreate:
+                return <IconCommon name="Note" size={24} />;
+            case AwardCategory.StandardCreate:
+                return <IconCommon name="Standard" size={24} />;
+            case AwardCategory.ReportEnd:
+            case AwardCategory.ReportContribute:
+                return <IconCommon name="Warning" size={24} />;
+            case AwardCategory.AccountNew:
+                return <IconCommon name="CreateAccount" size={24} />;
+            case AwardCategory.AccountAnniversary:
+                return <IconCommon name="Award" size={24} />;
+            default:
+                return <IconCommon name="Award" size={24} />;
         }
-        // If earned, display earned tier
-        else if (award.earnedTier) return award.earnedTier;
-        // If here, award invalid
-        return { title: "", description: "", level: 0 };
-    }, [award.earnedTier, award.nextTier, isEarned]);
+    };
 
-    // Calculate percentage complete
+    // Determine current tier information
+    const { currentTier, targetTier, tierLabel } = useMemo(() => {
+        if (isFullyCompleted && award.earnedTier) {
+            return {
+                currentTier: award.earnedTier,
+                targetTier: award.earnedTier,
+                tierLabel: `Tier ${award.earnedTier.level}`,
+            };
+        } else if (award.nextTier) {
+            const earnedLevel = award.earnedTier?.level || 0;
+            return {
+                currentTier: award.earnedTier || { title: award.categoryTitle, description: award.categoryDescription, level: 0 },
+                targetTier: award.nextTier,
+                tierLabel: earnedLevel > 0 ? `Tier ${earnedLevel} → ${award.nextTier.level}` : `Tier ${award.nextTier.level}`,
+            };
+        } else if (award.earnedTier) {
+            return {
+                currentTier: award.earnedTier,
+                targetTier: award.earnedTier,
+                tierLabel: `Tier ${award.earnedTier.level}`,
+            };
+        } else {
+            return {
+                currentTier: { title: award.categoryTitle, description: award.categoryDescription, level: 1 },
+                targetTier: { title: award.categoryTitle, description: award.categoryDescription, level: 1 },
+                tierLabel: "No progress",
+            };
+        }
+    }, [award, isFullyCompleted]);
+
+    // Calculate progress percentage
     const percentage = useMemo(() => {
-        if (award.progress === 0) return 0;
-        if (level === 0) return -1;
-        return Math.round((award.progress / level) * PERCENTS);
-    }, [award.progress, level]);
+        if (isFullyCompleted) return 100;
+        if (!award.nextTier || targetTier.level === 0) return 0;
+        return Math.min(100, Math.round((award.progress / targetTier.level) * PERCENTS));
+    }, [award.progress, targetTier.level, isFullyCompleted, award.nextTier]);
 
-    const isAlmostThere = useMemo(() => {
-        return percentage > ALMOST_THERE_PERCENT && percentage < PERCENTS || level - award.progress === 1;
-    }, [percentage, award.progress, level]);
+    // Determine colors and status
+    const { statusColor, statusText, progressColor } = useMemo(() => {
+        if (isFullyCompleted) {
+            return {
+                statusColor: "success" as const,
+                statusText: "Completed",
+                progressColor: "success" as const,
+            };
+        } else if (percentage > 80) {
+            return {
+                statusColor: "warning" as const,
+                statusText: "Almost there!",
+                progressColor: "warning" as const,
+            };
+        } else if (percentage > 0) {
+            return {
+                statusColor: "primary" as const,
+                statusText: "In Progress",
+                progressColor: "primary" as const,
+            };
+        } else {
+            return {
+                statusColor: "default" as const,
+                statusText: "Not Started",
+                progressColor: "primary" as const,
+            };
+        }
+    }, [isFullyCompleted, percentage]);
 
     return (
-        <TIDCardBase
-            id={award.category}
-            isClickable={false}
+        <Card
+            sx={{
+                height: "100%",
+                border: isFullyCompleted ? 2 : 1,
+                borderColor: isFullyCompleted ? "success.main" : "divider",
+                position: "relative",
+                overflow: "visible",
+            }}
         >
-            <TIDIcon iconInfo={awardIconInfo} />
-            <TIDTextBox>
-                <TIDContent
-                    title={title}
-                    description={description}
-                />
-                {percentage >= 0 && (
-                    <Box mt={2}>
-                        <CompletionBar
-                            color={isAlmostThere ? "warning" : "secondary"}
-                            showLabel={false}
-                            value={percentage}
-                            sxs={completionBarStyle}
-                        />
-                        <Typography
-                            variant="body2"
-                            component="p"
-                            textAlign="center"
-                            mt={1}
-                            color="text.secondary"
+            {/* Completion indicator */}
+            {isFullyCompleted && (
+                <Box
+                    sx={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        bgcolor: "success.main",
+                        color: "success.contrastText",
+                        borderRadius: "50%",
+                        width: 24,
+                        height: 24,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 1,
+                    }}
+                >
+                    <IconCommon name="Complete" size={16} />
+                </Box>
+            )}
+
+            <CardContent sx={{ p: 3, height: "100%" }}>
+                <Stack spacing={2} height="100%">
+                    {/* Header with icon and status */}
+                    <Stack direction="row" spacing={2} alignItems="flex-start">
+                        <Box
+                            sx={{
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: isFullyCompleted ? "success.main" : "primary.main",
+                                color: isFullyCompleted ? "success.contrastText" : "primary.contrastText",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minWidth: 48,
+                                minHeight: 48,
+                            }}
                         >
-                            {award.progress} / {level} ({percentage}%)
-                        </Typography>
-                        {isAlmostThere && (
-                            <Typography
-                                variant="body2"
-                                component="p"
-                                textAlign="start"
-                                mt={1}
-                                style={almostThereStyle}
-                            >
-                                Almost there!
+                            {getCategoryIcon(award.category)}
+                        </Box>
+                        <Box flex={1}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                {currentTier.title}
                             </Typography>
-                        )}
+                            <Stack direction="row" spacing={1} flexWrap="wrap">
+                                <Chip
+                                    label={statusText}
+                                    color={statusColor}
+                                    size="small"
+                                />
+                                <Chip
+                                    label={tierLabel}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            </Stack>
+                        </Box>
+                    </Stack>
+
+                    {/* Description */}
+                    <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                            flex: 1,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                        }}
+                    >
+                        {currentTier.description}
+                    </Typography>
+
+                    {/* Progress section */}
+                    <Box>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Progress
+                            </Typography>
+                            <Typography variant="body2" fontWeight={500}>
+                                {award.progress} / {targetTier.level}
+                            </Typography>
+                        </Stack>
+
+                        <LinearProgress
+                            variant="determinate"
+                            value={percentage}
+                            color={progressColor}
+                            sx={{
+                                height: 8,
+                                borderRadius: 4,
+                                bgcolor: theme.palette.grey[200],
+                            }}
+                        />
+
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ mt: 0.5, display: "block", textAlign: "center" }}
+                        >
+                            {percentage}% complete
+                        </Typography>
                     </Box>
-                )}
-            </TIDTextBox>
-        </TIDCardBase>
+                </Stack>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -163,57 +325,91 @@ export function AwardsView(_props: ViewProps) {
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
+
     const { data, refetch, loading } = useFetch<AwardSearchInput, AwardSearchResult>({
         ...endpointsAward.findMany,
     });
+
     useEffect(() => {
         if (!data) return;
-        // Add to awards array, and sort by award category
+        // Add to awards array, filter duplicates, and sort
         const myAwards = data.edges.map(e => e.node).map(a => awardToDisplay(a, t));
         setAwards(a => [...myAwards, ...a]
-            .filter((award, index, self) => self.findIndex(a => a.category === award.category) === index)
-            .sort((a, b) => categoryList.indexOf(a.category) - categoryList.indexOf(b.category)));
+            .filter((award, index, self) => self.findIndex(a => a.category === award.category) === index));
     }, [data, lng, t]);
-    console.log(awards);
+
+    // Sort awards: fully completed first, then by number of tiers completed (progress), then by category
+    const sortedAwards = useMemo(() => {
+        return [...awards].sort((a, b) => {
+            // First: Fully completed awards (earnedTier exists and no nextTier)
+            const aCompleted = Boolean(a.earnedTier) && !a.nextTier;
+            const bCompleted = Boolean(b.earnedTier) && !b.nextTier;
+
+            if (aCompleted && !bCompleted) return -1;
+            if (!aCompleted && bCompleted) return 1;
+
+            // Second: Sort by progress (number of tiers completed)
+            const aProgress = a.earnedTier?.level || 0;
+            const bProgress = b.earnedTier?.level || 0;
+
+            if (aProgress !== bProgress) return bProgress - aProgress;
+
+            // Third: Sort by raw progress number
+            if (a.progress !== b.progress) return b.progress - a.progress;
+
+            // Finally: Sort by category
+            return categoryList.indexOf(a.category) - categoryList.indexOf(b.category);
+        });
+    }, [awards]);
+
+    // Count completed and in-progress awards for summary
+    const { completedCount, inProgressCount } = useMemo(() => {
+        const completed = sortedAwards.filter(a => Boolean(a.earnedTier) && !a.nextTier).length;
+        const inProgress = sortedAwards.filter(a => a.progress > 0 && (Boolean(a.nextTier) || !Boolean(a.earnedTier))).length;
+        return { completedCount: completed, inProgressCount: inProgress };
+    }, [sortedAwards]);
 
     return (
         <PageContainer size="fullSize">
             <ScrollBox>
                 <Navbar title={t("Award", { count: 2 })} />
-                <Box display="flex" flexDirection="column" width="100%" gap={4}>
-                    {/* Display earned awards as a list of tags. Press or hover to see description */}
-                    <ContentCollapse
-                        isOpen={true}
-                        title={`${t("Earned")}🏆`}
-                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                    >
-                        <CardGrid minWidth={300}>
-                            {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
-                                <AwardCard
-                                    key={award.category}
-                                    award={award}
-                                    isEarned={true}
-                                />
-                            ))}
-                        </CardGrid>
-                    </ContentCollapse>
-                    {/* Display progress of awards as cards */}
-                    <ContentCollapse
-                        isOpen={true}
-                        title={t("InProgress") + "🏃‍♂️"}
-                        sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
-                    >
-                        <CardGrid minWidth={300}>
-                            {awards.map((award) => (
-                                <AwardCard
-                                    key={award.category}
-                                    award={award}
-                                    isEarned={false}
-                                />
-                            ))}
-                        </CardGrid>
-                    </ContentCollapse>
+
+                {/* Summary header */}
+                <Box sx={{ mb: 4, textAlign: "center" }}>
+                    <Typography variant="h4" sx={{ mb: 2 }}>
+                        🏆 Your Awards Progress
+                    </Typography>
+                    <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap">
+                        <Chip
+                            label={`${completedCount} Completed`}
+                            color="success"
+                            variant="outlined"
+                            icon={<IconCommon name="CheckCircle" size={18} />}
+                        />
+                        <Chip
+                            label={`${inProgressCount} In Progress`}
+                            color="primary"
+                            variant="outlined"
+                            icon={<IconCommon name="Timer" size={18} />}
+                        />
+                        <Chip
+                            label={`${sortedAwards.length} Total`}
+                            color="default"
+                            variant="outlined"
+                            icon={<IconCommon name="Award" size={18} />}
+                        />
+                    </Stack>
                 </Box>
+
+                {/* Unified awards grid */}
+                <CardGrid minWidth={350}>
+                    {sortedAwards.map((award) => (
+                        <AwardCard
+                            key={award.category}
+                            award={award}
+                        />
+                    ))}
+                </CardGrid>
             </ScrollBox>
         </PageContainer>
     );
