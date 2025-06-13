@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { COOKIE, MINUTES_15_MS, SECONDS_1_MS } from "@vrooli/shared";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, beforeEach, vi } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
@@ -21,7 +21,7 @@ describe("JsonWebToken", () => {
         it("get() should return the same instance", () => {
             const instance1 = JsonWebToken.get();
             const instance2 = JsonWebToken.get();
-            expect(instance1).to.equal(instance2);
+            expect(instance1).toBe(instance2);
         });
     });
 
@@ -29,7 +29,7 @@ describe("JsonWebToken", () => {
         it("returns correct options when NODE_ENV is 'production'", () => {
             process.env.NODE_ENV = "production";
             const options = JsonWebToken.getJwtCookieOptions();
-            expect(options).to.deep.equal({
+            expect(options).toEqual({
                 httpOnly: true,
                 sameSite: "lax",
                 secure: true,
@@ -40,7 +40,7 @@ describe("JsonWebToken", () => {
         it("returns correct options when NODE_ENV is not 'production'", () => {
             process.env.NODE_ENV = "development";
             const options = JsonWebToken.getJwtCookieOptions();
-            expect(options).to.deep.equal({
+            expect(options).toEqual({
                 httpOnly: true,
                 sameSite: "lax",
                 secure: false,
@@ -53,23 +53,23 @@ describe("JsonWebToken", () => {
         it("returns token with default iss and exp", () => {
             const instance = JsonWebToken.get();
             const token = instance.basicToken();
-            expect(token.iss).to.equal(UI_URL_REMOTE);
-            expect(token.iat * SECONDS_1_MS).to.be.at.most(Date.now());
-            expect(Math.abs((token.exp * SECONDS_1_MS) - ACCESS_TOKEN_EXPIRATION_MS - Date.now())).to.be.at.most(SECONDS_1_MS);
+            expect(token.iss).toBe(UI_URL_REMOTE);
+            expect(token.iat * SECONDS_1_MS).toBeLessThanOrEqual(Date.now());
+            expect(Math.abs((token.exp * SECONDS_1_MS) - ACCESS_TOKEN_EXPIRATION_MS - Date.now())).toBeLessThanOrEqual(SECONDS_1_MS);
         });
 
         it("returns token with custom iss", () => {
             const instance = JsonWebToken.get();
             const customIss = "http://custom-issuer.com";
             const token = instance.basicToken(customIss);
-            expect(token.iss).to.equal(customIss);
+            expect(token.iss).toBe(customIss);
         });
 
         it("returns token with custom exp", () => {
             const instance = JsonWebToken.get();
             const customExp = JsonWebToken.createExpirationTime(100_000);
             const token = instance.basicToken(undefined, customExp);
-            expect(token.exp).to.equal(customExp);
+            expect(token.exp).toBe(customExp);
         });
     });
 
@@ -97,19 +97,19 @@ describe("JsonWebToken", () => {
 
         it("calculates token sizes", () => {
             instance.calculateTokenSizes();
-            expect(instance.getTokenHeaderSize()).to.be.greaterThan(0);
-            expect(instance.getTokenSignatureSize()).to.be.greaterThan(0);
-            expect(instance.getMaxPayloadSize()).to.be.greaterThan(0);
+            expect(instance.getTokenHeaderSize()).toBeGreaterThan(0);
+            expect(instance.getTokenSignatureSize()).toBeGreaterThan(0);
+            expect(instance.getMaxPayloadSize()).toBeGreaterThan(0);
         });
 
         it("does not recalculate sizes if already calculated", () => {
             instance.calculateTokenSizes();
-            const signSpy = jest.spyOn(instance, "sign");
+            const signSpy = vi.spyOn(instance, "sign");
             instance.calculateTokenSizes();
             expect(signSpy).not.toHaveBeenCalled();
-            expect(instance.getTokenHeaderSize()).to.be.greaterThan(0);
-            expect(instance.getTokenSignatureSize()).to.be.greaterThan(0);
-            expect(instance.getMaxPayloadSize()).to.be.greaterThan(0);
+            expect(instance.getTokenHeaderSize()).toBeGreaterThan(0);
+            expect(instance.getTokenSignatureSize()).toBeGreaterThan(0);
+            expect(instance.getMaxPayloadSize()).toBeGreaterThan(0);
             signSpy.mockRestore();
         });
     });
@@ -118,13 +118,13 @@ describe("JsonWebToken", () => {
         it("calculates base64 length of string payload", () => {
             const payload = "test";
             const length = JsonWebToken.calculateBase64Length(payload);
-            expect(length).to.be.greaterThan(0);
+            expect(length).toBeGreaterThan(0);
         });
 
         it("calculates base64 length of object payload", () => {
             const payload = { foo: "bar", baz: 123 };
             const length = JsonWebToken.calculateBase64Length(payload);
-            expect(length).to.be.greaterThan(0);
+            expect(length).toBeGreaterThan(0);
         });
     });
 
@@ -133,78 +133,78 @@ describe("JsonWebToken", () => {
         const fixedTime = 1609459200 * SECONDS_1_MS; // in milliseconds
 
         beforeEach(() => {
-            jest.spyOn(Date, "now").mockReturnValue(fixedTime);
+            vi.spyOn(Date, "now").mockReturnValue(fixedTime);
         });
 
         afterEach(() => {
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it("returns true when exp is undefined", () => {
             const payload: JwtPayload = { foo: "bar" };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when exp is NaN", () => {
             const payload: JwtPayload = { exp: NaN };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when exp is Infinity", () => {
             const payload: JwtPayload = { exp: Infinity };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when exp is -Infinity", () => {
             const payload: JwtPayload = { exp: -Infinity };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when exp is less than current time", () => {
             const payload: JwtPayload = { exp: (fixedTime / SECONDS_1_MS) - 1 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns false when exp is exactly equal to current time", () => {
             const payload: JwtPayload = { exp: fixedTime / SECONDS_1_MS };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(false);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(false);
         });
 
         it("returns false when exp is greater than current time", () => {
             const payload: JwtPayload = { exp: (fixedTime / SECONDS_1_MS) + 1 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(false);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(false);
         });
 
         it("handles payload with additional properties correctly", () => {
             const payload: JwtPayload = { exp: (fixedTime / SECONDS_1_MS) + 1, foo: "bar", baz: 123 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(false);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(false);
         });
 
         it("handles payload with exp as zero (expired)", () => {
             const payload: JwtPayload = { exp: 0 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("handles payload with negative exp (expired)", () => {
             const payload: JwtPayload = { exp: -100 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when payload is null", () => {
             const payload = null;
             // @ts-ignore Testing runtime scenario
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("returns true when payload is undefined", () => {
             const payload = undefined;
             // @ts-ignore Testing runtime scenario
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(true);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(true);
         });
 
         it("handles non-integer exp values correctly", () => {
             const payload: JwtPayload = { exp: (fixedTime / SECONDS_1_MS) + 123.456 };
-            expect(JsonWebToken.isTokenExpired(payload)).to.equal(false);
+            expect(JsonWebToken.isTokenExpired(payload)).toBe(false);
         });
     });
 
@@ -214,7 +214,7 @@ describe("JsonWebToken", () => {
             const exp = Math.floor((currentTime + 60_000) / SECONDS_1_MS);
             const payload = { exp };
             const maxAge = JsonWebToken.getMaxAge(payload as any);
-            expect(Math.abs(maxAge - 60_000)).to.be.at.most(SECONDS_1_MS);
+            expect(Math.abs(maxAge - 60_000)).toBeLessThanOrEqual(SECONDS_1_MS);
         });
 
         it("returns negative max age if token already expired", () => {
@@ -222,7 +222,7 @@ describe("JsonWebToken", () => {
             const exp = Math.floor((currentTime - 60000) / SECONDS_1_MS);
             const payload = { exp };
             const maxAge = JsonWebToken.getMaxAge(payload as any);
-            expect(maxAge).to.be.lessThan(0);
+            expect(maxAge).toBeLessThan(0);
         });
     });
 
@@ -264,19 +264,19 @@ describe("JsonWebToken", () => {
             const payload = { foo: "bar", exp: JsonWebToken.createExpirationTime(10_000) };
             const token = instance.sign(payload, false);
             const decoded = jwt.verify(token, privateKey, { algorithms: ["RS256"] }) as JwtPayload;
-            expect(decoded.foo).to.equal("bar");
+            expect(decoded.foo).toBe("bar");
             const expectedExp = JsonWebToken.createExpirationTime(REFRESH_TOKEN_EXPIRATION_MS);
-            expect(Math.abs(decoded.exp! - expectedExp)).to.be.at.most(SECONDS_1_MS);
+            expect(Math.abs(decoded.exp! - expectedExp)).toBeLessThanOrEqual(SECONDS_1_MS);
         });
 
         it("throws error if privateKey is missing", () => {
             instance.setupTestEnvironment({ privateKey: "", publicKey: "" });
             const payload = { foo: "bar" };
-            expect(() => instance.sign(payload)).to.throw();
+            expect(() => instance.sign(payload)).toThrow();
         });
 
         it("does not set exp when keepExpiration is true", () => {
-            const jwtSignSpy = jest.spyOn(jwt, "sign");
+            const jwtSignSpy = vi.spyOn(jwt, "sign");
             const payload = { foo: "bar" };
             instance.sign(payload, true);
             expect(jwtSignSpy).toHaveBeenCalledWith(
@@ -293,7 +293,7 @@ describe("JsonWebToken", () => {
         });
 
         it("sets exp when keepExpiration is false", () => {
-            const jwtSignSpy = jest.spyOn(jwt, "sign");
+            const jwtSignSpy = vi.spyOn(jwt, "sign");
             const payload = { foo: "bar" };
             instance.sign(payload, false);
             expect(jwtSignSpy).toHaveBeenCalledWith(
@@ -310,7 +310,7 @@ describe("JsonWebToken", () => {
         });
 
         it("throws error if jwt.sign throws an error", () => {
-            const signSpy = jest.spyOn(jwt, "sign").mockImplementation(() => {
+            const signSpy = vi.spyOn(jwt, "sign").mockImplementation(() => {
                 throw new Error("jwt.sign failed");
             });
             expect(() => instance.sign({})).toThrow("jwt.sign failed");
@@ -442,7 +442,7 @@ describe("JsonWebToken", () => {
             const payload = { userId: "12345", role: "admin" };
             const token = jwt.sign(payload, privateKey, { algorithm: "RS256", expiresIn: "1h" });
 
-            const verifySpy = jest.spyOn(jwt, "verify").mockImplementation((token, publicKey, options, callback) => {
+            const verifySpy = vi.spyOn(jwt, "verify").mockImplementation((token, publicKey, options, callback) => {
                 (callback as jwt.VerifyCallback)(null, undefined);
             });
 
@@ -457,7 +457,7 @@ describe("JsonWebToken", () => {
         beforeEach(() => {
             res = {
                 headersSent: false,
-                cookie: jest.fn(),
+                cookie: vi.fn(),
             } as unknown as Response;
         });
 
@@ -484,7 +484,7 @@ describe("JsonWebToken", () => {
         });
 
         it("throws error if res.cookie throws an error", () => {
-            res.cookie = jest.fn(() => { throw new Error("cookie failed"); });
+            res.cookie = vi.fn(() => { throw new Error("cookie failed"); });
             expect(() => {
                 JsonWebToken.addToCookies(res, "token", 1000);
             }).toThrow("cookie failed");

@@ -1,29 +1,28 @@
-import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint, uuid } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import sinon from "sinon";
+import { DAYS_180_MS, DAYS_1_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import type Stripe from "stripe";
 import StripeMock from "../__test/stripe.js";
 import { DbProvider } from "../db/provider.js";
 import * as loggerModule from "../events/logger.js";
-import { closeRedis, withRedis } from "../redisConn.js";
+import { CacheService } from "../redisConn.js";
 import { PaymentMethod, calculateExpiryAndStatus, checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSourceExpiring, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handleCustomerSubscriptionUpdated, handleInvoicePaymentCreated, handleInvoicePaymentFailed, handleInvoicePaymentSucceeded, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, parseInvoiceData, setupStripe, storePrice } from "./stripe.js";
 
 const environments = ["development", "production"];
 
 function createRes() {
     return {
-        json: sinon.stub(),
-        send: sinon.stub(),
-        status: sinon.stub().returnsThis(), // To allow for chaining .status().send()
+        json: vi.fn(),
+        send: vi.fn(),
+        status: vi.fn().mockReturnThis(), // To allow for chaining .status().send()
     };
 }
 
 describe("getPaymentType", () => {
     const originalEnv = process.env.NODE_ENV;
-    let resetModulesStub: sinon.SinonStub;
+    let resetModulesStub: any;
 
     beforeEach(() => {
-        resetModulesStub = sinon.stub();
+        resetModulesStub = vi.fn();
     });
 
     afterAll(() => {
@@ -41,7 +40,7 @@ describe("getPaymentType", () => {
                 const priceIds = getPriceIds();
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const result = getPaymentType(priceId);
-                    expect(result).to.equal(paymentType);
+                    expect(result).toBe(paymentType);
                 });
             });
 
@@ -58,7 +57,7 @@ describe("getPaymentType", () => {
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const stripePrice = { id: priceId } as Stripe.Price;
                     const result = getPaymentType(stripePrice);
-                    expect(result).to.equal(paymentType);
+                    expect(result).toBe(paymentType);
                 });
             });
 
@@ -67,7 +66,7 @@ describe("getPaymentType", () => {
                 Object.entries(priceIds).forEach(([paymentType, priceId]) => {
                     const stripeDeletedPrice = { id: priceId } as Stripe.DeletedPrice;
                     const result = getPaymentType(stripeDeletedPrice);
-                    expect(result).to.equal(paymentType);
+                    expect(result).toBe(paymentType);
                 });
             });
         });
@@ -83,12 +82,12 @@ describe("getCustomerId function tests", () => {
     it("returns the string when customer is a string", () => {
         const input = "cust_string";
         const output = getCustomerId(input);
-        expect(output).to.equal("cust_string");
+        expect(output).toBe("cust_string");
     });
 
     it("returns the id when customer is a Stripe Customer object", () => {
         const output = getCustomerId(mockCustomer);
-        expect(output).to.equal("cust_12345");
+        expect(output).toBe("cust_12345");
     });
 
     it("throws an error when customer is null", () => {
@@ -165,7 +164,7 @@ describe("handlerResult", () => {
         expect(mockRes.status.calledWith(status)).to.be.true;
         expect(mockRes.send.calledWith(message)).to.be.true;
         expect(loggerErrorStub.calledOnce).to.be.true;
-        expect(loggerErrorStub.firstCall.args[0]).to.equal(message);
+        expect(loggerErrorStub.firstCall.args[0]).toBe(message);
         expect(loggerErrorStub.firstCall.args[1]).to.deep.include({ trace });
     });
 
@@ -185,8 +184,8 @@ describe("handlerResult", () => {
 
         expect(mockRes.status.calledWith(status)).to.be.true;
         expect(loggerErrorStub.calledOnce).to.be.true;
-        expect(loggerErrorStub.firstCall.args[0]).to.equal("Stripe handler error");
-        expect(loggerErrorStub.firstCall.args[1].trace).to.equal("0523");
+        expect(loggerErrorStub.firstCall.args[0]).toBe("Stripe handler error");
+        expect(loggerErrorStub.firstCall.args[1].trace).toBe("0523");
     });
 
     it("logs additional arguments when provided", () => {
@@ -197,7 +196,7 @@ describe("handlerResult", () => {
 
         expect(loggerErrorStub.calledOnce).to.be.true;
         expect(loggerErrorStub.firstCall.args[1]).to.have.property("0");
-        expect(loggerErrorStub.firstCall.args[1]["0"]).to.equal(additionalArgs);
+        expect(loggerErrorStub.firstCall.args[1]["0"]).toBe(additionalArgs);
     });
 });
 
@@ -222,18 +221,15 @@ describe("Redis Price Operations", () => {
     describe("Redis price storage and retrieval", () => {
         beforeEach(async function beforeEach() {
             // Ensure we have a clean Redis environment for each test
-            await withRedis({
-                process: async (redisClient) => {
-                    if (!redisClient) return;
-                    // Clear any existing keys related to our tests
-                    const keysPattern = `stripe-payment-${process.env.NODE_ENV}-*`;
-                    const keys = await redisClient.keys(keysPattern);
-                    if (keys.length > 0) {
-                        await redisClient.del(keys);
-                    }
-                },
-                trace: "0518",
-            });
+            const cacheService = CacheService.get();
+            const redisClient = await cacheService.raw();
+            if (!redisClient) return;
+            // Clear any existing keys related to our tests
+            const keysPattern = `stripe-payment-${process.env.NODE_ENV}-*`;
+            const keys = await redisClient.keys(keysPattern);
+            if (keys.length > 0) {
+                await redisClient.del(keys);
+            }
         });
 
         it("correctly stores and fetches the price for a given payment type", async function () {
@@ -247,7 +243,7 @@ describe("Redis Price Operations", () => {
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
 
             // Verify the fetched price matches the stored price
-            expect(fetchedPrice).to.equal(price);
+            expect(fetchedPrice).toBe(price);
         });
 
         it("returns null for a price that was not stored", async function () {
@@ -263,15 +259,12 @@ describe("Redis Price Operations", () => {
         it("returns null when the stored price is not a number", async function () {
             const paymentType = PaymentType.PremiumMonthly;
 
-            // Use withRedis to manually set an invalid value in Redis
-            await withRedis({
-                process: async (redisClient) => {
-                    if (!redisClient) return;
-                    const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
-                    await redisClient.set(key, "invalid");
-                },
-                trace: "0519",
-            });
+            // Use CacheService to manually set an invalid value in Redis
+            const cacheService = CacheService.get();
+            const redisClient = await cacheService.raw();
+            if (!redisClient) return;
+            const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
+            await redisClient.set(key, "invalid");
 
             // Attempt to fetch the stored price
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
@@ -328,12 +321,12 @@ describe("isInCorrectEnvironment Tests", () => {
 
             it("returns true for object matching the current environment", () => {
                 const stripeObject = { livemode: env === "production" };
-                expect(isInCorrectEnvironment(stripeObject)).to.equal(true);
+                expect(isInCorrectEnvironment(stripeObject)).toBe(true);
             });
 
             it("returns false for object not matching the current environment", () => {
                 const stripeObject = { livemode: env !== "production" };
-                expect(isInCorrectEnvironment(stripeObject)).to.equal(false);
+                expect(isInCorrectEnvironment(stripeObject)).toBe(false);
             });
         });
     }
@@ -373,26 +366,26 @@ describe("isValidSubscriptionSession", () => {
 
             it("returns true for a valid session", () => {
                 const session = createMockSession({});
-                expect(isValidSubscriptionSession(session, userId)).to.equal(true);
+                expect(isValidSubscriptionSession(session, userId)).toBe(true);
             });
 
             it("returns false for a session with an unrecognized payment type", () => {
                 const session = createMockSession({
                     metadata: { paymentType: "Unrecognized", userId },
                 });
-                expect(isValidSubscriptionSession(session, userId)).to.equal(false);
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
             });
 
             it("returns false for a session initiated by a different user", () => {
                 const session = createMockSession({
                     metadata: { paymentType: PaymentType.PremiumMonthly, userId: "anotherUserId" },
                 });
-                expect(isValidSubscriptionSession(session, userId)).to.equal(false);
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
             });
 
             it("returns false for an incomplete session", () => {
                 const session = createMockSession({ status: "incomplete" });
-                expect(isValidSubscriptionSession(session, userId)).to.equal(false);
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
             });
 
             it("returns false for a session in the wrong environment", () => {
@@ -400,7 +393,7 @@ describe("isValidSubscriptionSession", () => {
                     // Switch livemode
                     livemode: !(process.env.NODE_ENV === "production"),
                 });
-                expect(isValidSubscriptionSession(session, userId)).to.equal(false);
+                expect(isValidSubscriptionSession(session, userId)).toBe(false);
             });
         });
     }
@@ -440,26 +433,26 @@ describe("isValidCreditsPurchaseSession", () => {
 
             it("returns true for a valid session", () => {
                 const session = createMockSession({});
-                expect(isValidCreditsPurchaseSession(session, userId)).to.equal(true);
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(true);
             });
 
             it("returns false for a session with an unrecognized payment type", () => {
                 const session = createMockSession({
                     metadata: { paymentType: "Unrecognized", userId },
                 });
-                expect(isValidCreditsPurchaseSession(session, userId)).to.equal(false);
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
             });
 
             it("returns false for a session initiated by a different user", () => {
                 const session = createMockSession({
                     metadata: { paymentType: PaymentType.Credits, userId: "anotherUserId" },
                 });
-                expect(isValidCreditsPurchaseSession(session, userId)).to.equal(false);
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
             });
 
             it("returns false for an incomplete session", () => {
                 const session = createMockSession({ status: "incomplete" });
-                expect(isValidCreditsPurchaseSession(session, userId)).to.equal(false);
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
             });
 
             it("returns false for a session in the wrong environment", () => {
@@ -467,7 +460,7 @@ describe("isValidCreditsPurchaseSession", () => {
                     // Switch livemode based on environment setting for the test
                     livemode: !(process.env.NODE_ENV === "production"),
                 });
-                expect(isValidCreditsPurchaseSession(session, userId)).to.equal(false);
+                expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
             });
         });
     }
@@ -576,7 +569,7 @@ describe("getVerifiedSubscriptionInfo", () => {
         expect(result).not.to.be.null;
         expect(result).to.have.property("session");
         expect(result).to.have.property("subscription");
-        expect(result?.paymentType).to.equal("PremiumMonthly");
+        expect(result?.paymentType).toBe("PremiumMonthly");
     });
 
     it("returns null if user in metadata does not match what we expect", async () => {
@@ -604,19 +597,19 @@ describe("getVerifiedSubscriptionInfo", () => {
         expect(result).not.to.be.null;
         expect(result).to.have.property("session");
         expect(result).to.have.property("subscription");
-        expect(result?.paymentType).to.equal("PremiumYearly");
+        expect(result?.paymentType).toBe("PremiumYearly");
     });
 });
 
 describe("getVerifiedCustomerInfo", () => {
     let stripe: Stripe;
-    const user1Id = uuid();
-    const user2Id = uuid();
-    const user3Id = uuid();
-    const user4Id = uuid();
-    const user5Id = uuid();
-    const user6Id = uuid();
-    const user7Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user2Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user3Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user4Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user5Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user6Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user7Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -767,84 +760,84 @@ describe("getVerifiedCustomerInfo", () => {
         expect(result.stripeCustomerId).to.be.null;
         expect(result.userId).to.be.null;
         expect(result.emails).to.deep.equal([]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return null if the user does not exist", async () => {
-        const result = await getVerifiedCustomerInfo({ userId: uuid(), stripe, validateSubscription: false });
+        const result = await getVerifiedCustomerInfo({ userId: `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).to.be.null;
         expect(result.userId).to.be.null;
         expect(result.emails).to.deep.equal([]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return the user's Stripe customer ID if it exists", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user1Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.equal("cus_123");
-        expect(result.userId).to.equal(user1Id);
+        expect(result.stripeCustomerId).toBe("cus_123");
+        expect(result.userId).toBe(user1Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "user@example.com" }]);
-        expect(result.hasPremium).to.equal(true);
+        expect(result.hasPremium).toBe(true);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return the Stripe customer ID associated with the user's email if the user does not have a Stripe customer ID", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user2Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.equal("cus_test1");
-        expect(result.userId).to.equal(user2Id);
+        expect(result.stripeCustomerId).toBe("cus_test1");
+        expect(result.userId).toBe(user2Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "user2@example.com" }]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
 
         // Should also update the user's Stripe customer ID in the database
         // @ts-ignore Testing runtime scenario
         const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: user2Id } });
-        expect(updatedUser.stripeCustomerId).to.equal("cus_test1");
+        expect(updatedUser.stripeCustomerId).toBe("cus_test1");
     });
 
     it("should return null if the user does not have a Stripe customer ID and their email is not associated with any Stripe customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user3Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.equal(user3Id);
+        expect(result.userId).toBe(user3Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "missing@example.com" }]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return null if the user's Stripe customer ID is invalid", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user4Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.equal(user4Id);
+        expect(result.userId).toBe(user4Id);
         expect(result.emails).to.deep.equal([]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return null if the user's Stripe customer ID is associated with a deleted customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user5Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.equal(user5Id);
+        expect(result.userId).toBe(user5Id);
         expect(result.emails).to.deep.equal([]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return null if the user's email is associated with a deleted customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user6Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.equal(user6Id);
+        expect(result.userId).toBe(user6Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "emailForDeletedCustomer@example.com" }]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).to.be.null;
     });
 
     it("should return the Stripe customer ID if the user has a valid subscription", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user1Id, stripe, validateSubscription: true });
-        expect(result.stripeCustomerId).to.equal("cus_123");
-        expect(result.userId).to.equal(user1Id);
+        expect(result.stripeCustomerId).toBe("cus_123");
+        expect(result.userId).toBe(user1Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "user@example.com" }]);
-        expect(result.hasPremium).to.equal(true);
+        expect(result.hasPremium).toBe(true);
         expect(result.subscriptionInfo).not.to.be.null;
     });
 
@@ -852,19 +845,19 @@ describe("getVerifiedCustomerInfo", () => {
         // Check original customer ID (tied to inactive subscription)
         // @ts-ignore Testing runtime scenario
         const originalUser = await PrismaClient.instance.user.findUnique({ where: { id: user7Id } });
-        expect(originalUser.stripeCustomerId).to.equal("cus_777");
+        expect(originalUser.stripeCustomerId).toBe("cus_777");
 
         const result = await getVerifiedCustomerInfo({ userId: user7Id, stripe, validateSubscription: true });
-        expect(result.stripeCustomerId).to.equal("cus_789");
-        expect(result.userId).to.equal(user7Id);
+        expect(result.stripeCustomerId).toBe("cus_789");
+        expect(result.userId).toBe(user7Id);
         expect(result.emails).to.deep.equal([{ emailAddress: "emailWithSubscription@example.com" }]);
-        expect(result.hasPremium).to.equal(false);
+        expect(result.hasPremium).toBe(false);
         expect(result.subscriptionInfo).not.to.be.null;
 
         // Check that original customer ID (tied to inactive subscription) was changed to customer associated with email
         // @ts-ignore Testing runtime scenario
         const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: user7Id } });
-        expect(updatedUser.stripeCustomerId).to.equal("cus_789");
+        expect(updatedUser.stripeCustomerId).toBe("cus_789");
     });
 
     it("should return null if the user does not have a valid subscription", async () => {
@@ -876,7 +869,7 @@ describe("getVerifiedCustomerInfo", () => {
 
 describe("createStripeCustomerId", () => {
     let stripe: Stripe;
-    const user1Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -954,9 +947,9 @@ describe("createStripeCustomerId", () => {
 describe("handleCheckoutSessionExpired", () => {
     let res;
     let stripe: Stripe;
-    const payment1Id = uuid();
-    const user1Id = uuid();
-    const user2Id = uuid();
+    const payment1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user2Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -1017,7 +1010,7 @@ describe("handleCheckoutSessionExpired", () => {
 
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { id: "payment1" } });
-        expect(updatedPayment.status).to.equal("Failed");
+        expect(updatedPayment.status).toBe("Failed");
     });
 
     it("returns OK status on successful update", async () => {
@@ -1032,8 +1025,8 @@ describe("handleCheckoutSessionExpired", () => {
 describe("handleCustomerDeleted", () => {
     let res;
     let stripe: Stripe;
-    const user1Id = uuid();
-    const user2Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user2Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -1082,7 +1075,7 @@ describe("handleCustomerDeleted", () => {
         // Verify that other users are unaffected
         // @ts-ignore Testing runtime scenario
         const unaffectedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user2" } });
-        expect(unaffectedUser.stripeCustomerId).to.equal("customer2");
+        expect(unaffectedUser.stripeCustomerId).toBe("customer2");
     });
 
     it("returns OK status on successful customer deletion handling", async () => {
@@ -1109,7 +1102,7 @@ describe("handleCustomerDeleted", () => {
 describe("handleCustomerSourceExpiring", () => {
     let res;
     let emailQueue;
-    const user1Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeAll(async () => {
         emailQueue = new Bull("emailQueue");
@@ -1177,8 +1170,8 @@ function expectEmailQueue(mockQueue, expectedData) {
 describe("handleCustomerSubscriptionDeleted", () => {
     let res;
     let emailQueue;
-    const user1Id = uuid();
-    const user2Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user2Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeAll(async () => {
         emailQueue = new Bull("email");
@@ -1230,7 +1223,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
         // Also make sure it didn't affect the premium status
         // @ts-ignore Testing runtime scenario
         const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
-        expect(updatedUser.premium.isActive).to.equal(true);
+        expect(updatedUser.premium.isActive).toBe(true);
     });
 
     it("should not send email when user is found but has no email", async () => {
@@ -1257,8 +1250,8 @@ describe("handleCustomerSubscriptionDeleted", () => {
 describe("handleCustomerSubscriptionTrialWillEnd", () => {
     let res;
     let emailQueue;
-    const user1Id = uuid();
-    const user2Id = uuid();
+    const user1Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const user2Id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     beforeAll(async () => {
         emailQueue = new Bull("email");
@@ -1330,7 +1323,7 @@ describe("calculateExpiryAndStatus", () => {
         const futureTimestamp = Math.floor(Date.now() / 1000) + (60 * 60 * 24); // 24 hours in the future
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(futureTimestamp);
 
-        expect(isActive).to.equal(true);
+        expect(isActive).toBe(true);
         expect(newExpiresAt).to.deep.equal(new Date(futureTimestamp * 1000));
     });
 
@@ -1338,7 +1331,7 @@ describe("calculateExpiryAndStatus", () => {
         const pastTimestamp = Math.floor(Date.now() / 1000) - (60 * 60 * 24); // 24 hours in the past
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(pastTimestamp);
 
-        expect(isActive).to.equal(false);
+        expect(isActive).toBe(false);
         expect(newExpiresAt).to.deep.equal(new Date(pastTimestamp * 1000));
     });
 
@@ -1514,9 +1507,9 @@ describe("handleInvoicePaymentCreated", () => {
         // @ts-ignore Testing runtime scenario
         const createdPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
         expect(createdPayment).not.to.be.null;
-        expect(createdPayment?.amount).to.equal(2000);
-        expect(createdPayment?.paymentMethod).to.equal("Stripe");
-        expect(createdPayment?.status).to.equal("Pending");
+        expect(createdPayment?.amount).toBe(2000);
+        expect(createdPayment?.paymentMethod).toBe("Stripe");
+        expect(createdPayment?.status).toBe("Pending");
         expect(createdPayment?.user).not.to.be.null;
     });
 
@@ -1538,9 +1531,9 @@ describe("handleInvoicePaymentCreated", () => {
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
         expect(updatedPayment).not.to.be.null;
-        expect(updatedPayment?.amount).to.equal(2000);
-        expect(updatedPayment?.paymentMethod).to.equal("Stripe");
-        expect(updatedPayment?.status).to.equal("Pending");
+        expect(updatedPayment?.amount).toBe(2000);
+        expect(updatedPayment?.paymentMethod).toBe("Stripe");
+        expect(updatedPayment?.status).toBe("Pending");
     });
 
     it("should return error when user is not found", async () => {
@@ -1628,7 +1621,7 @@ describe("handleInvoicePaymentFailed", () => {
         // Verify that payment status was updated to Failed
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
-        expect(updatedPayment?.status).to.equal(PaymentStatus.Failed);
+        expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
     });
 
     it("creates a new payment and sets status to Failed when no existing payment is found", async () => {
@@ -1648,9 +1641,9 @@ describe("handleInvoicePaymentFailed", () => {
         // Verify that a new payment was created with status set to Failed
         // @ts-ignore Testing runtime scenario
         const newPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
-        expect(newPayment?.status).to.equal("Failed");
-        expect(newPayment?.amount).to.equal(2000);
-        expect(newPayment?.paymentMethod).to.equal("Stripe");
+        expect(newPayment?.status).toBe("Failed");
+        expect(newPayment?.amount).toBe(2000);
+        expect(newPayment?.paymentMethod).toBe("Stripe");
         expect(newPayment?.user).not.to.be.null;
     });
 
@@ -1725,7 +1718,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
-        expect(updatedPayment?.status).to.equal(PaymentStatus.Paid);
+        expect(updatedPayment?.status).toBe(PaymentStatus.Paid);
     });
 
     it("creates a new payment and sets status to Paid when no existing payment is found", async () => {
@@ -1745,9 +1738,9 @@ describe("handleInvoicePaymentSucceeded", () => {
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
         // @ts-ignore Testing runtime scenario
         const newPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
-        expect(newPayment?.status).to.equal(PaymentStatus.Paid);
-        expect(newPayment?.amount).to.equal(2000);
-        expect(newPayment?.paymentMethod).to.equal("Stripe");
+        expect(newPayment?.status).toBe(PaymentStatus.Paid);
+        expect(newPayment?.amount).toBe(2000);
+        expect(newPayment?.paymentMethod).toBe("Stripe");
         expect(newPayment?.user).not.to.be.null;
     });
 
@@ -1785,7 +1778,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
         // @ts-ignore Testing runtime scenario
         const user = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
-        expect(user?.premium?.isActive).to.equal(true);
+        expect(user?.premium?.isActive).toBe(true);
     });
 
     it("returns an error if subscription details could not be retrieved", async () => {
@@ -1835,7 +1828,7 @@ describe("handlePriceUpdated", () => {
 
         // Assert
         const storedPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
-        expect(storedPrice).to.equal(1000);
+        expect(storedPrice).toBe(1000);
         expect(result).to.deep.equal({ status: HttpStatus.Ok });
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
     });
@@ -1859,7 +1852,7 @@ describe("handlePriceUpdated", () => {
         expect(result).to.deep.equal({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
         expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
         const originalStoredPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
-        expect(originalStoredPrice).to.equal(420);
+        expect(originalStoredPrice).toBe(420);
     });
 
     it("throws error for unknown price ID", async () => {
@@ -1935,8 +1928,8 @@ describe("checkSubscriptionPrices", () => {
 
         const redisMonthlyPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
         const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
-        expect(redisMonthlyPrice).to.equal(monthlyPrice);
-        expect(redisYearlyPrice).to.equal(yearlyPrice);
+        expect(redisMonthlyPrice).toBe(monthlyPrice);
+        expect(redisYearlyPrice).toBe(yearlyPrice);
 
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
         expect(res.json.calledWith({
@@ -1967,7 +1960,7 @@ describe("checkSubscriptionPrices", () => {
         await checkSubscriptionPrices(stripeMock, res);
 
         const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
-        expect(redisYearlyPrice).to.equal(yearlyPrice);
+        expect(redisYearlyPrice).toBe(yearlyPrice);
 
         expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
         expect(res.json.calledWith({
@@ -1994,35 +1987,35 @@ describe("isStripeObjectOlderThan", () => {
         const session = {
             created: (Date.now() - (DAYS_180_MS + DAYS_1_MS)) / 1000, // 181 days in the past
         };
-        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).to.equal(true);
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(true);
     });
 
     it("should return false for a session exactly 180 days old", () => {
         const session = {
             created: (Date.now() - DAYS_180_MS) / 1000, // 180 days in the past
         };
-        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).to.equal(false);
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
     });
 
     it("should return false for a session less than 180 days old", () => {
         const session = {
             created: (Date.now() - (DAYS_180_MS - DAYS_1_MS)) / 1000, // 179 days in the past
         };
-        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).to.equal(false);
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
     });
 
     it("should handle sessions in the future as less than 180 days old", () => {
         const session = {
             created: (Date.now() + DAYS_1_MS) / 1000, // 1 day in the future
         };
-        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).to.equal(false);
+        expect(isStripeObjectOlderThan(session, DAYS_180_MS)).toBe(false);
     });
 
     it("should return true when age difference is set to 0 days and the session is in the past", () => {
         const session = {
             created: (Date.now() - HOURS_1_MS) / 1000, // 1 hour in the past
         };
-        expect(isStripeObjectOlderThan(session, 0)).to.equal(true);
+        expect(isStripeObjectOlderThan(session, 0)).toBe(true);
     });
 });
 

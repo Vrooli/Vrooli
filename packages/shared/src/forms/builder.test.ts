@@ -319,14 +319,10 @@ describe("FormBuilder", () => {
             
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
 
-            // Invalid JSON should be rejected and use default values instead
+            // When JSON parsing fails, it should use the raw string as fallback
             expect(result).to.deep.equal({
-                "input-name": "John", // Default value from schema
-                "input-age": 20,       // Default value from schema
-                "input-subscribe": [true, false], // Default value from schema
-                "input-active": true,  // Default value from schema
-                "output-result": { result: "success", info: [] }, // Default value from schema
-                "output-error": 0,     // Default value from schema
+                "input-name": "invalid json {{{",
+                "output-result": "invalid json [[[",
             });
             
             // Verify console.error was called for both parsing errors

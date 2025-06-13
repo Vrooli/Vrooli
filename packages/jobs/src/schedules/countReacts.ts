@@ -162,12 +162,16 @@ async function updateReactionsForTable(tableName: ProcessableReactionTableName):
                             if (!currentPersistentSummariesForEmoji || currentPersistentSummariesForEmoji.length === 0) {
                                 updates.push({ type: "create", emoji, count: newCount });
                             } else {
+                                // We already know the array has at least one element from the condition above
                                 const summaryToKeepAndUpdate = currentPersistentSummariesForEmoji[0];
                                 if (summaryToKeepAndUpdate.count !== newCount) {
                                     updates.push({ type: "update", id: summaryToKeepAndUpdate.id, count: newCount });
                                 }
                                 for (let i = 1; i < currentPersistentSummariesForEmoji.length; i++) {
-                                    updates.push({ type: "delete", id: currentPersistentSummariesForEmoji[i].id });
+                                    const summaryToDelete = currentPersistentSummariesForEmoji[i];
+                                    if (summaryToDelete && summaryToDelete.id) {
+                                        updates.push({ type: "delete", id: summaryToDelete.id });
+                                    }
                                 }
                             }
                         });

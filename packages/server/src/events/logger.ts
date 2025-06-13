@@ -1,6 +1,4 @@
 import winston from "winston";
-// eslint-disable-next-line import/extensions
-import { type ConsoleTransportInstance, type FileTransportInstance } from "winston/lib/winston/transports";
 
 const LOG_DIR = `${process.env.PROJECT_DIR}/data/logs`;
 const MAX_LOG_SIZE = 5_242_880; // 5MB
@@ -9,7 +7,7 @@ const MAX_LOG_SIZE = 5_242_880; // 5MB
  * @returns Array of transports to use for logging, depending on environment
  */
 function getTransports() {
-    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = [];
+    const transports: winston.transport[] = [];
     const isTest = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === "test";
     const canLogToFile = process.env.PROJECT_DIR !== undefined;
 

@@ -177,7 +177,14 @@ describe("ChatConfig", () => {
 
             const chatConfig = ChatConfig.parse({ config: config as ChatConfigObject }, mockLogger);
 
-            expect(chatConfig.stats).toEqual(ChatConfig.defaultStats());
+            // Check that stats has the correct structure and default values
+            expect(chatConfig.stats).toBeDefined();
+            expect(chatConfig.stats.totalToolCalls).toBe(0);
+            expect(chatConfig.stats.totalCredits).toBe("0");
+            expect(chatConfig.stats.lastProcessingCycleEndedAt).toBeNull();
+            // Check that startedAt is a recent timestamp (within last second)
+            expect(chatConfig.stats.startedAt).toBeGreaterThan(Date.now() - 1000);
+            expect(chatConfig.stats.startedAt).toBeLessThanOrEqual(Date.now());
         });
     });
 
@@ -440,15 +447,20 @@ describe("ChatConfig", () => {
     });
 
     describe("defaultStats", () => {
-        it("should create default stats with current timestamp", () => {
+        it("should create valid initial stats for a new conversation", () => {
             const beforeTime = Date.now();
             const stats = ChatConfig.defaultStats();
             const afterTime = Date.now();
 
+            // Initial values should be zero/empty
             expect(stats.totalToolCalls).toBe(0);
             expect(stats.totalCredits).toBe("0");
+            
+            // Timestamp should be within test execution time
             expect(stats.startedAt).toBeGreaterThanOrEqual(beforeTime);
             expect(stats.startedAt).toBeLessThanOrEqual(afterTime);
+            
+            // No processing cycle should have ended yet
             expect(stats.lastProcessingCycleEndedAt).toBeNull();
         });
     });
@@ -645,7 +657,7 @@ describe("ChatConfig", () => {
             expect(chatConfig.scheduling).toEqual(ChatConfig.defaultScheduling());
         });
 
-        it("should handle configuration with unknown fields", () => {
+        it("should safely ignore unknown fields in configuration", () => {
             const configWithUnknownFields: any = {
                 __version: "1.0",
                 goal: "Test goal",
@@ -656,21 +668,33 @@ describe("ChatConfig", () => {
 
             const chatConfig = new ChatConfig({ config: configWithUnknownFields });
             
+            // Known fields should be preserved
             expect(chatConfig.goal).toBe("Test goal");
+            
+            // Unknown fields should not be present on the instance
+            // This tests that the config properly validates and filters input
             expect((chatConfig as any).unknownField).toBeUndefined();
             expect((chatConfig as any).deprecatedSetting).toBeUndefined();
+            
+            // Config should have proper stats that were provided
+            expect(chatConfig.stats).toBeDefined();
+            expect(chatConfig.stats.totalToolCalls).toBe(0);
+            
+            // Other fields may be undefined if not provided in config
+            expect(chatConfig.limits).toBeUndefined(); // Not provided in config
+            expect(chatConfig.scheduling).toBeUndefined(); // Not provided in config
         });
     });
 
     describe("Resource and Event Management", () => {
-        it("should handle resource operations correctly", () => {
+        it("should validate resource structure requirements", () => {
             const chatConfig = ChatConfig.default();
             
             // Start with default empty resources
             expect(chatConfig.resources).toEqual([]);
             
-            // Add resources programmatically (if such methods exist)
-            const newResource: SwarmResource = {
+            // Test valid resource structure
+            const validResource: SwarmResource = {
                 id: "res1",
                 kind: "File",
                 mime: "text/plain",
@@ -679,9 +703,17 @@ describe("ChatConfig", () => {
                 meta: { size: 1024 },
             };
             
-            // Test that the resource structure is valid
-            expect(newResource.kind).toBe("File");
-            expect(newResource.meta?.size).toBe(1024);
+            // Validate required fields
+            expect(validResource.id).toMatch(/^res\d+$/);
+            expect(["File", "Text", "Image", "Video", "Audio"]).toContain(validResource.kind);
+            expect(validResource.mime).toMatch(/^[a-z]+\/[a-z0-9\-\+\.]+$/);
+            expect(validResource.creator_bot_id).toMatch(/^bot\d+$/);
+            expect(new Date(validResource.created_at).toISOString()).toBe(validResource.created_at);
+            
+            // Meta should be appropriate for the resource kind
+            if (validResource.kind === "File" && validResource.meta) {
+                expect(validResource.meta.size).toBeGreaterThan(0);
+            }
         });
 
         it("should manage event subscriptions properly", () => {

@@ -2,6 +2,14 @@ import { type Prisma } from "@prisma/client";
 import { AUTH_EMAIL_TEMPLATES, DbProvider, QueueService, batch, logger } from "@vrooli/server";
 import { PaymentStatus, PaymentType, WEEKS_1_MS, nanoid } from "@vrooli/shared";
 
+/**
+ * Type guard to check if a value is a valid PaymentType
+ */
+function isValidPaymentType(value: string): value is PaymentType {
+    const paymentTypeValues: readonly string[] = Object.values(PaymentType);
+    return paymentTypeValues.includes(value);
+}
+
 // Select shape for pending payments
 const paymentSelect = {
     id: true,
@@ -44,11 +52,17 @@ export async function paymentsFail(): Promise<void> {
                         continue;
                     }
 
-                    // Assuming payment.paymentType from Prisma is a string whose values
-                    // are members of the shared PaymentType enum.
-                    const sharedPaymentType = payment.paymentType as PaymentType;
-
-                    if (sharedPaymentType === PaymentType.Donation) {
+                    // Validate that payment.paymentType is a valid PaymentType
+                    if (!isValidPaymentType(payment.paymentType)) {
+                        logger.error("Invalid payment type encountered", {
+                            paymentId: payment.id,
+                            paymentType: payment.paymentType,
+                        });
+                        continue; // Skip this payment
+                    }
+                    
+                    // payment.paymentType is now safely validated as PaymentType
+                    if (payment.paymentType === PaymentType.Donation) {
                         donationFailedEmailRecipients.push(...recipientEmails);
                     } else {
                         otherFailedEmailRecipients.push(...recipientEmails);

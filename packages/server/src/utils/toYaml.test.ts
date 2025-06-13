@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { describe, expect, it } from "vitest";
 import { arrayToYaml, objectToYaml } from "./toYaml.js";
 
 describe("YAML Conversion", () => {
@@ -8,7 +8,7 @@ describe("YAML Conversion", () => {
         it("converts a simple object to YAML", () => {
             const obj = { key: "value", nullKey: null, undefinedKey: undefined, numberKey: 123 };
             const expectedYaml = "key: value\nnullKey: null\nnumberKey: 123\n";
-            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
+            expect(objectToYaml(obj)).toBe(expectedYaml);
         });
 
         it("converts nested objects to YAML", () => {
@@ -102,13 +102,13 @@ fourth: null
         it("converts a simple array to YAML", () => {
             const arr = ["item1", "item2"];
             const expectedYaml = "- item1\n- item2\n";
-            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
+            expect(arrayToYaml(arr)).toBe(expectedYaml);
         });
 
         it("converts an array of objects to YAML", () => {
             const arr = [{ key: "value" }, { anotherKey: "anotherValue" }];
             const expectedYaml = "- key: value\n- anotherKey: anotherValue\n";
-            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
+            expect(arrayToYaml(arr)).toBe(expectedYaml);
         });
 
         it("handles nested arrays", () => {
@@ -119,7 +119,7 @@ fourth: null
 -
   - subitem3
 `;
-            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
+            expect(arrayToYaml(arr)).toBe(expectedYaml);
         });
 
         it("returns an empty string for null input", () => {

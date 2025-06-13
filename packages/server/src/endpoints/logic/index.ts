@@ -1,4 +1,5 @@
 export * from "./actions.js";
+export * from "./admin.js";
 export * from "./apiKey.js";
 export * from "./apiKeyExternal.js";
 export * from "./auth.js";

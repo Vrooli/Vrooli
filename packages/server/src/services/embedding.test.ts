@@ -9,7 +9,7 @@ const sampleResults = [{ id: "1" }, { id: "2" }];
 describe("SearchEmbeddingsCache", () => {
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         RedisClientMock.resetMock();
         RedisClientMock.__setAllMockData({});
     });

@@ -24,7 +24,7 @@ export type ShapeHelperOutput<
 //     create: OrMany<RelCreate<any>, IsOneToOne>,
 //     update: OrMany<RelUpdate<any, PrimaryKey>, IsOneToOne>,
 // }
-> = any; // TODO When set as "any", server starts. I think Prisma v5 changed its query shape
+> = any; // TODO: TECH DEBT - Replace with proper Prisma 6.x types. Current type structure conflicts with Prisma's generated types for relationship operations.
 
 export type ShapeHelperProps<
     IsOneToOne extends boolean,

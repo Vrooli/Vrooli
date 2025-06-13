@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DEFAULT_LANGUAGE, type SessionUser, generatePK } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { type Request } from "express";
 import type { Cluster, Redis } from "ioredis";
-import sinon from "sinon";
 import { type Socket } from "socket.io";
 import { CustomError } from "../events/error.js";
 import { logger } from "../events/logger.js";
@@ -13,20 +12,20 @@ import { RequestService } from "./request.js";
 import { SessionService } from "./session.js";
 
 describe("RequestService", () => {
-    let loggerErrorStub: sinon.SinonStub;
-    let loggerInfoStub: sinon.SinonStub;
+    let loggerErrorSpy: any;
+    let loggerInfoSpy: any;
     let redisClient: Redis | Cluster | null = null;
 
     beforeAll(async function beforeAll() {
-        loggerErrorStub = sinon.stub(logger, "error");
-        loggerInfoStub = sinon.stub(logger, "info");
+        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
         redisClient = await CacheService.get().raw();
     });
 
     afterAll(async function afterAll() {
-        loggerErrorStub.restore();
-        loggerInfoStub.restore();
+        loggerErrorSpy.mockRestore();
+        loggerInfoSpy.mockRestore();
 
         if (redisClient) {
             await redisClient.flushall();
@@ -35,30 +34,30 @@ describe("RequestService", () => {
 
     describe("isValidIP", () => {
         it("should validate IPv4 addresses", () => {
-            expect(RequestService.isValidIP("192.168.1.1")).to.be.ok;
-            expect(RequestService.isValidIP("255.255.255.255")).to.be.ok;
-            expect(RequestService.isValidIP("0.0.0.0")).to.be.ok;
-            expect(RequestService.isValidIP("999.999.999.999")).to.not.be.ok;
+            expect(RequestService.isValidIP("192.168.1.1")).toBeTruthy();
+            expect(RequestService.isValidIP("255.255.255.255")).toBeTruthy();
+            expect(RequestService.isValidIP("0.0.0.0")).toBeTruthy();
+            expect(RequestService.isValidIP("999.999.999.999")).toBeFalsy();
         });
 
         it("should validate IPv6 addresses", () => {
-            expect(RequestService.isValidIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).to.be.ok;
-            expect(RequestService.isValidIP("::1")).to.be.ok;
-            expect(RequestService.isValidIP("::ffff:c0a8:101")).to.be.ok;
-            expect(RequestService.isValidIP("gibberish")).to.not.be.ok;
+            expect(RequestService.isValidIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).toBeTruthy();
+            expect(RequestService.isValidIP("::1")).toBeTruthy();
+            expect(RequestService.isValidIP("::ffff:c0a8:101")).toBeTruthy();
+            expect(RequestService.isValidIP("gibberish")).toBeFalsy();
         });
     });
 
     describe("isValidDomain", () => {
         it("should validate domain names", () => {
-            expect(RequestService.isValidDomain("example.com")).to.be.ok;
-            expect(RequestService.isValidDomain("subdomain.example.com")).to.be.ok;
-            expect(RequestService.isValidDomain("www.example.co.uk")).to.be.ok;
-            expect(RequestService.isValidDomain("example")).to.not.be.ok;
-            expect(RequestService.isValidDomain("example..com")).to.not.be.ok;
-            expect(RequestService.isValidDomain(".com")).to.not.be.ok;
-            expect(RequestService.isValidDomain("com.")).to.not.be.ok;
-            expect(RequestService.isValidDomain("example.com/")).to.not.be.ok;
+            expect(RequestService.isValidDomain("example.com")).toBeTruthy();
+            expect(RequestService.isValidDomain("subdomain.example.com")).toBeTruthy();
+            expect(RequestService.isValidDomain("www.example.co.uk")).toBeTruthy();
+            expect(RequestService.isValidDomain("example")).toBeFalsy();
+            expect(RequestService.isValidDomain("example..com")).toBeFalsy();
+            expect(RequestService.isValidDomain(".com")).toBeFalsy();
+            expect(RequestService.isValidDomain("com.")).toBeFalsy();
+            expect(RequestService.isValidDomain("example.com/")).toBeFalsy();
         });
     });
 
@@ -99,14 +98,14 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
             }
 
             // Test disallowed origins
             for (const origin of disallowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.not.be.ok;
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.not.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeFalsy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeFalsy();
             }
         });
 
@@ -133,14 +132,14 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
             }
 
             // Test disallowed origins
             for (const origin of disallowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.not.be.ok;
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.not.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeFalsy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeFalsy();
             }
         });
 
@@ -161,8 +160,8 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
             }
         });
     });

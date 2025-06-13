@@ -2,6 +2,9 @@ import { DAYS_1_MS, DAYS_1_S, DEFAULT_LANGUAGE, type DeferredDecisionData, endpo
 import { type Prisma } from "@prisma/client";
 import i18next, { type TFuncKey } from "i18next";
 import { type Cluster, type Redis } from "ioredis";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { InfoConverter } from "../builders/infoConverter.js";
 import { type PartialApiInfo, type PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
@@ -16,6 +19,7 @@ import type { BaseTaskData, ManagedQueue } from "../tasks/queueFactory.js";
 import { QueueService } from "../tasks/queues.js";
 import { QueueTaskType } from "../tasks/taskTypes.js";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
+import { formatNotificationEmail, validateEmailTemplate } from "./formatters.js";
 
 /**
  * The icon of the app.
@@ -26,6 +30,53 @@ const APP_ICON = "https://vrooli.com/apple-touch-icon.webp";
  * When using the body for the title, this is the maximum number of characters to display.
  */
 const MAX_BODY_TITLE_LENGTH = 10;
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+let notificationTemplate: string | null = null;
+
+/**
+ * Lazily loads the notification email template
+ */
+function loadNotificationTemplate(): string {
+    if (notificationTemplate !== null) {
+        return notificationTemplate;
+    }
+    
+    // Load notification template - check both src and dist paths
+    const srcTemplatePath = path.join(dirname, "../tasks/email/templates/notification.html");
+    const distTemplatePath = path.join(dirname, "../../dist/tasks/email/templates/notification.html");
+    
+    // Try src path first (for tests), then dist path (for production)
+    const notificationTemplatePath = fs.existsSync(srcTemplatePath) ? srcTemplatePath : distTemplatePath;
+    
+    try {
+        if (fs.existsSync(notificationTemplatePath)) {
+            const templateContent = fs.readFileSync(notificationTemplatePath, 'utf8');
+            const validation = validateEmailTemplate(templateContent);
+            
+            if (!validation.isValid) {
+                logger.warn('Notification template missing placeholders', { 
+                    missing: validation.missingPlaceholders,
+                    path: notificationTemplatePath
+                });
+            }
+            
+            notificationTemplate = templateContent;
+        } else {
+            logger.error(`Could not find notification email template at ${srcTemplatePath} or ${distTemplatePath}`);
+            notificationTemplate = '';
+        }
+    } catch (error) {
+        logger.error('Failed to load notification template', { 
+            error: error instanceof Error ? error.message : String(error),
+            path: notificationTemplatePath 
+        });
+        notificationTemplate = '';
+    }
+    
+    return notificationTemplate;
+}
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 
@@ -420,6 +471,23 @@ async function push({
                 }
                 // Send to each email (ignore if no title)
                 if (emails.length && currTitle) {
+                    let htmlContent = "";
+                    
+                    try {
+                        // Load template and format HTML email
+                        const template = loadNotificationTemplate();
+                        if (template) {
+                            htmlContent = formatNotificationEmail(template, currTitle, currBody, link);
+                        }
+                    } catch (formatError) {
+                        logger.warn('HTML email formatting failed, falling back to plain text', { 
+                            error: formatError instanceof Error ? formatError.message : String(formatError),
+                            userId: currentUser.userId,
+                            category
+                        });
+                        // htmlContent remains empty string, so plain text will be used
+                    }
+                    
                     try {
                         await QueueService.get().email.addTask({
                             type: QueueTaskType.EMAIL_SEND,
@@ -427,7 +495,7 @@ async function push({
                             to: emails.map(e => e.emailAddress),
                             subject: currTitle,
                             text: currBody,
-                            html: "", // TODO: Consider HTML email template
+                            html: htmlContent, // Will be empty string on formatting failure
                         });
                     } catch (err) {
                         logger.error("Error sending email notification", {

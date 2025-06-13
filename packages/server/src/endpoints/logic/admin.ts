@@ -1,9 +1,11 @@
-import { AccountStatus, type User, uuid } from "@vrooli/shared";
+import { AccountStatus, CreditEntryType, type User, uuid } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ApiEndpoint } from "../../types.js";
 import { isOwnerAdminCheck } from "../../utils/defaultPermissions.js";
+import { CacheService } from "../../services/cache.js";
 
 // Admin-specific input types
 export interface AdminUserListInput {
@@ -37,6 +39,22 @@ export interface AdminSiteStatsOutput {
     apiCallsToday: number;
     totalStorage: number;
     usedStorage: number;
+    // Credit System Stats
+    creditStats: {
+        totalCreditsInCirculation: string; // bigint as string
+        totalCreditsDonatedThisMonth: string;
+        totalCreditsDonatedAllTime: string;
+        activeDonorsThisMonth: number;
+        averageDonationPercentage: number;
+        lastRolloverJobStatus: 'success' | 'partial' | 'failed' | 'never_run';
+        lastRolloverJobTime: string | null;
+        nextScheduledRollover: string;
+        donationsByMonth: Array<{
+            month: string;
+            amount: string;
+            donors: number;
+        }>; // Last 6 months
+    };
 }
 
 export interface AdminUserListOutput {
@@ -82,58 +100,140 @@ export const admin: EndpointsAdmin = {
         }
 
         const prisma = DbProvider.get();
+        const redis = CacheService.get().redis;
         
-        // Calculate statistics
+        // Calculate current month for credit queries
+        const currentMonth = new Date().toISOString().substring(0, 7);
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        
+        // Calculate statistics with optimized queries
         const [
-            totalUsers,
-            activeUsers,
-            newUsersToday,
-            totalRoutines,
-            activeRoutines,
+            userStats,
+            routineStats, 
             totalApiKeys,
-            totalApiCalls,
-            apiCallsToday,
+            totalCreditsInCirculation,
+            creditDonationStats,
+            avgDonationPercentage,
+            donationsByMonth,
+            lastJobStatus,
         ] = await Promise.all([
-            // Total users
-            prisma.user.count(),
+            // Combined user statistics in single query
+            prisma.$queryRaw<Array<{ 
+                total_users: string, 
+                active_users: string, 
+                new_users_today: string 
+            }>>`
+                SELECT 
+                    COUNT(*)::text as total_users,
+                    COUNT(CASE WHEN last_active >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)} THEN 1 END)::text as active_users,
+                    COUNT(CASE WHEN created_at >= ${new Date(new Date().setHours(0, 0, 0, 0))} THEN 1 END)::text as new_users_today
+                FROM "user"
+            `,
             
-            // Active users (logged in within last 30 days)
-            prisma.user.count({
-                where: {
-                    lastActive: {
-                        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-                    },
-                },
-            }),
-            
-            // New users today
-            prisma.user.count({
-                where: {
-                    createdAt: {
-                        gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                    },
-                },
-            }),
-            
-            // Total routines
-            prisma.routine.count(),
-            
-            // Active routines (not deleted)
-            prisma.routine.count({
-                where: { isDeleted: false },
-            }),
+            // Combined routine statistics
+            prisma.$queryRaw<Array<{ 
+                total_routines: string, 
+                active_routines: string 
+            }>>`
+                SELECT 
+                    COUNT(*)::text as total_routines,
+                    COUNT(CASE WHEN is_deleted = false THEN 1 END)::text as active_routines
+                FROM routine
+            `,
             
             // Total API keys
             prisma.apiKey.count({
                 where: { disabledAt: null },
             }),
             
-            // Total API calls (placeholder - would need API usage tracking)
-            0,
+            // Total credits in circulation
+            prisma.credit_account.aggregate({
+                _sum: { currentBalance: true }
+            }),
             
-            // API calls today (placeholder)
-            0,
+            // Combined credit donation statistics
+            prisma.$queryRaw<Array<{ 
+                donated_this_month: string, 
+                donated_all_time: string,
+                donors_this_month: string
+            }>>`
+                SELECT 
+                    ABS(SUM(CASE WHEN created_at >= ${new Date(currentMonth + '-01')} THEN amount ELSE 0 END))::text as donated_this_month,
+                    ABS(SUM(amount))::text as donated_all_time,
+                    COUNT(DISTINCT CASE WHEN created_at >= ${new Date(currentMonth + '-01')} THEN credit_account_id END)::text as donors_this_month
+                FROM credit_ledger_entry
+                WHERE type = ${CreditEntryType.DonationGiven}
+            `,
+            
+            // Average donation percentage from user settings
+            prisma.$queryRaw<Array<{ avg: number }>>`
+                SELECT AVG(((creditSettings->'donation')::jsonb->>'percentage')::numeric) as avg
+                FROM "user"
+                WHERE creditSettings IS NOT NULL
+                AND creditSettings::jsonb->'donation' IS NOT NULL
+                AND (creditSettings::jsonb->'donation'->>'enabled')::boolean = true
+            `,
+            
+            // Get donation history by month
+            prisma.$queryRaw<Array<{ month: Date, total: string, donors: string }>>`
+                SELECT 
+                    DATE_TRUNC('month', created_at) as month,
+                    ABS(SUM(amount))::text as total,
+                    COUNT(DISTINCT credit_account_id)::text as donors
+                FROM credit_ledger_entry
+                WHERE type = ${CreditEntryType.DonationGiven}
+                    AND created_at >= ${sixMonthsAgo}
+                GROUP BY DATE_TRUNC('month', created_at)
+                ORDER BY month DESC
+            `,
+            
+            // Job status from Redis
+            redis?.get('job:creditRollover:lastRun') ?? null,
         ]);
+        
+        // Extract values from combined queries
+        const totalUsers = parseInt(userStats[0].total_users, 10);
+        const activeUsers = parseInt(userStats[0].active_users, 10);
+        const newUsersToday = parseInt(userStats[0].new_users_today, 10);
+        const totalRoutines = parseInt(routineStats[0].total_routines, 10);
+        const activeRoutines = parseInt(routineStats[0].active_routines, 10);
+        const activeDonorsThisMonth = parseInt(creditDonationStats[0].donors_this_month, 10);
+        
+        // API calls are placeholders
+        const totalApiCalls = 0;
+        const apiCallsToday = 0;
+
+        // Parse job status from Redis
+        let jobStatus: 'success' | 'partial' | 'failed' | 'never_run' = 'never_run';
+        let jobTime: string | null = null;
+        if (lastJobStatus) {
+            try {
+                const jobData = JSON.parse(lastJobStatus);
+                if (jobData && typeof jobData === 'object') {
+                    // Use the status field directly from creditRollover job
+                    if (jobData.status) {
+                        jobStatus = jobData.status;
+                    }
+                    // Timestamp is already an ISO string from creditRollover job
+                    if (jobData.timestamp) {
+                        jobTime = jobData.timestamp;
+                    }
+                }
+            } catch (e) {
+                logger.warn("Failed to parse job status from Redis", {
+                    error: e instanceof Error ? e.message : String(e),
+                    rawData: lastJobStatus,
+                    trace: "adminStats_parseJobStatus",
+                });
+            }
+        }
+
+        // Calculate next scheduled rollover (2nd of next month at 2 AM)
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        nextMonth.setDate(2);
+        nextMonth.setHours(2, 0, 0, 0);
 
         return {
             totalUsers,
@@ -146,6 +246,21 @@ export const admin: EndpointsAdmin = {
             apiCallsToday,
             totalStorage: 0, // Placeholder - would need file system stats
             usedStorage: 0,  // Placeholder
+            creditStats: {
+                totalCreditsInCirculation: totalCreditsInCirculation._sum.currentBalance?.toString() || "0",
+                totalCreditsDonatedThisMonth: creditDonationStats[0].donated_this_month || "0",
+                totalCreditsDonatedAllTime: creditDonationStats[0].donated_all_time || "0",
+                activeDonorsThisMonth: activeDonorsThisMonth,
+                averageDonationPercentage: Number(avgDonationPercentage[0]?.avg) || 0,
+                lastRolloverJobStatus: jobStatus,
+                lastRolloverJobTime: jobTime,
+                nextScheduledRollover: nextMonth.toISOString(),
+                donationsByMonth: donationsByMonth.map(row => ({
+                    month: row.month.toISOString().substring(0, 7),
+                    amount: row.total,
+                    donors: parseInt(row.donors, 10),
+                })),
+            },
         };
     },
 
@@ -271,22 +386,14 @@ export const admin: EndpointsAdmin = {
         });
 
         // Log admin action
-        await prisma.adminLog.create({
-            data: {
-                id: uuid(),
-                adminId: userData.userId,
-                action: "USER_STATUS_CHANGE",
-                targetId: BigInt(userId),
-                details: {
-                    oldStatus: targetUser.status,
-                    newStatus: status,
-                    reason,
-                },
-                createdAt: new Date(),
-            },
-        }).catch((error) => {
-            // Log error but don't fail the main operation
-            console.error("Failed to log admin action:", error);
+        logger.info("Admin user status change", {
+            adminId: userData.userId.toString(),
+            action: "USER_STATUS_CHANGE",
+            targetUserId: userId,
+            oldStatus: targetUser.status,
+            newStatus: status,
+            reason,
+            timestamp: new Date().toISOString(),
         });
 
         // Return updated user (using existing User format)
@@ -341,21 +448,13 @@ export const admin: EndpointsAdmin = {
         // This would integrate with the existing email service
         
         // Log admin action
-        await prisma.adminLog.create({
-            data: {
-                id: uuid(),
-                adminId: userData.userId,
-                action: "USER_PASSWORD_RESET",
-                targetId: BigInt(userId),
-                details: {
-                    reason,
-                    email: targetUser.emails[0].emailAddress,
-                },
-                createdAt: new Date(),
-            },
-        }).catch((error) => {
-            // Log error but don't fail the main operation
-            console.error("Failed to log admin action:", error);
+        logger.info("Admin password reset", {
+            adminId: userData.userId.toString(),
+            action: "USER_PASSWORD_RESET",
+            targetUserId: userId,
+            reason,
+            email: targetUser.emails[0].emailAddress,
+            timestamp: new Date().toISOString(),
         });
 
         return { success: true };

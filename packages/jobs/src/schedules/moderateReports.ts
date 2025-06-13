@@ -1,7 +1,7 @@
 import { type Prisma } from "@prisma/client";
 import type { PrismaDelegate } from "@vrooli/server";
 import { DbProvider, ModelMap, Trigger, batch, findFirstRel, logger } from "@vrooli/server";
-import type { ModelType } from "@vrooli/shared";
+import { ModelType, type ModelType as ModelTypeType } from "@vrooli/shared";
 import { ReportStatus, ReportSuggestedAction, WEEKS_1_MS, uppercaseFirstLetter } from "@vrooli/shared";
 
 // Constants for calculating when a moderation action for a report should be accepted
@@ -16,6 +16,39 @@ const MIN_REP: { [key in ReportSuggestedAction]: number } = {
 // If report does not meet the minimum reputation for any of the above actions, this is the timeout before 
 // the highest voted action is accepted
 const DEFAULT_TIMEOUT = WEEKS_1_MS; // 1 week equivalent
+
+/**
+ * Type guard to check if a value is a valid ModelType
+ */
+function isValidModelType(value: string): value is ModelTypeType {
+    return (Object.values(ModelType) as string[]).includes(value);
+}
+
+/**
+ * Type guard to check if a value is a valid ReportSuggestedAction
+ */
+function isValidReportSuggestedAction(value: string): value is ReportSuggestedAction {
+    return (Object.values(ReportSuggestedAction) as string[]).includes(value);
+}
+
+/**
+ * Type guard to validate a [string, number] entry as [ReportSuggestedAction, number]
+ */
+function isValidReportActionEntry(entry: [string, unknown]): entry is [ReportSuggestedAction, number] {
+    return typeof entry[0] === 'string' && 
+           isValidReportSuggestedAction(entry[0]) && 
+           typeof entry[1] === 'number';
+}
+
+/**
+ * Type guard to check if a value is a PrismaDelegate
+ */
+function isPrismaDelegate(value: unknown): value is PrismaDelegate {
+    return value !== null && 
+           typeof value === "object" && 
+           "update" in value &&
+           typeof value.update === "function";
+}
 
 /**
  * Partial query to get data for a versioned object
@@ -96,7 +129,7 @@ const reportSelect = {
             id: true,
             actionSuggested: true,
             createdBy: {
-                select: { reputation: true },
+                select: { id: true, reputation: true },
             },
         },
     },
@@ -124,14 +157,14 @@ function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAct
     // If there are no actions that meet the minimum reputation, return null
     if (filtered.length === 0) return null;
     // If there is only one action that meets the minimum reputation, return it
-    if (filtered.length === 1) return filtered[0][0];
+    if (filtered.length === 1 && filtered[0] && filtered[0].length > 0) return filtered[0][0];
     // Sort the actions by reputation
     const sorted = filtered.sort((a, b) => b[1] - a[1]);
     // Filter out actions that don't match the reputation of the first action 
     // in the sorted list (i.e. the highest reputation)
-    const highest = sorted.filter(([_, rep]) => rep === sorted[0][1]);
+    const highest = sorted.length > 0 && sorted[0] && sorted[0].length > 1 ? sorted.filter(([_, rep]) => rep === sorted[0][1]) : [];
     // If there is only one action with the highest reputation, return it
-    if (highest.length === 1) return highest[0][0];
+    if (highest.length === 1 && highest[0] && highest[0].length > 0) return highest[0][0];
     // Sort the actions by severity
     const severities = [
         ReportSuggestedAction.NonIssue,
@@ -196,24 +229,56 @@ const nonHideableTypes = [
 async function moderateReport(report: ReportPayload): Promise<void> {
     let acceptedAction: ReportSuggestedAction | null = null;
     // Group responses by action and sum reputation
-    const sumsMap = report?.responses
-        ?.reduce((acc, cur) => {
-            const action = cur.actionSuggested;
-            const rep = cur.createdBy.reputation;
-            if (acc[action]) {
-                acc[action] += rep;
-            } else {
-                acc[action] = rep;
+    const sumsMap: Partial<Record<ReportSuggestedAction, number>> = {};
+    
+    if (report?.responses && Array.isArray(report.responses)) {
+        for (const response of report.responses) {
+            const action = response.actionSuggested;
+            const rep = response.createdBy?.reputation;
+            
+            // Validate action and reputation
+            if (isValidReportSuggestedAction(action) && typeof rep === 'number') {
+                if (sumsMap[action]) {
+                    sumsMap[action] = (sumsMap[action] || 0) + rep;
+                } else {
+                    sumsMap[action] = rep;
+                }
             }
-            return acc;
-        }, {} as Record<ReportSuggestedAction, number>) ?? {};
+        }
+    }
     // Try to find a valid action
-    acceptedAction = bestAction(Object.entries(sumsMap) as [ReportSuggestedAction, number][]);
+    // Create properly typed entries from the sumsMap
+    const entries = Object.entries(sumsMap);
+    const reportActionValues = Object.values(ReportSuggestedAction);
+    
+    // Validate that all enum values are strings
+    if (!reportActionValues.every(value => typeof value === 'string')) {
+        logger.error("ReportSuggestedAction enum contains non-string values", {
+            enumValues: reportActionValues,
+            trace: "0223_enum_validation"
+        });
+        return;
+    }
+    
+    // Filter and validate entries more safely
+    const typedEntries: [ReportSuggestedAction, number][] = [];
+    for (const entry of entries) {
+        if (isValidReportActionEntry(entry)) {
+            typedEntries.push(entry);
+        }
+    }
+    acceptedAction = bestAction(typedEntries);
     // If no action was found, check if the report has been open for too long
     if (!acceptedAction && (Date.now() - report.createdAt.getTime()) > DEFAULT_TIMEOUT) {
         // Add a constant to each reputation score so that they all meet the minimum reputation requirement
         const amountToAdd = Object.values(MIN_REP).reduce((acc, cur) => Math.max(acc, cur), 0);
-        const bumpedActionsList = Object.entries(sumsMap).map(([action, rep]) => [action, rep + amountToAdd]) as [ReportSuggestedAction, number][];
+        // Build bumped actions list with proper validation
+        const bumpedActionsList: [ReportSuggestedAction, number][] = [];
+        for (const [action, rep] of Object.entries(sumsMap)) {
+            if (isValidReportSuggestedAction(action) && typeof rep === 'number') {
+                bumpedActionsList.push([action, rep + amountToAdd]);
+            }
+        }
         // Try to find a valid action again
         acceptedAction = bestAction(bumpedActionsList);
     }
@@ -227,19 +292,29 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         });
         // Find the object that was reported.
         // Must capitalize the first letter of the object type to match the __typename
-        const [objectField, objectData] = findFirstRel(report, [
+        const relResult = findFirstRel(report, [
             "comment",
             "issue",
             "resourceVersion",
             "tag",
             "team",
             "user",
-        ]).map(([type, data]) => [uppercaseFirstLetter(type ?? ""), data]) as [string, any];
-        if (!objectField || !objectData) {
-            logger.error("Failed to complete report moderation. Object likely deleted", { trace: "0409", reportId: report.id, objectField, objectData });
+        ]);
+        const objectFieldRaw = relResult.length > 0 ? relResult[0] : null;
+        const objectData = relResult.length > 1 ? relResult[1] : null;
+        if (!objectFieldRaw || !objectData) {
+            logger.error("Failed to complete report moderation. Object likely deleted", { trace: "0409", reportId: report.id, objectField: objectFieldRaw, objectData });
             return;
         }
-        const objectType = uppercaseFirstLetter(objectField);
+        
+        // Validate that objectFieldRaw is a string before processing
+        if (typeof objectFieldRaw !== 'string') {
+            logger.error("Invalid object field type", { trace: "0409_field_type", reportId: report.id, objectFieldType: typeof objectFieldRaw });
+            return;
+        }
+        
+        const objectField = uppercaseFirstLetter(objectFieldRaw);
+        const objectType = objectField;
         // Find the object's owner
         let objectOwner: { __typename: "Team" | "User", id: string } | null = null;
         if (objectType.endsWith("Version")) {
@@ -259,8 +334,8 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             }
         }
         else if (["Issue", "Tag"].includes(objectType)) {
-            if (objectData.createdBy) {
-                objectOwner = { __typename: "User", id: objectData.owner.id };
+            if (objectData.createdBy && objectData.createdBy.id) {
+                objectOwner = { __typename: "User", id: objectData.createdBy.id };
             }
         }
         else if (["Team"].includes(objectType)) {
@@ -273,33 +348,65 @@ async function moderateReport(report: ReportPayload): Promise<void> {
             logger.error("Failed to complete report moderation. Owner not found", { trace: "0410", reportId: report.id, objectType, objectData });
             return;
         }
+        
+        // Validate objectType is a valid ModelType
+        if (!isValidModelType(objectType)) {
+            logger.error("Invalid ModelType for report moderation", { 
+                trace: "0412", 
+                reportId: report.id, 
+                objectType 
+            });
+            return;
+        }
+        
         // Trigger activity
         await Trigger(["en"]).reportActivity({
             objectId: objectData.id,
-            objectType: objectType as ModelType,
+            objectType: objectType,
             objectOwner,
-            reportContributors: report.responses.map(r => r.createdBy?.id).filter(id => id) as string[],
-            reportCreatedById: (report as any).createdBy?.id ?? null,
+            reportContributors: report.responses.map(r => r.createdBy?.id?.toString()).filter((id): id is string => typeof id === 'string'),
+            reportCreatedById: report.createdBy?.id?.toString() ?? null,
             reportId: report.id.toString(),
             reportStatus: status,
             userUpdatingReportId: null,
         });
         // Get Prisma table for the object type
-        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as ModelType);
+        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:
             // If the object is a version, delete the version. DO NOT delete the root object.
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete:
+                const dbModelForDelete = DbProvider.get()[dbTable];
+                if (!isPrismaDelegate(dbModelForDelete)) {
+                    logger.error("Invalid database model for delete operation", {
+                        objectType,
+                        dbTable,
+                        reportId: report.id,
+                    });
+                    return;
+                }
+                
+                // Validate that the update method exists
+                if (typeof dbModelForDelete.update !== 'function') {
+                    logger.error("Database model does not have update method", {
+                        objectType,
+                        dbTable,
+                        reportId: report.id,
+                        availableMethods: Object.getOwnPropertyNames(dbModelForDelete).filter(prop => typeof dbModelForDelete[prop] === 'function'),
+                    });
+                    return;
+                }
+                
                 if (softDeletableTypes.includes(objectType)) {
-                    await (DbProvider.get()[dbTable] as PrismaDelegate).update({
+                    await dbModelForDelete.update({
                         where: { id: objectData.id },
                         data: { isDeleted: true },
                     });
                 }
                 else {
-                    await (DbProvider.get()[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
+                    await dbModelForDelete.delete({ where: { id: objectData.id } });
                 }
                 break;
             case ReportSuggestedAction.FalseReport:
@@ -311,8 +418,19 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                     logger.error("Failed to complete report moderation. Object cannot be hidden", { trace: "0411", reportId: report.id, objectType, objectData });
                     return;
                 }
+                
+                const dbModelForHide = DbProvider.get()[dbTable];
+                if (!isPrismaDelegate(dbModelForHide)) {
+                    logger.error("Invalid database model for hide operation", {
+                        objectType,
+                        dbTable,
+                        reportId: report.id,
+                    });
+                    return;
+                }
+                
                 // Hide the object
-                await (DbProvider.get()[dbTable] as PrismaDelegate).update({
+                await dbModelForHide.update({
                     where: { id: objectData.id },
                     data: { isPrivate: true },
                 });

@@ -1,5 +1,13 @@
-// eslint-disable-next-line import/extensions
-import { type CustomTransfomer } from "superjson/dist/custom-transformer-registry";
+// Import CustomTransformer type directly from superjson
+import type { SuperJSONValue } from "superjson";
+
+// Define CustomTransformer type locally if needed
+type CustomTransfomer<T = any> = {
+    name: string;
+    isApplicable: (v: any) => v is T;
+    serialize: (v: T) => SuperJSONValue;
+    deserialize: (v: SuperJSONValue) => T;
+};
 
 /**
  * Extracts the name and asynchrony of a function from its string representation.

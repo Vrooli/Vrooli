@@ -114,7 +114,7 @@ describe("paymentsFail integration tests", () => {
 
         // Check that email was sent (non-donation)
         const { QueueService, AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
         
         expect(mockAddTask).toHaveBeenCalledWith(
@@ -175,7 +175,7 @@ describe("paymentsFail integration tests", () => {
 
         // Check that email was sent (donation)
         const { QueueService, AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
         
         expect(mockAddTask).toHaveBeenCalledWith(
@@ -256,7 +256,7 @@ describe("paymentsFail integration tests", () => {
 
         // Check that emails were sent to all team emails
         const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         expect(mockAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: expect.arrayContaining(["team1@example.com", "team2@example.com"]),
@@ -304,7 +304,7 @@ describe("paymentsFail integration tests", () => {
 
         // Check that no email was sent
         const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         expect(mockAddTask).not.toHaveBeenCalled();
     });
 
@@ -406,7 +406,7 @@ describe("paymentsFail integration tests", () => {
 
         // No email should be sent
         const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         expect(mockAddTask).not.toHaveBeenCalled();
     });
 
@@ -469,13 +469,13 @@ describe("paymentsFail integration tests", () => {
 
         // Check that emails were sent with unique addresses
         const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         
         // Should have two calls - one for donation, one for other
         expect(mockAddTask).toHaveBeenCalledTimes(2);
         
         // Each call should have unique email addresses
-        mockAddTask.mock.calls.forEach((call: any) => {
+        mockAddTask.mock.calls.forEach((call) => {
             const to = call[0].to;
             expect(new Set(to).size).toBe(to.length); // No duplicates
         });
@@ -583,7 +583,7 @@ describe("paymentsFail integration tests", () => {
 
         // Check that emails were sent
         const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = QueueService.get().email.addTask as any;
+        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         
         // Should have two calls - one for donation, one for premium
         expect(mockAddTask).toHaveBeenCalledTimes(2);

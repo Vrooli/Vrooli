@@ -9,7 +9,7 @@ describe("calculatePreShapeData", () => {
     let originalModelMap;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         originalModelMap = { ...ModelMap };
     });
 

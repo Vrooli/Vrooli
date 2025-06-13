@@ -84,9 +84,9 @@ export const actions: EndpointsActions = createStandardCrudEndpoints({
         const result = await deleteOneHelper({ input: { id, objectType: DeleteType.User }, req });
         // If successful, remove user from session
         if (result.success) {
-            // TODO this will only work if you're deleing yourself, since it clears your own session. 
+            // TODO this will only work if you're deleting yourself, since it clears your own session. 
             // If there are cases like deleting a bot, or an admin deleting a user, this will need to be handled differently
-            return auth.logOut(undefined as never, { req, res }, info) as any;
+            return auth.logOut(undefined as never, { req, res });
         } else {
             throw new CustomError("0123", "InternalError");
         }

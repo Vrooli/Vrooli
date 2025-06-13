@@ -107,14 +107,32 @@ describe("userValidation", () => {
             const validBot = userTestDataFactory.createComplete();
             const result = await testValidation(createSchema, validBot, true);
             
-            // Images should be valid file names or URLs if present
+            // Images should be valid URLs, file paths, or data URLs if present
             if (result.bannerImage) {
                 expect(result.bannerImage).to.be.a("string");
                 expect(result.bannerImage.length).to.be.greaterThan(0);
+                // Should be a valid URL, file path, or data URL format
+                const isValidImageFormat = 
+                    result.bannerImage.startsWith("http://") ||
+                    result.bannerImage.startsWith("https://") ||
+                    result.bannerImage.startsWith("/") ||
+                    result.bannerImage.startsWith("./") ||
+                    result.bannerImage.startsWith("data:image/") ||
+                    /^[a-zA-Z0-9_-]+\//.test(result.bannerImage);
+                expect(isValidImageFormat).to.be.true;
             }
             if (result.profileImage) {
                 expect(result.profileImage).to.be.a("string");
                 expect(result.profileImage.length).to.be.greaterThan(0);
+                // Should be a valid URL, file path, or data URL format
+                const isValidImageFormat = 
+                    result.profileImage.startsWith("http://") ||
+                    result.profileImage.startsWith("https://") ||
+                    result.profileImage.startsWith("/") ||
+                    result.profileImage.startsWith("./") ||
+                    result.profileImage.startsWith("data:image/") ||
+                    /^[a-zA-Z0-9_-]+\//.test(result.profileImage);
+                expect(isValidImageFormat).to.be.true;
             }
         });
 
@@ -130,9 +148,15 @@ describe("userValidation", () => {
             
             // If translations are present, they should be properly structured
             if (result.translationsCreate && Array.isArray(result.translationsCreate)) {
+                expect(result.translationsCreate).to.have.length.greaterThan(0);
                 result.translationsCreate.forEach((translation: any) => {
                     expect(translation).to.have.property("language");
                     expect(translation.language).to.be.a("string");
+                    // Language code should be valid ISO 639-1 format (e.g., "en", "es", "fr")
+                    expect(translation.language).to.match(/^[a-z]{2}(-[A-Z]{2})?$/);
+                    // Should have bio content
+                    expect(translation).to.have.property("bio");
+                    expect(translation.bio).to.be.a("string");
                 });
             }
         });
@@ -171,15 +195,24 @@ describe("userValidation", () => {
             );
         });
 
-        it("should accept bot-specific fields in update", async () => {
+        it("should validate bot-specific fields in update", async () => {
             const result = await testValidation(
                 updateSchema,
                 userFixtures.complete.update,
                 true,
             );
+            expect(result.isBotDepictingPerson).to.be.a("boolean");
             expect(result.isBotDepictingPerson).to.be.false;
-            // botSettings is validated as a generic config object
+            
+            // botSettings should have specific structure for bot configuration
             expect(result.botSettings).to.be.an("object");
+            if (result.botSettings && Object.keys(result.botSettings).length > 0) {
+                // Should contain valid bot configuration properties
+                const allowedKeys = ["model", "temperature", "maxTokens", "systemPrompt", "responseFormat"];
+                Object.keys(result.botSettings).forEach(key => {
+                    expect(allowedKeys).to.include(key);
+                });
+            }
         });
 
         it("should handle translation operations correctly", async () => {

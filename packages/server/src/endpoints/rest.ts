@@ -1,4 +1,4 @@
-import { HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, decodeValue, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet, type BotCreateInput, type BotUpdateInput, type ServerError, type SessionUser, type TeamCreateInput, type TeamUpdateInput } from "@vrooli/shared";
+import { HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, decodeValue, endpointsActions, endpointsAdmin, endpointsApiKey, endpointsApiKeyExternal, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsComment, endpointsEmail, endpointsFeed, endpointsIssue, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPullRequest, endpointsPushDevice, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsRun, endpointsRunIO, endpointsSchedule, endpointsStatsResource, endpointsStatsSite, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsUser, endpointsView, endpointsWallet, type BotCreateInput, type BotUpdateInput, type ServerError, type SessionUser, type TeamCreateInput, type TeamUpdateInput } from "@vrooli/shared";
 import Busboy from "busboy";
 import { Router, type Express, type NextFunction, type Request, type Response } from "express";
 import { SessionService } from "../auth/session.js";
@@ -320,6 +320,11 @@ export async function initRestApi(app: Express) {
         [endpointsActions.deleteMany, Logic.actions.deleteMany, Select.actions_deleteMany],
         [endpointsActions.deleteAll, Logic.actions.deleteAll, Select.actions_deleteAll],
         [endpointsActions.deleteAccount, Logic.actions.deleteAccount, Select.actions_deleteAccount],
+        // Admin
+        [endpointsAdmin.siteStats, Logic.admin.siteStats, Select.admin_siteStats],
+        [endpointsAdmin.userList, Logic.admin.userList, Select.admin_userList],
+        [endpointsAdmin.userUpdateStatus, Logic.admin.userUpdateStatus, Select.admin_userUpdateStatus],
+        [endpointsAdmin.userResetPassword, Logic.admin.userResetPassword, Select.admin_userResetPassword],
         // API key
         [endpointsApiKey.createOne, Logic.apiKey.createOne, Select.apiKey_createOne],
         [endpointsApiKey.updateOne, Logic.apiKey.updateOne, Select.apiKey_updateOne],

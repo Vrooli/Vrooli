@@ -1,4 +1,6 @@
 import { DAYS_1_MS, type AIServicesInfo, type AITaskConfigJSON, type LlmServiceModel, type ModelInfo, type TranslationKeyService } from "@vrooli/shared";
+import { publishModelNotification } from "../hooks/useModelNotifications.js";
+import { useModelPreferencesStore } from "../stores/modelPreferencesStore.js";
 import { apiUrlBase } from "../utils/consts.js";
 
 const AI_TASK_CONFIG_CACHE_KEY = "AI_CONFIG_CACHE";
@@ -33,7 +35,7 @@ export function getExistingAIConfig(): AICacheData | null {
             serviceConfig = JSON.parse(cachedServiceData);
         }
     } catch (error) {
-        console.error("Error fetching existing service configuration", error);
+        // Service configuration fetch failed - will use cached or defaults
     }
     try {
         const cachedTaskData = localStorage.getItem(AI_TASK_CONFIG_CACHE_KEY);
@@ -41,7 +43,7 @@ export function getExistingAIConfig(): AICacheData | null {
             taskConfig = JSON.parse(cachedTaskData);
         }
     } catch (error) {
-        console.error("Error fetching existing task configuration", error);
+        // Task configuration fetch failed - will use cached or defaults
     }
 
     return {
@@ -124,7 +126,7 @@ export async function fetchAIConfig(language: string): Promise<AICacheData | nul
                     localStorage.setItem(AI_SERVICE_CACHE_KEY, JSON.stringify(fetchedServiceInfo));
                 })
                 .catch((error) => {
-                    console.error(`Error fetching service configuration from ${serviceConfigUrl}:`, error);
+                    // Service configuration fetch failed - will try again next time
                 }),
         );
     }
@@ -148,7 +150,7 @@ export async function fetchAIConfig(language: string): Promise<AICacheData | nul
                     localStorage.setItem(AI_TASK_CONFIG_CACHE_KEY, JSON.stringify(fetchedTaskConfig));
                 })
                 .catch((error) => {
-                    console.error(`Error fetching task configuration from ${taskConfigUrl}:`, error);
+                    // Task configuration fetch failed - will try again next time
                 }),
         );
     }
@@ -220,4 +222,132 @@ export function getAvailableModels(servicesInfo: AIServicesInfo | null | undefin
         }
     }
     return availableModels;
+}
+
+/**
+ * Converts an AvailableModel to the LlmServiceModel for storage
+ */
+export function availableModelToStorageModel(model: AvailableModel): LlmServiceModel {
+    return model.value;
+}
+
+/**
+ * Extracts model values from an array of AvailableModels for validation
+ */
+export function getAvailableModelValues(availableModels: AvailableModel[]): LlmServiceModel[] {
+    return availableModels.map(model => model.value);
+}
+
+/**
+ * Converts a stored LlmServiceModel back to an AvailableModel, if it exists in available models
+ */
+export function storageModelToAvailableModel(
+    modelValue: LlmServiceModel, 
+    availableModels: AvailableModel[]
+): AvailableModel | null {
+    return availableModels.find(model => model.value === modelValue) || null;
+}
+
+/**
+ * Validates that a stored model preference is still available
+ */
+export function validateStoredModelPreference(
+    storedModel: LlmServiceModel | null,
+    availableModels: AvailableModel[]
+): AvailableModel | null {
+    if (!storedModel) return null;
+    return storageModelToAvailableModel(storedModel, availableModels);
+}
+
+/**
+ * Gets the user's preferred model as an AvailableModel, with validation and fallbacks.
+ * 
+ * @param availableModels - Current list of available models for validation
+ * @returns The user's preferred model or a fallback
+ */
+export function getPreferredAvailableModel(availableModels: AvailableModel[]): AvailableModel | null {
+    // Get the user's stored preference
+    const storedPreference = useModelPreferencesStore.getState().preferredModel;
+    
+    // Validate the stored preference against available models
+    if (storedPreference) {
+        const validatedModel = validateStoredModelPreference(storedPreference, availableModels);
+        if (validatedModel) {
+            return validatedModel;
+        }
+        // Clear invalid preference and notify user
+        useModelPreferencesStore.getState().clearPreferredModel();
+        
+        // Find the fallback model that will be used
+        const fallbackModel = availableModels.length > 0 ? availableModels[0] : null;
+        if (fallbackModel) {
+            publishModelNotification({
+                type: "model-unavailable",
+                previousModel: storedPreference,
+                newModel: fallbackModel.name,
+            });
+        }
+    }
+
+    // Fall back to the service default model
+    const servicesInfo = getExistingAIConfig()?.service?.config;
+    const fallbackModelValue = getFallbackModel(servicesInfo);
+    if (fallbackModelValue) {
+        const fallbackModel = storageModelToAvailableModel(
+            fallbackModelValue as LlmServiceModel, 
+            availableModels
+        );
+        if (fallbackModel) return fallbackModel;
+    }
+
+    // Last resort: first available model
+    return availableModels.length > 0 ? availableModels[0] : null;
+}
+
+/**
+ * Gets a validated preferred model by checking against currently available models.
+ * This is the recommended function for hooks that need a guaranteed valid model.
+ * 
+ * @returns A validated model or fallback, never returns null
+ */
+export function getValidatedPreferredModel(): LlmServiceModel {
+    try {
+        // Get current AI config and available models
+        const servicesInfo = getExistingAIConfig()?.service?.config;
+        if (!servicesInfo) {
+            // If no config available, return safe fallback
+            return "gpt-4o-mini" as LlmServiceModel;
+        }
+
+        const availableModels = getAvailableModels(servicesInfo);
+        
+        // Get stored preference and validate it
+        const storedPreference = useModelPreferencesStore.getState().preferredModel;
+        if (storedPreference && availableModels.some(m => m.value === storedPreference)) {
+            return storedPreference;
+        }
+
+        // Try service default
+        const defaultModel = getFallbackModel(servicesInfo);
+        if (defaultModel && availableModels.some(m => m.value === defaultModel)) {
+            return defaultModel as LlmServiceModel;
+        }
+
+        // Return first available model or safe fallback
+        return availableModels.length > 0 ? availableModels[0].value : "gpt-4o-mini" as LlmServiceModel;
+    } catch (error) {
+        // On any error, return safe fallback
+        return "gpt-4o-mini" as LlmServiceModel;
+    }
+}
+
+/**
+ * Gets the user's preferred model, falling back to the default model if none is set.
+ * 
+ * @returns The user's preferred model or a fallback
+ * @deprecated Use getValidatedPreferredModel for validation or getPreferredAvailableModel for type safety
+ */
+export function getPreferredModel(): LlmServiceModel {
+    // For backward compatibility, now delegates to validated version
+    return getValidatedPreferredModel();
 }

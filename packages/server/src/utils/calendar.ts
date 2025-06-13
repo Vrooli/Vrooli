@@ -151,7 +151,7 @@ function extractDate(dateValue: ICalDateValue): Date | null {
  * Extracts timezone from iCal date object.
  */
 function extractTimezone(dateValue: ICalDateValue): string | null {
-    if (typeof dateValue === "object" && dateValue.tz) {
+    if (typeof dateValue === "object" && dateValue !== null && dateValue.tz) {
         return dateValue.tz;
     }
     return null;

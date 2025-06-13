@@ -4,10 +4,6 @@ import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 
-function hasInternalField(objectType: string) {
-    return [ModelType.RoutineVersion, ModelType.StandardVersion].includes(objectType as any);
-}
-
 /**
  * Checks if versions of an object type can be created, updated, or deleted.
  * Throws error on failure.
@@ -24,13 +20,7 @@ export async function versionsCheck({
     Delete,
     userData,
 }: {
-    objectType: `${ModelType.ApiVersion
-    | ModelType.CodeVersion
-    | ModelType.NoteVersion
-    | ModelType.ProjectVersion
-    | ModelType.RoutineVersion
-    | ModelType.StandardVersion
-    }`,
+    objectType: `${ModelType.ResourceVersion}`,
     Create: {
         input: {
             id: string,
@@ -66,15 +56,31 @@ export async function versionsCheck({
     }));
     // Find unique root ids from create data
     const createRootIds = create.map(x => x.rootId).filter(Boolean);
-    const uniqueRootIds = [...new Set(createRootIds)];
+    const uniqueRootIds = Array.from(new Set(createRootIds));
     // Find unique version ids from update and delete data
     const updateIds = update.map(x => x.id).filter(Boolean);
     const deleteIds = Delete.map(x => x.input).filter(Boolean);
-    const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
+    const uniqueVersionIds = Array.from(new Set([...updateIds, ...deleteIds]));
     // Query the database for existing data (by root)
     const rootType = objectType.replace("Version", "") as ModelType;
     const dbTable = ModelMap.get(rootType).dbTable;
-    let existingRoots: any[];
+
+    type ExistingRoot = {
+        id: string;
+        hasCompleteVersion: boolean;
+        isDeleted: boolean;
+        isInternal: boolean;
+        isPrivate: boolean;
+        versions: Array<{
+            id: string;
+            isComplete: boolean;
+            isDeleted: boolean;
+            isPrivate: boolean;
+            versionLabel: string | null;
+        }>;
+    };
+
+    let existingRoots: ExistingRoot[];
     let where: { [key: string]: unknown } = {};
     let select: { [key: string]: unknown } = {};
     // If there are not IDs to query, return
@@ -92,8 +98,7 @@ export async function versionsCheck({
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,
-            // Also query isInternal if applicable
-            ...(hasInternalField(objectType) && { isInternal: true }),
+            isInternal: true,
             isPrivate: true,
             versions: {
                 select: {
@@ -108,7 +113,7 @@ export async function versionsCheck({
         existingRoots = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where,
             select,
-        });
+        }) as ExistingRoot[];
     } catch (error) {
         throw new CustomError("0414", "InternalError", { error, where, select, rootType });
     }
@@ -144,7 +149,7 @@ export async function versionsCheck({
         // If the root is not private and not internal (if applicable)
         const adminId = await DbProvider.getAdminId();
         const isAdmin = userData.id === adminId;
-        if (!isAdmin && !root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
+        if (!isAdmin && !root.isPrivate && !root.isInternal) {
             // Updating versions (which are not private) cannot be marked as complete, 
             // UNLESS this action is being performed by an admin
             for (const version of root.versions) {

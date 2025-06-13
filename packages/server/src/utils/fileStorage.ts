@@ -33,7 +33,8 @@ export function getS3Client(): S3Client {
  * @returns A boolean indicating if the image is NSFW.
  */
 export async function checkNSFW(buffer: Buffer, originalFileName: string): Promise<boolean> {
-    const NSFW_DETECTOR_TIMEOUT_MS = 10000; // 10 seconds
+    const NSFW_DETECTOR_TIMEOUT_MS = 10_000; // 10 seconds
+    const SECONDS_PER_MS = 1_000;
 
     return new Promise((resolve, reject) => {
         let requestHandled = false; // Flag to prevent multiple resolves/rejects
@@ -81,7 +82,7 @@ export async function checkNSFW(buffer: Buffer, originalFileName: string): Promi
             requestHandled = true;
             req.destroy();
             logger.error("NSFW detector request timed out", { trace: "checkNSFW-timeout-err" });
-            reject(new Error("Request to NSFW detector timed out after " + (NSFW_DETECTOR_TIMEOUT_MS / 1000) + " seconds"));
+            reject(new Error("Request to NSFW detector timed out after " + (NSFW_DETECTOR_TIMEOUT_MS / SECONDS_PER_MS) + " seconds"));
         }, NSFW_DETECTOR_TIMEOUT_MS);
 
         req.on("error", (error) => {
@@ -182,7 +183,8 @@ async function uploadFile(
     body: Buffer,
     mimetype: string,
 ) {
-    const S3_UPLOAD_TIMEOUT_MS = 60000; // 60 seconds
+    const S3_UPLOAD_TIMEOUT_MS = 60_000; // 60 seconds
+    const SECONDS_PER_MS = 1_000;
     let timeoutId: NodeJS.Timeout | undefined = undefined;
     let requestHandled = false; // Prevent multiple resolutions/rejections
 
@@ -202,14 +204,14 @@ async function uploadFile(
             if (requestHandled) return;
             requestHandled = true;
             logger.error("S3 upload operation timed out", { trace: "s3-upload-timeout", key });
-            reject(new Error("S3 upload timed out after " + (S3_UPLOAD_TIMEOUT_MS / 1000) + " seconds"));
+            reject(new Error("S3 upload timed out after " + (S3_UPLOAD_TIMEOUT_MS / SECONDS_PER_MS) + " seconds"));
         }, S3_UPLOAD_TIMEOUT_MS);
     });
 
     try {
         const result = await Promise.race([s3Promise, timeoutPromise]);
         if (requestHandled) { // If timeout already handled, result might be from a completed s3Promise that raced against a fired timeout
-            if (result !== undefined && !result.startsWith('https://')) { // Check if it's not the S3 URL (i.e. it was the timeout error)
+            if (result !== undefined && !result.startsWith("https://")) { // Check if it's not the S3 URL (i.e. it was the timeout error)
                 // This case should ideally not be hit if requestHandled is set correctly by timeoutPromise's reject
             } else if (result === undefined && !requestHandled) {
                 // This case means s3Promise resolved with undefined, also unexpected
