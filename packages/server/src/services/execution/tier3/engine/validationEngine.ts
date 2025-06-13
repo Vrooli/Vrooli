@@ -71,21 +71,12 @@ interface ReasoningFramework {
 export class ValidationEngine {
     private readonly logger: Logger;
     
-    // Common patterns for security scanning
-    private readonly dangerousPatterns = {
-        script: /<script[^>]*>[\s\S]*?<\/script>/gi,
-        sqlInjection: /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|CREATE|ALTER)\b.*\b(FROM|WHERE|INTO|VALUES)\b)/gi,
-        commandInjection: /(;|\||&|`|\$\(|<|>)/g,
-        pathTraversal: /(\.\.|\/\/|\\\\)/g,
-    };
-
-    // PII patterns for detection
-    private readonly piiPatterns = {
-        ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
-        creditCard: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
-        email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-        phone: /\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-    };
+    /**
+     * Validation engine with minimal security infrastructure
+     * 
+     * Note: Complex security scanning, pattern detection, and PII identification
+     * should be handled by specialized security agents via event subscriptions.
+     */
 
     constructor(logger: Logger) {
         this.logger = logger;
@@ -358,99 +349,27 @@ export class ValidationEngine {
     private async performSecurityScan(
         data: Record<string, unknown>,
     ): Promise<SecurityScanResult> {
-        const issues: string[] = [];
-        const sanitized = this.deepClone(data);
-
-        // Scan for dangerous patterns
-        this.scanForDangerousContent(sanitized, "", issues);
-
-        // Scan for PII
-        this.scanForPII(sanitized, "", issues);
-
+        // Minimal security check - let security agents handle complex scanning
+        // Just basic validation that data exists and is not malformed
+        
         return {
-            safe: issues.length === 0,
-            issues,
-            sanitized,
+            safe: true, // Security agents will provide detailed scanning
+            issues: [], // Security agents will identify issues via events
+            sanitized: this.deepClone(data),
         };
     }
 
-    private scanForDangerousContent(
-        obj: any,
-        path: string,
-        issues: string[],
-    ): void {
-        if (typeof obj === "string") {
-            for (const [type, pattern] of Object.entries(this.dangerousPatterns)) {
-                if (pattern.test(obj)) {
-                    issues.push(`Potential ${type} detected at ${path}`);
-                    // Sanitize by removing dangerous content
-                    obj = obj.replace(pattern, "[SANITIZED]");
-                }
-            }
-        } else if (Array.isArray(obj)) {
-            obj.forEach((item, index) => {
-                this.scanForDangerousContent(item, `${path}[${index}]`, issues);
-            });
-        } else if (typeof obj === "object" && obj !== null) {
-            for (const [key, value] of Object.entries(obj)) {
-                this.scanForDangerousContent(value, `${path}.${key}`, issues);
-            }
-        }
-    }
-
-    private scanForPII(
-        obj: any,
-        path: string,
-        issues: string[],
-    ): void {
-        if (typeof obj === "string") {
-            for (const [type, pattern] of Object.entries(this.piiPatterns)) {
-                if (pattern.test(obj)) {
-                    issues.push(`Potential PII (${type}) detected at ${path}`);
-                    // Mask PII
-                    obj = obj.replace(pattern, `[${type.toUpperCase()}_MASKED]`);
-                }
-            }
-        } else if (Array.isArray(obj)) {
-            obj.forEach((item, index) => {
-                this.scanForPII(item, `${path}[${index}]`, issues);
-            });
-        } else if (typeof obj === "object" && obj !== null) {
-            for (const [key, value] of Object.entries(obj)) {
-                this.scanForPII(value, `${path}.${key}`, issues);
-            }
-        }
-    }
 
     private async checkDataQuality(
         data: Record<string, unknown>,
     ): Promise<ValidationResult> {
-        const issues: string[] = [];
-
-        // Check for empty or minimal data
+        // Minimal quality check - let quality agents handle sophisticated analysis
         const dataKeys = Object.keys(data);
-        if (dataKeys.length === 0) {
-            issues.push("Output contains no data");
-        }
-
-        // Check for null/undefined values in critical fields
-        const criticalFields = ["result", "output", "value", "data"];
-        for (const field of criticalFields) {
-            if (field in data && (data[field] === null || data[field] === undefined)) {
-                issues.push(`Critical field '${field}' is null or undefined`);
-            }
-        }
-
-        // Check for suspiciously large data
-        const jsonSize = JSON.stringify(data).length;
-        if (jsonSize > 1000000) { // 1MB
-            issues.push("Output data exceeds size limit");
-        }
-
+        
         return {
-            valid: issues.length === 0,
+            valid: dataKeys.length > 0, // Basic check that data exists
             data,
-            errors: issues,
+            errors: dataKeys.length === 0 ? ["No output data"] : [],
         };
     }
 

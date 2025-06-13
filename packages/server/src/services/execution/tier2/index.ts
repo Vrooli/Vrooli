@@ -5,7 +5,6 @@ export * from "./tierTwoOrchestrator.js";
 
 export { NativeNavigator } from "./navigation/navigators/nativeNavigator.js";
 export { PathOptimizer } from "./intelligence/pathOptimizer.js";
-export { PerformanceMonitorAdapter as PerformanceMonitor } from "../monitoring/adapters/PerformanceMonitorAdapter.js";
 export { CheckpointManager } from "./persistence/checkpointManager.js";
 export { MOISEGate } from "./validation/moiseGate.js";
 export { type IRunStateStore } from "./state/runStateStore.js";

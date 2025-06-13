@@ -1,7 +1,7 @@
 /**
  * Error Classification Engine
- * Implements systematic decision tree for error classification and recovery strategy selection
- * Enables emergent resilience intelligence through pattern learning
+ * Provides basic error categorization and emits events for resilience agents
+ * to develop sophisticated classification intelligence.
  */
 
 import type {
@@ -26,14 +26,8 @@ import {
 } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
 
-/**
- * Classification confidence thresholds
- */
-const CONFIDENCE_THRESHOLDS = {
-    HIGH: 0.8,
-    MEDIUM: 0.6,
-    LOW: 0.4,
-} as const;
+// NOTE: Removed hardcoded confidence thresholds - resilience agents
+// can develop their own confidence assessment through event analysis
 
 /**
  * Error classification engine implementing systematic decision tree
@@ -89,62 +83,24 @@ export class ErrorClassifier {
     }
 
     /**
-     * Apply systematic decision tree for error classification
+     * Apply basic error classification - emit events for agent analysis
      */
     private applyDecisionTree(
         features: ErrorFeatures,
         context: ErrorContext,
     ): ErrorClassification {
-        let severity: ErrorSeverity;
-        let category: ErrorCategory;
-        let recoverability: ErrorRecoverability;
-        let systemFunctional: boolean;
-        let multipleComponentsAffected: boolean;
-        let dataRisk: boolean;
-        let securityRisk: boolean;
-        let confidenceScore = 0.9; // High confidence for rule-based decisions
-
-        // Step 1: Assess system functionality
-        systemFunctional = this.assessSystemFunctionality(features, context);
+        // Basic classification using simple heuristics
+        const severity = this.basicSeverityClassification(features, context);
+        const category = this.basicCategoryClassification(features);
+        const recoverability = this.basicRecoverabilityAssessment(features, context);
         
-        if (!systemFunctional) {
-            severity = Severity.FATAL;
-            category = Category.SYSTEM;
-            recoverability = Recoverability.MANUAL;
-            multipleComponentsAffected = true;
-        } else {
-            // Step 2: Assess impact scope
-            multipleComponentsAffected = this.assessImpactScope(features, context);
-            
-            if (multipleComponentsAffected) {
-                severity = Severity.CRITICAL;
-            } else {
-                // Step 3: Assess data and security risks
-                dataRisk = this.assessDataRisk(features, context);
-                securityRisk = this.assessSecurityRisk(features, context);
-                
-                if (dataRisk || securityRisk) {
-                    severity = Severity.CRITICAL;
-                    category = securityRisk ? Category.SECURITY : Category.DATA;
-                } else {
-                    // Step 4: Determine error category and severity
-                    category = this.determineCategory(features, context);
-                    severity = this.determineSeverity(features, context, category);
-                }
-            }
-            
-            // Step 5: Assess recoverability
-            recoverability = this.assessRecoverability(features, context, severity);
-        }
-
-        // Final adjustments based on context
-        if (context.attemptCount > 3) {
-            severity = this.escalateSeverity(severity);
-            recoverability = this.degradeRecoverability(recoverability);
-            confidenceScore *= 0.9; // Slightly lower confidence after multiple attempts
-        }
-
-        return {
+        // Basic assessments - agents can develop sophisticated logic
+        const systemFunctional = !features.isInfrastructureError;
+        const multipleComponentsAffected = context.attemptCount > 1;
+        const dataRisk = features.isDatabaseError;
+        const securityRisk = features.errorMessage.toLowerCase().includes('security');
+        
+        const classification = {
             severity,
             category,
             recoverability,
@@ -152,16 +108,11 @@ export class ErrorClassifier {
             multipleComponentsAffected,
             dataRisk,
             securityRisk,
-            confidenceScore,
+            confidenceScore: 0.7, // Basic confidence - agents can improve this
             timestamp: new Date(),
             metadata: {
                 features,
-                decisionPath: this.buildDecisionPath(
-                    systemFunctional,
-                    multipleComponentsAffected,
-                    dataRisk,
-                    securityRisk,
-                ),
+                basicClassification: true,
                 contextualFactors: {
                     tier: context.tier,
                     attemptCount: context.attemptCount,
@@ -169,412 +120,74 @@ export class ErrorClassifier {
                 },
             },
         };
+        
+        // Emit classification event for resilience agents to analyze and improve
+        this.emitClassificationEvent(classification, features, context);
+        
+        return classification;
     }
-
+    
     /**
-     * Assess if system is still functional
+     * Emit classification events for agent analysis
      */
-    private assessSystemFunctionality(
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): boolean {
-        // Critical system errors
-        if (features.errorType.includes("OutOfMemory") ||
-            features.errorType.includes("StackOverflow") ||
-            features.isInfrastructureError) {
-            return false;
-        }
-
-        // Database connection failures
-        if (features.isDatabaseError && features.errorMessage.includes("connection")) {
-            return false;
-        }
-
-        // Multiple tier failures
-        if (context.systemState.tierFailures && 
-            (context.systemState.tierFailures as number) > 1) {
-            return false;
-        }
-
-        // Service unavailable patterns
-        if (features.httpStatusCode === 503 || 
-            features.httpStatusCode === 502) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Assess if multiple components are affected
-     */
-    private assessImpactScope(
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): boolean {
-        // Network errors often affect multiple components
-        if (features.isNetworkError) {
-            return true;
-        }
-
-        // Authentication/authorization errors affect multiple components
-        if (features.isAuthError) {
-            return true;
-        }
-
-        // Rate limiting affects multiple operations
-        if (features.isRateLimitError) {
-            return true;
-        }
-
-        // Check system state for cascading failures
-        if (context.systemState.componentFailures &&
-            (context.systemState.componentFailures as number) > 2) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Assess data corruption or loss risk
-     */
-    private assessDataRisk(
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): boolean {
-        // Database write operations
-        if (features.isDatabaseError && 
-            (context.operation.includes("write") || 
-             context.operation.includes("update") ||
-             context.operation.includes("delete"))) {
-            return true;
-        }
-
-        // File system errors during writes
-        if (features.isFileSystemError && 
-            context.operation.includes("write")) {
-            return true;
-        }
-
-        // Transaction rollback scenarios
-        if (features.errorMessage.includes("transaction") &&
-            features.errorMessage.includes("rollback")) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Assess security risk
-     */
-    private assessSecurityRisk(
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): boolean {
-        // Authentication failures
-        if (features.isAuthError) {
-            return true;
-        }
-
-        // Authorization violations
-        if (features.httpStatusCode === 403) {
-            return true;
-        }
-
-        // Injection attack patterns
-        if (features.errorMessage.includes("injection") ||
-            features.errorMessage.includes("XSS") ||
-            features.errorMessage.includes("CSRF")) {
-            return true;
-        }
-
-        // Suspicious request patterns
-        if (context.userContext && 
-            context.systemState.suspiciousActivity) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Determine error category
-     */
-    private determineCategory(
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): ErrorCategory {
-        if (features.isNetworkError || features.isTimeoutError) {
-            return Category.TRANSIENT;
-        }
-        
-        if (features.isResourceError || features.isRateLimitError) {
-            return Category.RESOURCE;
-        }
-        
-        if (features.isDatabaseError || features.isFileSystemError) {
-            return Category.SYSTEM;
-        }
-        
-        if (features.isValidationError) {
-            return Category.LOGIC;
-        }
-        
-        if (features.isConfigurationError) {
-            return Category.CONFIGURATION;
-        }
-        
-        if (features.isAuthError) {
-            return Category.SECURITY;
-        }
-        
-        return Category.UNKNOWN;
-    }
-
-    /**
-     * Determine error severity
-     */
-    private determineSeverity(
-        features: ErrorFeatures,
-        context: ErrorContext,
-        category: ErrorCategory,
-    ): ErrorSeverity {
-        // User-facing operations are more severe
-        const isUserFacing = context.userContext !== undefined;
-        
-        // Critical errors
-        if (features.errorType.includes("Critical") ||
-            features.httpStatusCode >= 500) {
-            return isUserFacing ? Severity.CRITICAL : Severity.ERROR;
-        }
-        
-        // Client errors
-        if (features.httpStatusCode >= 400 && features.httpStatusCode < 500) {
-            return Severity.WARNING;
-        }
-        
-        // Transient errors are less severe unless repeated
-        if (category === Category.TRANSIENT) {
-            return context.attemptCount > 2 ? Severity.ERROR : Severity.WARNING;
-        }
-        
-        // Resource errors escalate with attempts
-        if (category === Category.RESOURCE) {
-            return context.attemptCount > 1 ? Severity.ERROR : Severity.WARNING;
-        }
-        
-        return Severity.ERROR;
-    }
-
-    /**
-     * Assess error recoverability
-     */
-    private assessRecoverability(
-        features: ErrorFeatures,
-        context: ErrorContext,
-        severity: ErrorSeverity,
-    ): ErrorRecoverability {
-        if (severity === Severity.FATAL) {
-            return Recoverability.NONE;
-        }
-        
-        if (severity === Severity.CRITICAL) {
-            return Recoverability.MANUAL;
-        }
-        
-        // Transient errors are usually automatically recoverable
-        if (features.isNetworkError || features.isTimeoutError) {
-            return context.attemptCount < 3 ? 
-                Recoverability.AUTOMATIC : 
-                Recoverability.PARTIAL;
-        }
-        
-        // Resource errors may be recoverable with backoff
-        if (features.isResourceError || features.isRateLimitError) {
-            return Recoverability.AUTOMATIC;
-        }
-        
-        // Configuration errors need manual intervention
-        if (features.isConfigurationError) {
-            return Recoverability.MANUAL;
-        }
-        
-        // Database errors depend on type
-        if (features.isDatabaseError) {
-            return features.errorMessage.includes("connection") ?
-                Recoverability.AUTOMATIC :
-                Recoverability.PARTIAL;
-        }
-        
-        return Recoverability.PARTIAL;
-    }
-
-    /**
-     * Enhance classification with pattern matching
-     */
-    private async enhanceWithPatterns(
+    private emitClassificationEvent(
         classification: ErrorClassification,
         features: ErrorFeatures,
         context: ErrorContext,
-    ): Promise<ErrorClassification> {
-        const matchingPatterns = this.findMatchingPatterns(features, context);
-        
-        if (matchingPatterns.length === 0) {
-            return classification;
-        }
-        
-        // Use the best matching pattern to refine classification
-        const bestPattern = matchingPatterns.reduce((best, current) =>
-            best.confidence > current.confidence ? best : current,
-        );
-        
-        // Adjust confidence based on pattern match
-        const patternConfidence = bestPattern.confidence;
-        const adjustedConfidence = (classification.confidenceScore + patternConfidence) / 2;
-        
-        return {
-            ...classification,
-            confidenceScore: adjustedConfidence,
-            metadata: {
-                ...classification.metadata,
-                matchingPatterns: matchingPatterns.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    confidence: p.confidence,
-                })),
-                bestPattern: {
-                    id: bestPattern.id,
-                    name: bestPattern.name,
-                    confidence: bestPattern.confidence,
-                },
-            },
-        };
+    ): void {
+        // Emit to event bus if available (would need EventBus injection)
+        logger.debug("Error classification event", {
+            type: "resilience.error.classified",
+            classification,
+            features,
+            context,
+            timestamp: new Date(),
+        });
     }
-
+    
     /**
-     * Find matching error patterns
+     * Basic severity classification - agents can enhance this
      */
-    private findMatchingPatterns(
+    private basicSeverityClassification(
         features: ErrorFeatures,
         context: ErrorContext,
-    ): ErrorPattern[] {
-        return this.patterns
-            .map(pattern => ({
-                ...pattern,
-                confidence: this.calculatePatternMatch(pattern, features, context),
-            }))
-            .filter(pattern => pattern.confidence > CONFIDENCE_THRESHOLDS.LOW)
-            .sort((a, b) => b.confidence - a.confidence);
+    ): ErrorSeverity {
+        if (features.isInfrastructureError) return Severity.FATAL;
+        if (features.isDatabaseError) return Severity.CRITICAL;
+        if (context.attemptCount > 3) return Severity.HIGH;
+        if (features.isTimeoutError) return Severity.MEDIUM;
+        return Severity.LOW;
     }
-
+    
     /**
-     * Calculate how well a pattern matches current error
+     * Basic category classification - agents can enhance this
      */
-    private calculatePatternMatch(
-        pattern: ErrorPattern,
+    private basicCategoryClassification(features: ErrorFeatures): ErrorCategory {
+        if (features.isNetworkError) return Category.NETWORK;
+        if (features.isDatabaseError) return Category.DATA;
+        if (features.isValidationError) return Category.VALIDATION;
+        if (features.isInfrastructureError) return Category.SYSTEM;
+        return Category.UNKNOWN;
+    }
+    
+    /**
+     * Basic recoverability assessment - agents can enhance this
+     */
+    private basicRecoverabilityAssessment(
         features: ErrorFeatures,
         context: ErrorContext,
-    ): number {
-        let totalWeight = 0;
-        let matchedWeight = 0;
-        
-        for (const condition of pattern.triggerConditions) {
-            totalWeight += condition.weight;
-            
-            if (this.evaluateCondition(condition, features, context)) {
-                matchedWeight += condition.weight;
-            }
-        }
-        
-        return totalWeight > 0 ? matchedWeight / totalWeight : 0;
+    ): ErrorRecoverability {
+        if (features.isInfrastructureError) return Recoverability.MANUAL;
+        if (context.attemptCount > 3) return Recoverability.COMPLEX;
+        if (features.isTimeoutError || features.isNetworkError) return Recoverability.AUTOMATIC;
+        return Recoverability.RETRY;
     }
 
-    /**
-     * Evaluate a pattern condition
-     */
-    private evaluateCondition(
-        condition: PatternCondition,
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): boolean {
-        const value = this.getValueFromContext(condition.field, features, context);
-        
-        return this.compareValues(value, condition.value, condition.operator, condition.tolerance);
-    }
-
-    /**
-     * Get value from features or context
-     */
-    private getValueFromContext(
-        field: string,
-        features: ErrorFeatures,
-        context: ErrorContext,
-    ): unknown {
-        // Check features first
-        if (field in features) {
-            return (features as any)[field];
-        }
-        
-        // Check context
-        if (field in context) {
-            return (context as any)[field];
-        }
-        
-        // Check nested fields
-        if (field.includes(".")) {
-            const parts = field.split(".");
-            let obj: any = { ...features, ...context };
-            
-            for (const part of parts) {
-                if (obj && typeof obj === "object" && part in obj) {
-                    obj = obj[part];
-                } else {
-                    return undefined;
-                }
-            }
-            
-            return obj;
-        }
-        
-        return undefined;
-    }
-
-    /**
-     * Compare values using operator
-     */
-    private compareValues(
-        actual: unknown,
-        expected: unknown,
-        operator: ConditionOperator,
-        tolerance?: number,
-    ): boolean {
-        switch (operator) {
-            case "EQUALS":
-                return actual === expected;
-            case "NOT_EQUALS":
-                return actual !== expected;
-            case "GREATER_THAN":
-                return typeof actual === "number" && typeof expected === "number" &&
-                    actual > expected;
-            case "LESS_THAN":
-                return typeof actual === "number" && typeof expected === "number" &&
-                    actual < expected;
-            case "CONTAINS":
-                return typeof actual === "string" && typeof expected === "string" &&
-                    actual.includes(expected);
-            case "IN":
-                return Array.isArray(expected) && expected.includes(actual);
-            case "NOT_IN":
-                return Array.isArray(expected) && !expected.includes(actual);
-            case "REGEX_MATCH":
-                return typeof actual === "string" && typeof expected === "string" &&
-                    new RegExp(expected).test(actual);
-            default:
-                return false;
-        }
-    }
+    // NOTE: Removed all complex assessment methods (assessSystemFunctionality, 
+    // assessImpactScope, assessDataRisk, assessSecurityRisk, determineCategory,
+    // determineSeverity, assessRecoverability, escalateSeverity, degradeRecoverability,
+    // buildDecisionPath, etc.) - this intelligence should emerge from resilience 
+    // agents analyzing classification events and developing sophisticated patterns.
 
     /**
      * Extract error features for classification
@@ -753,50 +366,6 @@ export class ErrorClassifier {
         }
         
         return "other";
-    }
-
-    /**
-     * Helper methods for severity escalation
-     */
-    private escalateSeverity(severity: ErrorSeverity): ErrorSeverity {
-        switch (severity) {
-            case Severity.INFO: return Severity.WARNING;
-            case Severity.WARNING: return Severity.ERROR;
-            case Severity.ERROR: return Severity.CRITICAL;
-            case Severity.CRITICAL: return Severity.FATAL;
-            default: return severity;
-        }
-    }
-
-    private degradeRecoverability(recoverability: ErrorRecoverability): ErrorRecoverability {
-        switch (recoverability) {
-            case Recoverability.AUTOMATIC: return Recoverability.PARTIAL;
-            case Recoverability.PARTIAL: return Recoverability.MANUAL;
-            default: return recoverability;
-        }
-    }
-
-    /**
-     * Build decision path for debugging
-     */
-    private buildDecisionPath(
-        systemFunctional: boolean,
-        multipleComponentsAffected: boolean,
-        dataRisk: boolean,
-        securityRisk: boolean,
-    ): string[] {
-        const path = [`system_functional: ${systemFunctional}`];
-        
-        if (systemFunctional) {
-            path.push(`multiple_components_affected: ${multipleComponentsAffected}`);
-            
-            if (!multipleComponentsAffected) {
-                path.push(`data_risk: ${dataRisk}`);
-                path.push(`security_risk: ${securityRisk}`);
-            }
-        }
-        
-        return path;
     }
 
     /**

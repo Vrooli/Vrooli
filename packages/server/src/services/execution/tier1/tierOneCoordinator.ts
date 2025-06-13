@@ -12,12 +12,9 @@ import {
     type RoutineExecutionInput,
 } from "@vrooli/shared";
 import { SwarmStateMachine } from "./coordination/swarmStateMachine.js";
-import { ConversationBridge } from "./intelligence/conversationBridge.js";
 import { TeamManager } from "./organization/teamManager.js";
 import { ResourceManager } from "./organization/resourceManager.js";
-import { StrategyEngine } from "./intelligence/strategyEngine.js";
-// MetacognitiveMonitor functionality now provided by emergent agents - see monitoring/README.md
-// import { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
+// All intelligence functionality now provided by emergent agents - see docs/architecture/execution/emergent-capabilities/
 import { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 import { type ISwarmStateStore } from "./state/swarmStateStore.js";
 import {
@@ -46,9 +43,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly swarmMachines: Map<string, SwarmStateMachine> = new Map();
     private readonly teamManager: TeamManager;
     private readonly resourceManager: ResourceManager;
-    private readonly strategyEngine: StrategyEngine;
-    private readonly metacognitiveMonitor: MetacognitiveMonitor;
-    private readonly conversationBridge: ConversationBridge;
+    // Intelligence components removed - functionality provided by emergent agents
     private readonly chatStore: PrismaChatStore;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
 
@@ -59,12 +54,9 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         // Initialize state store
         this.stateStore = SwarmStateStoreFactory.getInstance(logger);
         
-        // Initialize components
+        // Initialize minimal components
         this.teamManager = new TeamManager(logger);
         this.resourceManager = new ResourceManager(logger);
-        this.strategyEngine = new StrategyEngine(logger);
-        this.metacognitiveMonitor = new MetacognitiveMonitor(logger, eventBus);
-        this.conversationBridge = new ConversationBridge(logger);
         this.chatStore = new PrismaChatStore();
         
         // Setup event handlers

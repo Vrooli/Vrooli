@@ -150,9 +150,9 @@ describe("ReasoningStrategy Integration Tests", () => {
 
             // Verify performance metrics
             expect(result.confidence).toBeGreaterThan(0);
-            expect(result.confidence).to.be.lessThanOrEqual(1);
+            expect(result.confidence).toBeLessThanOrEqual(1);
             expect(result.performanceScore).toBeGreaterThan(0);
-            expect(result.performanceScore).to.be.lessThanOrEqual(1);
+            expect(result.performanceScore).toBeLessThanOrEqual(1);
         });
 
         it("should handle missing inputs by generating them intelligently", async () => {
@@ -250,8 +250,8 @@ describe("ReasoningStrategy Integration Tests", () => {
             expect(typeof result.outputs.textSummary).toBe("string");
             expect(typeof result.outputs.numericScore).toBe("number");
             expect(typeof result.outputs.integerCount).toBe("number");
-            expect(Number.isInteger(result.outputs.integerCount as number)).to.equal(true);
-            expect(Array.isArray(result.outputs.arraySteps)).to.equal(true);
+            expect(Number.isInteger(result.outputs.integerCount as number)).toBe(true);
+            expect(Array.isArray(result.outputs.arraySteps)).toBe(true);
             expect(typeof result.outputs.objectMetadata).toBe("object");
         });
 
@@ -407,7 +407,7 @@ describe("ReasoningStrategy Integration Tests", () => {
             // Compare estimation vs actual usage
             expect(result.success).toBe(true);
             expect(result.resourceUsage.tokens).toBeGreaterThan(0);
-            expect(result.resourceUsage.apiCalls).to.be.greaterThanOrEqual(4); // 4-phase minimum
+            expect(result.resourceUsage.apiCalls).toBeGreaterThanOrEqual(4); // 4-phase minimum
             expect(result.resourceUsage.computeTime).toBeGreaterThan(0);
 
             // Estimation should be in reasonable range of actual usage
@@ -416,11 +416,11 @@ describe("ReasoningStrategy Integration Tests", () => {
             const callRatio = result.resourceUsage.apiCalls / estimation.apiCalls;
 
             expect(tokenRatio).toBeGreaterThan(0.5); // Not more than 2x underestimate
-            expect(tokenRatio).to.be.lessThan(3.0);    // Not more than 3x overestimate
+            expect(tokenRatio).toBeLessThan(3.0);    // Not more than 3x overestimate
             expect(timeRatio).toBeGreaterThan(0.1);  // Time estimation can vary more
-            expect(timeRatio).to.be.lessThan(5.0);
+            expect(timeRatio).toBeLessThan(5.0);
             expect(callRatio).toBeGreaterThan(0.5);  // API calls should be close
-            expect(callRatio).to.be.lessThan(2.0);
+            expect(callRatio).toBeLessThan(2.0);
         });
 
         it("should scale estimation with context complexity", () => {
@@ -507,8 +507,8 @@ describe("ReasoningStrategy Integration Tests", () => {
         });
 
         it("should respect explicit strategy configuration", () => {
-            expect(strategy.canHandle("any_step_type", { strategy: "reasoning" })).to.equal(true);
-            expect(strategy.canHandle("format_output", { strategy: "reasoning" })).to.equal(true);
+            expect(strategy.canHandle("any_step_type", { strategy: "reasoning" })).toBe(true);
+            expect(strategy.canHandle("format_output", { strategy: "reasoning" })).toBe(true);
         });
     });
 

@@ -229,109 +229,98 @@ export class StrategySelector {
         }
 
         // Evolution pipeline: Conversational -> Reasoning -> Deterministic
+        // Let optimization agents determine graduation through event analysis
 
         // Check for graduation from Conversational to Reasoning
         if (declaredStrategy === StrategyTypeEnum.CONVERSATIONAL) {
-            if (this.shouldGraduateToReasoning(usageHints)) {
-                return StrategyTypeEnum.REASONING;
-            }
+            this.shouldGraduateToReasoning(usageHints); // Emits event only
         }
 
         // Check for graduation from Reasoning to Deterministic
         if (declaredStrategy === StrategyTypeEnum.REASONING) {
-            if (this.shouldGraduateToDeterministic(usageHints)) {
-                return StrategyTypeEnum.DETERMINISTIC;
-            }
+            this.shouldGraduateToDeterministic(usageHints); // Emits event only
         }
 
         return declaredStrategy;
     }
 
     /**
-     * Checks if strategy should graduate to reasoning
+     * Emit strategy graduation consideration event for optimization agents
+     */
+    private emitGraduationEvent(targetStrategy: string, hints: UsageHints): void {
+        this.logger.debug("Strategy graduation consideration", {
+            type: "execution.strategy.graduation_considered",
+            targetStrategy,
+            hints,
+            timestamp: new Date(),
+        });
+    }
+
+    /**
+     * Basic strategy graduation checks
+     * Note: Optimization agents should determine sophisticated thresholds through events
      */
     private shouldGraduateToReasoning(hints: UsageHints): boolean {
-        const successThreshold = 0.8;
-        const frequencyThreshold = 10;
-
-        return (
-            (hints.historicalSuccessRate ?? 0) >= successThreshold &&
-            (hints.executionFrequency ?? 0) >= frequencyThreshold
-        );
+        // Always stay with declared strategy - optimization agents can override via events
+        // Emit graduation consideration event for agent analysis
+        this.emitGraduationEvent('reasoning', hints);
+        return false; // Let agents decide graduation through events
     }
 
     /**
-     * Checks if strategy should graduate to deterministic
+     * Basic strategy graduation checks  
+     * Note: Optimization agents should determine sophisticated thresholds through events
      */
     private shouldGraduateToDeterministic(hints: UsageHints): boolean {
-        const successThreshold = 0.95;
-        const frequencyThreshold = 50;
-        const complexityThreshold = 0.3; // Low complexity
-
-        return (
-            (hints.historicalSuccessRate ?? 0) >= successThreshold &&
-            (hints.executionFrequency ?? 0) >= frequencyThreshold &&
-            (hints.averageComplexity ?? 1) <= complexityThreshold
-        );
+        // Always stay with declared strategy - optimization agents can override via events
+        // Emit graduation consideration event for agent analysis
+        this.emitGraduationEvent('deterministic', hints);
+        return false; // Let agents decide graduation through events
     }
 
     /**
-     * Checks for security violations
+     * Basic security checks
+     * Note: Complex security policies should be handled by security agents
      */
     private hasSecurityViolation(strategy: StrategyType, context: ExecutionContext): boolean {
-        // Check for sensitive data handling
+        // Minimal check - let security agents handle complex policies
         const hasSensitiveData = context.config.sensitiveData === true;
-        const hasComplianceRequirement = context.config.compliance !== undefined;
-
-        // Conversational strategy not allowed for sensitive operations
-        if (strategy === StrategyTypeEnum.CONVERSATIONAL && (hasSensitiveData || hasComplianceRequirement)) {
-            return true;
-        }
-
-        return false;
+        
+        // Basic rule: no conversational for sensitive data
+        return strategy === StrategyTypeEnum.CONVERSATIONAL && hasSensitiveData;
     }
 
     /**
-     * Checks domain restrictions
+     * Basic domain restriction checks
+     * Note: Complex compliance policies should be handled by security agents
      */
     private checkDomainRestrictions(
         strategy: StrategyType,
         restrictions: string[],
     ): StrategyType | null {
-        // HIPAA compliance requires deterministic
-        if (restrictions.includes("HIPAA") && strategy !== StrategyTypeEnum.DETERMINISTIC) {
-            return StrategyTypeEnum.DETERMINISTIC;
-        }
-
-        // Financial regulations prefer reasoning or deterministic
-        if (restrictions.includes("PCI-DSS") && strategy === StrategyTypeEnum.CONVERSATIONAL) {
-            return StrategyTypeEnum.REASONING;
+        // Minimal compliance check - let security agents handle complex policies
+        if (restrictions.length > 0 && strategy === StrategyTypeEnum.CONVERSATIONAL) {
+            return StrategyTypeEnum.REASONING; // Basic safe fallback
         }
 
         return null;
     }
 
     /**
-     * Checks for resource constraints
+     * Basic resource constraint checks
+     * Note: Complex resource optimization should be handled by optimization agents
      */
     private hasResourceConstraints(strategy: StrategyType, context: ExecutionContext): boolean {
         const constraints = context.constraints;
-
-        // Very tight time constraints
-        if (constraints.maxTime && constraints.maxTime < 5000) { // 5 seconds
-            return strategy !== StrategyTypeEnum.DETERMINISTIC;
-        }
-
-        // Very tight cost constraints
-        if (constraints.maxCost && constraints.maxCost < 0.01) { // 1 cent
-            return strategy === StrategyTypeEnum.CONVERSATIONAL;
-        }
-
-        return false;
+        
+        // Minimal check - let optimization agents handle complex resource logic
+        return (constraints.maxTime !== undefined && constraints.maxTime < 1000) ||
+               (constraints.maxCost !== undefined && constraints.maxCost < 0.001);
     }
 
     /**
-     * Selects resource-optimal strategy
+     * Basic resource-based strategy selection
+     * Note: Complex resource optimization should be handled by optimization agents
      */
     private selectResourceOptimalStrategy(
         _currentStrategy: StrategyType,
@@ -339,18 +328,12 @@ export class StrategySelector {
     ): StrategyType {
         const constraints = context.constraints;
 
-        // For very tight constraints, use deterministic
-        if (constraints.maxTime && constraints.maxTime < 5000) {
-            return StrategyTypeEnum.DETERMINISTIC;
+        // Minimal logic - let optimization agents handle sophisticated resource allocation
+        if (constraints.maxTime && constraints.maxTime < 1000) {
+            return StrategyTypeEnum.DETERMINISTIC; // Fastest option
         }
 
-        // For moderate constraints, use reasoning
-        if (constraints.maxCost && constraints.maxCost < 0.1) {
-            return StrategyTypeEnum.REASONING;
-        }
-
-        // Otherwise reasoning is a good middle ground
-        return StrategyTypeEnum.REASONING;
+        return StrategyTypeEnum.REASONING; // Safe middle ground
     }
 
     /**

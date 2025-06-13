@@ -11,11 +11,12 @@ import {
     type TierCommunicationInterface,
     type TierExecutionRequest,
     type ExecutionResult,
-    type ExecutionStatus,
+    ExecutionStatus,
     type ExecutionId,
     type StepExecutionInput,
     type TierCapabilities,
     type ResourceAllocation,
+    StrategyType as StrategyTypeEnum,
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { StrategySelector } from "./strategySelector.js";
@@ -23,11 +24,9 @@ import { ResourceManager } from "./resourceManager.js";
 import { IOProcessor } from "./ioProcessor.js";
 import { ToolOrchestrator } from "./toolOrchestrator.js";
 import { ValidationEngine } from "./validationEngine.js";
-import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { type RunContext } from "../context/runContext.js";
 import { ContextExporter } from "../context/contextExporter.js";
 import { type IntegratedToolRegistry } from "../../integration/mcp/toolRegistry.js";
-import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
  * UnifiedExecutor - The heart of Tier 3 Execution Intelligence
@@ -41,7 +40,7 @@ import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/a
  * - Resource management with credit and time tracking
  * - Tool orchestration through MCP protocol
  * - Output validation with schema enforcement
- * - Telemetry emission for monitoring and learning
+ * - Event emission for emergent monitoring and learning
  * 
  * Implements TierCommunicationInterface for standardized inter-tier communication.
  */
@@ -51,46 +50,27 @@ export class UnifiedExecutor implements TierCommunicationInterface {
     private readonly ioProcessor: IOProcessor;
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
-    private readonly telemetryShim: TelemetryShim;
     private readonly contextExporter: ContextExporter;
     private readonly eventBus: EventBus;
     private readonly logger: Logger;
-    private readonly rollingHistory?: RollingHistory;
 
     constructor(
-        config: UnifiedExecutorConfig,
         eventBus: EventBus,
         logger: Logger,
-        toolRegistry?: IntegratedToolRegistry,
-        rollingHistory?: RollingHistory,
+        strategySelector: StrategySelector,
+        toolOrchestrator: ToolOrchestrator,
+        resourceManager: ResourceManager,
+        validationEngine: ValidationEngine,
+        ioProcessor: IOProcessor,
     ) {
         this.eventBus = eventBus;
         this.logger = logger;
-        this.rollingHistory = rollingHistory;
-
-        // Initialize components
-        this.toolOrchestrator = new ToolOrchestrator(eventBus, logger, toolRegistry);
-        this.validationEngine = new ValidationEngine(logger);
-        this.resourceManager = new ResourceManager(logger, eventBus);
-        this.ioProcessor = new IOProcessor(logger);
-        this.telemetryShim = new TelemetryShim(
-            eventBus, 
-            {
-                tier: 3,
-                component: "UnifiedExecutor",
-                instanceId: "singleton",
-            },
-            { enabled: config.telemetryEnabled }
-        );
+        this.strategySelector = strategySelector;
+        this.toolOrchestrator = toolOrchestrator;
+        this.resourceManager = resourceManager;
+        this.validationEngine = validationEngine;
+        this.ioProcessor = ioProcessor;
         this.contextExporter = new ContextExporter(eventBus, logger);
-        
-        // Initialize strategy selector with enhanced configuration
-        const strategyFactoryConfig = {
-            ...config.strategyFactory,
-            toolOrchestrator: this.toolOrchestrator,
-            validationEngine: this.validationEngine,
-        };
-        this.strategySelector = new StrategySelector(strategyFactoryConfig, logger, this.toolOrchestrator, this.validationEngine);
     }
 
     /**
@@ -116,11 +96,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             routineId: runContext.routineId,
         });
 
-        // Emit telemetry for step start
-        await this.telemetryShim.emitStepStarted(stepId, {
+        // Emit event for step start
+        await this.eventBus.publish("step.started", {
+            stepId,
             stepType: stepContext.stepType,
-            strategy: stepContext.config?.strategy || StrategyType.CONVERSATIONAL,
+            strategy: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
             estimatedResources: stepContext.resources,
+            timestamp: new Date().toISOString(),
         });
 
         try {
@@ -143,11 +125,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 strategyName: strategy.name,
             });
 
-            // Emit strategy selection telemetry
-            await this.telemetryShim.emitStrategySelected(stepId, {
-                declared: stepContext.config?.strategy || StrategyType.CONVERSATIONAL,
+            // Emit strategy selection event
+            await this.eventBus.publish("strategy.selected", {
+                stepId,
+                declared: stepContext.config?.strategy || StrategyTypeEnum.CONVERSATIONAL,
                 selected: strategy.type,
                 reason: "Based on context and usage hints",
+                timestamp: new Date().toISOString(),
             });
 
             // 2. Reserve budget for this step
@@ -158,19 +142,26 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 stepContext.swarmId,
             );
 
-            // Emit resource allocation telemetry
+            // Emit resource allocation event
             if (budgetReservation.approved) {
-                await this.telemetryShim.emitResourceAllocated(stepId, {
+                await this.eventBus.publish("resources.allocated", {
+                    stepId,
                     credits: parseInt(budgetReservation.allocation.credits || "0"),
                     timeLimit: stepContext.constraints?.maxTime,
                     tools: budgetReservation.allocation.tools?.length || 0,
                     models: budgetReservation.allocation.models || [],
+                    timestamp: new Date().toISOString(),
                 });
             }
 
             if (!budgetReservation.approved) {
                 const error = budgetReservation.reason || "Resource limit exceeded";
-                await this.telemetryShim.emitLimitExceeded(stepId, stepContext.constraints);
+                await this.eventBus.publish("resources.limit_exceeded", {
+                    stepId,
+                    constraints: stepContext.constraints,
+                    reason: error,
+                    timestamp: new Date().toISOString(),
+                });
                 return this.createErrorResult(error, strategy.type, startTime);
             }
 
@@ -197,16 +188,22 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 stepContext.config.outputSchema,
             );
 
-            // Emit output generation telemetry
-            await this.telemetryShim.emitOutputGenerated(stepId, {
+            // Emit output generation event
+            await this.eventBus.publish("output.generated", {
+                stepId,
                 outputKeys: Object.keys(validatedOutput.data || {}),
                 size: JSON.stringify(validatedOutput.data || {}).length,
                 validationPassed: validatedOutput.valid,
+                timestamp: new Date().toISOString(),
             });
 
             if (!validatedOutput.valid) {
                 const error = `Output validation failed: ${validatedOutput.errors.join(", ")}`;
-                await this.telemetryShim.emitValidationFailure(stepId, validatedOutput.errors);
+                await this.eventBus.publish("validation.failed", {
+                    stepId,
+                    errors: validatedOutput.errors,
+                    timestamp: new Date().toISOString(),
+                });
                 return this.createErrorResult(error, strategy.type, startTime);
             }
 
@@ -223,11 +220,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 outputs: validatedOutput.data,
             });
 
-            // 8. Emit completion telemetry
-            await this.telemetryShim.emitStepCompleted(stepId, {
+            // 8. Emit completion event
+            await this.eventBus.publish("step.completed", {
+                stepId,
                 strategy: strategy.type,
                 duration: Date.now() - startTime,
                 resourceUsage: usageReport,
+                timestamp: new Date().toISOString(),
             });
 
             // 9. Return successful result
@@ -256,11 +255,16 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            await this.telemetryShim.emitExecutionError(stepId, error);
+            await this.eventBus.publish("execution.error", {
+                stepId,
+                error: error instanceof Error ? error.message : String(error),
+                errorType: error instanceof Error ? error.constructor.name : "Error",
+                timestamp: new Date().toISOString(),
+            });
 
             return this.createErrorResult(
                 error instanceof Error ? error.message : "Unknown execution error",
-                StrategyType.CONVERSATIONAL, // Default fallback
+                StrategyTypeEnum.CONVERSATIONAL, // Default fallback
                 startTime,
             );
         }
@@ -295,24 +299,29 @@ export class UnifiedExecutor implements TierCommunicationInterface {
             },
         );
 
-        // Set up tool call telemetry
+        // Set up tool call event emission
         const originalExecuteTool = this.toolOrchestrator.executeTool?.bind(this.toolOrchestrator);
         if (originalExecuteTool) {
             this.toolOrchestrator.executeTool = async (toolName: string, params: any) => {
                 const toolStartTime = Date.now();
                 try {
                     const result = await originalExecuteTool(toolName, params);
-                    await this.telemetryShim.emitToolCall(context.stepId, {
+                    await this.eventBus.publish("tool.executed", {
+                        stepId: context.stepId,
                         toolName,
                         duration: Date.now() - toolStartTime,
                         success: true,
+                        timestamp: new Date().toISOString(),
                     });
                     return result;
                 } catch (error) {
-                    await this.telemetryShim.emitToolCall(context.stepId, {
+                    await this.eventBus.publish("tool.executed", {
+                        stepId: context.stepId,
                         toolName,
                         duration: Date.now() - toolStartTime,
                         success: false,
+                        error: error instanceof Error ? error.message : String(error),
+                        timestamp: new Date().toISOString(),
                     });
                     throw error;
                 }
@@ -434,21 +443,14 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 strategy: input.strategy,
             });
 
-            // Track execution in rolling history if available
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier3.execution.started',
-                    tier: 'tier3',
-                    component: 'unified-executor',
-                    data: {
-                        executionId,
-                        stepId: input.stepId,
-                        stepType: input.stepType,
-                        strategy: input.strategy,
-                    },
-                });
-            }
+            // Emit execution started event
+            await this.eventBus.publish("tier3.execution.started", {
+                executionId,
+                stepId: input.stepId,
+                stepType: input.stepType,
+                strategy: input.strategy,
+                timestamp: new Date().toISOString(),
+            });
 
             // Build enhanced context for step execution
             const stepContext: ExecutionContext = {
@@ -524,23 +526,16 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 duration: executionResult.duration,
             });
 
-            // Track completion in rolling history
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier3.execution.completed',
-                    tier: 'tier3',
-                    component: 'unified-executor',
-                    data: {
-                        executionId,
-                        success: executionResult.success,
-                        duration: executionResult.duration,
-                        resourcesUsed: executionResult.resourcesUsed,
-                        confidence: executionResult.confidence,
-                        performanceScore: executionResult.performanceScore,
-                    },
-                });
-            }
+            // Emit execution completed event
+            await this.eventBus.publish("tier3.execution.completed", {
+                executionId,
+                success: executionResult.success,
+                duration: executionResult.duration,
+                resourcesUsed: executionResult.resourcesUsed,
+                confidence: executionResult.confidence,
+                performanceScore: executionResult.performanceScore,
+                timestamp: new Date().toISOString(),
+            });
 
             return executionResult;
 
@@ -556,20 +551,13 @@ export class UnifiedExecutor implements TierCommunicationInterface {
                 error: error instanceof Error ? error.message : String(error),
             });
 
-            // Track failure in rolling history
-            if (this.rollingHistory) {
-                this.rollingHistory.addEvent({
-                    timestamp: new Date(),
-                    type: 'tier3.execution.failed',
-                    tier: 'tier3',
-                    component: 'unified-executor',
-                    data: {
-                        executionId,
-                        error: error instanceof Error ? error.message : String(error),
-                        errorType: error instanceof Error ? error.constructor.name : 'Error',
-                    },
-                });
-            }
+            // Emit execution failed event
+            await this.eventBus.publish("tier3.execution.failed", {
+                executionId,
+                error: error instanceof Error ? error.message : String(error),
+                errorType: error instanceof Error ? error.constructor.name : "Error",
+                timestamp: new Date().toISOString(),
+            });
 
             // Return error result
             const errorResult: ExecutionResult<TOutput> = {

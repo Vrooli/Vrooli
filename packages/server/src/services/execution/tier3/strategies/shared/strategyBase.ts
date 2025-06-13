@@ -1,3 +1,20 @@
+/**
+ * Minimal Strategy Base - Event-driven execution strategies
+ * 
+ * This base class provides ONLY core strategy execution functionality.
+ * All performance tracking, optimization, and learning capabilities
+ * emerge from strategy optimization agents.
+ * 
+ * IMPORTANT: This component does NOT:
+ * - Track performance metrics
+ * - Optimize execution paths
+ * - Learn from past executions
+ * - Make improvement decisions
+ * - Store execution history
+ * 
+ * It ONLY executes strategies and emits events.
+ */
+
 import { type Logger } from "winston";
 import {
     type ExecutionContext as StrategyExecutionContext,
@@ -8,276 +25,248 @@ import {
     type ResourceUsage,
     StrategyType,
 } from "@vrooli/shared";
-import { PerformanceTrackerAdapter as PerformanceTracker, type PerformanceEntry } from "../../../monitoring/adapters/PerformanceTrackerAdapter.js";
+import { type EventBus } from "../../../cross-cutting/events/eventBus.js";
+import { ExecutionEventEmitter, ComponentEventEmitter } from "../../../cross-cutting/monitoring/ExecutionEventEmitter.js";
+import { ErrorHandler, ComponentErrorHandler } from "../../../shared/ErrorHandler.js";
 
 /**
- * Strategy configuration options
+ * Minimal strategy configuration
  */
-export interface StrategyConfig {
-    enablePerformanceTracking?: boolean;
+export interface MinimalStrategyConfig {
     maxRetries?: number;
     timeoutMs?: number;
-    learningEnabled?: boolean;
 }
 
 /**
- * Strategy execution metadata
+ * Minimal strategy execution metadata
  */
-export interface ExecutionMetadata {
+export interface MinimalExecutionMetadata {
     startTime: Date;
     endTime?: Date;
     retryCount: number;
     errors: string[];
-    warnings: string[];
 }
 
 /**
- * Abstract base class for execution strategies
- * Extracts common patterns from ConversationalStrategy and DeterministicStrategy
+ * Minimal Strategy Base
+ * 
+ * Provides basic strategy execution with event emission.
+ * Strategy optimization agents subscribe to events to provide
+ * performance tracking, pattern detection, and learning.
  */
-export abstract class StrategyBase implements ExecutionStrategy {
+export abstract class MinimalStrategyBase implements ExecutionStrategy {
     abstract readonly type: StrategyType;
     abstract readonly name: string;
     abstract readonly version: string;
 
-    protected readonly logger: Logger;
-    protected readonly config: StrategyConfig;
-    protected readonly performanceTracker: PerformanceTracker;
-
-    // Common configuration
-    protected static readonly DEFAULT_MAX_RETRIES = 3;
-    protected static readonly DEFAULT_TIMEOUT_MS = 300000; // 5 minutes
-    protected static readonly RETRY_DELAY_MS = 1000;
+    protected readonly eventEmitter: ComponentEventEmitter;
+    protected readonly errorHandler: ComponentErrorHandler;
+    protected readonly config: MinimalStrategyConfig;
 
     constructor(
-        logger: Logger,
-        config: StrategyConfig = {}
+        protected readonly logger: Logger,
+        eventBus: EventBus,
+        config: MinimalStrategyConfig = {}
     ) {
-        this.logger = logger;
         this.config = {
-            enablePerformanceTracking: true,
-            maxRetries: StrategyBase.DEFAULT_MAX_RETRIES,
-            timeoutMs: StrategyBase.DEFAULT_TIMEOUT_MS,
-            learningEnabled: true,
-            ...config,
+            maxRetries: config.maxRetries || 3,
+            timeoutMs: config.timeoutMs || 300000, // 5 minutes
         };
         
-        this.performanceTracker = new PerformanceTracker();
+        const executionEmitter = new ExecutionEventEmitter(logger, eventBus);
+        this.eventEmitter = executionEmitter.createComponentEmitter(3, `strategy:${this.name}`);
+        
+        const errorHandler = new ErrorHandler(logger, executionEmitter.eventPublisher);
+        this.errorHandler = errorHandler.createComponentHandler(`Strategy:${this.name}`);
     }
 
     /**
-     * Main execution method - implements common execution lifecycle
+     * Execute strategy with basic retry logic and event emission
      */
     async execute(context: StrategyExecutionContext): Promise<StrategyExecutionResult> {
-        const metadata: ExecutionMetadata = {
+        const executionId = `${this.name}:${context.stepId}:${Date.now()}`;
+        const metadata: MinimalExecutionMetadata = {
             startTime: new Date(),
             retryCount: 0,
             errors: [],
-            warnings: [],
         };
+
+        // Emit execution start
+        await this.emitExecutionEvent(executionId, "started", context, metadata);
 
         let lastError: Error | undefined;
         let result: StrategyExecutionResult | undefined;
 
-        // Retry loop with exponential backoff
+        // Basic retry loop
         for (let attempt = 0; attempt < this.config.maxRetries!; attempt++) {
             metadata.retryCount = attempt;
 
             try {
-                this.logger.debug(`[${this.name}] Execution attempt ${attempt + 1}`, {
-                    stepId: context.stepId,
-                    maxRetries: this.config.maxRetries,
-                });
-
                 // Strategy-specific execution
                 result = await this.executeStrategy(context, metadata);
                 
-                // Success - break retry loop
-                break;
+                // Success - emit and return
+                metadata.endTime = new Date();
+                await this.emitExecutionEvent(executionId, "completed", context, metadata, result);
+                return result;
 
             } catch (error) {
                 lastError = error instanceof Error ? error : new Error(String(error));
                 metadata.errors.push(lastError.message);
-
-                this.logger.warn(`[${this.name}] Execution attempt ${attempt + 1} failed`, {
-                    stepId: context.stepId,
-                    error: lastError.message,
-                    attempt: attempt + 1,
-                    maxRetries: this.config.maxRetries,
-                });
-
-                // If not the last attempt, wait before retrying
+                
+                // Emit retry event
                 if (attempt < this.config.maxRetries! - 1) {
-                    const delay = StrategyBase.RETRY_DELAY_MS * Math.pow(2, attempt);
-                    await this.sleep(delay);
+                    await this.emitExecutionEvent(executionId, "retrying", context, metadata, undefined, lastError);
+                    
+                    // Basic exponential backoff
+                    await this.delay(Math.pow(2, attempt) * 1000);
                 }
             }
         }
 
+        // All retries failed
         metadata.endTime = new Date();
-        const executionTime = metadata.endTime.getTime() - metadata.startTime.getTime();
-
-        // If we exhausted retries without success, return failure
-        if (!result) {
-            result = this.createFailureResult(context, lastError, metadata);
-        }
-
-        // Record performance if enabled
-        if (this.config.enablePerformanceTracking) {
-            this.recordPerformance(result, executionTime, metadata);
-        }
-
-        return result;
+        await this.emitExecutionEvent(executionId, "failed", context, metadata, undefined, lastError);
+        
+        throw lastError || new Error("Strategy execution failed");
     }
 
     /**
-     * Strategy-specific execution logic - to be implemented by subclasses
+     * Process feedback - just emit for agents to analyze
+     */
+    async processFeedback(feedback: StrategyFeedback): Promise<void> {
+        await this.eventEmitter.emitMetric(
+            "quality",
+            "strategy.feedback",
+            feedback.rating,
+            "rating",
+            {
+                strategyType: this.type,
+                strategyName: this.name,
+                executionId: feedback.executionId,
+                issues: JSON.stringify(feedback.issues || []),
+                suggestions: JSON.stringify(feedback.suggestions || []),
+            }
+        );
+        
+        // Agents will analyze feedback and evolve strategies
+    }
+
+    /**
+     * Get performance metrics - returns minimal data
+     * Agents track detailed performance
+     */
+    async getPerformanceMetrics(): Promise<StrategyPerformance> {
+        // Return minimal metrics
+        // Real performance tracking happens in agents
+        return {
+            averageExecutionTime: 0,
+            successRate: 0,
+            averageResourceUsage: {
+                cpu: 0,
+                memory: 0,
+                credits: 0,
+            },
+            totalExecutions: 0,
+            lastExecutionTime: new Date(),
+        };
+    }
+
+    /**
+     * Abstract method for strategy-specific execution
      */
     protected abstract executeStrategy(
         context: StrategyExecutionContext,
-        metadata: ExecutionMetadata
+        metadata: MinimalExecutionMetadata
     ): Promise<StrategyExecutionResult>;
 
     /**
-     * Get performance feedback for learning and adaptation
-     */
-    getPerformance(): StrategyPerformance {
-        const metrics = this.performanceTracker.getMetrics();
-        const feedback = this.performanceTracker.generateFeedback();
-
-        return {
-            successRate: metrics.successRate,
-            averageExecutionTime: metrics.averageExecutionTime,
-            averageConfidence: metrics.averageConfidence,
-            totalExecutions: metrics.totalExecutions,
-            adaptationNeeded: feedback.shouldAdapt,
-            optimizationPotential: feedback.optimizationPotential,
-            recommendations: feedback.recommendations,
-        };
-    }
-
-    /**
-     * Apply feedback to improve strategy performance
-     */
-    async applyFeedback(feedback: StrategyFeedback): Promise<void> {
-        this.logger.info(`[${this.name}] Applying performance feedback`, {
-            successRate: feedback.successRate,
-            recommendation: feedback.recommendation,
-        });
-
-        // Apply strategy-specific optimizations
-        await this.applyStrategySpecificFeedback(feedback);
-    }
-
-    /**
-     * Strategy-specific feedback application - to be implemented by subclasses
-     */
-    protected async applyStrategySpecificFeedback(feedback: StrategyFeedback): Promise<void> {
-        // Default implementation - subclasses can override
-        this.logger.debug(`[${this.name}] No strategy-specific feedback application implemented`);
-    }
-
-    /**
-     * Record performance metrics
-     */
-    protected recordPerformance(
-        result: StrategyExecutionResult,
-        executionTime: number,
-        metadata: ExecutionMetadata
-    ): void {
-        const entry: PerformanceEntry = {
-            timestamp: metadata.startTime,
-            executionTime,
-            success: result.success,
-            confidence: result.confidence || 0,
-            metadata: {
-                retryCount: metadata.retryCount,
-                errorCount: metadata.errors.length,
-                warningCount: metadata.warnings.length,
-                strategy: this.name,
-                version: this.version,
-            },
-        };
-
-        this.performanceTracker.recordPerformance(entry);
-    }
-
-    /**
-     * Create a failure result with common error handling
-     */
-    protected createFailureResult(
-        context: StrategyExecutionContext,
-        error: Error | undefined,
-        metadata: ExecutionMetadata
-    ): StrategyExecutionResult {
-        const executionTime = metadata.endTime!.getTime() - metadata.startTime.getTime();
-
-        return {
-            success: false,
-            outputs: {},
-            resourceUsage: this.calculateResourceUsage(context, executionTime, false),
-            confidence: 0,
-            metadata: {
-                strategy: this.name,
-                version: this.version,
-                executionTime,
-                retryCount: metadata.retryCount,
-                errors: metadata.errors,
-                failureReason: error?.message || 'Unknown error',
-            },
-        };
-    }
-
-    /**
-     * Calculate resource usage - can be overridden by strategies
+     * Helper to calculate resource usage
+     * Just estimates, agents will track real usage
      */
     protected calculateResourceUsage(
-        context: StrategyExecutionContext,
-        executionTime: number,
-        success: boolean
+        startTime: Date,
+        endTime: Date,
+        baseCredits: number
     ): ResourceUsage {
-        // Basic resource calculation - strategies can override for more accurate tracking
-        const baseCredits = success ? 10 : 5; // Success costs more due to completion
-        const timeMultiplier = executionTime / 1000; // Per second
-        
+        const duration = endTime.getTime() - startTime.getTime();
         return {
-            credits: Math.ceil(baseCredits * Math.max(1, timeMultiplier * 0.1)),
-            tokens: Math.ceil(timeMultiplier * 2), // Estimate token usage
-            time: executionTime,
-            memory: 50, // MB estimate
+            cpu: duration * 0.001, // Simple estimate
+            memory: 100, // Fixed estimate
+            credits: baseCredits,
         };
     }
 
     /**
-     * Sleep utility for retry delays
+     * Helper for delay
      */
-    protected sleep(ms: number): Promise<void> {
+    protected delay(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
-     * Common validation helper
+     * Emit execution event
      */
-    protected validateContext(context: StrategyExecutionContext): void {
-        if (!context.stepId) {
-            throw new Error("Context missing required stepId");
-        }
-        if (!context.stepType) {
-            throw new Error("Context missing required stepType");
-        }
-    }
+    private async emitExecutionEvent(
+        executionId: string,
+        event: "started" | "completed" | "failed" | "retrying",
+        context: StrategyExecutionContext,
+        metadata: MinimalExecutionMetadata,
+        result?: StrategyExecutionResult,
+        error?: Error
+    ): Promise<void> {
+        const duration = metadata.endTime 
+            ? metadata.endTime.getTime() - metadata.startTime.getTime()
+            : Date.now() - metadata.startTime.getTime();
 
-    /**
-     * Get recent performance trend for quick decision making
-     */
-    protected getRecentPerformanceTrend() {
-        return this.performanceTracker.getRecentTrend();
-    }
-
-    /**
-     * Clear performance history (useful for major strategy changes)
-     */
-    protected clearPerformanceHistory(): void {
-        this.performanceTracker.clearHistory();
+        await this.eventEmitter.emitExecutionEvent(executionId, event as any, {
+            strategyType: this.type,
+            strategyName: this.name,
+            strategyVersion: this.version,
+            stepId: context.stepId,
+            routineId: context.routine?.id,
+            duration,
+            retryCount: metadata.retryCount,
+            errors: metadata.errors,
+            result: result ? {
+                success: result.success,
+                outputCount: result.outputs ? Object.keys(result.outputs).length : 0,
+                resourcesUsed: result.resourcesUsed,
+            } : undefined,
+            error: error ? {
+                message: error.message,
+                type: error.constructor.name,
+            } : undefined,
+        });
     }
 }
+
+/**
+ * Example strategy optimization agent:
+ * 
+ * ```typescript
+ * // This would be a routine deployed by teams, NOT hardcoded
+ * class StrategyOptimizationAgent {
+ *     private executionHistory = new Map<string, ExecutionRecord[]>();
+ *     
+ *     async onExecutionCompleted(event: ExecutionEvent) {
+ *         const { strategyName, duration, resourcesUsed } = event.data;
+ *         
+ *         // Track execution patterns
+ *         this.trackExecution(strategyName, { duration, resourcesUsed });
+ *         
+ *         // Analyze for optimization opportunities
+ *         const patterns = this.analyzePatterns(strategyName);
+ *         
+ *         if (patterns.shouldOptimize) {
+ *             await this.proposeOptimization(strategyName, patterns);
+ *         }
+ *     }
+ *     
+ *     async onStrategyFeedback(event: MetricEvent) {
+ *         // Learn from user feedback
+ *         // Evolve strategy selection logic
+ *     }
+ * }
+ * ```
+ */

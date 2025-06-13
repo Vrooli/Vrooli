@@ -7,22 +7,19 @@ import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
 import { ResourceManager } from "./engine/resourceManager.js";
 import { ValidationEngine } from "./engine/validationEngine.js";
 import { IOProcessor } from "./engine/ioProcessor.js";
-import { TelemetryShimAdapter as TelemetryShim } from "../monitoring/adapters/TelemetryShimAdapter.js";
 import { ExecutionRunContext } from "./context/runContext.js";
 import { ContextExporter } from "./context/contextExporter.js";
-import { ConversationalStrategy } from "./strategies/conversationalStrategy.js";
-import { ReasoningStrategy } from "./strategies/reasoningStrategy.js";
-import { DeterministicStrategy } from "./strategies/deterministicStrategy.js";
 import {
     type ExecutionContext,
     type ExecutionId,
     type ExecutionResult,
-    type ExecutionStatus,
+    ExecutionStatus,
     type StepExecutionInput,
     type TierCapabilities,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     generatePk,
+    StrategyType as StrategyTypeEnum,
 } from "@vrooli/shared";
 
 /**
@@ -42,25 +39,19 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
         super(logger, eventBus, "TierThreeExecutor");
         
         // Initialize components
-        const strategySelector = new StrategySelector(logger);
         const toolOrchestrator = new ToolOrchestrator(eventBus, logger);
-        const resourceManager = new ResourceManager(logger);
+        const resourceManager = new ResourceManager(logger, eventBus);
         const validationEngine = new ValidationEngine(logger);
         const ioProcessor = new IOProcessor(logger);
-        const telemetryShim = new TelemetryShim(
-            eventBus,
-            {
-                tier: 3,
-                component: "TierThreeExecutor",
-                instanceId: "singleton",
-            },
-            { enabled: true }
-        );
         
-        // Register strategies
-        strategySelector.registerStrategy(new ConversationalStrategy(logger));
-        strategySelector.registerStrategy(new ReasoningStrategy(logger));
-        strategySelector.registerStrategy(new DeterministicStrategy(logger));
+        // Create strategy selector with proper config
+        const strategyConfig = {
+            defaultStrategy: StrategyTypeEnum.CONVERSATIONAL,
+            fallbackChain: [StrategyTypeEnum.CONVERSATIONAL, StrategyTypeEnum.REASONING, StrategyTypeEnum.DETERMINISTIC],
+            adaptationEnabled: true,
+            learningRate: 0.1,
+        };
+        const strategySelector = new StrategySelector(strategyConfig, logger, toolOrchestrator, validationEngine);
         
         // Create unified executor
         this.unifiedExecutor = new UnifiedExecutor(
@@ -71,7 +62,6 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
             resourceManager,
             validationEngine,
             ioProcessor,
-            telemetryShim,
         );
         
         // Create context exporter

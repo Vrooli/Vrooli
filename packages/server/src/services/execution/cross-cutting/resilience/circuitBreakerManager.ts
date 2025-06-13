@@ -16,7 +16,6 @@
 
 import { AdaptiveCircuitBreaker, CircuitBreakerFactory } from "./circuitBreaker.js";
 import { ErrorClassifier } from "./errorClassifier.js";
-import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { EventBus } from "../events/eventBus.js";
 import {
     CircuitState,

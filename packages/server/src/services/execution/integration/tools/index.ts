@@ -2,27 +2,26 @@
  * Tool exports and registration for execution architecture
  */
 
-export * from "./monitoringTools.js";
-export * from "./monitoringUtils.js";
+export * from "./minimalMonitoringTools.js";
 export * from "./resilienceTools.js";
 export * from "./securityTools.js";
 
 import { type Logger } from "winston";
 import { type Tool } from "../../../mcp/types.js";
-import { MonitoringTools } from "./monitoringTools.js";
+import { MinimalMonitoringTools } from "./minimalMonitoringTools.js";
 import { ResilienceTools } from "./resilienceTools.js";
 import { SecurityTools } from "./securityTools.js";
 import { type SessionUser } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
 
 /**
- * Monitoring tool definitions for MCP registry
+ * Minimal monitoring tool definitions for MCP registry
+ * These tools only provide basic event querying - all intelligence comes from agents
  */
 export const MONITORING_TOOL_DEFINITIONS: Tool[] = [
     {
-        name: "query_metrics",
-        description: "Query performance metrics from telemetry data",
+        name: "query_events",
+        description: "Query raw events for monitoring agents to analyze",
         inputSchema: {
             type: "object",
             properties: {
@@ -31,244 +30,59 @@ export const MONITORING_TOOL_DEFINITIONS: Tool[] = [
                     properties: {
                         start: { type: "string", format: "date-time", description: "Start time (ISO 8601)" },
                         end: { type: "string", format: "date-time", description: "End time (ISO 8601)" },
-                        duration: { type: "number", description: "Duration in milliseconds from now" },
                     },
                 },
-                eventTypes: {
+                channels: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Event types to filter",
+                    description: "Event channels to filter",
                 },
-                components: {
-                    type: "array", 
-                    items: { type: "string" },
-                    description: "Components to filter",
-                },
-                tiers: {
-                    type: "array",
-                    items: { 
-                        type: "string",
-                        enum: ["tier1", "tier2", "tier3"],
-                    },
-                    description: "Tiers to filter",
+                tags: {
+                    type: "object",
+                    description: "Tag filters",
                 },
                 limit: {
                     type: "number",
                     description: "Maximum number of results",
                 },
-                aggregationWindow: {
-                    type: "number",
-                    description: "Aggregation window in milliseconds for time-series data",
-                },
             },
         },
         annotations: {
-            title: "Query Metrics",
+            title: "Query Events",
             readOnlyHint: true,
         },
     },
     {
-        name: "analyze_history",
-        description: "Analyze execution history for patterns and insights",
+        name: "get_event_channels",
+        description: "List available event channels for monitoring agents",
+        inputSchema: {
+            type: "object",
+            properties: {},
+        },
+        annotations: {
+            title: "Get Event Channels",
+            readOnlyHint: true,
+        },
+    },
+    {
+        name: "emit_event",
+        description: "Emit custom events from monitoring agents",
         inputSchema: {
             type: "object",
             properties: {
-                patterns: {
+                channel: {
+                    type: "string",
+                    description: "Event channel to emit to",
+                },
+                event: {
                     type: "object",
-                    properties: {
-                        type: {
-                            type: "string",
-                            enum: ["bottleneck", "error_cluster", "resource_spike", "strategy_effectiveness"],
-                            description: "Pattern type to detect",
-                        },
-                        threshold: {
-                            type: "number",
-                            description: "Detection threshold",
-                        },
-                    },
-                },
-                timeWindow: {
-                    type: "number",
-                    description: "Time window in milliseconds",
-                },
-                minOccurrence: {
-                    type: "number",
-                    description: "Minimum occurrences for pattern detection",
+                    description: "Event data to emit",
                 },
             },
+            required: ["channel", "event"],
         },
         annotations: {
-            title: "Analyze History",
-            readOnlyHint: true,
-        },
-    },
-    {
-        name: "aggregate_data",
-        description: "Perform statistical aggregation on metrics",
-        inputSchema: {
-            type: "object",
-            properties: {
-                operation: {
-                    type: "string",
-                    enum: ["sum", "avg", "min", "max", "count", "percentile"],
-                    description: "Aggregation operation",
-                },
-                field: {
-                    type: "string",
-                    description: "Field path to aggregate (e.g., 'data.duration')",
-                },
-                groupBy: {
-                    type: "string",
-                    description: "Field to group results by",
-                },
-                bucketSize: {
-                    type: "number",
-                    description: "Time bucket size in milliseconds",
-                },
-                percentile: {
-                    type: "number",
-                    description: "Percentile value (0-100) if operation is percentile",
-                },
-                filter: {
-                    type: "object",
-                    properties: {
-                        eventType: { type: "string" },
-                        component: { type: "string" },
-                        tier: { type: "string" },
-                        timeRange: {
-                            type: "object",
-                            properties: {
-                                start: { type: "string", format: "date-time" },
-                                end: { type: "string", format: "date-time" },
-                            },
-                        },
-                    },
-                },
-            },
-            required: ["operation", "field"],
-        },
-        annotations: {
-            title: "Aggregate Data",
-            readOnlyHint: true,
-        },
-    },
-    {
-        name: "publish_report",
-        description: "Publish monitoring insights and reports",
-        inputSchema: {
-            type: "object",
-            properties: {
-                type: {
-                    type: "string",
-                    enum: ["performance", "health", "slo", "custom"],
-                    description: "Report type",
-                },
-                data: {
-                    type: "object",
-                    description: "Report data",
-                },
-                severity: {
-                    type: "string",
-                    enum: ["info", "warning", "error", "critical"],
-                    description: "Severity level",
-                },
-                recipients: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Report recipients",
-                },
-                tags: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Tags for categorization",
-                },
-            },
-            required: ["type", "data"],
-        },
-        annotations: {
-            title: "Publish Report",
-        },
-    },
-    {
-        name: "detect_anomalies",
-        description: "Identify unusual patterns in metrics",
-        inputSchema: {
-            type: "object",
-            properties: {
-                metric: {
-                    type: "string",
-                    description: "Metric path to analyze (e.g., 'data.credits')",
-                },
-                method: {
-                    type: "string",
-                    enum: ["zscore", "mad", "isolation_forest", "percentile"],
-                    description: "Detection method",
-                },
-                sensitivity: {
-                    type: "number",
-                    minimum: 0,
-                    maximum: 1,
-                    description: "Sensitivity (0-1, where 1 is most sensitive)",
-                },
-                baselineWindow: {
-                    type: "number",
-                    description: "Baseline window in milliseconds",
-                },
-                includeContext: {
-                    type: "boolean",
-                    description: "Include contextual information",
-                },
-            },
-            required: ["metric"],
-        },
-        annotations: {
-            title: "Detect Anomalies",
-            readOnlyHint: true,
-        },
-    },
-    {
-        name: "calculate_slo",
-        description: "Calculate service level objectives and compliance",
-        inputSchema: {
-            type: "object",
-            properties: {
-                slo: {
-                    type: "object",
-                    properties: {
-                        name: {
-                            type: "string",
-                            description: "SLO name",
-                        },
-                        metric: {
-                            type: "string",
-                            description: "Metric path to evaluate",
-                        },
-                        target: {
-                            type: "number",
-                            description: "Target value",
-                        },
-                        comparison: {
-                            type: "string",
-                            enum: ["gte", "lte", "eq"],
-                            description: "Comparison operator",
-                        },
-                    },
-                    required: ["name", "metric", "target", "comparison"],
-                },
-                timeWindow: {
-                    type: "number",
-                    description: "Time window in milliseconds",
-                },
-                breakdown: {
-                    type: "boolean",
-                    description: "Include breakdown by component",
-                },
-            },
-            required: ["slo"],
-        },
-        annotations: {
-            title: "Calculate SLO",
-            readOnlyHint: true,
+            title: "Emit Event",
         },
     },
 ];
@@ -786,23 +600,19 @@ export const SECURITY_TOOL_DEFINITIONS: Tool[] = [
 ];
 
 /**
- * Create monitoring tool instances
+ * Create minimal monitoring tool instances
  */
 export function createMonitoringToolInstances(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): Map<string, (params: any) => Promise<any>> {
-    const monitoringTools = new MonitoringTools(user, logger, eventBus, rollingHistory);
+    const monitoringTools = new MinimalMonitoringTools(logger, eventBus);
     
     return new Map([
-        ["query_metrics", (params) => monitoringTools.queryMetrics(params)],
-        ["analyze_history", (params) => monitoringTools.analyzeHistory(params)],
-        ["aggregate_data", (params) => monitoringTools.aggregateData(params)],
-        ["publish_report", (params) => monitoringTools.publishReport(params)],
-        ["detect_anomalies", (params) => monitoringTools.detectAnomalies(params)],
-        ["calculate_slo", (params) => monitoringTools.calculateSLO(params)],
+        ["query_events", (params) => monitoringTools.queryEvents(params, user)],
+        ["get_event_channels", () => monitoringTools.getEventChannels(user)],
+        ["emit_event", (params) => monitoringTools.emitEvent(params, user)],
     ]);
 }
 
@@ -813,9 +623,8 @@ export function createResilienceToolInstances(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): Map<string, (params: any) => Promise<any>> {
-    const resilienceTools = new ResilienceTools(user, logger, eventBus, rollingHistory);
+    const resilienceTools = new ResilienceTools(user, logger, eventBus);
     
     return new Map([
         ["classify_error", (params) => resilienceTools.classifyError(params)],
@@ -834,9 +643,8 @@ export function createSecurityToolInstances(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): Map<string, (params: any) => Promise<any>> {
-    const securityTools = new SecurityTools(user, logger, eventBus, rollingHistory);
+    const securityTools = new SecurityTools(user, logger, eventBus);
     
     return new Map([
         ["validate_security_context", (params) => securityTools.validateSecurityContext(params)],
@@ -856,7 +664,6 @@ export function registerMonitoringTools(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): void {
     // Register tool definitions
     for (const toolDef of MONITORING_TOOL_DEFINITIONS) {
@@ -866,14 +673,14 @@ export function registerMonitoringTools(
     }
 
     // Create tool instances
-    const toolInstances = createMonitoringToolInstances(user, logger, eventBus, rollingHistory);
+    const toolInstances = createMonitoringToolInstances(user, logger, eventBus);
 
     // Store tool instances for execution
     // This would typically be done through a more sophisticated mechanism
     // For now, we'll use the registry's internal storage
     (registry as any)._monitoringToolInstances = toolInstances;
 
-    logger.info("[MonitoringTools] Registered monitoring tools", {
+    logger.info("[MinimalMonitoringTools] Registered monitoring tools", {
         toolCount: MONITORING_TOOL_DEFINITIONS.length,
         tools: MONITORING_TOOL_DEFINITIONS.map(t => t.name),
     });
@@ -887,7 +694,6 @@ export function registerResilienceTools(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): void {
     // Register tool definitions
     for (const toolDef of RESILIENCE_TOOL_DEFINITIONS) {
@@ -897,7 +703,7 @@ export function registerResilienceTools(
     }
 
     // Create tool instances
-    const toolInstances = createResilienceToolInstances(user, logger, eventBus, rollingHistory);
+    const toolInstances = createResilienceToolInstances(user, logger, eventBus);
 
     // Store tool instances for execution
     (registry as any)._resilienceToolInstances = toolInstances;
@@ -916,7 +722,6 @@ export function registerSecurityTools(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): void {
     // Register tool definitions
     for (const toolDef of SECURITY_TOOL_DEFINITIONS) {
@@ -926,7 +731,7 @@ export function registerSecurityTools(
     }
 
     // Create tool instances
-    const toolInstances = createSecurityToolInstances(user, logger, eventBus, rollingHistory);
+    const toolInstances = createSecurityToolInstances(user, logger, eventBus);
 
     // Store tool instances for execution
     (registry as any)._securityToolInstances = toolInstances;
@@ -945,11 +750,10 @@ export function registerEmergentIntelligenceTools(
     user: SessionUser,
     logger: Logger,
     eventBus: EventBus,
-    rollingHistory?: RollingHistory,
 ): void {
-    registerMonitoringTools(registry, user, logger, eventBus, rollingHistory);
-    registerResilienceTools(registry, user, logger, eventBus, rollingHistory);
-    registerSecurityTools(registry, user, logger, eventBus, rollingHistory);
+    registerMonitoringTools(registry, user, logger, eventBus);
+    registerResilienceTools(registry, user, logger, eventBus);
+    registerSecurityTools(registry, user, logger, eventBus);
 
     logger.info("[EmergentIntelligence] Registered all emergent intelligence tools", {
         monitoringTools: MONITORING_TOOL_DEFINITIONS.length,

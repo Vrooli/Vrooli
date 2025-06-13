@@ -175,7 +175,7 @@ describe("Execution Flow Integration Tests", () => {
 
             // Verify swarm started event
             const swarmStartedEvent = events.find(e => e.type === "swarm.started");
-            expect(swarmStartedEvent).to.exist;
+            expect(swarmStartedEvent).toBeDefined();
             expect(swarmStartedEvent?.data.swarmId).toBe("swarm-test-123");
 
             // Step 2: Start a run within the swarm
@@ -202,8 +202,8 @@ describe("Execution Flow Integration Tests", () => {
 
             // Step 3: Check swarm status
             const swarmStatus = await service.getSwarmStatus("swarm-test-123");
-            expect(swarmStatus.status).to.exist;
-            expect([SwarmStatus.Pending, SwarmStatus.Running]).to.include(swarmStatus.status);
+            expect(swarmStatus.status).toBeDefined();
+            expect([SwarmStatus.Pending, SwarmStatus.Running]).toContain(swarmStatus.status);
 
             // Step 4: Check run status
             const runStatus = await service.getRunStatus("run-123");
@@ -245,7 +245,7 @@ describe("Execution Flow Integration Tests", () => {
 
             // Verify cancellation event
             const cancelEvent = events.find(e => e.type === "swarm.cancelled");
-            expect(cancelEvent).to.exist;
+            expect(cancelEvent).toBeDefined();
             expect(cancelEvent?.data.swarmId).toBe("swarm-test-123");
         });
 
@@ -349,7 +349,7 @@ describe("Execution Flow Integration Tests", () => {
 
             // Check swarm status
             const status = await service.getSwarmStatus("swarm-limited-123");
-            expect(status.status).to.exist;
+            expect(status.status).toBeDefined();
         });
 
         it("should handle concurrent runs in a swarm", async () => {
@@ -482,10 +482,10 @@ describe("Execution Flow Integration Tests", () => {
             });
 
             // Verify event flow
-            expect(crossTierEvents).to.include("tier1->tier2");
-            expect(crossTierEvents).to.include("tier2->tier3");
-            expect(crossTierEvents).to.include("tier3->tier2");
-            expect(crossTierEvents).to.include("tier2->tier1");
+            expect(crossTierEvents).toContain("tier1->tier2");
+            expect(crossTierEvents).toContain("tier2->tier3");
+            expect(crossTierEvents).toContain("tier3->tier2");
+            expect(crossTierEvents).toContain("tier2->tier1");
         });
     });
 });

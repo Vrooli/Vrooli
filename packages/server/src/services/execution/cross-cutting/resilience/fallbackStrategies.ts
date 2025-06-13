@@ -1,20 +1,17 @@
 /**
  * Fallback Strategy Engine
  * 
- * Implements intelligent fallback strategies with quality impact assessment
- * and agent-driven optimization. Provides multiple fallback approaches
- * when circuit breakers open or services degrade.
+ * Minimal fallback strategy system that emits events for agent-driven optimization.
+ * Provides basic fallback execution while relying on resilience agents for
+ * intelligent strategy selection and quality assessment.
  * 
  * Key Features:
- * - Multiple fallback strategy implementations
- * - Quality impact assessment and degradation tracking
- * - Integration with resource management and monitoring
- * - Agent-driven strategy optimization and learning
- * - Performance-aware fallback selection
- * - Comprehensive telemetry and metrics
+ * - Simple fallback strategy execution
+ * - Event emission for agent analysis
+ * - Basic condition checking
+ * - Agent-driven strategy optimization through events
  */
 
-import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { EventBus } from "../events/eventBus.js";
 import {
     FallbackType,
@@ -140,7 +137,6 @@ interface FallbackMetrics {
  * - Comprehensive caching and result reuse
  */
 export class FallbackStrategyEngine {
-    private readonly telemetry: TelemetryShim;
     private readonly eventBus: EventBus;
     
     // Strategy implementations
@@ -156,12 +152,10 @@ export class FallbackStrategyEngine {
     private readonly qualityThreshold = 0.6; // Minimum acceptable quality
     
     constructor(
-        telemetry: TelemetryShim,
         eventBus: EventBus,
         private readonly resourceManager?: any, // ResourceManager interface
         private readonly modelRegistry?: any, // ModelRegistry interface
     ) {
-        this.telemetry = telemetry;
         this.eventBus = eventBus;
         
         this.strategies = new Map();
@@ -382,7 +376,7 @@ export class FallbackStrategyEngine {
     }
 
     /**
-     * Select best strategy from evaluations
+     * Select strategy using simple heuristics - emit events for agent optimization
      */
     private selectBestStrategy(
         evaluations: FallbackEvaluation[],
@@ -394,47 +388,48 @@ export class FallbackStrategyEngine {
         );
         
         if (viable.length === 0) {
+            // Emit event for resilience agents to analyze
+            this.eventBus.emit({
+                type: "resilience.fallback.no_viable_strategies",
+                payload: {
+                    requestId: context.requestId,
+                    service: context.service,
+                    operation: context.operation,
+                    evaluations,
+                    qualityRequirements: context.qualityRequirements,
+                    resourceConstraints: context.resourceConstraints,
+                },
+                timestamp: new Date(),
+            });
             return null;
         }
         
-        // Score strategies based on multiple factors
-        const scored = viable.map(evaluation => ({
-            evaluation,
-            score: this.calculateStrategyScore(evaluation, context),
-        }));
+        // Simple selection: highest viability * confidence
+        // Agents can optimize this selection through events
+        const selected = viable.reduce((best, current) => 
+            (current.viability * current.confidence) > (best.viability * best.confidence) 
+                ? current : best
+        );
         
-        // Return highest scoring strategy
-        scored.sort((a, b) => b.score - a.score);
-        return scored[0].evaluation;
+        // Emit strategy selection event for agent analysis
+        this.eventBus.emit({
+            type: "resilience.fallback.strategy_selected",
+            payload: {
+                requestId: context.requestId,
+                service: context.service,
+                operation: context.operation,
+                selectedStrategy: selected,
+                alternatives: viable.filter(e => e !== selected),
+                selectionCriteria: "viability_confidence_product",
+            },
+            timestamp: new Date(),
+        });
+        
+        return selected;
     }
 
-    /**
-     * Calculate strategy score for selection
-     */
-    private calculateStrategyScore(
-        evaluation: FallbackEvaluation,
-        context: FallbackExecutionContext,
-    ): number {
-        const weights = {
-            viability: 0.3,
-            quality: 0.25,
-            cost: 0.2,
-            duration: 0.15,
-            confidence: 0.1,
-        };
-        
-        // Normalize cost and duration (lower is better)
-        const costScore = Math.max(0, 1 - (evaluation.estimatedCost / context.resourceConstraints.maxCredits));
-        const durationScore = Math.max(0, 1 - (evaluation.estimatedDuration / context.timeoutMs));
-        
-        return (
-            evaluation.viability * weights.viability +
-            evaluation.estimatedQuality * weights.quality +
-            costScore * weights.cost +
-            durationScore * weights.duration +
-            evaluation.confidence * weights.confidence
-        );
-    }
+    // NOTE: Removed calculateStrategyScore - this intelligence should emerge from
+    // resilience agents analyzing strategy selection events
 
     /**
      * Execute selected strategy
@@ -610,28 +605,31 @@ export class FallbackStrategyEngine {
         result: FallbackResult,
         context: FallbackExecutionContext,
     ): Promise<void> {
-        // Emit task completion
-        await this.telemetry.emitTaskCompletion(
-            executionId,
-            "fallback_execution",
-            result.success ? "success" : "failure",
-            result.duration,
-            result.resourceUsage.credits,
-        );
-        
-        // Emit strategy effectiveness
-        await this.telemetry.emitStrategyEffectiveness(
-            strategyType as any, // Map to StrategyType
-            "fallback",
-            {
-                successRate: result.success ? 1 : 0,
-                avgDuration: result.duration,
-                avgCost: result.resourceUsage.credits || 0,
-                sampleSize: 1,
+        // Emit comprehensive fallback execution event for monitoring agents
+        await this.eventBus.emit({
+            type: "resilience.fallback.completed",
+            payload: {
+                executionId,
+                taskType: "fallback_execution",
+                status: result.success ? "success" : "failure",
+                duration: result.duration,
+                resourceUsage: result.resourceUsage,
+                strategyType,
+                strategyMetrics: {
+                    successRate: result.success ? 1 : 0,
+                    duration: result.duration,
+                    cost: result.resourceUsage.credits || 0,
+                    qualityScore: result.qualityScore,
+                    qualityReduction: result.qualityReduction,
+                },
+                service: context.service,
+                operation: context.operation,
+                metadata: result.metadata,
             },
-        );
+            timestamp: new Date(),
+        });
         
-        // Emit fallback event
+        // Also emit the specific fallback event
         await this.eventBus.publish("resilience.fallback_executed", {
             executionId,
             service: context.service,

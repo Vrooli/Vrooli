@@ -3,15 +3,9 @@
  * Extracted common patterns to reduce code duplication
  */
 
-export { PerformanceTrackerAdapter as PerformanceTracker } from '../../../monitoring/adapters/PerformanceTrackerAdapter.js';
+// Note: StrategyBase is actually MinimalStrategyBase - it has NO performance tracking
+export { MinimalStrategyBase, MinimalStrategyBase as StrategyBase } from './strategyBase.js';
 export type { 
-    PerformanceEntry, 
-    PerformanceMetrics, 
-    PerformanceFeedback 
-} from '../../../monitoring/adapters/PerformanceTrackerAdapter.js';
-
-export { StrategyBase } from './strategyBase.js';
-export type { 
-    StrategyConfig, 
-    ExecutionMetadata 
+    MinimalStrategyConfig as StrategyConfig,
+    MinimalExecutionMetadata as ExecutionMetadata 
 } from './strategyBase.js';

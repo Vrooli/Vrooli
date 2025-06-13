@@ -20,11 +20,11 @@ export interface TierOneConfig {
 }
 
 /**
- * Tier 1 components
+ * Tier 1 components - minimal infrastructure only
  */
 export interface TierOneComponents {
     strategyEngine: StrategyEngine;
-    metacognitiveMonitor: MetacognitiveMonitor;
+    // Monitoring provided by emergent agents through event subscription
 }
 
 /**
@@ -46,14 +46,14 @@ export class TierOneFactory {
         // Create Strategy Engine (uses ConversationBridge for real LLM reasoning)
         const strategyEngine = new StrategyEngine(logger, eventBus);
 
-        // Create Metacognitive Monitor (event-driven intelligence)
-        const metacognitiveMonitor = new MetacognitiveMonitor(eventBus, logger);
+        // Monitoring intelligence emerges from deployed agents subscribing to events
+        // No hardcoded metacognitive monitor - capabilities emerge from swarm agents
 
         logger.info("[TierOneFactory] Tier 1 components created successfully");
 
         return {
             strategyEngine,
-            metacognitiveMonitor,
+            // Monitoring provided by emergent monitoring agents
         };
     }
 

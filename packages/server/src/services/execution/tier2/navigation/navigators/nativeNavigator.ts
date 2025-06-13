@@ -284,7 +284,10 @@ export class NativeNavigator implements Navigator {
 
         // Cache for future use (using first step ID as routine ID for now)
         const routineId = def.steps[0].id; // TODO: Use proper routine ID
-        await this.definitionCache.set(routineId, def);
+        // Fire and forget cache operation
+        this.definitionCache.set(routineId, def).catch(err => 
+            this.logger.warn("Failed to cache routine definition", { routineId, error: err })
+        );
 
         return def;
     }

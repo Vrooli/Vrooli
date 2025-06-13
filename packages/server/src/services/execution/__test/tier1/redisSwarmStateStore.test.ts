@@ -1,5 +1,4 @@
-import { describe, it, beforeEach, afterEach, before, after } from "mocha";
-import { expect } from "chai";
+import { expect, describe, it, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
 import winston from "winston";
 import { RedisSwarmStateStore } from "../../tier1/state/redisSwarmStateStore.js";
 import { SwarmState, type Swarm } from "@vrooli/shared";
@@ -118,27 +117,27 @@ describe("RedisSwarmStateStore", () => {
             expect(storedData).to.not.be.null;
             
             const parsedSwarm = JSON.parse(storedData!);
-            expect(parsedSwarm.id).to.equal("swarm-123");
-            expect(parsedSwarm.state).to.equal(SwarmState.ACTIVE);
+            expect(parsedSwarm.id).toBe("swarm-123");
+            expect(parsedSwarm.state).toBe(SwarmState.ACTIVE);
             
             // Check TTL was set
             const ttl = await testRedis.ttl("swarm:swarm-123");
-            expect(ttl).to.be.greaterThan(0);
-            expect(ttl).to.be.lessThanOrEqual(86400); // 24 hours
+            expect(ttl).toBeGreaterThan(0);
+            expect(ttl).toBeLessThanOrEqual(86400); // 24 hours
         });
 
         it("should add swarm to active set if in ACTIVE state", async () => {
             await store.createSwarm("swarm-123", mockSwarm);
 
             const activeSwarms = await testRedis.smembers("swarms:active");
-            expect(activeSwarms).to.include("swarm-123");
+            expect(activeSwarms).toContain("swarm-123");
         });
 
         it("should add swarm to user's swarm set", async () => {
             await store.createSwarm("swarm-123", mockSwarm);
 
             const userSwarms = await testRedis.smembers("user:user-123:swarms");
-            expect(userSwarms).to.include("swarm-123");
+            expect(userSwarms).toContain("swarm-123");
         });
     });
 
@@ -150,13 +149,13 @@ describe("RedisSwarmStateStore", () => {
             const retrievedSwarm = await store.getSwarm("swarm-123");
             
             expect(retrievedSwarm).to.not.be.null;
-            expect(retrievedSwarm!.id).to.equal("swarm-123");
-            expect(retrievedSwarm!.config.name).to.equal("Test Swarm");
+            expect(retrievedSwarm!.id).toBe("swarm-123");
+            expect(retrievedSwarm!.config.name).toBe("Test Swarm");
         });
 
         it("should return null for non-existent swarm", async () => {
             const retrievedSwarm = await store.getSwarm("non-existent");
-            expect(retrievedSwarm).to.be.null;
+            expect(retrievedSwarm).toBeNull();
         });
 
         it("should parse dates correctly", async () => {
@@ -187,7 +186,7 @@ describe("RedisSwarmStateStore", () => {
             await store.updateSwarm("swarm-123", updatedSwarm);
 
             const retrieved = await store.getSwarm("swarm-123");
-            expect(retrieved!.config.name).to.equal("Updated Swarm Name");
+            expect(retrieved!.config.name).toBe("Updated Swarm Name");
         });
 
         it("should update active set when state changes", async () => {
@@ -212,7 +211,7 @@ describe("RedisSwarmStateStore", () => {
             await store.deleteSwarm("swarm-123");
 
             const retrieved = await testRedis.get("swarm:swarm-123");
-            expect(retrieved).to.be.null;
+            expect(retrieved).toBeNull();
         });
 
         it("should remove from active set", async () => {
@@ -237,14 +236,14 @@ describe("RedisSwarmStateStore", () => {
 
         it("should get current swarm state", async () => {
             const state = await store.getSwarmState("swarm-123");
-            expect(state).to.equal(SwarmState.ACTIVE);
+            expect(state).toBe(SwarmState.ACTIVE);
         });
 
         it("should update swarm state", async () => {
             await store.updateSwarmState("swarm-123", SwarmState.PAUSED);
 
             const state = await store.getSwarmState("swarm-123");
-            expect(state).to.equal(SwarmState.PAUSED);
+            expect(state).toBe(SwarmState.PAUSED);
         });
     });
 
@@ -259,22 +258,22 @@ describe("RedisSwarmStateStore", () => {
         it("should list active swarms", async () => {
             const activeSwarms = await store.listActiveSwarms();
             
-            expect(activeSwarms).to.have.lengthOf(2);
-            expect(activeSwarms.map(s => s.id)).to.include.members(["swarm-1", "swarm-3"]);
+            expect(activeSwarms).toHaveLength(2);
+            expect(activeSwarms.map(s => s.id)).toContain.members(["swarm-1", "swarm-3"]);
         });
 
         it("should get swarms by state", async () => {
             const pausedSwarms = await store.getSwarmsByState(SwarmState.PAUSED);
             
-            expect(pausedSwarms).to.have.lengthOf(1);
-            expect(pausedSwarms[0].id).to.equal("swarm-2");
+            expect(pausedSwarms).toHaveLength(1);
+            expect(pausedSwarms[0].id).toBe("swarm-2");
         });
 
         it("should get swarms by user", async () => {
             const userSwarms = await store.getSwarmsByUser("user-123");
             
-            expect(userSwarms).to.have.lengthOf(3);
-            expect(userSwarms.map(s => s.id)).to.include.members(["swarm-1", "swarm-2", "swarm-3"]);
+            expect(userSwarms).toHaveLength(3);
+            expect(userSwarms.map(s => s.id)).toContain.members(["swarm-1", "swarm-2", "swarm-3"]);
         });
     });
 });

@@ -76,7 +76,7 @@ describe("ReasoningStrategy", () => {
     describe("canHandle", () => {
         it("should return true for explicit reasoning strategy request", () => {
             const config = { strategy: "reasoning" };
-            expect(strategy.canHandle("any_step", config)).to.equal(true);
+            expect(strategy.canHandle("any_step", config)).toBe(true);
         });
 
         it("should return true for reasoning-related step types", () => {
@@ -100,7 +100,7 @@ describe("ReasoningStrategy", () => {
             ];
 
             reasoningSteps.forEach(stepType => {
-                expect(strategy.canHandle(stepType)).to.equal(true);
+                expect(strategy.canHandle(stepType)).toBe(true);
             });
         });
 
@@ -114,14 +114,14 @@ describe("ReasoningStrategy", () => {
             ];
 
             nonReasoningSteps.forEach(stepType => {
-                expect(strategy.canHandle(stepType)).to.equal(false);
+                expect(strategy.canHandle(stepType)).toBe(false);
             });
         });
 
         it("should be case insensitive", () => {
-            expect(strategy.canHandle("ANALYZE_DATA")).to.equal(true);
-            expect(strategy.canHandle("Reason_About_Options")).to.equal(true);
-            expect(strategy.canHandle("evaluate_RESULTS")).to.equal(true);
+            expect(strategy.canHandle("ANALYZE_DATA")).toBe(true);
+            expect(strategy.canHandle("Reason_About_Options")).toBe(true);
+            expect(strategy.canHandle("evaluate_RESULTS")).toBe(true);
         });
     });
 

@@ -21,7 +21,6 @@ import {
     ResilienceEventType as EventType,
     UserImpactLevel,
 } from "@vrooli/shared";
-import type { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import type { RedisEventBus } from "../events/eventBus.js";
 import { uuid } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";

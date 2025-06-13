@@ -1,5 +1,4 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import IORedis from "ioredis";
 import { PrismaClient } from "@prisma/client";
 
@@ -15,7 +14,7 @@ describe("Testcontainer Verification", () => {
         await redis.set(key, value);
         const retrieved = await redis.get(key);
         
-        expect(retrieved).to.equal(value);
+        expect(retrieved).toBe(value);
         
         await redis.quit();
     });
@@ -34,8 +33,8 @@ describe("Testcontainer Verification", () => {
         const result = await prisma.$queryRaw`SELECT 1 as test`;
         
         expect(result).to.not.be.undefined;
-        expect(Array.isArray(result)).to.be.true;
-        expect(result[0]).to.have.property("test", 1);
+        expect(Array.isArray(result)).toBe(true);
+        expect(result[0]).toHaveProperty("test", 1);
         
         await prisma.$disconnect();
     });

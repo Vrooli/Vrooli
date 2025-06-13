@@ -131,7 +131,7 @@ describe("RunStateMachine", () => {
             await stateMachine.start(runConfig);
 
             const run = await stateStore.getRun("run-123");
-            expect(run).to.exist;
+            expect(run).toBeDefined();
             expect(run?.state).toBe(RunState.INITIALIZING);
             expect(run?.routine).toEqual(mockRoutine);
         });
@@ -318,7 +318,7 @@ describe("RunStateMachine", () => {
 
             const run = await stateStore.getRun("run-123");
             expect(run?.state).toBe(RunState.ERROR_HANDLING);
-            expect(run?.errors).to.include("Step node-1 failed: Execution error");
+            expect(run?.errors).toContain("Step node-1 failed: Execution error");
         });
 
         it("should create checkpoints periodically", async () => {

@@ -1,5 +1,6 @@
 import { type EventBus, type BaseEvent } from "../cross-cutting/events/eventBus.js";
 import { type Logger } from "winston";
+import { nanoid } from "@vrooli/shared";
 
 export interface EventPublisherConfig {
     /** Maximum retry attempts for failed publishes */
@@ -152,15 +153,15 @@ export class EventPublisher {
         additionalMetadata?: Record<string, any>,
     ): BaseEvent {
         return {
-            id: crypto.randomUUID(),
+            id: nanoid(),
             type,
             timestamp: new Date(),
             source: {
                 tier: "cross-cutting" as const,
                 component: this.source,
-                instanceId: crypto.randomUUID()
+                instanceId: nanoid()
             },
-            correlationId: crypto.randomUUID(),
+            correlationId: nanoid(),
             data: payload,
             metadata: {
                 ...additionalMetadata,

@@ -6,7 +6,7 @@ import { type ISwarmStateStore } from "../../tier1/state/swarmStateStore.js";
 import { TeamManager } from "../../tier1/organization/teamManager.js";
 import { ResourceManager } from "../../tier1/organization/resourceManager.js";
 import { StrategyEngine } from "../../tier1/intelligence/strategyEngine.js";
-import { MetacognitiveMonitor } from "../../tier1/intelligence/metacognitiveMonitor.js";
+import { ConversationBridge } from "../../tier1/intelligence/conversationBridge.js";
 import { SwarmState, type Swarm } from "@vrooli/shared";
 
 describe("SwarmStateMachine", () => {
@@ -14,10 +14,7 @@ describe("SwarmStateMachine", () => {
     let logger: winston.Logger;
     let eventBus: MockEventBus;
     let stateStoreStub: ISwarmStateStore;
-    let teamManagerStub: any;
-    let resourceManagerStub: any;
-    let strategyEngineStub: any;
-    let metacognitiveMonitorStub: any;
+    let conversationBridgeStub: any;
 
     const mockSwarm: Swarm = {
         id: "swarm-123",
@@ -89,38 +86,18 @@ describe("SwarmStateMachine", () => {
             getSwarmsByUser: vi.fn(),
         };
 
-        // Create mock instances
-        teamManagerStub = {
-            formTeam: vi.fn(),
-            updateTeam: vi.fn(),
-            disbandTeam: vi.fn(),
-        };
-        
-        resourceManagerStub = {
-            allocateInitialResources: vi.fn(),
-            updateResourceUsage: vi.fn(),
-            releaseResources: vi.fn(),
-        };
-        
-        strategyEngineStub = {
-            selectStrategy: vi.fn(),
-            evaluateStrategy: vi.fn(),
-        };
-        
-        metacognitiveMonitorStub = {
-            startMonitoring: vi.fn(),
-            stopMonitoring: vi.fn(),
-            getInsights: vi.fn(),
+        // Create mock conversation bridge
+        conversationBridgeStub = {
+            processMessage: vi.fn(),
+            handleToolRequests: vi.fn(),
+            getResponse: vi.fn(),
         };
 
         stateMachine = new SwarmStateMachine(
             logger,
             eventBus,
             stateStoreStub,
-            teamManagerStub,
-            resourceManagerStub,
-            strategyEngineStub,
-            metacognitiveMonitorStub,
+            conversationBridgeStub,
         );
     });
 
@@ -129,7 +106,7 @@ describe("SwarmStateMachine", () => {
     });
 
     describe("start", () => {
-        it("should transition from UNINITIALIZED to INITIALIZING", async () => {
+        it("should transition from UNINITIALIZED to STARTING", async () => {
             vi.mocked(stateStoreStub.getSwarm).mockResolvedValue(mockSwarm);
             vi.mocked(stateStoreStub.updateSwarmState).mockResolvedValue(undefined);
 
@@ -138,7 +115,7 @@ describe("SwarmStateMachine", () => {
             expect(stateStoreStub.getSwarm).toHaveBeenCalledWith("swarm-123");
             expect(stateStoreStub.updateSwarmState).toHaveBeenCalledWith(
                 "swarm-123",
-                SwarmState.INITIALIZING
+                SwarmState.STARTING
             );
         });
 
@@ -153,7 +130,7 @@ describe("SwarmStateMachine", () => {
             expect(eventSpy).toHaveBeenCalledWith("swarm.state_transition", {
                 swarmId: "swarm-123",
                 from: SwarmState.UNINITIALIZED,
-                to: SwarmState.INITIALIZING,
+                to: SwarmState.STARTING,
             });
         });
 
@@ -164,7 +141,7 @@ describe("SwarmStateMachine", () => {
         });
 
         it("should throw error if swarm already started", async () => {
-            const activeSwarm = { ...mockSwarm, state: SwarmState.ACTIVE };
+            const activeSwarm = { ...mockSwarm, state: SwarmState.RUNNING };
             vi.mocked(stateStoreStub.getSwarm).mockResolvedValue(activeSwarm);
 
             await expect(stateMachine.start("swarm-123")).rejects.toThrow("Swarm swarm-123 is already started");

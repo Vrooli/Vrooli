@@ -7,8 +7,7 @@ import { BranchCoordinator } from "./orchestration/branchCoordinator.js";
 import { StepExecutor } from "./orchestration/stepExecutor.js";
 import { ContextManager } from "./context/contextManager.js";
 import { CheckpointManager } from "./persistence/checkpointManager.js";
-import { PerformanceMonitorAdapter as PerformanceMonitor } from "../monitoring/adapters/PerformanceMonitorAdapter.js";
-import { PathOptimizer } from "./intelligence/pathOptimizer.js";
+// Intelligence components removed - functionality provided by emergent agents
 import { MOISEGate } from "./validation/moiseGate.js";
 import { type IRunStateStore, getRunStateStore } from "./state/runStateStore.js";
 import {
@@ -40,8 +39,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     private readonly stepExecutor: StepExecutor;
     private readonly contextManager: ContextManager;
     private readonly checkpointManager: CheckpointManager;
-    private readonly performanceMonitor: PerformanceMonitor;
-    private readonly pathOptimizer: PathOptimizer;
+    // Intelligence components removed - functionality provided by emergent agents
     private readonly moiseGate: MOISEGate;
     private readonly stateStore: IRunStateStore;
 
@@ -60,8 +58,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
         this.stepExecutor = new StepExecutor(logger, eventBus);
         this.contextManager = new ContextManager(logger);
         this.checkpointManager = new CheckpointManager(logger);
-        this.performanceMonitor = new PerformanceMonitor(logger, eventBus);
-        this.pathOptimizer = new PathOptimizer(logger);
+        // Intelligence components removed - functionality provided by emergent agents
         this.moiseGate = new MOISEGate(logger);
         
         // Setup event handlers

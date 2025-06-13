@@ -10,10 +10,11 @@ import {
     type StrategyFeedback,
     StrategyType,
 } from "@vrooli/shared";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
-import { StrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
+import { MinimalStrategyBase, type StrategyConfig, type ExecutionMetadata } from "./shared/index.js";
 
 /**
  * ConversationalStrategy - Enhanced with shared base class patterns
@@ -32,7 +33,7 @@ import { StrategyBase, type StrategyConfig, type ExecutionMetadata } from "./sha
  * - Integrated with new LLMIntegrationService and ToolOrchestrator
  * - Uses shared StrategyBase for common patterns
  */
-export class ConversationalStrategy extends StrategyBase {
+export class ConversationalStrategy extends MinimalStrategyBase {
     readonly type = StrategyType.CONVERSATIONAL;
     readonly name = "ConversationalStrategy";
     readonly version = "2.0.0-enhanced";
@@ -48,11 +49,12 @@ export class ConversationalStrategy extends StrategyBase {
 
     constructor(
         logger: Logger,
+        eventBus: EventBus,
         config: StrategyConfig = {},
         toolOrchestrator?: ToolOrchestrator,
         validationEngine?: ValidationEngine,
     ) {
-        super(logger, {
+        super(logger, eventBus, {
             timeoutMs: ConversationalStrategy.TURN_TIMEOUT_MS * ConversationalStrategy.MAX_CONVERSATION_TURNS,
             ...config,
         });
@@ -74,6 +76,18 @@ export class ConversationalStrategy extends StrategyBase {
      */
     setValidationEngine(engine: ValidationEngine): void {
         this.validationEngine = engine;
+    }
+
+    /**
+     * Validate execution context
+     */
+    private validateContext(context: StrategyExecutionContext): void {
+        if (!context.stepId) {
+            throw new Error("Step ID is required for conversational strategy");
+        }
+        if (!context.stepType) {
+            throw new Error("Step type is required for conversational strategy");
+        }
     }
 
     /**
@@ -206,46 +220,6 @@ export class ConversationalStrategy extends StrategyBase {
     }
 
 
-    /**
-     * Enhanced performance metrics tracking
-     */
-    getPerformanceMetrics(): StrategyPerformance {
-        const recentHistory = this.performanceHistory.slice(-100); // Last 100 executions
-        
-        if (recentHistory.length === 0) {
-            return {
-                totalExecutions: 0,
-                successCount: 0,
-                failureCount: 0,
-                averageExecutionTime: 0,
-                averageResourceUsage: {},
-                averageConfidence: 0,
-                evolutionScore: 0,
-            };
-        }
-        
-        const successCount = recentHistory.filter(h => h.success).length;
-        const avgExecutionTime = recentHistory.reduce((sum, h) => sum + h.executionTime, 0) / recentHistory.length;
-        const avgTokensUsed = recentHistory.reduce((sum, h) => sum + h.tokensUsed, 0) / recentHistory.length;
-        const avgConfidence = recentHistory.reduce((sum, h) => sum + h.confidence, 0) / recentHistory.length;
-        
-        // Evolution score: improvement over time
-        const evolutionScore = this.calculateEvolutionScore(recentHistory);
-        
-        return {
-            totalExecutions: this.performanceHistory.length,
-            successCount,
-            failureCount: recentHistory.length - successCount,
-            averageExecutionTime: avgExecutionTime,
-            averageResourceUsage: {
-                tokens: avgTokensUsed,
-                computeTime: avgExecutionTime,
-                cost: avgTokensUsed * 0.00002,
-            },
-            averageConfidence: avgConfidence,
-            evolutionScore,
-        };
-    }
 
     /**
      * LEGACY PATTERN: Build conversation request with proven context building
@@ -533,24 +507,6 @@ export class ConversationalStrategy extends StrategyBase {
         return outputs;
     }
     
-    /**
-     * Enhanced resource usage calculation
-     */
-    private calculateResourceUsage(
-        response: ConversationalResponse,
-        executionTime: number,
-        totalTokens: number,
-    ): ResourceUsage {
-        const apiCalls = 1 + (response.toolCalls?.length || 0);
-        const costPerToken = 0.00002; // GPT-4o-mini pricing
-        
-        return {
-            tokens: totalTokens,
-            apiCalls,
-            computeTime: executionTime,
-            cost: totalTokens * costPerToken,
-        };
-    }
 
     /**
      * Enhanced confidence calculation with legacy patterns
@@ -583,92 +539,7 @@ export class ConversationalStrategy extends StrategyBase {
         return Math.max(0, Math.min(1, confidence));
     }
 
-    /**
-     * Enhanced performance score calculation with legacy metrics
-     */
-    private calculatePerformanceScore(
-        response: ConversationalResponse,
-        context: StrategyExecutionContext,
-    ): number {
-        let score = 0.7; // Base score for successful completion
 
-        // Legacy: Bonus for high confidence
-        if (response.confidence > 0.8) {
-            score += 0.1;
-        }
-        
-        // Legacy: Bonus for efficiency (moderate token usage)
-        if (response.tokensUsed < 1000) {
-            score += 0.1;
-        } else if (response.tokensUsed > 2500) {
-            score -= 0.05; // Slight penalty for very long responses
-        }
-        
-        // Legacy: Quality indicators
-        const content = response.content;
-        if (content.length > 100 && content.length < 2000) {
-            score += 0.05; // Bonus for good length
-        }
-        
-        // Legacy: Penalty for uncertainty
-        if (content.includes("unclear") || content.includes("ambiguous") || content.includes("not sure")) {
-            score -= 0.1;
-        }
-        
-        // Legacy: Bonus for structured response
-        if (content.includes(":\n") || content.includes("•") || content.includes("-")) {
-            score += 0.05; // Bonus for organized output
-        }
-        
-        // Bonus for successful tool integration
-        if (response.toolCalls && response.toolCalls.length > 0) {
-            score += 0.1;
-        }
-
-        return Math.max(0, Math.min(1, score));
-    }
-
-    /**
-     * Enhanced improvement suggestions with legacy insights
-     */
-    private suggestImprovements(
-        response: ConversationalResponse,
-        context: StrategyExecutionContext,
-    ): string[] {
-        const improvements: string[] = [];
-
-        // Legacy: Confidence-based suggestions
-        if (response.confidence < 0.6) {
-            improvements.push("Consider providing more specific context or examples to improve response quality");
-        }
-        
-        // Legacy: Token usage optimization
-        if (response.tokensUsed > 2000) {
-            improvements.push("Response was lengthy - consider more focused prompting or output constraints");
-        }
-        
-        // Legacy: Content quality suggestions
-        if (response.content.length < 100) {
-            improvements.push("Response was very brief - consider asking for more detailed explanations");
-        }
-        
-        if (response.content.includes("I don't know") || response.content.includes("unclear")) {
-            improvements.push("Response contained uncertainty - consider providing clearer instructions or context");
-        }
-        
-        // Tool usage suggestions
-        if (this.requiresToolsEstimate(context) && (!response.toolCalls || response.toolCalls.length === 0)) {
-            improvements.push("Task might benefit from tool usage - consider enabling relevant tools");
-        }
-        
-        // Multi-turn conversation suggestions
-        const historyLength = context.history?.recentSteps?.length || 0;
-        if (historyLength === 0) {
-            improvements.push("Consider multi-turn conversation for more interactive engagement");
-        }
-
-        return improvements;
-    }
 
     /**
      * Helper methods adapted from legacy implementation
@@ -776,54 +647,7 @@ export class ConversationalStrategy extends StrategyBase {
         };
     }
     
-    /**
-     * Calculate evolution score based on performance trends
-     */
-    private calculateEvolutionScore(history: typeof this.performanceHistory): number {
-        if (history.length < 10) return 0;
-        
-        const recent = history.slice(-50);
-        const older = history.slice(-100, -50);
-        
-        if (older.length === 0) return 0;
-        
-        const recentAvg = recent.reduce((sum, h) => sum + h.confidence, 0) / recent.length;
-        const olderAvg = older.reduce((sum, h) => sum + h.confidence, 0) / older.length;
-        
-        // Evolution score: improvement over time
-        return Math.max(0, Math.min(1, (recentAvg - olderAvg) + 0.5));
-    }
     
-    /**
-     * Optimize strategy for successful feedback
-     */
-    private optimizeForSuccess(feedback: StrategyFeedback): void {
-        this.logger.debug("[ConversationalStrategy] Optimizing for success", {
-            performanceScore: feedback.performanceScore,
-            userSatisfaction: feedback.userSatisfaction,
-        });
-        // Future: Implement parameter optimization
-    }
-    
-    /**
-     * Adjust strategy for failure feedback
-     */
-    private adjustForFailure(feedback: StrategyFeedback): void {
-        this.logger.debug("[ConversationalStrategy] Adjusting for failure", {
-            issues: feedback.issues,
-        });
-        // Future: Implement failure recovery adjustments
-    }
-    
-    /**
-     * Update performance metrics with feedback
-     */
-    private updatePerformanceMetrics(feedback: StrategyFeedback): void {
-        // Future: Update internal metrics based on feedback
-        this.logger.debug("[ConversationalStrategy] Updated performance metrics", {
-            outcome: feedback.outcome,
-        });
-    }
     
     /**
      * Handle tool execution using the shared ToolOrchestrator
@@ -855,10 +679,10 @@ export class ConversationalStrategy extends StrategyBase {
                     stepId: context.stepId,
                 });
 
-                const result = await this.toolOrchestrator.executeTool(
-                    toolCall.name,
-                    toolCall.parameters || {},
-                );
+                const result = await this.toolOrchestrator.executeTool({
+                    toolName: toolCall.name,
+                    parameters: toolCall.parameters || {},
+                });
 
                 toolResults.push(`Tool ${toolCall.name}: ${JSON.stringify(result)}`);
                 
@@ -899,14 +723,14 @@ export class ConversationalStrategy extends StrategyBase {
         }
 
         try {
-            const validationResult = await this.validationEngine.validateOutputs(
+            const validationResult = await this.validationEngine.validate(
                 outputs,
                 context.config.expectedOutputs || {},
             );
 
             if (validationResult.valid) {
                 this.logger.debug("[ConversationalStrategy] Outputs validated successfully");
-                return validationResult.sanitizedOutputs || outputs;
+                return validationResult.data || outputs;
             } else {
                 this.logger.warn("[ConversationalStrategy] Output validation failed", {
                     errors: validationResult.errors,

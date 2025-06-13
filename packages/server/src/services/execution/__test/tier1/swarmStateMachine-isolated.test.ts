@@ -1,12 +1,11 @@
-import { describe, it } from "mocha";
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import winston from "winston";
 import { SwarmState, type Swarm } from "@vrooli/shared";
 import { SwarmStateMachine } from "../../tier1/coordination/swarmStateMachine.js";
 
 describe("SwarmStateMachine Isolated Test", () => {
     it("should be able to import SwarmState from shared package", () => {
-        expect(SwarmState.UNINITIALIZED).to.equal("UNINITIALIZED");
+        expect(SwarmState.UNINITIALIZED).toBe("UNINITIALIZED");
     });
 
     it("should be able to create a mock swarm", () => {
@@ -46,7 +45,7 @@ describe("SwarmStateMachine Isolated Test", () => {
             },
         };
 
-        expect(mockSwarm.id).to.equal("swarm-123");
-        expect(mockSwarm.state).to.equal(SwarmState.UNINITIALIZED);
+        expect(mockSwarm.id).toBe("swarm-123");
+        expect(mockSwarm.state).toBe(SwarmState.UNINITIALIZED);
     });
 });

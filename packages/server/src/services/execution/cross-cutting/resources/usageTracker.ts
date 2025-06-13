@@ -55,7 +55,6 @@ export interface UsageSummary {
     };
     aggregated: Map<ResourceType, AggregatedUsage>;
     totalCost: number;
-    efficiency?: number;
 }
 
 /**
@@ -63,10 +62,12 @@ export interface UsageSummary {
  * 
  * Tracks resource usage with:
  * - Real-time recording
- * - Aggregation and rollups
- * - Trend analysis
+ * - Basic aggregation
  * - Cost tracking
- * - Event notifications
+ * - Event notifications for monitoring agents
+ * 
+ * Note: Analysis (trends, efficiency, optimization) is performed by 
+ * monitoring agents via event subscriptions - not hardcoded here.
  */
 export class UsageTracker {
     private readonly logger: Logger;
@@ -219,47 +220,9 @@ export class UsageTracker {
             period,
             aggregated: new Map(this.aggregated),
             totalCost,
-            efficiency: this.calculateEfficiency(),
         };
     }
     
-    /**
-     * Get usage trend
-     */
-    getTrend(
-        resourceType: ResourceType,
-        intervals: number = 10,
-    ): Array<{ timestamp: Date; value: number }> {
-        const records = this.records.filter(r => r.resourceType === resourceType);
-        if (records.length === 0) {
-            return [];
-        }
-        
-        const oldest = records[0].timestamp.getTime();
-        const newest = records[records.length - 1].timestamp.getTime();
-        const intervalSize = (newest - oldest) / intervals;
-        
-        const trend: Array<{ timestamp: Date; value: number }> = [];
-        
-        for (let i = 0; i < intervals; i++) {
-            const start = oldest + (i * intervalSize);
-            const end = start + intervalSize;
-            
-            const intervalRecords = records.filter(r => {
-                const time = r.timestamp.getTime();
-                return time >= start && time < end;
-            });
-            
-            const total = intervalRecords.reduce((sum, r) => sum + r.amount, 0);
-            
-            trend.push({
-                timestamp: new Date(start + intervalSize / 2),
-                value: total,
-            });
-        }
-        
-        return trend;
-    }
     
     /**
      * Reset tracker
@@ -375,31 +338,6 @@ export class UsageTracker {
         }
     }
     
-    /**
-     * Calculate efficiency score
-     */
-    private calculateEfficiency(): number {
-        // Simple efficiency calculation based on resource utilization
-        // Can be customized based on specific needs
-        
-        const credits = this.aggregated.get(ResourceType.CREDITS);
-        const time = this.aggregated.get(ResourceType.TIME);
-        
-        if (!credits || !time || credits.count === 0 || time.count === 0) {
-            return 1.0; // No data, assume efficient
-        }
-        
-        // Credits per millisecond
-        const creditsPerMs = credits.total / time.total;
-        
-        // Compare to expected baseline (customize as needed)
-        const baselineCreditsPerMs = 0.001; // 1 credit per second
-        
-        // Efficiency is inverse of cost - lower is better
-        const efficiency = Math.min(1.0, baselineCreditsPerMs / creditsPerMs);
-        
-        return efficiency;
-    }
     
     /**
      * Start aggregation timer
@@ -435,7 +373,6 @@ export class UsageTracker {
         this.logger.debug("[UsageTracker] Performed aggregation", {
             trackerId: this.config.trackerId,
             totalCost: summary.totalCost,
-            efficiency: summary.efficiency,
         });
     }
 }

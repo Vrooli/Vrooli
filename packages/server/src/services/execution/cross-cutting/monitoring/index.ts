@@ -12,6 +12,5 @@
 export { ExecutionEventEmitter, ComponentEventEmitter } from "./ExecutionEventEmitter.js";
 export type { RawMetricEvent, RawExecutionEvent } from "./ExecutionEventEmitter.js";
 
-// DEPRECATED - to be removed
-export { RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
-export type { HistoryEvent, RollingHistoryConfig, PatternDetectionResult, HistoryStats } from "../../monitoring/adapters/RollingHistoryAdapter.js";
+// All hardcoded monitoring logic has been removed.
+// Teams deploy monitoring intelligence as agents that subscribe to events.

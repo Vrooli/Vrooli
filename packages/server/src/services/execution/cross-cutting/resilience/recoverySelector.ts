@@ -43,15 +43,11 @@ interface StrategyEffectiveness {
 }
 
 /**
- * Context scoring weights for strategy selection
+ * Recovery strategy selector with minimal infrastructure
+ * 
+ * Note: Strategy scoring and optimization logic should be handled by
+ * optimization agents via event subscriptions, not hardcoded here.
  */
-const CONTEXT_WEIGHTS = {
-    severity: 0.3,
-    category: 0.25,
-    recoverability: 0.2,
-    attemptCount: 0.15,
-    resourceState: 0.1,
-} as const;
 
 /**
  * Recovery strategy selector with adaptive learning
@@ -87,18 +83,8 @@ export class RecoverySelector {
                 return this.createFallbackStrategy(classification, context);
             }
 
-            // Score and rank strategies
-            const scoredStrategies = await Promise.all(
-                candidates.map(async strategy => ({
-                    strategy,
-                    score: await this.scoreStrategy(strategy, classification, context),
-                })),
-            );
-
-            // Sort by score (highest first)
-            scoredStrategies.sort((a, b) => b.score - a.score);
-
-            const selectedStrategy = scoredStrategies[0].strategy;
+            // Use basic priority-based selection (optimization agents will improve this)
+            const selectedStrategy = this.selectBasicStrategy(candidates, classification, context);
             
             // Adapt strategy based on context
             const adaptedStrategy = this.adaptStrategy(selectedStrategy, classification, context);
@@ -106,7 +92,6 @@ export class RecoverySelector {
             const duration = performance.now() - startTime;
             logger.debug("Strategy selected", {
                 selectedStrategy: adaptedStrategy.strategyType,
-                score: scoredStrategies[0].score,
                 candidateCount: candidates.length,
                 duration: `${duration.toFixed(2)}ms`,
                 tier: context.tier,
@@ -209,137 +194,40 @@ export class RecoverySelector {
     }
 
     /**
-     * Score strategy based on effectiveness and context
+     * Basic strategy selection using simple rules
+     * Note: Complex optimization should be handled by optimization agents
      */
-    private async scoreStrategy(
-        strategy: RecoveryStrategyConfig,
+    private selectBasicStrategy(
+        candidates: RecoveryStrategyConfig[],
         classification: ErrorClassification,
         context: ErrorContext,
-    ): Promise<number> {
-        let score = strategy.estimatedSuccessRate; // Base score
-
-        // Adjust based on historical effectiveness
-        const effectiveness = this.getStrategyEffectiveness(
-            strategy.strategyType,
-            classification,
-            context,
-        );
+    ): RecoveryStrategyConfig {
+        // Sort by basic priority first
+        const prioritized = [...candidates].sort((a, b) => b.priority - a.priority);
         
-        if (effectiveness) {
-            // Weight historical success rate more heavily
-            score = (score * 0.3) + (effectiveness.successRate * 0.7);
+        // Apply minimal context-based filtering
+        for (const strategy of prioritized) {
+            // Avoid recently failed strategies
+            if (context.previousStrategies.includes(strategy.strategyType)) {
+                continue;
+            }
             
-            // Penalize recent failures
-            if (effectiveness.attempts > 0) {
-                const recentSuccessRate = effectiveness.successRate;
-                if (recentSuccessRate < 0.5) {
-                    score *= 0.8; // 20% penalty for poor recent performance
+            // Critical errors should escalate
+            if (classification.severity === ErrorSeverity.CRITICAL) {
+                if (strategy.strategyType === Strategy.ESCALATE_TO_HUMAN ||
+                    strategy.strategyType === Strategy.EMERGENCY_STOP) {
+                    return strategy;
                 }
             }
+            
+            // Return first viable strategy
+            return strategy;
         }
-
-        // Context-based adjustments
-        score += this.calculateContextBonus(strategy, classification, context);
-
-        // Resource efficiency adjustment
-        score += this.calculateResourceEfficiencyBonus(strategy, context);
-
-        // Penalty for repeated use
-        if (context.previousStrategies.includes(strategy.strategyType)) {
-            score *= 0.7; // 30% penalty for repetition
-        }
-
-        // Priority adjustment
-        score += strategy.priority * 0.1;
-
-        return Math.max(0, Math.min(1, score)); // Clamp to [0, 1]
-    }
-
-    /**
-     * Calculate context-based bonus
-     */
-    private calculateContextBonus(
-        strategy: RecoveryStrategyConfig,
-        classification: ErrorClassification,
-        context: ErrorContext,
-    ): number {
-        let bonus = 0;
-
-        // Severity-based bonuses
-        if (classification.severity === ErrorSeverity.CRITICAL) {
-            if (strategy.strategyType === Strategy.ESCALATE_TO_HUMAN ||
-                strategy.strategyType === Strategy.EMERGENCY_STOP) {
-                bonus += 0.2;
-            }
-        }
-
-        // Category-based bonuses
-        if (classification.category === ErrorCategory.TRANSIENT) {
-            if (strategy.strategyType === Strategy.RETRY_SAME ||
-                strategy.strategyType === Strategy.WAIT_AND_RETRY) {
-                bonus += 0.15;
-            }
-        } else if (classification.category === ErrorCategory.RESOURCE) {
-            if (strategy.strategyType === Strategy.REDUCE_SCOPE ||
-                strategy.strategyType === Strategy.WAIT_AND_RETRY) {
-                bonus += 0.15;
-            }
-        }
-
-        // Tier-specific bonuses
-        if (context.tier === 1) {
-            if (strategy.strategyType === Strategy.ESCALATE_TO_HUMAN ||
-                strategy.strategyType === Strategy.FALLBACK_STRATEGY) {
-                bonus += 0.1;
-            }
-        } else if (context.tier === 3) {
-            if (strategy.strategyType === Strategy.ESCALATE_TO_PARENT ||
-                strategy.strategyType === Strategy.FALLBACK_MODEL) {
-                bonus += 0.1;
-            }
-        }
-
-        return bonus;
-    }
-
-    /**
-     * Calculate resource efficiency bonus
-     */
-    private calculateResourceEfficiencyBonus(
-        strategy: RecoveryStrategyConfig,
-        context: ErrorContext,
-    ): number {
-        let bonus = 0;
-
-        // Check available resources
-        const resourceState = context.resourceState as any;
         
-        if (resourceState?.memoryUsage > 0.8) {
-            // High memory usage - prefer lighter strategies
-            if (strategy.strategyType === Strategy.REDUCE_SCOPE ||
-                strategy.strategyType === Strategy.GRACEFUL_DEGRADATION) {
-                bonus += 0.1;
-            }
-        }
-
-        if (resourceState?.cpuUsage > 0.8) {
-            // High CPU usage - prefer simpler strategies
-            if (strategy.strategyType === Strategy.LOG_WARNING ||
-                strategy.strategyType === Strategy.ESCALATE_TO_PARENT) {
-                bonus += 0.1;
-            }
-        }
-
-        // Cost efficiency
-        const totalResourceCost = Object.values(strategy.resourceRequirements)
-            .reduce((sum, cost) => sum + cost, 0);
-        
-        if (totalResourceCost < 0.1) {
-            bonus += 0.05; // Small bonus for low-cost strategies
-        }
-
-        return bonus;
+        // Fallback to highest priority if all have been tried
+        return prioritized[0];
     }
+
 
     /**
      * Get strategy effectiveness from history
