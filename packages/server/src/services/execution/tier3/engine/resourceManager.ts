@@ -163,7 +163,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
         amount: number,
         durationMs: number,
     ): Promise<BudgetReservation | null> {
-        try {
+        return this.withErrorHandling("allocate burst capacity", async () => {
             const allocation = await this.adapter.allocateBurst(
                 userId,
                 { credits: amount },
@@ -178,13 +178,7 @@ export class ResourceManager extends BaseTierResourceManager<StepResourceAdapter
                 allocated: true,
                 metadata: { userId, burst: true },
             };
-        } catch (error) {
-            this.logger.warn("[ResourceManager] Failed to allocate burst capacity", {
-                userId,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            return null;
-        }
+        }, () => null);
     }
 
     /**

@@ -15,7 +15,8 @@ import { ConversationBridge } from "./intelligence/conversationBridge.js";
 import { TeamManager } from "./organization/teamManager.js";
 import { ResourceManager } from "./organization/resourceManager.js";
 import { StrategyEngine } from "./intelligence/strategyEngine.js";
-import { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
+// MetacognitiveMonitor functionality now provided by emergent agents - see monitoring/README.md
+// import { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
 import { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 import { type ISwarmStateStore } from "./state/swarmStateStore.js";
 import {

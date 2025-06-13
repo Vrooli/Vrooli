@@ -10,6 +10,7 @@ import {
 } from "@vrooli/shared";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
+import { BaseStore } from "../../shared/BaseStore.js";
 
 /**
  * Deterministic execution plan
@@ -80,7 +81,7 @@ export class DeterministicStrategy implements ExecutionStrategy {
     private readonly logger: Logger;
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
-    private readonly cache: Map<string, CacheEntry> = new Map();
+    private readonly cache: BaseStore<CacheEntry>;
     
     // Performance tracking (new capability)
     private performanceHistory: Array<{
@@ -104,6 +105,7 @@ export class DeterministicStrategy implements ExecutionStrategy {
         this.logger = logger;
         this.toolOrchestrator = new ToolOrchestrator(logger);
         this.validationEngine = new ValidationEngine(logger);
+        this.cache = new BaseStore<CacheEntry>(logger);
     }
 
     /**
@@ -331,7 +333,7 @@ export class DeterministicStrategy implements ExecutionStrategy {
      */
     private async checkCache(context: StrategyExecutionContext): Promise<unknown> {
         const cacheKey = this.generateCacheKey(context);
-        const entry = this.cache.get(cacheKey);
+        const entry = await this.cache.get(cacheKey);
 
         if (!entry) {
             return null;
@@ -339,13 +341,13 @@ export class DeterministicStrategy implements ExecutionStrategy {
 
         // Check if cache entry is still valid
         if (entry.expiresAt && entry.expiresAt < new Date()) {
-            this.cache.delete(cacheKey);
+            await this.cache.delete(cacheKey);
             return null;
         }
 
         // Validate cache entry is still applicable
         if (!this.isCacheValid(entry, context)) {
-            this.cache.delete(cacheKey);
+            await this.cache.delete(cacheKey);
             return null;
         }
 
@@ -833,7 +835,7 @@ export class DeterministicStrategy implements ExecutionStrategy {
         const cacheKey = this.generateCacheKey(context);
         const ttl = context.config.cacheTTL || 3600000; // 1 hour default
 
-        this.cache.set(cacheKey, {
+        await this.cache.set(cacheKey, {
             value: result,
             createdAt: new Date(),
             expiresAt: new Date(Date.now() + (typeof ttl === 'number' ? ttl : 3600000)),
@@ -841,22 +843,10 @@ export class DeterministicStrategy implements ExecutionStrategy {
             executionTime: 0, // Will be set by metrics
         });
 
-        // Implement cache size management
-        if (this.cache.size > 1000) {
-            this.evictOldestCacheEntries();
-        }
+        // BaseStore handles size management automatically, so no manual eviction needed
     }
 
-    private evictOldestCacheEntries(): void {
-        const entries = Array.from(this.cache.entries());
-        entries.sort((a, b) => a[1].createdAt.getTime() - b[1].createdAt.getTime());
-
-        // Remove oldest 10%
-        const toRemove = Math.floor(entries.length * 0.1);
-        for (let i = 0; i < toRemove; i++) {
-            this.cache.delete(entries[i][0]);
-        }
-    }
+    // Cache eviction is handled automatically by BaseStore
 
     private createCachedResult(
         cachedValue: unknown,

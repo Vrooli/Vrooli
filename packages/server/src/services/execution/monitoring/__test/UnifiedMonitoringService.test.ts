@@ -9,10 +9,27 @@ describe("UnifiedMonitoringService", () => {
     let service: UnifiedMonitoringService;
     
     beforeEach(async () => {
+        // Reset any existing instance first
+        await UnifiedMonitoringService.reset();
+        
         service = UnifiedMonitoringService.getInstance({
             maxOverheadMs: 5,
             eventBusEnabled: false, // Disable for testing
             mcpToolsEnabled: false,
+            retentionPolicies: [
+                { tier: 1, metricType: "performance", retentionDays: 1 },
+                { tier: 2, metricType: "performance", retentionDays: 1 },
+                { tier: 3, metricType: "performance", retentionDays: 1 },
+                { tier: "cross-cutting", metricType: "performance", retentionDays: 1 },
+                { tier: "cross-cutting", metricType: "business", retentionDays: 1 },
+                { tier: "cross-cutting", metricType: "health", retentionDays: 1 },
+            ],
+            bufferSizes: {
+                "tier-1": 1000,
+                "tier-2": 1000,
+                "tier-3": 1000,
+                "cross-cutting": 1000,
+            },
         });
         await service.initialize();
     });

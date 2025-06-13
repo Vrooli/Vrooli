@@ -357,6 +357,7 @@ export class DeterministicStrategyAdapter implements ExecutionStrategy {
                         data: context.inputs,
                         timestamp: new Date().toISOString(),
                         endpoint: context.config.endpoint || "default_api",
+                        method: context.config.method || "GET",
                     },
                 };
             }

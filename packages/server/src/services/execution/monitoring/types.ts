@@ -353,3 +353,204 @@ export interface MonitoringConfig {
     eventBusEnabled: boolean;                   // Emit events to event bus
     mcpToolsEnabled: boolean;                   // Enable MCP monitoring tools
 }
+
+/**
+ * Consolidated types for adapter consolidation
+ */
+
+/**
+ * Unified resource usage tracking (for adapter consolidation)
+ */
+export interface UnifiedResourceUsage {
+    credits: number;
+    tokens: number;
+    toolCalls: number;
+    memory?: number;
+    cpu?: number;
+    custom?: Record<string, number>;
+}
+
+/**
+ * Unified efficiency metrics (for adapter consolidation)
+ */
+export interface UnifiedEfficiencyMetrics {
+    utilizationRate: number;
+    wasteRate: number;
+    optimizationScore: number;
+    costPerOutcome: number;
+    throughput?: number;
+    latency?: number;
+}
+
+/**
+ * Unified performance metrics (for adapter consolidation)
+ */
+export interface UnifiedPerformanceMetrics {
+    duration: number;
+    success: boolean;
+    resourceUsage: UnifiedResourceUsage;
+    error?: string;
+    metadata: Record<string, unknown>;
+    timestamp: Date;
+}
+
+/**
+ * Performance summary with percentiles (for adapter consolidation)
+ */
+export interface PerformanceSummary {
+    count: number;
+    successRate: number;
+    avgDuration: number;
+    p50Duration: number;
+    p95Duration: number;
+    p99Duration: number;
+    avgResourceUsage: UnifiedResourceUsage;
+    timeRange: {
+        start: Date;
+        end: Date;
+    };
+}
+
+/**
+ * Cost breakdown by resource type (for adapter consolidation)
+ */
+export interface CostBreakdown {
+    total: number;
+    byResource: Record<string, number>;
+    byComponent?: Record<string, number>;
+    trends: {
+        daily: Array<{ date: string; cost: number }>;
+        weekly: Array<{ week: string; cost: number }>;
+        monthly: Array<{ month: string; cost: number }>;
+    };
+}
+
+/**
+ * Health status for components (for adapter consolidation)
+ */
+export interface ComponentHealth {
+    component: string;
+    status: "healthy" | "degraded" | "unhealthy" | "unknown";
+    lastCheck: Date;
+    metrics: {
+        availability: number;
+        errorRate: number;
+        responseTime: number;
+    };
+    issues?: string[];
+}
+
+/**
+ * Optimization suggestion (for adapter consolidation)
+ */
+export interface OptimizationSuggestion {
+    id: string;
+    type: "reduce" | "optimize" | "cache" | "parallelize" | "batch";
+    targetResource: string;
+    currentUsage: number;
+    projectedSavings: number;
+    implementation: string;
+    risk: "low" | "medium" | "high";
+    priority: number;
+}
+
+/**
+ * Strategy effectiveness metrics (for adapter consolidation)
+ */
+export interface StrategyEffectiveness {
+    strategy: string;
+    executions: number;
+    successRate: number;
+    avgDuration: number;
+    avgCost: number;
+    efficiency: UnifiedEfficiencyMetrics;
+    trend: "improving" | "stable" | "degrading";
+    recommendedFor: string[];
+    notRecommendedFor: string[];
+}
+
+/**
+ * Intelligence metrics for AI components (for adapter consolidation)
+ */
+export interface IntelligenceMetrics {
+    component: string;
+    tier: 1 | 2 | 3;
+    metrics: {
+        decisionQuality: number;
+        adaptationRate: number;
+        goalAchievementRate: number;
+        learningCurveSlope: number;
+        autonomyLevel: number;
+    };
+    capabilities: {
+        current: string[];
+        emerging: string[];
+        improving: string[];
+    };
+}
+
+/**
+ * Error analysis summary (for adapter consolidation)
+ */
+export interface ErrorAnalysis {
+    totalErrors: number;
+    errorsByType: Record<string, number>;
+    errorsByComponent: Record<string, number>;
+    errorRate: number;
+    trends: {
+        hourly: number[];
+        daily: number[];
+    };
+    commonPatterns: Array<{
+        pattern: string;
+        count: number;
+        impact: "low" | "medium" | "high";
+        suggestedFix?: string;
+    }>;
+}
+
+/**
+ * Event types for monitoring (for adapter consolidation)
+ */
+export enum MonitoringEventType {
+    // Performance events
+    EXECUTION_START = "execution.start",
+    EXECUTION_COMPLETE = "execution.complete",
+    EXECUTION_FAILED = "execution.failed",
+    
+    // Resource events
+    RESOURCE_ALLOCATED = "resource.allocated",
+    RESOURCE_RELEASED = "resource.released",
+    RESOURCE_LIMIT_REACHED = "resource.limit_reached",
+    
+    // Health events
+    HEALTH_CHECK = "health.check",
+    COMPONENT_ERROR = "component.error",
+    COMPONENT_RECOVERED = "component.recovered",
+    
+    // Intelligence events
+    DECISION_MADE = "decision.made",
+    GOAL_ACHIEVED = "goal.achieved",
+    STRATEGY_ADAPTED = "strategy.adapted",
+}
+
+/**
+ * Time window for queries (for adapter consolidation)
+ */
+export interface TimeWindow {
+    start: Date;
+    end: Date;
+    granularity?: "minute" | "hour" | "day" | "week" | "month";
+}
+
+/**
+ * Query options for metrics (for adapter consolidation)
+ */
+export interface MetricQueryOptions {
+    timeWindow?: TimeWindow;
+    filters?: Record<string, any>;
+    groupBy?: string[];
+    orderBy?: string;
+    limit?: number;
+    includeMetadata?: boolean;
+}

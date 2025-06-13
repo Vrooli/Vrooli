@@ -318,11 +318,10 @@ export class TierTwoRunStateMachine extends BaseStateMachine<BaseState, RunState
         type: RunEventType,
         metadata?: any,
     ): Promise<void> {
-        const event: RunEvent = {
+        const event = {
             id: generatePk(),
             runId: run.id,
             type,
-            timestamp: new Date(),
             metadata: {
                 ...metadata,
                 state: run.state,
@@ -330,7 +329,7 @@ export class TierTwoRunStateMachine extends BaseStateMachine<BaseState, RunState
             },
         };
 
-        await this.eventBus.publish("run.events", event);
+        await this.eventPublisher.publish("run.events", event);
     }
 
     private async handleExecutionResult(

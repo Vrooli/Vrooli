@@ -332,8 +332,8 @@ describe("BranchCoordinator - New Configuration API", () => {
                 branchCount: 0,
             };
 
+            // Should create empty array when branchCount is 0
             const branches = await coordinator.createBranchesFromConfig("run-123", config);
-
             expect(branches).toHaveLength(0);
         });
     });

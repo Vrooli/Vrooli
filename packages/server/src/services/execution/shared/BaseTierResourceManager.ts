@@ -13,6 +13,8 @@ import { ResourceManager as UnifiedResourceManager } from "../cross-cutting/reso
 import { ResourcePoolManager } from "../cross-cutting/resources/resourcePool.js";
 import { UsageTracker } from "../cross-cutting/resources/usageTracker.js";
 import { RateLimiter } from "../cross-cutting/resources/rateLimiter.js";
+import { EventPublisher } from "./EventPublisher.js";
+import { ErrorHandler, ComponentErrorHandler } from "./ErrorHandler.js";
 import { 
     type TierResourceConfig, 
     type TierResourceAdapter,
@@ -27,6 +29,8 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
     protected readonly eventBus: EventBus;
     protected readonly unifiedManager: UnifiedResourceManager;
     protected readonly adapter: TAdapter;
+    protected readonly eventPublisher: EventPublisher;
+    protected readonly errorHandler: ComponentErrorHandler;
     
     // Shared components
     protected readonly poolManager: ResourcePoolManager;
@@ -44,6 +48,10 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
     ) {
         this.logger = logger;
         this.eventBus = eventBus;
+        
+        // Initialize error handling and event publishing
+        this.eventPublisher = new EventPublisher(eventBus, logger, `BaseTierResourceManager.Tier${tier}`);
+        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(`BaseTierResourceManager.Tier${tier}`);
         
         // Get tier-specific configuration
         this.config = customConfig 
@@ -156,27 +164,23 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
     }
 
     /**
-     * Common error handling wrapper
+     * Common error handling wrapper (using centralized ErrorHandler)
+     * @deprecated Use this.errorHandler.execute() directly for new code
      */
     protected async withErrorHandling<T>(
         operation: string,
         fn: () => Promise<T>,
         fallback?: () => T
     ): Promise<T> {
-        try {
-            return await fn();
-        } catch (error) {
-            this.logger.error(`[BaseTierResourceManager] ${operation} failed`, {
-                tier: this.config.tier,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
+        const result = await this.errorHandler.wrap(fn, operation, { tier: this.config.tier });
+        if (!result.success) {
+            const errorResult = result as { success: false; error: Error };
             if (fallback) {
                 return fallback();
             }
-            
-            throw error;
+            throw errorResult.error;
         }
+        return result.data;
     }
 
     /**

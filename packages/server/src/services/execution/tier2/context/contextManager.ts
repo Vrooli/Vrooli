@@ -5,6 +5,8 @@ import {
 } from "@vrooli/shared";
 import { type IRunStateStore } from "../state/runStateStore.js";
 import { ContextValidator, type ValidationResult } from "../../shared/contextValidator.js";
+import { GenericStore } from "../../shared/GenericStore.js";
+import { redis } from "../../../redis/index.js";
 
 /**
  * Process-specific RunContext interface for Tier 2
@@ -53,12 +55,22 @@ export class ContextManager {
     private readonly stateStore: IRunStateStore;
     private readonly logger: Logger;
     private readonly validator: ContextValidator;
-    private readonly contextCache: Map<string, ProcessRunContext> = new Map();
+    private readonly contextCache: GenericStore<ProcessRunContext>;
 
     constructor(stateStore: IRunStateStore, logger: Logger) {
         this.stateStore = stateStore;
         this.logger = logger;
         this.validator = new ContextValidator(logger);
+        this.contextCache = new GenericStore<ProcessRunContext>(
+            redis,
+            logger,
+            {
+                keyPrefix: "tier2.context",
+                defaultTTL: 3600, // 1 hour
+                publishEvents: true,
+                eventChannelPrefix: "context"
+            }
+        );
     }
 
     /**
@@ -328,14 +340,14 @@ export class ContextManager {
      */
     async getContext(runId: string): Promise<ProcessRunContext> {
         // Check cache first
-        const cached = this.contextCache.get(runId);
-        if (cached) {
-            return cached;
+        const cachedResult = await this.contextCache.get(runId);
+        if (cachedResult.success && cachedResult.data) {
+            return cachedResult.data;
         }
 
         // Load from state store
         const context = await this.stateStore.getContext(runId);
-        this.contextCache.set(runId, context);
+        await this.contextCache.set(runId, context);
 
         return context;
     }
@@ -365,7 +377,7 @@ export class ContextManager {
         }
 
         // Update cache
-        this.contextCache.set(runId, context);
+        await this.contextCache.set(runId, context);
 
         // Persist to state store
         await this.stateStore.updateContext(runId, context);
@@ -409,7 +421,7 @@ export class ContextManager {
      * Clears context cache for a run
      */
     async clearCache(runId: string): Promise<void> {
-        this.contextCache.delete(runId);
+        await this.contextCache.delete(runId);
     }
 
     /**

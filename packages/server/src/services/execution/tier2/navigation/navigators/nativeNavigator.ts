@@ -4,6 +4,8 @@ import {
     type Location,
     type StepInfo,
 } from "@vrooli/shared";
+import { GenericStore } from "../../../shared/GenericStore.js";
+import { redis } from "../../../../../redis/index.js";
 
 /**
  * Native Vrooli routine definition format
@@ -56,10 +58,19 @@ export class NativeNavigator implements Navigator {
     readonly version = "1.0.0";
     
     private readonly logger: Logger;
-    private definitionCache: Map<string, NativeRoutineDefinition> = new Map();
+    private definitionCache: GenericStore<NativeRoutineDefinition>;
 
     constructor(logger: Logger) {
         this.logger = logger;
+        this.definitionCache = new GenericStore<NativeRoutineDefinition>(
+            redis,
+            logger,
+            {
+                keyPrefix: "navigator.native.definitions",
+                defaultTTL: 7200, // 2 hours
+                publishEvents: false // Internal cache, no events needed
+            }
+        );
     }
 
     /**
@@ -128,11 +139,12 @@ export class NativeNavigator implements Navigator {
     /**
      * Gets the next possible locations from current location
      */
-    getNextLocations(current: Location, context: Record<string, unknown>): Location[] {
-        const def = this.definitionCache.get(current.routineId);
-        if (!def) {
+    async getNextLocations(current: Location, context: Record<string, unknown>): Promise<Location[]> {
+        const defResult = await this.definitionCache.get(current.routineId);
+        if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${current.routineId} not in cache`);
         }
+        const def = defResult.data;
 
         // Find outgoing edges from current node
         const outgoingEdges = def.edges.filter(e => e.from === current.nodeId);
@@ -168,11 +180,12 @@ export class NativeNavigator implements Navigator {
     /**
      * Checks if location is an end location
      */
-    isEndLocation(location: Location): boolean {
-        const def = this.definitionCache.get(location.routineId);
-        if (!def) {
+    async isEndLocation(location: Location): Promise<boolean> {
+        const defResult = await this.definitionCache.get(location.routineId);
+        if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${location.routineId} not in cache`);
         }
+        const def = defResult.data;
 
         // Use explicit end nodes if defined
         if (def.metadata?.endNodeIds) {
@@ -187,11 +200,12 @@ export class NativeNavigator implements Navigator {
     /**
      * Gets information about a step at a location
      */
-    getStepInfo(location: Location): StepInfo {
-        const def = this.definitionCache.get(location.routineId);
-        if (!def) {
+    async getStepInfo(location: Location): Promise<StepInfo> {
+        const defResult = await this.definitionCache.get(location.routineId);
+        if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${location.routineId} not in cache`);
         }
+        const def = defResult.data;
 
         const step = def.steps.find(s => s.id === location.nodeId);
         if (!step) {
@@ -212,11 +226,12 @@ export class NativeNavigator implements Navigator {
     /**
      * Gets dependencies for a step
      */
-    getDependencies(location: Location): string[] {
-        const def = this.definitionCache.get(location.routineId);
-        if (!def) {
+    async getDependencies(location: Location): Promise<string[]> {
+        const defResult = await this.definitionCache.get(location.routineId);
+        if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${location.routineId} not in cache`);
         }
+        const def = defResult.data;
 
         // Find incoming edges
         const incomingEdges = def.edges.filter(e => e.to === location.nodeId);
@@ -228,11 +243,12 @@ export class NativeNavigator implements Navigator {
     /**
      * Gets parallel branches from a location
      */
-    getParallelBranches(location: Location): Location[][] {
-        const def = this.definitionCache.get(location.routineId);
-        if (!def) {
+    async getParallelBranches(location: Location): Promise<Location[][]> {
+        const defResult = await this.definitionCache.get(location.routineId);
+        if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${location.routineId} not in cache`);
         }
+        const def = defResult.data;
 
         const step = def.steps.find(s => s.id === location.nodeId);
         if (!step || step.type !== "parallel") {
@@ -268,7 +284,7 @@ export class NativeNavigator implements Navigator {
 
         // Cache for future use (using first step ID as routine ID for now)
         const routineId = def.steps[0].id; // TODO: Use proper routine ID
-        this.definitionCache.set(routineId, def);
+        await this.definitionCache.set(routineId, def);
 
         return def;
     }

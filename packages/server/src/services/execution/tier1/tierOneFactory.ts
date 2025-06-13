@@ -8,7 +8,8 @@
 import { type Logger } from "winston";
 import { EventBus } from "../cross-cutting/events/eventBus.js";
 import { StrategyEngine } from "./intelligence/strategyEngine.js";
-import { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
+// MetacognitiveMonitor functionality now provided by emergent agents - see monitoring/README.md
+// import { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
 
 /**
  * Tier 1 configuration

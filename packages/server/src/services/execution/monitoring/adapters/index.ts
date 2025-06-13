@@ -1,18 +1,14 @@
 /**
- * Monitoring adapters for migrating legacy components to UnifiedMonitoringService
+ * Emergent Monitoring Architecture
+ * 
+ * Instead of hardcoded monitoring adapters, this system uses emergent agents
+ * that learn from events and propose monitoring improvements.
+ * 
+ * See ../README.md for how to deploy intelligent monitoring agents.
  */
 
-// Base adapter
-export * from "./BaseMonitoringAdapter.js";
+// Only keep the telemetry shim for external compatibility
+export { TelemetryShimAdapter } from "./TelemetryShimAdapter.js";
 
-// Tier-specific adapters
-export * from "./MetacognitiveMonitorAdapter.js";  // Tier 1
-export * from "./PerformanceMonitorAdapter.js";     // Tier 2
-export * from "./PerformanceTrackerAdapter.js";     // Tier 3
-export * from "./StrategyMetricsStoreAdapter.js";   // Tier 3
-
-// Cross-cutting adapters
-export * from "./ResourceMetricsAdapter.js";
-export * from "./ResourceMonitorAdapter.js";
-export * from "./RollingHistoryAdapter.js";
-export * from "./TelemetryShimAdapter.js";
+// For emergent monitoring, use the AgentDeploymentService:
+// import { AgentDeploymentService } from "../../cross-cutting/agents/agentDeploymentService.js";

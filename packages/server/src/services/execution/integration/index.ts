@@ -12,7 +12,7 @@ export {
     type ExecutionArchitectureOptions,
 } from './executionArchitecture.js';
 
-// ResourceMonitor now available through ResourceMonitorAdapter
+// ResourceMonitor functionality now provided by emergent agents - see monitoring/README.md
 
 // Re-export resource types from shared (no longer from deprecated resources folder)
 export type {

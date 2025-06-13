@@ -10,6 +10,8 @@
 
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { EventPublisher } from "./EventPublisher.js";
+import { ErrorHandler, ComponentErrorHandler } from "./ErrorHandler.js";
 
 /**
  * Common states shared by all state machines
@@ -59,6 +61,8 @@ export abstract class BaseStateMachine<
     protected processingLock = false;
     protected disposed = false;
     protected pendingDrainTimeout: NodeJS.Timeout | null = null;
+    protected readonly eventPublisher: EventPublisher;
+    protected readonly errorHandler: ComponentErrorHandler;
     
     constructor(
         protected readonly logger: Logger,
@@ -66,6 +70,8 @@ export abstract class BaseStateMachine<
         initialState: TState = BaseStates.UNINITIALIZED as TState,
     ) {
         this.state = initialState;
+        this.eventPublisher = new EventPublisher(eventBus, logger, this.constructor.name);
+        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(this.constructor.name);
     }
 
     /**
@@ -187,36 +193,40 @@ export abstract class BaseStateMachine<
 
         this.logger.info(`[${this.constructor.name}] Stopping (${mode}) - Reason: ${reason || "No reason"}`);
 
-        try {
-            // Clear any pending operations
-            this.clearPendingDrainTimeout();
-            this.processingLock = false;
+        const result = await this.errorHandler.wrap(
+            async () => {
+                // Clear any pending operations
+                this.clearPendingDrainTimeout();
+                this.processingLock = false;
 
-            // Let subclass handle cleanup
-            const finalState = await this.onStop(mode, reason);
+                // Let subclass handle cleanup
+                const finalState = await this.onStop(mode, reason);
 
-            // Update state
-            this.state = (mode === "force" ? BaseStates.TERMINATED : BaseStates.STOPPED) as TState;
-            this.disposed = true;
+                // Update state
+                this.state = (mode === "force" ? BaseStates.TERMINATED : BaseStates.STOPPED) as TState;
+                this.disposed = true;
 
-            return {
-                success: true,
-                message: `Stopped successfully (${mode})`,
-                finalState,
-            };
-        } catch (error) {
-            this.logger.error(`[${this.constructor.name}] Error during stop`, {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
+                return {
+                    success: true,
+                    message: `Stopped successfully (${mode})`,
+                    finalState,
+                };
+            },
+            "stop",
+            { mode, reason }
+        );
+
+        if (!result.success) {
             this.state = BaseStates.FAILED as TState;
-            
+            const errorResult = result as { success: false; error: Error };
             return {
                 success: false,
                 message: "Error during stop",
-                error: error instanceof Error ? error.message : "Unknown error",
+                error: errorResult.error.message,
             };
         }
+
+        return result.data;
     }
 
     /**
@@ -241,16 +251,16 @@ export abstract class BaseStateMachine<
         while (this.eventQueue.length > 0 && !this.disposed) {
             const event = this.eventQueue.shift()!;
             
-            try {
-                await this.processEvent(event);
-            } catch (error) {
-                this.logger.error(`[${this.constructor.name}] Error processing event`, {
-                    event: event.type,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-                
+            const result = await this.errorHandler.wrap(
+                () => this.processEvent(event),
+                "processEvent",
+                { eventType: event.type }
+            );
+            
+            if (!result.success) {
+                const errorResult = result as { success: false; error: Error };
                 // Let subclass decide if error is fatal
-                if (await this.isErrorFatal(error, event)) {
+                if (await this.isErrorFatal(errorResult.error, event)) {
                     this.state = BaseStates.FAILED as TState;
                     this.processingLock = false;
                     return;
@@ -310,33 +320,43 @@ export abstract class BaseStateMachine<
     }
 
     /**
-     * Emit an event to the event bus
+     * Emit an event to the event bus using EventPublisher
      */
     protected async emitEvent(type: string, data: unknown): Promise<void> {
-        await this.eventBus.publish(type, data);
+        await this.eventPublisher.publish(`state.machine.${type}`, data);
     }
 
     /**
-     * Common error handling wrapper for event processing
+     * Emit a state change event (common pattern for state machines)
+     */
+    protected async emitStateChange(fromState: TState, toState: TState, context?: Record<string, any>): Promise<void> {
+        await this.eventPublisher.publishStateChange(
+            "state_machine",
+            this.getTaskId(),
+            fromState,
+            toState,
+            context
+        );
+    }
+
+    /**
+     * Common error handling wrapper for event processing (deprecated - use errorHandler.execute instead)
+     * @deprecated Use this.errorHandler.execute() directly for new code
      */
     protected async withEventErrorHandling<T>(
         operation: string,
         fn: () => Promise<T>,
         fallback?: (error: unknown) => T
     ): Promise<T> {
-        try {
-            return await fn();
-        } catch (error) {
-            this.logger.error(`[${this.constructor.name}] ${operation} failed`, {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            
+        const result = await this.errorHandler.wrap(fn, operation);
+        if (!result.success) {
+            const errorResult = result as { success: false; error: Error };
             if (fallback) {
-                return fallback(error);
+                return fallback(errorResult.error);
             }
-            
-            throw error;
+            throw errorResult.error;
         }
+        return result.data;
     }
 
     /**

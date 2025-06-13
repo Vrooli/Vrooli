@@ -5,7 +5,8 @@ export * from "./state/index.js";
 export * from "./tierOneCoordinator.js";
 export * from "./tierOneFactory.js";
 
-export { MetacognitiveMonitorAdapter as MetacognitiveMonitor } from "../monitoring/adapters/MetacognitiveMonitorAdapter.js";
+// MetacognitiveMonitor functionality now provided by emergent agents - see monitoring/README.md
+// export { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
 
 export type {
     MetacognitiveReflection,

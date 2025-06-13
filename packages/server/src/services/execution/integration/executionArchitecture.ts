@@ -23,7 +23,8 @@ import { ConversationalStrategy } from "../tier3/strategies/conversationalStrate
 import { DeterministicStrategy } from "../tier3/strategies/deterministicStrategy.js";
 import { ReasoningStrategy } from "../tier3/strategies/reasoningStrategy.js";
 import { IntegratedToolRegistry } from "./mcp/toolRegistry.js";
-import { ResourceMonitorAdapter as ResourceMonitor } from "../monitoring/adapters/ResourceMonitorAdapter.js";
+// ResourceMonitor functionality now provided by emergent agents - see monitoring/README.md
+// import { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
 
 /**
  * Strategy factory interface for creating execution strategies

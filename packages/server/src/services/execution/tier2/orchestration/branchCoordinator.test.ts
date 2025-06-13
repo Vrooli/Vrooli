@@ -373,11 +373,12 @@ describe("BranchCoordinator", () => {
 
             const run = {
                 id: "run-123",
+                config: { recoveryStrategy: "fail" },
                 context: { variables: {}, blackboard: {}, scopes: [] },
             };
 
             // Execute the branch (this will update state to "running" then "completed")
-            await branchCoordinator.executeBranches(run as any, branches, mockStepExecutor as any);
+            await branchCoordinator.executeBranches(run as any, branches, mockNavigator as any, mockStepExecutor as any);
 
             // Verify state updates were persisted
             expect(mockStateStore.updateBranch).toHaveBeenCalledWith(
@@ -417,11 +418,11 @@ describe("BranchCoordinator", () => {
             await branchCoordinator.restoreBranches("run-123");
 
             // Verify branches were restored to memory
-            const status1 = await branchCoordinator.getBranchStatus("branch-1");
-            const status2 = await branchCoordinator.getBranchStatus("branch-2");
+            const branch1 = await branchCoordinator.getBranchStatus("branch-1");
+            const branch2 = await branchCoordinator.getBranchStatus("branch-2");
 
-            expect(status1).toBe("running");
-            expect(status2).toBe("completed");
+            expect(branch1?.state).toBe("running");
+            expect(branch2?.state).toBe("completed");
             expect(mockStateStore.listBranches).toHaveBeenCalledWith("run-123");
         });
 

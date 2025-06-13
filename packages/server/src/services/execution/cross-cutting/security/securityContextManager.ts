@@ -22,6 +22,7 @@ import { logger } from "../../../../events/logger.js";
 import { TelemetryShimAdapter as TelemetryShim } from "../../monitoring/adapters/TelemetryShimAdapter.js";
 import { RedisEventBus } from "../events/eventBus.js";
 import { generatePK } from "@vrooli/shared";
+import { GenericStore } from "../../shared/GenericStore.js";
 
 /**
  * Security context management configuration
@@ -87,8 +88,8 @@ export class SecurityContextManager {
     private readonly eventBus: RedisEventBus;
     private readonly config: SecurityContextConfig;
     
-    // Context cache and templates
-    private readonly contextCache = new Map<string, ContextCacheEntry>();
+    // Context cache using GenericStore for persistence and events
+    private readonly contextCache: GenericStore<ContextCacheEntry>;
     private readonly permissionTemplates = new Map<string, PermissionTemplate>();
     private readonly tierConstraints = new Map<number, GuardRail[]>();
     
@@ -107,13 +108,23 @@ export class SecurityContextManager {
         this.eventBus = eventBus;
         this.config = { ...DEFAULT_CONTEXT_CONFIG, ...config };
         
+        // Initialize context cache with GenericStore
+        this.contextCache = new GenericStore<ContextCacheEntry>({
+            keyPrefix: "security.context",
+            defaultTTL: Math.floor(this.config.contextTimeoutMs / 1000), // Convert to seconds
+            publishEvents: true,
+            eventChannelPrefix: "security.context",
+            validate: (data): data is ContextCacheEntry => {
+                return data && 
+                    typeof data === 'object' && 
+                    'context' in data && 
+                    'createdAt' in data && 
+                    'accessCount' in data;
+            }
+        }, logger, eventBus);
+        
         this.initializePermissionTemplates();
         this.initializeTierConstraints();
-        
-        // Start cache cleanup timer
-        if (this.config.cacheContexts) {
-            this.startCacheCleanup();
-        }
     }
 
     /**
@@ -137,18 +148,23 @@ export class SecurityContextManager {
         try {
             // Check cache first
             const cacheKey = this.generateCacheKey(tier, requestId, origin, options);
-            if (this.config.cacheContexts && this.contextCache.has(cacheKey)) {
-                const cached = this.contextCache.get(cacheKey)!;
-                cached.accessCount++;
-                cached.lastAccessed = new Date();
-                
-                await this.emitContextEvent("context_cache_hit", {
-                    requestId,
-                    tier,
-                    cacheKey,
-                });
-                
-                return { ...cached.context, requestId }; // Update request ID
+            if (this.config.cacheContexts) {
+                const cached = await this.contextCache.get(cacheKey);
+                if (cached) {
+                    cached.accessCount++;
+                    cached.lastAccessed = new Date();
+                    
+                    // Update cache with new access info
+                    await this.contextCache.set(cacheKey, cached);
+                    
+                    await this.emitContextEvent("context_cache_hit", {
+                        requestId,
+                        tier,
+                        cacheKey,
+                    });
+                    
+                    return { ...cached.context, requestId }; // Update request ID
+                }
             }
 
             // Create base security context
@@ -187,7 +203,7 @@ export class SecurityContextManager {
 
             // Cache the context
             if (this.config.cacheContexts) {
-                this.cacheContext(cacheKey, context);
+                await this.cacheContext(cacheKey, context);
             }
 
             // Emit context creation event
@@ -862,14 +878,10 @@ export class SecurityContextManager {
         return `${tier}:${origin.type}:${origin.trustLevel}:${options.templateId || 'default'}`;
     }
 
-    private cacheContext(key: string, context: EnhancedSecurityContext): void {
-        if (this.contextCache.size >= this.config.maxCacheSize) {
-            // Remove oldest entry
-            const oldestKey = Array.from(this.contextCache.keys())[0];
-            this.contextCache.delete(oldestKey);
-        }
-
-        this.contextCache.set(key, {
+    private async cacheContext(key: string, context: EnhancedSecurityContext): Promise<void> {
+        // GenericStore handles size limits and eviction automatically via TTL
+        // So we can simply set the cache entry
+        await this.contextCache.set(key, {
             context: { ...context },
             createdAt: new Date(),
             accessCount: 1,
@@ -877,17 +889,7 @@ export class SecurityContextManager {
         });
     }
 
-    private startCacheCleanup(): void {
-        setInterval(() => {
-            const now = Date.now();
-            
-            for (const [key, entry] of this.contextCache.entries()) {
-                if (now - entry.lastAccessed.getTime() > this.config.contextTimeoutMs) {
-                    this.contextCache.delete(key);
-                }
-            }
-        }, 60000); // Clean up every minute
-    }
+    // GenericStore handles TTL-based cleanup automatically, so no manual cleanup needed
 
     private async emitContextEvent(
         eventType: string,
