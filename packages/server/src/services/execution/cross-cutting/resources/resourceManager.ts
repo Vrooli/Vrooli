@@ -10,6 +10,8 @@
 
 import { logger } from "../../../../events/logger.js";
 import { RedisEventBus } from "../events/eventBus.js";
+import { EventPublisher } from "../../shared/EventPublisher.js";
+import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 import { RateLimiter } from "./rateLimiter.js";
 import { ResourcePool, ResourcePoolManager } from "./resourcePool.js";
 import { UsageTracker } from "./usageTracker.js";
@@ -56,6 +58,8 @@ export interface ResourceManagerConfig {
  */
 export class ResourceManager {
     private readonly eventBus: RedisEventBus;
+    private readonly eventPublisher: EventPublisher;
+    private readonly errorHandler: ComponentErrorHandler;
     private readonly config: ResourceManagerConfig;
     private readonly allocations = new Map<string, ResourceAllocation>();
     private readonly usage = new Map<string, ResourceAmount>();
@@ -77,6 +81,8 @@ export class ResourceManager {
     ) {
         this.eventBus = eventBus;
         this.config = config;
+        this.eventPublisher = new EventPublisher(eventBus, logger, `ResourceManager-Tier${config.tier}`);
+        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler(`ResourceManager-Tier${config.tier}`);
         this.rateLimiter = components?.rateLimiter;
         this.poolManager = components?.poolManager;
         this.usageTracker = components?.usageTracker;
@@ -270,11 +276,9 @@ export class ResourceManager {
     }
 
     private async emitResourceEvent(type: string, data: any): Promise<void> {
-        const topic = this.config.eventTopic || "resource.events";
-        await this.eventBus.publish(topic, {
-            type,
-            timestamp: new Date(),
-            metadata: data,
+        await this.eventPublisher.publish(`resource.${type.toLowerCase()}`, {
+            tier: this.config.tier,
+            ...data,
         });
     }
 

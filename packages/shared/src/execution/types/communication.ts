@@ -10,7 +10,7 @@ import {
     type ExecutionContext,
     type ExecutionResult,
     type ExecutionStatus,
-    type ResourceAllocation,
+    type CoreResourceAllocation,
     type ExecutionOptions,
 } from "./core.js";
 
@@ -20,7 +20,7 @@ import {
 export interface TierExecutionRequest<T = unknown> {
     context: ExecutionContext;
     input: T;
-    allocation: ResourceAllocation;
+    allocation: CoreResourceAllocation;
     options?: ExecutionOptions;
 }
 
@@ -213,7 +213,7 @@ export type SwarmCoordinationRequest = TierExecutionRequest<SwarmCoordinationInp
 export function createTierRequest<T>(
     context: ExecutionContext,
     input: T,
-    allocation: ResourceAllocation,
+    allocation: CoreResourceAllocation,
     options?: ExecutionOptions,
 ): TierExecutionRequest<T> {
     return {

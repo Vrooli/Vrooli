@@ -72,11 +72,11 @@ export interface ExecutionStrategy {
     version: string;
     
     // Core execution method
-    execute(context: ExecutionContext): Promise<StrategyExecutionResult>;
+    execute(context: StrategyExecutionContext): Promise<StrategyExecutionResult>;
     
     // Strategy capabilities
     canHandle(stepType: string, config?: Record<string, unknown>): boolean;
-    estimateResources(context: ExecutionContext): ResourceUsage;
+    estimateResources(context: StrategyExecutionContext): ResourceUsage;
     
     // Performance metrics
     getPerformanceMetrics(): StrategyPerformance;
@@ -85,23 +85,23 @@ export interface ExecutionStrategy {
 /**
  * Execution context for strategies
  */
-export interface ExecutionContext {
+export interface StrategyExecutionContext {
     stepId: string;
     stepType: string;
     inputs: Record<string, unknown>;
     config: Record<string, unknown>;
-    resources: AvailableResources;
-    history: ExecutionHistory;
-    constraints: ExecutionConstraints;
+    resources: StrategyAvailableResources;
+    history: StrategyExecutionHistory;
+    constraints: StrategyExecutionConstraints;
 }
 
 /**
  * Available resources for execution
  */
-export interface AvailableResources {
-    models: ModelResource[];
-    tools: ToolResource[];
-    apis: ApiResource[];
+export interface StrategyAvailableResources {
+    models: StrategyModelResource[];
+    tools: StrategyToolResource[];
+    apis: StrategyApiResource[];
     credits: number;
     timeLimit?: number;
 }
@@ -109,7 +109,7 @@ export interface AvailableResources {
 /**
  * Model resource definition
  */
-export interface ModelResource {
+export interface StrategyModelResource {
     provider: string;
     model: string;
     capabilities: string[];
@@ -120,7 +120,7 @@ export interface ModelResource {
 /**
  * Tool resource definition
  */
-export interface ToolResource {
+export interface StrategyToolResource {
     name: string;
     type: string;
     description: string;
@@ -132,7 +132,7 @@ export interface ToolResource {
 /**
  * API resource definition
  */
-export interface ApiResource {
+export interface StrategyApiResource {
     name: string;
     baseUrl: string;
     authType: "none" | "apiKey" | "oauth" | "custom";
@@ -143,7 +143,7 @@ export interface ApiResource {
 /**
  * Execution history for context
  */
-export interface ExecutionHistory {
+export interface StrategyExecutionHistory {
     recentSteps: Array<{
         stepId: string;
         strategy: StrategyType;
@@ -157,7 +157,7 @@ export interface ExecutionHistory {
 /**
  * Execution constraints
  */
-export interface ExecutionConstraints {
+export interface StrategyExecutionConstraints {
     maxTokens?: number;
     maxTime?: number;
     maxCost?: number;
@@ -201,13 +201,13 @@ export interface ToolExecutionRequest {
     toolName: string;
     parameters: Record<string, unknown>;
     timeout?: number;
-    retryPolicy?: RetryPolicy;
+    retryPolicy?: StrategyRetryPolicy;
 }
 
 /**
  * Retry policy for tool execution
  */
-export interface RetryPolicy {
+export interface StrategyRetryPolicy {
     maxRetries: number;
     backoffStrategy: "linear" | "exponential";
     initialDelay: number;

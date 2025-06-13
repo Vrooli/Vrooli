@@ -1,5 +1,6 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { BaseComponent } from "../shared/BaseComponent.js";
 import { RunStateMachine } from "./orchestration/runStateMachine.js";
 import { NavigatorRegistry } from "./navigation/navigatorRegistry.js";
 import { BranchCoordinator } from "./orchestration/branchCoordinator.js";
@@ -31,9 +32,7 @@ import {
  * Main entry point for Tier 2 process intelligence.
  * Manages run lifecycle, routine navigation, and orchestration.
  */
-export class TierTwoOrchestrator implements TierCommunicationInterface {
-    private readonly logger: Logger;
-    private readonly eventBus: EventBus;
+export class TierTwoOrchestrator extends BaseComponent implements TierCommunicationInterface {
     private readonly tier3Executor: TierCommunicationInterface;
     private readonly runMachines: Map<string, RunStateMachine> = new Map();
     private readonly navigatorRegistry: NavigatorRegistry;
@@ -50,8 +49,7 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
 
     constructor(logger: Logger, eventBus: EventBus, tier3Executor: TierCommunicationInterface) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+        super(logger, eventBus, "TierTwoOrchestrator");
         this.tier3Executor = tier3Executor;
         
         // Initialize components
@@ -136,7 +134,7 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
             });
 
             // Emit run started event
-            await this.eventBus.publish("run.started", {
+            await this.eventPublisher.publish("run.started", {
                 runId: config.runId,
                 routineVersionId: config.routineVersionId,
                 swarmId: config.swarmId,
@@ -198,7 +196,7 @@ export class TierTwoOrchestrator implements TierCommunicationInterface {
         this.runMachines.delete(runId);
         
         // Emit cancellation event
-        await this.eventBus.publish("run.cancelled", {
+        await this.eventPublisher.publish("run.cancelled", {
             runId,
             reason,
         });

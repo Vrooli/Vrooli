@@ -11,6 +11,7 @@ import {
     generatePk,
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { BaseComponent } from "../../shared/BaseComponent.js";
 
 /**
  * Team performance metrics
@@ -60,16 +61,13 @@ export interface TeamRecommendation {
  * The TeamManager ensures that the right agents work together effectively
  * to achieve swarm goals.
  */
-export class TeamManager {
-    private readonly eventBus: EventBus;
-    private readonly logger: Logger;
+export class TeamManager extends BaseComponent {
     private readonly teams: Map<string, TeamFormation> = new Map();
     private readonly agentRegistry: Map<string, SwarmAgent> = new Map();
     private readonly teamPerformance: Map<string, TeamPerformance> = new Map();
 
-    constructor(eventBus: EventBus, logger: Logger) {
-        this.eventBus = eventBus;
-        this.logger = logger;
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus, "TeamManager");
         this.initializeAgentRegistry();
         this.subscribeToEvents();
     }
@@ -107,14 +105,11 @@ export class TeamManager {
         });
 
         // Emit team formed event
-        await this.eventBus.publish("swarm.events", {
+        await this.publishEvent("swarm.events", {
             type: SwarmEventTypeEnum.TEAM_FORMED,
             swarmId: formation.swarmId,
-            timestamp: new Date(),
-            metadata: {
-                teamId: formation.id,
-                agentCount: formation.agents.length,
-            },
+            teamId: formation.id,
+            agentCount: formation.agents.length,
         });
     }
 
@@ -152,11 +147,10 @@ export class TeamManager {
         });
 
         // Emit update event
-        await this.eventBus.publish("swarm.events", {
+        await this.publishEvent("swarm.events", {
             type: SwarmEventTypeEnum.TEAM_UPDATED,
             swarmId,
-            timestamp: new Date(),
-            metadata: { updates },
+            updates,
         });
     }
 
@@ -185,11 +179,10 @@ export class TeamManager {
         });
 
         // Emit event
-        await this.eventBus.publish("swarm.events", {
+        await this.publishEvent("swarm.events", {
             type: SwarmEventTypeEnum.AGENT_JOINED,
             swarmId,
-            timestamp: new Date(),
-            metadata: { agent },
+            agent,
         });
     }
 
@@ -220,11 +213,10 @@ export class TeamManager {
         });
 
         // Emit event
-        await this.eventBus.publish("swarm.events", {
+        await this.publishEvent("swarm.events", {
             type: SwarmEventTypeEnum.AGENT_LEFT,
             swarmId,
-            timestamp: new Date(),
-            metadata: { agentId },
+            agentId,
         });
     }
 
@@ -264,11 +256,10 @@ export class TeamManager {
         };
 
         if (consensusResult.reached) {
-            await this.eventBus.publish("swarm.events", {
+            await this.publishEvent("swarm.events", {
                 type: SwarmEventTypeEnum.CONSENSUS_REACHED,
                 swarmId,
-                timestamp: new Date(),
-                metadata: { consensusResult },
+                consensusResult,
             });
         }
 
@@ -352,15 +343,12 @@ export class TeamManager {
         }
 
         // Emit conflict event
-        await this.eventBus.publish("swarm.events", {
+        await this.publishEvent("swarm.events", {
             type: SwarmEventTypeEnum.CONFLICT_DETECTED,
             swarmId,
-            timestamp: new Date(),
-            metadata: {
-                conflictType,
-                involvedAgents,
-                resolution: "mediated", // Simplified
-            },
+            conflictType,
+            involvedAgents,
+            resolution: "mediated", // Simplified
         });
     }
 

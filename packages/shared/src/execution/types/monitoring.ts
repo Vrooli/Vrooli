@@ -295,11 +295,11 @@ export type SafetyPayload =
 export interface ValidationErrorPayload {
     type: "validation_error";
     component: string;
-    errors: ValidationError[];
+    errors: MonitoringValidationError[];
     context?: Record<string, unknown>;
 }
 
-export interface ValidationError {
+export interface MonitoringValidationError {
     field?: string;
     rule: string;
     message: string;
@@ -467,7 +467,7 @@ export interface HistoryEntry {
  * Query interface for history
  */
 export interface HistoryQuery {
-    timeRange?: TimeRange;
+    timeRange?: MonitoringTimeRange;
     types?: string[];
     tiers?: Array<1 | 2 | 3>;
     components?: string[];
@@ -477,7 +477,7 @@ export interface HistoryQuery {
     orderDirection?: "asc" | "desc";
 }
 
-export interface TimeRange {
+export interface MonitoringTimeRange {
     start: Date;
     end: Date;
 }
@@ -486,7 +486,7 @@ export interface TimeRange {
  * Aggregation results for history analysis
  */
 export interface HistoryAggregation {
-    timeRange: TimeRange;
+    timeRange: MonitoringTimeRange;
     totalEntries: number;
     successRate: number;
     avgDuration: number;

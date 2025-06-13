@@ -108,7 +108,7 @@ export interface ExecutionConstraints {
 /**
  * Resource allocation for execution
  */
-export interface ResourceAllocation {
+export interface CoreResourceAllocation {
     maxCredits: string; // BigInt as string
     maxDurationMs: number;
     maxMemoryMB: number;

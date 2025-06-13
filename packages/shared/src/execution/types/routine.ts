@@ -3,6 +3,8 @@
  * These types define the universal routine orchestration capabilities
  */
 
+import type { ContextScope } from "./context.js";
+
 /**
  * Run lifecycle states
  * Maintains compatibility with existing RunStateMachine
@@ -191,9 +193,10 @@ export interface RoutineMetadata {
 }
 
 /**
- * Run instance
+ * Execution run instance for routine orchestration
+ * Represents internal execution state, not database records
  */
-export interface Run {
+export interface ExecutionRun {
     id: string;
     routineId: string;
     state: RunState;
@@ -214,15 +217,6 @@ export interface RunContext {
     scopes: ContextScope[];
 }
 
-/**
- * Context scope for variable isolation
- */
-export interface ContextScope {
-    id: string;
-    name: string;
-    parentId?: string;
-    variables: Record<string, unknown>;
-}
 
 /**
  * Checkpoint for recovery
@@ -240,7 +234,7 @@ export interface Checkpoint {
 /**
  * Path optimization suggestion
  */
-export interface OptimizationSuggestion {
+export interface RoutineOptimizationSuggestion {
     type: "parallelize" | "cache" | "skip" | "reorder";
     targetSteps: string[];
     expectedImprovement: number;
@@ -257,6 +251,6 @@ export interface PerformanceAnalysis {
         duration: number;
         resourceUsage: Record<string, number>;
     }>;
-    suggestions: OptimizationSuggestion[];
+    suggestions: RoutineOptimizationSuggestion[];
     overallEfficiency: number;
 }

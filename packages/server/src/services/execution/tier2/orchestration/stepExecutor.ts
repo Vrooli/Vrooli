@@ -1,5 +1,6 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { BaseComponent } from "../../shared/BaseComponent.js";
 
 // Local type definitions
 interface Location {
@@ -154,14 +155,11 @@ export interface StepExecutionResult {
  * The StepExecutor ensures that each step has the proper context and resources
  * for execution while maintaining the abstraction between tiers.
  */
-export class StepExecutor {
-    private readonly eventBus: EventBus;
-    private readonly logger: Logger;
+export class StepExecutor extends BaseComponent {
     private readonly executionTimeout: number = 300000; // 5 minutes default
 
-    constructor(eventBus: EventBus, logger: Logger) {
-        this.eventBus = eventBus;
-        this.logger = logger;
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus, "StepExecutor");
     }
 
     /**
@@ -344,10 +342,9 @@ export class StepExecutor {
         const requestId = `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         // Publish execution request to Tier 3
-        await this.eventBus.publish("execution.request", {
+        await this.publishEvent("execution.request", {
             requestId,
             context,
-            timestamp: new Date(),
         });
 
         this.logger.debug("[StepExecutor] Requested execution from Tier 3", {

@@ -186,7 +186,7 @@ export interface AccessPolicy {
     name: string;
     description: string;
     subjects: Subject[];
-    resources: Resource[];
+    resources: SecurityResource[];
     actions: string[];
     conditions?: AccessCondition[];
     effect: "allow" | "deny";
@@ -202,9 +202,10 @@ export interface Subject {
 }
 
 /**
- * Resource in access control
+ * Security resource in access control
+ * Represents a protected resource for permission checks
  */
-export interface Resource {
+export interface SecurityResource {
     type: string;
     id: string;
     attributes?: Record<string, unknown>;

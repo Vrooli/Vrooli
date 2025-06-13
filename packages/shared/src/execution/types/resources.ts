@@ -43,9 +43,10 @@ export enum ResourceUnit {
 }
 
 /**
- * Resource definition
+ * System resource definition for execution tracking
+ * Represents computational resources like CPU, memory, storage, etc.
  */
-export interface Resource {
+export interface SystemResource {
     id: string;
     type: ResourceType;
     name: string;
@@ -71,7 +72,7 @@ export interface ResourceCost {
 /**
  * Resource allocation request
  */
-export interface ResourceAllocation {
+export interface DetailedResourceAllocation {
     id: string;
     requesterId: string;
     requesterType: "user" | "swarm" | "run" | "step";
@@ -215,7 +216,7 @@ export interface LimitNotification {
 /**
  * Resource optimization suggestion
  */
-export interface OptimizationSuggestion {
+export interface ResourceOptimizationSuggestion {
     id: string;
     type: "reduce" | "substitute" | "batch" | "cache" | "schedule";
     targetResource: string;
@@ -334,7 +335,7 @@ export interface EfficiencyMetrics {
     overallEfficiency: number; // 0-1
     wastedResources: number; // Percentage
     optimizationPotential: number; // Percentage
-    recommendations: OptimizationSuggestion[];
+    recommendations: ResourceOptimizationSuggestion[];
 }
 
 /**

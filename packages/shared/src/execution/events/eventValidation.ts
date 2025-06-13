@@ -16,16 +16,16 @@ const RANDOM_ID_RADIX = 36; // Base 36 for alphanumeric string generation
 /**
  * Event validation result
  */
-export interface ValidationResult {
+export interface EventValidationResult {
     valid: boolean;
-    errors: ValidationError[];
-    warnings: ValidationWarning[];
+    errors: EventValidationError[];
+    warnings: EventValidationWarning[];
 }
 
 /**
  * Validation error
  */
-export interface ValidationError {
+export interface EventValidationError {
     field: string;
     message: string;
     code: string;
@@ -34,7 +34,7 @@ export interface ValidationError {
 /**
  * Validation warning
  */
-export interface ValidationWarning {
+export interface EventValidationWarning {
     field: string;
     message: string;
     code: string;
@@ -49,9 +49,9 @@ export class EventValidator {
     /**
      * Validate a single event
      */
-    validate(event: unknown): ValidationResult {
-        const errors: ValidationError[] = [];
-        const warnings: ValidationWarning[] = [];
+    validate(event: unknown): EventValidationResult {
+        const errors: EventValidationError[] = [];
+        const warnings: EventValidationWarning[] = [];
         
         // Check if event is an object
         if (!event || typeof event !== "object") {
@@ -106,13 +106,13 @@ export class EventValidator {
     /**
      * Validate a batch of events
      */
-    validateBatch(events: unknown[]): ValidationResult[] {
+    validateBatch(events: unknown[]): EventValidationResult[] {
         return events.map(event => this.validate(event));
     }
     
     private validateRequiredFields(
         event: Partial<BaseEvent>,
-        errors: ValidationError[],
+        errors: EventValidationError[],
     ): void {
         const requiredFields: Array<keyof BaseEvent> = [
             "id",
@@ -136,7 +136,7 @@ export class EventValidator {
     
     private validateFieldTypes(
         event: Partial<BaseEvent>,
-        errors: ValidationError[],
+        errors: EventValidationError[],
     ): void {
         // Validate ID
         if (event.id && typeof event.id !== "string") {
@@ -192,8 +192,8 @@ export class EventValidator {
     
     private validateMetadata(
         metadata: Partial<EventMetadata>,
-        errors: ValidationError[],
-        warnings: ValidationWarning[],
+        errors: EventValidationError[],
+        warnings: EventValidationWarning[],
     ): void {
         // Validate version
         if (!metadata.version) {
@@ -243,7 +243,7 @@ export class EventValidator {
     
     private validateSource(
         source: Partial<EventSource>,
-        errors: ValidationError[],
+        errors: EventValidationError[],
     ): void {
         // Validate tier
         const validTiers = [1, 2, 3, "cross-cutting"];
@@ -288,7 +288,7 @@ export class EventValidator {
     
     private checkWarnings(
         event: Partial<BaseEvent>,
-        warnings: ValidationWarning[],
+        warnings: EventValidationWarning[],
     ): void {
         // Check for missing recommended fields
         if (!event.causationId) {

@@ -1,5 +1,6 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { BaseComponent } from "../shared/BaseComponent.js";
 import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { 
     type TierCommunicationInterface,
@@ -39,9 +40,7 @@ import { type BotParticipant } from "../../../services/conversation/types.js";
  * Main entry point for Tier 1 coordination intelligence.
  * Manages swarm lifecycle, strategic planning, and metacognitive operations.
  */
-export class TierOneCoordinator implements TierCommunicationInterface {
-    private readonly logger: Logger;
-    private readonly eventBus: EventBus;
+export class TierOneCoordinator extends BaseComponent implements TierCommunicationInterface {
     private readonly tier2Orchestrator: TierCommunicationInterface;
     private readonly stateStore: ISwarmStateStore;
     private readonly swarmMachines: Map<string, SwarmStateMachine> = new Map();
@@ -54,8 +53,7 @@ export class TierOneCoordinator implements TierCommunicationInterface {
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
 
     constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+        super(logger, eventBus, "TierOneCoordinator");
         this.tier2Orchestrator = tier2Orchestrator;
         
         // Initialize state store
@@ -387,7 +385,7 @@ export class TierOneCoordinator implements TierCommunicationInterface {
             await stateMachine.start(conversationId, config.goal, initiatingUser);
 
             // Emit swarm started event
-            await this.eventBus.publish("swarm.started", {
+            await this.eventPublisher.publish("swarm.started", {
                 swarmId: config.swarmId,
                 name: config.name,
                 userId: config.userId,
@@ -653,7 +651,7 @@ export class TierOneCoordinator implements TierCommunicationInterface {
         this.swarmMachines.delete(swarmId);
         
         // Emit cancellation event
-        await this.eventBus.publish("swarm.cancelled", {
+        await this.eventPublisher.publish("swarm.cancelled", {
             swarmId,
             userId,
             reason,
@@ -708,7 +706,7 @@ export class TierOneCoordinator implements TierCommunicationInterface {
             await this.stateStore.updateSwarm(parentSwarmId, swarm);
 
             // Emit reservation event
-            await this.eventBus.publish("swarm.resource.reserved", {
+            await this.eventPublisher.publish("swarm.resource.reserved", {
                 parentSwarmId,
                 childSwarmId,
                 reservation,
@@ -776,7 +774,7 @@ export class TierOneCoordinator implements TierCommunicationInterface {
             await this.stateStore.updateSwarm(parentSwarmId, swarm);
 
             // Emit release event
-            await this.eventBus.publish("swarm.resource.released", {
+            await this.eventPublisher.publish("swarm.resource.released", {
                 parentSwarmId,
                 childSwarmId,
                 released: reservation.reserved,

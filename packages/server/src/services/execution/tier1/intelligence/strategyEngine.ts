@@ -4,8 +4,9 @@ import {
     type SwarmKnowledge,
     type SwarmDecision,
 } from "@vrooli/shared";
-import { EventBus } from "../../cross-cutting/events/eventBus.js";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { ConversationBridge } from "./conversationBridge.js";
+import { BaseComponent } from "../../shared/BaseComponent.js";
 
 /**
  * Situation analysis input
@@ -43,14 +44,11 @@ export interface DecisionGenerationInput {
  * - Parses LLM responses into structured decisions
  * - Emits events for agent analysis
  */
-export class StrategyEngine {
-    private readonly logger: Logger;
-    private readonly eventBus?: EventBus;
+export class StrategyEngine extends BaseComponent {
     private readonly conversationBridge: ConversationBridge;
 
-    constructor(logger: Logger, eventBus?: EventBus) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus, "StrategyEngine");
         this.conversationBridge = new ConversationBridge(logger);
     }
 
@@ -82,14 +80,12 @@ ${JSON.stringify(input.observations, null, 2)}
 Provide a strategic assessment of the current situation.`;
 
         // Emit analysis request for monitoring agents
-        if (this.eventBus) {
-            await this.eventBus.publish("swarm.events", {
-                type: "STRATEGY_ANALYSIS_REQUEST",
-                swarmId: input.knowledge.swarmId,
-                timestamp: new Date(),
-                metadata: { prompt, input },
-            });
-        }
+        await this.publishEvent("swarm.events", {
+            type: "STRATEGY_ANALYSIS_REQUEST",
+            swarmId: input.knowledge.swarmId,
+            prompt,
+            input,
+        });
 
         // Use conversation bridge for strategic analysis
         return await this.conversationBridge.reason(prompt, {
@@ -129,13 +125,11 @@ action_name(parameters)
 Provide 1-3 high-priority decisions with brief rationale.`;
 
         // Emit decision request for monitoring agents
-        if (this.eventBus) {
-            await this.eventBus.publish("swarm.events", {
-                type: "STRATEGY_DECISION_REQUEST",
-                timestamp: new Date(),
-                metadata: { prompt, input },
-            });
-        }
+        await this.publishEvent("swarm.events", {
+            type: "STRATEGY_DECISION_REQUEST",
+            prompt,
+            input,
+        });
 
         // Use conversation bridge for decision generation
         const response = await this.conversationBridge.reason(prompt, {
@@ -168,14 +162,12 @@ Based on the current performance and challenges, what strategic adaptations woul
 Focus on high-level strategic changes, not implementation details.`;
 
         // Emit adaptation request for monitoring agents
-        if (this.eventBus) {
-            await this.eventBus.publish("swarm.events", {
-                type: "STRATEGY_ADAPTATION_REQUEST",
-                swarmId,
-                timestamp: new Date(),
-                metadata: { prompt, context },
-            });
-        }
+        await this.publishEvent("swarm.events", {
+            type: "STRATEGY_ADAPTATION_REQUEST",
+            swarmId,
+            prompt,
+            context,
+        });
 
         // Use conversation bridge for adaptation reasoning
         return await this.conversationBridge.reason(prompt, { swarmId, context });
@@ -194,16 +186,11 @@ Focus on high-level strategic changes, not implementation details.`;
         });
 
         // Emit outcome event for learning agents
-        if (this.eventBus) {
-            await this.eventBus.publish("swarm.events", {
-                type: "STRATEGY_DECISION_OUTCOME",
-                timestamp: new Date(),
-                metadata: {
-                    decision,
-                    outcome,
-                },
-            });
-        }
+        await this.publishEvent("swarm.events", {
+            type: "STRATEGY_DECISION_OUTCOME",
+            decision,
+            outcome,
+        });
     }
 
     /**

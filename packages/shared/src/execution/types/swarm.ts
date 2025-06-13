@@ -236,7 +236,7 @@ export type AgentCapability =
 /**
  * Resource allocation
  */
-export interface ResourceAllocation {
+export interface SwarmResourceAllocation {
     id: string;
     swarmId: string;
     agentId: string;

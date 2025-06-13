@@ -1,5 +1,6 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
+import { BaseComponent } from "../shared/BaseComponent.js";
 import { UnifiedExecutor } from "./engine/unifiedExecutor.js";
 import { StrategySelector } from "./engine/strategySelector.js";
 import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
@@ -30,9 +31,7 @@ import {
  * Main entry point for Tier 3 execution intelligence.
  * Manages step execution, strategy selection, and tool orchestration.
  */
-export class TierThreeExecutor implements TierCommunicationInterface {
-    private readonly logger: Logger;
-    private readonly eventBus: EventBus;
+export class TierThreeExecutor extends BaseComponent implements TierCommunicationInterface {
     private readonly unifiedExecutor: UnifiedExecutor;
     private readonly contextExporter: ContextExporter;
 
@@ -40,8 +39,7 @@ export class TierThreeExecutor implements TierCommunicationInterface {
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; context: ExecutionContext }> = new Map();
 
     constructor(logger: Logger, eventBus: EventBus) {
-        this.logger = logger;
-        this.eventBus = eventBus;
+        super(logger, eventBus, "TierThreeExecutor");
         
         // Initialize components
         const strategySelector = new StrategySelector(logger);
@@ -122,14 +120,14 @@ export class TierThreeExecutor implements TierCommunicationInterface {
             
             // Emit completion event
             if (result.success) {
-                await this.eventBus.publish("step.completed", {
+                await this.eventPublisher.publish("step.completed", {
                     runId: context.runId,
                     stepId: context.stepId,
                     outputs: result.result,
                     metadata: result.metadata,
                 });
             } else {
-                await this.eventBus.publish("step.failed", {
+                await this.eventPublisher.publish("step.failed", {
                     runId: context.runId,
                     stepId: context.stepId,
                     error: result.error,
@@ -146,7 +144,7 @@ export class TierThreeExecutor implements TierCommunicationInterface {
             });
             
             // Emit failure event
-            await this.eventBus.publish("step.failed", {
+            await this.eventPublisher.publish("step.failed", {
                 runId: context.runId,
                 stepId: context.stepId,
                 error: error instanceof Error ? error.message : "Unknown error",

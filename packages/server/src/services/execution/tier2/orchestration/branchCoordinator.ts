@@ -4,6 +4,7 @@ import { deepClone } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type StepExecutor, type StepExecutionResult } from "./stepExecutor.js";
 import { type IRunStateStore } from "../state/runStateStore.js";
+import { BaseComponent } from "../../shared/BaseComponent.js";
 
 // Helper function to generate IDs
 function generatePK(): string {
@@ -161,16 +162,13 @@ export interface BranchResult {
  * Data sharing between branches only occurs through explicit outputs when
  * the subroutine completes.
  */
-export class BranchCoordinator {
-    private readonly eventBus: EventBus;
-    private readonly logger: Logger;
+export class BranchCoordinator extends BaseComponent {
     private readonly activeBranches: Map<string, BranchExecution> = new Map();
     private readonly instanceId: string;
     private readonly stateStore: IRunStateStore;
 
-    constructor(eventBus: EventBus, logger: Logger, stateStore: IRunStateStore) {
-        this.eventBus = eventBus;
-        this.logger = logger;
+    constructor(logger: Logger, eventBus: EventBus, stateStore: IRunStateStore) {
+        super(logger, eventBus, "BranchCoordinator");
         this.stateStore = stateStore;
         this.instanceId = `branch-coordinator-${randomUUID()}`;
         
@@ -304,23 +302,14 @@ export class BranchCoordinator {
             }
             
             // Emit creation event with enhanced data
-            await this.eventBus.publish({
-                id: generatePK(),
-                type: RunEventTypeEnum.BRANCH_CREATED,
-                timestamp: new Date(),
-                source: {
-                    tier: 2,
-                    component: "BranchCoordinator",
-                    instanceId: this.instanceId,
-                },
-                data: {
-                    runId,
-                    branchId: branch.id,
-                    parentStepId: config.parentStepId,
-                    branchIndex: branch.branchIndex,
-                    parallel: config.parallel,
-                    totalBranches: branchCount,
-                },
+            await this.publishEvent(RunEventTypeEnum.BRANCH_CREATED, {
+                runId,
+                branchId: branch.id,
+                parentStepId: config.parentStepId,
+                branchIndex: branch.branchIndex,
+                parallel: config.parallel,
+                totalBranches: branchCount,
+                instanceId: this.instanceId,
             });
         }
         

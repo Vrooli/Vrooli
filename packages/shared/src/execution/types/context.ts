@@ -170,7 +170,7 @@ export interface OrchestrationState {
 /**
  * Tier 3 Execution Context
  */
-export interface ExecutionContext extends BaseContext {
+export interface TierExecutionContext extends BaseContext {
     tier: 3;
     stepId: string;
     strategyType: string;
@@ -266,7 +266,7 @@ export interface CrossTierContext {
     sessionId: string;
     tier1Context?: CoordinationContext;
     tier2Context?: ProcessContext;
-    tier3Context?: ExecutionContext;
+    tier3Context?: TierExecutionContext;
     sharedData: Record<string, unknown>;
     constraints: ContextConstraints;
 }

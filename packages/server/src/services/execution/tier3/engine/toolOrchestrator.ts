@@ -1,5 +1,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { EventPublisher } from "../../shared/EventPublisher.js";
+import { ErrorHandler, ComponentErrorHandler } from "../../shared/ErrorHandler.js";
 import { type ResourceManager } from "./resourceManager.js";
 import {
     type ToolResource,
@@ -48,6 +50,8 @@ export interface ToolApprovalStatus {
 export class ToolOrchestrator {
     private readonly eventBus: EventBus;
     private readonly logger: Logger;
+    private readonly eventPublisher: EventPublisher;
+    private readonly errorHandler: ComponentErrorHandler;
     
     // MCP tool infrastructure
     private readonly toolRegistry: IntegratedToolRegistry;
@@ -64,6 +68,8 @@ export class ToolOrchestrator {
     constructor(eventBus: EventBus, logger: Logger, toolRegistry?: IntegratedToolRegistry) {
         this.eventBus = eventBus;
         this.logger = logger;
+        this.eventPublisher = new EventPublisher(eventBus, logger, "ToolOrchestrator");
+        this.errorHandler = new ErrorHandler(logger, this.eventPublisher).createComponentHandler("ToolOrchestrator");
         
         // Use provided registry or get default instance
         this.toolRegistry = toolRegistry || IntegratedToolRegistry.getInstance(logger);
@@ -122,7 +128,8 @@ export class ToolOrchestrator {
             hasRetryPolicy: !!retryPolicy,
         });
 
-        try {
+        const result = await this.errorHandler.wrap(
+            async () => {
             // Create integrated tool context
             const context: IntegratedToolContext = {
                 stepId: this.currentStepId!,
@@ -164,18 +171,20 @@ export class ToolOrchestrator {
             await this.trackToolUsage(toolName, result, Date.now() - startTime);
 
             return result;
+            },
+            "executeTool",
+            { toolName, stepId: this.currentStepId }
+        );
 
-        } catch (error) {
-            this.logger.error(`[ToolOrchestrator] Tool execution failed: ${toolName}`, {
-                error: error instanceof Error ? error.message : String(error),
-                stepId: this.currentStepId,
-            });
-
+        if (!result.success) {
+            const errorResult = result as { success: false; error: Error };
             return this.createErrorResult(
-                error instanceof Error ? error.message : "Unknown error",
+                errorResult.error.message,
                 Date.now() - startTime,
             );
         }
+
+        return result.data;
     }
 
     /**
@@ -275,7 +284,7 @@ export class ToolOrchestrator {
         );
 
         // Emit approval request event
-        await this.eventBus.publish("tool.approval_required", {
+        await this.eventPublisher.publish("tool.approval_required", {
             approvalId,
             toolName,
             parameters,
@@ -298,7 +307,7 @@ export class ToolOrchestrator {
         this.toolRegistry.processApproval(approvalId, approved, approvedBy);
 
         // Emit approval processed event
-        await this.eventBus.publish("tool.approval_processed", {
+        await this.eventPublisher.publish("tool.approval_processed", {
             approvalId,
             approved,
             approvedBy,
@@ -426,17 +435,12 @@ export class ToolOrchestrator {
         result: ToolExecutionResult,
         duration: number,
     ): Promise<void> {
-        // Emit telemetry event
-        await this.eventBus.publish("telemetry.perf", {
-            type: "perf.tool_call",
-            timestamp: new Date(),
-            stepId: this.currentStepId,
-            metadata: {
-                toolName,
-                duration,
-                success: result.success,
-                retries: result.retries,
-            },
+        // Emit telemetry event using publishMetric helper
+        await this.eventPublisher.publishMetric("tool_call_duration", duration, {
+            toolName,
+            stepId: this.currentStepId || "unknown",
+            success: String(result.success),
+            retries: String(result.retries || 0),
         });
     }
 
