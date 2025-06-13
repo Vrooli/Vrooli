@@ -1,13 +1,4 @@
-import {
-    Flag,
-    Warning,
-    CheckCircle,
-    Block,
-    Visibility,
-    VisibilityOff,
-    Delete,
-    More,
-} from "@mui/icons-material";
+import { IconCommon } from "../../../icons/Icons.js";
 import {
     Box,
     Button,
@@ -251,11 +242,11 @@ export const ReportsPanel: React.FC = () => {
 
     const getSeverityIcon = (severity: string) => {
         switch (severity) {
-            case "Critical": return <Flag color="error" />;
-            case "High": return <Warning color="warning" />;
-            case "Medium": return <Warning color="info" />;
-            case "Low": return <Flag color="disabled" />;
-            default: return <Flag />;
+            case "Critical": return <IconCommon name="Flag" fill="error.main" />;
+            case "High": return <IconCommon name="Warning" fill="warning.main" />;
+            case "Medium": return <IconCommon name="Warning" fill="info.main" />;
+            case "Low": return <IconCommon name="Flag" fill="disabled" />;
+            default: return <IconCommon name="Flag" />;
         }
     };
 
@@ -263,10 +254,10 @@ export const ReportsPanel: React.FC = () => {
         <Box>
             {/* Header */}
             <Typography variant="h5" gutterBottom>
-                {t("ReportsModeration")}
+                {t("Report_other")}
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                {t("ReportsModerationDescription")}
+                {t("Report_other")}
             </Typography>
 
             {/* Summary Cards */}
@@ -278,7 +269,7 @@ export const ReportsPanel: React.FC = () => {
                                 {reports.filter(r => r.status === "Pending").length}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {t("PendingReports")}
+                                {t("Report_other")}
                             </Typography>
                         </CardContent>
                     </Card>
@@ -290,7 +281,7 @@ export const ReportsPanel: React.FC = () => {
                                 {reports.filter(r => r.status === "Reviewing").length}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {t("UnderReview")}
+                                {t("Report_other")}
                             </Typography>
                         </CardContent>
                     </Card>
@@ -302,7 +293,7 @@ export const ReportsPanel: React.FC = () => {
                                 {reports.filter(r => r.severity === "Critical" || r.severity === "High").length}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {t("HighPriorityReports")}
+                                {t("High") + " " + t("Report_other")}
                             </Typography>
                         </CardContent>
                     </Card>
@@ -314,7 +305,7 @@ export const ReportsPanel: React.FC = () => {
                                 {reports.filter(r => r.status === "Resolved").length}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                {t("ResolvedToday")}
+                                {t("Complete")}
                             </Typography>
                         </CardContent>
                     </Card>
@@ -330,7 +321,7 @@ export const ReportsPanel: React.FC = () => {
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
-                            <MenuItem value="">{t("AllStatuses")}</MenuItem>
+                            <MenuItem value="">{t("All")}</MenuItem>
                             <MenuItem value="Pending">{t("Pending")}</MenuItem>
                             <MenuItem value="Reviewing">{t("Reviewing")}</MenuItem>
                             <MenuItem value="Resolved">{t("Resolved")}</MenuItem>
@@ -343,7 +334,7 @@ export const ReportsPanel: React.FC = () => {
                             value={categoryFilter}
                             onChange={(e) => setCategoryFilter(e.target.value)}
                         >
-                            <MenuItem value="">{t("AllCategories")}</MenuItem>
+                            <MenuItem value="">{t("All")}</MenuItem>
                             <MenuItem value="Spam">{t("Spam")}</MenuItem>
                             <MenuItem value="Inappropriate">{t("Inappropriate")}</MenuItem>
                             <MenuItem value="Harassment">{t("Harassment")}</MenuItem>
@@ -358,7 +349,7 @@ export const ReportsPanel: React.FC = () => {
                             value={severityFilter}
                             onChange={(e) => setSeverityFilter(e.target.value)}
                         >
-                            <MenuItem value="">{t("AllSeverities")}</MenuItem>
+                            <MenuItem value="">{t("All")}</MenuItem>
                             <MenuItem value="Critical">{t("Critical")}</MenuItem>
                             <MenuItem value="High">{t("High")}</MenuItem>
                             <MenuItem value="Medium">{t("Medium")}</MenuItem>
@@ -376,13 +367,13 @@ export const ReportsPanel: React.FC = () => {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>{t("Severity")}</TableCell>
+                            <TableCell>{t("High")}</TableCell>
                             <TableCell>{t("Content")}</TableCell>
                             <TableCell>{t("Category")}</TableCell>
-                            <TableCell>{t("Reporter")}</TableCell>
+                            <TableCell>{t("User_one")}</TableCell>
                             <TableCell>{t("Status")}</TableCell>
-                            <TableCell>{t("Created")}</TableCell>
-                            <TableCell>{t("Actions")}</TableCell>
+                            <TableCell>{t("TimeCreated")}</TableCell>
+                            <TableCell>{t("Action_other")}</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -441,7 +432,7 @@ export const ReportsPanel: React.FC = () => {
                                                 }}
                                                 disabled={report.status === "Resolved" || report.status === "Dismissed"}
                                             >
-                                                <CheckCircle />
+                                                <IconCommon name="Success" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title={t("MoreActions")}>
@@ -454,7 +445,7 @@ export const ReportsPanel: React.FC = () => {
                                                     });
                                                 }}
                                             >
-                                                <More />
+                                                <IconCommon name="Ellipsis" />
                                             </IconButton>
                                         </Tooltip>
                                     </Stack>
@@ -562,7 +553,7 @@ export const ReportsPanel: React.FC = () => {
                     }}
                 >
                     <ListItemIcon>
-                        <VisibilityOff />
+                        <IconCommon name="Invisible" />
                     </ListItemIcon>
                     <ListItemText primary={t("HideContent")} />
                 </MenuItem>
@@ -575,7 +566,7 @@ export const ReportsPanel: React.FC = () => {
                     }}
                 >
                     <ListItemIcon>
-                        <Delete />
+                        <IconCommon name="Delete" />
                     </ListItemIcon>
                     <ListItemText primary={t("DeleteContent")} />
                 </MenuItem>
@@ -588,7 +579,7 @@ export const ReportsPanel: React.FC = () => {
                     }}
                 >
                     <ListItemIcon>
-                        <Block />
+                        <IconCommon name="Close" />
                     </ListItemIcon>
                     <ListItemText primary={t("BlockUser")} />
                 </MenuItem>

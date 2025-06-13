@@ -1,15 +1,4 @@
-import {
-    Save,
-    Refresh,
-    Security,
-    Storage,
-    Email,
-    Payment,
-    Cloud,
-    Speed,
-    Notifications,
-    Language,
-} from "@mui/icons-material";
+import { IconCommon } from "../../../icons/Icons.js";
 import {
     Box,
     Button,
@@ -18,13 +7,11 @@ import {
     CardHeader,
     Divider,
     FormControl,
-    FormControlLabel,
     Grid,
     InputLabel,
     MenuItem,
     Paper,
     Select,
-    Switch,
     TextField,
     Typography,
     Alert,
@@ -35,7 +22,7 @@ import {
     Chip,
     LinearProgress,
 } from "@mui/material";
-import { ExpandMore } from "@mui/icons-material";
+import { Switch } from "../../../components/inputs/Switch/Switch.js";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -212,23 +199,23 @@ export const SystemSettingsPanel: React.FC = () => {
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
                 <Box>
                     <Typography variant="h5" gutterBottom>
-                        {t("SystemSettings")}
+                        {t("Settings")}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        {t("SystemSettingsDescription")}
+                        {t("Settings")}
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={2}>
                     {changed && (
                         <Chip 
-                            label={t("UnsavedChanges")} 
+                            label={t("Change")} 
                             color="warning" 
                             variant="outlined"
                         />
                     )}
                     <Button
                         variant="outlined"
-                        startIcon={<Refresh />}
+                        startIcon={<IconCommon name="Refresh" />}
                         onClick={handleReset}
                         disabled={!changed}
                     >
@@ -236,18 +223,18 @@ export const SystemSettingsPanel: React.FC = () => {
                     </Button>
                     <Button
                         variant="contained"
-                        startIcon={<Save />}
+                        startIcon={<IconCommon name="Save" />}
                         onClick={handleSave}
                         disabled={!changed || saving}
                     >
-                        {saving ? t("Saving") : t("Save")}
+                        {saving ? t("Loading") : t("Save")}
                     </Button>
                 </Stack>
             </Box>
 
             {changed && (
                 <Alert severity="warning" sx={{ mb: 3 }}>
-                    {t("UnsavedChangesWarning")}
+                    {t("UnsavedChangesBeforeCancel")}
                 </Alert>
             )}
 
@@ -258,10 +245,10 @@ export const SystemSettingsPanel: React.FC = () => {
                     expanded={expandedSection === "site"} 
                     onChange={handleAccordionChange("site")}
                 >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
+                    <AccordionSummary expandIcon={<IconCommon name="ExpandMore" />}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Language color="primary" />
-                            <Typography variant="h6">{t("SiteSettings")}</Typography>
+                            <IconCommon name="Language" fill="primary.main" />
+                            <Typography variant="h6">{t("Settings")}</Typography>
                         </Stack>
                     </AccordionSummary>
                     <AccordionDetails>
@@ -269,7 +256,7 @@ export const SystemSettingsPanel: React.FC = () => {
                             <Grid item xs={12} md={6}>
                                 <TextField
                                     fullWidth
-                                    label={t("SiteName")}
+                                    label={t("Name")}
                                     value={settings.site.name}
                                     onChange={(e) => updateSetting("site", "name", e.target.value)}
                                 />
@@ -287,7 +274,7 @@ export const SystemSettingsPanel: React.FC = () => {
                                     fullWidth
                                     multiline
                                     rows={2}
-                                    label={t("SiteDescription")}
+                                    label={t("Description")}
                                     value={settings.site.description}
                                     onChange={(e) => updateSetting("site", "description", e.target.value)}
                                 />
@@ -296,7 +283,7 @@ export const SystemSettingsPanel: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     type="number"
-                                    label={t("MaxUsersPerTeam")}
+                                    label={t("Max") + " " + t("User_other")}
                                     value={settings.site.maxUsersPerTeam}
                                     onChange={(e) => updateSetting("site", "maxUsersPerTeam", parseInt(e.target.value))}
                                 />
@@ -305,31 +292,27 @@ export const SystemSettingsPanel: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     type="number"
-                                    label={t("MaxApiKeysPerUser")}
+                                    label={t("Max") + " " + t("ApiKey_other")}
                                     value={settings.site.maxApiKeysPerUser}
                                     onChange={(e) => updateSetting("site", "maxApiKeysPerUser", parseInt(e.target.value))}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.site.maintenanceMode}
-                                            onChange={(e) => updateSetting("site", "maintenanceMode", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("MaintenanceMode")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.site.maintenanceMode}
+                                    onChange={(checked) => updateSetting("site", "maintenanceMode", checked)}
+                                    label={t("Settings")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.site.registrationEnabled}
-                                            onChange={(e) => updateSetting("site", "registrationEnabled", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("RegistrationEnabled")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.site.registrationEnabled}
+                                    onChange={(checked) => updateSetting("site", "registrationEnabled", checked)}
+                                    label={t("SignUp")}
                                 />
                             </Grid>
                         </Grid>
@@ -341,10 +324,10 @@ export const SystemSettingsPanel: React.FC = () => {
                     expanded={expandedSection === "security"} 
                     onChange={handleAccordionChange("security")}
                 >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
+                    <AccordionSummary expandIcon={<IconCommon name="ExpandMore" />}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Security color="primary" />
-                            <Typography variant="h6">{t("SecuritySettings")}</Typography>
+                            <IconCommon name="Lock" fill="primary.main" />
+                            <Typography variant="h6">{t("Security")}</Typography>
                         </Stack>
                     </AccordionSummary>
                     <AccordionDetails>
@@ -353,7 +336,7 @@ export const SystemSettingsPanel: React.FC = () => {
                                 <TextField
                                     fullWidth
                                     type="number"
-                                    label={t("SessionTimeoutHours")}
+                                    label={t("Settings")}
                                     value={settings.security.sessionTimeout}
                                     onChange={(e) => updateSetting("security", "sessionTimeout", parseInt(e.target.value))}
                                 />
@@ -386,25 +369,21 @@ export const SystemSettingsPanel: React.FC = () => {
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.security.requireEmailVerification}
-                                            onChange={(e) => updateSetting("security", "requireEmailVerification", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("RequireEmailVerification")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.security.requireEmailVerification}
+                                    onChange={(checked) => updateSetting("security", "requireEmailVerification", checked)}
+                                    label={t("Email") + " " + t("Verified")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.security.enableTwoFactor}
-                                            onChange={(e) => updateSetting("security", "enableTwoFactor", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("EnableTwoFactor")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.security.enableTwoFactor}
+                                    onChange={(checked) => updateSetting("security", "enableTwoFactor", checked)}
+                                    label={t("Authentication")}
                                 />
                             </Grid>
                         </Grid>
@@ -416,9 +395,9 @@ export const SystemSettingsPanel: React.FC = () => {
                     expanded={expandedSection === "performance"} 
                     onChange={handleAccordionChange("performance")}
                 >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
+                    <AccordionSummary expandIcon={<IconCommon name="ExpandMore" />}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Speed color="primary" />
+                            <IconCommon name="Stats" fill="primary.main" />
                             <Typography variant="h6">{t("PerformanceSettings")}</Typography>
                         </Stack>
                     </AccordionSummary>
@@ -452,36 +431,30 @@ export const SystemSettingsPanel: React.FC = () => {
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.performance.cacheEnabled}
-                                            onChange={(e) => updateSetting("performance", "cacheEnabled", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("CacheEnabled")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.performance.cacheEnabled}
+                                    onChange={(checked) => updateSetting("performance", "cacheEnabled", checked)}
+                                    label={t("Caching")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.performance.rateLimitEnabled}
-                                            onChange={(e) => updateSetting("performance", "rateLimitEnabled", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("RateLimitEnabled")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.performance.rateLimitEnabled}
+                                    onChange={(checked) => updateSetting("performance", "rateLimitEnabled", checked)}
+                                    label={t("Settings")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.performance.enableCompression}
-                                            onChange={(e) => updateSetting("performance", "enableCompression", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("EnableCompression")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.performance.enableCompression}
+                                    onChange={(checked) => updateSetting("performance", "enableCompression", checked)}
+                                    label={t("Compress")}
                                 />
                             </Grid>
                         </Grid>
@@ -493,9 +466,9 @@ export const SystemSettingsPanel: React.FC = () => {
                     expanded={expandedSection === "storage"} 
                     onChange={handleAccordionChange("storage")}
                 >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
+                    <AccordionSummary expandIcon={<IconCommon name="ExpandMore" />}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Storage color="primary" />
+                            <IconCommon name="Save" fill="primary.main" />
                             <Typography variant="h6">{t("StorageSettings")}</Typography>
                         </Stack>
                     </AccordionSummary>
@@ -542,25 +515,21 @@ export const SystemSettingsPanel: React.FC = () => {
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.storage.cleanupEnabled}
-                                            onChange={(e) => updateSetting("storage", "cleanupEnabled", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("CleanupEnabled")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.storage.cleanupEnabled}
+                                    onChange={(checked) => updateSetting("storage", "cleanupEnabled", checked)}
+                                    label={t("Clear")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.storage.backupEnabled}
-                                            onChange={(e) => updateSetting("storage", "backupEnabled", e.target.checked)}
-                                        />
-                                    }
-                                    label={t("BackupEnabled")}
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.storage.backupEnabled}
+                                    onChange={(checked) => updateSetting("storage", "backupEnabled", checked)}
+                                    label={t("Export")}
                                 />
                             </Grid>
                         </Grid>
@@ -572,9 +541,9 @@ export const SystemSettingsPanel: React.FC = () => {
                     expanded={expandedSection === "integrations"} 
                     onChange={handleAccordionChange("integrations")}
                 >
-                    <AccordionSummary expandIcon={<ExpandMore />}>
+                    <AccordionSummary expandIcon={<IconCommon name="ExpandMore" />}>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Cloud color="primary" />
+                            <IconCommon name="External" fill="primary.main" />
                             <Typography variant="h6">{t("IntegrationSettings")}</Typography>
                         </Stack>
                     </AccordionSummary>
@@ -595,57 +564,47 @@ export const SystemSettingsPanel: React.FC = () => {
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.integrations.stripeEnabled}
-                                            onChange={(e) => updateSetting("integrations", "stripeEnabled", e.target.checked)}
-                                        />
-                                    }
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.integrations.stripeEnabled}
+                                    onChange={(checked) => updateSetting("integrations", "stripeEnabled", checked)}
                                     label={t("StripeEnabled")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.integrations.openaiEnabled}
-                                            onChange={(e) => updateSetting("integrations", "openaiEnabled", e.target.checked)}
-                                        />
-                                    }
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.integrations.openaiEnabled}
+                                    onChange={(checked) => updateSetting("integrations", "openaiEnabled", checked)}
                                     label={t("OpenAIEnabled")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.integrations.githubEnabled}
-                                            onChange={(e) => updateSetting("integrations", "githubEnabled", e.target.checked)}
-                                        />
-                                    }
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.integrations.githubEnabled}
+                                    onChange={(checked) => updateSetting("integrations", "githubEnabled", checked)}
                                     label={t("GitHubEnabled")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.integrations.discordEnabled}
-                                            onChange={(e) => updateSetting("integrations", "discordEnabled", e.target.checked)}
-                                        />
-                                    }
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.integrations.discordEnabled}
+                                    onChange={(checked) => updateSetting("integrations", "discordEnabled", checked)}
                                     label={t("DiscordEnabled")}
                                 />
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.integrations.slackEnabled}
-                                            onChange={(e) => updateSetting("integrations", "slackEnabled", e.target.checked)}
-                                        />
-                                    }
+                                <Switch
+                                    variant="default"
+                                    size="md"
+                                    checked={settings.integrations.slackEnabled}
+                                    onChange={(checked) => updateSetting("integrations", "slackEnabled", checked)}
                                     label={t("SlackEnabled")}
                                 />
                             </Grid>

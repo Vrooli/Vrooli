@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { SessionContext } from "../contexts/SessionContext.js";
+import { SessionContext } from "../contexts/session.js";
 
 /**
  * Hook to check if the current user has admin privileges

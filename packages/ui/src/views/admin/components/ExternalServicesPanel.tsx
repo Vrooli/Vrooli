@@ -1,13 +1,4 @@
-import {
-    Add,
-    Delete,
-    Edit,
-    IntegrationInstructions,
-    TestTube,
-    CheckCircle,
-    Error,
-    Warning,
-} from "@mui/icons-material";
+import { IconCommon } from "../../../icons/Icons.js";
 import {
     Box,
     Button,
@@ -239,9 +230,9 @@ export const ExternalServicesPanel: React.FC = () => {
 
     const getTestStatusIcon = (status?: string) => {
         switch (status) {
-            case "success": return <CheckCircle color="success" />;
-            case "error": return <Error color="error" />;
-            case "warning": return <Warning color="warning" />;
+            case "success": return <IconCommon name="Success" fill="success.main" />;
+            case "error": return <IconCommon name="Error" fill="error.main" />;
+            case "warning": return <IconCommon name="Warning" fill="warning.main" />;
             default: return null;
         }
     };
@@ -260,7 +251,7 @@ export const ExternalServicesPanel: React.FC = () => {
                 </Box>
                 <Button
                     variant="contained"
-                    startIcon={<Add />}
+                    startIcon={<IconCommon name="Add" />}
                     onClick={() => setAddDialog(true)}
                 >
                     {t("AddService")}
@@ -336,7 +327,7 @@ export const ExternalServicesPanel: React.FC = () => {
                                                 size="small"
                                                 onClick={() => handleTest(provider)}
                                             >
-                                                <TestTube />
+                                                <IconCommon name="External" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title={t("EditService")}>
@@ -359,7 +350,7 @@ export const ExternalServicesPanel: React.FC = () => {
                                                     setAddDialog(true);
                                                 }}
                                             >
-                                                <Edit />
+                                                <IconCommon name="Edit" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title={t("DeleteService")}>
@@ -368,7 +359,7 @@ export const ExternalServicesPanel: React.FC = () => {
                                                 color="error"
                                                 onClick={() => handleDelete(provider.id)}
                                             >
-                                                <Delete />
+                                                <IconCommon name="Delete" />
                                             </IconButton>
                                         </Tooltip>
                                     </Box>
@@ -557,8 +548,8 @@ export const ExternalServicesPanel: React.FC = () => {
                                         secondary={testDialog.results.connectivity ? t("Success") : t("Failed")}
                                     />
                                     {testDialog.results.connectivity ? 
-                                        <CheckCircle color="success" /> : 
-                                        <Error color="error" />
+                                        <IconCommon name="Success" fill="success.main" /> : 
+                                        <IconCommon name="Error" fill="error.main" />
                                     }
                                 </ListItem>
                                 <ListItem>
@@ -567,8 +558,8 @@ export const ExternalServicesPanel: React.FC = () => {
                                         secondary={testDialog.results.authentication ? t("Success") : t("Failed")}
                                     />
                                     {testDialog.results.authentication ? 
-                                        <CheckCircle color="success" /> : 
-                                        <Error color="error" />
+                                        <IconCommon name="Success" fill="success.main" /> : 
+                                        <IconCommon name="Error" fill="error.main" />
                                     }
                                 </ListItem>
                             </List>

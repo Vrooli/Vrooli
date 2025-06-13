@@ -1,13 +1,4 @@
-import {
-    Block,
-    CheckCircle,
-    Delete,
-    Edit,
-    KeyOff,
-    Person,
-    Search,
-    Warning,
-} from "@mui/icons-material";
+import { IconCommon } from "../../../icons/Icons.js";
 import {
     Box,
     Button,
@@ -188,11 +179,11 @@ export const UserManagementPanel: React.FC = () => {
 
     const getStatusIcon = (status: AccountStatus) => {
         switch (status) {
-            case AccountStatus.Unlocked: return <CheckCircle />;
-            case AccountStatus.SoftLocked: return <Warning />;
-            case AccountStatus.HardLocked: return <Block />;
-            case AccountStatus.Deleted: return <Delete />;
-            default: return <Person />;
+            case AccountStatus.Unlocked: return <IconCommon name="Success" />;
+            case AccountStatus.SoftLocked: return <IconCommon name="Warning" />;
+            case AccountStatus.HardLocked: return <IconCommon name="Close" />;
+            case AccountStatus.Deleted: return <IconCommon name="Delete" />;
+            default: return <IconCommon name="User" />;
         }
     };
 
@@ -274,7 +265,7 @@ export const UserManagementPanel: React.FC = () => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         InputProps={{
-                            startAdornment: <Search sx={{ mr: 1, color: "text.secondary" }} />,
+                            startAdornment: <IconCommon name="Search" sx={{ mr: 1, color: "text.secondary" }} />,
                         }}
                         sx={{ maxWidth: 300 }}
                     />
@@ -354,7 +345,7 @@ export const UserManagementPanel: React.FC = () => {
                                                     setStatusDialog(true);
                                                 }}
                                             >
-                                                <Edit />
+                                                <IconCommon name="Edit" />
                                             </IconButton>
                                         </Tooltip>
                                         <Tooltip title={t("ResetPassword")}>
@@ -369,7 +360,7 @@ export const UserManagementPanel: React.FC = () => {
                                                     );
                                                 }}
                                             >
-                                                <KeyOff />
+                                                <IconCommon name="Lock" />
                                             </IconButton>
                                         </Tooltip>
                                     </Stack>
