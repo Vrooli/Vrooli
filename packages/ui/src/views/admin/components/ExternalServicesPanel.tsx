@@ -24,23 +24,52 @@ import {
     ListItemText,
     Tooltip,
 } from "@mui/material";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import {
+    ResourceType,
+    ResourceSearchInput,
+    ResourceCreateInput,
+    ResourceUpdateInput,
+    ResourceSearchResult,
+    Resource,
+    ApiVersionConfig,
+    generatePublicId,
+    endpointsResource,
+    endpointsActions,
+    DeleteType,
+    type ApiVersionConfigObject,
+    type DeleteOneInput,
+    type Success,
+} from "@vrooli/shared";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { PubSub } from "../../../utils/pubsub.js";
 
-// Service provider types
+// Service provider types - mapped from Resource
 interface ExternalServiceProvider {
     id: string;
+    publicId: string;
     name: string;
     identifier: string;
-    type: "OAuth" | "ApiKey" | "Hybrid";
+    type: "oauth2" | "apikey" | "hybrid";
     status: "Active" | "Disabled" | "Maintenance";
     description?: string;
     oauthClientId?: string;
+    oauthClientSecret?: string;
+    oauthAuthUrl?: string;
+    oauthTokenUrl?: string;
+    oauthScopes?: string[];
     baseUrl?: string;
     supportedOperations?: string[];
     userCount?: number;
     lastTested?: string;
     testStatus?: "success" | "error" | "warning";
+    // Additional fields for API configuration
+    authLocation?: string;
+    authParameterName?: string;
+    resourceId?: string;
+    versionId?: string;
 }
 
 /**
@@ -49,6 +78,12 @@ interface ExternalServiceProvider {
  */
 export const ExternalServicesPanel: React.FC = () => {
     const { t } = useTranslation();
+    
+    // API hooks
+    const [findResources] = useLazyFetch<ResourceSearchInput, ResourceSearchResult>(endpointsResource.findMany);
+    const [createResource] = useLazyFetch<ResourceCreateInput, Resource>(endpointsResource.createOne);
+    const [updateResource] = useLazyFetch<ResourceUpdateInput, Resource>(endpointsResource.updateOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     
     // State management
     const [providers, setProviders] = useState<ExternalServiceProvider[]>([]);
@@ -70,97 +105,220 @@ export const ExternalServicesPanel: React.FC = () => {
     const [formData, setFormData] = useState({
         name: "",
         identifier: "",
-        type: "ApiKey" as const,
+        type: "apikey" as "oauth2" | "apikey" | "hybrid",
         description: "",
         oauthClientId: "",
         oauthClientSecret: "",
         oauthScopes: "",
+        oauthAuthUrl: "",
+        oauthTokenUrl: "",
         baseUrl: "",
         authMethod: "header",
+        authParameterName: "Authorization",
         supportedOperations: "",
     });
 
-    // Mock data - replace with actual API calls
-    useEffect(() => {
-        const mockProviders: ExternalServiceProvider[] = [
-            {
-                id: "1",
-                name: "OpenAI",
-                identifier: "openai",
-                type: "ApiKey",
-                status: "Active",
-                description: "OpenAI GPT models for AI-powered routines",
-                baseUrl: "https://api.openai.com/v1",
-                supportedOperations: ["chat", "completion", "embedding"],
-                userCount: 45,
-                lastTested: new Date().toISOString(),
-                testStatus: "success",
-            },
-            {
-                id: "2",
-                name: "GitHub",
-                identifier: "github",
-                type: "Hybrid",
-                status: "Active",
-                description: "GitHub integration for repository management",
-                oauthClientId: "github_client_id",
-                baseUrl: "https://api.github.com",
-                supportedOperations: ["repos", "issues", "pulls"],
-                userCount: 23,
-                lastTested: new Date(Date.now() - 3600000).toISOString(),
-                testStatus: "success",
-            },
-            {
-                id: "3",
-                name: "Google Drive",
-                identifier: "google_drive",
-                type: "OAuth",
-                status: "Active",
-                description: "Google Drive for file storage and sharing",
-                oauthClientId: "google_client_id",
-                supportedOperations: ["files", "folders", "sharing"],
-                userCount: 12,
-                lastTested: new Date(Date.now() - 86400000).toISOString(),
-                testStatus: "warning",
-            },
-        ];
-        setProviders(mockProviders);
+    // Helper function to convert Resource to ExternalServiceProvider
+    const resourceToProvider = useCallback((resource: Resource): ExternalServiceProvider | null => {
+        const version = resource.versions?.[0];
+        if (!version) return null;
+        
+        const translation = version.translations?.[0];
+        if (!translation) return null;
+        
+        let config: ApiVersionConfig | null = null;
+        try {
+            config = ApiVersionConfig.parse(version, console);
+        } catch (e) {
+            console.error("Failed to parse API config", e);
+        }
+        
+        const authSettings = config?.authentication?.settings || {};
+        
+        return {
+            id: resource.id,
+            publicId: resource.publicId,
+            name: translation.name,
+            identifier: resource.publicId, // Using publicId as identifier
+            type: (config?.authentication?.type || "apikey") as any,
+            status: "Active", // TODO: Derive from resource status
+            description: translation.description || undefined,
+            oauthClientId: authSettings.clientId,
+            oauthClientSecret: authSettings.clientSecret,
+            oauthAuthUrl: authSettings.authUrl,
+            oauthTokenUrl: authSettings.tokenUrl,
+            oauthScopes: authSettings.scopes,
+            baseUrl: config?.callLink || version.callLink || undefined,
+            supportedOperations: authSettings.operations || [],
+            userCount: 0, // TODO: Get from analytics
+            resourceId: resource.id,
+            versionId: version.id,
+            authLocation: config?.authentication?.location,
+            authParameterName: config?.authentication?.parameterName,
+        };
     }, []);
+
+    // Load API resources
+    const loadProviders = useCallback(async () => {
+        setLoading(true);
+        try {
+            const searchInput: ResourceSearchInput = {
+                resourceType: ResourceType.Api,
+                isDeleted: false,
+                take: 100,
+            };
+            
+            fetchLazyWrapper({
+                fetch: findResources,
+                inputs: searchInput,
+                onSuccess: (data) => {
+                    const providers = data.edges
+                        .map(edge => resourceToProvider(edge.node))
+                        .filter(Boolean) as ExternalServiceProvider[];
+                    setProviders(providers);
+                },
+                onError: () => {
+                    PubSub.get().publish("snack", { 
+                        messageKey: "FailedToLoadServices", 
+                        severity: "Error" 
+                    });
+                },
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, [findResources, resourceToProvider]);
+
+    useEffect(() => {
+        loadProviders();
+    }, [loadProviders]);
 
     const handleSubmit = async () => {
         try {
-            // TODO: Replace with actual API call
-            const newProvider: ExternalServiceProvider = {
-                id: Date.now().toString(),
-                ...formData,
-                status: "Active",
-                supportedOperations: formData.supportedOperations.split(",").map(s => s.trim()),
-                userCount: 0,
+            // Build API configuration
+            const apiConfig: ApiVersionConfigObject = {
+                __version: "1.0",
+                resources: [],
+                authentication: {
+                    type: formData.type,
+                    location: formData.authMethod,
+                    parameterName: formData.authParameterName,
+                    settings: {
+                        ...(formData.type === "oauth2" || formData.type === "hybrid" ? {
+                            clientId: formData.oauthClientId,
+                            clientSecret: formData.oauthClientSecret,
+                            authUrl: formData.oauthAuthUrl,
+                            tokenUrl: formData.oauthTokenUrl,
+                            scopes: formData.oauthScopes.split(",").map(s => s.trim()).filter(Boolean),
+                        } : {}),
+                        operations: formData.supportedOperations.split(",").map(s => s.trim()).filter(Boolean),
+                    },
+                },
+                rateLimiting: {
+                    requestsPerMinute: 1000,
+                    burstLimit: 100,
+                },
+                callLink: formData.baseUrl,
             };
 
             if (editProvider) {
-                setProviders(prev => prev.map(p => p.id === editProvider.id ? { ...newProvider, id: editProvider.id } : p));
-            } else {
-                setProviders(prev => [...prev, newProvider]);
-            }
+                // Update existing resource
+                const updateInput: ResourceUpdateInput = {
+                    id: editProvider.resourceId!,
+                    versions: [{
+                        id: editProvider.versionId!,
+                        callLink: formData.baseUrl,
+                        config: JSON.stringify(apiConfig),
+                        translations: [{
+                            language: "en",
+                            name: formData.name,
+                            description: formData.description,
+                        }],
+                    }],
+                };
 
-            setAddDialog(false);
-            setEditProvider(null);
-            setFormData({
-                name: "",
-                identifier: "",
-                type: "ApiKey",
-                description: "",
-                oauthClientId: "",
-                oauthClientSecret: "",
-                oauthScopes: "",
-                baseUrl: "",
-                authMethod: "header",
-                supportedOperations: "",
-            });
+                fetchLazyWrapper({
+                    fetch: updateResource,
+                    inputs: updateInput,
+                    onSuccess: () => {
+                        loadProviders();
+                        setAddDialog(false);
+                        setEditProvider(null);
+                        resetForm();
+                        PubSub.get().publish("snack", { 
+                            messageKey: "ServiceUpdated", 
+                            severity: "Success" 
+                        });
+                    },
+                    onError: () => {
+                        PubSub.get().publish("snack", { 
+                            messageKey: "FailedToUpdateService", 
+                            severity: "Error" 
+                        });
+                    },
+                });
+            } else {
+                // Create new resource
+                const createInput: ResourceCreateInput = {
+                    resourceType: ResourceType.Api,
+                    isPublic: true,
+                    versions: [{
+                        versionLabel: "1.0",
+                        callLink: formData.baseUrl,
+                        config: JSON.stringify(apiConfig),
+                        translations: [{
+                            language: "en",
+                            name: formData.name,
+                            description: formData.description,
+                        }],
+                    }],
+                };
+
+                fetchLazyWrapper({
+                    fetch: createResource,
+                    inputs: createInput,
+                    onSuccess: () => {
+                        loadProviders();
+                        setAddDialog(false);
+                        resetForm();
+                        PubSub.get().publish("snack", { 
+                            messageKey: "ServiceCreated", 
+                            severity: "Success" 
+                        });
+                    },
+                    onError: () => {
+                        PubSub.get().publish("snack", { 
+                            messageKey: "FailedToCreateService", 
+                            severity: "Error" 
+                        });
+                    },
+                });
+            }
         } catch (error) {
             console.error("Failed to save provider:", error);
+            PubSub.get().publish("snack", { 
+                messageKey: "ErrorUnknown", 
+                severity: "Error" 
+            });
         }
+    };
+
+    const resetForm = () => {
+        setFormData({
+            name: "",
+            identifier: "",
+            type: "apikey",
+            description: "",
+            oauthClientId: "",
+            oauthClientSecret: "",
+            oauthScopes: "",
+            oauthAuthUrl: "",
+            oauthTokenUrl: "",
+            baseUrl: "",
+            authMethod: "header",
+            authParameterName: "Authorization",
+            supportedOperations: "",
+        });
     };
 
     const handleTest = async (provider: ExternalServiceProvider) => {
@@ -212,10 +370,38 @@ export const ExternalServicesPanel: React.FC = () => {
 
     const handleDelete = async (providerId: string) => {
         try {
-            // TODO: Replace with actual API call
-            setProviders(prev => prev.filter(p => p.id !== providerId));
+            const provider = providers.find(p => p.id === providerId);
+            if (!provider?.resourceId) {
+                console.error("No resource ID for provider");
+                return;
+            }
+            
+            fetchLazyWrapper({
+                fetch: deleteOne,
+                inputs: { 
+                    id: provider.resourceId,
+                    objectType: DeleteType.Resource,
+                },
+                onSuccess: () => {
+                    loadProviders();
+                    PubSub.get().publish("snack", { 
+                        messageKey: "ServiceDeleted", 
+                        severity: "Success" 
+                    });
+                },
+                onError: () => {
+                    PubSub.get().publish("snack", { 
+                        messageKey: "FailedToDeleteService", 
+                        severity: "Error" 
+                    });
+                },
+            });
         } catch (error) {
             console.error("Failed to delete provider:", error);
+            PubSub.get().publish("snack", { 
+                messageKey: "ErrorUnknown", 
+                severity: "Error" 
+            });
         }
     };
 
@@ -341,10 +527,13 @@ export const ExternalServicesPanel: React.FC = () => {
                                                         type: provider.type,
                                                         description: provider.description || "",
                                                         oauthClientId: provider.oauthClientId || "",
-                                                        oauthClientSecret: "",
-                                                        oauthScopes: "",
+                                                        oauthClientSecret: provider.oauthClientSecret || "",
+                                                        oauthScopes: provider.oauthScopes?.join(", ") || "",
+                                                        oauthAuthUrl: provider.oauthAuthUrl || "",
+                                                        oauthTokenUrl: provider.oauthTokenUrl || "",
                                                         baseUrl: provider.baseUrl || "",
-                                                        authMethod: "header",
+                                                        authMethod: provider.authLocation || "header",
+                                                        authParameterName: provider.authParameterName || "Authorization",
                                                         supportedOperations: provider.supportedOperations?.join(", ") || "",
                                                     });
                                                     setAddDialog(true);
@@ -447,9 +636,9 @@ export const ExternalServicesPanel: React.FC = () => {
                                     value={formData.type}
                                     onChange={(e) => setFormData({...formData, type: e.target.value as any})}
                                 >
-                                    <MenuItem value="OAuth">OAuth</MenuItem>
-                                    <MenuItem value="ApiKey">API Key</MenuItem>
-                                    <MenuItem value="Hybrid">Hybrid</MenuItem>
+                                    <MenuItem value="oauth2">OAuth 2.0</MenuItem>
+                                    <MenuItem value="apikey">API Key</MenuItem>
+                                    <MenuItem value="hybrid">Hybrid</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -463,7 +652,7 @@ export const ExternalServicesPanel: React.FC = () => {
                             />
                         </Grid>
                         
-                        {(formData.type === "OAuth" || formData.type === "Hybrid") && (
+                        {(formData.type === "oauth2" || formData.type === "hybrid") && (
                             <>
                                 <Grid item xs={12} md={6}>
                                     <TextField
@@ -471,6 +660,7 @@ export const ExternalServicesPanel: React.FC = () => {
                                         label={t("OAuthClientID")}
                                         value={formData.oauthClientId}
                                         onChange={(e) => setFormData({...formData, oauthClientId: e.target.value})}
+                                        required
                                     />
                                 </Grid>
                                 <Grid item xs={12} md={6}>
@@ -480,6 +670,37 @@ export const ExternalServicesPanel: React.FC = () => {
                                         label={t("OAuthClientSecret")}
                                         value={formData.oauthClientSecret}
                                         onChange={(e) => setFormData({...formData, oauthClientSecret: e.target.value})}
+                                        required
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <TextField
+                                        fullWidth
+                                        label={t("OAuthAuthorizationURL")}
+                                        value={formData.oauthAuthUrl}
+                                        onChange={(e) => setFormData({...formData, oauthAuthUrl: e.target.value})}
+                                        placeholder="https://example.com/oauth/authorize"
+                                        required
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <TextField
+                                        fullWidth
+                                        label={t("OAuthTokenURL")}
+                                        value={formData.oauthTokenUrl}
+                                        onChange={(e) => setFormData({...formData, oauthTokenUrl: e.target.value})}
+                                        placeholder="https://example.com/oauth/token"
+                                        required
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        label={t("OAuthScopes")}
+                                        value={formData.oauthScopes}
+                                        onChange={(e) => setFormData({...formData, oauthScopes: e.target.value})}
+                                        helperText={t("CommaSeparatedScopes")}
+                                        placeholder="read, write, profile"
                                     />
                                 </Grid>
                             </>

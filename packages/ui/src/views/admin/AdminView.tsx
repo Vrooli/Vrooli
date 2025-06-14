@@ -22,6 +22,7 @@ import { CreditStatsPanel } from "./CreditStatsPanel.js";
 import { ErrorBoundary } from "../../components/ErrorBoundary/ErrorBoundary.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
+import { ScrollBox } from "../../styles.js";
 
 
 interface AdminViewProps {
@@ -38,10 +39,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
     const tabOptions = [
         { key: "statistics", label: t("SiteStats"), index: 0, iconInfo: { name: "Stats" as const, type: "Common" as const } },
         { key: "users", label: t("User", { count: 2 }), index: 1, iconInfo: { name: "Team" as const, type: "Common" as const } },
-        { key: "services", label: t("ExternalServices"), index: 2, iconInfo: { name: "External" as const, type: "Common" as const } },
+        { key: "services", label: t("ExternalServices"), index: 2, iconInfo: { name: "Link" as const, type: "Common" as const } },
         { key: "reports", label: t("Report", { count: 2 }), index: 3, iconInfo: { name: "Report" as const, type: "Common" as const } },
         { key: "settings", label: t("Settings"), index: 4, iconInfo: { name: "Settings" as const, type: "Common" as const } },
-        { key: "credits", label: t("CreditsAndDonations"), index: 5, iconInfo: { name: "AccountBalance" as const, type: "Common" as const } },
+        { key: "credits", label: t("CreditsAndDonations"), index: 5, iconInfo: { name: "Wallet" as const, type: "Common" as const } },
     ];
     const [currTab, setCurrTab] = useState(tabOptions[0]);
 
@@ -64,8 +65,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
 
     return (
         <PageContainer>
-            <Navbar keepVisible title={t("Dashboard")} />
-            <Container maxWidth="xl" sx={{ py: 2 }}>
+            <ScrollBox>
+                <Navbar keepVisible title={t("Dashboard")} />
+                <Container maxWidth="xl" sx={{ py: 2 }}>
                 {/* Admin Status */}
                 <Box sx={{ mb: 4 }}>
                     <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
@@ -96,7 +98,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
                             currTab={currTab}
                             onChange={handleTabChange}
                             tabs={tabOptions}
-                            fullWidth={false}
+                            fullWidth={true}
                         />
                     </Box>
 
@@ -112,7 +114,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ display = "Page" }) => {
                         </ErrorBoundary>
                     </Box>
                 </Paper>
-            </Container>
+                </Container>
+            </ScrollBox>
         </PageContainer>
     );
 };

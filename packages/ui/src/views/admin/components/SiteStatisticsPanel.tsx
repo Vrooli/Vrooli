@@ -12,7 +12,8 @@ import {
     CircularProgress,
     IconButton,
     Button,
-    Alert
+    Alert,
+    useTheme
 } from "@mui/material";
 import { DAYS_1_MS, WEEKS_1_MS, MONTHS_1_MS, YEARS_1_MS, endpointsStatsSite, StatPeriodType, type StatsSite, type StatsSiteSearchInput, type StatsSiteSearchResult } from "@vrooli/shared";
 import React, { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
@@ -22,6 +23,8 @@ import { statsDisplay } from "../../../utils/display/statsDisplay.js";
 import { PageTabs } from "../../../components/PageTabs/PageTabs.js";
 import { LineGraph } from "../../../components/graphs/LineGraph/LineGraph.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
+import { DateRangeMenu } from "../../../components/lists/DateRangeMenu/DateRangeMenu.js";
+import { displayDate } from "../../../utils/display/stringTools.js";
 
 /**
  * Period options for stats display
@@ -49,6 +52,9 @@ const periodTypes: { [key in StatsPeriodOption]: StatPeriodType } = {
     Yearly: "Monthly",
 };
 
+// Stats should not be earlier than February 2023.
+const MIN_DATE = new Date(2023, 1, 1);
+
 /**
  * Panel displaying site-wide statistics and analytics for administrators
  * This reuses and extends the existing StatsSiteView functionality
@@ -61,12 +67,37 @@ function SiteStatisticsPanel(): React.ReactElement {
     // Period selection state
     const [currentPeriod, setCurrentPeriod] = useState<StatsPeriodOption>(StatsPeriodOption.Daily);
     
+    // Date range state - defaults to the period's time frame
+    const [period, setPeriod] = useState<{ after: Date, before: Date }>({
+        after: new Date(Date.now() - periodIntervals[StatsPeriodOption.Daily]),
+        before: new Date(),
+    });
+    
+    // Date range menu state
+    const [dateRangeAnchorEl, setDateRangeAnchorEl] = useState<Element | null>(null);
+    
+    const handleDateRangeOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        setDateRangeAnchorEl(event.currentTarget);
+    }, []);
+    
+    const handleDateRangeClose = useCallback(() => {
+        setDateRangeAnchorEl(null);
+    }, []);
+    
+    const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
+        setPeriod({
+            after: newAfter || period.after,
+            before: newBefore || period.before,
+        });
+        handleDateRangeClose();
+    }, [period.after, period.before]);
+    
     // Create period tabs
     const periodTabs = useMemo(() => [
         { key: "daily", label: t("Daily"), index: 0, iconInfo: { name: "Today" as const, type: "Common" as const } },
-        { key: "weekly", label: t("Weekly"), index: 1, iconInfo: { name: "DateRange" as const, type: "Common" as const } },
-        { key: "monthly", label: t("Monthly"), index: 2, iconInfo: { name: "CalendarMonth" as const, type: "Common" as const } },
-        { key: "yearly", label: t("Yearly"), index: 3, iconInfo: { name: "CalendarToday" as const, type: "Common" as const } },
+        { key: "weekly", label: t("Weekly"), index: 1, iconInfo: { name: "Week" as const, type: "Common" as const } },
+        { key: "monthly", label: t("Monthly"), index: 2, iconInfo: { name: "Month" as const, type: "Common" as const } },
+        { key: "yearly", label: t("Yearly"), index: 3, iconInfo: { name: "Day" as const, type: "Common" as const } },
     ], [t]);
     
     const [currTab, setCurrTab] = useState(periodTabs[0]);
@@ -75,26 +106,32 @@ function SiteStatisticsPanel(): React.ReactElement {
         setCurrTab(tab);
         const newPeriod = Object.values(StatsPeriodOption)[tab.index];
         setCurrentPeriod(newPeriod);
+        
+        // Reset date range based on tab selection
+        const periodInterval = periodIntervals[newPeriod];
+        const newAfter = new Date(Math.max(Date.now() - periodInterval, MIN_DATE.getTime()));
+        const newBefore = new Date();
+        setPeriod({ after: newAfter, before: newBefore });
     }, []);
 
-    // Fetch stats data based on selected period
+    // Fetch stats data based on selected period and date range
     const [getStats, { data: statsData, loading, errors }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
         ...endpointsStatsSite.findMany,
         inputs: {
             periodType: periodTypes[currentPeriod],
             periodTimeFrame: {
-                after: new Date(Date.now() - periodIntervals[currentPeriod]).toISOString(),
-                before: new Date().toISOString(),
+                after: period.after.toISOString(),
+                before: period.before.toISOString(),
             },
         },
     });
 
     const [stats, setStats] = useState<StatsSite[]>([]);
     
-    // Fetch stats on mount, when refresh is triggered, or when period changes
+    // Fetch stats on mount, when refresh is triggered, or when period/date range changes
     useEffect(() => {
         getStats();
-    }, [lastRefresh, currentPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [lastRefresh, currentPeriod, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (errors && errors.length > 0) {
@@ -194,17 +231,27 @@ function SiteStatisticsPanel(): React.ReactElement {
         fieldKey?: string;
     }> = ({ title, value, subtitle, icon, trend, color = "primary", chartData = [], fieldKey }) => {
         const { dimensions, ref } = useDimensions<HTMLDivElement>();
+        const theme = useTheme();
+        
+        // Get the actual color value from theme
+        const getThemeColor = (colorName: typeof color) => {
+            switch (colorName) {
+                case "primary": return theme.palette.primary.main;
+                case "secondary": return theme.palette.secondary.main;
+                case "success": return theme.palette.success.main;
+                case "warning": return theme.palette.warning.main;
+                case "error": return theme.palette.error.main;
+                default: return theme.palette.primary.main;
+            }
+        };
+        
+        const themeColor = getThemeColor(color);
         
         return (
         <Card 
             ref={ref}
             sx={{ 
                 height: "100%",
-                transition: "all 0.2s ease-in-out",
-                "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 4,
-                },
                 border: "1px solid",
                 borderColor: "divider",
             }}
@@ -290,9 +337,11 @@ function SiteStatisticsPanel(): React.ReactElement {
                                     width: dimensions.width - 48, // Account for padding
                                     height: 60,
                                 }}
-                                lineColor={`var(--mui-palette-${color}-main)`}
+                                lineColor={themeColor}
+                                dotColor={themeColor}
                                 hideAxes={true}
                                 hideTooltips={false}
+                                lineWidth={3}
                             />
                         </Box>
                     )}
@@ -335,10 +384,10 @@ function SiteStatisticsPanel(): React.ReactElement {
                         {t("SiteStats")}
                     </Typography>
                     <Typography variant="body1" color="text.secondary">
-                        {currentPeriod === StatsPeriodOption.Daily ? t("Last24Hours") : 
-                         currentPeriod === StatsPeriodOption.Weekly ? t("LastWeek") :
-                         currentPeriod === StatsPeriodOption.Monthly ? t("LastMonth") :
-                         t("LastYear")}
+                        {currentPeriod === StatsPeriodOption.Daily ? t("TimeDay") : 
+                         currentPeriod === StatsPeriodOption.Weekly ? t("TimeWeek") :
+                         currentPeriod === StatsPeriodOption.Monthly ? t("TimeMonth") :
+                         t("TimeYear")}
                     </Typography>
                 </Box>
                 <IconButton 
@@ -358,10 +407,43 @@ function SiteStatisticsPanel(): React.ReactElement {
                         currTab={currTab}
                         onChange={handleTabChange}
                         tabs={periodTabs}
-                        fullWidth={false}
+                        fullWidth={true}
                     />
                 </Box>
             </Paper>
+
+            {/* Date Range Picker */}
+            <DateRangeMenu
+                anchorEl={dateRangeAnchorEl}
+                minDate={MIN_DATE}
+                maxDate={new Date()}
+                onClose={handleDateRangeClose}
+                onSubmit={handleDateRangeSubmit}
+                range={period}
+                strictIntervalRange={periodIntervals[currentPeriod]}
+            />
+            
+            {/* Date Range Display */}
+            <Typography
+                component="div"
+                variant="body1"
+                textAlign="center"
+                onClick={handleDateRangeOpen}
+                sx={{ 
+                    cursor: "pointer", 
+                    mb: 3, 
+                    mt: 1,
+                    p: 1,
+                    borderRadius: 1,
+                    "&:hover": {
+                        backgroundColor: "action.hover",
+                    },
+                    color: "primary.main",
+                    fontWeight: 500,
+                }}
+            >
+                📅 {displayDate(period.after.getTime(), false)} - {displayDate(period.before.getTime(), false)}
+            </Typography>
 
             {error && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
@@ -370,8 +452,8 @@ function SiteStatisticsPanel(): React.ReactElement {
             )}
 
             {/* Key Metrics */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                <Grid item xs={12} sm={6} md={3}>
+            <Grid container spacing={3} sx={{ mb: 4, px: 2 }}>
+                <Grid item xs={12} sm={6} lg={3}>
                     <StatCard
                         title={t("ActiveUsers")}
                         value={metrics.activeUsers.toLocaleString()}
@@ -383,36 +465,36 @@ function SiteStatisticsPanel(): React.ReactElement {
                         fieldKey="activeUsers"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} lg={3}>
                     <StatCard
                         title={t("RoutinesCreated")}
                         value={metrics.routinesCreated.toLocaleString()}
                         subtitle={`New routines in ${currentPeriod.toLowerCase()}`}
-                        icon={<IconCommon name="Code" size={24} />}
+                        icon={<IconCommon name="Build" size={24} />}
                         trend={metrics.routinesCreated > 0 ? "up" : "stable"}
                         color="success"
                         chartData={visual.routinesCreated || []}
                         fieldKey="routinesCreated"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} lg={3}>
                     <StatCard
                         title={t("RunsCompleted")}
                         value={metrics.runsCompleted.toLocaleString()}
                         subtitle={`${metrics.runCompletionRate}% completion rate`}
-                        icon={<IconCommon name="CheckCircle" size={24} />}
+                        icon={<IconCommon name="Complete" size={24} />}
                         trend={metrics.runsCompleted > 0 ? "up" : "stable"}
                         color="success"
                         chartData={visual.runsCompleted || []}
                         fieldKey="runsCompleted"
                     />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} lg={3}>
                     <StatCard
                         title={t("NewTeams")}
                         value={metrics.teamsCreated.toLocaleString()}
                         subtitle={`Teams created in ${currentPeriod.toLowerCase()}`}
-                        icon={<IconCommon name="Group" size={24} />}
+                        icon={<IconCommon name="Team" size={24} />}
                         trend={metrics.teamsCreated > 0 ? "up" : "stable"}
                         color="secondary"
                         chartData={visual.teamsCreated || []}
@@ -422,7 +504,7 @@ function SiteStatisticsPanel(): React.ReactElement {
             </Grid>
 
             {/* Activity Summary */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={3} sx={{ mb: 4, px: 2 }}>
                 <Grid item xs={12} md={6}>
                     <Card 
                         sx={{ 
@@ -502,7 +584,7 @@ function SiteStatisticsPanel(): React.ReactElement {
                                         justifyContent: "center",
                                     }}
                                 >
-                                    <IconCommon name="PersonAdd" size={20} />
+                                    <IconCommon name="Add" size={20} />
                                 </Box>
                                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                     {t("NewAccounts")}
@@ -527,18 +609,6 @@ function SiteStatisticsPanel(): React.ReactElement {
                     </Card>
                 </Grid>
             </Grid>
-
-            {/* Placeholder for future charts and detailed analytics */}
-            <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                    {t("DetailedAnalytics")}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                    {t("DetailedAnalyticsComingSoon")}
-                </Typography>
-                {/* Integration with StatsSiteView components can be added here */}
-                {/* Charts and detailed analytics will be displayed here */}
-            </Paper>
         </Box>
     );
 }
