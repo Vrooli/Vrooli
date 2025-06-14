@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { CodeLanguage } from "@vrooli/shared";
-import { expect } from "chai";
-import sinon from "sinon";
+import { expect, describe, it } from "vitest";
+
 import { MB } from "./consts.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
 import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js";
@@ -29,21 +29,21 @@ const Property = {
 let sandbox: sinon.SinonSandbox;
 
 function assertResultIsError(result: RunUserCodeOutput, ...acceptedErrorMessages: string[]) {
-    expect(result).to.have.property("__type", "error");
-    expect(result).to.have.property("error");
-    expect(acceptedErrorMessages.some(message => result.error?.includes(message))).to.be.true;
-    expect(result).not.to.have.property("output");
+    expect(result).toHaveProperty("__type", "error");
+    expect(result).toHaveProperty("error");
+    expect(acceptedErrorMessages.some(message => result.error?.includes(message))).toBe(true);
+    expect(result).not.toHaveProperty("output");
 }
 
 function assertResultIsOutput(result: RunUserCodeOutput, output: unknown, deepEqual = true) {
-    expect(result).to.have.property("__type", "output");
-    expect(result).to.have.property("output");
+    expect(result).toHaveProperty("__type", "output");
+    expect(result).toHaveProperty("output");
     if (deepEqual) {
-        expect(result.output).to.deep.equal(output);
+        expect(result.output).toEqual(output);
     } else {
-        expect(result.output).to.equal(output);
+        expect(result.output).toBe(output);
     }
-    expect(result).not.to.have.property("error");
+    expect(result).not.toHaveProperty("error");
 }
 
 describe("/sandbox/managers", () => {
@@ -68,16 +68,16 @@ describe("/sandbox/managers", () => {
         });
 
         it("constructor initializes with default values", () => {
-            expect(manager).to.have.property(Property.memoryLimitBytes);
-            expect(manager[Property.idleTimeoutMs]).to.equal(IDLE_TIMEOUT_MS);
-            expect(manager[Property.jobTimeoutMs]).to.equal(JOB_TIMEOUT_MS);
-            expect(manager[Property.idleTimeoutHandle]).to.be.null;
-            expect(manager[Property.jobTimeoutHandle]).to.be.null;
-            expect(manager[Property.jobQueue]).to.deep.equal([]);
-            expect(manager[Property.status]).to.equal("Inactive");
+            expect(manager).toHaveProperty(Property.memoryLimitBytes);
+            expect(manager[Property.idleTimeoutMs]).toBe(IDLE_TIMEOUT_MS);
+            expect(manager[Property.jobTimeoutMs]).toBe(JOB_TIMEOUT_MS);
+            expect(manager[Property.idleTimeoutHandle]).toBeNull();
+            expect(manager[Property.jobTimeoutHandle]).toBeNull();
+            expect(manager[Property.jobQueue]).toEqual([]);
+            expect(manager[Property.status]).toBe("Inactive");
 
             const isWorkerActive = manager[Property._isWorkerActive]();
-            expect(isWorkerActive).to.be.false;
+            expect(isWorkerActive).toBe(false);
         });
 
         it("runUserCode starts a new worker if none exists", async () => {
@@ -89,11 +89,11 @@ describe("/sandbox/managers", () => {
             await manager.runUserCode(input);
 
             let isWorkerActive = manager[Property._isWorkerActive]();
-            expect(isWorkerActive).to.be.true;
+            expect(isWorkerActive).toBe(true);
 
             await manager.terminate();
             isWorkerActive = manager[Property._isWorkerActive]();
-            expect(isWorkerActive).to.be.false;
+            expect(isWorkerActive).toBe(false);
         });
 
         it("runUserCode reuses existing worker", async () => {
@@ -112,7 +112,7 @@ describe("/sandbox/managers", () => {
             await manager.runUserCode(input2);
             const workerId2 = manager[Property._getWorkerId]();
 
-            expect(workerId1).to.equal(workerId2);
+            expect(workerId1).toBe(workerId2);
         });
 
         it("runUserCode rejects unsupported languages", async () => {
@@ -134,13 +134,13 @@ describe("/sandbox/managers", () => {
             };
             await manager.runUserCode(input);
             const workerId1 = manager[Property._getWorkerId]();
-            expect(workerId1).not.to.be.null;
+            expect(workerId1).not.toBeNull();
 
             // Advance the clock by the idle timeout + a little extra to trigger the idle timeout
             await new Promise(resolve => setTimeout(resolve, manager[Property.idleTimeoutMs] + 50));
 
             const workerId2 = manager[Property._getWorkerId]();
-            expect(workerId2).to.be.null;
+            expect(workerId2).toBeNull();
         });
 
         describe("handle successful code execution", () => {
@@ -329,8 +329,8 @@ describe("/sandbox/managers", () => {
                 await manager.runUserCode(input);
 
                 // Check that the queue is empty
-                expect(manager[Property.jobQueue]).to.deep.equal([]);
-                expect(manager[Property.status]).to.equal("Idle");
+                expect(manager[Property.jobQueue]).toEqual([]);
+                expect(manager[Property.status]).toBe("Idle");
             });
 
             it("URL - from input", async () => {
@@ -342,7 +342,7 @@ describe("/sandbox/managers", () => {
                 };
                 const result = await manager.runUserCode(input);
 
-                expect((result.output as URL).href).to.equal(href);
+                expect((result.output as URL).href).toBe(href);
             });
 
             it("URL - created in code", async () => {
@@ -353,7 +353,7 @@ describe("/sandbox/managers", () => {
                 };
                 const result = await manager.runUserCode(input);
 
-                expect((result.output as URL).href).to.equal(href);
+                expect((result.output as URL).href).toBe(href);
             });
 
             // it("Buffer - from input", async () => {
@@ -374,7 +374,7 @@ describe("/sandbox/managers", () => {
             //     };
             //     const result = await manager.runUserCode(input);
 
-            //     expect((result.output as Buffer).toString()).to.equal("hello, world!");
+            //     expect((result.output as Buffer).toString()).toBe("hello, world!");
             // });
 
             it("Uint8Array", async () => {
@@ -510,7 +510,7 @@ describe("/sandbox/managers", () => {
                     assertResultIsOutput(result, input.input);
 
                     // Check if the circular reference is preserved
-                    expect((result.output as { self: object }).self).to.equal((result.output as object));
+                    expect((result.output as { self: object }).self).toBe((result.output as object));
                 });
                 it("array with circular reference", async () => {
                     const circularArray: unknown[] = ["foo", "bar"];
@@ -524,17 +524,17 @@ describe("/sandbox/managers", () => {
 
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
 
                     // Check if the circular reference is preserved
-                    expect(result.output).to.have.lengthOf(3);
+                    expect(result.output).toHaveLength(3);
                     // @ts-ignore Testing runtime scenario
-                    expect(result.output[0]).to.equal("foo");
+                    expect(result.output[0]).toBe("foo");
                     // @ts-ignore Testing runtime scenario
-                    expect(result.output[1]).to.equal("bar");
+                    expect(result.output[1]).toBe("bar");
                     // @ts-ignore Testing runtime scenario
-                    expect(result.output[2]).to.equal(result.output);
+                    expect(result.output[2]).toBe(result.output);
                 });
                 it("object with Date", async () => {
                     const input = {
@@ -544,10 +544,10 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
                     // @ts-ignore Testing runtime scenario
-                    expect(result.output.date).to.deep.equal(input.input.date);
+                    expect(result.output.date).toEqual(input.input.date);
                 });
             });
 
@@ -561,9 +561,9 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
-                    expect(result.output).to.equal(6);
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toBe(6);
                 });
                 it("spread objects", async () => {
                     const input = {
@@ -574,9 +574,9 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
-                    expect(result.output).to.equal(6);
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toBe(6);
                 });
             });
 
@@ -588,12 +588,12 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
                     // @ts-ignore: Testing runtime scenario
-                    expect(result.output.href).to.deep.equal("https://example.com/home?one=true");
+                    expect(result.output.href).toEqual("https://example.com/home?one=true");
                     // @ts-ignore: Testing runtime scenario
-                    expect(result.output.protocol).to.deep.equal("https:");
+                    expect(result.output.protocol).toEqual("https:");
                 });
                 it("BigInt", async () => {
                     const input = {
@@ -602,18 +602,18 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
-                    expect(result.output).to.deep.equal(BigInt(9007199254740991));
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toEqual(BigInt(9007199254740991));
                 });
                 // it("Buffer", async () => {
                 //     const input = { code: String.raw`function createsBuffer() { return Buffer.from('hello, world!'); }` };
                 //     const result = await manager.runUserCode(input);
 
-                //     expect(result).not.to.have.property("error");
-                //     expect(result).to.have.property("output");
+                //     expect(result).not.toHaveProperty("error");
+                //     expect(result).toHaveProperty("output");
                 //     // @ts-ignore: Testing runtime scenario
-                //     expect(result.output.toString()).to.deep.equal("hello, world!");
+                //     expect(result.output.toString()).toEqual("hello, world!");
                 // });
                 it("Uint8Array", async () => {
                     const input = {
@@ -622,9 +622,9 @@ describe("/sandbox/managers", () => {
                     };
                     const result = await manager.runUserCode(input);
 
-                    expect(result).not.to.have.property("error");
-                    expect(result).to.have.property("output");
-                    expect(result.output).to.deep.equal(new Uint8Array([0, 1, 2, 3, 4, 5]));
+                    expect(result).not.toHaveProperty("error");
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toEqual(new Uint8Array([0, 1, 2, 3, 4, 5]));
                 });
             });
         });
@@ -1354,8 +1354,8 @@ function realTest() { return 'Hello2'; }`,
                     const result = await manager.runUserCode(input);
 
                     // Verify that the worker thread correctly handles memory overload
-                    expect(result).to.have.property("__type", "error");
-                    expect(result).not.to.have.property("output");
+                    expect(result).toHaveProperty("__type", "error");
+                    expect(result).not.toHaveProperty("output");
                 }
 
                 const finalMemoryUsage = process.memoryUsage().heapUsed;
@@ -1367,7 +1367,7 @@ function realTest() { return 'Hello2'; }`,
                 );
 
                 // Assert that memory usage hasn’t grown beyond the threshold
-                expect(finalMemoryUsage).to.be.lessThan(
+                expect(finalMemoryUsage).toBeLessThan(
                     memoryThreshold,
                     `Memory usage grew from ${initialMemoryUsageMB} MB to ${finalMemoryUsageMB} MB (${memoryIncreasePercentage}%), exceeding threshold of ${memoryThreshold} MB. Possible memory leak detected.`,
                 );
@@ -1390,8 +1390,8 @@ function realTest() { return 'Hello2'; }`,
 
                     const result = await manager.runUserCode(input);
 
-                    expect(result).to.have.property("__type", "output");
-                    expect(result).to.have.property("output").to.equal(1 + 2 + 3);
+                    expect(result).toHaveProperty("__type", "output");
+                    expect(result).toHaveProperty("output").toBe(1 + 2 + 3);
                 }
 
                 // Make sure the worker is terminated to accurately measure memory usage
@@ -1406,7 +1406,7 @@ function realTest() { return 'Hello2'; }`,
                 );
 
                 // Assert that memory usage hasn’t grown beyond the threshold
-                expect(finalMemoryUsage).to.be.lessThan(
+                expect(finalMemoryUsage).toBeLessThan(
                     memoryThreshold,
                     `Memory usage grew from ${initialMemoryUsageMB} MB to ${finalMemoryUsageMB} MB (${memoryIncreasePercentage}%), exceeding threshold of ${memoryThreshold} MB. Possible memory leak detected.`,
                 );
@@ -1464,7 +1464,7 @@ function realTest() { return 'Hello2'; }`,
                 );
 
                 // Assert that memory usage hasn’t grown beyond the threshold
-                expect(finalMemoryUsage).to.be.lessThan(
+                expect(finalMemoryUsage).toBeLessThan(
                     memoryThreshold,
                     `Memory usage grew from ${initialMemoryUsageMB} MB to ${finalMemoryUsageMB} MB (${memoryIncreasePercentage}%), exceeding threshold of ${memoryThreshold} MB. Possible memory leak detected.`,
                 );
@@ -1501,7 +1501,7 @@ function realTest() { return 'Hello2'; }`,
                 );
 
                 // Assert that memory usage hasn’t grown beyond the threshold
-                expect(finalMemoryUsage).to.be.lessThan(
+                expect(finalMemoryUsage).toBeLessThan(
                     memoryThreshold,
                     `Memory usage grew from ${initialMemoryUsageMB} MB to ${finalMemoryUsageMB} MB (${memoryIncreasePercentage}%), exceeding threshold of ${memoryThreshold} MB. Possible memory leak detected.`,
                 );
@@ -1526,8 +1526,8 @@ function realTest() { return 'Hello2'; }`,
 
                 // Check that the results are correct
                 results.forEach((result, index) => {
-                    expect(result).to.have.property("__type", "output");
-                    expect(result.output).to.equal(`Hello, world! ${index}`);
+                    expect(result).toHaveProperty("__type", "output");
+                    expect(result.output).toBe(`Hello, world! ${index}`);
                 });
             });
         });

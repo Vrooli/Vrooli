@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { } from "@vrooli/shared";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import sinon from "sinon";
+
 import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, inputToMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps.js";
@@ -47,7 +47,7 @@ describe("fetchAndMapPlaceholder", () => {
     it("should fetch and return the correct ID for a new placeholder", async () => {
         const placeholder = `user|${userId}.prem|premium`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-        expect(placeholderToIdMap[placeholder]).to.equal(premiumId); // The profile's ID
+        expect(placeholderToIdMap[placeholder]).toBe(premiumId); // The profile's ID
     });
 
     it("should return the cached ID for an already processed placeholder", async () => {
@@ -56,7 +56,7 @@ describe("fetchAndMapPlaceholder", () => {
 
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal(premiumId); // The cached ID
+        expect(placeholderToIdMap[placeholder]).toBe(premiumId); // The cached ID
     });
 
     it("should return undefined if object is not found", async () => {
@@ -66,7 +66,7 @@ describe("fetchAndMapPlaceholder", () => {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
             expect.fail("Expected fetchAndMapPlaceholder to throw");
         } catch (error) {
-            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+            expect(placeholderToIdMap[placeholder]).toBeUndefined();
 
         }
     });
@@ -75,7 +75,7 @@ describe("fetchAndMapPlaceholder", () => {
         const placeholder = `user|${userId}.prem|premium.owner|team`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal(teamId);
+        expect(placeholderToIdMap[placeholder]).toBe(teamId);
     });
 
     it("should handle placeholder with invalid format", async () => {
@@ -84,7 +84,7 @@ describe("fetchAndMapPlaceholder", () => {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
             expect.fail("Expected fetchAndMapPlaceholder to throw");
         } catch (error) {
-            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+            expect(placeholderToIdMap[placeholder]).toBeUndefined();
         }
     });
 
@@ -94,7 +94,7 @@ describe("fetchAndMapPlaceholder", () => {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
             expect.fail("Expected fetchAndMapPlaceholder to throw");
         } catch (error) {
-            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+            expect(placeholderToIdMap[placeholder]).toBeUndefined();
         }
     });
 
@@ -104,7 +104,7 @@ describe("fetchAndMapPlaceholder", () => {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
             expect.fail("Expected fetchAndMapPlaceholder to throw");
         } catch (error) {
-            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+            expect(placeholderToIdMap[placeholder]).toBeUndefined();
         }
     });
 
@@ -113,7 +113,7 @@ describe("fetchAndMapPlaceholder", () => {
         const placeholder = `Note|${noteId}`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal(noteId);
+        expect(placeholderToIdMap[placeholder]).toBe(noteId);
     });
 });
 
@@ -173,11 +173,11 @@ describe("replacePlaceholdersInMap", () => {
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         const expectedKeyLength = Object.values(idsMap).flat().length;
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(expectedKeyLength);
-        expect(idsMap["User"]).to.deep.equal([testCases[0][1]]);
-        expect(idsMap["Update"]).to.deep.equal([testCases[1][1]]);
-        expect(placeholderToIdMap[testCases[0][0]]).to.deep.equal(testCases[0][1]);
-        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(expectedKeyLength);
+        expect(idsMap["User"]).toEqual([testCases[0][1]]);
+        expect(idsMap["Update"]).toEqual([testCases[1][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).toEqual(testCases[0][1]);
+        expect(placeholderToIdMap[testCases[1][0]]).toEqual(testCases[1][1]);
     });
 
     it("should handle multiple placeholders", async () => {
@@ -195,13 +195,13 @@ describe("replacePlaceholdersInMap", () => {
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
         const expectedKeyLength = Object.values(idsMap).flat().length;
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(expectedKeyLength);
-        expect(idsMap["User"]).to.deep.equal([testCases[0][1], testCases[1][1]]);
-        expect(idsMap["Update"]).to.deep.equal([testCases[2][1], testCases[3][1]]);
-        expect(placeholderToIdMap[testCases[0][0]]).to.deep.equal(testCases[0][1]);
-        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
-        expect(placeholderToIdMap[testCases[2][0]]).to.deep.equal(testCases[2][1]);
-        expect(placeholderToIdMap[testCases[3][0]]).to.deep.equal(testCases[3][1]);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(expectedKeyLength);
+        expect(idsMap["User"]).toEqual([testCases[0][1], testCases[1][1]]);
+        expect(idsMap["Update"]).toEqual([testCases[2][1], testCases[3][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).toEqual(testCases[0][1]);
+        expect(placeholderToIdMap[testCases[1][0]]).toEqual(testCases[1][1]);
+        expect(placeholderToIdMap[testCases[2][0]]).toEqual(testCases[2][1]);
+        expect(placeholderToIdMap[testCases[3][0]]).toEqual(testCases[3][1]);
     });
 
     it("should leave non-placeholder IDs unchanged", async () => {
@@ -219,12 +219,12 @@ describe("replacePlaceholdersInMap", () => {
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // There's only one actual placeholder this time
-        expect(idsMap["User"]).to.deep.equal([testCases[0][1], testCases[1][1]]);
-        expect(idsMap["Update"]).to.deep.equal([testCases[2][1]]);
-        expect(placeholderToIdMap[testCases[0][0]]).to.be.undefined; // Not a placeholder, so it's not in the map
-        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
-        expect(placeholderToIdMap[testCases[2][0]]).to.be.undefined; // Not a placeholder, so it's not in the map
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1); // There's only one actual placeholder this time
+        expect(idsMap["User"]).toEqual([testCases[0][1], testCases[1][1]]);
+        expect(idsMap["Update"]).toEqual([testCases[2][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).toBeUndefined(); // Not a placeholder, so it's not in the map
+        expect(placeholderToIdMap[testCases[1][0]]).toEqual(testCases[1][1]);
+        expect(placeholderToIdMap[testCases[2][0]]).toBeUndefined(); // Not a placeholder, so it's not in the map
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
@@ -237,9 +237,9 @@ describe("replacePlaceholdersInMap", () => {
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(idsMap["User"][0]).to.deep.equal(id);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
+        expect(idsMap["User"][0]).toEqual(id);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(id);
     });
 });
 
@@ -285,12 +285,12 @@ describe("replacePlaceholdersInInputsById", () => {
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(1); // Same as what we started with
-        expect(inputsById[placeholder]).to.be.undefined; // The placeholder is now replaced with the ID
-        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId); // The node ID is the ID of the object
-        expect(inputsById[premiumId].input).to.deep.equal(premiumId); // The input (which for deletes is just an ID) is the ID of the object
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // The placeholder is now in the map
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId); // The placeholder is now mapped to the ID
+        expect(Object.keys(inputsById)).toHaveLength(1); // Same as what we started with
+        expect(inputsById[placeholder]).toBeUndefined(); // The placeholder is now replaced with the ID
+        expect(inputsById[premiumId].node.id).toEqual(premiumId); // The node ID is the ID of the object
+        expect(inputsById[premiumId].input).toEqual(premiumId); // The input (which for deletes is just an ID) is the ID of the object
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1); // The placeholder is now in the map
+        expect(placeholderToIdMap[placeholder]).toEqual(premiumId); // The placeholder is now mapped to the ID
     });
 
     it("should replace placeholders with object (e.g. 'Update') inputs", async () => {
@@ -308,12 +308,12 @@ describe("replacePlaceholdersInInputsById", () => {
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(1); // Same as what we started with
-        expect(inputsById[placeholder]).to.be.undefined; // The placeholder is now replaced with the ID
-        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId); // The node ID is the ID of the object
-        expect(inputsById[premiumId].input).to.deep.equal({ id: premiumId, name: "Updated name" });
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // The placeholder is now in the map
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId); // The placeholder is now mapped to the ID
+        expect(Object.keys(inputsById)).toHaveLength(1); // Same as what we started with
+        expect(inputsById[placeholder]).toBeUndefined(); // The placeholder is now replaced with the ID
+        expect(inputsById[premiumId].node.id).toEqual(premiumId); // The node ID is the ID of the object
+        expect(inputsById[premiumId].input).toEqual({ id: premiumId, name: "Updated name" });
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1); // The placeholder is now in the map
+        expect(placeholderToIdMap[placeholder]).toEqual(premiumId); // The placeholder is now mapped to the ID
     });
 
     it("should leave non-placeholders unchanged", async () => {
@@ -325,13 +325,13 @@ describe("replacePlaceholdersInInputsById", () => {
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(2);
-        expect(inputsById[placeholder]).to.be.undefined;
-        expect(inputsById["999"].node.id).to.deep.equal("999");
-        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
-        expect(inputsById[premiumId].input).to.deep.equal(premiumId);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId);
+        expect(Object.keys(inputsById)).toHaveLength(2);
+        expect(inputsById[placeholder]).toBeUndefined();
+        expect(inputsById["999"].node.id).toEqual("999");
+        expect(inputsById[premiumId].node.id).toEqual(premiumId);
+        expect(inputsById[premiumId].input).toEqual(premiumId);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(premiumId);
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
@@ -342,12 +342,12 @@ describe("replacePlaceholdersInInputsById", () => {
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById[placeholder]).to.be.undefined;
-        expect(inputsById[id].node.id).to.deep.equal(id);
-        expect(inputsById[id].input).to.deep.equal(id);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
+        expect(Object.keys(inputsById)).toHaveLength(1);
+        expect(inputsById[placeholder]).toBeUndefined();
+        expect(inputsById[id].node.id).toEqual(id);
+        expect(inputsById[id].input).toEqual(id);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(id);
     });
 });
 
@@ -401,11 +401,11 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.Team.Delete).to.have.lengthOf(1);
-        expect(inputsByType.Team.Delete[0].node.id).to.deep.equal(teamId);
-        expect(inputsByType.Team.Delete[0].input).to.deep.equal(teamId);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(teamId);
+        expect(inputsByType.Team.Delete).toHaveLength(1);
+        expect(inputsByType.Team.Delete[0].node.id).toEqual(teamId);
+        expect(inputsByType.Team.Delete[0].input).toEqual(teamId);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(teamId);
     });
 
     it("should replace placeholders with object (e.g. 'Update') inputs", async () => {
@@ -423,11 +423,11 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.Team.Update).to.have.lengthOf(1);
-        expect(inputsByType.Team.Update[0].node.id).to.deep.equal(teamId);
-        expect(inputsByType.Team.Update[0].input).to.deep.equal({ id: teamId, name: "Test" });
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(teamId);
+        expect(inputsByType.Team.Update).toHaveLength(1);
+        expect(inputsByType.Team.Update[0].node.id).toEqual(teamId);
+        expect(inputsByType.Team.Update[0].input).toEqual({ id: teamId, name: "Test" });
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(teamId);
     });
 
     it("should leave non-placeholders unchanged", async () => {
@@ -449,13 +449,13 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.User.Delete).to.have.lengthOf(2);
-        expect(inputsByType.User.Delete[0].node.id).to.deep.equal(userId);
-        expect(inputsByType.User.Delete[0].input).to.deep.equal(userId);
-        expect(inputsByType.User.Delete[1].node.id).to.deep.equal(nonPlaceholder);
-        expect(inputsByType.User.Delete[1].input).to.deep.equal(nonPlaceholder);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(userId);
+        expect(inputsByType.User.Delete).toHaveLength(2);
+        expect(inputsByType.User.Delete[0].node.id).toEqual(userId);
+        expect(inputsByType.User.Delete[0].input).toEqual(userId);
+        expect(inputsByType.User.Delete[1].node.id).toEqual(nonPlaceholder);
+        expect(inputsByType.User.Delete[1].input).toEqual(nonPlaceholder);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(userId);
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
@@ -476,11 +476,11 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.User.Delete).to.have.lengthOf(1);
-        expect(inputsByType.User.Delete[0].node.id).to.deep.equal(id);
-        expect(inputsByType.User.Delete[0].input).to.deep.equal(id);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
+        expect(inputsByType.User.Delete).toHaveLength(1);
+        expect(inputsByType.User.Delete[0].node.id).toEqual(id);
+        expect(inputsByType.User.Delete[0].input).toEqual(id);
+        expect(Object.keys(placeholderToIdMap)).toHaveLength(1);
+        expect(placeholderToIdMap[placeholder]).toEqual(id);
     });
 });
 
@@ -542,15 +542,15 @@ describe("convertPlaceholders", () => {
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["Premium"]).to.deep.equal([premiumId]);
-        expect(idsByAction["Update"]).to.deep.equal([premiumId]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
-        expect(inputsById[premiumId].input).to.deep.equal(premiumId);
-        expect(inputsByType["Premium"].Delete).to.have.lengthOf(1);
-        expect(inputsByType["Premium"].Delete[0].node.id).to.deep.equal(premiumId);
-        expect(inputsByType["Premium"].Delete[0].input).to.deep.equal(premiumId);
-        expect(inputsByType["Premium"].Delete).to.have.lengthOf(1);
+        expect(idsByType["Premium"]).toEqual([premiumId]);
+        expect(idsByAction["Update"]).toEqual([premiumId]);
+        expect(Object.keys(inputsById)).toHaveLength(1);
+        expect(inputsById[premiumId].node.id).toEqual(premiumId);
+        expect(inputsById[premiumId].input).toEqual(premiumId);
+        expect(inputsByType["Premium"].Delete).toHaveLength(1);
+        expect(inputsByType["Premium"].Delete[0].node.id).toEqual(premiumId);
+        expect(inputsByType["Premium"].Delete[0].input).toEqual(premiumId);
+        expect(inputsByType["Premium"].Delete).toHaveLength(1);
     });
 
     it("should not replace placeholders for objects that don't exist", async () => {
@@ -563,13 +563,13 @@ describe("convertPlaceholders", () => {
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["Premium"]).to.deep.equal([undefined]);
-        expect(idsByAction["Create"]).to.deep.equal([undefined]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(0);
-        expect(inputsById[placeholder]).to.be.undefined;
-        expect(inputsByType["Premium"].Create).to.have.lengthOf(1);
-        expect(inputsByType["Premium"].Create[0].node.id).to.deep.equal(undefined);
-        expect(inputsByType["Premium"].Create[0].input).to.deep.equal(undefined);
+        expect(idsByType["Premium"]).toEqual([undefined]);
+        expect(idsByAction["Create"]).toEqual([undefined]);
+        expect(Object.keys(inputsById)).toHaveLength(0);
+        expect(inputsById[placeholder]).toBeUndefined();
+        expect(inputsByType["Premium"].Create).toHaveLength(1);
+        expect(inputsByType["Premium"].Create[0].node.id).toEqual(undefined);
+        expect(inputsByType["Premium"].Create[0].input).toEqual(undefined);
     });
 
     it("should not perform any operation if there are no placeholders", async () => {
@@ -581,14 +581,14 @@ describe("convertPlaceholders", () => {
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["User"]).to.deep.equal([id]);
-        expect(idsByAction["Create"]).to.deep.equal([id]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById[id].node.id).to.deep.equal(id);
-        expect(inputsById[id].input).to.deep.equal(id);
-        expect(inputsByType["User"].Create).to.have.lengthOf(1);
-        expect(inputsByType["User"].Create[0].node.id).to.deep.equal(id);
-        expect(inputsByType["User"].Create[0].input).to.deep.equal(id);
+        expect(idsByType["User"]).toEqual([id]);
+        expect(idsByAction["Create"]).toEqual([id]);
+        expect(Object.keys(inputsById)).toHaveLength(1);
+        expect(inputsById[id].node.id).toEqual(id);
+        expect(inputsById[id].input).toEqual(id);
+        expect(inputsByType["User"].Create).toHaveLength(1);
+        expect(inputsByType["User"].Create[0].node.id).toEqual(id);
+        expect(inputsByType["User"].Create[0].input).toEqual(id);
     });
 
     it("should handle multiple placeholders and nested cases correctly", async () => {
@@ -624,29 +624,29 @@ describe("convertPlaceholders", () => {
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["Premium"]).to.deep.equal([premiumId]);
-        expect(idsByType["Team"]).to.deep.equal([teamId]);
-        expect(idsByType["User"]).to.deep.equal([userId1, userId2]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(4);
-        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
-        expect(inputsById[premiumId].input).to.deep.equal({ id: premiumId, name: "Update 1" });
-        expect(inputsById[teamId].node.id).to.deep.equal(teamId);
-        expect(inputsById[teamId].input).to.deep.equal(teamId);
-        expect(inputsById[userId1].node.id).to.deep.equal(userId1);
-        expect(inputsById[userId1].input).to.deep.equal({ id: userId1, name: "Update 2" });
-        expect(inputsById[userId2].node.id).to.deep.equal(userId2);
-        expect(inputsById[userId2].input).to.deep.equal({ id: userId2, name: "Update 3" });
-        expect(inputsByType["Premium"].Update).to.have.lengthOf(1);
-        expect(inputsByType["Premium"].Update[0].node.id).to.deep.equal(premiumId);
-        expect(inputsByType["Premium"].Update[0].input).to.deep.equal({ id: premiumId, name: "Update 1" });
-        expect(inputsByType["Team"].Delete).to.have.lengthOf(1);
-        expect(inputsByType["Team"].Delete[0].node.id).to.deep.equal(teamId);
-        expect(inputsByType["Team"].Delete[0].input).to.deep.equal(teamId);
-        expect(inputsByType["User"].Update).to.have.lengthOf(2);
-        expect(inputsByType["User"].Update[0].node.id).to.deep.equal(userId1);
-        expect(inputsByType["User"].Update[0].input).to.deep.equal({ id: userId1, name: "Update 2" });
-        expect(inputsByType["User"].Update[1].node.id).to.deep.equal(userId2);
-        expect(inputsByType["User"].Update[1].input).to.deep.equal({ id: userId2, name: "Update 3" });
+        expect(idsByType["Premium"]).toEqual([premiumId]);
+        expect(idsByType["Team"]).toEqual([teamId]);
+        expect(idsByType["User"]).toEqual([userId1, userId2]);
+        expect(Object.keys(inputsById)).toHaveLength(4);
+        expect(inputsById[premiumId].node.id).toEqual(premiumId);
+        expect(inputsById[premiumId].input).toEqual({ id: premiumId, name: "Update 1" });
+        expect(inputsById[teamId].node.id).toEqual(teamId);
+        expect(inputsById[teamId].input).toEqual(teamId);
+        expect(inputsById[userId1].node.id).toEqual(userId1);
+        expect(inputsById[userId1].input).toEqual({ id: userId1, name: "Update 2" });
+        expect(inputsById[userId2].node.id).toEqual(userId2);
+        expect(inputsById[userId2].input).toEqual({ id: userId2, name: "Update 3" });
+        expect(inputsByType["Premium"].Update).toHaveLength(1);
+        expect(inputsByType["Premium"].Update[0].node.id).toEqual(premiumId);
+        expect(inputsByType["Premium"].Update[0].input).toEqual({ id: premiumId, name: "Update 1" });
+        expect(inputsByType["Team"].Delete).toHaveLength(1);
+        expect(inputsByType["Team"].Delete[0].node.id).toEqual(teamId);
+        expect(inputsByType["Team"].Delete[0].input).toEqual(teamId);
+        expect(inputsByType["User"].Update).toHaveLength(2);
+        expect(inputsByType["User"].Update[0].node.id).toEqual(userId1);
+        expect(inputsByType["User"].Update[0].input).toEqual({ id: userId1, name: "Update 2" });
+        expect(inputsByType["User"].Update[1].node.id).toEqual(userId2);
+        expect(inputsByType["User"].Update[1].input).toEqual({ id: userId2, name: "Update 3" });
     });
 });
 
@@ -668,9 +668,9 @@ describe("initializeInputMaps", () => {
 
         initializeInputMaps(actionType, objectType, idsByAction, idsByType, inputsByType);
 
-        expect(idsByAction[actionType]).to.have.lengthOf(0);
-        expect(idsByType[objectType]).to.have.lengthOf(0);
-        expect(inputsByType[objectType]).to.deep.equal({
+        expect(idsByAction[actionType]).toHaveLength(0);
+        expect(idsByType[objectType]).toHaveLength(0);
+        expect(inputsByType[objectType]).toEqual({
             Connect: [],
             Create: [],
             Delete: [],
@@ -688,7 +688,7 @@ describe("initializeInputMaps", () => {
 
         initializeInputMaps(actionType, objectType, idsByAction, idsByType, inputsByType);
 
-        expect(idsByAction[actionType]).to.deep.equal(["existingId"]);
+        expect(idsByAction[actionType]).toEqual(["existingId"]);
     });
 
     // Test behavior when idsByType is already initialized
@@ -699,7 +699,7 @@ describe("initializeInputMaps", () => {
 
         initializeInputMaps(actionType, objectType, idsByAction, idsByType, inputsByType);
 
-        expect(idsByType[objectType]).to.deep.equal(["existingId"]);
+        expect(idsByType[objectType]).toEqual(["existingId"]);
     });
 
     // Test behavior when inputsByType is already initialized
@@ -717,7 +717,7 @@ describe("initializeInputMaps", () => {
 
         initializeInputMaps(actionType, objectType, idsByAction, idsByType, inputsByType);
 
-        expect(inputsByType[objectType]).to.deep.equal({
+        expect(inputsByType[objectType]).toEqual({
             Connect: [],
             Create: [],
             Delete: [],
@@ -733,42 +733,42 @@ describe("updateClosestWithId", () => {
 
     it("should return null for Create action type", () => {
         const result = updateClosestWithId("Create", { id: "123" }, idField, "User", { __typename: "User", id: "123", path: "" });
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("should return null if input has no ID and no relation", () => {
         const result = updateClosestWithId("Update", { name: "Test" }, idField, "User", { __typename: "User", id: "123", path: "" });
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("should return updated path if input has no ID but has a relation", () => {
         const result = updateClosestWithId("Update", { name: "Test" }, idField, "User", { __typename: "User", id: "123", path: "profile" }, "avatar");
-        expect(result).to.deep.equal({ __typename: "User", id: "123", path: "profile.avatar" });
+        expect(result).toEqual({ __typename: "User", id: "123", path: "profile.avatar" });
     });
 
     it("should return null if input has no ID and no closestWithId but has a relation", () => {
         const result = updateClosestWithId("Update", { name: "Test" }, idField, "User", null, "avatar");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("should return object with empty path if input has an ID", () => {
         const result = updateClosestWithId("Update", { id: "456", name: "Test" }, idField, "User", { __typename: "User", id: "123", path: "profile" });
-        expect(result).to.deep.equal({ __typename: "User", id: "456", path: "" });
+        expect(result).toEqual({ __typename: "User", id: "456", path: "" });
     });
 
     it("should handle string inputs as IDs", () => {
         const result = updateClosestWithId("Update", "789", idField, "User", { __typename: "User", id: "123", path: "profile" });
-        expect(result).to.deep.equal({ __typename: "User", id: "789", path: "" });
+        expect(result).toEqual({ __typename: "User", id: "789", path: "" });
     });
 
     it("should return null if input is a boolean (implying a Disconnect or Delete), and there is no relation", () => {
         const result = updateClosestWithId("Update", true, idField, "User", { __typename: "User", id: "123", path: "profile" });
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("should return updated path if input is a boolean (implying a Disconnect or Delete), and there is a relation", () => {
         const result = updateClosestWithId("Update", true, idField, "User", { __typename: "User", id: "123", path: "profile" }, "avatar");
-        expect(result).to.deep.equal({ __typename: "User", id: "123", path: "profile.avatar" });
+        expect(result).toEqual({ __typename: "User", id: "123", path: "profile.avatar" });
     });
 });
 
@@ -841,42 +841,42 @@ describe("determineModelType", () => {
 
     it("returns correct __typename for standard fields", () => {
         const __typename = determineModelType("reportsCreate", "reports", {}, CommentFormat);
-        expect(__typename).to.equal("Report");
+        expect(__typename).toBe("Report");
     });
 
     describe("handles unions", () => {
         it("simple unions - test 1", () => {
             const __typename = determineModelType("ownedByUserConnect", "ownedByUser", {}, LabelFormat);
-            expect(__typename).to.equal("User");
+            expect(__typename).toBe("User");
         });
 
         it("simple unions - test 2", () => {
             const __typename = determineModelType("ownedByTeamConnect", "ownedByTeam", {}, CodeFormat);
-            expect(__typename).to.equal("Team");
+            expect(__typename).toBe("Team");
         });
 
         it("complex unions - test 1", () => {
             const input = { createdFor: "Post" };
             const __typename = determineModelType("forConnect", "for", input, CommentFormat);
-            expect(__typename).to.equal("Post");
+            expect(__typename).toBe("Post");
         });
     });
 
     it("returns null for special cases like translations", () => {
         const __typename = determineModelType("translationsCreate", "translations", {}, CommentFormat);
-        expect(__typename).to.be.null;
+        expect(__typename).toBeNull();
     });
 
     it("throws an error when field is not found in apiRelMap", () => {
         expect(() => {
             determineModelType("nonexistentFieldCreate", "nonexistentField", {}, CommentFormat);
-        }).to.throw("InternalError");
+        }).toThrow("InternalError");
     });
 
     it("throws an error for missing union typeField in input", () => {
         expect(() => {
             determineModelType("forConnect", "for", {}, CommentFormat);
-        }).to.throw("InternalError");
+        }).toThrow("InternalError");
     });
 });
 
@@ -917,16 +917,16 @@ describe("processCreateOrUpdate", () => {
 
         processCreateOrUpdate(action, childInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(idsByAction.Create).to.deep.equal(["childID"]);
-        expect(idsByType.User).to.deep.equal(["childID"]);
-        expect(inputsById["childID"].node.id).to.deep.equal("childID");
-        expect(inputsById["childID"].input).to.deep.equal(childInput);
-        expect(inputsByType.User.Create[0].node.id).to.deep.equal("childID");
-        expect(inputsByType.User.Create[0].input).to.deep.equal(childInput);
-        expect(parentNode.children[0].id).to.deep.equal("childID");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
+        expect(idsByAction.Create).toEqual(["childID"]);
+        expect(idsByType.User).toEqual(["childID"]);
+        expect(inputsById["childID"].node.id).toEqual("childID");
+        expect(inputsById["childID"].input).toEqual(childInput);
+        expect(inputsByType.User.Create[0].node.id).toEqual("childID");
+        expect(inputsByType.User.Create[0].input).toEqual(childInput);
+        expect(parentNode.children[0].id).toEqual("childID");
+        expect(parentNode.children[0].parent).toBe(parentNode);
         // Shouldn't change closestWithId, since it's not relevant outside of the recursive call
-        expect(closestWithId).to.equal(closestWithId);
+        expect(closestWithId).toBe(closestWithId);
     });
 
     it("correctly processes a 'Create' action without closestWithId", () => {
@@ -938,16 +938,16 @@ describe("processCreateOrUpdate", () => {
 
         processCreateOrUpdate(action, childInput, childFormat, fieldName, idField, parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(idsByAction.Create).to.deep.equal(["childID"]);
-        expect(idsByType.User).to.deep.equal(["childID"]);
-        expect(inputsById["childID"].node.id).to.deep.equal("childID");
-        expect(inputsById["childID"].input).to.deep.equal(childInput);
-        expect(inputsByType.User.Create[0].node.id).to.deep.equal("childID");
-        expect(inputsByType.User.Create[0].input).to.deep.equal(childInput);
-        expect(parentNode.children[0].id).to.deep.equal("childID");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
+        expect(idsByAction.Create).toEqual(["childID"]);
+        expect(idsByType.User).toEqual(["childID"]);
+        expect(inputsById["childID"].node.id).toEqual("childID");
+        expect(inputsById["childID"].input).toEqual(childInput);
+        expect(inputsByType.User.Create[0].node.id).toEqual("childID");
+        expect(inputsByType.User.Create[0].input).toEqual(childInput);
+        expect(parentNode.children[0].id).toEqual("childID");
+        expect(parentNode.children[0].parent).toBe(parentNode);
         // Shouldn't change closestWithId, since it's not relevant outside of the recursive call
-        expect(closestWithId).to.equal(closestWithId);
+        expect(closestWithId).toBe(closestWithId);
     });
 
 
@@ -960,16 +960,16 @@ describe("processCreateOrUpdate", () => {
 
         processCreateOrUpdate(action, childInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(idsByAction.Update).to.deep.equal(["childID"]);
-        expect(idsByType.User).to.deep.equal(["childID"]);
-        expect(inputsById["childID"].node.id).to.deep.equal("childID");
-        expect(inputsById["childID"].input).to.deep.equal(childInput);
-        expect(inputsByType.User.Update[0].node.id).to.deep.equal("childID");
-        expect(inputsByType.User.Update[0].input).to.deep.equal(childInput);
-        expect(parentNode.children[0].id).to.deep.equal("childID");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
+        expect(idsByAction.Update).toEqual(["childID"]);
+        expect(idsByType.User).toEqual(["childID"]);
+        expect(inputsById["childID"].node.id).toEqual("childID");
+        expect(inputsById["childID"].input).toEqual(childInput);
+        expect(inputsByType.User.Update[0].node.id).toEqual("childID");
+        expect(inputsByType.User.Update[0].input).toEqual(childInput);
+        expect(parentNode.children[0].id).toEqual("childID");
+        expect(parentNode.children[0].parent).toBe(parentNode);
         // Shouldn't change closestWithId, since it's not relevant outside of the recursive call
-        expect(closestWithId).to.equal(closestWithId);
+        expect(closestWithId).toBe(closestWithId);
     });
 
     it("throws an error when processing an 'Update' action without closestWithId", () => {
@@ -1010,12 +1010,12 @@ describe("processCreateOrUpdate", () => {
         processCreateOrUpdate(action, firstChildInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
         processCreateOrUpdate(action, secondChildInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(idsByAction[action]).to.include.members([firstChildInput.id, secondChildInput.id]);
-        expect(idsByType[childFormat.apiRelMap.__typename]).to.include.members([firstChildInput.id, secondChildInput.id]);
-        expect(parentNode.children).to.have.lengthOf(2);
+        expect(idsByAction[action]).toContain.members([firstChildInput.id, secondChildInput.id]);
+        expect(idsByType[childFormat.apiRelMap.__typename]).toContain.members([firstChildInput.id, secondChildInput.id]);
+        expect(parentNode.children).toHaveLength(2);
         // Ensure each child node has the expected properties
-        expect(parentNode.children[0].id).to.deep.equal(firstChildInput.id);
-        expect(parentNode.children[1].id).to.deep.equal(secondChildInput.id);
+        expect(parentNode.children[0].id).toEqual(firstChildInput.id);
+        expect(parentNode.children[1].id).toEqual(secondChildInput.id);
     });
 });
 
@@ -1045,30 +1045,30 @@ describe("processConnectDisconnectOrDelete", () => {
 
     it("initializes input maps correctly", () => {
         processConnectDisconnectOrDelete("123", false, "Delete", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Delete).to.deep.equal(["123"]);
-        expect(idsByType.User).to.deep.equal(["123"]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Delete).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("adds ID to maps for toMany Connect action with closestWithId", () => {
         processConnectDisconnectOrDelete("123", false, "Connect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByType.User).to.deep.equal(["123"]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("adds ID to maps for toMany Connect action without closestWithId", () => {
         processConnectDisconnectOrDelete("123", false, "Connect", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByType.User).to.deep.equal(["123"]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("adds ID to maps for toMany Disconnect action with closestWithId", () => {
         processConnectDisconnectOrDelete("123", false, "Disconnect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Disconnect).to.include("123");
-        expect(idsByType.User).to.include("123");
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Disconnect).toContain("123");
+        expect(idsByType.User).toContain("123");
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("throws error for toMany Disconnect action without closestWithId", () => {
@@ -1080,13 +1080,13 @@ describe("processConnectDisconnectOrDelete", () => {
 
     it("adds ID and input to maps for toMany Delete action with closestWithId", () => {
         processConnectDisconnectOrDelete("123", false, "Delete", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Delete).to.include("123");
-        expect(idsByType.User).to.include("123");
-        expect(inputsById["123"].node.__typename).to.equal("User");
-        expect(inputsById["123"].input).to.equal("123");
-        expect(inputsByType.User.Delete[0].node.__typename).to.equal("User");
-        expect(inputsByType.User.Delete[0].input).to.equal("123");
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Delete).toContain("123");
+        expect(idsByType.User).toContain("123");
+        expect(inputsById["123"].node.__typename).toBe("User");
+        expect(inputsById["123"].input).toBe("123");
+        expect(inputsByType.User.Delete[0].node.__typename).toBe("User");
+        expect(inputsByType.User.Delete[0].input).toBe("123");
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("throws error for toMany Delete action without closestWithId", () => {
@@ -1100,15 +1100,15 @@ describe("processConnectDisconnectOrDelete", () => {
         const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Connect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Connect).to.include("123");
-        expect(idsByAction.Disconnect).to.include(expectedPlaceholder);
-        expect(idsByType.User).to.include(expectedPlaceholder);
-        expect(idsByType.User).to.include("123");
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.equal("Disconnect");
-        expect(parentNode.children[1].id).to.deep.equal("123");
-        expect(parentNode.children[1].action).to.equal("Connect");
-        expect(parentNode.children).to.have.lengthOf(2);
+        expect(idsByAction.Connect).toContain("123");
+        expect(idsByAction.Disconnect).toContain(expectedPlaceholder);
+        expect(idsByType.User).toContain(expectedPlaceholder);
+        expect(idsByType.User).toContain("123");
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toBe("Disconnect");
+        expect(parentNode.children[1].id).toEqual("123");
+        expect(parentNode.children[1].action).toBe("Connect");
+        expect(parentNode.children).toHaveLength(2);
     });
 
     // NOTE: This only includes a placeholder because toOne Disconnects use a boolean 
@@ -1118,20 +1118,20 @@ describe("processConnectDisconnectOrDelete", () => {
         const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Disconnect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Disconnect).to.include(expectedPlaceholder);
-        expect(idsByAction.Disconnect).not.to.include("123");
-        expect(idsByType.User).to.include(expectedPlaceholder);
-        expect(idsByType.User).not.to.include("123");
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.equal("Disconnect");
-        expect(parentNode.children).to.have.lengthOf(1);
+        expect(idsByAction.Disconnect).toContain(expectedPlaceholder);
+        expect(idsByAction.Disconnect).not.toContain("123");
+        expect(idsByType.User).toContain(expectedPlaceholder);
+        expect(idsByType.User).not.toContain("123");
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toBe("Disconnect");
+        expect(parentNode.children).toHaveLength(1);
     });
 
     it("adds only ID for toOne Connect relationships without closestWithId", () => {
         processConnectDisconnectOrDelete("123", true, "Connect", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByType.User).to.deep.equal(["123"]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
     });
 
     it("throws error for toOne Disconnect relationships without closestWithId", () => {
@@ -1145,18 +1145,18 @@ describe("processConnectDisconnectOrDelete", () => {
         const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Delete", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Delete).to.include(expectedPlaceholder);
-        expect(idsByAction.Delete).not.to.include("123");
-        expect(idsByType.User).to.include(expectedPlaceholder);
-        expect(idsByType.User).not.to.include("123");
-        expect(inputsById[expectedPlaceholder].node.__typename).to.equal("User");
-        expect(inputsById[expectedPlaceholder].input).to.equal(expectedPlaceholder);
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsByType.User.Delete[0].node.__typename).to.equal("User");
-        expect(inputsByType.User.Delete[0].input).to.equal(expectedPlaceholder);
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.equal("Delete");
-        expect(parentNode.children).to.have.lengthOf(1);
+        expect(idsByAction.Delete).toContain(expectedPlaceholder);
+        expect(idsByAction.Delete).not.toContain("123");
+        expect(idsByType.User).toContain(expectedPlaceholder);
+        expect(idsByType.User).not.toContain("123");
+        expect(inputsById[expectedPlaceholder].node.__typename).toBe("User");
+        expect(inputsById[expectedPlaceholder].input).toBe(expectedPlaceholder);
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsByType.User.Delete[0].node.__typename).toBe("User");
+        expect(inputsByType.User.Delete[0].input).toBe(expectedPlaceholder);
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toBe("Delete");
+        expect(parentNode.children).toHaveLength(1);
     });
 
     it("throws error for toOne Delete action without closestWithId", () => {
@@ -1168,9 +1168,9 @@ describe("processConnectDisconnectOrDelete", () => {
 
     it("skips placeholder when fieldName is null", () => {
         processConnectDisconnectOrDelete("123", true, "Connect", null, "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByType.User).to.deep.equal(["123"]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.User).toEqual(["123"]);
+        expect(parentNode.children[0].id).toEqual("123");
     });
 });
 
@@ -1208,11 +1208,11 @@ describe("processInputObjectField", () => {
         processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
         // Should only be in the inputInfo
-        expect(idsByAction).to.deep.equal(initialIdsByAction);
-        expect(idsByType).to.deep.equal(initialIdsByType);
-        expect(inputsById).to.deep.equal(initialInputsById);
-        expect(inputsByType).to.deep.equal(initialInputsByType);
-        expect(inputInfo.input[field]).to.equal(input[field]);
+        expect(idsByAction).toEqual(initialIdsByAction);
+        expect(idsByType).toEqual(initialIdsByType);
+        expect(inputsById).toEqual(initialInputsById);
+        expect(inputsByType).toEqual(initialInputsByType);
+        expect(inputInfo.input[field]).toBe(input[field]);
     });
 
     it("handles non-array create relations with closestWithId", () => {
@@ -1224,15 +1224,15 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Create).to.deep.equal([input[field].id]);
-        expect(idsByType.Project).to.deep.equal([input[field].id]);
-        expect(inputsById[input[field].id].node.id).to.deep.equal(input[field].id);
-        expect(inputsById[input[field].id].input).to.deep.equal(input[field]);
-        expect(inputsByType.Project.Create[0].node.id).to.deep.equal(input[field].id);
-        expect(inputsByType.Project.Create[0].input).to.deep.equal(input[field]);
-        expect(parentNode.children[0].id).to.deep.equal(input[field].id);
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.equal(input[field].id);
+        expect(idsByAction.Create).toEqual([input[field].id]);
+        expect(idsByType.Project).toEqual([input[field].id]);
+        expect(inputsById[input[field].id].node.id).toEqual(input[field].id);
+        expect(inputsById[input[field].id].input).toEqual(input[field]);
+        expect(inputsByType.Project.Create[0].node.id).toEqual(input[field].id);
+        expect(inputsByType.Project.Create[0].input).toEqual(input[field]);
+        expect(parentNode.children[0].id).toEqual(input[field].id);
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toBe(input[field].id);
     });
 
     it("handles non-array create relations without closestWithId", () => {
@@ -1244,15 +1244,15 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Create).to.deep.equal([input[field].id]);
-        expect(idsByType.Project).to.deep.equal([input[field].id]);
-        expect(inputsById[input[field].id].node.id).to.deep.equal(input[field].id);
-        expect(inputsById[input[field].id].input).to.deep.equal(input[field]);
-        expect(inputsByType.Project.Create[0].node.id).to.deep.equal(input[field].id);
-        expect(inputsByType.Project.Create[0].input).to.deep.equal(input[field]);
-        expect(parentNode.children[0].id).to.deep.equal(input[field].id);
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.equal(input[field].id);
+        expect(idsByAction.Create).toEqual([input[field].id]);
+        expect(idsByType.Project).toEqual([input[field].id]);
+        expect(inputsById[input[field].id].node.id).toEqual(input[field].id);
+        expect(inputsById[input[field].id].input).toEqual(input[field]);
+        expect(inputsByType.Project.Create[0].node.id).toEqual(input[field].id);
+        expect(inputsByType.Project.Create[0].input).toEqual(input[field]);
+        expect(parentNode.children[0].id).toEqual(input[field].id);
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toBe(input[field].id);
     });
 
     it("handles array create relations with closestWithId", () => {
@@ -1266,21 +1266,21 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Create).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
-        expect(inputsById["123"].node.id).to.deep.equal("123");
-        expect(inputsById["123"].input).to.deep.equal(input[field][0]);
-        expect(inputsByType.Report.Create[0].node.id).to.deep.equal("123");
-        expect(inputsByType.Report.Create[0].input).to.deep.equal(input[field][0]);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal(input[field][1]);
-        expect(inputsByType.Report.Create[1].node.id).to.deep.equal("456");
-        expect(inputsByType.Report.Create[1].input).to.deep.equal(input[field][1]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Create).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
+        expect(inputsById["123"].node.id).toEqual("123");
+        expect(inputsById["123"].input).toEqual(input[field][0]);
+        expect(inputsByType.Report.Create[0].node.id).toEqual("123");
+        expect(inputsByType.Report.Create[0].input).toEqual(input[field][0]);
+        expect(inputsById["456"].node.id).toEqual("456");
+        expect(inputsById["456"].input).toEqual(input[field][1]);
+        expect(inputsByType.Report.Create[1].node.id).toEqual("456");
+        expect(inputsByType.Report.Create[1].input).toEqual(input[field][1]);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles array create relations without closestWithId", () => {
@@ -1294,21 +1294,21 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Create).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
-        expect(inputsById["123"].node.id).to.deep.equal("123");
-        expect(inputsById["123"].input).to.deep.equal(input[field][0]);
-        expect(inputsByType.Report.Create[0].node.id).to.deep.equal("123");
-        expect(inputsByType.Report.Create[0].input).to.deep.equal(input[field][0]);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal(input[field][1]);
-        expect(inputsByType.Report.Create[1].node.id).to.deep.equal("456");
-        expect(inputsByType.Report.Create[1].input).to.deep.equal(input[field][1]);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Create).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
+        expect(inputsById["123"].node.id).toEqual("123");
+        expect(inputsById["123"].input).toEqual(input[field][0]);
+        expect(inputsByType.Report.Create[0].node.id).toEqual("123");
+        expect(inputsByType.Report.Create[0].input).toEqual(input[field][0]);
+        expect(inputsById["456"].node.id).toEqual("456");
+        expect(inputsById["456"].input).toEqual(input[field][1]);
+        expect(inputsByType.Report.Create[1].node.id).toEqual("456");
+        expect(inputsByType.Report.Create[1].input).toEqual(input[field][1]);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles non-array update relations with closestWithId", () => {
@@ -1320,15 +1320,15 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Update).to.deep.equal(["456"]);
-        expect(idsByType.Project).to.deep.equal(["456"]);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal(input[field]);
-        expect(inputsByType.Project.Update[0].node.id).to.deep.equal("456");
-        expect(inputsByType.Project.Update[0].input).to.deep.equal(input[field]);
-        expect(parentNode.children[0].id).to.deep.equal("456");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.equal("456");
+        expect(idsByAction.Update).toEqual(["456"]);
+        expect(idsByType.Project).toEqual(["456"]);
+        expect(inputsById["456"].node.id).toEqual("456");
+        expect(inputsById["456"].input).toEqual(input[field]);
+        expect(inputsByType.Project.Update[0].node.id).toEqual("456");
+        expect(inputsByType.Project.Update[0].input).toEqual(input[field]);
+        expect(parentNode.children[0].id).toEqual("456");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toBe("456");
     });
 
     it("handles non-array update relations without closestWithId", () => {
@@ -1361,21 +1361,21 @@ describe("processInputObjectField", () => {
 
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
-        expect(idsByAction.Update).to.deep.equal(["789", "790"]);
-        expect(idsByType.Report).to.deep.equal(["789", "790"]);
-        expect(inputsById["789"].node.id).to.deep.equal("789");
-        expect(inputsById["789"].input).to.deep.equal(input[field][0]);
-        expect(inputsByType.Report.Update[0].node.id).to.deep.equal("789");
-        expect(inputsByType.Report.Update[0].input).to.deep.equal(input[field][0]);
-        expect(inputsById["790"].node.id).to.deep.equal("790");
-        expect(inputsById["790"].input).to.deep.equal(input[field][1]);
-        expect(inputsByType.Report.Update[1].node.id).to.deep.equal("790");
-        expect(inputsByType.Report.Update[1].input).to.deep.equal(input[field][1]);
-        expect(parentNode.children[0].id).to.deep.equal("789");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("790");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(inputInfo.input[field]).to.deep.equal(["789", "790"]);
+        expect(idsByAction.Update).toEqual(["789", "790"]);
+        expect(idsByType.Report).toEqual(["789", "790"]);
+        expect(inputsById["789"].node.id).toEqual("789");
+        expect(inputsById["789"].input).toEqual(input[field][0]);
+        expect(inputsByType.Report.Update[0].node.id).toEqual("789");
+        expect(inputsByType.Report.Update[0].input).toEqual(input[field][0]);
+        expect(inputsById["790"].node.id).toEqual("790");
+        expect(inputsById["790"].input).toEqual(input[field][1]);
+        expect(inputsByType.Report.Update[1].node.id).toEqual("790");
+        expect(inputsByType.Report.Update[1].input).toEqual(input[field][1]);
+        expect(parentNode.children[0].id).toEqual("789");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("790");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(inputInfo.input[field]).toEqual(["789", "790"]);
     });
 
     it("handles array update relations without closestWithId", () => {
@@ -1413,21 +1413,21 @@ describe("processInputObjectField", () => {
         // Should contain both placeholder and ID, since we may be 
         // implicitly Disconnecting the previous relation
         const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByAction.Disconnect).to.deep.equal([expectedPlaceholder]);
-        expect(idsByType.Project).to.deep.equal([expectedPlaceholder, "123"]);
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByAction.Disconnect).toEqual([expectedPlaceholder]);
+        expect(idsByType.Project).toEqual([expectedPlaceholder, "123"]);
         // No input data, since we're only giving an ID
-        expect(inputsById[expectedPlaceholder]).to.be.undefined;
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsByType.Project.Connect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.deep.equal("Disconnect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("123");
-        expect(parentNode.children[1].action).to.deep.equal("Connect");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(2);
-        expect(inputInfo.input[field]).to.equal("123");
+        expect(inputsById[expectedPlaceholder]).toBeUndefined();
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsByType.Project.Connect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toEqual("Disconnect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("123");
+        expect(parentNode.children[1].action).toEqual("Connect");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(2);
+        expect(inputInfo.input[field]).toBe("123");
     });
 
     it("handles non-array connect relations without closestWithId", () => {
@@ -1440,16 +1440,16 @@ describe("processInputObjectField", () => {
 
         // Should contain only ID, since we can't implicitly 
         // Disconnect within a Create mutation
-        expect(idsByAction.Connect).to.deep.equal(["123"]);
-        expect(idsByType.Project).to.deep.equal(["123"]);
+        expect(idsByAction.Connect).toEqual(["123"]);
+        expect(idsByType.Project).toEqual(["123"]);
         // No input data, since we're only giving an ID
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsByType.Project.Connect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].action).to.deep.equal("Connect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(1);
-        expect(inputInfo.input[field]).to.equal("123");
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsByType.Project.Connect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].action).toEqual("Connect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(1);
+        expect(inputInfo.input[field]).toBe("123");
     });
 
     it("handles array connect relations with closestWithId", () => {
@@ -1461,20 +1461,20 @@ describe("processInputObjectField", () => {
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
         // Should only contain IDs, since we're not implicitly Disconnecting anything
-        expect(idsByAction.Connect).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Connect).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
         // No input data, since we're only giving IDs
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsById["456"]).to.be.undefined;
-        expect(inputsByType.Report.Connect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].action).to.deep.equal("Connect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].action).to.deep.equal("Connect");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(2);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsById["456"]).toBeUndefined();
+        expect(inputsByType.Report.Connect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].action).toEqual("Connect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].action).toEqual("Connect");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(2);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles array connect relations without closestWithId", () => {
@@ -1487,20 +1487,20 @@ describe("processInputObjectField", () => {
 
         // Should only contain IDs, since we can't implicitly
         // Disconnect within a Create mutation
-        expect(idsByAction.Connect).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Connect).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
         // No input data, since we're only giving IDs
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsById["456"]).to.be.undefined;
-        expect(inputsByType.Report.Connect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].action).to.deep.equal("Connect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].action).to.deep.equal("Connect");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(2);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsById["456"]).toBeUndefined();
+        expect(inputsByType.Report.Connect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].action).toEqual("Connect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].action).toEqual("Connect");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(2);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles non-array disconnect relations with closestWithId", () => {
@@ -1514,16 +1514,16 @@ describe("processInputObjectField", () => {
         // Should contain only placeholder, since we're implicitly Disconnecting
         // the previous relation, and didn't give an ID
         const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
-        expect(idsByAction.Disconnect).to.deep.equal([expectedPlaceholder]);
-        expect(idsByType.Project).to.deep.equal([expectedPlaceholder]);
+        expect(idsByAction.Disconnect).toEqual([expectedPlaceholder]);
+        expect(idsByType.Project).toEqual([expectedPlaceholder]);
         // No input data, since we're only giving a boolean
-        expect(inputsById[expectedPlaceholder]).to.be.undefined;
-        expect(inputsByType.Project.Disconnect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.deep.equal("Disconnect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(1);
-        expect(inputInfo.input[field]).to.equal(true);
+        expect(inputsById[expectedPlaceholder]).toBeUndefined();
+        expect(inputsByType.Project.Disconnect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toEqual("Disconnect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(1);
+        expect(inputInfo.input[field]).toBe(true);
     });
 
     it("handles non-array disconnect relations without closestWithId", () => {
@@ -1549,20 +1549,20 @@ describe("processInputObjectField", () => {
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
         // Should only contain IDs, since we're not implicitly Disconnecting anything
-        expect(idsByAction.Disconnect).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Disconnect).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
         // No input data, since we're only giving IDs
-        expect(inputsById["123"]).to.be.undefined;
-        expect(inputsById["456"]).to.be.undefined;
-        expect(inputsByType.Report.Disconnect).to.have.lengthOf(0);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].action).to.deep.equal("Disconnect");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].action).to.deep.equal("Disconnect");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(2);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(inputsById["123"]).toBeUndefined();
+        expect(inputsById["456"]).toBeUndefined();
+        expect(inputsByType.Report.Disconnect).toHaveLength(0);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].action).toEqual("Disconnect");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].action).toEqual("Disconnect");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(2);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles array disconnect relations without closestWithId", () => {
@@ -1590,19 +1590,19 @@ describe("processInputObjectField", () => {
         // Should contain only placeholder, since we're Deleting without 
         // giving an ID
         const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
-        expect(idsByAction.Delete).to.deep.equal([expectedPlaceholder]);
-        expect(idsByType.Project).to.deep.equal([expectedPlaceholder]);
+        expect(idsByAction.Delete).toEqual([expectedPlaceholder]);
+        expect(idsByType.Project).toEqual([expectedPlaceholder]);
         // Deletes actually do have input data, but in this case it'll 
         // be attached to the placeholder
-        expect(inputsById[expectedPlaceholder].node.id).to.deep.equal(expectedPlaceholder);
-        expect(inputsById[expectedPlaceholder].input).to.deep.equal(expectedPlaceholder);
-        expect(inputsByType.Project.Delete[0].input).to.equal(expectedPlaceholder);
-        expect(inputsByType.Project.Delete).to.have.lengthOf(1);
-        expect(parentNode.children[0].id).to.deep.equal(expectedPlaceholder);
-        expect(parentNode.children[0].action).to.deep.equal("Delete");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(1);
-        expect(inputInfo.input[field]).to.equal(true);
+        expect(inputsById[expectedPlaceholder].node.id).toEqual(expectedPlaceholder);
+        expect(inputsById[expectedPlaceholder].input).toEqual(expectedPlaceholder);
+        expect(inputsByType.Project.Delete[0].input).toBe(expectedPlaceholder);
+        expect(inputsByType.Project.Delete).toHaveLength(1);
+        expect(parentNode.children[0].id).toEqual(expectedPlaceholder);
+        expect(parentNode.children[0].action).toEqual("Delete");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(1);
+        expect(inputInfo.input[field]).toBe(true);
     });
 
     it("handles non-array delete relations without closestWithId", () => {
@@ -1628,23 +1628,23 @@ describe("processInputObjectField", () => {
         processInputObjectField(field, input, format, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
 
         // Should only contain IDs, since we're not implicitly Deleting anything
-        expect(idsByAction.Delete).to.deep.equal(["123", "456"]);
-        expect(idsByType.Report).to.deep.equal(["123", "456"]);
-        expect(inputsById["123"].node.id).to.deep.equal("123");
-        expect(inputsById["123"].input).to.deep.equal(input[field][0]);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal(input[field][1]);
-        expect(inputsByType.Report.Delete[0].input).to.equal(input[field][0]);
-        expect(inputsByType.Report.Delete[1].input).to.equal(input[field][1]);
-        expect(inputsByType.Report.Delete).to.have.lengthOf(2);
-        expect(parentNode.children[0].id).to.deep.equal("123");
-        expect(parentNode.children[0].action).to.deep.equal("Delete");
-        expect(parentNode.children[0].parent).to.equal(parentNode);
-        expect(parentNode.children[1].id).to.deep.equal("456");
-        expect(parentNode.children[1].action).to.deep.equal("Delete");
-        expect(parentNode.children[1].parent).to.equal(parentNode);
-        expect(parentNode.children).to.have.lengthOf(2);
-        expect(inputInfo.input[field]).to.deep.equal(["123", "456"]);
+        expect(idsByAction.Delete).toEqual(["123", "456"]);
+        expect(idsByType.Report).toEqual(["123", "456"]);
+        expect(inputsById["123"].node.id).toEqual("123");
+        expect(inputsById["123"].input).toEqual(input[field][0]);
+        expect(inputsById["456"].node.id).toEqual("456");
+        expect(inputsById["456"].input).toEqual(input[field][1]);
+        expect(inputsByType.Report.Delete[0].input).toBe(input[field][0]);
+        expect(inputsByType.Report.Delete[1].input).toBe(input[field][1]);
+        expect(inputsByType.Report.Delete).toHaveLength(2);
+        expect(parentNode.children[0].id).toEqual("123");
+        expect(parentNode.children[0].action).toEqual("Delete");
+        expect(parentNode.children[0].parent).toBe(parentNode);
+        expect(parentNode.children[1].id).toEqual("456");
+        expect(parentNode.children[1].action).toEqual("Delete");
+        expect(parentNode.children[1].parent).toBe(parentNode);
+        expect(parentNode.children).toHaveLength(2);
+        expect(inputInfo.input[field]).toEqual(["123", "456"]);
     });
 
     it("handles array delete relations without closestWithId", () => {
@@ -1673,13 +1673,13 @@ function expectOnlyTheseArrays<ArrayItem>(
     // Check non-empty properties
     Object.entries(expectedNonEmpty).forEach(([key, value]) => {
         expect(actual[key], `Missing array value. Key: ${key}`).to.deep.include.members(value);
-        expect(actual[key], `Has extra array values. Key: ${key}`).to.have.lengthOf(value.length);
+        expect(actual[key], `Has extra array values. Key: ${key}`).toHaveLength(value.length);
     });
 
     // Make sure that everythign else is an empty array
     Object.entries(actual).forEach(([key, value]) => {
         if (!expectedNonEmpty[key]) {
-            expect(value, `Should be empty array. Key: ${key}`).to.deep.equal([]);
+            expect(value, `Should be empty array. Key: ${key}`).toEqual([]);
         }
     });
 }
@@ -1722,12 +1722,12 @@ describe("inputToMaps", () => {
         const input = { id: "1", name: "John Doe" };
         const rootNode = inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(rootNode.id).to.equal("1");
-        expect(rootNode.__typename).to.equal("User");
-        expect(rootNode.action).to.equal("Create");
-        expect(idsByAction.Create).to.include("1");
-        expect(idsByType.User).to.include("1");
-        expect(inputsById["1"].input).to.deep.equal(input);
+        expect(rootNode.id).toBe("1");
+        expect(rootNode.__typename).toBe("User");
+        expect(rootNode.action).toBe("Create");
+        expect(idsByAction.Create).toContain("1");
+        expect(idsByType.User).toContain("1");
+        expect(inputsById["1"].input).toEqual(input);
     });
 
     it("should handle nested objects for a Create action", () => {
@@ -1748,11 +1748,11 @@ describe("inputToMaps", () => {
             Project: ["2"],
             Report: ["3", "4"],
         });
-        expect(inputsById["1"].input).to.deep.equal({
+        expect(inputsById["1"].input).toEqual({
             ...input,
             projectCreate: "2",
         });
-        expect(inputsById["2"].input).to.deep.equal(input.projectCreate);
+        expect(inputsById["2"].input).toEqual(input.projectCreate);
     });
 
     it("should throw error for nested Updates in a Create action, as they are invalid", () => {
@@ -1846,7 +1846,7 @@ describe("inputToMaps", () => {
             Routine: ["7"],
             Standard: ["8", "User|1.Standard|standard"], // Include implicit disconnect
         });
-        expect(inputsById["1"].input).to.deep.equal({
+        expect(inputsById["1"].input).toEqual({
             ...input,
             apiDelete: true,
             codeDisconnect: true,
@@ -1855,10 +1855,10 @@ describe("inputToMaps", () => {
             routineUpdate: "7",
             standardConnect: "8",
         });
-        expect(inputsById["2"].input).to.deep.equal(input.projectCreate);
-        expect(inputsById["5"].input).to.deep.equal(input.rolesCreate[0]);
-        expect(inputsById["6"].input).to.deep.equal(input.rolesCreate[1]);
-        expect(inputsById["7"].input).to.deep.equal(input.routineUpdate);
+        expect(inputsById["2"].input).toEqual(input.projectCreate);
+        expect(inputsById["5"].input).toEqual(input.rolesCreate[0]);
+        expect(inputsById["6"].input).toEqual(input.rolesCreate[1]);
+        expect(inputsById["7"].input).toEqual(input.routineUpdate);
     });
 
     it("should skip nested objects for a Connect action, since that's invalid", () => {
@@ -1872,7 +1872,7 @@ describe("inputToMaps", () => {
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
         });
-        expect(inputsById["1"].input).to.deep.equal(input);
+        expect(inputsById["1"].input).toEqual(input);
     });
 
     it("should skip nested objects for a Disconnect action, since that's invalid", () => {
@@ -1886,7 +1886,7 @@ describe("inputToMaps", () => {
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
         });
-        expect(inputsById["1"].input).to.deep.equal(input);
+        expect(inputsById["1"].input).toEqual(input);
     });
 
     it("should skip nested objects for a Delete action, since that's invalid", () => {
@@ -1900,7 +1900,7 @@ describe("inputToMaps", () => {
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
         });
-        expect(inputsById["1"].input).to.deep.equal(input);
+        expect(inputsById["1"].input).toEqual(input);
     });
 
     it("should handle complex nested structures", () => {
@@ -1931,16 +1931,16 @@ describe("inputToMaps", () => {
             ProjectVersion: ["5", "Project|2.ProjectVersion|parent"],
             Issue: ["3", "4"],
         });
-        expect(inputsById["1"].input).to.deep.equal({
+        expect(inputsById["1"].input).toEqual({
             ...input,
             projectUpdate: "2",
         });
-        expect(inputsById["2"].input).to.deep.equal({
+        expect(inputsById["2"].input).toEqual({
             ...input.projectUpdate,
             issuesCreate: ["3", "4"],
             parentConnect: "5",
         });
-        expect(inputsById["3"].input).to.deep.equal(input.projectUpdate.issuesCreate[0]);
-        expect(inputsById["4"].input).to.deep.equal(input.projectUpdate.issuesCreate[1]);
+        expect(inputsById["3"].input).toEqual(input.projectUpdate.issuesCreate[0]);
+        expect(inputsById["4"].input).toEqual(input.projectUpdate.issuesCreate[1]);
     });
 });

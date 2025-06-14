@@ -342,7 +342,7 @@ describe("Yup validation tests", () => {
                     const testData = context ? { ...contextValues, [key]: v } : v;
                     const expected = context ? testData : v;
                     const result = await testSchema.validate(testData);
-                    expect(result).to.deep.equal(expected);
+                    expect(result).toEqual(expected);
                 });
             });
 
@@ -396,7 +396,7 @@ describe("Yup validation tests", () => {
                     const testData = context ? { ...contextValues, [key]: input } : input;
                     const expected = context ? { ...contextValues, [key]: expectedOutput } : expectedOutput;
                     const result = await testSchema.validate(testData);
-                    expect(result).to.deep.equal(expected);
+                    expect(result).toEqual(expected);
                 });
             });
         });
@@ -408,21 +408,21 @@ describe("minVersionTest function tests", () => {
 
     it("version meets the minimum version requirement", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("1.0.1")).to.equal(true);
+        expect(testFn("1.0.1")).toBe(true);
     });
 
     it("version does not meet the minimum version requirement", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("0.9.9")).to.equal(false);
+        expect(testFn("0.9.9")).toBe(false);
     });
 
     it("undefined version", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(undefined)).to.equal(true);
+        expect(testFn(undefined)).toBe(true);
     });
 
     it("minimum version as input version", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(minVersion)).to.equal(true);
+        expect(testFn(minVersion)).toBe(true);
     });
 });

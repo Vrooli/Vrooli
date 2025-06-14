@@ -87,7 +87,7 @@ describe("chatParticipantValidation", () => {
                 { stripUnknown: true },
             );
 
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             expect(result).to.not.have.property("unknownField1");
             expect(result).to.not.have.property("unknownField2");
             expect(result).to.not.have.property("unknownField3");
@@ -151,7 +151,7 @@ describe("chatParticipantValidation", () => {
 
     describe("create operation", () => {
         it("should not have create operation", () => {
-            expect(chatParticipantValidation.create).to.be.undefined;
+            expect(chatParticipantValidation.create).toBeUndefined();
         });
     });
 

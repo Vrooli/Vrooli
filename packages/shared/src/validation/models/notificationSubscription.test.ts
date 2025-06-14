@@ -297,7 +297,7 @@ describe("notificationSubscriptionValidation", () => {
                 const result = await updateSchema.validate(notificationSubscriptionFixtures.minimal.update);
 
                 // Should only have id and optionally silent
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("objectType");
                 expect(result).to.not.have.property("objectConnect");
             });

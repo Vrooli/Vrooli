@@ -14,7 +14,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD,
             );
             
-            expect(result).to.equal("username");
+            expect(result).toBe("username");
         });
 
         it("should extract field identifier from output field label", () => {
@@ -28,7 +28,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_OUTPUT_FIELD,
             );
             
-            expect(result).to.equal("reportData");
+            expect(result).toBe("reportData");
         });
 
         it("should return undefined when no matching label found", () => {
@@ -42,7 +42,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD,
             );
             
-            expect(result).to.be.undefined;
+            expect(result).toBeUndefined();
         });
 
         it("should return undefined for empty labels array", () => {
@@ -56,7 +56,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD,
             );
             
-            expect(result).to.be.undefined;
+            expect(result).toBeUndefined();
         });
 
         it("should handle field names with special characters", () => {
@@ -70,7 +70,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD,
             );
             
-            expect(result).to.equal("user_email_address");
+            expect(result).toBe("user_email_address");
         });
 
         it("should handle field names with colons", () => {
@@ -84,7 +84,7 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.DEFINES_STANDARD_FOR_INPUT_FIELD,
             );
             
-            expect(result).to.equal("namespace:fieldName");
+            expect(result).toBe("namespace:fieldName");
         });
     });
 
@@ -101,8 +101,8 @@ describe("RelatedResourceUtils", () => {
                 ["label1", "label2"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(1);
-            expect(result.relatedVersions[0]).to.deep.equal({
+            expect(result.relatedVersions).toHaveLength(1);
+            expect(result.relatedVersions[0]).toEqual({
                 targetVersionId: "target1",
                 labels: ["label1", "label2"],
             });
@@ -123,8 +123,8 @@ describe("RelatedResourceUtils", () => {
                 ["newLabel1", "newLabel2"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(1);
-            expect(result.relatedVersions[0].labels).to.deep.equal([
+            expect(result.relatedVersions).toHaveLength(1);
+            expect(result.relatedVersions[0].labels).toEqual([
                 "existingLabel",
                 "newLabel1",
                 "newLabel2",
@@ -146,7 +146,7 @@ describe("RelatedResourceUtils", () => {
                 ["label2", "label3"],
             );
             
-            expect(result.relatedVersions[0].labels).to.deep.equal([
+            expect(result.relatedVersions[0].labels).toEqual([
                 "label1",
                 "label2",
                 "label3",
@@ -165,8 +165,8 @@ describe("RelatedResourceUtils", () => {
                 ["label1"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(1);
-            expect(result.relatedVersions[0]).to.deep.equal({
+            expect(result.relatedVersions).toHaveLength(1);
+            expect(result.relatedVersions[0]).toEqual({
                 targetVersionId: "target4",
                 labels: ["label1"],
             });
@@ -184,7 +184,7 @@ describe("RelatedResourceUtils", () => {
                 ["label1", "label1", "label2", "label2"],
             );
             
-            expect(result.relatedVersions[0].labels).to.deep.equal(["label1", "label2"]);
+            expect(result.relatedVersions[0].labels).toEqual(["label1", "label2"]);
         });
 
         it("should preserve targetVersionObject if it exists", () => {
@@ -203,8 +203,8 @@ describe("RelatedResourceUtils", () => {
                 ["newLabel"],
             );
             
-            expect(result.relatedVersions[0].targetVersionObject).to.exist;
-            expect(result.relatedVersions[0].targetVersionObject!.id).to.equal("target6");
+            expect(result.relatedVersions[0].targetVersionObject).toBeDefined();
+            expect(result.relatedVersions[0].targetVersionObject!.id).toBe("target6");
         });
     });
 
@@ -224,7 +224,7 @@ describe("RelatedResourceUtils", () => {
                 ["label2"],
             );
             
-            expect(result.relatedVersions[0].labels).to.deep.equal(["label1", "label3"]);
+            expect(result.relatedVersions[0].labels).toEqual(["label1", "label3"]);
         });
 
         it("should remove entire relationship when all labels removed", () => {
@@ -242,7 +242,7 @@ describe("RelatedResourceUtils", () => {
                 ["label1", "label2"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(0);
+            expect(result.relatedVersions).toHaveLength(0);
         });
 
         it("should handle non-existent target", () => {
@@ -260,8 +260,8 @@ describe("RelatedResourceUtils", () => {
                 ["label1"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(1);
-            expect(result.relatedVersions[0].targetVersionId).to.equal("target3");
+            expect(result.relatedVersions).toHaveLength(1);
+            expect(result.relatedVersions[0].targetVersionId).toBe("target3");
         });
 
         it("should handle source without relatedVersions", () => {
@@ -276,7 +276,7 @@ describe("RelatedResourceUtils", () => {
                 ["label1"],
             );
             
-            expect(result.relatedVersions).to.be.undefined;
+            expect(result.relatedVersions).toBeUndefined();
         });
 
         it("should handle removing non-existent labels", () => {
@@ -294,7 +294,7 @@ describe("RelatedResourceUtils", () => {
                 ["label3", "label4"],
             );
             
-            expect(result.relatedVersions[0].labels).to.deep.equal(["label1", "label2"]);
+            expect(result.relatedVersions[0].labels).toEqual(["label1", "label2"]);
         });
 
         it("should handle multiple relationships correctly", () => {
@@ -318,9 +318,9 @@ describe("RelatedResourceUtils", () => {
                 ["label1"],
             );
             
-            expect(result.relatedVersions).to.have.lengthOf(2);
-            expect(result.relatedVersions[0].labels).to.deep.equal(["label2"]);
-            expect(result.relatedVersions[1].labels).to.deep.equal(["label3", "label4"]);
+            expect(result.relatedVersions).toHaveLength(2);
+            expect(result.relatedVersions[0].labels).toEqual(["label2"]);
+            expect(result.relatedVersions[1].labels).toEqual(["label3", "label4"]);
         });
     });
 
@@ -340,7 +340,7 @@ describe("RelatedResourceUtils", () => {
                 "label2",
             );
             
-            expect(result).to.be.true;
+            expect(result).toBe(true);
         });
 
         it("should return false when relationship exists but label doesn't", () => {
@@ -358,7 +358,7 @@ describe("RelatedResourceUtils", () => {
                 "label3",
             );
             
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
 
         it("should return false when target doesn't exist", () => {
@@ -376,7 +376,7 @@ describe("RelatedResourceUtils", () => {
                 "label1",
             );
             
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
 
         it("should handle null source", () => {
@@ -386,7 +386,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
 
         it("should handle undefined source", () => {
@@ -396,7 +396,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
 
         it("should handle source without relatedVersions", () => {
@@ -411,7 +411,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
     });
 
@@ -440,7 +440,7 @@ describe("RelatedResourceUtils", () => {
                 "commonLabel",
             );
             
-            expect(result).to.deep.equal(["target1", "target3"]);
+            expect(result).toEqual(["target1", "target3"]);
         });
 
         it("should return empty array when no matches", () => {
@@ -459,7 +459,7 @@ describe("RelatedResourceUtils", () => {
                 "nonExistentLabel",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle null source", () => {
@@ -468,7 +468,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle undefined source", () => {
@@ -477,7 +477,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle source without relatedVersions", () => {
@@ -491,7 +491,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle empty relatedVersions array", () => {
@@ -505,7 +505,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
     });
 
@@ -535,9 +535,9 @@ describe("RelatedResourceUtils", () => {
                 "commonLabel",
             );
             
-            expect(result).to.have.lengthOf(2);
-            expect(result[0]).to.equal(link1);
-            expect(result[1]).to.equal(link3);
+            expect(result).toHaveLength(2);
+            expect(result[0]).toBe(link1);
+            expect(result[1]).toBe(link3);
         });
 
         it("should return empty array when no matches", () => {
@@ -556,7 +556,7 @@ describe("RelatedResourceUtils", () => {
                 "nonExistentLabel",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle null source", () => {
@@ -565,7 +565,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle undefined source", () => {
@@ -574,7 +574,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle source without relatedVersions", () => {
@@ -588,7 +588,7 @@ describe("RelatedResourceUtils", () => {
                 "label",
             );
             
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should work with enum values", () => {
@@ -611,8 +611,8 @@ describe("RelatedResourceUtils", () => {
                 RelatedResourceLabel.USES_CODE_VERSION,
             );
             
-            expect(result).to.have.lengthOf(1);
-            expect(result[0].targetVersionId).to.equal("target1");
+            expect(result).toHaveLength(1);
+            expect(result[0].targetVersionId).toBe("target1");
         });
     });
 });

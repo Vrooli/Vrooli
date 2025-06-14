@@ -13,7 +13,7 @@ describe("FormBuilder", () => {
             // If the function accepts null, it should handle it gracefully
             // This tests defensive programming against invalid input
             const result = FormBuilder.generateInitialValues(null);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         // Test handling of undefined input - should throw or return empty object based on API design
@@ -21,48 +21,48 @@ describe("FormBuilder", () => {
             // If the function accepts undefined, it should handle it gracefully
             // This tests defensive programming against invalid input
             const result = FormBuilder.generateInitialValues(undefined);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         // Test handling of empty array
         it("should return an empty object when elements is an empty array", () => {
             const result = FormBuilder.generateInitialValues([]);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         // Test skipping non-input elements (no fieldName)
         it("should skip non-input elements without fieldName", () => {
             const elements = [{ type: "header", label: "Section" }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         // Test input with type in healFormInputPropsMap and defaultValue in props
         it("should handle input with type in map and defaultValue", () => {
             const elements = [{ type: "text", fieldName: "name", props: { defaultValue: "John" } }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({ name: "John" });
+            expect(result).toEqual({ name: "John" });
         });
 
         // Test input with type in healFormInputPropsMap but no defaultValue
         it("should handle input with type in map without defaultValue", () => {
             const elements = [{ type: "text", fieldName: "email", props: {} }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({ email: "" });
+            expect(result).toEqual({ email: "" });
         });
 
         // Test input with type not in healFormInputPropsMap but with defaultValue
         it("should handle input with type not in map and defaultValue", () => {
             const elements = [{ type: "custom", fieldName: "preference", props: { defaultValue: "dark" } }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({ preference: "dark" });
+            expect(result).toEqual({ preference: "dark" });
         });
 
         // Test input with type not in healFormInputPropsMap and no defaultValue
         it("should handle input with type not in map without defaultValue", () => {
             const elements = [{ type: "custom", fieldName: "other", props: {} }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({ other: "" });
+            expect(result).toEqual({ other: "" });
         });
 
         // Test handling multiple inputs with mixed types and conditions
@@ -75,7 +75,7 @@ describe("FormBuilder", () => {
                 { type: "custom", fieldName: "other", props: {} },
             ] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 name: "John",
                 subscribe: true,
                 preference: "dark",
@@ -88,7 +88,7 @@ describe("FormBuilder", () => {
         it("should apply prefix to field names", () => {
             const elements = [{ type: "text", fieldName: "name", props: { defaultValue: "John" } }] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements, "input");
-            expect(result).to.deep.equal({ "input-name": "John" });
+            expect(result).toEqual({ "input-name": "John" });
         });
 
         // Test applying a prefix to multiple inputs
@@ -98,7 +98,7 @@ describe("FormBuilder", () => {
                 { type: "checkbox", fieldName: "subscribe", props: { defaultValue: true } },
             ] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements, "form");
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 "form-name": "John",
                 "form-subscribe": true,
             });
@@ -113,7 +113,7 @@ describe("FormBuilder", () => {
                 { type: "checkbox", fieldName: "subscribe", props: { defaultValue: true } },
             ] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 name: "John",
                 subscribe: true,
             });
@@ -126,7 +126,7 @@ describe("FormBuilder", () => {
                 { type: "checkbox", fieldName: "agree", props: { defaultValue: false } },
             ] as unknown as readonly FormElement[];
             const result = FormBuilder.generateInitialValues(elements);
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 age: 18,
                 agree: false,
             });
@@ -161,7 +161,7 @@ describe("FormBuilder", () => {
 
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInformational);
 
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 "input-name": "John",
                 "input-age": 30,
                 "input-subscribe": [true, false],
@@ -188,7 +188,7 @@ describe("FormBuilder", () => {
             });
             const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(configWithoutInput, ResourceSubTypeRoutine.RoutineCode);
             // Expect only output fields because formInput is missing and its default is empty
-            expect(initialValues).to.deep.equal({
+            expect(initialValues).toEqual({
                 "output-outputField1": "out1",
             });
         });
@@ -211,7 +211,7 @@ describe("FormBuilder", () => {
             });
             const initialValues = FormBuilder.generateInitialValuesFromRoutineConfig(configWithoutOutput, ResourceSubTypeRoutine.RoutineCode);
             // Expect only input fields because formOutput is missing and its default is empty
-            expect(initialValues).to.deep.equal({
+            expect(initialValues).toEqual({
                 "input-inputField1": "in1",
             });
         });
@@ -240,7 +240,7 @@ describe("FormBuilder", () => {
 
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction);
 
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         it("should use correct default for inputs and outputs without default values", () => {
@@ -270,7 +270,7 @@ describe("FormBuilder", () => {
 
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction);
 
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 "input-name": "",
                 "input-age": 0,
                 "input-subscribe": [false, false],
@@ -320,7 +320,7 @@ describe("FormBuilder", () => {
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
 
             // When JSON parsing fails, it should use the raw string as fallback
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 "input-name": "invalid json {{{",
                 "output-result": "invalid json [[[",
             });
@@ -380,7 +380,7 @@ describe("FormBuilder", () => {
             } as unknown as Pick<Run, "io">;
             const result = FormBuilder.generateInitialValuesFromRoutineConfig(config, ResourceSubTypeRoutine.RoutineInternalAction, run);
 
-            expect(result).to.deep.equal({
+            expect(result).toEqual({
                 "input-name": "Jane",
                 "input-age": 0,
                 "input-subscribe": [true, false],
@@ -394,9 +394,9 @@ describe("FormBuilder", () => {
     describe("generateYupSchema", () => {
         it("should return null when formSchema is null or undefined", () => {
             // @ts-ignore Testing runtime scenario
-            expect(FormBuilder.generateYupSchema(null)).to.be.null;
+            expect(FormBuilder.generateYupSchema(null)).toBeNull();
             // @ts-ignore Testing runtime scenario
-            expect(FormBuilder.generateYupSchema(undefined)).to.be.null;
+            expect(FormBuilder.generateYupSchema(undefined)).toBeNull();
         });
 
         it("should generate a Yup schema for required string input", async () => {
@@ -437,7 +437,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ username: "ab" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username must be at least 3 characters");
+                expect(error.message).toBe("Username must be at least 3 characters");
             }
 
             // Test validation error - required field
@@ -445,7 +445,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({});
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username is required");
+                expect(error.message).toBe("Username is required");
             }
         });
 
@@ -487,7 +487,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ age: 16 });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("You must be at least 18 years old");
+                expect(error.message).toBe("You must be at least 18 years old");
             }
 
             // Age is optional
@@ -567,7 +567,7 @@ describe("FormBuilder", () => {
                 });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.include("valid email");
+                expect(error.message).toContain("valid email");
             }
 
             // Password too short
@@ -578,7 +578,7 @@ describe("FormBuilder", () => {
                 });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Password must be at least 6 characters");
+                expect(error.message).toBe("Password must be at least 6 characters");
             }
 
             // RememberMe is optional
@@ -625,7 +625,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ website: "invalid-url" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Must be a valid URL");
+                expect(error.message).toBe("Must be a valid URL");
             }
 
             // Website is optional
@@ -670,7 +670,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ terms: false });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("You must accept the terms");
+                expect(error.message).toBe("You must accept the terms");
             }
 
             // Terms missing
@@ -678,7 +678,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({});
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Accept Terms is required");
+                expect(error.message).toBe("Accept Terms is required");
             }
         });
 
@@ -730,7 +730,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ username: "us" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username must be at least 3 characters");
+                expect(error.message).toBe("Username must be at least 3 characters");
             }
 
             // Username too long
@@ -738,7 +738,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ username: "thisusernameistoolong" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username must be at most 10 characters");
+                expect(error.message).toBe("Username must be at most 10 characters");
             }
 
             // Username not alphanumeric
@@ -746,7 +746,7 @@ describe("FormBuilder", () => {
                 await validationSchema.validate({ username: "user!@#" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username must be alphanumeric");
+                expect(error.message).toBe("Username must be alphanumeric");
             }
         });
 
@@ -775,7 +775,7 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            expect(validationSchema.fields).not.to.have.property("unsupported");
+            expect(validationSchema.fields).not.toHaveProperty("unsupported");
         });
 
         it("should handle fields without yup property", () => {
@@ -797,7 +797,7 @@ describe("FormBuilder", () => {
             if (!validationSchema) {
                 expect.fail("validationSchema should not be null");
             }
-            expect(validationSchema.fields).not.to.have.property("noValidation");
+            expect(validationSchema.fields).not.toHaveProperty("noValidation");
         });
 
 
@@ -873,7 +873,7 @@ describe("FormBuilder", () => {
 
             // Modify generateYupSchema to throw an error or log a warning when an invalid method is used
 
-            expect(() => FormBuilder.generateYupSchema(formSchema)).to.throw("Validation method nonExistentMethod does not exist on Yup.string()");
+            expect(() => FormBuilder.generateYupSchema(formSchema)).toThrow("Validation method nonExistentMethod does not exist on Yup.string()");
         });
 
         // it("should handle nested objects if required", () => {
@@ -966,7 +966,7 @@ describe("FormBuilder", () => {
                 await yupSchema.validate({ "input-username": "Jo", "output-status": "active" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username must be at least 3 characters");
+                expect(error.message).toBe("Username must be at least 3 characters");
             }
 
             // Invalid: status not allowed (if provided)
@@ -974,7 +974,7 @@ describe("FormBuilder", () => {
                 await yupSchema.validate({ "input-username": "JohnDoe", "output-status": "pending" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Status must be active or inactive");
+                expect(error.message).toBe("Status must be active or inactive");
             }
 
             // Invalid: missing required username
@@ -982,7 +982,7 @@ describe("FormBuilder", () => {
                 await yupSchema.validate({ "output-status": "active" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Username is required");
+                expect(error.message).toBe("Username is required");
             }
         });
 
@@ -1028,7 +1028,7 @@ describe("FormBuilder", () => {
                 await yupSchemaInputOnly.validate({ "input-email": "not-an-email" });
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Must be a valid email");
+                expect(error.message).toBe("Must be a valid email");
             }
 
             // Test with only formOutput provided
@@ -1067,7 +1067,7 @@ describe("FormBuilder", () => {
                 await yupSchemaOutputOnly.validate({});
                 expect.fail("Validation should have failed but passed");
             } catch (error) {
-                expect(error.message).to.equal("Result is required");
+                expect(error.message).toBe("Result is required");
             }
         });
 
@@ -1111,14 +1111,14 @@ describe("FormBuilder", () => {
                 yup: { required: true, checks: [] }
             });
 
-            expect(input).not.to.be.null;
-            expect(input!.fieldName).to.equal("testField");
-            expect(input!.id).to.equal("test-id");
-            expect(input!.label).to.equal("Test Field");
-            expect(input!.type).to.equal(InputType.Text);
-            expect(input!.props.defaultValue).to.equal("hello");
-            expect(input!.props.maxChars).to.equal(500);
-            expect(input!.yup.required).to.equal(true);
+            expect(input).not.toBeNull();
+            expect(input!.fieldName).toBe("testField");
+            expect(input!.id).toBe("test-id");
+            expect(input!.label).toBe("Test Field");
+            expect(input!.type).toBe(InputType.Text);
+            expect(input!.props.defaultValue).toBe("hello");
+            expect(input!.props.maxChars).toBe(500);
+            expect(input!.yup.required).toBe(true);
         });
 
         it("should return null for invalid input type", () => {
@@ -1129,7 +1129,7 @@ describe("FormBuilder", () => {
                 yup: {}
             });
 
-            expect(input).to.be.null;
+            expect(input).toBeNull();
         });
 
         it("should parse stringified props", () => {
@@ -1141,9 +1141,9 @@ describe("FormBuilder", () => {
                 yup: { required: false, checks: [] }
             });
 
-            expect(input).not.to.be.null;
-            expect(input!.props.defaultValue).to.equal("parsed");
-            expect(input!.props.maxChars).to.equal(200);
+            expect(input).not.toBeNull();
+            expect(input!.props.defaultValue).toBe("parsed");
+            expect(input!.props.maxChars).toBe(200);
         });
 
         it("should parse stringified yup", () => {
@@ -1155,10 +1155,10 @@ describe("FormBuilder", () => {
                 yup: yupString
             });
 
-            expect(input).not.to.be.null;
-            expect(input!.yup.required).to.equal(true);
+            expect(input).not.toBeNull();
+            expect(input!.yup.required).toBe(true);
             expect(input!.yup.checks).to.have.length(1);
-            expect(input!.yup.checks[0].key).to.equal("min");
+            expect(input!.yup.checks[0].key).toBe("min");
         });
 
         it("should reject invalid JSON in props and return null with error", () => {
@@ -1172,7 +1172,7 @@ describe("FormBuilder", () => {
             });
 
             // Invalid JSON should result in null return value
-            expect(input).to.be.null;
+            expect(input).toBeNull();
             
             // Error should be logged for debugging
             expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
@@ -1191,7 +1191,7 @@ describe("FormBuilder", () => {
             });
 
             // Invalid JSON should result in null return value
-            expect(input).to.be.null;
+            expect(input).toBeNull();
             
             // Error should be logged for debugging
             expect(consoleSpy).toHaveBeenCalledWith("Error parsing props/yup", expect.any(Error));
@@ -1207,7 +1207,7 @@ describe("FormBuilder", () => {
                 yup: undefined
             });
 
-            expect(input).not.to.be.null;
+            expect(input).not.toBeNull();
             expect(input!.props).to.be.an("object");
             expect(input!.yup.checks).to.be.an("array");
         });
@@ -1220,9 +1220,9 @@ describe("FormBuilder", () => {
                 yup: {}
             });
 
-            expect(input).not.to.be.null;
+            expect(input).not.toBeNull();
             expect(input!.id).to.be.a("string");
-            expect(input!.id.length).to.be.greaterThan(0);
+            expect(input!.id.length).toBeGreaterThan(0);
         });
 
         it("should use empty strings for missing fieldName and label", () => {
@@ -1232,9 +1232,9 @@ describe("FormBuilder", () => {
                 yup: {}
             });
 
-            expect(input).not.to.be.null;
-            expect(input!.fieldName).to.equal("");
-            expect(input!.label).to.equal("");
+            expect(input).not.toBeNull();
+            expect(input!.fieldName).toBe("");
+            expect(input!.label).toBe("");
         });
 
         it("should handle non-object parsed props by using empty object", () => {
@@ -1245,7 +1245,7 @@ describe("FormBuilder", () => {
                 yup: {}
             });
 
-            expect(input).not.to.be.null;
+            expect(input).not.toBeNull();
             expect(input!.props).to.be.an("object");
         });
 
@@ -1257,7 +1257,7 @@ describe("FormBuilder", () => {
                 yup: '"string instead of object"'
             });
 
-            expect(input).not.to.be.null;
+            expect(input).not.toBeNull();
             expect(input!.yup).to.be.an("object");
             // When parsing fails or returns non-object, it should default to { checks: [] }
             if (input!.yup.checks) {
@@ -1274,34 +1274,34 @@ describe("FormBuilder", () => {
                 customProperty: "customValue"
             } as any);
 
-            expect(input).not.to.be.null;
-            expect((input as any).customProperty).to.equal("customValue");
+            expect(input).not.toBeNull();
+            expect((input as any).customProperty).toBe("customValue");
         });
     });
 
     describe("getFormikFieldName", () => {
         it("should return fieldName when no prefix is provided", () => {
             const result = getFormikFieldName("username");
-            expect(result).to.equal("username");
+            expect(result).toBe("username");
         });
 
         it("should return prefixed fieldName when prefix is provided", () => {
             const result = getFormikFieldName("username", "input");
-            expect(result).to.equal("input-username");
+            expect(result).toBe("input-username");
         });
 
         it("should handle empty strings", () => {
             const result1 = getFormikFieldName("", "prefix");
-            expect(result1).to.equal("prefix-");
+            expect(result1).toBe("prefix-");
 
             // Empty prefix is falsy, so it returns just the fieldName
             const result2 = getFormikFieldName("field", "");
-            expect(result2).to.equal("field");
+            expect(result2).toBe("field");
         });
 
         it("should handle special characters in fieldName and prefix", () => {
             const result = getFormikFieldName("field_name", "form.input");
-            expect(result).to.equal("form.input-field_name");
+            expect(result).toBe("form.input-field_name");
         });
     });
 });

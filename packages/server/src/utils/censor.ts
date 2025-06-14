@@ -6,7 +6,15 @@ import { logger } from "../events/logger.js";
 const { flatten } = pkg;
 
 let profanity: string[] = [];
-let profanityRegex: RegExp;
+let profanityRegex: RegExp | undefined;
+
+/**
+ * Resets the profanity state (for testing)
+ */
+export function resetProfanityState() {
+    profanity = [];
+    profanityRegex = undefined;
+}
 
 /**
  * Initializes the profanity array and regex
@@ -15,11 +23,17 @@ export function initializeProfanity() {
     const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
     try {
         const fileContent = fs.readFileSync(profanityFile, "utf8");
-        profanity = fileContent.toString().split("\n");
-        // Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
-        profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join("|"), "gi");
+        profanity = fileContent.toString().split("\n").filter(word => word.trim().length > 0);
+        // Add word boundaries to prevent matching parts of words (e.g. "document" contains "cum", but shouldn't be censored)
+        if (profanity.length > 0) {
+            profanityRegex = new RegExp(profanity.map(word => `\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).join("|"), "gi");
+        } else {
+            profanityRegex = /(?!.*)/; // Never matches anything
+        }
     } catch (error) {
         logger.error(`Could not find or read profanity file at ${profanityFile}`, { trace: "0634" });
+        profanity = [];
+        profanityRegex = /(?!.*)/; // Never matches anything
     }
 }
 
@@ -29,6 +43,7 @@ export function initializeProfanity() {
  * @returns True if any bad words were found
  */
 export function hasProfanity(...text: (string | null | undefined)[]): boolean {
+    if (!profanityRegex) return false;
     return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
 }
 
@@ -71,15 +86,8 @@ export function toStringArray(item: any, fields: string[] | null): string[] | nu
  * @returns The censored text
  */
 export function filterProfanity(text: string, censorCharacter = "*"): string {
+    if (!profanityRegex) return text;
     return text.replace(profanityRegex, (s: string) => {
-        let i = 0;
-        let asterisks = "";
-
-        while (i < s.length) {
-            asterisks += censorCharacter;
-            i++;
-        }
-
-        return asterisks;
+        return censorCharacter.repeat(s.length);
     });
 }

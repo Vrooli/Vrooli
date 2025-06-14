@@ -17,8 +17,8 @@ describe("phoneValidation", () => {
                     phoneFixtures.minimal.create,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("phoneNumber");
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("phoneNumber");
             });
 
             it("should accept complete valid data", async () => {
@@ -27,7 +27,7 @@ describe("phoneValidation", () => {
                     phoneFixtures.complete.create,
                     true,
                 );
-                expect(result.phoneNumber).to.equal(phoneFixtures.complete.create.phoneNumber);
+                expect(result.phoneNumber).toBe(phoneFixtures.complete.create.phoneNumber);
             });
 
             it("should reject missing required fields", async () => {
@@ -50,7 +50,7 @@ describe("phoneValidation", () => {
 
         describe("update validation", () => {
             it("should not have update method", () => {
-                expect(phoneValidation.update).to.be.undefined;
+                expect(phoneValidation.update).toBeUndefined();
             });
         });
     });
@@ -75,7 +75,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.shortPhone.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+1");
+            expect(result.phoneNumber).toBe("+1");
         });
 
         it("should accept phone with spaces", async () => {
@@ -84,7 +84,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.phoneWithSpaces.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+1 234 567 8900");
+            expect(result.phoneNumber).toBe("+1 234 567 8900");
         });
 
         it("should accept phone with dashes", async () => {
@@ -93,7 +93,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.phoneWithDashes.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+1-234-567-8900");
+            expect(result.phoneNumber).toBe("+1-234-567-8900");
         });
 
         it("should accept phone with parentheses", async () => {
@@ -102,7 +102,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.phoneWithParentheses.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+1(234)567-8900");
+            expect(result.phoneNumber).toBe("+1(234)567-8900");
         });
 
         it("should accept phone with dots", async () => {
@@ -111,7 +111,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.phoneWithDots.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+1.234.567.8900");
+            expect(result.phoneNumber).toBe("+1.234.567.8900");
         });
 
         it("should accept international format", async () => {
@@ -120,7 +120,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.internationalFormat.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+44 20 7946 0958");
+            expect(result.phoneNumber).toBe("+44 20 7946 0958");
         });
 
         it("should accept max length phone", async () => {
@@ -129,7 +129,7 @@ describe("phoneValidation", () => {
                 phoneFixtures.edgeCases.maxLengthPhone.create,
                 true,
             );
-            expect(result.phoneNumber).to.equal("+12345678901234");
+            expect(result.phoneNumber).toBe("+12345678901234");
         });
 
         it("should reject empty string phone", async () => {
@@ -195,7 +195,7 @@ describe("phoneValidation", () => {
                 phoneNumber: "+12345678900",
             };
             const result = await schema.validate(data, { stripUnknown: true });
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             expect(result).to.not.have.property("phoneNumber");
         });
     });

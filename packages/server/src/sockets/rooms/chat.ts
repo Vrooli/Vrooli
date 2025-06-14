@@ -13,6 +13,7 @@ export function chatSocketRoomHandlers(socket: Socket) {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_CHAT_ROOM_ERRORS.SessionExpired });
+                return;
             }
             const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
             if (rateLimitError) {
@@ -100,10 +101,10 @@ export function chatSocketRoomHandlers(socket: Socket) {
             completionService.requestCancellation(chatId);
             callback({ success: true, message: "Cancellation request processed." });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             let errorMessage = "Error processing cancellation request.";
             // Check if the error is from assertRequestFrom (e.g. not authenticated)
-            if (error && error.message && error.message.includes("Request is not from an authenticated user")) {
+            if (error instanceof Error && error.message.includes("Request is not from an authenticated user")) {
                 errorMessage = "UserNotAuthenticated";
                 logger.warn("Unauthenticated user tried to cancel response", { chatId, socketId: socket.id, error: error.message });
             } else {

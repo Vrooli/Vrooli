@@ -111,8 +111,8 @@ describe("reminderItemValidation", () => {
                     reminderItemFixtures.edgeCases.whitespaceStrings.create,
                     true,
                 );
-                expect(result.name).to.equal("Trimmed task name");
-                expect(result.description).to.equal("Trimmed description");
+                expect(result.name).toBe("Trimmed task name");
+                expect(result.description).toBe("Trimmed description");
             });
         });
 
@@ -165,7 +165,7 @@ describe("reminderItemValidation", () => {
                     true,
                 );
                 // Empty strings should be converted to undefined
-                expect(result.description).to.be.undefined;
+                expect(result.description).toBeUndefined();
             });
         });
 
@@ -283,7 +283,7 @@ describe("reminderItemValidation", () => {
                     reminderItemFixtures.edgeCases.booleanConversions.create,
                     true,
                 );
-                expect(result.isComplete).to.equal(true);
+                expect(result.isComplete).toBe(true);
             });
         });
 
@@ -519,7 +519,7 @@ describe("reminderItemValidation", () => {
                 dataWithNumberName,
                 true,
             );
-            expect(result.name).to.equal("123");
+            expect(result.name).toBe("123");
         });
 
         it("should handle type conversions for description", async () => {
@@ -534,7 +534,7 @@ describe("reminderItemValidation", () => {
                 dataWithNumberDescription,
                 true,
             );
-            expect(result.description).to.equal("456");
+            expect(result.description).toBe("456");
         });
 
         it("should handle boolean conversions", async () => {
@@ -583,7 +583,7 @@ describe("reminderItemValidation", () => {
                     scenario.data,
                     scenario.shouldPass,
                 );
-                expect(result.isComplete).to.equal(scenario.expectedValue);
+                expect(result.isComplete).toBe(scenario.expectedValue);
             }
         });
     });
@@ -610,8 +610,8 @@ describe("reminderItemValidation", () => {
                 true,
             );
 
-            expect(result.name).to.equal("Trimmed task name");
-            expect(result.description).to.equal("Trimmed description");
+            expect(result.name).toBe("Trimmed task name");
+            expect(result.description).toBe("Trimmed description");
         });
 
         it("should handle minimal name length", async () => {
@@ -620,8 +620,8 @@ describe("reminderItemValidation", () => {
                 reminderItemFixtures.edgeCases.minimalName.create,
                 true,
             );
-            expect(result.name).to.equal("A");
-            expect(result.name.length).to.equal(1);
+            expect(result.name).toBe("A");
+            expect(result.name.length).toBe(1);
         });
     });
 });

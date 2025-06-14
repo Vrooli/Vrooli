@@ -22,14 +22,14 @@ describe("Regular Expressions Tests", () => {
         // Test each valid URL
         validUrls.forEach((url) => {
             it(`"${url}" should be a valid URL`, () => {
-                expect(urlRegex.test(url)).to.be.true;
+                expect(urlRegex.test(url)).toBe(true);
             });
         });
 
         // Test each invalid URL
         invalidUrls.forEach((url) => {
             it(`"${url}" should be an invalid URL`, () => {
-                expect(urlRegex.test(url)).to.be.false;
+                expect(urlRegex.test(url)).toBe(false);
             });
         });
     });
@@ -54,14 +54,14 @@ describe("Regular Expressions Tests", () => {
         // Test each valid URL for development
         validDevUrls.forEach((url) => {
             it(`"${url}" should be a valid development URL`, () => {
-                expect(urlRegexDev.test(url)).to.be.true;
+                expect(urlRegexDev.test(url)).toBe(true);
             });
         });
 
         // Test each invalid URL for development
         invalidDevUrls.forEach((url) => {
             it(`"${url}" should be an invalid development URL`, () => {
-                expect(urlRegexDev.test(url)).to.be.false;
+                expect(urlRegexDev.test(url)).toBe(false);
             });
         });
 
@@ -87,13 +87,13 @@ describe("Regular Expressions Tests", () => {
 
             it("Benign input should execute quickly", () => {
                 const { duration } = measureExecutionTime(urlRegexDev, benignInput);
-                expect(duration).to.be.lessThan(1); // Less than 1 millisecond
+                expect(duration).toBeLessThan(1); // Less than 1 millisecond
             });
 
             maliciousInputs.forEach((input) => {
                 it(`Malicious input of length ${input.length} should not cause performance issues`, () => {
                     const { duration } = measureExecutionTime(urlRegexDev, input);
-                    expect(duration).to.be.lessThan(10); // Execution should be quick
+                    expect(duration).toBeLessThan(10); // Execution should be quick
                 });
             });
         });
@@ -116,14 +116,14 @@ describe("Regular Expressions Tests", () => {
         // Test each valid Cardano wallet address
         validWalletAddresses.forEach((address) => {
             it(`"${address}" should be a valid Cardano wallet address`, () => {
-                expect(walletAddressRegex.test(address)).to.be.true;
+                expect(walletAddressRegex.test(address)).toBe(true);
             });
         });
 
         // Test each invalid Cardano wallet address
         invalidWalletAddresses.forEach((address) => {
             it(`"${address}" should be an invalid Cardano wallet address`, () => {
-                expect(walletAddressRegex.test(address)).to.be.false;
+                expect(walletAddressRegex.test(address)).toBe(false);
             });
         });
     });
@@ -161,14 +161,14 @@ describe("Regular Expressions Tests", () => {
         // Test each valid handle
         validHandles.forEach((handle) => {
             it(`"${handle}" should be a valid handle`, () => {
-                expect(handleRegex.test(handle)).to.be.true;
+                expect(handleRegex.test(handle)).toBe(true);
             });
         });
 
         // Test each invalid handle
         invalidHandles.forEach((handle) => {
             it(`"${handle}" should be an invalid handle`, () => {
-                expect(handleRegex.test(handle)).to.be.false;
+                expect(handleRegex.test(handle)).toBe(false);
             });
         });
     });
@@ -200,14 +200,14 @@ describe("Regular Expressions Tests", () => {
         // Test each valid hex color
         validHexColors.forEach((hex) => {
             it(`"${hex}" should be a valid hex color`, () => {
-                expect(hexColorRegex.test(hex)).to.be.true;
+                expect(hexColorRegex.test(hex)).toBe(true);
             });
         });
 
         // Test each invalid hex color
         invalidHexColors.forEach((hex) => {
             it(`"${hex}" should be an invalid hex color`, () => {
-                expect(hexColorRegex.test(hex)).to.be.false;
+                expect(hexColorRegex.test(hex)).toBe(false);
             });
         });
     });

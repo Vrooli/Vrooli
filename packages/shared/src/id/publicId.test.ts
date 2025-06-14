@@ -25,36 +25,36 @@ function testCollisionRate(count: number): number {
 describe("Public ID Functions", () => {
     it("generates a valid public ID", () => {
         const id = generatePublicId();
-        expect(typeof id).to.equal("string");
-        expect(validatePublicId(id)).to.equal(true);
-        expect(id.length).to.equal(12);
+        expect(typeof id).toBe("string");
+        expect(validatePublicId(id)).toBe(true);
+        expect(id.length).toBe(12);
     });
 
     it("generates a valid public ID with custom length", () => {
         const length = 10;
         const id = generatePublicId(length);
-        expect(typeof id).to.equal("string");
-        expect(validatePublicId(id)).to.equal(true);
-        expect(id.length).to.equal(length);
+        expect(typeof id).toBe("string");
+        expect(validatePublicId(id)).toBe(true);
+        expect(id.length).toBe(length);
     });
 
     it("generates URL-friendly IDs", () => {
         const id = generatePublicId();
-        expect(/^[0-9a-z]+$/.test(id)).to.equal(true);
+        expect(/^[0-9a-z]+$/.test(id)).toBe(true);
         // Verify it only uses our defined alphabet
-        expect(new RegExp(`^[${ALPHABET}]+$`).test(id)).to.equal(true);
+        expect(new RegExp(`^[${ALPHABET}]+$`).test(id)).toBe(true);
     });
 
     it("has low collision rate", () => {
         const SAMPLE_SIZE = 10000;
         const collisions = testCollisionRate(SAMPLE_SIZE);
-        expect(collisions).to.equal(0);
+        expect(collisions).toBe(0);
     });
 
     it("validates public IDs correctly", () => {
         // Valid ID
         const validId = generatePublicId();
-        expect(validatePublicId(validId)).to.equal(true);
+        expect(validatePublicId(validId)).toBe(true);
 
         // Invalid IDs
         const invalidIds = [
@@ -70,7 +70,7 @@ describe("Public ID Functions", () => {
         ];
 
         invalidIds.forEach(id => {
-            expect(validatePublicId(id)).to.equal(false);
+            expect(validatePublicId(id)).toBe(false);
         });
     });
 }); 

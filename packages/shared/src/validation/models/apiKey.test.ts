@@ -39,7 +39,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.minLengthName.create,
                         true,
                     );
-                    expect(result.name).to.equal("abc");
+                    expect(result.name).toBe("abc");
                 });
 
                 it("should accept name with exactly 50 characters", async () => {
@@ -48,7 +48,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.maxLengthName.create,
                         true,
                     );
-                    expect(result.name).to.have.lengthOf(50);
+                    expect(result.name).toHaveLength(50);
                 });
             });
 
@@ -60,7 +60,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.invalid.negativeLimitHard.create,
                         true,
                     );
-                    expect(result.limitHard).to.equal("-1000");
+                    expect(result.limitHard).toBe("-1000");
                 });
 
                 it("should reject non-integer limitHard", async () => {
@@ -78,7 +78,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.zeroLimitHard.create,
                         true,
                     );
-                    expect(result.limitHard).to.equal("0");
+                    expect(result.limitHard).toBe("0");
                 });
 
                 it("should accept large bigint as string", async () => {
@@ -87,8 +87,8 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.bigIntAsString.create,
                         true,
                     );
-                    expect(result.limitHard).to.equal("9223372036854775807");
-                    expect(result.limitSoft).to.equal("9223372036854775806");
+                    expect(result.limitHard).toBe("9223372036854775807");
+                    expect(result.limitSoft).toBe("9223372036854775806");
                 });
             });
 
@@ -117,7 +117,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.zeroAbsoluteMax.create,
                         true,
                     );
-                    expect(result.absoluteMax).to.equal(0);
+                    expect(result.absoluteMax).toBe(0);
                 });
 
                 it("should accept maximum absoluteMax", async () => {
@@ -126,7 +126,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.maxAbsoluteMax.create,
                         true,
                     );
-                    expect(result.absoluteMax).to.equal(1000000);
+                    expect(result.absoluteMax).toBe(1000000);
                 });
 
                 it("should reject float values for absoluteMax", async () => {
@@ -146,7 +146,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.booleanStringStopAtLimit.create,
                         true,
                     );
-                    expect(result.stopAtLimit).to.equal(true);
+                    expect(result.stopAtLimit).toBe(true);
                     expect(result.stopAtLimit).to.be.a("boolean");
                 });
 
@@ -156,7 +156,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.minimal.create,
                         true,
                     );
-                    expect(result.stopAtLimit).to.equal(true);
+                    expect(result.stopAtLimit).toBe(true);
                 });
             });
 
@@ -176,8 +176,8 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.emptyPermissions.create,
                         true,
                     );
-                    expect(result).to.have.property("permissions");
-                    expect(result.permissions).to.equal("");
+                    expect(result).toHaveProperty("permissions");
+                    expect(result.permissions).toBe("");
                 });
 
                 it("should accept permissions with exactly 4096 characters", async () => {
@@ -186,7 +186,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.edgeCases.maxLengthPermissions.create,
                         true,
                     );
-                    expect(result.permissions).to.have.lengthOf(4096);
+                    expect(result.permissions).toHaveLength(4096);
                 });
 
                 it("should accept JSON string permissions", async () => {
@@ -197,9 +197,9 @@ describe("apiKeyValidation", () => {
                     );
                     expect(result.permissions).to.be.a("string");
                     const parsed = JSON.parse(result.permissions);
-                    expect(parsed).to.have.property("read", true);
-                    expect(parsed).to.have.property("write", true);
-                    expect(parsed).to.have.property("delete", false);
+                    expect(parsed).toHaveProperty("read", true);
+                    expect(parsed).toHaveProperty("write", true);
+                    expect(parsed).toHaveProperty("delete", false);
                 });
             });
 
@@ -210,7 +210,7 @@ describe("apiKeyValidation", () => {
                         apiKeyFixtures.complete.create,
                         true,
                     );
-                    expect(result.disabled).to.equal(false);
+                    expect(result.disabled).toBe(false);
                 });
 
                 it("should transform string to boolean for disabled", async () => {
@@ -219,7 +219,7 @@ describe("apiKeyValidation", () => {
                         disabled: "true",
                     };
                     const result = await testValidation(createSchema, data, true);
-                    expect(result.disabled).to.equal(true);
+                    expect(result.disabled).toBe(true);
                     expect(result.disabled).to.be.a("boolean");
                 });
             });
@@ -234,9 +234,9 @@ describe("apiKeyValidation", () => {
                     apiKeyFixtures.edgeCases.updateOnlyName.update,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("name", "Updated Name Only");
-                expect(Object.keys(result)).to.have.lengthOf(2);
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("name", "Updated Name Only");
+                expect(Object.keys(result)).toHaveLength(2);
             });
 
             it("should accept update with only disabled flag", async () => {
@@ -245,9 +245,9 @@ describe("apiKeyValidation", () => {
                     apiKeyFixtures.edgeCases.updateOnlyDisabled.update,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("disabled", true);
-                expect(Object.keys(result)).to.have.lengthOf(2);
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("disabled", true);
+                expect(Object.keys(result)).toHaveLength(2);
             });
 
             it("should accept complete update", async () => {
@@ -256,14 +256,14 @@ describe("apiKeyValidation", () => {
                     apiKeyFixtures.complete.update,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("disabled", true);
-                expect(result).to.have.property("limitHard", "6000000");
-                expect(result).to.have.property("limitSoft", "5000000");
-                expect(result).to.have.property("name", "Updated API Key");
-                expect(result).to.have.property("stopAtLimit", true);
-                expect(result).to.have.property("absoluteMax", 600000);
-                expect(result).to.have.property("permissions");
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("disabled", true);
+                expect(result).toHaveProperty("limitHard", "6000000");
+                expect(result).toHaveProperty("limitSoft", "5000000");
+                expect(result).toHaveProperty("name", "Updated API Key");
+                expect(result).toHaveProperty("stopAtLimit", true);
+                expect(result).toHaveProperty("absoluteMax", 600000);
+                expect(result).toHaveProperty("permissions");
             });
 
             it("should allow all fields to be optional except id", async () => {
@@ -272,7 +272,7 @@ describe("apiKeyValidation", () => {
                     { id: "500000000000000001" },
                     true,
                 );
-                expect(result).to.deep.equal({ id: "500000000000000001" });
+                expect(result).toEqual({ id: "500000000000000001" });
             });
         });
     });
@@ -360,8 +360,8 @@ describe("apiKeyValidation", () => {
             const result = await schema.validate(data, { stripUnknown: true });
             expect(result).to.not.have.property("permissions");
             expect(result).to.not.have.property("disabled");
-            expect(result).to.have.property("id");
-            expect(result).to.have.property("name");
+            expect(result).toHaveProperty("id");
+            expect(result).toHaveProperty("name");
         });
 
         it("should omit nested fields if supported", async () => {
@@ -370,18 +370,18 @@ describe("apiKeyValidation", () => {
             const result = await schema.validate(data, { stripUnknown: true });
             expect(result).to.not.have.property("name");
             expect(result).to.not.have.property("absoluteMax");
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
         });
     });
 
     describe("test data factory", () => {
         it("should generate valid minimal create data", () => {
             const data = apiKeyTestDataFactory.createMinimal();
-            expect(data).to.have.property("id");
-            expect(data).to.have.property("limitHard");
-            expect(data).to.have.property("name");
-            expect(data).to.have.property("stopAtLimit");
-            expect(data).to.have.property("absoluteMax");
+            expect(data).toHaveProperty("id");
+            expect(data).toHaveProperty("limitHard");
+            expect(data).toHaveProperty("name");
+            expect(data).toHaveProperty("stopAtLimit");
+            expect(data).toHaveProperty("absoluteMax");
         });
 
         it("should generate valid complete create data", () => {
@@ -395,21 +395,21 @@ describe("apiKeyValidation", () => {
         it("should allow overrides", () => {
             const customName = "Custom API Key";
             const data = apiKeyTestDataFactory.createComplete({ name: customName });
-            expect(data.name).to.equal(customName);
+            expect(data.name).toBe(customName);
         });
 
         it("should access test scenarios", () => {
             const invalidData = apiKeyTestDataFactory.forScenario("nameTooShort");
-            expect(invalidData.create.name).to.have.lengthOf(2);
+            expect(invalidData.create.name).toHaveLength(2);
         });
 
         it("should apply default values when creating with empty object", () => {
             const data = apiKeyTestDataFactory.createMinimal({});
-            expect(data.id).to.equal("500000000000000001");
-            expect(data.limitHard).to.equal("1000000");
-            expect(data.name).to.equal("Test API Key");
-            expect(data.stopAtLimit).to.equal(true);
-            expect(data.absoluteMax).to.equal(100000);
+            expect(data.id).toBe("500000000000000001");
+            expect(data.limitHard).toBe("1000000");
+            expect(data.name).toBe("Test API Key");
+            expect(data.stopAtLimit).toBe(true);
+            expect(data.absoluteMax).toBe(100000);
         });
 
         it("should preserve undefined and falsy values in customizers", () => {
@@ -417,13 +417,13 @@ describe("apiKeyValidation", () => {
                 stopAtLimit: false,
                 absoluteMax: 0 
             });
-            expect(data.stopAtLimit).to.equal(false);
-            expect(data.absoluteMax).to.equal(0);
+            expect(data.stopAtLimit).toBe(false);
+            expect(data.absoluteMax).toBe(0);
         });
 
         it("should apply update customizer defaults", () => {
             const data = apiKeyTestDataFactory.updateMinimal({});
-            expect(data.id).to.equal("500000000000000001");
+            expect(data.id).toBe("500000000000000001");
         });
 
         it("should override factory defaults with provided values", () => {
@@ -435,11 +435,11 @@ describe("apiKeyValidation", () => {
                 stopAtLimit: false,
                 absoluteMax: 50000
             });
-            expect(data.id).to.equal(customId);
-            expect(data.limitHard).to.equal("5000000");
-            expect(data.name).to.equal("Override Test");
-            expect(data.stopAtLimit).to.equal(false);
-            expect(data.absoluteMax).to.equal(50000);
+            expect(data.id).toBe(customId);
+            expect(data.limitHard).toBe("5000000");
+            expect(data.name).toBe("Override Test");
+            expect(data.stopAtLimit).toBe(false);
+            expect(data.absoluteMax).toBe(50000);
         });
     });
 });

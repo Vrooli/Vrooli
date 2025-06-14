@@ -12,7 +12,7 @@ describe("Yup-related functions", () => {
 
         cases.forEach(({ max, expected }) => {
             it(`should return "${expected}" for max value ${max}`, () => {
-                expect(maxNumErr({ max })).to.equal(expected);
+                expect(maxNumErr({ max })).toBe(expected);
             });
         });
     });
@@ -32,9 +32,9 @@ describe("Yup-related functions", () => {
                     return maxStrErr({ max, value });
                 }
                 if (error) {
-                    expect(action).to.throw(error);
+                    expect(action).toThrow(error);
                 } else {
-                    expect(action()).to.equal(expected);
+                    expect(action()).toBe(expected);
                 }
             });
         });
@@ -48,7 +48,7 @@ describe("Yup-related functions", () => {
 
         cases.forEach(({ min, expected }) => {
             it(`should return "${expected}" for min value ${min}`, () => {
-                expect(minNumErr({ min })).to.equal(expected);
+                expect(minNumErr({ min })).toBe(expected);
             });
         });
     });
@@ -68,9 +68,9 @@ describe("Yup-related functions", () => {
                     return minStrErr({ min, value });
                 }
                 if (error) {
-                    expect(action).to.throw(error);
+                    expect(action).toThrow(error);
                 } else {
-                    expect(action()).to.equal(expected);
+                    expect(action()).toBe(expected);
                 }
             });
         });
@@ -78,7 +78,7 @@ describe("Yup-related functions", () => {
 
     describe("reqErr", () => {
         it("should return \"This field is required\"", () => {
-            expect(reqErr()).to.equal("This field is required");
+            expect(reqErr()).toBe("This field is required");
         });
     });
 });

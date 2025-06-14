@@ -28,7 +28,7 @@ async function assertValid(schema: yup.ObjectSchema<any>, unstripped: any, strip
 
     try {
         const result = schema.cast(unstripped, { stripUnknown: true });
-        expect(result).to.deep.equal(stripped, `Cast result doesn't match expected stripped object. 
+        expect(result).toEqual(stripped, `Cast result doesn't match expected stripped object. 
         Got: ${JSON.stringify(result)} 
         Expected: ${JSON.stringify(stripped)}`);
     } catch (error) {

@@ -123,7 +123,7 @@ describe("meetingInviteValidation", () => {
                     true,
                 );
                 // Whitespace-only strings should be converted to undefined
-                expect(result.message).to.be.undefined;
+                expect(result.message).toBeUndefined();
             });
 
             it("should accept maximum length messages", async () => {
@@ -356,7 +356,7 @@ describe("meetingInviteValidation", () => {
                 dataWithNumberMessage,
                 true,
             );
-            expect(result.message).to.equal("123");
+            expect(result.message).toBe("123");
         });
     });
 

@@ -155,8 +155,8 @@ describe("teamValidation", () => {
                 );
                 expect(result.isPrivate).to.be.a("boolean");
                 expect(result.isOpenToNewMembers).to.be.a("boolean");
-                expect(result.isPrivate).to.equal(true);
-                expect(result.isOpenToNewMembers).to.equal(false);
+                expect(result.isPrivate).toBe(true);
+                expect(result.isOpenToNewMembers).toBe(false);
             });
         });
 
@@ -427,7 +427,7 @@ describe("teamValidation", () => {
 
                 // The update schema should strip unknown fields but still validate successfully
                 const result = await testValidation(updateSchema, dataWithTranslations, true);
-                expect(result).to.have.property("id", "123456789012345678");
+                expect(result).toHaveProperty("id", "123456789012345678");
                 // Translation operations should be filtered out by the schema
                 expect(result).to.not.have.property("translationsCreate");
             });
@@ -527,7 +527,7 @@ describe("teamValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle boolean conversion", async () => {
@@ -551,8 +551,8 @@ describe("teamValidation", () => {
             );
             expect(result.isPrivate).to.be.a("boolean");
             expect(result.isOpenToNewMembers).to.be.a("boolean");
-            expect(result.isPrivate).to.equal(true);
-            expect(result.isOpenToNewMembers).to.equal(true);
+            expect(result.isPrivate).toBe(true);
+            expect(result.isOpenToNewMembers).toBe(true);
         });
     });
 

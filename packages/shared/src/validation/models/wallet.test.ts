@@ -10,7 +10,7 @@ describe("walletValidation", () => {
 
         describe("create validation", () => {
             it("should not have create method", () => {
-                expect(walletValidation.create).to.be.undefined;
+                expect(walletValidation.create).toBeUndefined();
             });
         });
 
@@ -23,7 +23,7 @@ describe("walletValidation", () => {
                     walletFixtures.minimal.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("name");
             });
 
@@ -33,9 +33,9 @@ describe("walletValidation", () => {
                     walletFixtures.complete.update,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("name");
-                expect(result.name).to.equal("My Primary Wallet");
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("name");
+                expect(result.name).toBe("My Primary Wallet");
             });
 
             it("should reject missing id", async () => {
@@ -98,7 +98,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.minLengthName.update,
                     true,
                 );
-                expect(result.name).to.equal("abc");
+                expect(result.name).toBe("abc");
             });
 
             it("should accept name with exactly 50 characters", async () => {
@@ -107,7 +107,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.maxLengthName.update,
                     true,
                 );
-                expect(result.name).to.have.lengthOf(50);
+                expect(result.name).toHaveLength(50);
             });
 
             it("should accept name with special characters", async () => {
@@ -116,7 +116,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.nameWithSpecialChars.update,
                     true,
                 );
-                expect(result.name).to.equal("Wallet #1 (Primary)");
+                expect(result.name).toBe("Wallet #1 (Primary)");
             });
 
             it("should accept name with Unicode characters", async () => {
@@ -125,7 +125,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.nameWithUnicode.update,
                     true,
                 );
-                expect(result.name).to.equal("💰 Savings Wallet");
+                expect(result.name).toBe("💰 Savings Wallet");
             });
 
             it("should accept update without name field", async () => {
@@ -134,7 +134,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.updateWithoutName.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("name");
             });
 
@@ -144,7 +144,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.emptyStringName.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("name");
             });
 
@@ -154,7 +154,7 @@ describe("walletValidation", () => {
                     walletFixtures.edgeCases.whitespaceOnlyName.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("name");
             });
         });
@@ -169,7 +169,7 @@ describe("walletValidation", () => {
                     },
                     true,
                 );
-                expect(result.id).to.equal("400000000000000001");
+                expect(result.id).toBe("400000000000000001");
             });
 
             it("should accept non-string id (transforms to string)", async () => {
@@ -181,7 +181,7 @@ describe("walletValidation", () => {
                     },
                     true,
                 );
-                expect(result.id).to.equal("123456789");
+                expect(result.id).toBe("123456789");
             });
 
             it("should reject null id", async () => {
@@ -259,7 +259,7 @@ describe("walletValidation", () => {
                 name: "This should be omitted",
             };
             const result = await schema.validate(data, { stripUnknown: true });
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             expect(result).to.not.have.property("name");
         });
 
@@ -273,7 +273,7 @@ describe("walletValidation", () => {
             // because the schema no longer requires or validates the id field
             const result = await schema.validate(data, { stripUnknown: true });
             expect(result).to.not.have.property("id");
-            expect(result).to.have.property("name");
+            expect(result).toHaveProperty("name");
         });
 
         it("should omit multiple fields", async () => {
@@ -284,7 +284,7 @@ describe("walletValidation", () => {
                 extraField: "Also stripped",
             };
             const result = await schema.validate(data, { stripUnknown: true });
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             expect(result).to.not.have.property("name");
             expect(result).to.not.have.property("extraField");
         });
@@ -293,26 +293,26 @@ describe("walletValidation", () => {
     describe("test data factory", () => {
         it("should generate valid minimal update data", () => {
             const data = walletTestDataFactory.updateMinimal();
-            expect(data).to.have.property("id");
+            expect(data).toHaveProperty("id");
             expect(data.id).to.be.a("string");
         });
 
         it("should generate valid complete update data", () => {
             const data = walletTestDataFactory.updateComplete();
-            expect(data).to.have.property("id");
-            expect(data).to.have.property("name");
+            expect(data).toHaveProperty("id");
+            expect(data).toHaveProperty("name");
             expect(data.name).to.be.a("string");
         });
 
         it("should allow overrides", () => {
             const customName = "Custom Wallet Name";
             const data = walletTestDataFactory.updateComplete({ name: customName });
-            expect(data.name).to.equal(customName);
+            expect(data.name).toBe(customName);
         });
 
         it("should access test scenarios", () => {
             const invalidData = walletTestDataFactory.forScenario("nameTooShort");
-            expect(invalidData.update.name).to.have.lengthOf(2);
+            expect(invalidData.update.name).toHaveLength(2);
         });
     });
 });

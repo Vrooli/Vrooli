@@ -49,10 +49,10 @@ describe("userValidation", () => {
                 userFixtures.edgeCases.minimalBotSettings.create,
                 true,
             );
-            expect(result.botSettings).to.deep.equal({});
-            expect(result).to.have.property("handle");
-            expect(result).to.have.property("isPrivate");
-            expect(result).to.have.property("name");
+            expect(result.botSettings).toEqual({});
+            expect(result).toHaveProperty("handle");
+            expect(result).toHaveProperty("isPrivate");
+            expect(result).toHaveProperty("name");
             expect(result.isBotDepictingPerson).to.be.a("boolean");
         });
 
@@ -71,10 +71,10 @@ describe("userValidation", () => {
                 // but it should still be a valid object
                 expect(result.botSettings).to.be.an("object");
                 // Should have required bot fields
-                expect(result).to.have.property("handle", "complexbot");
-                expect(result).to.have.property("name", "Complex Bot");
-                expect(result).to.have.property("isPrivate", false);
-                expect(result).to.have.property("isBotDepictingPerson", false);
+                expect(result).toHaveProperty("handle", "complexbot");
+                expect(result).toHaveProperty("name", "Complex Bot");
+                expect(result).toHaveProperty("isPrivate", false);
+                expect(result).toHaveProperty("isBotDepictingPerson", false);
             }
         });
 
@@ -100,7 +100,7 @@ describe("userValidation", () => {
                 userFixtures.edgeCases.underscoreHandle.create,
                 true,
             );
-            expect(result.handle).to.include("_");
+            expect(result.handle).toContain("_");
         });
 
         it("should validate image formats", async () => {
@@ -110,7 +110,7 @@ describe("userValidation", () => {
             // Images should be valid URLs, file paths, or data URLs if present
             if (result.bannerImage) {
                 expect(result.bannerImage).to.be.a("string");
-                expect(result.bannerImage.length).to.be.greaterThan(0);
+                expect(result.bannerImage.length).toBeGreaterThan(0);
                 // Should be a valid URL, file path, or data URL format
                 const isValidImageFormat = 
                     result.bannerImage.startsWith("http://") ||
@@ -119,11 +119,11 @@ describe("userValidation", () => {
                     result.bannerImage.startsWith("./") ||
                     result.bannerImage.startsWith("data:image/") ||
                     /^[a-zA-Z0-9_-]+\//.test(result.bannerImage);
-                expect(isValidImageFormat).to.be.true;
+                expect(isValidImageFormat).toBe(true);
             }
             if (result.profileImage) {
                 expect(result.profileImage).to.be.a("string");
-                expect(result.profileImage.length).to.be.greaterThan(0);
+                expect(result.profileImage.length).toBeGreaterThan(0);
                 // Should be a valid URL, file path, or data URL format
                 const isValidImageFormat = 
                     result.profileImage.startsWith("http://") ||
@@ -132,7 +132,7 @@ describe("userValidation", () => {
                     result.profileImage.startsWith("./") ||
                     result.profileImage.startsWith("data:image/") ||
                     /^[a-zA-Z0-9_-]+\//.test(result.profileImage);
-                expect(isValidImageFormat).to.be.true;
+                expect(isValidImageFormat).toBe(true);
             }
         });
 
@@ -141,21 +141,21 @@ describe("userValidation", () => {
             const result = await testValidation(createSchema, botWithTranslations, true);
             
             // Should have required bot properties
-            expect(result).to.have.property("id");
-            expect(result).to.have.property("handle");
-            expect(result).to.have.property("name");
-            expect(result).to.have.property("isPrivate");
+            expect(result).toHaveProperty("id");
+            expect(result).toHaveProperty("handle");
+            expect(result).toHaveProperty("name");
+            expect(result).toHaveProperty("isPrivate");
             
             // If translations are present, they should be properly structured
             if (result.translationsCreate && Array.isArray(result.translationsCreate)) {
                 expect(result.translationsCreate).to.have.length.greaterThan(0);
                 result.translationsCreate.forEach((translation: any) => {
-                    expect(translation).to.have.property("language");
+                    expect(translation).toHaveProperty("language");
                     expect(translation.language).to.be.a("string");
                     // Language code should be valid ISO 639-1 format (e.g., "en", "es", "fr")
                     expect(translation.language).to.match(/^[a-z]{2}(-[A-Z]{2})?$/);
                     // Should have bio content
-                    expect(translation).to.have.property("bio");
+                    expect(translation).toHaveProperty("bio");
                     expect(translation.bio).to.be.a("string");
                 });
             }
@@ -182,9 +182,9 @@ describe("userValidation", () => {
                 userFixtures.edgeCases.allPrivacyFlags.update,
                 true,
             );
-            expect(result.isPrivate).to.be.true;
-            expect(result.isPrivateMemberships).to.be.true;
-            expect(result.isPrivateBookmarks).to.be.true;
+            expect(result.isPrivate).toBe(true);
+            expect(result.isPrivateMemberships).toBe(true);
+            expect(result.isPrivateBookmarks).toBe(true);
         });
 
         it("should reject invalid theme", async () => {
@@ -202,7 +202,7 @@ describe("userValidation", () => {
                 true,
             );
             expect(result.isBotDepictingPerson).to.be.a("boolean");
-            expect(result.isBotDepictingPerson).to.be.false;
+            expect(result.isBotDepictingPerson).toBe(false);
             
             // botSettings should have specific structure for bot configuration
             expect(result.botSettings).to.be.an("object");
@@ -210,7 +210,7 @@ describe("userValidation", () => {
                 // Should contain valid bot configuration properties
                 const allowedKeys = ["model", "temperature", "maxTokens", "systemPrompt", "responseFormat"];
                 Object.keys(result.botSettings).forEach(key => {
-                    expect(allowedKeys).to.include(key);
+                    expect(allowedKeys).toContain(key);
                 });
             }
         });
@@ -223,20 +223,20 @@ describe("userValidation", () => {
             );
             
             // Should preserve required ID
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             
             // Translation operations should be structured correctly if present
             if (result.translationsCreate && Array.isArray(result.translationsCreate)) {
                 result.translationsCreate.forEach((translation: any) => {
-                    expect(translation).to.have.property("language");
+                    expect(translation).toHaveProperty("language");
                     expect(translation.language).to.be.a("string");
                 });
             }
             
             if (result.translationsUpdate && Array.isArray(result.translationsUpdate)) {
                 result.translationsUpdate.forEach((translation: any) => {
-                    expect(translation).to.have.property("id");
-                    expect(translation).to.have.property("language");
+                    expect(translation).toHaveProperty("id");
+                    expect(translation).toHaveProperty("language");
                 });
             }
         });
@@ -255,7 +255,7 @@ describe("profileValidation", () => {
                 userFixtures.minimal.update,
                 true,
             );
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
         });
 
         it("should accept complete profile update", async () => {
@@ -267,12 +267,12 @@ describe("profileValidation", () => {
                 isPrivate: true,
             };
             const result = await testValidation(updateSchema, profileData, true);
-            expect(result.handle).to.equal("newhandle");
-            expect(result.theme).to.equal("light");
+            expect(result.handle).toBe("newhandle");
+            expect(result.theme).toBe("light");
         });
 
         it("should not have create method", () => {
-            expect(profileValidation.create).to.be.undefined;
+            expect(profileValidation.create).toBeUndefined();
         });
     });
 });
@@ -290,9 +290,9 @@ describe("userTranslationValidation", () => {
                 userTranslationFixtures.minimal.create,
                 true,
             );
-            expect(result).to.have.property("language", "en");
+            expect(result).toHaveProperty("language", "en");
             // id is auto-added by transRel
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
         });
 
         it("should accept complete valid data", async () => {
@@ -301,7 +301,7 @@ describe("userTranslationValidation", () => {
                 userTranslationFixtures.complete.create,
                 true,
             );
-            expect(result).to.have.property("bio");
+            expect(result).toHaveProperty("bio");
         });
 
         it("should reject missing language", async () => {
@@ -331,7 +331,7 @@ describe("userTranslationValidation", () => {
                 userTranslationFixtures.minimal.update,
                 true,
             );
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
         });
 
         it("should accept complete valid data", async () => {
@@ -340,7 +340,7 @@ describe("userTranslationValidation", () => {
                 userTranslationFixtures.complete.update,
                 true,
             );
-            expect(result).to.have.property("bio");
+            expect(result).toHaveProperty("bio");
         });
 
         it("should reject missing id", async () => {
@@ -361,7 +361,7 @@ describe("emailLogInSchema", () => {
             emailLogInFixtures.minimal,
             true,
         );
-        expect(result.email).to.equal("user@example.com");
+        expect(result.email).toBe("user@example.com");
     });
 
     it("should accept complete login data", async () => {
@@ -370,8 +370,8 @@ describe("emailLogInSchema", () => {
             emailLogInFixtures.complete,
             true,
         );
-        expect(result).to.have.property("password");
-        expect(result).to.have.property("verificationCode");
+        expect(result).toHaveProperty("password");
+        expect(result).toHaveProperty("verificationCode");
     });
 
     it("should accept password only", async () => {
@@ -380,7 +380,7 @@ describe("emailLogInSchema", () => {
             emailLogInFixtures.withPasswordOnly,
             true,
         );
-        expect(result).to.have.property("password");
+        expect(result).toHaveProperty("password");
         expect(result).to.not.have.property("email");
     });
 
@@ -409,7 +409,7 @@ describe("emailLogInSchema", () => {
             verificationCode: "   ",
         };
         const result = await testValidation(emailLogInSchema, dataWithEmpty, true);
-        expect(result).to.have.property("email");
+        expect(result).toHaveProperty("email");
         expect(result).to.not.have.property("password");
         expect(result).to.not.have.property("verificationCode");
     });
@@ -422,7 +422,7 @@ describe("userDeleteOneSchema", () => {
             userDeleteOneFixtures.valid,
             true,
         );
-        expect(result.deletePublicData).to.be.true;
+        expect(result.deletePublicData).toBe(true);
     });
 
     it("should accept deletion keeping public data", async () => {
@@ -431,7 +431,7 @@ describe("userDeleteOneSchema", () => {
             userDeleteOneFixtures.keepPublicData,
             true,
         );
-        expect(result.deletePublicData).to.be.false;
+        expect(result.deletePublicData).toBe(false);
     });
 
     it("should reject missing password", async () => {
@@ -460,7 +460,7 @@ describe("emailRequestPasswordChangeSchema", () => {
             emailRequestPasswordChangeFixtures.valid,
             true,
         );
-        expect(result.email).to.equal("user@example.com");
+        expect(result.email).toBe("user@example.com");
     });
 
     it("should reject missing email", async () => {
@@ -489,7 +489,7 @@ describe("emailResetPasswordFormSchema", () => {
             emailResetPasswordFormFixtures.valid,
             true,
         );
-        expect(result.newPassword).to.equal(result.confirmNewPassword);
+        expect(result.newPassword).toBe(result.confirmNewPassword);
     });
 
     it("should reject password mismatch", async () => {
@@ -527,9 +527,9 @@ describe("emailResetPasswordSchema", () => {
             emailResetPasswordFixtures.validWithId,
             true,
         );
-        expect(result).to.have.property("id");
-        expect(result).to.have.property("code");
-        expect(result).to.have.property("newPassword");
+        expect(result).toHaveProperty("id");
+        expect(result).toHaveProperty("code");
+        expect(result).toHaveProperty("newPassword");
     });
 
     it("should accept reset with publicId", async () => {
@@ -538,7 +538,7 @@ describe("emailResetPasswordSchema", () => {
             emailResetPasswordFixtures.validWithPublicId,
             true,
         );
-        expect(result).to.have.property("publicId");
+        expect(result).toHaveProperty("publicId");
     });
 
     it("should accept reset with both id and publicId", async () => {
@@ -547,8 +547,8 @@ describe("emailResetPasswordSchema", () => {
             emailResetPasswordFixtures.validWithBoth,
             true,
         );
-        expect(result).to.have.property("id");
-        expect(result).to.have.property("publicId");
+        expect(result).toHaveProperty("id");
+        expect(result).toHaveProperty("publicId");
     });
 
     it("should reject missing identifier", async () => {
@@ -586,7 +586,7 @@ describe("validateSessionSchema", () => {
             validateSessionFixtures.valid,
             true,
         );
-        expect(result.timeZone).to.equal("America/New_York");
+        expect(result.timeZone).toBe("America/New_York");
     });
 
     it("should accept various time zones", async () => {
@@ -635,7 +635,7 @@ describe("switchCurrentAccountSchema", () => {
             switchCurrentAccountFixtures.valid,
             true,
         );
-        expect(result.id).to.equal("300000000000000001");
+        expect(result.id).toBe("300000000000000001");
     });
 
     it("should reject missing id", async () => {
@@ -666,7 +666,7 @@ describe("profileEmailUpdateValidation", () => {
             profileEmailUpdateFixtures.minimal.update,
             true,
         );
-        expect(result).to.have.property("currentPassword");
+        expect(result).toHaveProperty("currentPassword");
     });
 
     it("should accept password change", async () => {
@@ -675,7 +675,7 @@ describe("profileEmailUpdateValidation", () => {
             profileEmailUpdateFixtures.withNewPassword.update,
             true,
         );
-        expect(result).to.have.property("newPassword");
+        expect(result).toHaveProperty("newPassword");
     });
 
     it("should accept email management operations", async () => {
@@ -693,7 +693,7 @@ describe("profileEmailUpdateValidation", () => {
             profileEmailUpdateFixtures.complete.update,
             true,
         );
-        expect(result).to.have.property("newPassword");
+        expect(result).toHaveProperty("newPassword");
         // Email operations are processed by the validation but may not be in the final result
     });
 
@@ -720,11 +720,11 @@ describe("user test data factory", () => {
     it("should apply default values when creating bot with empty object", () => {
         const data = userTestDataFactory.createMinimal({});
         expect(data.id).to.match(/^\d+$/); // Snowflake ID
-        expect(data.handle).to.equal("testbot123");
-        expect(data.isPrivate).to.equal(false);
-        expect(data.name).to.equal("Test Bot");
-        expect(data.isBotDepictingPerson).to.equal(false);
-        expect(data.botSettings).to.deep.equal({});
+        expect(data.handle).toBe("testbot123");
+        expect(data.isPrivate).toBe(false);
+        expect(data.name).toBe("Test Bot");
+        expect(data.isBotDepictingPerson).toBe(false);
+        expect(data.botSettings).toEqual({});
     });
 
     it("should preserve undefined and falsy values in bot creation", () => {
@@ -733,14 +733,14 @@ describe("user test data factory", () => {
             isBotDepictingPerson: true,
             botSettings: null
         });
-        expect(data.isPrivate).to.equal(true);
-        expect(data.isBotDepictingPerson).to.equal(true);
-        expect(data.botSettings).to.be.null;
+        expect(data.isPrivate).toBe(true);
+        expect(data.isBotDepictingPerson).toBe(true);
+        expect(data.botSettings).toBeNull();
     });
 
     it("should apply update customizer defaults", () => {
         const data = userTestDataFactory.updateMinimal({});
-        expect(data.id).to.equal("300000000000000001");
+        expect(data.id).toBe("300000000000000001");
     });
 
     it("should override factory defaults with provided values", () => {
@@ -753,19 +753,19 @@ describe("user test data factory", () => {
             isBotDepictingPerson: true,
             botSettings: { model: "gpt-4" }
         });
-        expect(data.id).to.equal(customId);
-        expect(data.handle).to.equal("custombot");
-        expect(data.isPrivate).to.equal(true);
-        expect(data.name).to.equal("Custom Bot");
-        expect(data.isBotDepictingPerson).to.equal(true);
-        expect(data.botSettings).to.deep.equal({ model: "gpt-4" });
+        expect(data.id).toBe(customId);
+        expect(data.handle).toBe("custombot");
+        expect(data.isPrivate).toBe(true);
+        expect(data.name).toBe("Custom Bot");
+        expect(data.isBotDepictingPerson).toBe(true);
+        expect(data.botSettings).toEqual({ model: "gpt-4" });
     });
 
     it("should handle undefined botSettings differently than empty object", () => {
         const dataWithUndefined = userTestDataFactory.createMinimal({ botSettings: undefined });
-        expect(dataWithUndefined.botSettings).to.be.undefined;
+        expect(dataWithUndefined.botSettings).toBeUndefined();
         
         const dataWithoutField = userTestDataFactory.createMinimal({});
-        expect(dataWithoutField.botSettings).to.deep.equal({});
+        expect(dataWithoutField.botSettings).toEqual({});
     });
 });

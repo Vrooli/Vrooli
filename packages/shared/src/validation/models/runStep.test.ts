@@ -707,7 +707,7 @@ describe("runRoutineStepValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle number field conversions", async () => {
@@ -732,10 +732,10 @@ describe("runRoutineStepValidation", () => {
             expect(result.contextSwitches).to.be.a("number");
             expect(result.order).to.be.a("number");
             expect(result.timeElapsed).to.be.a("number");
-            expect(result.complexity).to.equal(50);
-            expect(result.contextSwitches).to.equal(3);
-            expect(result.order).to.equal(2);
-            expect(result.timeElapsed).to.equal(1500);
+            expect(result.complexity).toBe(50);
+            expect(result.contextSwitches).toBe(3);
+            expect(result.order).toBe(2);
+            expect(result.timeElapsed).toBe(1500);
         });
     });
 

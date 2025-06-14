@@ -31,7 +31,7 @@ describe("tagValidation", () => {
                 },
                 true,
             );
-            expect(result.tag).to.equal("javascript");
+            expect(result.tag).toBe("javascript");
         });
 
         it("should accept tags with special characters", async () => {
@@ -41,7 +41,7 @@ describe("tagValidation", () => {
                 tagFixtures.edgeCases.specialCharacters.create,
                 true,
             );
-            expect(result.tag).to.equal("c++");
+            expect(result.tag).toBe("c++");
         });
 
         it("should handle nested omitFields with dot notation", async () => {
@@ -56,7 +56,7 @@ describe("tagValidation", () => {
             };
             const result = await schema.validate(data, { stripUnknown: true });
             expect(result).to.not.have.property("translationsCreate");
-            expect(result).to.have.property("translationsUpdate");
+            expect(result).toHaveProperty("translationsUpdate");
             expect(result).to.not.have.property("translationsDelete");
         });
     });
@@ -130,8 +130,8 @@ describe("tagTranslationValidation", () => {
                 },
                 true,
             );
-            expect(result).to.have.property("id");
-            expect(result).to.have.property("language");
+            expect(result).toHaveProperty("id");
+            expect(result).toHaveProperty("language");
         });
 
         it("should accept update with description", async () => {
@@ -144,7 +144,7 @@ describe("tagTranslationValidation", () => {
                 },
                 true,
             );
-            expect(result.description).to.equal("Updated description");
+            expect(result.description).toBe("Updated description");
         });
     });
 });

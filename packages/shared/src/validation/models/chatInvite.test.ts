@@ -59,7 +59,7 @@ describe("chatInviteValidation", () => {
                 const result = await createSchema.validate(
                     chatInviteFixtures.edgeCases.whitespaceMessage.create,
                 );
-                expect(result.message).to.equal("Invitation message with whitespace");
+                expect(result.message).toBe("Invitation message with whitespace");
             });
 
             it("should handle empty string message", async () => {
@@ -67,7 +67,7 @@ describe("chatInviteValidation", () => {
                     chatInviteFixtures.edgeCases.emptyMessage.create,
                 );
                 // Empty string should be removed by removeEmptyString()
-                expect(result.message).to.be.undefined;
+                expect(result.message).toBeUndefined();
             });
 
             it("should reject non-string message types", async () => {
@@ -216,7 +216,7 @@ describe("chatInviteValidation", () => {
                 const result = await updateSchema.validate(
                     chatInviteFixtures.edgeCases.updateWithEmptyMessage.update,
                 );
-                expect(result.message).to.be.undefined;
+                expect(result.message).toBeUndefined();
             });
         });
     });

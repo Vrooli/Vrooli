@@ -434,7 +434,7 @@ describe("scheduleExceptionValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle date string to Date conversion", async () => {

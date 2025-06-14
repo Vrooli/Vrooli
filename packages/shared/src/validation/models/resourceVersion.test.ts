@@ -290,10 +290,10 @@ describe("resourceVersionValidation", () => {
                 expect(result.isComplete).to.be.a("boolean");
                 expect(result.isInternal).to.be.a("boolean");
                 expect(result.isPrivate).to.be.a("boolean");
-                expect(result.isAutomatable).to.equal(true);
-                expect(result.isComplete).to.equal(false);
-                expect(result.isInternal).to.equal(true);
-                expect(result.isPrivate).to.equal(false);
+                expect(result.isAutomatable).toBe(true);
+                expect(result.isComplete).toBe(false);
+                expect(result.isInternal).toBe(true);
+                expect(result.isPrivate).toBe(false);
             });
         });
 
@@ -531,7 +531,7 @@ describe("resourceVersionValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle boolean conversion", async () => {
@@ -561,10 +561,10 @@ describe("resourceVersionValidation", () => {
             expect(result.isComplete).to.be.a("boolean");
             expect(result.isInternal).to.be.a("boolean");
             expect(result.isPrivate).to.be.a("boolean");
-            expect(result.isAutomatable).to.equal(true);
-            expect(result.isComplete).to.equal(true);
-            expect(result.isInternal).to.equal(true);
-            expect(result.isPrivate).to.equal(false);
+            expect(result.isAutomatable).toBe(true);
+            expect(result.isComplete).toBe(true);
+            expect(result.isInternal).toBe(true);
+            expect(result.isPrivate).toBe(false);
         });
     });
 

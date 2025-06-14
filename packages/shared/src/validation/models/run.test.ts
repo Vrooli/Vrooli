@@ -37,7 +37,7 @@ describe("runValidation", () => {
                     runFixtures.edgeCases.emptyData.create,
                     true,
                 );
-                expect(result.data).to.be.undefined;
+                expect(result.data).toBeUndefined();
             });
 
             it("should accept data at max length", async () => {
@@ -46,7 +46,7 @@ describe("runValidation", () => {
                     runFixtures.edgeCases.maxData.create,
                     true,
                 );
-                expect(result.data).to.have.lengthOf(16384);
+                expect(result.data).toHaveLength(16384);
             });
 
             it("should reject data over max length", async () => {
@@ -73,9 +73,9 @@ describe("runValidation", () => {
                     runFixtures.edgeCases.zeroValues.create,
                     true,
                 );
-                expect(result.completedComplexity).to.equal(0);
-                expect(result.contextSwitches).to.equal(0);
-                expect(result.timeElapsed).to.equal(0);
+                expect(result.completedComplexity).toBe(0);
+                expect(result.contextSwitches).toBe(0);
+                expect(result.timeElapsed).toBe(0);
             });
 
             it("should reject negative values for numeric fields", async () => {
@@ -115,7 +115,7 @@ describe("runValidation", () => {
                 };
                 const result = await testValidation(createSchema, dataWithIO, true);
                 expect(result.ioCreate).to.be.an("array").with.lengthOf(1);
-                expect(result.ioCreate[0]).to.have.property("id");
+                expect(result.ioCreate[0]).toHaveProperty("id");
             });
 
             it("should validate nested schedule creation", async () => {
@@ -130,7 +130,7 @@ describe("runValidation", () => {
                 };
                 const result = await testValidation(createSchema, dataWithSchedule, true);
                 expect(result.scheduleCreate).to.be.an("object");
-                expect(result.scheduleCreate).to.have.property("id");
+                expect(result.scheduleCreate).toHaveProperty("id");
             });
 
             it("should validate nested steps creation", async () => {
@@ -151,7 +151,7 @@ describe("runValidation", () => {
                 };
                 const result = await testValidation(createSchema, dataWithSteps, true);
                 expect(result.stepsCreate).to.be.an("array").with.lengthOf(1);
-                expect(result.stepsCreate[0]).to.have.property("name");
+                expect(result.stepsCreate[0]).toHaveProperty("name");
             });
 
             it("should validate team connection", async () => {
@@ -160,7 +160,7 @@ describe("runValidation", () => {
                     teamConnect: "123456789012345678",
                 };
                 const result = await testValidation(createSchema, dataWithTeam, true);
-                expect(result.teamConnect).to.equal("123456789012345678");
+                expect(result.teamConnect).toBe("123456789012345678");
             });
         });
 
@@ -176,7 +176,7 @@ describe("runValidation", () => {
                     },
                     true,
                 );
-                expect(result.isStarted).to.equal(true);
+                expect(result.isStarted).toBe(true);
             });
 
             it("should not allow updating status field", async () => {
@@ -258,7 +258,7 @@ describe("runValidation", () => {
                 };
                 const result = await testValidation(updateSchema, dataWithScheduleUpdate, true);
                 expect(result.scheduleUpdate).to.be.an("object");
-                expect(result.scheduleUpdate.timezone).to.equal("America/New_York");
+                expect(result.scheduleUpdate.timezone).toBe("America/New_York");
             });
         });
 
@@ -274,7 +274,7 @@ describe("runValidation", () => {
                 expect(result).to.not.have.property("ioCreate");
                 expect(result).to.not.have.property("stepsCreate");
                 expect(result).to.not.have.property("teamConnect");
-                expect(result).to.have.property("scheduleCreate"); // Should still have this
+                expect(result).toHaveProperty("scheduleCreate"); // Should still have this
             });
 
             it("should omit specified data fields", async () => {
@@ -291,7 +291,7 @@ describe("runValidation", () => {
 
                 expect(result).to.not.have.property("data");
                 expect(result).to.not.have.property("timeElapsed");
-                expect(result).to.have.property("completedComplexity");
+                expect(result).toHaveProperty("completedComplexity");
             });
         });
     });

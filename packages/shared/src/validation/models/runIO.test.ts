@@ -557,7 +557,7 @@ describe("runIOValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle string field conversions", async () => {
@@ -575,7 +575,7 @@ describe("runIOValidation", () => {
                 true,
             );
             expect(result.data).to.be.a("string");
-            expect(result.data).to.equal("12345");
+            expect(result.data).toBe("12345");
         });
     });
 

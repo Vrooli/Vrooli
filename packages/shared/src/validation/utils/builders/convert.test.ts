@@ -34,7 +34,7 @@ describe("Positive Double Conversion Tests", () => {
 
         numberCases.forEach(({ input, expected }) => {
             it(`number ${input} should be converted to ${expected}`, () => {
-                expect(toPosDouble(input)).to.equal(expected);
+                expect(toPosDouble(input)).toBe(expected);
             });
         });
     });

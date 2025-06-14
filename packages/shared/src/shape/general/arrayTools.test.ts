@@ -15,21 +15,21 @@ describe("arrayTools", () => {
         it("should add a value to the end of an array", () => {
             const array = [1, 2, 3];
             const result = addToArray(array, 4);
-            expect(result).to.deep.equal([1, 2, 3, 4]);
+            expect(result).toEqual([1, 2, 3, 4]);
             // Ensure original array is not modified
-            expect(array).to.deep.equal([1, 2, 3]);
+            expect(array).toEqual([1, 2, 3]);
         });
 
         it("should work with empty arrays", () => {
             const array: number[] = [];
             const result = addToArray(array, 1);
-            expect(result).to.deep.equal([1]);
+            expect(result).toEqual([1]);
         });
 
         it("should work with different types", () => {
             const array = ["a", "b"];
             const result = addToArray(array, "c");
-            expect(result).to.deep.equal(["a", "b", "c"]);
+            expect(result).toEqual(["a", "b", "c"]);
         });
     });
 
@@ -37,33 +37,33 @@ describe("arrayTools", () => {
         it("should update a value at the specified index", () => {
             const array = [1, 2, 3];
             const result = updateArray(array, 1, 5);
-            expect(result).to.deep.equal([1, 5, 3]);
+            expect(result).toEqual([1, 5, 3]);
             // Ensure original array is not modified
-            expect(array).to.deep.equal([1, 2, 3]);
+            expect(array).toEqual([1, 2, 3]);
         });
 
         it("should return the same array if the value is unchanged", () => {
             const array = [{ a: 1 }, { b: 2 }];
             const result = updateArray(array, 0, { a: 1 });
-            expect(result).to.equal(array);
+            expect(result).toBe(array);
         });
 
         it("should return the same array if index is negative", () => {
             const array = [1, 2, 3];
             const result = updateArray(array, -1, 5);
-            expect(result).to.equal(array);
+            expect(result).toBe(array);
         });
 
         it("should return the same array if index is out of bounds", () => {
             const array = [1, 2, 3];
             const result = updateArray(array, 5, 10);
-            expect(result).to.equal(array);
+            expect(result).toBe(array);
         });
 
         it("should work with complex objects", () => {
             const array = [{ id: 1, name: "John" }, { id: 2, name: "Jane" }];
             const result = updateArray(array, 1, { id: 2, name: "Janet" });
-            expect(result).to.deep.equal([{ id: 1, name: "John" }, { id: 2, name: "Janet" }]);
+            expect(result).toEqual([{ id: 1, name: "John" }, { id: 2, name: "Janet" }]);
         });
     });
 
@@ -71,33 +71,33 @@ describe("arrayTools", () => {
         it("should delete element at specified index", () => {
             const array = [1, 2, 3, 4];
             const result = deleteArrayIndex(array, 2);
-            expect(result).to.deep.equal([1, 2, 4]);
+            expect(result).toEqual([1, 2, 4]);
             // Ensure original array is not modified
-            expect(array).to.deep.equal([1, 2, 3, 4]);
+            expect(array).toEqual([1, 2, 3, 4]);
         });
 
         it("should handle deleting first element", () => {
             const array = [1, 2, 3];
             const result = deleteArrayIndex(array, 0);
-            expect(result).to.deep.equal([2, 3]);
+            expect(result).toEqual([2, 3]);
         });
 
         it("should handle deleting last element", () => {
             const array = [1, 2, 3];
             const result = deleteArrayIndex(array, 2);
-            expect(result).to.deep.equal([1, 2]);
+            expect(result).toEqual([1, 2]);
         });
 
         it("should return same array if index is out of bounds", () => {
             const array = [1, 2, 3];
             const result = deleteArrayIndex(array, 5);
-            expect(result).to.deep.equal([1, 2, 3]);
+            expect(result).toEqual([1, 2, 3]);
         });
 
         it("should return same array if index is negative", () => {
             const array = [1, 2, 3];
             const result = deleteArrayIndex(array, -1);
-            expect(result).to.deep.equal([1, 2, 3]);
+            expect(result).toEqual([1, 2, 3]);
         });
     });
 
@@ -108,14 +108,14 @@ describe("arrayTools", () => {
             const obj3 = { id: 3 };
             const array = [obj1, obj2, obj3];
             const result = deleteArrayObject(array, obj2);
-            expect(result).to.deep.equal([obj1, obj3]);
-            expect(array).to.deep.equal([obj1, obj2, obj3]); // Original unchanged
+            expect(result).toEqual([obj1, obj3]);
+            expect(array).toEqual([obj1, obj2, obj3]); // Original unchanged
         });
 
         it("should work with primitive values", () => {
             const array = [1, 2, 3, 4, 5];
             const result = deleteArrayObject(array, 3);
-            expect(result).to.deep.equal([1, 2, 4, 5]);
+            expect(result).toEqual([1, 2, 4, 5]);
         });
 
         it("should return original array if object not found", () => {
@@ -125,18 +125,18 @@ describe("arrayTools", () => {
             const obj4 = { id: 4 };
             const array = [obj1, obj2, obj3];
             const result = deleteArrayObject(array, obj4);
-            expect(result).to.equal(array); // Same reference since nothing changed
+            expect(result).toBe(array); // Same reference since nothing changed
         });
 
         it("should work with empty array", () => {
             const result = deleteArrayObject([], { id: 1 });
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should delete first occurrence only", () => {
             const array = [1, 2, 3, 2, 4];
             const result = deleteArrayObject(array, 2);
-            expect(result).to.deep.equal([1, 3, 2, 4]);
+            expect(result).toEqual([1, 3, 2, 4]);
         });
     });
 
@@ -148,7 +148,7 @@ describe("arrayTools", () => {
                 { id: 3, name: "Bob" },
             ];
             const result = findWithAttr(array, "name", "Jane");
-            expect(result).to.equal(1);
+            expect(result).toBe(1);
         });
 
         it("should return -1 if no match found", () => {
@@ -157,7 +157,7 @@ describe("arrayTools", () => {
                 { id: 2, name: "Jane" },
             ];
             const result = findWithAttr(array, "name", "Bob");
-            expect(result).to.equal(-1);
+            expect(result).toBe(-1);
         });
 
         it("should find first matching element", () => {
@@ -167,7 +167,7 @@ describe("arrayTools", () => {
                 { id: 3, type: "A" },
             ];
             const result = findWithAttr(array, "type", "A");
-            expect(result).to.equal(0);
+            expect(result).toBe(0);
         });
 
         it("should work with nested properties", () => {
@@ -176,12 +176,12 @@ describe("arrayTools", () => {
                 { id: 2, nested: { value: 20 } },
             ];
             const result = findWithAttr(array, "id", 2);
-            expect(result).to.equal(1);
+            expect(result).toBe(1);
         });
 
         it("should handle empty array", () => {
             const result = findWithAttr([], "any", "value");
-            expect(result).to.equal(-1);
+            expect(result).toBe(-1);
         });
     });
 
@@ -189,27 +189,27 @@ describe("arrayTools", () => {
         it("should move element from one index to another", () => {
             const array = [1, 2, 3, 4, 5];
             const result = moveArrayIndex(array, 1, 3);
-            expect(result).to.deep.equal([1, 3, 4, 2, 5]);
+            expect(result).toEqual([1, 3, 4, 2, 5]);
             // Ensure original array is not modified
-            expect(array).to.deep.equal([1, 2, 3, 4, 5]);
+            expect(array).toEqual([1, 2, 3, 4, 5]);
         });
 
         it("should handle moving to beginning", () => {
             const array = ["a", "b", "c", "d"];
             const result = moveArrayIndex(array, 2, 0);
-            expect(result).to.deep.equal(["c", "a", "b", "d"]);
+            expect(result).toEqual(["c", "a", "b", "d"]);
         });
 
         it("should handle moving to end", () => {
             const array = ["a", "b", "c", "d"];
             const result = moveArrayIndex(array, 1, 3);
-            expect(result).to.deep.equal(["a", "c", "d", "b"]);
+            expect(result).toEqual(["a", "c", "d", "b"]);
         });
 
         it("should handle moving to same position", () => {
             const array = [1, 2, 3];
             const result = moveArrayIndex(array, 1, 1);
-            expect(result).to.deep.equal([1, 2, 3]);
+            expect(result).toEqual([1, 2, 3]);
         });
     });
 
@@ -217,33 +217,33 @@ describe("arrayTools", () => {
         it("should rotate array to the right by default", () => {
             const array = [1, 2, 3, 4];
             const result = rotateArray(array);
-            expect(result).to.deep.equal([4, 1, 2, 3]);
+            expect(result).toEqual([4, 1, 2, 3]);
             // Ensure original array is not modified
-            expect(array).to.deep.equal([1, 2, 3, 4]);
+            expect(array).toEqual([1, 2, 3, 4]);
         });
 
         it("should rotate array to the left when to_right is false", () => {
             const array = [1, 2, 3, 4];
             const result = rotateArray(array, false);
-            expect(result).to.deep.equal([2, 3, 4, 1]);
+            expect(result).toEqual([2, 3, 4, 1]);
         });
 
         it("should handle empty array", () => {
             const array: number[] = [];
             const result = rotateArray(array);
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
 
         it("should handle single element array", () => {
             const array = [1];
             const result = rotateArray(array);
-            expect(result).to.deep.equal([1]);
+            expect(result).toEqual([1]);
         });
 
         it("should handle two element array", () => {
             const array = [1, 2];
             const result = rotateArray(array);
-            expect(result).to.deep.equal([2, 1]);
+            expect(result).toEqual([2, 1]);
         });
     });
 
@@ -255,7 +255,7 @@ describe("arrayTools", () => {
                 },
             };
             const result = mapIfExists(object, "data.items", (val) => val * 2);
-            expect(result).to.deep.equal([2, 4, 6]);
+            expect(result).toEqual([2, 4, 6]);
         });
 
         it("should return null if notation does not exist", () => {
@@ -265,7 +265,7 @@ describe("arrayTools", () => {
                 },
             };
             const result = mapIfExists(object, "data.notexist", (val) => val * 2);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should return null if value is not an array", () => {
@@ -275,7 +275,7 @@ describe("arrayTools", () => {
                 },
             };
             const result = mapIfExists(object, "data.value", (val) => val * 2);
-            expect(result).to.be.null;
+            expect(result).toBeNull();
         });
 
         it("should handle top-level arrays", () => {
@@ -283,7 +283,7 @@ describe("arrayTools", () => {
                 items: ["a", "b", "c"],
             };
             const result = mapIfExists(object, "items", (val) => val.toUpperCase());
-            expect(result).to.deep.equal(["A", "B", "C"]);
+            expect(result).toEqual(["A", "B", "C"]);
         });
 
         it("should handle empty arrays", () => {
@@ -291,7 +291,7 @@ describe("arrayTools", () => {
                 items: [],
             };
             const result = mapIfExists(object, "items", (val) => val);
-            expect(result).to.deep.equal([]);
+            expect(result).toEqual([]);
         });
     });
 });

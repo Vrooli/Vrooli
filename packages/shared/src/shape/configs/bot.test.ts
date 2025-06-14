@@ -196,7 +196,7 @@ describe("BotConfig", () => {
                 botSettings: settingsNoPersona as BotConfigObject,
             };
             const configWithoutFallback = BotConfig.parse(userData, console, { useFallbacks: false });
-            expect(configWithoutFallback.persona).to.be.undefined;
+            expect(configWithoutFallback.persona).toBeUndefined();
             expect(consoleErrorSpy).not.toHaveBeenCalled();
         });
 
@@ -229,9 +229,9 @@ describe("BotConfig", () => {
         const defaultConfig = BotConfig.default();
         expect(defaultConfig).to.be.instanceOf(BotConfig);
         const exportedDefault = defaultConfig.export();
-        expect(exportedDefault.__version).to.equal(LATEST_VERSION_STRING);
-        expect(exportedDefault.model).to.be.undefined;
-        expect(exportedDefault.maxTokens).to.be.undefined;
+        expect(exportedDefault.__version).toBe(LATEST_VERSION_STRING);
+        expect(exportedDefault.model).toBeUndefined();
+        expect(exportedDefault.maxTokens).toBeUndefined();
         expect(exportedDefault.persona).toEqual(DEFAULT_PERSONA);
         expect(exportedDefault.resources).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
@@ -240,6 +240,6 @@ describe("BotConfig", () => {
 
 describe("OpenAIModel related tests", () => {
     it("should exist (placeholder)", () => {
-        expect(OpenAIModel).to.exist;
+        expect(OpenAIModel).toBeDefined();
     });
 });

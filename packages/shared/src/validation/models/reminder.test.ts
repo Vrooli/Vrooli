@@ -102,8 +102,8 @@ describe("reminderValidation", () => {
                     reminderFixtures.edgeCases.whitespaceStrings.create,
                     true,
                 );
-                expect(result.name).to.equal("Trimmed name");
-                expect(result.description).to.equal("Trimmed description");
+                expect(result.name).toBe("Trimmed name");
+                expect(result.description).toBe("Trimmed description");
             });
         });
 
@@ -156,7 +156,7 @@ describe("reminderValidation", () => {
                     true,
                 );
                 // Empty strings should be converted to undefined
-                expect(result.description).to.be.undefined;
+                expect(result.description).toBeUndefined();
             });
         });
 
@@ -485,7 +485,7 @@ describe("reminderValidation", () => {
                 dataWithNumberName,
                 true,
             );
-            expect(result.name).to.equal("123");
+            expect(result.name).toBe("123");
         });
 
         it("should handle type conversions for description", async () => {
@@ -500,7 +500,7 @@ describe("reminderValidation", () => {
                 dataWithNumberDescription,
                 true,
             );
-            expect(result.description).to.equal("456");
+            expect(result.description).toBe("456");
         });
     });
 
@@ -533,8 +533,8 @@ describe("reminderValidation", () => {
                 true,
             );
 
-            expect(result.name).to.equal("Trimmed name");
-            expect(result.description).to.equal("Trimmed description");
+            expect(result.name).toBe("Trimmed name");
+            expect(result.description).toBe("Trimmed description");
         });
     });
 });

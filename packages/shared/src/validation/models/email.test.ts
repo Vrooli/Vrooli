@@ -17,8 +17,8 @@ describe("emailValidation", () => {
                     emailFixtures.minimal.create,
                     true,
                 );
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("emailAddress");
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("emailAddress");
             });
 
             it("should accept complete valid data", async () => {
@@ -27,7 +27,7 @@ describe("emailValidation", () => {
                     emailFixtures.complete.create,
                     true,
                 );
-                expect(result.emailAddress).to.equal(emailFixtures.complete.create.emailAddress);
+                expect(result.emailAddress).toBe(emailFixtures.complete.create.emailAddress);
             });
 
             it("should reject missing required fields", async () => {
@@ -50,7 +50,7 @@ describe("emailValidation", () => {
 
         describe("update validation", () => {
             it("should not have update method", () => {
-                expect(emailValidation.update).to.be.undefined;
+                expect(emailValidation.update).toBeUndefined();
             });
         });
     });
@@ -84,7 +84,7 @@ describe("emailValidation", () => {
                 emailFixtures.edgeCases.minimalEmail.create,
                 true,
             );
-            expect(result.emailAddress).to.equal("a@b.c");
+            expect(result.emailAddress).toBe("a@b.c");
         });
 
         it("should accept email with plus sign", async () => {
@@ -93,7 +93,7 @@ describe("emailValidation", () => {
                 emailFixtures.edgeCases.emailWithPlus.create,
                 true,
             );
-            expect(result.emailAddress).to.equal("test+filter@gmail.com");
+            expect(result.emailAddress).toBe("test+filter@gmail.com");
         });
 
         it("should accept email with dots", async () => {
@@ -102,7 +102,7 @@ describe("emailValidation", () => {
                 emailFixtures.edgeCases.emailWithDots.create,
                 true,
             );
-            expect(result.emailAddress).to.equal("first.last@company.com");
+            expect(result.emailAddress).toBe("first.last@company.com");
         });
 
         it("should accept email with numbers", async () => {
@@ -111,7 +111,7 @@ describe("emailValidation", () => {
                 emailFixtures.edgeCases.emailWithNumbers.create,
                 true,
             );
-            expect(result.emailAddress).to.equal("user123@example456.com");
+            expect(result.emailAddress).toBe("user123@example456.com");
         });
 
         it("should accept email with hyphens in domain", async () => {
@@ -120,7 +120,7 @@ describe("emailValidation", () => {
                 emailFixtures.edgeCases.emailWithHyphens.create,
                 true,
             );
-            expect(result.emailAddress).to.equal("test@my-company.com");
+            expect(result.emailAddress).toBe("test@my-company.com");
         });
 
         it("should reject empty string email", async () => {
@@ -188,7 +188,7 @@ describe("emailValidation", () => {
                 emailAddress: "test@example.com",
             };
             const result = await schema.validate(data, { stripUnknown: true });
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
             expect(result).to.not.have.property("emailAddress");
         });
     });

@@ -7,9 +7,9 @@ describe("generateSitemap", () => {
             { path: "/about", priority: 0.8, changeFreq: "daily" },
         ];
         const xml = generateSitemap("https://example.com", { main: mainEntries });
-        expect(xml).to.include("<loc>https://example.com/about</loc>");
-        expect(xml).to.include("<changefreq>daily</changefreq>");
-        expect(xml).to.include("<priority>0.8</priority>");
+        expect(xml).toContain("<loc>https://example.com/about</loc>");
+        expect(xml).toContain("<changefreq>daily</changefreq>");
+        expect(xml).toContain("<priority>0.8</priority>");
     });
 
     it("generates XML for content entries using versionLabel when provided", () => {
@@ -23,11 +23,11 @@ describe("generateSitemap", () => {
         };
         const xml = generateSitemap("https://example.com", { content: [contentEntry] });
         // Verify <loc> uses rootPublicId followed by versionLabel
-        expect(xml).to.include("<loc>https://example.com/resource/root123/v2</loc>");
+        expect(xml).toContain("<loc>https://example.com/resource/root123/v2</loc>");
         // Verify alternate links (x-default and specified languages)
-        expect(xml).to.include("rel=\"alternate\" hreflang=\"x-default\"");
-        expect(xml).to.include("hreflang=\"en\" href=\"https://example.com/resource/root123/v2?lang=en\"");
-        expect(xml).to.include("hreflang=\"de\" href=\"https://example.com/resource/root123/v2?lang=de\"");
+        expect(xml).toContain("rel=\"alternate\" hreflang=\"x-default\"");
+        expect(xml).toContain("hreflang=\"en\" href=\"https://example.com/resource/root123/v2?lang=en\"");
+        expect(xml).toContain("hreflang=\"de\" href=\"https://example.com/resource/root123/v2?lang=de\"");
     });
 
     it("falls back to handle when no versionLabel provided", () => {
@@ -38,7 +38,7 @@ describe("generateSitemap", () => {
             languages: ["en"],
         };
         const xml = generateSitemap("https://example.com", { content: [contentEntry] });
-        expect(xml).to.include("<loc>https://example.com/user/@john</loc>");
+        expect(xml).toContain("<loc>https://example.com/user/@john</loc>");
     });
 
     it("falls back to publicId when neither versionLabel nor handle provided", () => {
@@ -48,7 +48,7 @@ describe("generateSitemap", () => {
             languages: ["en"],
         };
         const xml = generateSitemap("https://example.com", { content: [contentEntry] });
-        expect(xml).to.include("<loc>https://example.com/item/456</loc>");
+        expect(xml).toContain("<loc>https://example.com/item/456</loc>");
     });
 
     it("outputs a full sitemap combining main and content entries for manual inspection", () => {
@@ -76,19 +76,19 @@ describe("generateSitemap", () => {
         // Print full XML for visual verification
         console.log(xml);
         // Basic structural and content assertions
-        expect(xml.startsWith("<?xml")).to.be.true;
-        expect(xml).to.include("<urlset");
-        expect(xml).to.include("<loc>https://example.com/home</loc>");
-        expect(xml).to.include("<loc>https://example.com/resource/0/v1</loc>");
-        expect(xml).to.include("<loc>https://example.com/user/@bob</loc>");
-        expect(xml.endsWith("</urlset>")).to.be.true;
+        expect(xml.startsWith("<?xml")).toBe(true);
+        expect(xml).toContain("<urlset");
+        expect(xml).toContain("<loc>https://example.com/home</loc>");
+        expect(xml).toContain("<loc>https://example.com/resource/0/v1</loc>");
+        expect(xml).toContain("<loc>https://example.com/user/@bob</loc>");
+        expect(xml.endsWith("</urlset>")).toBe(true);
     });
 });
 
 describe("generateSitemapIndex", () => {
     it("generates XML index for provided sitemap files", () => {
         const xml = generateSitemapIndex("/sitemaps", ["file1.xml", "file2.xml"]);
-        expect(xml).to.include("<loc>/sitemaps/file1.xml</loc>");
-        expect(xml).to.include("<loc>/sitemaps/file2.xml</loc>");
+        expect(xml).toContain("<loc>/sitemaps/file1.xml</loc>");
+        expect(xml).toContain("<loc>/sitemaps/file2.xml</loc>");
     });
 }); 

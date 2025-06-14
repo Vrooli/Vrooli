@@ -1,5 +1,4 @@
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -9,7 +8,7 @@ import { styled, useTheme } from "@mui/material/styles";
 import { FormBuilder, parseSearchParams, type FormInputBase, type FormSchema, type ParseSearchParamsResult, type SearchType, type TimeFrame, type TranslationFuncCommon, type TranslationKeyCommon } from "@vrooli/shared";
 import { Formik } from "formik";
 import i18next from "i18next";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormRunView } from "../../forms/FormView/FormView.js";
 import { usePopover } from "../../hooks/usePopover.js";
@@ -22,38 +21,37 @@ import { searchTypeToParams } from "../../utils/search/objectToSearch.js";
 import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
 import { DateRangeMenu } from "../lists/DateRangeMenu/DateRangeMenu.js";
 import { TopBar } from "../navigation/TopBar.js";
+import { Button } from "./Button.js";
 import { BottomActionsGrid } from "./BottomActionsGrid.js";
 import { type SearchButtonsProps } from "./types.js";
 
-export const StyledSearchButton = styled(Box)<{ active?: boolean }>(
-    ({ theme, active }) => ({
-        display: "flex",
-        alignItems: "center",
-        borderRadius: "24px",
-        cursor: "pointer",
-        padding: "2px 12px",
-        margin: "2px",
-        whiteSpace: "nowrap",
-        "&:hover": {
-            filter: "brightness(1.05)",
-        },
-        // Conditionally apply styles based on `active`
-        ...(active
-            ? {
-                // When there is a sortBy
-                backgroundColor: theme.palette.secondary.main,
-                border: "none",
-                color: theme.palette.secondary.contrastText,
-                boxShadow: theme.shadows[1],
-            }
-            : {
-                // When there is NO sortBy
-                backgroundColor: "transparent",
-                border: `1px solid ${theme.palette.secondary.main}`,
-                color: theme.palette.secondary.main,
-            }),
-    }),
-);
+interface SearchButtonProps {
+    active?: boolean;
+    onClick?: () => void;
+    children: React.ReactNode;
+    'aria-label'?: string;
+    id?: string;
+}
+
+function SearchButton({ active, onClick, children, ...props }: SearchButtonProps) {
+    return (
+        <Button
+            variant={active ? "secondary" : "outline"}
+            size="sm"
+            onClick={onClick}
+            style={{
+                borderRadius: "24px",
+                padding: "2px 12px",
+                margin: "2px",
+                whiteSpace: "nowrap",
+                minHeight: "auto",
+            }}
+            {...props}
+        >
+            {children}
+        </Button>
+    );
+}
 
 export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
 
@@ -161,7 +159,7 @@ export function SortButton({
                 onClose={handleSortClose}
             />
             <Tooltip title={t("SortBy")} placement="top">
-                <StyledSearchButton
+                <SearchButton
                     aria-label={t("SortBy")}
                     id={sortButtonId}
                     active={isActive}
@@ -169,15 +167,10 @@ export function SortButton({
                 >
                     <IconCommon
                         decorative
-                        fill={
-                            isActive
-                                ? palette.secondary.contrastText
-                                : palette.secondary.main
-                        }
                         name="Sort"
                     />
                     <Typography variant="caption" ml={0.5}>{sortByLabel}</Typography>
-                </StyledSearchButton>
+                </SearchButton>
             </Tooltip>
         </>
     );
@@ -296,7 +289,7 @@ export function TimeButton({
                 onClose={handleTimeClose}
             />
             <Tooltip title={t("TimeCreated")} placement="top">
-                <StyledSearchButton
+                <SearchButton
                     aria-label={t("TimeCreated")}
                     id={timeButtonId}
                     onClick={openTime}
@@ -304,15 +297,10 @@ export function TimeButton({
                 >
                     <IconCommon
                         decorative
-                        fill={
-                            isActive
-                                ? palette.secondary.contrastText
-                                : palette.secondary.main
-                        }
                         name="History"
                     />
                     <Typography variant="caption" ml={0.5}>{timeFrameLabel}</Typography>
-                </StyledSearchButton>
+                </SearchButton>
             </Tooltip>
         </>
     );
@@ -431,7 +419,7 @@ function AdvancedSearchDialog({
                                         />}
                                         type="submit"
                                         onClick={onSubmit}
-                                        variant="contained"
+                                        variant="primary"
                                     >{t("Search")}</Button>
                                 </Grid>
                                 <Grid item xs={6}>
@@ -442,7 +430,7 @@ function AdvancedSearchDialog({
                                             name="Cancel"
                                         />}
                                         onClick={handleClose}
-                                        variant="outlined"
+                                        variant="outline"
                                     >{t("Cancel")}</Button>
                                 </Grid>
                             </BottomActionsGrid>
@@ -523,23 +511,18 @@ export function AdvancedSearchButton({
                 searchType={searchType}
             />
             {advancedSearchParams && <Tooltip title={t("SeeAllSearchSettings")} placement="top">
-                <StyledSearchButton
+                <SearchButton
                     onClick={handleAdvancedSearchDialogOpen}
                     active={isActive}
                 >
                     <IconCommon
                         decorative
-                        fill={
-                            isActive
-                                ? palette.secondary.contrastText
-                                : palette.secondary.main
-                        }
                         name="Build"
                     />
                     {Object.keys(advancedSearchParams).length > 0 && <Typography variant="caption" sx={filterCountLabelStyle}>
                         *{Object.keys(advancedSearchParams).length}
                     </Typography>}
-                </StyledSearchButton>
+                </SearchButton>
             </Tooltip>}
         </>
     );

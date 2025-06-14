@@ -17,11 +17,11 @@ describe("rel function", () => {
     it("should throw an error if \"Create\" or \"Update\" is in relTypes but no model is provided", () => {
         expect(() => {
             rel(mockData, "testRelation", ["Create"], "one", "opt");
-        }).to.throw();
+        }).toThrow();
 
         expect(() => {
             rel(mockData, "testRelation", ["Update"], "one", "opt");
-        }).to.throw();
+        }).toThrow();
     });
 
     it("should return an object with the correct keys for given relation types", () => {
@@ -252,7 +252,7 @@ describe("rel function", () => {
         // Test with valid value
         const validSnowflakeId = "123456789012345678"; // Use a Snowflake-like ID
         const validationResult = await testSchema.validate({ testRelationConnect: validSnowflakeId });
-        expect(validationResult.testRelationConnect).to.equal(validSnowflakeId);
+        expect(validationResult.testRelationConnect).toBe(validSnowflakeId);
     });
 
     it("should mark 'Connect' field as optional when isRequired is 'opt'", async () => {
@@ -264,12 +264,12 @@ describe("rel function", () => {
 
         // Test with undefined value
         let validationResult = await testSchema.validate({});
-        expect(validationResult.testRelationConnect).to.be.undefined;
+        expect(validationResult.testRelationConnect).toBeUndefined();
 
         // Test with valid value
         const validSnowflakeId2 = "123456789012345679"; // Use a Snowflake-like ID
         validationResult = await testSchema.validate({ testRelationConnect: validSnowflakeId2 });
-        expect(validationResult.testRelationConnect).to.equal(validSnowflakeId2);
+        expect(validationResult.testRelationConnect).toBe(validSnowflakeId2);
     });
 
     const omitFieldsMockModel = {
@@ -340,7 +340,7 @@ describe("rel function", () => {
     it("should skip specific relationship types when they are in omitFields", () => {
         const result = rel({ omitFields: ["testRelationCreate"] }, "testRelation", ["Create", "Connect"], "one", "req", mockModel);
         
-        expect(Object.keys(result)).to.include("testRelationConnect");
+        expect(Object.keys(result)).toContain("testRelationConnect");
         expect(Object.keys(result)).to.not.include("testRelationCreate");
     });
 
@@ -379,19 +379,19 @@ describe("rel function", () => {
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
-            expect(error.message).to.include("Cannot provide both");
+            expect(error.message).toContain("Cannot provide both");
         }
 
         // Should pass when only one field is provided
         const validConnectOnly = await testSchema.validate({
             testRelationConnect: "123456789012345678"
         });
-        expect(validConnectOnly.testRelationConnect).to.equal("123456789012345678");
+        expect(validConnectOnly.testRelationConnect).toBe("123456789012345678");
 
         const validCreateOnly = await testSchema.validate({
             testRelationCreate: { mockField: "test" }
         });
-        expect(validCreateOnly.testRelationCreate).to.deep.equal({ mockField: "test" });
+        expect(validCreateOnly.testRelationCreate).toEqual({ mockField: "test" });
     });
 
     it("should handle Connect and Create as optional when both are present for required relationships", () => {
@@ -420,7 +420,7 @@ describe("rel function", () => {
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
-            expect(error.message).to.include("Cannot provide both");
+            expect(error.message).toContain("Cannot provide both");
         }
 
         // Test Delete + Disconnect should fail
@@ -431,7 +431,7 @@ describe("rel function", () => {
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
-            expect(error.message).to.include("Cannot provide both");
+            expect(error.message).toContain("Cannot provide both");
         }
 
         // Test Create + Delete should fail
@@ -442,7 +442,7 @@ describe("rel function", () => {
             });
             expect.fail("Validation should have failed but passed");
         } catch (error: any) {
-            expect(error.message).to.include("Cannot provide both");
+            expect(error.message).toContain("Cannot provide both");
         }
     });
 
@@ -459,8 +459,8 @@ describe("rel function", () => {
             testRelationCreate: [{ mockField: "test" }]
         });
         
-        expect(validData.testRelationConnect).to.deep.equal(["123456789012345678"]);
-        expect(validData.testRelationCreate).to.deep.equal([{ mockField: "test" }]);
+        expect(validData.testRelationConnect).toEqual(["123456789012345678"]);
+        expect(validData.testRelationCreate).toEqual([{ mockField: "test" }]);
     });
 
     it("should handle omitFields as a string instead of array", async () => {
@@ -498,19 +498,19 @@ describe("rel function", () => {
         
         // This tests that the deduplication is working - field2 should only be omitted once
         // We can't directly test the omitFields array, but we can verify the schema behavior
-        expect(result.testRelationCreate).to.exist;
+        expect(result.testRelationCreate).toBeDefined();
     });
 
     it("should handle nested relationships and increment recurseCount", () => {
         const nestedModel = {
             create: (data) => {
                 const currentRecurseCount = data.recurseCount || 0;
-                expect(currentRecurseCount).to.be.greaterThan(0);
+                expect(currentRecurseCount).toBeGreaterThan(0);
                 return yup.object().shape({ nestedField: yup.string() });
             },
             update: (data) => {
                 const currentRecurseCount = data.recurseCount || 0;
-                expect(currentRecurseCount).to.be.greaterThan(0);
+                expect(currentRecurseCount).toBeGreaterThan(0);
                 return yup.object().shape({ nestedField: yup.string() });
             },
         } as unknown as YupModel<["create", "update"]>;
@@ -531,7 +531,7 @@ describe("rel function", () => {
 
         // All fields should be optional
         const emptyResult = await testSchema.validate({});
-        expect(emptyResult).to.deep.equal({});
+        expect(emptyResult).toEqual({});
 
         // Should handle null values
         const nullResult = await testSchema.validate({
@@ -560,10 +560,10 @@ describe("rel function", () => {
         };
         
         const validatedEmpty = await result.testRelationConnect!.validate(emptyArrayData.testRelationConnect);
-        expect(validatedEmpty).to.deep.equal([]);
+        expect(validatedEmpty).toEqual([]);
         
         const validatedDelete = await result.testRelationDelete!.validate(emptyArrayData.testRelationDelete);
-        expect(validatedDelete).to.deep.equal([]);
+        expect(validatedDelete).toEqual([]);
     });
 
     it("should handle non-array omitFields in data parameter", () => {
@@ -583,7 +583,7 @@ describe("rel function", () => {
         const result = rel({}, "testRelation", ["Create"], "one", "opt", mockModel, "someField");
         
         // Should create the relationship since testRelation itself isn't omitted
-        expect(result).to.have.property("testRelationCreate");
+        expect(result).toHaveProperty("testRelationCreate");
     });
 
 });
@@ -603,8 +603,8 @@ describe("transRel function", () => {
     it("should create a translation model with id and language fields", () => {
         const translationModel = transRel(partialModel);
         
-        expect(translationModel).to.have.property("create");
-        expect(translationModel).to.have.property("update");
+        expect(translationModel).toHaveProperty("create");
+        expect(translationModel).toHaveProperty("update");
     });
 
     it("should validate create with required id, language, and custom fields", async () => {
@@ -619,7 +619,7 @@ describe("transRel function", () => {
             description: "Test Description"
         };
         const result = await createSchema.validate(validData);
-        expect(result).to.deep.equal(validData);
+        expect(result).toEqual(validData);
 
         // Missing required fields
         try {
@@ -643,7 +643,7 @@ describe("transRel function", () => {
             id: "123456789012345678"
         };
         const result = await updateSchema.validate(minimalData);
-        expect(result).to.deep.equal(minimalData);
+        expect(result).toEqual(minimalData);
 
         // Valid data with all fields
         const completeData = {
@@ -653,7 +653,7 @@ describe("transRel function", () => {
             description: "Updated Description"
         };
         const completeResult = await updateSchema.validate(completeData);
-        expect(completeResult).to.deep.equal(completeData);
+        expect(completeResult).toEqual(completeData);
 
         // Missing required id
         try {

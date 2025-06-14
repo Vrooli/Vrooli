@@ -11,12 +11,12 @@ import { updateOneHelper } from "../../actions/updates.js";
 import type { RequestService } from "../../auth/request.js";
 import type { PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
-import { activeRunsRegistry } from "../../tasks/run/process.js";
+import { activeRunRegistry } from "../../tasks/run/process.js";
 import { changeRunTaskStatus, processRun } from "../../tasks/run/queue.js";
 import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
 import { type RunTask } from "../../tasks/taskTypes.js";
 import { type ConversationStateStore } from "../conversation/chatStore.js";
-import defineToolSchema from "../schemas/DefineTool/schema.json" with { type: "json" };
+import defineToolSchema from "../schemas/DefineTool/schema.json" assert { type: "json" };
 import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
 import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
 import { type ToolResponse } from "./types.js";
@@ -754,7 +754,7 @@ export class BuiltInTools {
 
         try {
             // Get the active run from the registry
-            const stateMachine = activeRunsRegistry.get(runId);
+            const stateMachine = activeRunRegistry.get(runId);
 
             if (!stateMachine) {
                 return {

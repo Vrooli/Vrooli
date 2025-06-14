@@ -50,7 +50,7 @@ describe("memberInviteValidation", () => {
                 const result = await createSchema.validate(
                     memberInviteFixtures.edgeCases.whitespaceMessage.create,
                 );
-                expect(result.message).to.equal("Invitation message with whitespace");
+                expect(result.message).toBe("Invitation message with whitespace");
             });
 
             it("should handle empty string message", async () => {
@@ -58,7 +58,7 @@ describe("memberInviteValidation", () => {
                     memberInviteFixtures.edgeCases.emptyMessage.create,
                 );
                 // Empty string should be removed by removeEmptyString()
-                expect(result.message).to.be.undefined;
+                expect(result.message).toBeUndefined();
             });
 
             it("should accept long messages", async () => {

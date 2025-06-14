@@ -77,7 +77,7 @@ describe("sortify", () => {
 
     it("should throw a CustomError with proper language and message on invalid JSON", () => {
         const invalidJson = "{\"a\":1,";
-        expect(() => sortify(invalidJson)).to.throw();
+        expect(() => sortify(invalidJson)).toThrow();
     });
 
     it("should handle and sort nested objects correctly", () => {

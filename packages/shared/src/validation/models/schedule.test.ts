@@ -102,7 +102,7 @@ describe("scheduleValidation", () => {
                     scheduleFixtures.edgeCases.whitespaceTimezone.create,
                     true,
                 );
-                expect(result.timezone).to.equal("America/New_York");
+                expect(result.timezone).toBe("America/New_York");
             });
 
             it("should accept various timezone formats", async () => {
@@ -644,7 +644,7 @@ describe("scheduleValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle timezone trimming", async () => {
@@ -659,7 +659,7 @@ describe("scheduleValidation", () => {
                 dataWithWhitespace,
                 true,
             );
-            expect(result.timezone).to.equal("UTC");
+            expect(result.timezone).toBe("UTC");
         });
 
         it("should handle date string to Date conversion", async () => {
@@ -706,7 +706,7 @@ describe("scheduleValidation", () => {
                 scheduleFixtures.edgeCases.manyExceptions.create,
                 true,
             );
-            expect(result.exceptionsCreate).to.have.lengthOf(10);
+            expect(result.exceptionsCreate).toHaveLength(10);
         });
 
         it("should handle schedules with multiple recurrence patterns", async () => {
@@ -715,7 +715,7 @@ describe("scheduleValidation", () => {
                 scheduleFixtures.edgeCases.manyRecurrences.create,
                 true,
             );
-            expect(result.recurrencesCreate).to.have.lengthOf(3);
+            expect(result.recurrencesCreate).toHaveLength(3);
         });
 
         it("should handle complex update with all operations", async () => {
@@ -724,12 +724,12 @@ describe("scheduleValidation", () => {
                 scheduleFixtures.edgeCases.complexUpdate.update,
                 true,
             );
-            expect(result.exceptionsCreate).to.have.lengthOf(1);
-            expect(result.exceptionsUpdate).to.have.lengthOf(2);
-            expect(result.exceptionsDelete).to.have.lengthOf(2);
-            expect(result.recurrencesCreate).to.have.lengthOf(1);
-            expect(result.recurrencesUpdate).to.have.lengthOf(1);
-            expect(result.recurrencesDelete).to.have.lengthOf(1);
+            expect(result.exceptionsCreate).toHaveLength(1);
+            expect(result.exceptionsUpdate).toHaveLength(2);
+            expect(result.exceptionsDelete).toHaveLength(2);
+            expect(result.recurrencesCreate).toHaveLength(1);
+            expect(result.recurrencesUpdate).toHaveLength(1);
+            expect(result.recurrencesDelete).toHaveLength(1);
         });
     });
 });

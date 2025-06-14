@@ -55,7 +55,7 @@ describe("createOwner", () => {
         const item = { owner: { __typename: "User" as const, id: "user123" } };
         // @ts-ignore: Testing runtime scenario
         const result = createOwner(item, "OwnedBy");
-        expect(result).to.have.property("ownedByUserConnect");
+        expect(result).toHaveProperty("ownedByUserConnect");
     });
 });
 
@@ -225,7 +225,7 @@ describe("shouldConnect", () => {
     invalidCases.forEach(({ case: testCase, description }) => {
         it(`should return false for ${description}`, () => {
             // @ts-ignore: Testing runtime scenario
-            expect(shouldConnect(testCase)).to.equal(false);
+            expect(shouldConnect(testCase)).toBe(false);
         });
     });
 });
@@ -277,7 +277,7 @@ describe("createRel", () => {
         const item = { relation: { data: "data" } };
         expect(() => {
             createRel(item, "relation", ["Create"], "one");
-        }).to.throw("Model is required if relTypes includes \"Create\": relation");
+        }).toThrow("Model is required if relTypes includes \"Create\": relation");
     });
 
     it("with preShape function", () => {
@@ -503,8 +503,8 @@ describe("updatePrims", () => {
         const original = { id: "123", name: "Test" };
         const updated = { ...original, name: "Updated" };
         const result = updatePrims(original, updated, "id", "name");
-        expect(result.id).to.equal("123");
-        expect(result.name).to.equal("Updated");
+        expect(result.id).toBe("123");
+        expect(result.name).toBe("Updated");
     });
 });
 
@@ -576,8 +576,8 @@ describe("updateTranslationPrims", () => {
         const original = { id: "123", name: "Test", language: "fr" };
         const updated = { ...original, name: "Updated", language: "fr" };
         const result = updateTranslationPrims(original, updated, "id", "name");
-        expect(result.id).to.equal("123");
-        expect(result.name).to.equal("Updated");
+        expect(result.id).toBe("123");
+        expect(result.name).toBe("Updated");
     });
 
     it("no language defaults to en", () => {
@@ -585,14 +585,14 @@ describe("updateTranslationPrims", () => {
         const updated = { ...original, name: "Updated" };
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(original, updated, "id", "name");
-        expect(result.language).to.equal("en");
+        expect(result.language).toBe("en");
     });
 });
 
 describe("shapeUpdate", () => {
     it("no updated object", () => {
         const result = shapeUpdate(null, {});
-        expect(result).to.be.undefined;
+        expect(result).toBeUndefined();
     });
 
     it("shape as a function", () => {
@@ -921,74 +921,74 @@ describe("updateRel", () => {
 describe("shapeDate function tests", () => {
     it("valid date within default range", () => {
         const result = shapeDate("2025-06-15");
-        expect(result).to.equal("2025-06-15T00:00:00.000Z");
+        expect(result).toBe("2025-06-15T00:00:00.000Z");
     });
 
     it("valid date at minimum boundary", () => {
         const result = shapeDate("2023-01-01");
-        expect(result).to.equal("2023-01-01T00:00:00.000Z");
+        expect(result).toBe("2023-01-01T00:00:00.000Z");
     });
 
     it("valid date at maximum boundary", () => {
         const result = shapeDate("2099-12-31");
-        expect(result).to.equal("2099-12-31T00:00:00.000Z");
+        expect(result).toBe("2099-12-31T00:00:00.000Z");
     });
 
     it("invalid date string", () => {
         const result = shapeDate("invalid-date");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("non-string parameters", () => {
         // @ts-ignore: Testing runtime scenario
         const resultNumber = shapeDate(123);
-        expect(resultNumber).to.be.null;
+        expect(resultNumber).toBeNull();
         // @ts-ignore: Testing runtime scenario
         const resultBoolean = shapeDate(true);
-        expect(resultBoolean).to.be.null;
+        expect(resultBoolean).toBeNull();
         // @ts-ignore: Testing runtime scenario
         const resultObject = shapeDate({});
-        expect(resultObject).to.be.null;
+        expect(resultObject).toBeNull();
         // @ts-ignore: Testing runtime scenario
         const resultArray = shapeDate([]);
-        expect(resultArray).to.be.null;
+        expect(resultArray).toBeNull();
         // @ts-ignore: Testing runtime scenario
         const resultNull = shapeDate(null);
-        expect(resultNull).to.be.null;
+        expect(resultNull).toBeNull();
         // @ts-ignore: Testing runtime scenario
         const resultUndefined = shapeDate(undefined);
-        expect(resultUndefined).to.be.null;
+        expect(resultUndefined).toBeNull();
     });
 
     it("date before minimum date", () => {
         const result = shapeDate("2022-12-31");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("date after maximum date", () => {
         const result = shapeDate("2100-01-02");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("valid date with custom min and max dates", () => {
         const minDate = new Date("2020-01-01");
         const maxDate = new Date("2024-01-01");
         const result = shapeDate("2022-06-15", minDate, maxDate);
-        expect(result).to.equal("2022-06-15T00:00:00.000Z");
+        expect(result).toBe("2022-06-15T00:00:00.000Z");
     });
 
     it("date at custom minimum boundary", () => {
         const minDate = new Date("2020-01-01");
         const maxDate = new Date("2024-01-01");
         const result = shapeDate("2020-01-01", minDate, maxDate);
-        expect(result).to.equal("2020-01-01T00:00:00.000Z");
+        expect(result).toBe("2020-01-01T00:00:00.000Z");
     });
 
     it("date at custom maximum boundary", () => {
         const minDate = new Date("2020-01-01");
         const maxDate = new Date("2024-01-01");
         const result = shapeDate("2024-01-01", minDate, maxDate);
-        expect(result).to.equal("2024-01-01T00:00:00.000Z");
+        expect(result).toBe("2024-01-01T00:00:00.000Z");
     });
 
     it("date string format check", () => {

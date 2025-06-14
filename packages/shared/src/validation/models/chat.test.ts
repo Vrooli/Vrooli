@@ -22,7 +22,7 @@ describe("chatValidation", () => {
                     },
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("invites");
                 expect(result).to.not.have.property("messages");
                 expect(result).to.not.have.property("team");
@@ -50,7 +50,7 @@ describe("chatValidation", () => {
                     data,
                     true,
                 );
-                expect(result).to.have.property("invitesCreate");
+                expect(result).toHaveProperty("invitesCreate");
                 expect(result.invitesCreate).to.have.length(2);
             });
 
@@ -78,9 +78,9 @@ describe("chatValidation", () => {
                         abortEarly: false,
                         stripUnknown: true,
                     });
-                    expect(result).to.have.property("messagesCreate");
+                    expect(result).toHaveProperty("messagesCreate");
                     expect(result.messagesCreate).to.have.length(1);
-                    expect(result.messagesCreate[0].translationsCreate[0].text).to.equal("Test message");
+                    expect(result.messagesCreate[0].translationsCreate[0].text).toBe("Test message");
                 } catch (error: any) {
                     console.error("Direct validation error:", {
                         message: error.message,
@@ -108,7 +108,7 @@ describe("chatValidation", () => {
                     },
                     true,
                 );
-                expect(result.teamConnect).to.equal("423456789012345678");
+                expect(result.teamConnect).toBe("423456789012345678");
             });
 
             it("should handle omitFields for nested relations", async () => {
@@ -140,7 +140,7 @@ describe("chatValidation", () => {
                     },
                     true,
                 );
-                expect(result).to.deep.equal({ id: "123456789012345678" });
+                expect(result).toEqual({ id: "123456789012345678" });
             });
 
             it("should handle participant deletion", async () => {
@@ -161,12 +161,12 @@ describe("chatValidation", () => {
                         abortEarly: false,
                         stripUnknown: true,
                     });
-                    expect(result).to.have.property("invitesCreate");
-                    expect(result).to.have.property("invitesUpdate");
-                    expect(result).to.have.property("invitesDelete");
-                    expect(result).to.have.property("messagesCreate");
-                    expect(result).to.have.property("messagesUpdate");
-                    expect(result).to.have.property("messagesDelete");
+                    expect(result).toHaveProperty("invitesCreate");
+                    expect(result).toHaveProperty("invitesUpdate");
+                    expect(result).toHaveProperty("invitesDelete");
+                    expect(result).toHaveProperty("messagesCreate");
+                    expect(result).toHaveProperty("messagesUpdate");
+                    expect(result).toHaveProperty("messagesDelete");
                 } catch (error: any) {
                     console.error("Update validation error:", {
                         message: error.message,
@@ -256,7 +256,7 @@ describe("chatValidation", () => {
                     generatedData,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
             });
 
             it("should generate valid update data", async () => {
@@ -267,7 +267,7 @@ describe("chatValidation", () => {
                     generatedData,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
             });
         });
     });
@@ -285,7 +285,7 @@ describe("chatTranslationValidation", () => {
                 chatTranslationFixtures.minimal.create,
                 true,
             );
-            expect(result).to.have.property("language");
+            expect(result).toHaveProperty("language");
         });
 
         it("should accept complete translation", async () => {
@@ -294,9 +294,9 @@ describe("chatTranslationValidation", () => {
                 chatTranslationFixtures.complete.create,
                 true,
             );
-            expect(result).to.have.property("language");
-            expect(result).to.have.property("name");
-            expect(result).to.have.property("description");
+            expect(result).toHaveProperty("language");
+            expect(result).toHaveProperty("name");
+            expect(result).toHaveProperty("description");
         });
 
         it("should reject missing language", async () => {
@@ -340,7 +340,7 @@ describe("chatTranslationValidation", () => {
                 chatTranslationFixtures.minimal.update,
                 true,
             );
-            expect(result).to.have.property("language");
+            expect(result).toHaveProperty("language");
         });
 
         it("should accept complete update", async () => {
@@ -349,9 +349,9 @@ describe("chatTranslationValidation", () => {
                 chatTranslationFixtures.complete.update,
                 true,
             );
-            expect(result).to.have.property("language");
-            expect(result).to.have.property("name");
-            expect(result).to.have.property("description");
+            expect(result).toHaveProperty("language");
+            expect(result).toHaveProperty("name");
+            expect(result).toHaveProperty("description");
         });
 
         it("should allow partial translation updates", async () => {
@@ -364,7 +364,7 @@ describe("chatTranslationValidation", () => {
                 },
                 true,
             );
-            expect(result).to.have.property("description");
+            expect(result).toHaveProperty("description");
             expect(result).to.not.have.property("name");
         });
     });

@@ -33,7 +33,7 @@ describe("botValidation", () => {
                     botFixtures.edgeCases.emptyBotSettings.create,
                     true,
                 );
-                expect(result.botSettings).to.deep.equal({});
+                expect(result.botSettings).toEqual({});
             });
 
             it("should accept bot with complex nested botSettings", async () => {
@@ -65,7 +65,7 @@ describe("botValidation", () => {
                 for (const handle of validHandles) {
                     const testData = botTestDataFactory.createMinimal({ handle });
                     const result = await testValidation(createSchema, testData, true);
-                    expect(result.handle).to.equal(handle);
+                    expect(result.handle).toBe(handle);
                 }
             });
 
@@ -109,7 +109,7 @@ describe("botValidation", () => {
                     botFixtures.edgeCases.botDepictingPerson.create,
                     true,
                 );
-                expect(result.isBotDepictingPerson).to.be.true;
+                expect(result.isBotDepictingPerson).toBe(true);
             });
 
             it("should accept public and private bots", async () => {
@@ -118,14 +118,14 @@ describe("botValidation", () => {
                     botFixtures.edgeCases.publicBot.create,
                     true,
                 );
-                expect(publicResult.isPrivate).to.be.false;
+                expect(publicResult.isPrivate).toBe(false);
 
                 const privateResult = await testValidation(
                     createSchema,
                     botFixtures.edgeCases.privateBot.create,
                     true,
                 );
-                expect(privateResult.isPrivate).to.be.true;
+                expect(privateResult.isPrivate).toBe(true);
             });
 
             it("should validate translations", async () => {
@@ -155,7 +155,7 @@ describe("botValidation", () => {
                     botFixtures.minimal.update,
                     true,
                 );
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
             });
 
             it("should allow updating botSettings", async () => {
@@ -238,10 +238,10 @@ describe("botValidation", () => {
                 expect(result).to.not.have.property("profileImage");
 
                 // Required fields should still be present
-                expect(result).to.have.property("id");
-                expect(result).to.have.property("botSettings");
-                expect(result).to.have.property("isBotDepictingPerson");
-                expect(result).to.have.property("name");
+                expect(result).toHaveProperty("id");
+                expect(result).toHaveProperty("botSettings");
+                expect(result).toHaveProperty("isBotDepictingPerson");
+                expect(result).toHaveProperty("name");
             });
         });
     });
@@ -260,8 +260,8 @@ describe("botTranslationValidation", () => {
                 botTranslationFixtures.minimal.create,
                 true,
             );
-            expect(result).to.have.property("id");
-            expect(result).to.have.property("language");
+            expect(result).toHaveProperty("id");
+            expect(result).toHaveProperty("language");
         });
 
         it("should accept complete valid data", async () => {
@@ -270,7 +270,7 @@ describe("botTranslationValidation", () => {
                 botTranslationFixtures.complete.create,
                 true,
             );
-            expect(result).to.have.property("bio");
+            expect(result).toHaveProperty("bio");
         });
 
         it("should reject missing required fields", async () => {
@@ -309,7 +309,7 @@ describe("botTranslationValidation", () => {
                 botTranslationFixtures.minimal.update,
                 true,
             );
-            expect(result).to.have.property("id");
+            expect(result).toHaveProperty("id");
         });
 
         it("should accept complete valid data", async () => {
@@ -318,7 +318,7 @@ describe("botTranslationValidation", () => {
                 botTranslationFixtures.complete.update,
                 true,
             );
-            expect(result).to.have.property("bio");
+            expect(result).toHaveProperty("bio");
         });
 
         it("should reject missing id", async () => {
@@ -351,7 +351,7 @@ describe("botTranslationValidation", () => {
                     botTranslationTestDataFactory.createMinimal({ language: lang }),
                     true,
                 );
-                expect(result.language).to.equal(lang);
+                expect(result.language).toBe(lang);
             }
         });
     });

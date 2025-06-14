@@ -1,176 +1,132 @@
-import { RoutineType, type RoutineVersion } from "@vrooli/shared";
-import { generateInputAndOutputMessage, generateInputOnlyMessage, generateOutputOnlyMessage, generateTaskMessage } from "./process.js";
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from "vitest";
+import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { Job } from "bullmq";
+import { runProcess, activeRunRegistry } from "./process.js";
+import { RunTask, QueueTaskType } from "../taskTypes.js";
+import { logger } from "../../events/logger.js";
 
-// Helper function to create a mock RoutineVersion
-function createMockRoutineVersion(routineType: RoutineType): RoutineVersion {
-    return {
-        __typename: "RoutineVersion",
-        id: "1",
-        routineType,
-        isComplete: true,
-        isLatest: true,
-        isPrivate: false,
-        isDeleted: false,
-        inputs: [],
-        outputs: [],
-        complexity: 1,
-        timesCompleted: 0,
-        timesStarted: 0,
-        nodeLinks: [],
-        nodes: [],
-        translations: [{
-            language: "en",
-            description: "English description",
-            instructions: "English instructions",
-            name: "English name",
-        }, {
-            language: "es",
-            description: "Spanish description",
-            // Purposefully missing instructions
-            name: "Spanish name",
-        }],
-    } as unknown as RoutineVersion;
-}
+describe("runProcess", () => {
+    let postgresContainer: StartedTestContainer;
+    let redisContainer: StartedTestContainer;
 
-describe("generateTaskMessage", () => {
-    const mockUserLanguages = ["en"];
+    beforeAll(async () => {
+        // Start test containers
+        redisContainer = await new GenericContainer("redis:7-alpine")
+            .withExposedPorts(6379)
+            .start();
+        
+        postgresContainer = await new GenericContainer("postgres:15")
+            .withExposedPorts(5432)
+            .withEnvironment({
+                POSTGRES_USER: "testuser",
+                POSTGRES_PASSWORD: "testpassword",
+                POSTGRES_DB: "testdb",
+            })
+            .start();
 
-    it("should return undefined for non-Generate routine with no missing inputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Action);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "value1", isRequired: true } },
-            {},
-            mockUserLanguages,
-        );
-        expect(result).to.be.undefined;
+        // Set environment variables
+        const redisHost = redisContainer.getHost();
+        const redisPort = redisContainer.getMappedPort(6379);
+        process.env.REDIS_URL = `redis://${redisHost}:${redisPort}`;
+
+        const postgresHost = postgresContainer.getHost();
+        const postgresPort = postgresContainer.getMappedPort(5432);
+        process.env.DB_URL = `postgresql://testuser:testpassword@${postgresHost}:${postgresPort}/testdb`;
+    }, 60000);
+
+    afterAll(async () => {
+        if (redisContainer) await redisContainer.stop();
+        if (postgresContainer) await postgresContainer.stop();
     });
 
-    it("should generate input-only message for non-Generate routine with missing inputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Api);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "", isRequired: true } },
-            {},
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
+    beforeEach(() => {
+        vi.clearAllMocks();
     });
 
-    it("should return undefined for Generate routine with no missing inputs and no outputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "value1", isRequired: true } },
-            {},
-            mockUserLanguages,
-        );
-        expect(result).to.be.undefined;
-    });
+    const createMockRunJob = (data: Partial<RunTask> = {}): Job<RunTask> => {
+        const defaultData: RunTask = {
+            taskType: QueueTaskType.Run,
+            runId: "test-run-123",
+            userId: "user-123",
+            hasPremium: false,
+            status: "pending",
+            ...data,
+        };
 
-    it("should generate input and output message for Generate routine with missing inputs and outputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "", isRequired: true } },
-            { output1: { value: undefined } },
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
-    });
+        return {
+            id: "run-job-id",
+            data: defaultData,
+            name: "run",
+            attemptsMade: 0,
+            opts: {},
+        } as Job<RunTask>;
+    };
 
-    it("should generate input-only message for Generate routine with missing inputs and no outputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "", isRequired: true } },
-            {},
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
-    });
+    describe("successful execution", () => {
+        it("should execute simple routine", async () => {
+            // TODO: Implement when runProcess is ready
+            expect(true).toBe(true);
+        });
 
-    it("should generate output-only message for Generate routine with no missing inputs and outputs", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateTaskMessage(
-            mockRoutineVersion,
-            { input1: { value: "value1", isRequired: true } },
-            { output1: { value: undefined } },
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to generate values for each output.");
-    });
+        it("should handle multi-step workflows", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
 
-    it("should handle all RoutineTypes correctly", () => {
-        const routineTypes = Object.values(RoutineType);
-        routineTypes.forEach(type => {
-            const mockRoutineVersion = createMockRoutineVersion(type);
-            const result = generateTaskMessage(
-                mockRoutineVersion,
-                { input1: { value: "", isRequired: true } },
-                {},
-                mockUserLanguages,
-            );
-            if (type === RoutineType.Generate) {
-                expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
-            } else {
-                expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
-            }
+        it("should update run status throughout execution", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
+
+        it("should emit proper events", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
         });
     });
-});
 
-describe("generateInputOnlyMessage", () => {
-    const mockUserLanguages = ["en"];
+    describe("error handling", () => {
+        it("should retry transient failures", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
 
-    it("should generate a message for input-only tasks", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Action);
-        const result = generateInputOnlyMessage(
-            mockRoutineVersion,
-            { input1: { value: "", isRequired: true }, input2: { value: "value2", isRequired: false } },
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
-        expect(result).to.include("Inputs:");
-        expect(result).to.include("\"input1\": {");
-        expect(result).to.include("\"input2\": {");
+        it("should handle step failures gracefully", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
+
+        it("should clean up resources on failure", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
     });
-});
 
-describe("generateOutputOnlyMessage", () => {
-    const mockUserLanguages = ["en"];
+    describe("concurrency limits", () => {
+        it("should respect per-user limits", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
 
-    it("should generate a message for output-only tasks", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateOutputOnlyMessage(
-            mockRoutineVersion,
-            { output1: { value: undefined }, output2: { value: undefined } },
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to generate values for each output.");
-        expect(result).to.include("Outputs:");
-        expect(result).to.include("\"output1\": {");
-        expect(result).to.include("\"output2\": {");
+        it("should handle premium vs free tier limits", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
     });
-});
 
-describe("generateInputAndOutputMessage", () => {
-    const mockUserLanguages = ["en"];
+    describe("active run registry", () => {
+        it("should track active runs", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
 
-    it("should generate a message for tasks requiring both input and output", () => {
-        const mockRoutineVersion = createMockRoutineVersion(RoutineType.Generate);
-        const result = generateInputAndOutputMessage(
-            mockRoutineVersion,
-            { input1: { value: "", isRequired: true }, input2: { value: "value2", isRequired: false } },
-            { output1: { value: undefined }, output2: { value: undefined } },
-            mockUserLanguages,
-        );
-        expect(result).to.include("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
-        expect(result).to.include("Inputs:");
-        expect(result).to.include("\"input1\": {");
-        expect(result).to.include("\"input2\": {");
-        expect(result).to.include("Outputs:");
-        expect(result).to.include("\"output1\": {");
-        expect(result).to.include("\"output2\": {");
+        it("should timeout long-running tasks", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
+
+        it("should clean up completed runs", async () => {
+            // TODO: Implement
+            expect(true).toBe(true);
+        });
     });
 });

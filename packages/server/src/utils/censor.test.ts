@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import fs from "fs";
-import { initializeProfanity, hasProfanity, toStringArray, filterProfanity } from "./censor.js";
+import { initializeProfanity, hasProfanity, toStringArray, filterProfanity, resetProfanityState } from "./censor.js";
 
 // Mock fs module
 vi.mock("fs");
@@ -16,14 +16,18 @@ vi.mock("../events/logger.js", () => ({
 describe("censor utilities", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Reset the module state by mocking a successful file read
+        // Reset the module state
+        resetProfanityState();
+        // Mock a successful file read
         mockFs.readFileSync.mockReturnValue("badword1\nbadword2\ntest\nhell");
+        // Initialize with mocked data
         initializeProfanity();
     });
 
     describe("initializeProfanity", () => {
         it("should initialize profanity list from file", () => {
             const mockContent = "word1\nword2\nword3";
+            resetProfanityState();
             mockFs.readFileSync.mockReturnValue(mockContent);
             
             initializeProfanity();
@@ -35,6 +39,7 @@ describe("censor utilities", () => {
         });
 
         it("should handle file read errors gracefully", () => {
+            resetProfanityState();
             mockFs.readFileSync.mockImplementation(() => {
                 throw new Error("File not found");
             });

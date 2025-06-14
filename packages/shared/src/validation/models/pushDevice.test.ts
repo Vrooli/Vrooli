@@ -408,7 +408,7 @@ describe("pushDeviceValidation", () => {
                 true,
             );
             expect(result.endpoint).to.be.a("string");
-            expect(result.endpoint).to.equal("https://converted-endpoint.com/path");
+            expect(result.endpoint).toBe("https://converted-endpoint.com/path");
         });
 
         it("should handle number conversion for expires", async () => {
@@ -427,7 +427,7 @@ describe("pushDeviceValidation", () => {
                 true,
             );
             expect(result.expires).to.be.a("number");
-            expect(result.expires).to.equal(3600);
+            expect(result.expires).toBe(3600);
         });
     });
 

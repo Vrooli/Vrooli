@@ -6,30 +6,30 @@ describe("yupTools", () => {
     describe("isYupValidationError", () => {
         it("should return true for Yup ValidationError", () => {
             const error = new yup.ValidationError("Test error", "value", "field");
-            expect(isYupValidationError(error)).to.be.true;
+            expect(isYupValidationError(error)).toBe(true);
         });
 
         it("should return false for regular Error", () => {
             const error = new Error("Regular error");
-            expect(isYupValidationError(error)).to.be.false;
+            expect(isYupValidationError(error)).toBe(false);
         });
 
         it("should return false for TypeError", () => {
             const error = new TypeError("Type error");
-            expect(isYupValidationError(error)).to.be.false;
+            expect(isYupValidationError(error)).toBe(false);
         });
 
         it("should handle null without throwing", () => {
-            expect(isYupValidationError(null)).to.be.false;
+            expect(isYupValidationError(null)).toBe(false);
         });
 
         it("should handle undefined without throwing", () => {
-            expect(isYupValidationError(undefined)).to.be.false;
+            expect(isYupValidationError(undefined)).toBe(false);
         });
 
         it("should return false for object with only name property", () => {
             const fakeError = { name: "ValidationError", message: "fake" };
-            expect(isYupValidationError(fakeError)).to.be.false;
+            expect(isYupValidationError(fakeError)).toBe(false);
         });
 
         it("should return true for proper ValidationError structure", () => {
@@ -39,22 +39,22 @@ describe("yupTools", () => {
                 inner: [],
                 path: "testField"
             };
-            expect(isYupValidationError(properError)).to.be.true;
+            expect(isYupValidationError(properError)).toBe(true);
         });
 
         it("should return false for object missing required properties", () => {
             const incompleteError1 = { name: "ValidationError", message: "test" };
-            expect(isYupValidationError(incompleteError1)).to.be.false;
+            expect(isYupValidationError(incompleteError1)).toBe(false);
             
             const incompleteError2 = { name: "ValidationError", inner: [], path: "test" };
-            expect(isYupValidationError(incompleteError2)).to.be.false;
+            expect(isYupValidationError(incompleteError2)).toBe(false);
             
             const incompleteError3 = { message: "test", inner: [], path: "test" };
-            expect(isYupValidationError(incompleteError3)).to.be.false;
+            expect(isYupValidationError(incompleteError3)).toBe(false);
         });
 
         it("should return false for string", () => {
-            expect(isYupValidationError("ValidationError")).to.be.false;
+            expect(isYupValidationError("ValidationError")).toBe(false);
         });
     });
 
@@ -71,7 +71,7 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, validData);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
 
         it("should return error object for single field error", async () => {
@@ -86,7 +86,7 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, invalidData);
-            expect(result).to.have.property("name", "Name is required");
+            expect(result).toHaveProperty("name", "Name is required");
         });
 
         it("should return error object for multiple field errors", async () => {
@@ -131,7 +131,7 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, invalidData);
-            expect(result).to.have.property("user.name", "User name is required");
+            expect(result).toHaveProperty("user.name", "User name is required");
         });
 
         it("should handle array validation", async () => {
@@ -146,8 +146,8 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, invalidData);
-            expect(result).to.have.property("tags[0]");
-            expect(result["tags[0]"]).to.include("at least 2 characters");
+            expect(result).toHaveProperty("tags[0]");
+            expect(result["tags[0]"]).toContain("at least 2 characters");
         });
 
         it("should handle custom validation", async () => {
@@ -161,7 +161,7 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, invalidData);
-            expect(result).to.have.property("password", "Password cannot be 'admin'");
+            expect(result).toHaveProperty("password", "Password cannot be 'admin'");
         });
 
         it("should throw non-ValidationError errors", async () => {
@@ -178,7 +178,7 @@ describe("yupTools", () => {
                 expect.fail("Should have thrown an error");
             } catch (error) {
                 expect(error).to.be.instanceOf(TypeError);
-                expect(error.message).to.equal("Not a validation error");
+                expect(error.message).toBe("Not a validation error");
             }
         });
 
@@ -195,7 +195,7 @@ describe("yupTools", () => {
             const data = { field: "test" };
 
             const result = await validateAndGetYupErrors(schema, data);
-            expect(result).to.have.property("field", "Custom validation error");
+            expect(result).toHaveProperty("field", "Custom validation error");
         });
 
         it("should handle validation error with inner errors missing path", async () => {
@@ -217,7 +217,7 @@ describe("yupTools", () => {
 
             const result = await validateAndGetYupErrors(schema, data);
             // Should only have the error with a valid path
-            expect(result).to.deep.equal({ validPath: "Has path error" });
+            expect(result).toEqual({ validPath: "Has path error" });
         });
 
         it("should handle undefined values", async () => {
@@ -226,7 +226,7 @@ describe("yupTools", () => {
             });
 
             const result = await validateAndGetYupErrors(schema, {});
-            expect(result).to.have.property("required", "This field is required");
+            expect(result).toHaveProperty("required", "This field is required");
         });
 
         it("should validate with strict mode", async () => {
@@ -239,7 +239,7 @@ describe("yupTools", () => {
             };
 
             const result = await validateAndGetYupErrors(schema, invalidData);
-            expect(Object.keys(result).length).to.be.greaterThan(0);
+            expect(Object.keys(result).length).toBeGreaterThan(0);
         });
     });
 });

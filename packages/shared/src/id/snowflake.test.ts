@@ -4,13 +4,13 @@ import { generatePK, validatePK, initIdGenerator, DUMMY_ID } from "./snowflake.j
 describe("Snowflake IDs", () => {
     it("generates a valid Snowflake ID as bigint", () => {
         const id = generatePK();
-        expect(typeof id).to.equal("bigint");
-        expect(validatePK(id)).to.equal(true);
+        expect(typeof id).toBe("bigint");
+        expect(validatePK(id)).toBe(true);
     });
 
     it("generates a valid Snowflake ID string", () => {
         const id = generatePK().toString();
-        expect(validatePK(id)).to.equal(true);
+        expect(validatePK(id)).toBe(true);
     });
 
     it("generates unique IDs", () => {
@@ -20,13 +20,13 @@ describe("Snowflake IDs", () => {
         for (let i = 0; i < COUNT; i++) {
             ids.add(generatePK().toString());
         }
-        expect(ids.size).to.equal(COUNT);
+        expect(ids.size).toBe(COUNT);
     });
 
     it("validates Snowflake IDs correctly", () => {
         // Valid ID
         const validId = generatePK().toString();
-        expect(validatePK(validId)).to.equal(true);
+        expect(validatePK(validId)).toBe(true);
 
         // Invalid IDs
         const invalidIds = [
@@ -41,7 +41,7 @@ describe("Snowflake IDs", () => {
         ];
 
         invalidIds.forEach(id => {
-            expect(validatePK(id)).to.equal(false);
+            expect(validatePK(id)).toBe(false);
         });
     });
 

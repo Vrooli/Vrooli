@@ -263,9 +263,9 @@ describe("apiKeyExternalValidation", () => {
             const result = await testValidation(createSchema, dataWithWhitespace, true);
 
             // Check that whitespace was trimmed
-            if (result.key) expect(result.key).to.equal("sk-test-key");
-            if (result.name) expect(result.name).to.equal("Test Key");
-            if (result.service) expect(result.service).to.equal("OpenAI");
+            if (result.key) expect(result.key).toBe("sk-test-key");
+            if (result.name) expect(result.name).toBe("Test Key");
+            if (result.service) expect(result.service).toBe("OpenAI");
         });
 
         it("should handle empty strings properly", async () => {

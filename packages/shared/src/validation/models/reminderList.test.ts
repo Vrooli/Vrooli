@@ -307,7 +307,7 @@ describe("reminderListValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
     });
 
@@ -337,7 +337,7 @@ describe("reminderListValidation", () => {
                 reminderListFixtures.edgeCases.manyReminders.create,
                 true,
             );
-            expect(result.remindersCreate).to.have.lengthOf(10);
+            expect(result.remindersCreate).toHaveLength(10);
         });
 
         it("should handle complex nested structures", async () => {
@@ -346,7 +346,7 @@ describe("reminderListValidation", () => {
                 reminderListFixtures.edgeCases.nestedReminderItems.create,
                 true,
             );
-            expect(result.remindersCreate[0].reminderItemsCreate).to.have.lengthOf(5);
+            expect(result.remindersCreate[0].reminderItemsCreate).toHaveLength(5);
         });
 
         it("should properly validate nested reminder validation", async () => {

@@ -260,8 +260,8 @@ describe("resourceValidation", () => {
                 );
                 expect(result.isInternal).to.be.a("boolean");
                 expect(result.isPrivate).to.be.a("boolean");
-                expect(result.isInternal).to.equal(true);
-                expect(result.isPrivate).to.equal(false);
+                expect(result.isInternal).toBe(true);
+                expect(result.isPrivate).toBe(false);
             });
         });
 
@@ -528,7 +528,7 @@ describe("resourceValidation", () => {
                 true,
             );
             expect(result.id).to.be.a("string");
-            expect(result.id).to.equal("123456789012345");
+            expect(result.id).toBe("123456789012345");
         });
 
         it("should handle boolean conversion", async () => {
@@ -560,8 +560,8 @@ describe("resourceValidation", () => {
             );
             expect(result.isInternal).to.be.a("boolean");
             expect(result.isPrivate).to.be.a("boolean");
-            expect(result.isInternal).to.equal(true);
-            expect(result.isPrivate).to.equal(true);
+            expect(result.isInternal).toBe(true);
+            expect(result.isPrivate).toBe(true);
         });
     });
 

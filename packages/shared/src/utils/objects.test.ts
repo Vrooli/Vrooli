@@ -14,13 +14,13 @@ describe("getDotNotationValue", () => {
                 undefinedValue: undefined,
             },
         };
-        expect(getDotNotationValue(obj, "foo.bar.baz")).to.equal(42);
-        expect(getDotNotationValue(obj, "foo.arr[1]")).to.equal(2);
-        expect(getDotNotationValue(obj, "foo.arr[2]")).to.equal("3");
-        expect(getDotNotationValue(obj, "foo.arr[3]")).to.be.undefined;
-        expect(getDotNotationValue(obj, "foo.nonExistent")).to.be.undefined;
-        expect(getDotNotationValue(obj, "foo.nullValue")).to.be.null;
-        expect(getDotNotationValue(obj, "foo.undefinedValue")).to.be.undefined;
+        expect(getDotNotationValue(obj, "foo.bar.baz")).toBe(42);
+        expect(getDotNotationValue(obj, "foo.arr[1]")).toBe(2);
+        expect(getDotNotationValue(obj, "foo.arr[2]")).toBe("3");
+        expect(getDotNotationValue(obj, "foo.arr[3]")).toBeUndefined();
+        expect(getDotNotationValue(obj, "foo.nonExistent")).toBeUndefined();
+        expect(getDotNotationValue(obj, "foo.nullValue")).toBeNull();
+        expect(getDotNotationValue(obj, "foo.undefinedValue")).toBeUndefined();
     });
 
     it("should handle trailing dots", () => {
@@ -34,29 +34,29 @@ describe("getDotNotationValue", () => {
                 undefinedValue: undefined,
             },
         };
-        expect(getDotNotationValue(obj, "foo.bar.baz.")).to.equal(42);
-        expect(getDotNotationValue(obj, "foo.arr[0].")).to.equal(1);
-        expect(getDotNotationValue(obj, "foo.arr[1].")).to.equal(2);
-        expect(getDotNotationValue(obj, "foo.arr[2].")).to.equal("3");
-        expect(getDotNotationValue(obj, "foo.arr[3].")).to.be.undefined;
-        expect(getDotNotationValue(obj, "foo.nullValue.")).to.be.null;
-        expect(getDotNotationValue(obj, "foo.undefinedValue.")).to.be.undefined;
+        expect(getDotNotationValue(obj, "foo.bar.baz.")).toBe(42);
+        expect(getDotNotationValue(obj, "foo.arr[0].")).toBe(1);
+        expect(getDotNotationValue(obj, "foo.arr[1].")).toBe(2);
+        expect(getDotNotationValue(obj, "foo.arr[2].")).toBe("3");
+        expect(getDotNotationValue(obj, "foo.arr[3].")).toBeUndefined();
+        expect(getDotNotationValue(obj, "foo.nullValue.")).toBeNull();
+        expect(getDotNotationValue(obj, "foo.undefinedValue.")).toBeUndefined();
     });
 
     it("should handle edge cases", () => {
-        expect(getDotNotationValue(undefined, "foo")).to.be.undefined;
-        expect(getDotNotationValue({}, "foo")).to.be.undefined;
+        expect(getDotNotationValue(undefined, "foo")).toBeUndefined();
+        expect(getDotNotationValue({}, "foo")).toBeUndefined();
     });
 
     it("should return the whole object when path has no valid keys", () => {
         const obj = { foo: "bar", baz: 42 };
         // When regex doesn't match any valid keys, it returns the original object
-        expect(getDotNotationValue(obj, ".")).to.deep.equal(obj);
+        expect(getDotNotationValue(obj, ".")).toEqual(obj);
         // Empty path returns the object
-        expect(getDotNotationValue(obj, "")).to.deep.equal(obj);
+        expect(getDotNotationValue(obj, "")).toEqual(obj);
         // Path with only dots returns the object
-        expect(getDotNotationValue(obj, "..")).to.deep.equal(obj);
-        expect(getDotNotationValue(obj, "...")).to.deep.equal(obj);
+        expect(getDotNotationValue(obj, "..")).toEqual(obj);
+        expect(getDotNotationValue(obj, "...")).toEqual(obj);
     });
 });
 
@@ -71,26 +71,26 @@ describe("setDotNotationValue", () => {
             },
         };
         setDotNotationValue(obj, "foo.bar.baz", 100);
-        expect(obj.foo.bar.baz).to.equal(100);
+        expect(obj.foo.bar.baz).toBe(100);
 
         setDotNotationValue(obj, "foo.arr[1]", 10);
-        expect(obj.foo.arr[1]).to.equal(10);
+        expect(obj.foo.arr[1]).toBe(10);
 
         setDotNotationValue(obj, "foo.arr[3]", 4);
-        expect(obj.foo.arr[3]).to.equal(4);
+        expect(obj.foo.arr[3]).toBe(4);
 
         setDotNotationValue(obj, "foo.newProp", "newValue");
-        expect(obj.foo.newProp).to.equal("newValue");
+        expect(obj.foo.newProp).toBe("newValue");
     });
 
     it("should handle edge cases", () => {
         const obj1: any = {};
         setDotNotationValue(obj1, "", "value");
-        expect(obj1).to.deep.equal({});
+        expect(obj1).toEqual({});
 
         const obj2 = { foo: 42 };
         setDotNotationValue(obj2, "foo", "updatedValue");
-        expect(obj2.foo).to.equal("updatedValue");
+        expect(obj2.foo).toBe("updatedValue");
     });
 
     it("should handle numeric keys on non-array objects", () => {
@@ -99,14 +99,14 @@ describe("setDotNotationValue", () => {
         };
         // Set a numeric key on a non-array object
         setDotNotationValue(obj, "data[0]", "newValue");
-        expect(obj.data[0]).to.equal("newValue");
+        expect(obj.data[0]).toBe("newValue");
     });
 
     it("should create nested structures when setting numeric keys", () => {
         const obj: Record<string, any> = {};
         // This will create nested objects when using numeric indices
         setDotNotationValue(obj, "foo[0][1]", "value");
-        expect(obj.foo[0][1]).to.equal("value");
+        expect(obj.foo[0][1]).toBe("value");
     });
 
     it("should throw error when trying to access properties on non-objects", () => {
@@ -114,7 +114,7 @@ describe("setDotNotationValue", () => {
             foo: "stringValue"
         };
         // Try to set a property on a string value (should throw)
-        expect(() => setDotNotationValue(obj, "foo.bar", "value")).to.throw("Expected object for property access");
+        expect(() => setDotNotationValue(obj, "foo.bar", "value")).toThrow("Expected object for property access");
     });
 
     it("should throw error when using numeric key on non-object", () => {
@@ -122,7 +122,7 @@ describe("setDotNotationValue", () => {
             foo: 42
         };
         // Try to use numeric key on a number (should throw)
-        expect(() => setDotNotationValue(obj, "foo[0]", "value")).to.throw("Expected object for property access");
+        expect(() => setDotNotationValue(obj, "foo[0]", "value")).toThrow("Expected object for property access");
     });
 });
 
@@ -130,43 +130,43 @@ describe("splitDotNotation", () => {
     it("splits standard dot notation strings correctly", () => {
         const input = ["first.second.third", "another.example.string"];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["first", "another"]);
-        expect(remainders).to.deep.equal(["second.third", "example.string"]);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second.third", "example.string"]);
     });
 
     it("handles empty strings", () => {
         const input = [""];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal([""]);
-        expect(remainders).to.deep.equal([""]);
+        expect(fields).toEqual([""]);
+        expect(remainders).toEqual([""]);
     });
 
     it("handles strings without dots", () => {
         const input = ["first", "second"];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["first", "second"]);
-        expect(remainders).to.deep.equal(["", ""]);
+        expect(fields).toEqual(["first", "second"]);
+        expect(remainders).toEqual(["", ""]);
     });
 
     it("handles strings with multiple dots", () => {
         const input = ["first.second.third", "another.one.two.three"];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["first", "another"]);
-        expect(remainders).to.deep.equal(["second.third", "one.two.three"]);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second.third", "one.two.three"]);
     });
 
     it("handles an empty array", () => {
         const input: string[] = [];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.have.lengthOf(0);
-        expect(remainders).to.have.lengthOf(0);
+        expect(fields).toHaveLength(0);
+        expect(remainders).toHaveLength(0);
     });
 
     it("handles an array with only empty strings", () => {
         const input = ["", ""];
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["", ""]);
-        expect(remainders).to.deep.equal(["", ""]);
+        expect(fields).toEqual(["", ""]);
+        expect(remainders).toEqual(["", ""]);
     });
 
     it("should treat null as empty string for safety", () => {
@@ -174,8 +174,8 @@ describe("splitDotNotation", () => {
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
         // null values should be treated as empty strings to avoid errors
-        expect(fields).to.deep.equal(["", "valid", ""]);
-        expect(remainders).to.deep.equal(["", "string", ""]);
+        expect(fields).toEqual(["", "valid", ""]);
+        expect(remainders).toEqual(["", "string", ""]);
     });
 
     it("should treat undefined as empty string for safety", () => {
@@ -183,56 +183,56 @@ describe("splitDotNotation", () => {
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
         // undefined values should be treated as empty strings to avoid errors
-        expect(fields).to.deep.equal(["", "test", ""]);
-        expect(remainders).to.deep.equal(["", "value", ""]);
+        expect(fields).toEqual(["", "test", ""]);
+        expect(remainders).toEqual(["", "value", ""]);
     });
 
     it("handles mixed valid and invalid inputs", () => {
         const input = [null, "first.second", "", undefined, "another.one"];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["", "first", "", "", "another"]);
-        expect(remainders).to.deep.equal(["", "second", "", "", "one"]);
+        expect(fields).toEqual(["", "first", "", "", "another"]);
+        expect(remainders).toEqual(["", "second", "", "", "one"]);
     });
 
     it("removes empty strings when removeEmpty is true", () => {
         const input = [null, "first.second", "", undefined, "another.one"];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input, true);
-        expect(fields).to.deep.equal(["first", "another"]);
-        expect(remainders).to.deep.equal(["second", "one"]);
+        expect(fields).toEqual(["first", "another"]);
+        expect(remainders).toEqual(["second", "one"]);
     });
 
     it("includes empty strings when removeEmpty is false", () => {
         const input = [null, "first.second", "", undefined, "another.one"];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input, false);
-        expect(fields).to.deep.equal(["", "first", "", "", "another"]);
-        expect(remainders).to.deep.equal(["", "second", "", "", "one"]);
+        expect(fields).toEqual(["", "first", "", "", "another"]);
+        expect(remainders).toEqual(["", "second", "", "", "one"]);
     });
 
     it("defaults to including empty strings when removeEmpty is not provided", () => {
         const input = ["", "first.second", null, "another.one", undefined];
         // @ts-ignore: Testing runtime scenario
         const [fields, remainders] = splitDotNotation(input);
-        expect(fields).to.deep.equal(["", "first", "", "another", ""]);
-        expect(remainders).to.deep.equal(["", "second", "", "one", ""]);
+        expect(fields).toEqual(["", "first", "", "another", ""]);
+        expect(remainders).toEqual(["", "second", "", "one", ""]);
     });
 });
 
 
 describe("isObject", () => {
     it("should identify objects correctly", () => {
-        expect(isObject({})).to.equal(true);
-        expect(isObject([])).to.equal(true);
-        expect(isObject(new Date())).to.equal(true);
+        expect(isObject({})).toBe(true);
+        expect(isObject([])).toBe(true);
+        expect(isObject(new Date())).toBe(true);
         // eslint-disable-next-line @typescript-eslint/no-empty-function
-        expect(isObject(() => { })).to.equal(true);
-        expect(isObject(null)).to.equal(false);
-        expect(isObject(undefined)).to.equal(false);
-        expect(isObject(42)).to.equal(false);
-        expect(isObject("string")).to.equal(false);
-        expect(isObject(true)).to.equal(false);
+        expect(isObject(() => { })).toBe(true);
+        expect(isObject(null)).toBe(false);
+        expect(isObject(undefined)).toBe(false);
+        expect(isObject(42)).toBe(false);
+        expect(isObject("string")).toBe(false);
+        expect(isObject(true)).toBe(false);
     });
 });
 
@@ -243,42 +243,42 @@ describe("isOfType", () => {
         const obj3 = { otherProperty: "value" };
         const obj4 = { __typename: "TypeC", property: "value" };
 
-        expect(isOfType(obj1, "TypeA")).to.equal(true);
-        expect(isOfType(obj1, "TypeB")).to.equal(false);
-        expect(isOfType(obj1, "TypeA", "TypeB")).to.equal(true);
-        expect(isOfType(obj2, "TypeA")).to.equal(false);
-        expect(isOfType(obj2, "TypeB")).to.equal(true);
-        expect(isOfType(obj2, "TypeA", "TypeB")).to.equal(true);
-        expect(isOfType(obj3, "TypeA")).to.equal(false);
-        expect(isOfType(obj4, "TypeA", "TypeB")).to.equal(false);
+        expect(isOfType(obj1, "TypeA")).toBe(true);
+        expect(isOfType(obj1, "TypeB")).toBe(false);
+        expect(isOfType(obj1, "TypeA", "TypeB")).toBe(true);
+        expect(isOfType(obj2, "TypeA")).toBe(false);
+        expect(isOfType(obj2, "TypeB")).toBe(true);
+        expect(isOfType(obj2, "TypeA", "TypeB")).toBe(true);
+        expect(isOfType(obj3, "TypeA")).toBe(false);
+        expect(isOfType(obj4, "TypeA", "TypeB")).toBe(false);
     });
 });
 
 describe("deepClone", () => {
     it("should deep clone primitives", () => {
-        expect(deepClone(42)).to.equal(42);
-        expect(deepClone("hello")).to.equal("hello");
-        expect(deepClone(true)).to.equal(true);
-        expect(deepClone(null)).to.equal(null);
-        expect(deepClone(undefined)).to.be.undefined;
+        expect(deepClone(42)).toBe(42);
+        expect(deepClone("hello")).toBe("hello");
+        expect(deepClone(true)).toBe(true);
+        expect(deepClone(null)).toBe(null);
+        expect(deepClone(undefined)).toBeUndefined();
     });
 
     it("should deep clone date objects", () => {
         const date = new Date(2000, 0, 1);
         const clonedDate = deepClone(date);
 
-        expect(clonedDate).to.deep.equal(date);
-        expect(clonedDate).not.to.equal(date); // Ensure a new Date object
+        expect(clonedDate).toEqual(date);
+        expect(clonedDate).not.toBe(date); // Ensure a new Date object
     });
 
     it("should deep clone arrays", () => {
         const arr = [1, "hello", true, null, [2, 3, 4], { a: 1, b: 2 }];
         const clonedArr = deepClone(arr);
 
-        expect(clonedArr).to.deep.equal(arr);
-        expect(clonedArr).not.to.equal(arr); // Ensure a new array
-        expect(clonedArr[4]).not.to.equal(arr[4]); // Ensure nested array is cloned
-        expect(clonedArr[5]).not.to.equal(arr[5]); // Ensure nested object is cloned
+        expect(clonedArr).toEqual(arr);
+        expect(clonedArr).not.toBe(arr); // Ensure a new array
+        expect(clonedArr[4]).not.toBe(arr[4]); // Ensure nested array is cloned
+        expect(clonedArr[5]).not.toBe(arr[5]); // Ensure nested object is cloned
     });
 
     it("should deep clone objects", () => {
@@ -299,50 +299,50 @@ describe("deepClone", () => {
         };
         const clonedObj = deepClone(obj);
 
-        expect(clonedObj).to.deep.equal(obj);
-        expect(clonedObj).not.to.equal(obj); // Ensure a new object
-        expect(clonedObj.arr).not.to.equal(obj.arr); // Ensure nested array is cloned
-        expect(clonedObj.nested).not.to.equal(obj.nested); // Ensure nested object is cloned
-        expect(clonedObj.nested.c).not.to.equal(obj.nested.c); // Ensure nested object's array is cloned
-        expect(clonedObj.nested.d).not.to.equal(obj.nested.d); // Ensure nested object's object is cloned
+        expect(clonedObj).toEqual(obj);
+        expect(clonedObj).not.toBe(obj); // Ensure a new object
+        expect(clonedObj.arr).not.toBe(obj.arr); // Ensure nested array is cloned
+        expect(clonedObj.nested).not.toBe(obj.nested); // Ensure nested object is cloned
+        expect(clonedObj.nested.c).not.toBe(obj.nested.c); // Ensure nested object's array is cloned
+        expect(clonedObj.nested.d).not.toBe(obj.nested.d); // Ensure nested object's object is cloned
     });
 });
 
 describe("mergeDeep", () => {
     // Cases where params are invalid
     it("should return the source object if it is not an object", () => {
-        expect(mergeDeep(5, 10)).to.equal(5);
-        expect(mergeDeep("hello", "world")).to.equal("hello");
-        expect(mergeDeep(true, false)).to.equal(true);
+        expect(mergeDeep(5, 10)).toBe(5);
+        expect(mergeDeep("hello", "world")).toBe("hello");
+        expect(mergeDeep(true, false)).toBe(true);
     });
     it("should return the default object if the source is null or undefined", () => {
-        expect(mergeDeep(null, { a: 1 })).to.deep.equal({ a: 1 });
-        expect(mergeDeep(undefined, { a: 1 })).to.deep.equal({ a: 1 });
+        expect(mergeDeep(null, { a: 1 })).toEqual({ a: 1 });
+        expect(mergeDeep(undefined, { a: 1 })).toEqual({ a: 1 });
     });
     it("should merge properties from the default object into the source object", () => {
-        expect(mergeDeep({ a: 1 }, { b: 2 })).to.deep.equal({ a: 1, b: 2 });
-        expect(mergeDeep({ a: 1 }, { a: 2, b: 2 })).to.deep.equal({ a: 1, b: 2 });
+        expect(mergeDeep({ a: 1 }, { b: 2 })).toEqual({ a: 1, b: 2 });
+        expect(mergeDeep({ a: 1 }, { a: 2, b: 2 })).toEqual({ a: 1, b: 2 });
     });
 
     // Cases where params are of similar shape
     it("should handle nested objects", () => {
-        expect(mergeDeep({ a: { b: 1 } }, { a: { c: 2 }, d: 3 })).to.deep.equal({ a: { b: 1, c: 2 }, d: 3 });
-        expect(mergeDeep({ a: { b: 1 } }, { a: { b: 2, c: 2 } })).to.deep.equal({ a: { b: 1, c: 2 } });
+        expect(mergeDeep({ a: { b: 1 } }, { a: { c: 2 }, d: 3 })).toEqual({ a: { b: 1, c: 2 }, d: 3 });
+        expect(mergeDeep({ a: { b: 1 } }, { a: { b: 2, c: 2 } })).toEqual({ a: { b: 1, c: 2 } });
     });
     it("should not merge arrays", () => {
-        expect(mergeDeep([1, 2, 3], [4, 5, 6])).to.deep.equal([1, 2, 3]);
-        expect(mergeDeep({ a: [1, 2, 3] }, { a: [4, 5, 6] })).to.deep.equal({ a: [1, 2, 3] });
+        expect(mergeDeep([1, 2, 3], [4, 5, 6])).toEqual([1, 2, 3]);
+        expect(mergeDeep({ a: [1, 2, 3] }, { a: [4, 5, 6] })).toEqual({ a: [1, 2, 3] });
     });
     it("should handle complex nested structures", () => {
         const source = { a: { b: 1, d: [1, 2, 3] }, e: "test" };
         const defaults = { a: { b: 2, c: 3, d: [4, 5, 6] }, e: "default", f: false };
         const expected = { a: { b: 1, c: 3, d: [1, 2, 3] }, e: "test", f: false };
-        expect(mergeDeep(source, defaults)).to.deep.equal(expected);
+        expect(mergeDeep(source, defaults)).toEqual(expected);
     });
     it("should handle empty objects and arrays", () => {
-        expect(mergeDeep({}, { a: 1 })).to.deep.equal({ a: 1 });
-        expect(mergeDeep([], [1, 2, 3])).to.have.lengthOf(0);
-        expect(mergeDeep({ a: {} }, { a: { b: 2 } })).to.deep.equal({ a: { b: 2 } });
+        expect(mergeDeep({}, { a: 1 })).toEqual({ a: 1 });
+        expect(mergeDeep([], [1, 2, 3])).toHaveLength(0);
+        expect(mergeDeep({ a: {} }, { a: { b: 2 } })).toEqual({ a: { b: 2 } });
     });
 
     it("should handle circular references without infinite recursion", () => {
@@ -353,15 +353,15 @@ describe("mergeDeep", () => {
         
         // mergeDeep should handle circular references without throwing
         const result = mergeDeep(circular, defaults);
-        expect(result.a).to.equal(1);
-        expect(result.b).to.equal(2);
-        expect(result.self).to.equal(circular); // Should maintain the circular reference
+        expect(result.a).toBe(1);
+        expect(result.b).toBe(2);
+        expect(result.self).toBe(circular); // Should maintain the circular reference
         
         // Test that circular reference doesn't cause infinite loop
         const startTime = Date.now();
         mergeDeep(circular, defaults);
         const endTime = Date.now();
-        expect(endTime - startTime).to.be.lessThan(100); // Should complete quickly
+        expect(endTime - startTime).toBeLessThan(100); // Should complete quickly
         
         // Test nested circular reference
         const obj1: any = { name: "obj1" };
@@ -370,12 +370,12 @@ describe("mergeDeep", () => {
         
         const defaults2 = { extra: "value" };
         const result2 = mergeDeep(obj1, defaults2);
-        expect(result2.name).to.equal("obj1");
-        expect(result2.extra).to.equal("value");
+        expect(result2.name).toBe("obj1");
+        expect(result2.extra).toBe("value");
         // Should preserve circular structure without infinite recursion
-        expect(result2.ref.name).to.equal("obj2");
+        expect(result2.ref.name).toBe("obj2");
         // The circular reference is preserved as-is from the source
-        expect(result2.ref.ref).to.equal(obj1); // Points back to original obj1
+        expect(result2.ref.ref).toBe(obj1); // Points back to original obj1
         
         // Test circular reference in defaults
         const circularDefaults: any = { defaultValue: 10 };
@@ -383,8 +383,8 @@ describe("mergeDeep", () => {
         
         const source = { sourceValue: 20 };
         const result3 = mergeDeep(source, circularDefaults);
-        expect(result3.sourceValue).to.equal(20);
-        expect(result3.defaultValue).to.equal(10);
+        expect(result3.sourceValue).toBe(20);
+        expect(result3.defaultValue).toBe(10);
         // Circular structure in defaults should be handled properly
         expect(result3.circular).to.be.an('object');
         
@@ -395,9 +395,9 @@ describe("mergeDeep", () => {
         circular2.self = circular2;
         
         const result4 = mergeDeep(circular1, circular2);
-        expect(result4.value).to.equal(1); // Source value takes precedence
-        expect(result4.other).to.equal(3); // Added from defaults
-        expect(result4.self).to.equal(circular1); // Maintains source circular reference
+        expect(result4.value).toBe(1); // Source value takes precedence
+        expect(result4.other).toBe(3); // Added from defaults
+        expect(result4.self).toBe(circular1); // Maintains source circular reference
     });
 
     it("should handle class instances by not deep merging them", () => {
@@ -413,8 +413,8 @@ describe("mergeDeep", () => {
         
         // Should preserve the target's class instance, not merge it
         expect(result.instance).to.be.instanceOf(CustomClass);
-        expect(result.instance.value).to.equal(5); // From target, not defaults
-        expect(result.extra).to.equal("property"); // From defaults
+        expect(result.instance.value).toBe(5); // From target, not defaults
+        expect(result.extra).toBe("property"); // From defaults
     });
 
 
@@ -429,11 +429,11 @@ describe("mergeDeep", () => {
         const result = mergeDeep(source, defaults);
         
         // Should preserve enumerable properties from source
-        expect(result.visible).to.equal('public');
+        expect(result.visible).toBe('public');
         // Should include properties from defaults that aren't in source
-        expect(result.other).to.equal('default');
+        expect(result.other).toBe('default');
         // Non-enumerable properties should not be copied during merge
-        expect((result as any).hidden).to.be.undefined;
+        expect((result as any).hidden).toBeUndefined();
     });
 
     it("should handle deeply nested merging correctly", () => {
@@ -459,7 +459,7 @@ describe("mergeDeep", () => {
         
         const result = mergeDeep(source, defaults);
         
-        expect(result).to.deep.equal({
+        expect(result).toEqual({
             level1: {
                 level2: {
                     source: "value",
@@ -478,10 +478,10 @@ describe("mergeDeep", () => {
         
         const result = mergeDeep(source, defaults);
         
-        expect(result.a).to.be.null;
-        expect(result.b).to.be.undefined;
-        expect(result.c).to.equal("value");
-        expect(result.d).to.equal("default");
+        expect(result.a).toBeNull();
+        expect(result.b).toBeUndefined();
+        expect(result.c).toBe("value");
+        expect(result.d).toBe("default");
     });
 
     it("should handle function properties correctly", () => {
@@ -491,8 +491,8 @@ describe("mergeDeep", () => {
         
         const result = mergeDeep(source, defaults);
         
-        expect(result.func).to.equal(fn);
-        expect(result.value).to.equal("source");
-        expect(result.other).to.equal("default");
+        expect(result.func).toBe(fn);
+        expect(result.value).toBe("source");
+        expect(result.other).toBe("default");
     });
 });

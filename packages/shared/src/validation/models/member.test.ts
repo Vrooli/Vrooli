@@ -147,7 +147,7 @@ describe("memberValidation", () => {
 
     describe("no create operation", () => {
         it("should not have a create method", () => {
-            expect(memberValidation.create).to.be.undefined;
+            expect(memberValidation.create).toBeUndefined();
         });
     });
 

@@ -293,7 +293,7 @@ describe("issueValidation", () => {
                 const result = await updateSchema.validate(issueFixtures.minimal.update);
 
                 // Should only have id and translation operations
-                expect(result).to.have.property("id");
+                expect(result).toHaveProperty("id");
                 expect(result).to.not.have.property("issueFor");
                 expect(result).to.not.have.property("forConnect");
             });

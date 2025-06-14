@@ -57,7 +57,7 @@ describe("bookmarkListValidation", () => {
                     ...bookmarkListFixtures.minimal.create,
                     label: "  Valid Label  ",
                 });
-                expect(result.label).to.equal("Valid Label");
+                expect(result.label).toBe("Valid Label");
             });
 
             it("should handle empty string label", async () => {
