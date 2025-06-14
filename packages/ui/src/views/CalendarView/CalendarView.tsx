@@ -179,7 +179,7 @@ const triggerViewTitleSx = { mt: 2 };
 const triggerViewDescSx = { mt: 1, textAlign: "center", maxWidth: 600 };
 
 /**
- * Filter dialog component for filtering events
+ * Filter dialog component for filtering events and triggers
  */
 interface FilterDialogProps {
     isOpen: boolean;
@@ -188,7 +188,12 @@ interface FilterDialogProps {
     setSearchQuery: (query: string) => void;
     selectedTypes: ScheduleFor[];
     setSelectedTypes: (updater: (prev: ScheduleFor[]) => ScheduleFor[]) => void;
+    selectedTriggerEvents?: TriggerEvent[];
+    setSelectedTriggerEvents?: (updater: (prev: TriggerEvent[]) => TriggerEvent[]) => void;
+    selectedTriggerActions?: TriggerAction[];
+    setSelectedTriggerActions?: (updater: (prev: TriggerAction[]) => TriggerAction[]) => void;
     filteredEvents: CalendarEvent[];
+    filteredTriggers?: Trigger[];
     activeTab: CalendarTabs;
     onAddNew: () => void;
 }
@@ -200,7 +205,12 @@ function FilterDialog({
     setSearchQuery,
     selectedTypes,
     setSelectedTypes,
+    selectedTriggerEvents = [],
+    setSelectedTriggerEvents,
+    selectedTriggerActions = [],
+    setSelectedTriggerActions,
     filteredEvents,
+    filteredTriggers = [],
     activeTab,
     onAddNew,
 }: FilterDialogProps) {
@@ -211,6 +221,7 @@ function FilterDialog({
         setSearchQuery(e.target.value);
     }, [setSearchQuery]);
 
+    // Calendar handlers
     const handleSelectAll = useCallback(() => {
         if (selectedTypes.length === SCHEDULE_TYPES.length) {
             setSelectedTypes(() => []);
@@ -219,7 +230,6 @@ function FilterDialog({
         }
     }, [selectedTypes.length, setSelectedTypes]);
 
-    // Memoize the handler creation for each type checkbox
     const handleTypeChange = useCallback((type: ScheduleFor) => () => {
         setSelectedTypes(prev => {
             if (prev.includes(type)) {
@@ -229,6 +239,50 @@ function FilterDialog({
             }
         });
     }, [setSelectedTypes]);
+
+    // Trigger handlers
+    const triggerEventTypes: TriggerEvent[] = ["RunCompleted", "RunStarted", "RunFailed", "NoteCreated", "NoteUpdated", "ProjectUpdated", "DailyAt", "WeeklyOn"];
+    const triggerActionTypes: TriggerAction[] = ["StartRun", "CreateMeeting", "SendNotification", "CreateNote", "UpdateProject"];
+
+    const handleSelectAllTriggerEvents = useCallback(() => {
+        if (!setSelectedTriggerEvents) return;
+        if (selectedTriggerEvents.length === triggerEventTypes.length) {
+            setSelectedTriggerEvents(() => []);
+        } else {
+            setSelectedTriggerEvents(() => [...triggerEventTypes]);
+        }
+    }, [selectedTriggerEvents.length, setSelectedTriggerEvents]);
+
+    const handleTriggerEventChange = useCallback((event: TriggerEvent) => () => {
+        if (!setSelectedTriggerEvents) return;
+        setSelectedTriggerEvents(prev => {
+            if (prev.includes(event)) {
+                return prev.filter(e => e !== event);
+            } else {
+                return [...prev, event];
+            }
+        });
+    }, [setSelectedTriggerEvents]);
+
+    const handleSelectAllTriggerActions = useCallback(() => {
+        if (!setSelectedTriggerActions) return;
+        if (selectedTriggerActions.length === triggerActionTypes.length) {
+            setSelectedTriggerActions(() => []);
+        } else {
+            setSelectedTriggerActions(() => [...triggerActionTypes]);
+        }
+    }, [selectedTriggerActions.length, setSelectedTriggerActions]);
+
+    const handleTriggerActionChange = useCallback((action: TriggerAction) => () => {
+        if (!setSelectedTriggerActions) return;
+        setSelectedTriggerActions(prev => {
+            if (prev.includes(action)) {
+                return prev.filter(a => a !== action);
+            } else {
+                return [...prev, action];
+            }
+        });
+    }, [setSelectedTriggerActions]);
 
     return (
         <LargeDialog
@@ -250,7 +304,7 @@ function FilterDialog({
                     fullWidth
                     placeholder={activeTab === CalendarTabs.CALENDAR
                         ? t("FindScheduledEvents", { defaultValue: "Find scheduled events..." })
-                        : t("FindTriggeredEvents", { defaultValue: "Find triggered events..." })}
+                        : t("FindTriggers", { defaultValue: "Find automation triggers..." })}
                     value={searchQuery}
                     onChange={handleSearchChange}
                     margin="normal"
@@ -298,46 +352,173 @@ function FilterDialog({
 
                         {activeTab === CalendarTabs.TRIGGER && (
                             <Paper elevation={1} sx={filterSectionPaperSx}>
-                                <Typography variant="body2" color="text.secondary">
-                                    {t("ComingSoon", { defaultValue: "Coming Soon" })}
-                                </Typography>
+                                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                    {/* Trigger Events Filter */}
+                                    <Box>
+                                        <Typography variant="subtitle2" gutterBottom>
+                                            {t("TriggerEvents", { defaultValue: "Trigger Events" })}
+                                        </Typography>
+                                        <FormGroup>
+                                            <FormControlLabel
+                                                control={
+                                                    <Checkbox
+                                                        color="secondary"
+                                                        checked={selectedTriggerEvents.length === triggerEventTypes.length}
+                                                        indeterminate={selectedTriggerEvents.length > 0 && selectedTriggerEvents.length < triggerEventTypes.length}
+                                                        onChange={handleSelectAllTriggerEvents}
+                                                    />
+                                                }
+                                                label={t("All", { defaultValue: "All" })}
+                                            />
+                                            <Divider sx={filterDialogDividerSx} />
+                                            {triggerEventTypes.map((event) => {
+                                                const eventInfo = getTriggerEventInfo(event);
+                                                return (
+                                                    <FormControlLabel
+                                                        key={event}
+                                                        control={
+                                                            <Checkbox
+                                                                color="secondary"
+                                                                checked={selectedTriggerEvents.includes(event)}
+                                                                onChange={handleTriggerEventChange(event)}
+                                                            />
+                                                        }
+                                                        label={eventInfo.label}
+                                                    />
+                                                );
+                                            })}
+                                        </FormGroup>
+                                    </Box>
+
+                                    <Divider />
+
+                                    {/* Trigger Actions Filter */}
+                                    <Box>
+                                        <Typography variant="subtitle2" gutterBottom>
+                                            {t("TriggerActions", { defaultValue: "Trigger Actions" })}
+                                        </Typography>
+                                        <FormGroup>
+                                            <FormControlLabel
+                                                control={
+                                                    <Checkbox
+                                                        color="secondary"
+                                                        checked={selectedTriggerActions.length === triggerActionTypes.length}
+                                                        indeterminate={selectedTriggerActions.length > 0 && selectedTriggerActions.length < triggerActionTypes.length}
+                                                        onChange={handleSelectAllTriggerActions}
+                                                    />
+                                                }
+                                                label={t("All", { defaultValue: "All" })}
+                                            />
+                                            <Divider sx={filterDialogDividerSx} />
+                                            {triggerActionTypes.map((action) => {
+                                                const actionInfo = getTriggerActionInfo(action);
+                                                return (
+                                                    <FormControlLabel
+                                                        key={action}
+                                                        control={
+                                                            <Checkbox
+                                                                color="secondary"
+                                                                checked={selectedTriggerActions.includes(action)}
+                                                                onChange={handleTriggerActionChange(action)}
+                                                            />
+                                                        }
+                                                        label={actionInfo.label}
+                                                    />
+                                                );
+                                            })}
+                                        </FormGroup>
+                                    </Box>
+                                </Box>
                             </Paper>
                         )}
                     </Box>
 
                     <Box width="50%" pl={1}>
                         <Typography variant="subtitle1" gutterBottom>
-                            {t("Result", { count: filteredEvents.length, defaultValue: "Results" })} ({filteredEvents.length})
+                            {activeTab === CalendarTabs.CALENDAR 
+                                ? t("Result", { count: filteredEvents.length, defaultValue: "Results" }) 
+                                : t("Result", { count: filteredTriggers.length, defaultValue: "Results" })} 
+                            ({activeTab === CalendarTabs.CALENDAR ? filteredEvents.length : filteredTriggers.length})
                         </Typography>
                         <Paper elevation={1} sx={filterSectionPaperSx}>
                             <List dense sx={resultsListSx}>
-                                {filteredEvents.length > 0 ? (
-                                    filteredEvents.map((event) => (
-                                        <ListItem key={event.id}>
-                                            <ListItemText
-                                                primary={event.title}
-                                                secondary={`${format(event.start, "PPp")} - ${format(event.end, "PPp")}`}
-                                            />
+                                {activeTab === CalendarTabs.CALENDAR ? (
+                                    filteredEvents.length > 0 ? (
+                                        filteredEvents.map((event) => (
+                                            <ListItem key={event.id}>
+                                                <ListItemText
+                                                    primary={event.title}
+                                                    secondary={`${format(event.start, "PPp")} - ${format(event.end, "PPp")}`}
+                                                />
+                                            </ListItem>
+                                        ))
+                                    ) : (
+                                        <ListItem>
+                                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", textAlign: "center", p: 2 }}>
+                                                <ListItemText
+                                                    primary={t("NoResults", { defaultValue: "No results found" })}
+                                                    primaryTypographyProps={noResultsTextProps}
+                                                />
+                                                <Button
+                                                    variant="outlined"
+                                                    color="secondary"
+                                                    onClick={onAddNew}
+                                                    startIcon={<IconCommon name="Add" />}
+                                                    sx={{ mt: 2 }}
+                                                >
+                                                    {t("AddEvent", { defaultValue: "Add Event" })}
+                                                </Button>
+                                            </Box>
                                         </ListItem>
-                                    ))
+                                    )
                                 ) : (
-                                    <ListItem>
-                                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", textAlign: "center", p: 2 }}>
-                                            <ListItemText
-                                                primary={t("NoResults", { defaultValue: "No results found" })}
-                                                primaryTypographyProps={noResultsTextProps}
-                                            />
-                                            <Button
-                                                variant="outlined"
-                                                color="secondary"
-                                                onClick={onAddNew}
-                                                startIcon={<IconCommon name="Add" />}
-                                                sx={{ mt: 2 }}
-                                            >
-                                                {t("AddEvent", { defaultValue: "Add Event" })}
-                                            </Button>
-                                        </Box>
-                                    </ListItem>
+                                    filteredTriggers.length > 0 ? (
+                                        filteredTriggers.map((trigger) => {
+                                            const eventInfo = getTriggerEventInfo(trigger.triggerEvent);
+                                            const actionInfo = getTriggerActionInfo(trigger.action);
+                                            return (
+                                                <ListItem key={trigger.id}>
+                                                    <ListItemText
+                                                        primary={trigger.name}
+                                                        secondary={
+                                                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                                <Typography variant="caption">
+                                                                    {eventInfo.label} → {actionInfo.label}
+                                                                </Typography>
+                                                                {trigger.enabled ? (
+                                                                    <Typography variant="caption" color="success.main">
+                                                                        {t("Enabled", { defaultValue: "Enabled" })}
+                                                                    </Typography>
+                                                                ) : (
+                                                                    <Typography variant="caption" color="text.disabled">
+                                                                        {t("Disabled", { defaultValue: "Disabled" })}
+                                                                    </Typography>
+                                                                )}
+                                                            </Box>
+                                                        }
+                                                    />
+                                                </ListItem>
+                                            );
+                                        })
+                                    ) : (
+                                        <ListItem>
+                                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", width: "100%", textAlign: "center", p: 2 }}>
+                                                <ListItemText
+                                                    primary={t("NoResults", { defaultValue: "No results found" })}
+                                                    primaryTypographyProps={noResultsTextProps}
+                                                />
+                                                <Button
+                                                    variant="outlined"
+                                                    color="secondary"
+                                                    onClick={onAddNew}
+                                                    startIcon={<IconCommon name="Add" />}
+                                                    sx={{ mt: 2 }}
+                                                >
+                                                    {t("AddTrigger", { defaultValue: "Add Trigger" })}
+                                                </Button>
+                                            </Box>
+                                        </ListItem>
+                                    )
                                 )}
                             </List>
                         </Paper>
@@ -348,21 +529,259 @@ function FilterDialog({
     );
 }
 
+// Trigger types for the UI
+type TriggerEvent = "RunCompleted" | "RunStarted" | "RunFailed" | "NoteCreated" | "NoteUpdated" | "ProjectUpdated" | "UserLogin" | "UserSignup" | "DailyAt" | "WeeklyOn" | "WebhookReceived" | "EmailReceived";
+type TriggerAction = "StartRun" | "CreateMeeting" | "SendNotification" | "CreateNote" | "UpdateProject";
+
+type TriggerCondition = {
+    field: string;
+    operator: "equals" | "contains" | "greater_than" | "less_than";
+    value: any;
+};
+
+type Trigger = {
+    __typename: "Trigger";
+    id: string;
+    name: string;
+    description?: string;
+    enabled: boolean;
+    triggerEvent: TriggerEvent;
+    triggerConditions?: TriggerCondition[];
+    action: TriggerAction;
+    actionConfig: Record<string, any>;
+    createdAt: string;
+    updatedAt: string;
+    you: {
+        __typename: "TriggerYou";
+        canDelete: boolean;
+        canUpdate: boolean;
+        canRead: boolean;
+    };
+};
+
+// Helper function to get trigger event display info
+const getTriggerEventInfo = (event: TriggerEvent) => {
+    const eventMap = {
+        RunCompleted: { icon: "CheckCircle", label: "Run Completed", color: "success" },
+        RunStarted: { icon: "PlayArrow", label: "Run Started", color: "info" },
+        RunFailed: { icon: "Error", label: "Run Failed", color: "error" },
+        NoteCreated: { icon: "Add", label: "Note Created", color: "primary" },
+        NoteUpdated: { icon: "Edit", label: "Note Updated", color: "warning" },
+        ProjectUpdated: { icon: "Update", label: "Project Updated", color: "warning" },
+        UserLogin: { icon: "Login", label: "User Login", color: "info" },
+        UserSignup: { icon: "PersonAdd", label: "User Signup", color: "success" },
+        DailyAt: { icon: "Schedule", label: "Daily At", color: "primary" },
+        WeeklyOn: { icon: "DateRange", label: "Weekly On", color: "primary" },
+        WebhookReceived: { icon: "Webhook", label: "Webhook Received", color: "secondary" },
+        EmailReceived: { icon: "Email", label: "Email Received", color: "secondary" },
+    };
+    return eventMap[event] || { icon: "Help", label: event, color: "default" };
+};
+
+// Helper function to get trigger action display info
+const getTriggerActionInfo = (action: TriggerAction) => {
+    const actionMap = {
+        StartRun: { icon: "PlayArrow", label: "Start Run", color: "success" },
+        CreateMeeting: { icon: "Event", label: "Create Meeting", color: "primary" },
+        SendNotification: { icon: "Notifications", label: "Send Notification", color: "warning" },
+        CreateNote: { icon: "Note", label: "Create Note", color: "info" },
+        UpdateProject: { icon: "Update", label: "Update Project", color: "secondary" },
+    };
+    return actionMap[action] || { icon: "Help", label: action, color: "default" };
+};
+
 /**
- * Simple trigger tab component
+ * Trigger tab component showing automation triggers
  */
-function TriggerView() {
+interface TriggerViewProps {
+    triggers: Trigger[];
+    loading: boolean;
+    onTriggerUpdate: (triggers: Trigger[]) => void;
+}
+
+function TriggerView({ triggers, loading, onTriggerUpdate }: TriggerViewProps) {
     const { t } = useTranslation();
 
+    const handleTriggerToggle = useCallback((triggerId: string, enabled: boolean) => {
+        onTriggerUpdate(triggers.map(trigger => 
+            trigger.id === triggerId ? { ...trigger, enabled } : trigger
+        ));
+    }, [triggers, onTriggerUpdate]);
+
+    const handleEditTrigger = useCallback((trigger: Trigger) => {
+        console.log("Edit trigger:", trigger);
+        // TODO: Open trigger edit dialog
+    }, []);
+
+    const handleDeleteTrigger = useCallback((triggerId: string) => {
+        console.log("Delete trigger:", triggerId);
+        onTriggerUpdate(triggers.filter(trigger => trigger.id !== triggerId));
+    }, [triggers, onTriggerUpdate]);
+
+    const handleAddTrigger = useCallback(() => {
+        console.log("Add new trigger");
+        // TODO: Open trigger create dialog
+    }, []);
+
+    if (loading) {
+        return (
+            <Box sx={triggerViewBoxSx}>
+                <FullPageSpinner />
+            </Box>
+        );
+    }
+
+    if (triggers.length === 0) {
+        return (
+            <Box sx={triggerViewBoxSx}>
+                <IconCommon name="History" size={64} fill="text.secondary" />
+                <Typography variant="h5" sx={triggerViewTitleSx}>
+                    {t("NoTriggersYet", { defaultValue: "No Automation Triggers Yet" })}
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={triggerViewDescSx}>
+                    {t("TriggerDescription", { defaultValue: "Create triggers to automate routine tasks based on events like completing runs, updating notes, or scheduled times." })}
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleAddTrigger}
+                    startIcon={<IconCommon name="Add" />}
+                    sx={{ mt: 2 }}
+                >
+                    {t("CreateFirstTrigger", { defaultValue: "Create Your First Trigger" })}
+                </Button>
+            </Box>
+        );
+    }
+
     return (
-        <Box sx={triggerViewBoxSx}>
-            <IconCommon {...triggerViewIconProps} />
-            <Typography variant="h5" sx={triggerViewTitleSx}>
-                {t("ComingSoon", { defaultValue: "Coming Soon" })}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={triggerViewDescSx}>
-                {t("TriggerDescription", { defaultValue: "Trigger functionality is coming soon!" })}
-            </Typography>
+        <Box sx={{ p: 2, height: "100%", overflow: "auto" }}>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                <Typography variant="h6">
+                    {t("AutomationTriggers", { defaultValue: "Automation Triggers" })} ({triggers.length})
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleAddTrigger}
+                    startIcon={<IconCommon name="Add" />}
+                    size="small"
+                >
+                    {t("AddTrigger", { defaultValue: "Add Trigger" })}
+                </Button>
+            </Box>
+
+            <List>
+                {triggers.map((trigger) => {
+                    const eventInfo = getTriggerEventInfo(trigger.triggerEvent);
+                    const actionInfo = getTriggerActionInfo(trigger.action);
+                    
+                    return (
+                        <ListItem
+                            key={trigger.id}
+                            divider
+                            sx={{
+                                border: 1,
+                                borderColor: "divider",
+                                borderRadius: 1,
+                                mb: 1,
+                                backgroundColor: trigger.enabled ? "background.paper" : "action.disabled",
+                                opacity: trigger.enabled ? 1 : 0.6,
+                            }}
+                        >
+                            <Box sx={{ width: "100%" }}>
+                                {/* Header */}
+                                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                                    <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                                            {trigger.name}
+                                        </Typography>
+                                        {trigger.description && (
+                                            <Typography variant="body2" color="text.secondary">
+                                                {trigger.description}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        <FormControlLabel
+                                            control={
+                                                <Checkbox
+                                                    checked={trigger.enabled}
+                                                    onChange={(e) => handleTriggerToggle(trigger.id, e.target.checked)}
+                                                    color="primary"
+                                                />
+                                            }
+                                            label={t("Enabled", { defaultValue: "Enabled" })}
+                                            sx={{ mr: 1 }}
+                                        />
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleEditTrigger(trigger)}
+                                            disabled={!trigger.you.canUpdate}
+                                        >
+                                            <IconCommon name="Edit" />
+                                        </IconButton>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleDeleteTrigger(trigger.id)}
+                                            disabled={!trigger.you.canDelete}
+                                            color="error"
+                                        >
+                                            <IconCommon name="Delete" />
+                                        </IconButton>
+                                    </Box>
+                                </Box>
+
+                                {/* Trigger Flow */}
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2 }}>
+                                    {/* Event */}
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+                                        <IconCommon name={eventInfo.icon as any} color={eventInfo.color as any} />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {t("When", { defaultValue: "WHEN" })}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                                                {eventInfo.label}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+
+                                    {/* Arrow */}
+                                    <IconCommon name="ArrowForward" color="text.secondary" />
+
+                                    {/* Action */}
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+                                        <IconCommon name={actionInfo.icon as any} color={actionInfo.color as any} />
+                                        <Box>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {t("Then", { defaultValue: "THEN" })}
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: "medium" }}>
+                                                {actionInfo.label}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                </Box>
+
+                                {/* Conditions */}
+                                {trigger.triggerConditions && trigger.triggerConditions.length > 0 && (
+                                    <Box sx={{ mt: 1, pl: 2, borderLeft: 2, borderColor: "divider" }}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {t("Conditions", { defaultValue: "CONDITIONS" })}
+                                        </Typography>
+                                        {trigger.triggerConditions.map((condition, index) => (
+                                            <Typography key={index} variant="body2" color="text.secondary">
+                                                {condition.field} {condition.operator} {condition.value}
+                                            </Typography>
+                                        ))}
+                                    </Box>
+                                )}
+                            </Box>
+                        </ListItem>
+                    );
+                })}
+            </List>
         </Box>
     );
 }
@@ -400,6 +819,8 @@ export function CalendarView({
     const closeFilterDialog = useCallback(() => setIsFilterDialogOpen(false), []);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTypes, setSelectedTypes] = useState<ScheduleFor[]>([...SCHEDULE_TYPES]);
+    const [selectedTriggerEvents, setSelectedTriggerEvents] = useState<TriggerEvent[]>(["RunCompleted", "RunStarted", "RunFailed", "NoteCreated", "NoteUpdated", "ProjectUpdated", "DailyAt", "WeeklyOn"]);
+    const [selectedTriggerActions, setSelectedTriggerActions] = useState<TriggerAction[]>(["StartRun", "CreateMeeting", "SendNotification", "CreateNote", "UpdateProject"]);
 
     // Defaults to current month
     const [dateRange, setDateRange] = useState<{ start: Date, end: Date }>({
@@ -419,6 +840,122 @@ export function CalendarView({
     const handleSelectDate = useCallback((date: Date) => {
         setSelectedDateTime(date);
     }, []);
+
+    // Trigger data state
+    const [triggers, setTriggers] = useState<Trigger[]>([]);
+    const [triggersLoading, setTriggersLoading] = useState(true);
+    
+    // Load mock triggers - in real implementation would use useFindMany
+    useEffect(() => {
+        if (activeTab === CalendarTabs.TRIGGER) {
+            setTimeout(() => {
+                const mockTriggersData: Trigger[] = [
+                    {
+                        __typename: "Trigger",
+                        id: "trigger-1",
+                        name: "Weekly Planning Notification",
+                        description: "Send reminder to plan the week every Monday",
+                        enabled: true,
+                        triggerEvent: "WeeklyOn",
+                        triggerConditions: [
+                            { field: "dayOfWeek", operator: "equals", value: 1 },
+                            { field: "timeOfDay", operator: "equals", value: "09:00" }
+                        ],
+                        action: "SendNotification",
+                        actionConfig: {
+                            title: "Weekly Planning Time",
+                            message: "Don't forget to plan your week ahead!",
+                            type: "reminder"
+                        },
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        you: { __typename: "TriggerYou", canDelete: true, canUpdate: true, canRead: true },
+                    },
+                    {
+                        __typename: "Trigger",
+                        id: "trigger-2",
+                        name: "Project Completion Follow-up",
+                        description: "Start retrospective routine when a project is completed",
+                        enabled: true,
+                        triggerEvent: "RunCompleted",
+                        triggerConditions: [
+                            { field: "routineType", operator: "equals", value: "project" }
+                        ],
+                        action: "StartRun",
+                        actionConfig: {
+                            routineId: "retrospective-routine-id",
+                            delay: 30
+                        },
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        you: { __typename: "TriggerYou", canDelete: true, canUpdate: true, canRead: true },
+                    },
+                    {
+                        __typename: "Trigger",
+                        id: "trigger-3",
+                        name: "Team Meeting After Sprint",
+                        description: "Schedule team meeting automatically after sprint completion",
+                        enabled: false,
+                        triggerEvent: "RunCompleted",
+                        triggerConditions: [
+                            { field: "tags", operator: "contains", value: "sprint" }
+                        ],
+                        action: "CreateMeeting",
+                        actionConfig: {
+                            title: "Sprint Retrospective Meeting",
+                            duration: 60,
+                            teamId: "team-id",
+                            scheduledOffset: "1 day"
+                        },
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        you: { __typename: "TriggerYou", canDelete: true, canUpdate: true, canRead: true },
+                    },
+                    {
+                        __typename: "Trigger",
+                        id: "trigger-4",
+                        name: "Daily Standup Auto-Start",
+                        description: "Automatically start daily standup routine every weekday",
+                        enabled: true,
+                        triggerEvent: "DailyAt",
+                        triggerConditions: [
+                            { field: "timeOfDay", operator: "equals", value: "09:30" },
+                            { field: "weekdaysOnly", operator: "equals", value: true }
+                        ],
+                        action: "StartRun",
+                        actionConfig: {
+                            routineId: "daily-standup-routine-id"
+                        },
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        you: { __typename: "TriggerYou", canDelete: true, canUpdate: true, canRead: true },
+                    },
+                    {
+                        __typename: "Trigger",
+                        id: "trigger-5",
+                        name: "Note Update Documentation",
+                        description: "Create documentation note when important project notes are updated",
+                        enabled: true,
+                        triggerEvent: "NoteUpdated",
+                        triggerConditions: [
+                            { field: "tags", operator: "contains", value: "important" }
+                        ],
+                        action: "CreateNote",
+                        actionConfig: {
+                            title: "Documentation Update Required",
+                            template: "project-doc-template",
+                            parentProject: "auto-detect"
+                        },
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        you: { __typename: "TriggerYou", canDelete: true, canUpdate: true, canRead: true },
+                    },
+                ];
+                setTriggers(mockTriggersData);
+                setTriggersLoading(false);
+            }, 500);
+        }
+    }, [activeTab]);
 
     useEffect(() => {
         async function localeLoader() {
@@ -568,6 +1105,24 @@ export function CalendarView({
             return matchesSearch && matchesType;
         });
     }, [events, searchQuery, selectedTypes]);
+
+    // Filter triggers based on search query and selected event/action types
+    const filteredTriggers = useMemo(() => {
+        return triggers.filter(trigger => {
+            // Filter by search query
+            const matchesSearch = searchQuery.trim() === "" ||
+                trigger.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (trigger.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+
+            // Filter by selected trigger events
+            const matchesEvent = selectedTriggerEvents.includes(trigger.triggerEvent);
+
+            // Filter by selected trigger actions
+            const matchesAction = selectedTriggerActions.includes(trigger.action);
+
+            return matchesSearch && matchesEvent && matchesAction;
+        });
+    }, [triggers, searchQuery, selectedTriggerEvents, selectedTriggerActions]);
 
     // Scheduling state and handlers: manage opening and closing of schedule dialog
     const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -772,7 +1327,12 @@ export function CalendarView({
                     setSearchQuery={setSearchQuery}
                     selectedTypes={selectedTypes}
                     setSelectedTypes={setSelectedTypes}
+                    selectedTriggerEvents={selectedTriggerEvents}
+                    setSelectedTriggerEvents={setSelectedTriggerEvents}
+                    selectedTriggerActions={selectedTriggerActions}
+                    setSelectedTriggerActions={setSelectedTriggerActions}
                     filteredEvents={filteredEvents}
+                    filteredTriggers={filteredTriggers}
                     key={activeTab}
                     onAddNew={handleAddNewEvent}
                     activeTab={activeTab}
@@ -820,7 +1380,11 @@ export function CalendarView({
                 )}
 
                 {activeTab === CalendarTabs.TRIGGER && (
-                    <TriggerView />
+                    <TriggerView 
+                        triggers={filteredTriggers} 
+                        loading={triggersLoading}
+                        onTriggerUpdate={setTriggers}
+                    />
                 )}
             </FlexContainer>
             <SideActionsButtons display={display}>

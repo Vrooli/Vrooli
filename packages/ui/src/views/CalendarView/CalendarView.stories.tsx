@@ -2,12 +2,13 @@ import { http, HttpResponse } from "msw";
 import { API_URL, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { CalendarTabs, CalendarView } from "./CalendarView.js";
 
-// Generate mock dates based on the calendar's date range (April 2025)
-const calendarViewMonth = new Date(2025, 3, 15); // April 15, 2025
+// Generate mock dates based on the current month
+const now = new Date();
+const calendarViewMonth = new Date(now.getFullYear(), now.getMonth(), 15); // Current month, 15th day
 
-// Helper function to generate a date in April 2025
+// Helper function to generate a date in the current month
 const generateDate = (day, hour = 9, minute = 0) => {
-    const date = new Date(2025, 3, day);
+    const date = new Date(now.getFullYear(), now.getMonth(), day);
     date.setHours(hour, minute, 0, 0);
     return date;
 };
@@ -122,12 +123,15 @@ const generateSchedules = () => {
     const edges = [];
     let id = 1;
 
+    // Get current month name
+    const currentMonthName = now.toLocaleString('default', { month: 'long' });
+    
     // Meeting events - 2 per day for first week
     for (let day = 1; day <= 7; day++) {
         // Morning meeting
         edges.push(createSchedule(
             id++,
-            `Team Standup - April ${day}`,
+            `Team Standup - ${currentMonthName} ${day}`,
             "Daily team standup meeting",
             generateDate(day, 9, 30),
             30,
@@ -137,7 +141,7 @@ const generateSchedules = () => {
         // Afternoon meeting
         edges.push(createSchedule(
             id++,
-            `Product Review - April ${day}`,
+            `Product Review - ${currentMonthName} ${day}`,
             "Product review with stakeholders",
             generateDate(day, 14, 0),
             60,
@@ -150,7 +154,7 @@ const generateSchedules = () => {
     for (const day of projectDays) {
         edges.push(createSchedule(
             id++,
-            `Project Sprint - April ${day}`,
+            `Project Sprint - ${currentMonthName} ${day}`,
             "Intensive work on project deliverables",
             generateDate(day, 11, 0),
             180,
@@ -242,6 +246,188 @@ const emptySchedules = {
     },
 };
 
+// Mock trigger data for the trigger tab
+const mockTriggers = {
+    data: {
+        __typename: "TriggerSearchResult",
+        edges: [
+            {
+                cursor: "1",
+                node: {
+                    __typename: "Trigger",
+                    id: "trigger-1",
+                    name: "Weekly Planning Notification",
+                    description: "Send reminder to plan the week every Monday",
+                    enabled: true,
+                    triggerEvent: "WeeklyOn",
+                    triggerConditions: [
+                        {
+                            field: "dayOfWeek",
+                            operator: "equals",
+                            value: 1 // Monday
+                        },
+                        {
+                            field: "timeOfDay",
+                            operator: "equals",
+                            value: "09:00"
+                        }
+                    ],
+                    action: "SendNotification",
+                    actionConfig: {
+                        title: "Weekly Planning Time",
+                        message: "Don't forget to plan your week ahead!",
+                        type: "reminder"
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    you: {
+                        __typename: "TriggerYou",
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    },
+                },
+            },
+            {
+                cursor: "2", 
+                node: {
+                    __typename: "Trigger",
+                    id: "trigger-2",
+                    name: "Project Completion Follow-up",
+                    description: "Start retrospective routine when a project is completed",
+                    enabled: true,
+                    triggerEvent: "RunCompleted",
+                    triggerConditions: [
+                        {
+                            field: "routineType",
+                            operator: "equals",
+                            value: "project"
+                        }
+                    ],
+                    action: "StartRun",
+                    actionConfig: {
+                        routineId: "retrospective-routine-id",
+                        delay: 30 // minutes
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    you: {
+                        __typename: "TriggerYou",
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    },
+                },
+            },
+            {
+                cursor: "3",
+                node: {
+                    __typename: "Trigger", 
+                    id: "trigger-3",
+                    name: "Team Meeting After Sprint",
+                    description: "Schedule team meeting automatically after sprint completion",
+                    enabled: false,
+                    triggerEvent: "RunCompleted", 
+                    triggerConditions: [
+                        {
+                            field: "tags",
+                            operator: "contains",
+                            value: "sprint"
+                        }
+                    ],
+                    action: "CreateMeeting",
+                    actionConfig: {
+                        title: "Sprint Retrospective Meeting",
+                        duration: 60,
+                        teamId: "team-id",
+                        scheduledOffset: "1 day"
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    you: {
+                        __typename: "TriggerYou",
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    },
+                },
+            },
+            {
+                cursor: "4",
+                node: {
+                    __typename: "Trigger",
+                    id: "trigger-4", 
+                    name: "Daily Standup Auto-Start",
+                    description: "Automatically start daily standup routine every weekday",
+                    enabled: true,
+                    triggerEvent: "DailyAt",
+                    triggerConditions: [
+                        {
+                            field: "timeOfDay",
+                            operator: "equals",
+                            value: "09:30"
+                        },
+                        {
+                            field: "weekdaysOnly",
+                            operator: "equals",
+                            value: true
+                        }
+                    ],
+                    action: "StartRun",
+                    actionConfig: {
+                        routineId: "daily-standup-routine-id"
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    you: {
+                        __typename: "TriggerYou",
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    },
+                },
+            },
+            {
+                cursor: "5",
+                node: {
+                    __typename: "Trigger",
+                    id: "trigger-5",
+                    name: "Note Update Documentation",
+                    description: "Create documentation note when important project notes are updated",
+                    enabled: true,
+                    triggerEvent: "NoteUpdated", 
+                    triggerConditions: [
+                        {
+                            field: "tags",
+                            operator: "contains", 
+                            value: "important"
+                        }
+                    ],
+                    action: "CreateNote",
+                    actionConfig: {
+                        title: "Documentation Update Required",
+                        template: "project-doc-template",
+                        parentProject: "auto-detect"
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    you: {
+                        __typename: "TriggerYou",
+                        canDelete: true,
+                        canUpdate: true,
+                        canRead: true,
+                    },
+                },
+            },
+        ],
+        pageInfo: {
+            __typename: "PageInfo",
+            endCursor: "5",
+            hasNextPage: false,
+        },
+    },
+};
+
 export default {
     title: "Views/CalendarView",
     component: CalendarView,
@@ -311,6 +497,33 @@ export default {
                     return HttpResponse.json({ data: { edges: [] } });
                 }),
 
+                // Mock trigger endpoints for the trigger tab
+                http.post(`${API_URL}/triggers`, async ({ request }) => {
+                    console.log("Intercepted POST trigger request", request.url);
+                    let body;
+                    try {
+                        body = await request.json();
+                        console.log("POST Trigger Request body:", body);
+                    } catch (e) {
+                        console.error("Error parsing trigger request body:", e);
+                    }
+
+                    console.log("Returning mock trigger data for POST request:", mockTriggers);
+                    return HttpResponse.json(mockTriggers);
+                }),
+
+                http.get(`${API_URL}/triggers*`, ({ request }) => {
+                    console.log("Intercepted GET trigger request", request.url);
+                    const url = new URL(request.url);
+                    console.log("GET trigger request parameters:",
+                        Array.from(url.searchParams.entries())
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(", "));
+
+                    console.log("Returning mock trigger data for GET request:", mockTriggers);
+                    return HttpResponse.json(mockTriggers);
+                }),
+
                 // Handle any GraphQL requests that might be happening
                 http.post(`${API_URL}/v2/graphql`, async ({ request }) => {
                     console.log("Intercepted GraphQL request");
@@ -323,6 +536,16 @@ export default {
                         return HttpResponse.json({
                             data: {
                                 scheduleSearch: processedData.data,
+                            },
+                        });
+                    }
+
+                    // If this query mentions triggers, return trigger mock data
+                    if (body?.query?.includes("Trigger")) {
+                        console.log("Returning mock trigger data in GraphQL format:", mockTriggers);
+                        return HttpResponse.json({
+                            data: {
+                                triggerSearch: mockTriggers.data,
                             },
                         });
                     }
