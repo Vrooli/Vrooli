@@ -7,7 +7,8 @@ import Typography from "@mui/material/Typography";
 import type { BoxProps, CircularProgressProps } from "@mui/material";
 import { styled, useTheme } from "@mui/material";
 import { ReactionFor, ReportFor, endpointsChatMessage, endpointsReaction, getObjectUrl, getTranslation, noop, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ListObject, type NavigableObject, type ReactInput, type ReactionSummary, type StreamErrorPayload, type Success } from "@vrooli/shared";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { type ChatMessageRunConfig } from "@vrooli/shared";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -28,6 +29,7 @@ import { type BranchMap } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker.js";
 import { ReportButton } from "../buttons/ReportButton.js";
+import { RunExecutorContainer } from "../execution/RunExecutorContainer.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { type ChatBubbleProps } from "../types.js";
 
@@ -176,6 +178,8 @@ const ReactionsOuterBox = styled(Box, {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: isOwn ? "flex-end" : "flex-start",
+    width: "100%",
+    marginRight: isOwn ? "auto" : 0,
     transition: "opacity 0.2s ease-in-out",
 }));
 
@@ -189,16 +193,20 @@ const ReactionsMainStack = styled(Box, {
 })<ReactionsMainStackProps>(({ isMobile, isOwn, theme }) => ({
     display: "flex",
     flexDirection: "row",
+    flexWrap: "wrap",
     padding: 0,
-    // eslint-disable-next-line no-magic-numbers
-    marginLeft: (isOwn || isMobile) ? 0 : theme.spacing(6),
-    // eslint-disable-next-line no-magic-numbers
-    marginRight: isOwn ? theme.spacing(6) : 0,
-    paddingRight: isOwn ? theme.spacing(1) : 0,
-    background: theme.palette.background.paper,
+    // Reactions should align with the start of the message content
+    marginLeft: 0,
+    marginRight: 0,
+    paddingRight: 0,
+    // Match the chat bubble color
+    background: isOwn
+        ? theme.palette.mode === "light" ? "#a5b5bf" : "#21341f"
+        : theme.palette.background.paper,
     color: theme.palette.background.textPrimary,
+    // No rounded corners on top (attached to bubble), rounded on bottom
     borderRadius: "0 0 8px 8px",
-    overflow: "overlay",
+    overflow: "visible",
 }));
 
 const reactionIconButtonStyle = { borderRadius: 0, background: "transparent" } as const;
@@ -232,6 +240,11 @@ function ChatBubbleReactions({
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
+    const [showAllReactions, setShowAllReactions] = useState(false);
+    
+    const MAX_VISIBLE_REACTIONS = 6;
+    const hasMoreReactions = reactions.length > MAX_VISIBLE_REACTIONS;
+    const visibleReactions = showAllReactions ? reactions : reactions.slice(0, MAX_VISIBLE_REACTIONS);
 
     const formattedTime = useMemo(() => {
         if (!messageCreatedAt) return "";
@@ -280,11 +293,23 @@ function ChatBubbleReactions({
         }
     }, [isCompleted, status]);
 
-    function onReactionAdd(emoji: string) {
+    const onReactionAdd = useCallback((emoji: string) => {
         handleReactionAdd(emoji);
-    }
+    }, [handleReactionAdd]);
 
     if (status === "unsent") return null;
+
+    // Configuration for reaction display
+    const MAX_REACTIONS_COLLAPSED = 5;
+    const displayedReactions = useMemo(() => {
+        if (!Array.isArray(reactions)) return [];
+        if (showAllReactions || reactions.length <= MAX_REACTIONS_COLLAPSED) {
+            return reactions;
+        }
+        return reactions.slice(0, MAX_REACTIONS_COLLAPSED);
+    }, [reactions, showAllReactions]);
+
+    const hiddenReactionsCount = reactions.length - displayedReactions.length;
 
     // Render status indicator if message is sending/failed
     const statusIndicator = status === "sending" || isCompleted ? (
@@ -327,27 +352,35 @@ function ChatBubbleReactions({
     return (
         <ReactionsOuterBox isOwn={isOwn}>
             <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
-                {Array.isArray(reactions) && reactions.map((reaction) => {
-                    function handleClick() {
-                        onReactionAdd(reaction.emoji);
-                    }
-
-                    return (
-                        <Box key={reaction.emoji} display="flex" alignItems="center">
-                            <IconButton
-                                size="small"
-                                disabled={isOwn}
-                                onClick={handleClick}
-                                style={reactionIconButtonStyle}
-                            >
-                                {reaction.emoji}
-                            </IconButton>
-                            <Typography variant="body2">
-                                {reaction.count}
-                            </Typography>
-                        </Box>
-                    );
-                })}
+                {displayedReactions.map((reaction) => (
+                    <Box key={reaction.emoji} display="flex" alignItems="center">
+                        <IconButton
+                            size="small"
+                            disabled={isOwn}
+                            onClick={() => onReactionAdd(reaction.emoji)}
+                            style={reactionIconButtonStyle}
+                        >
+                            {reaction.emoji}
+                        </IconButton>
+                        <Typography variant="body2">
+                            {reaction.count}
+                        </Typography>
+                    </Box>
+                ))}
+                {hiddenReactionsCount > 0 && (
+                    <Tooltip title={showAllReactions ? t("Show fewer reactions") : t("Show all {{count}} reactions", { count: reactions.length })}>
+                        <IconButton
+                            size="small"
+                            onClick={() => setShowAllReactions(!showAllReactions)}
+                            style={reactionIconButtonStyle}
+                        >
+                            <IconCommon
+                                decorative
+                                name={showAllReactions ? "Invisible" : "Ellipsis"}
+                            />
+                        </IconButton>
+                    </Tooltip>
+                )}
                 {!isOwn && <EmojiPicker onSelect={onReactionAdd} />}
             </ReactionsMainStack>
             <Stack direction="row" alignItems="center">
@@ -446,7 +479,7 @@ const ChatBubbleBox = styled(Box, {
     color: !isOwn && messageStatus === "failed"
         ? theme.palette.error.contrastText
         : theme.palette.background.textPrimary,
-    borderRadius: isOwn ? "8px 8px 0 8px" : "8px 8px 8px 0",
+    borderRadius: "8px 8px 8px 0", // Always rounded on top and bottom-right, straight on bottom-left for reactions
     boxShadow: theme.spacing(2),
     minWidth: "50px",
     width: "unset",
@@ -479,7 +512,7 @@ const profileAvatarStyle = {
     marginRight: 1,
 } as const;
 
-export function ChatBubble({
+export const ChatBubble = React.memo(function ChatBubble({
     activeIndex,
     chatWidth,
     isBotOnlyChat,
@@ -652,18 +685,32 @@ export function ChatBubble({
                             />
                         </ProfileAvatar>
                     )}
-                    <ChatBubbleBox
-                        {...pressEvents}
-                        isOwn={isOwn}
-                        messageStatus={message.status}
-                    >
-                        <MarkdownDisplay
-                            content={getTranslation(message, getUserLanguages(session), true)?.text}
-                            sx={markdownDisplayStyle}
-                        />
-                    </ChatBubbleBox>
-                </Stack>
-                <ChatBubbleReactions
+                    <Box sx={{ 
+                        display: "flex", 
+                        flexDirection: "column", 
+                        alignItems: isOwn ? "flex-end" : "flex-start",
+                        width: "fit-content",
+                        maxWidth: "100%",
+                    }}>
+                        <ChatBubbleBox
+                            {...pressEvents}
+                            isOwn={isOwn}
+                            messageStatus={message.status}
+                        >
+                            <MarkdownDisplay
+                                content={getTranslation(message, getUserLanguages(session), true)?.text}
+                                sx={markdownDisplayStyle}
+                            />
+                            {/* Render routine executors if runs exist in message config */}
+                            {message.config?.runs && message.config.runs.length > 0 && (
+                                <RunExecutorContainer
+                                    runs={message.config.runs as ChatMessageRunConfig[]}
+                                    chatWidth={chatWidth}
+                                    messageId={message.id}
+                                />
+                            )}
+                        </ChatBubbleBox>
+                        <ChatBubbleReactions
                     activeIndex={activeIndex}
                     handleActiveIndexChange={onActiveIndexChange}
                     handleCopy={handleCopy}
@@ -683,11 +730,13 @@ export function ChatBubble({
                     onEdit={startEdit}
                     onRetry={startRetry}
                     messageStreamError={messageStreamError}
-                />
+                        />
+                    </Box>
+                </Stack>
             </ChatBubbleOuterBox>
         </>
     );
-}
+});
 
 const SCROLL_THRESHOLD_PX = 200;
 const HIDE_SCROLL_BUTTON_CLASS = "hide-scroll-button";
@@ -876,6 +925,25 @@ export function ChatBubbleTree({
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const { dimensions, ref: outerBoxRef } = useDimensions();
+    
+    // Track accumulated message for streaming
+    const [accumulatedMessage, setAccumulatedMessage] = useState("");
+    
+    // Update accumulated message when stream changes
+    useEffect(() => {
+        if (!messageStream) {
+            setAccumulatedMessage("");
+            return;
+        }
+        
+        if (messageStream.__type === "stream" && messageStream.chunk) {
+            setAccumulatedMessage(prev => prev + (prev ? " " : "") + messageStream.chunk);
+        } else if (messageStream.__type === "end" && messageStream.finalMessage) {
+            setAccumulatedMessage(messageStream.finalMessage);
+        } else if (messageStream.__type === "error") {
+            // Keep the accumulated message on error
+        }
+    }, [messageStream]);
 
     const messageData = useMemo<MessageRenderData[]>(() => {
         function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
@@ -892,8 +960,6 @@ export function ChatBubbleTree({
             // Fallback to first child if no branch data is found
             if (!childId) childId = sibling.children[0];
             const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
-
-            if (!sibling) return [];
             return [
                 {
                     activeIndex,
@@ -912,6 +978,22 @@ export function ChatBubbleTree({
         }
         return renderMessage(tree.getRoots(), 0);
     }, [branches, removeMessages, tree, updateBranchesAndLocation, userId]);
+
+    // Create streaming message object outside of render
+    const streamingMessage = useMemo(() => messageStream ? {
+        id: "streamingMessage",
+        reactionSummaries: [],
+        status: messageStream.__type === "error" ? "failed" : "sending",
+        translations: [{
+            language: "en",
+            text: accumulatedMessage || "",
+        }],
+        user: messageStream.botId ? {
+            id: messageStream.botId,
+            isBot: true,
+        } : undefined,
+        versionIndex: 0,
+    } as unknown as ChatMessageShape : null, [messageStream, accumulatedMessage]);
 
     return (
         <OuterMessageList id={id} ref={outerBoxRef}>
@@ -942,7 +1024,7 @@ export function ChatBubbleTree({
                         messageStreamError={data.messageStreamError}
                     />
                 ))}
-                {messageStream && (
+                {streamingMessage && messageStream && (
                     <ChatBubble
                         key="streamingMessage"
                         activeIndex={0}
@@ -955,20 +1037,7 @@ export function ChatBubbleTree({
                         onRegenerateResponse={noop}
                         onReply={noop}
                         onRetry={noop}
-                        message={{
-                            id: "streamingMessage",
-                            reactionSummaries: [],
-                            status: messageStream.__type === "error" ? "failed" : "sending",
-                            translations: [{
-                                language: "en",
-                                text: messageStream.accumulatedMessage || "",
-                            }],
-                            user: messageStream.botId && {
-                                id: messageStream.botId,
-                                isBot: true,
-                            },
-                            versionIndex: 0,
-                        } as unknown as ChatMessageShape}
+                        message={streamingMessage}
                         isOwn={false}
                         messageStreamError={messageStream.error}
                     />

@@ -69,6 +69,7 @@ export function useUpsertRun() {
 type UseSocketRunProps = {
     applyRunUpdate: (callback: (existingRun: Run | null) => Run | null) => void;
     runId: string | undefined;
+    onDecisionRequest?: (decisionData: any) => void;
 }
 
 export function processRunTaskUpdate(
@@ -106,6 +107,7 @@ export const useUpsertRunRoutine = useUpsertRun;
 export function useSocketRun({
     applyRunUpdate,
     runId,
+    onDecisionRequest,
 }: UseSocketRunProps) {
 
     // Handle connection/disconnection
@@ -133,5 +135,16 @@ export function useSocketRun({
     }, [runId]);
 
     // Handle incoming data
-    useEffect(() => SocketService.get().onEvent("runTask", (payload) => processRunTaskUpdate(applyRunUpdate, payload)), [applyRunUpdate]);
+    useEffect(() => {
+        const unsubscribeRunTask = SocketService.get().onEvent("runTask", (payload) => processRunTaskUpdate(applyRunUpdate, payload));
+        
+        const unsubscribeDecision = onDecisionRequest ? 
+            SocketService.get().onEvent("runTaskDecisionRequest", (payload) => onDecisionRequest(payload)) : 
+            () => {};
+        
+        return () => {
+            unsubscribeRunTask();
+            unsubscribeDecision();
+        };
+    }, [applyRunUpdate, onDecisionRequest]);
 }

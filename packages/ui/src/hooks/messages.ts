@@ -1,5 +1,6 @@
 import { DUMMY_ID, endpointsChatMessage, getTranslation, noop, type AITaskInfo, type ChatMessage, type ChatMessageCreateInput, type ChatMessageCreateWithTaskInfoInput, type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type ChatMessageShape, type ChatMessageUpdateInput, type ChatMessageUpdateWithTaskInfoInput, type ChatParticipant, type ChatShape, type LlmTask, type RegenerateResponseInput, type Session, type Success, type TaskContextInfo } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getValidatedPreferredModel } from "../api/ai.js";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import { SessionContext } from "../contexts/session.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
@@ -239,7 +240,7 @@ export class MessageTree<T extends MinimumChatMessage> {
     handleOrphanedNodes(orphanIds: string[]) {
         if (orphanIds.length === 0) return;
 
-        console.warn(`Found ${orphanIds.length} orphaned nodes. Attempting to reattach.`);
+        // Found orphaned nodes - attempting to reattach
 
         // Sort orphans by sequence to ensure consistent processing order
         const sortedOrphans = [...orphanIds].sort((a, b) => {
@@ -315,7 +316,7 @@ export class MessageTree<T extends MinimumChatMessage> {
     removeMessageFromTree(messageId: string) {
         const nodeToRemove = this.map.get(messageId);
         if (!nodeToRemove) {
-            console.error(`Message ${messageId} not found in messageMap`);
+            // Message not found in messageMap
             return;
         }
 
@@ -463,13 +464,13 @@ export class MessageTree<T extends MinimumChatMessage> {
      */
     editMessage(updatedMessage: Partial<T> & { id: string }): boolean {
         if (!this.map.has(updatedMessage.id)) {
-            console.error(`Message ${updatedMessage.id} not found in messageMap. Cannot edit.`);
+            // Message not found in messageMap - cannot edit
             return false;
         }
 
         const node = this.map.get(updatedMessage.id);
         if (!node) {
-            console.error(`Message ${updatedMessage.id} not found in messageMap. Cannot edit.`);
+            // Message not found in messageMap - cannot edit
             return false;
         }
 
@@ -577,7 +578,7 @@ export function useMessageTree(chatId?: string | null) {
             const cookieData = getCookieMessageTree(chatId);
             startId = cookieData?.locationId;
             initialBranchesFromCookie = cookieData?.branches ?? {};
-            console.log("getting tree data?", { chatId, startId });
+            // Getting tree data for chat
             getTreeData({ chatId, startId });
         }
         setBranches(initialBranchesFromCookie);
@@ -624,7 +625,7 @@ export function useMessageActions({
     setMessage,
 }: UseMessageActionsProps): UseMesssageActionsResult {
     const session = useContext(SessionContext);
-    const model = "gpt-4o-mini"; //TODO
+    const model = getValidatedPreferredModel();
 
     const [postMessageEndpoint] = useLazyFetch<ChatMessageCreateWithTaskInfoInput, ChatMessage>(endpointsChatMessage.createOne);
     const [putMessageEndpoint] = useLazyFetch<ChatMessageUpdateWithTaskInfoInput, ChatMessage>(endpointsChatMessage.updateOne);
@@ -813,7 +814,7 @@ export function useMessageActions({
         const text = getTranslation(failedMessage, [language])?.text;
 
         if (!text) {
-            console.error("Failed to retrieve message text for retry.");
+            // Failed to retrieve message text for retry
             return;
         }
 

@@ -22,9 +22,10 @@ import { type CanConnect, type Chat, type ChatParticipantShape, type LlmModel } 
 import { Form, Formik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";
+import { getAvailableModels, getExistingAIConfig, getPreferredAvailableModel, type AvailableModel } from "../../api/ai.js";
 import { SessionContext } from "../../contexts/session.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { useModelPreferencesStore } from "../../stores/modelPreferencesStore.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -35,10 +36,9 @@ import { LanguageInput } from "../inputs/LanguageInput/LanguageInput.js";
 
 /**
  * Model configuration interface.
- * TODO: extend with actual fields for tool settings, model choice, confirmation, etc.
  */
 export interface ModelConfig {
-    model: LlmModel;
+    model: AvailableModel;
     toolSettings?: Record<string, boolean>;
     requireConfirmation?: boolean;
 }
@@ -283,7 +283,7 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
     }, []);
 
     // State for selected model - initialize from props or default
-    const [selectedModel, setSelectedModel] = useState<LlmModel | null>(
+    const [selectedModel, setSelectedModel] = useState<AvailableModel | null>(
         currentConfig?.model || (availableModels.length > 0 ? availableModels[0] : null),
     );
 
@@ -303,9 +303,28 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
 
     // Update local state if props change (e.g., parent selects a different chat)
     useEffect(() => {
-        setSelectedModel(currentConfig?.model || (availableModels.length > 0 ? availableModels[0] : null));
-        setToolSettings(getInitialToolSettings(currentConfig));
-        setRequireConfirmation(currentConfig?.requireConfirmation || false);
+        try {
+            // Use the validated preferred model if no current config, otherwise use current config
+            let modelToUse = currentConfig?.model || null;
+            
+            if (!modelToUse && availableModels.length > 0) {
+                const preferredModel = getPreferredAvailableModel(availableModels);
+                modelToUse = preferredModel || availableModels[0];
+            }
+            
+            setSelectedModel(modelToUse);
+            setToolSettings(getInitialToolSettings(currentConfig));
+            setRequireConfirmation(currentConfig?.requireConfirmation || false);
+        } catch (error) {
+            // Fallback to first available model
+            if (availableModels.length > 0) {
+                setSelectedModel(availableModels[0]);
+            } else {
+                setSelectedModel(null);
+            }
+            setToolSettings(getInitialToolSettings(currentConfig));
+            setRequireConfirmation(currentConfig?.requireConfirmation || false);
+        }
     }, [currentConfig, availableModels]);
 
     // Propagate changes up when local state is updated
@@ -315,9 +334,11 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
         onChange([updatedConfig]); // Assuming single config for now
     }, [currentConfig, onChange]);
 
-    const handleModelSelect = useCallback((model: LlmModel) => {
+    const handleModelSelect = useCallback((model: AvailableModel) => {
         setSelectedModel(model);
         triggerOnChange({ model });
+        // Save the model preference to the store
+        useModelPreferencesStore.getState().setPreferredModel(model.value);
     }, [triggerOnChange]);
 
     const handleToggleTool = useCallback((toolName: keyof typeof toolSettings) => {
@@ -353,6 +374,25 @@ function ModelConfigTab({ modelConfigs, onChange }: ModelConfigTabProps) {
             (model.description && t(model.description, { ns: "service", defaultValue: "" }).toLowerCase().includes(query)),
         );
     }, [availableModels, searchQuery, t]);
+
+    // Show message if no models are available at all
+    if (availableModels.length === 0) {
+        return (
+            <Box>
+                <Typography variant="h6" gutterBottom>
+                    Model Configuration
+                </Typography>
+                <Box sx={{ p: 3, textAlign: "center" }}>
+                    <Typography variant="body1" color="textSecondary" gutterBottom>
+                        No AI models are currently available.
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                        Please check your connection and try again later.
+                    </Typography>
+                </Box>
+            </Box>
+        );
+    }
 
     return (
         <Box>

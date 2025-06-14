@@ -206,7 +206,7 @@ describe("emojiVariationUnified", () => {
 
     it("should return undefined if the specified skin tone is not available", () => {
         const skinTone = "1f3ff"; // not available in variations
-        expect(emojiVariationUnified(baseEmoji, skinTone)).to.be.undefined;
+        expect(emojiVariationUnified(baseEmoji, skinTone)).toBeUndefined();
     });
 
     it("should return the base emoji if no skin tone is provided", () => {
@@ -219,7 +219,7 @@ describe("emojiVariationUnified", () => {
             [EmojiProperties.variations]: undefined,
         };
         const skinTone = "1f3fb";
-        expect(emojiVariationUnified(emoji, skinTone)).to.be.undefined;
+        expect(emojiVariationUnified(emoji, skinTone)).toBeUndefined();
     });
 
     it("should correctly handle cases where variations are present but empty", () => {
@@ -228,7 +228,7 @@ describe("emojiVariationUnified", () => {
             [EmojiProperties.variations]: [],
         };
         const skinTone = "1f3fb";
-        expect(emojiVariationUnified(emoji, skinTone)).to.be.undefined;
+        expect(emojiVariationUnified(emoji, skinTone)).toBeUndefined();
     });
 
     it("should return the unified property when no skin tone is specified and there are variations", () => {
@@ -274,22 +274,22 @@ describe("emojiVariationUnified", () => {
 //     });
 
 //     it("should return undefined for a unified code that does not exist", () => {
-//         expect(emojiByUnified("1f44d")).to.be.undefined;
+//         expect(emojiByUnified("1f44d")).toBeUndefined();
 //     });
 
 //     it("should call the unifiedWithoutSkinTone function when the emoji is not found", () => {
 //         emojiByUnified("1f44d-1f3ff");
 //         expect(unifiedWithoutSkinTone).toHaveBeenCalledWith("1f44d-1f3ff");
-//         expect(emojiByUnified("1f44d-1f3ff")).to.be.undefined;
+//         expect(emojiByUnified("1f44d-1f3ff")).toBeUndefined();
 //     });
 
 //     it("should handle null and return undefined", () => {
 //         // @ts-ignore: Testing runtime scenario
-//         expect(emojiByUnified(null)).to.be.undefined;
+//         expect(emojiByUnified(null)).toBeUndefined();
 //     });
 
 //     it("should return undefined for empty string input", () => {
-//         expect(emojiByUnified("")).to.be.undefined;
+//         expect(emojiByUnified("")).toBeUndefined();
 //     });
 
 //     it("should retrieve an emoji object using the base unified code if skin tone variation is not directly available", () => {

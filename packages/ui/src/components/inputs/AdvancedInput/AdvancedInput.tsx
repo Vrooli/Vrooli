@@ -5,7 +5,6 @@ import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Collapse from "@mui/material/Collapse";
 import Divider from "@mui/material/Divider";
-import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
@@ -16,7 +15,6 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
-import type { IconButtonProps } from "@mui/material/IconButton";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { type CSSProperties } from "@mui/styles";
 import { FormStructureType, getDotNotationValue, noop, setDotNotationValue } from "@vrooli/shared";
@@ -33,6 +31,7 @@ import { keyComboToString } from "../../../utils/display/device.js";
 import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { getCookie, setCookie } from "../../../utils/localStorage.js";
 import { PubSub } from "../../../utils/pubsub.js";
+import { IconButton as CustomIconButton } from "../../buttons/IconButton.js";
 import { MicrophoneButton } from "../../buttons/MicrophoneButton.js";
 import { type MicrophoneButtonProps } from "../../buttons/types.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
@@ -183,20 +182,6 @@ const NON_FOCUSABLE_SELECTORS = [
 // Class name added to the AdvancedInput textarea/contentEditable for identification
 const ADVANCED_INPUT_CONTENT_CLASS = advancedInputTextareaClassName;
 
-type StyledIconButtonProps = IconButtonProps & {
-    bgColor?: string;
-    disabled?: boolean;
-};
-const StyledIconButton = styled(IconButton)<StyledIconButtonProps>(({ disabled, bgColor }) => ({
-    width: iconWidth,
-    height: iconHeight,
-    opacity: disabled ? 0.5 : 1,
-    padding: "4px",
-    backgroundColor: bgColor || "transparent",
-}));
-const ShowHideIconButton = styled(StyledIconButton)(() => ({
-    border: "none",
-}));
 const toolChipIconButtonStyle = { padding: 0, paddingRight: 0.5 } as const;
 
 
@@ -282,7 +267,7 @@ function TaskChip({
         if (isHovered) {
             if (state !== AITaskDisplayState.Exclusive) {
                 return (
-                    <IconButton
+                    <CustomIconButton
                         size="small"
                         onClick={handlePlayClick}
                         sx={toolChipIconButtonStyle}
@@ -292,11 +277,11 @@ function TaskChip({
                             name="Play"
                             size={20}
                         />
-                    </IconButton>
+                    </CustomIconButton>
                 );
             }
             return (
-                <IconButton
+                <CustomIconButton
                     size="small"
                     onClick={handlePlayClick}
                     sx={toolChipIconButtonStyle}
@@ -306,7 +291,7 @@ function TaskChip({
                         name="Pause"
                         size={20}
                     />
-                </IconButton>
+                </CustomIconButton>
             );
         }
         return <Icon decorative info={iconInfo} />;
@@ -441,7 +426,7 @@ const PreviewImageAvatar = styled(Avatar)(({ theme }) => ({
     borderRadius: theme.spacing(1),
     border: `1px solid ${theme.palette.divider}`,
 }));
-const RemoveIconButton = styled(IconButton)(({ theme }) => ({
+const RemoveIconButton = styled(CustomIconButton)(({ theme }) => ({
     width: theme.spacing(2),
     height: theme.spacing(2),
     padding: theme.spacing(0.5),
@@ -1540,7 +1525,7 @@ export function AdvancedInputBase({
             {/* Make toolbar prevent default on mouse down to avoid focus loss but allow outer click */}
             <Box onMouseDown={preventInputLossOnToolbarClick} sx={toolbarRowStyles}>
                 {mergedFeatures.allowSettingsCustomization && (
-                    <IconButton
+                    <CustomIconButton
                         onClick={handleOpenInfoMemoWithStopPropagation}
                         sx={toolbarIconButtonStyle}
                     >
@@ -1550,7 +1535,7 @@ export function AdvancedInputBase({
                             name="Settings"
                             size={20}
                         />
-                    </IconButton>
+                    </CustomIconButton>
                 )}
                 {mergedFeatures.allowFormatting && showToolbar && <AdvancedInputToolbar
                     activeStates={activeStates}
@@ -1573,7 +1558,7 @@ export function AdvancedInputBase({
                 </Box>}
                 {mergedFeatures.allowExpand && (
                     <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
-                        <IconButton
+                        <CustomIconButton
                             onClick={handleToggleExpandWithStopPropagation}
                             sx={toolbarIconButtonStyle}
                         >
@@ -1582,7 +1567,7 @@ export function AdvancedInputBase({
                                 fill="background.textSecondary"
                                 name={isExpanded ? "ExpandLess" : "ExpandMore"}
                             />
-                        </IconButton>
+                        </CustomIconButton>
                     </Tooltip>
                 )}
             </Box>
@@ -1623,13 +1608,19 @@ export function AdvancedInputBase({
                         {(mergedFeatures.allowFileAttachments ||
                             mergedFeatures.allowImageAttachments ||
                             mergedFeatures.allowTextAttachments) && (
-                                <StyledIconButton disabled={false} onClick={handleOpenPlusMenu}>
+                                <CustomIconButton 
+                                    variant="transparent"
+                                    size={iconWidth}
+                                    disabled={false} 
+                                    onClick={handleOpenPlusMenu}
+                                    className="tw-p-1"
+                                >
                                     <IconCommon
                                         decorative
                                         fill="background.textSecondary"
                                         name="Add"
                                     />
-                                </StyledIconButton>
+                                </CustomIconButton>
                             )}
                         {tasks.map((task, index) => {
                             function onToggleTool() {
@@ -1647,13 +1638,20 @@ export function AdvancedInputBase({
 
                             return (
                                 <React.Fragment key={`${task.displayName || task.label}-${index}`}>
-                                    {canAddShowButton && <ShowHideIconButton data-id="show-all-tasks-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
+                                    {canAddShowButton && <CustomIconButton 
+                                        data-id="show-all-tasks-button" 
+                                        variant="transparent"
+                                        size={iconWidth}
+                                        disabled={false} 
+                                        onClick={toggleToolsExpandedWithStopPropagation}
+                                        className="tw-p-1"
+                                    >
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
                                             name="Ellipsis"
                                         />
-                                    </ShowHideIconButton>}
+                                    </CustomIconButton>}
                                     <TaskChip
                                         {...task}
                                         index={index}
@@ -1661,13 +1659,20 @@ export function AdvancedInputBase({
                                         onToggleToolExclusive={onToggleToolExclusive}
                                         onToggleTool={onToggleTool}
                                     />
-                                    {canAddHideButton && <ShowHideIconButton data-id="hide-all-tasks-button" disabled={false} onClick={toggleToolsExpandedWithStopPropagation}>
+                                    {canAddHideButton && <CustomIconButton 
+                                        data-id="hide-all-tasks-button" 
+                                        variant="transparent"
+                                        size={iconWidth}
+                                        disabled={false} 
+                                        onClick={toggleToolsExpandedWithStopPropagation}
+                                        className="tw-p-1"
+                                    >
                                         <IconCommon
                                             decorative
                                             fill="background.textSecondary"
                                             name="Invisible"
                                         />
-                                    </ShowHideIconButton>}
+                                    </CustomIconButton>}
                                 </React.Fragment>
                             );
                         })}
@@ -1717,10 +1722,12 @@ export function AdvancedInputBase({
                                         {charsOverLimit > 0 && <Typography variant="caption" component="div">
                                             {charsOverLimit >= 1000 ? "99+" : charsOverLimit}
                                         </Typography>}
-                                        {mergedFeatures.allowSubmit && charsOverLimit <= 0 && <StyledIconButton
-                                            bgColor="transparent"
+                                        {mergedFeatures.allowSubmit && charsOverLimit <= 0 && <CustomIconButton
+                                            variant="transparent"
+                                            size={24}
                                             disabled={!(internalValue ?? "").trim() || charsOverLimit > 0}
                                             onClick={handleSubmitWithStopPropagation}
+                                            className="tw-p-0"
                                         >
                                             <IconCommon
                                                 decorative
@@ -1730,21 +1737,19 @@ export function AdvancedInputBase({
                                                 }
                                                 name="Send"
                                             />
-                                        </StyledIconButton>}
+                                        </CustomIconButton>}
                                     </Box>
                                 </Box>
                             )}
 
                             {/* Submit button only (when character limit is disabled) */}
                             {!mergedFeatures.allowCharacterLimit && mergedFeatures.allowSubmit && (
-                                <StyledIconButton
-                                    bgColor={theme.palette.mode === "dark"
-                                        ? theme.palette.background.textPrimary
-                                        : theme.palette.primary.main
-                                    }
+                                <CustomIconButton
+                                    variant="solid"
+                                    size={iconWidth}
                                     disabled={!(internalValue ?? "").trim()}
                                     onClick={handleSubmitWithStopPropagation}
-                                    sx={verticalMiddleStyle}
+                                    className="tw-align-middle"
                                 >
                                     <IconCommon
                                         decorative
@@ -1756,7 +1761,7 @@ export function AdvancedInputBase({
                                         }
                                         name="Send"
                                     />
-                                </StyledIconButton>
+                                </CustomIconButton>
                             )}
                         </>
                     )}

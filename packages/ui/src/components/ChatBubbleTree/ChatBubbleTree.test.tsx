@@ -1,322 +1,236 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { cleanup, fireEvent, act } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import React from "react";
-import { render, screen, waitFor } from "../../__test/testUtils.js";
-import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
-
-// describe("ChatBubbleStatus Component", () => {
-//     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-//     let theme: Theme;
-
-//     beforeAll(() => {
-//         theme = themes[DEFAULT_THEME];
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         vi.spyOn(console, "warn").mockImplementation(() => { });
-//     });
-
-//     afterAll(() => {
-//         vi.restoreAllMocks();
-//     });
-
-//     beforeEach(() => {
-//         vi.useFakeTimers();
-//     });
-
-//     afterEach(() => {
-//         vi.runOnlyPendingTimers();
-//         vi.useRealTimers();
-//     });
-
-//     it("should display CircularProgress with appropriate color when status is \"sending\"", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sending" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-//         const progress = screen.getByRole("progressbar");
-//         expect(progress).toBeInTheDocument();
-//         expect(progress).toHaveStyle(`color: ${theme.palette.secondary.main}`);
-//     });
-
-//     it("should increase progress over time when status is \"sending\"", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sending" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-
-//         act(() => {
-//             vi.advanceTimersByTime(50); // Advance time by 50ms
-//         });
-
-//         const progress = screen.getByRole("progressbar");
-//         expect(progress).toHaveAttribute("aria-valuenow", "3");
-//     });
-
-//     it("should reset progress after status changes from \"sending\" to \"sent\"", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         const { rerender } = render(<ChatBubbleStatus status="sending" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-
-//         act(() => {
-//             vi.advanceTimersByTime(300); // Advance time by 300ms
-//         });
-
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         rerender(<ChatBubbleStatus status="sent" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-
-//         act(() => {
-//             vi.advanceTimersByTime(1000); // Wait for reset
-//         });
-
-//         expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
-//     });
-
-//     it("should display ErrorIcon when status is \"failed\"", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="failed" showButtons={false} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-//         const errorButton = screen.getByLabelText("retry");
-//         expect(errorButton).toBeInstanceOf(HTMLButtonElement);
-//         // Allow any red shade
-//         expect(errorButton).toHaveStyle(`color: ${red[500]}`);
-//     });
-
-//     it("should call onRetry when ErrorIcon is clicked", () => {
-//         const onRetryMock = vi.fn();
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="failed" showButtons={false} isEditing={false} onRetry={onRetryMock} onEdit={() => { }} onDelete={() => { }} />);
-//         const errorButton = screen.getByLabelText("retry");
-//         fireEvent.click(errorButton);
-//         expect(onRetryMock).toHaveBeenCalledTimes(1);
-//     });
-
-//     it("should call onEdit when EditIcon is clicked", () => {
-//         const onEditMock = vi.fn();
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={false} onRetry={() => { }} onEdit={onEditMock} onDelete={() => { }} />);
-//         const editButton = screen.getByLabelText("edit");
-//         fireEvent.click(editButton);
-//         expect(onEditMock).toHaveBeenCalledTimes(1);
-//     });
-
-//     it("should call onDelete when DeleteIcon is clicked", () => {
-//         const onDeleteMock = vi.fn();
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={onDeleteMock} />);
-//         const deleteButton = screen.getByLabelText("delete");
-//         fireEvent.click(deleteButton);
-//         expect(onDeleteMock).toHaveBeenCalledTimes(1);
-//     });
-
-//     it("should display edit and delete buttons when showButtons is true and status is not \"sending\"", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={false} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-//         const editButton = screen.getByLabelText("edit");
-//         const deleteButton = screen.getByLabelText("delete");
-//         expect(editButton).toBeInTheDocument();
-//         expect(deleteButton).toBeInTheDocument();
-//     });
-
-//     it("should not display any buttons when isEditing is true", () => {
-//         // eslint-disable-next-line @typescript-eslint/no-empty-function
-//         render(<ChatBubbleStatus status="sent" showButtons={true} isEditing={true} onRetry={() => { }} onEdit={() => { }} onDelete={() => { }} />);
-//         expect(screen.queryByRole("button")).not.toBeInTheDocument();
-//     });
-// });
+import { render, screen } from "../../__test/testUtils.js";
+import { NavigationArrows, ScrollToBottomButton, ChatBubbleTree } from "./ChatBubbleTree.js";
+import { MessageTree } from "../../hooks/messages.js";
+import { generatePK, type ChatMessageShape, type ChatSocketEventPayloads } from "@vrooli/shared";
 
 describe("NavigationArrows Component", () => {
     const handleIndexChangeMock = vi.fn();
     
-    beforeEach(() => {
+    afterEach(() => {
         handleIndexChangeMock.mockClear();
     });
 
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        vi.spyOn(console, "warn").mockImplementation(() => { });
+    it("should not render if there are less than 2 siblings", () => {
+        const { container } = render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
+        expect(container.firstChild).toBeNull();
     });
 
-    afterAll(() => {
-        vi.restoreAllMocks();
-    });
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
-    it("should not render if there are less than 2 siblings", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
-        });
-        expect(screen.queryAllByRole("button")).toHaveLength(0);
-    });
-
-    it("should render both buttons disabled when there is no possibility to navigate", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={0} numSiblings={1} onIndexChange={handleIndexChangeMock} />);
-        });
-        expect(screen.queryAllByRole("button")).toHaveLength(0);
-    });
-
-    it("should enable the right button when there are more siblings ahead", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={0} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
-        });
-        
-        // Get all buttons and identify the right button (it should be the second one)
+    it("should handle navigation between siblings", () => {
+        const { rerender } = render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
         const buttons = screen.getAllByRole("button");
-        const rightButton = buttons[1]; // Second button is the right/next button
         
-        expect(rightButton).toBeTruthy();
-        expect(rightButton.hasAttribute('disabled')).toBe(false);
-        
-        // Click the button
-        await act(async () => {
-            fireEvent.click(rightButton);
-        });
-        
-        expect(handleIndexChangeMock).toHaveBeenCalledWith(1);
-    });
-
-    it("should enable the left button when there are siblings behind", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={1} numSiblings={2} onIndexChange={handleIndexChangeMock} />);
-        });
-        
-        const buttons = screen.getAllByRole("button");
-        const leftButton = buttons[0];
-        expect(leftButton.hasAttribute('disabled')).toBe(false);
-        
-        await act(async () => {
-            await userEvent.click(leftButton);
-        });
-        
-        expect(handleIndexChangeMock).toHaveBeenCalledWith(0);
-    });
-
-    it("should display the current index and total siblings correctly", async () => {
-        let rerender;
-        await act(async () => {
-            const result = render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-            rerender = result.rerender;
-        });
+        // Test initial state
+        expect(buttons[0].hasAttribute('disabled')).toBe(true);
+        expect(buttons[1].hasAttribute('disabled')).toBe(false);
         expect(screen.getByText("1/3")).toBeTruthy();
-
-        await act(async () => {
-            rerender(<NavigationArrows activeIndex={1} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        });
+        
+        // Click next
+        fireEvent.click(buttons[1]);
+        expect(handleIndexChangeMock).toHaveBeenCalledWith(1);
+        
+        // Update to middle position
+        rerender(<NavigationArrows activeIndex={1} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
         expect(screen.getByText("2/3")).toBeTruthy();
-    });
-
-    it("should disable the left button when at the first sibling", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={0} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        });
-        const buttons = screen.getAllByRole("button");
-        const leftButton = buttons[0]; // First button is the left/previous button
-        expect(leftButton.hasAttribute('disabled')).toBe(true);
-    });
-
-    it("should disable the right button when at the last sibling", async () => {
-        await act(async () => {
-            render(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
-        });
-        const buttons = screen.getAllByRole("button");
-        const rightButton = buttons[1]; // Second button is the right/next button
-        expect(rightButton.hasAttribute('disabled')).toBe(true);
+        
+        // Recheck buttons
+        const updatedButtons = screen.getAllByRole("button");
+        expect(updatedButtons[0].hasAttribute('disabled')).toBe(false);
+        expect(updatedButtons[1].hasAttribute('disabled')).toBe(false);
+        
+        // Click previous
+        handleIndexChangeMock.mockClear();
+        fireEvent.click(updatedButtons[0]);
+        expect(handleIndexChangeMock).toHaveBeenCalledWith(0);
+        
+        // Update to last position
+        rerender(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
+        const finalButtons = screen.getAllByRole("button");
+        expect(finalButtons[0].hasAttribute('disabled')).toBe(false);
+        expect(finalButtons[1].hasAttribute('disabled')).toBe(true);
     });
 });
 
 describe("ScrollToBottomButton", () => {
-    let containerElement;
+    let containerElement: HTMLDivElement;
+    let scrollMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        // Create a mock container element
+        // Create a mock container element with minimal setup
         containerElement = document.createElement("div");
-        Object.defineProperty(containerElement, "scrollHeight", { value: 1000, writable: true });
-        Object.defineProperty(containerElement, "scrollTop", { value: 0, writable: true });
-        Object.defineProperty(containerElement, "clientHeight", { value: 500, writable: true });
-        // Mock the scroll method to allow calling during tests
-        containerElement.scroll = vi.fn((options) => {
-            // Optionally, you can directly set scrollTop to simulate instant scrolling,
-            // or handle it more dynamically if your tests need to consider different scenarios.
-            containerElement.scrollTop = options.top;
+        scrollMock = vi.fn((options) => {
+            if (options?.top !== undefined) {
+                containerElement.scrollTop = options.top;
+            }
         });
-        vi.spyOn(React, "useRef").mockReturnValue({ current: containerElement });
+        
+        // Define all properties at once for better performance
+        Object.defineProperties(containerElement, {
+            scrollHeight: { value: 1000, writable: true, configurable: true },
+            scrollTop: { value: 0, writable: true, configurable: true },
+            clientHeight: { value: 500, writable: true, configurable: true },
+            scroll: { value: scrollMock, writable: true, configurable: true }
+        });
     });
 
     afterEach(() => {
         cleanup();
-        vi.restoreAllMocks();
     });
 
-    it("renders button and checks initial visibility based on scroll", async () => {
-        let getByRole;
-        await act(async () => {
-            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-            getByRole = result.getByRole;
-        });
-        const button = getByRole("button");
-        // Initially should have hide class as we are at the top (within threshold)
+    it("renders and handles scroll events correctly", () => {
+        const containerRef = { current: containerElement };
+        render(<ScrollToBottomButton containerRef={containerRef} />);
+        
+        const button = screen.getByRole("button");
+        expect(button).toBeTruthy();
+        
+        // Initial state - not at bottom
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
-    });
-
-    it("button becomes visible when not close to bottom", async () => {
-        containerElement.scrollTop = 300; // Not close to the bottom
-        let getByRole;
-        await act(async () => {
-            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-            getByRole = result.getByRole;
-        });
         
-        await act(async () => {
-            fireEvent.scroll(containerElement);
-        });
-        
-        const button = getByRole("button");
+        // Scroll to middle
+        containerElement.scrollTop = 300;
+        fireEvent.scroll(containerElement);
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
-    });
-
-    it("button becomes invisible when scrolled close to bottom", async () => {
-        containerElement.scrollTop = 901; // Close to the bottom
-        let getByRole;
-        await act(async () => {
-            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-            getByRole = result.getByRole;
-        });
         
-        await act(async () => {
-            fireEvent.scroll(containerElement);
-        });
-        
-        const button = getByRole("button");
+        // Scroll close to bottom
+        containerElement.scrollTop = 901;
+        fireEvent.scroll(containerElement);
         expect(button.classList.contains("hide-scroll-button")).toBe(true);
+        
+        // Click button to scroll to bottom
+        fireEvent.click(button);
+        expect(scrollMock).toHaveBeenCalledWith({ top: 1000, behavior: "smooth" });
+        expect(containerElement.scrollTop).toBe(1000);
     });
 
-    it("scrolls to bottom on button click", async () => {
-        let getByRole;
-        await act(async () => {
-            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-            getByRole = result.getByRole;
-        });
-        
-        const button = getByRole("button");
-        
-        await act(async () => {
-            fireEvent.click(button);
-        });
-        
-        // Expected to be scrolled to the bottom (scrollHeight)
-        expect(containerElement.scrollTop).toBe(containerElement.scrollHeight);
-    });
-
-    it("cleans up event listener on unmount", async () => {
+    it("cleans up properly on unmount", () => {
         const removeEventListenerSpy = vi.spyOn(containerElement, "removeEventListener");
-        let unmount;
-        await act(async () => {
-            const result = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
-            unmount = result.unmount;
-        });
+        const containerRef = { current: containerElement };
         
-        await act(async () => {
-            unmount();
-        });
+        const { unmount } = render(<ScrollToBottomButton containerRef={containerRef} />);
+        unmount();
         
         expect(removeEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function));
+        removeEventListenerSpy.mockRestore();
+    });
+});
+
+describe("ChatBubbleTree Streaming", () => {
+    it("should display streaming message with accumulated text", async () => {
+        const tree = new MessageTree<ChatMessageShape>();
+        const branches = {};
+        const setBranches = vi.fn();
+        const handleEdit = vi.fn();
+        const handleRegenerateResponse = vi.fn();
+        const handleReply = vi.fn();
+        const handleRetry = vi.fn();
+        const removeMessages = vi.fn();
+
+        const botId = generatePK().toString();
+        
+        // Start with no stream
+        const { rerender } = render(
+            <ChatBubbleTree
+                tree={tree}
+                branches={branches}
+                setBranches={setBranches}
+                handleEdit={handleEdit}
+                handleRegenerateResponse={handleRegenerateResponse}
+                handleReply={handleReply}
+                handleRetry={handleRetry}
+                removeMessages={removeMessages}
+                isBotOnlyChat={true}
+                isEditingMessage={false}
+                isReplyingToMessage={false}
+                messageStream={null}
+            />,
+        );
+        
+        // No message should be displayed
+        expect(screen.queryByText("Hello")).toBeNull();
+        
+        // Stream first chunk
+        rerender(
+            <ChatBubbleTree
+                tree={tree}
+                branches={branches}
+                setBranches={setBranches}
+                handleEdit={handleEdit}
+                handleRegenerateResponse={handleRegenerateResponse}
+                handleReply={handleReply}
+                handleRetry={handleRetry}
+                removeMessages={removeMessages}
+                isBotOnlyChat={true}
+                isEditingMessage={false}
+                isReplyingToMessage={false}
+                messageStream={{
+                    __type: "stream",
+                    chunk: "Hello",
+                    botId,
+                } as ChatSocketEventPayloads["responseStream"]}
+            />,
+        );
+        
+        // Should display first chunk
+        await waitFor(() => {
+            expect(screen.getByText("Hello")).toBeTruthy();
+        });
+        
+        // Stream second chunk
+        rerender(
+            <ChatBubbleTree
+                tree={tree}
+                branches={branches}
+                setBranches={setBranches}
+                handleEdit={handleEdit}
+                handleRegenerateResponse={handleRegenerateResponse}
+                handleReply={handleReply}
+                handleRetry={handleRetry}
+                removeMessages={removeMessages}
+                isBotOnlyChat={true}
+                isEditingMessage={false}
+                isReplyingToMessage={false}
+                messageStream={{
+                    __type: "stream",
+                    chunk: "World",
+                    botId,
+                } as ChatSocketEventPayloads["responseStream"]}
+            />,
+        );
+        
+        // Should display accumulated text
+        await waitFor(() => {
+            expect(screen.getByText("Hello World")).toBeTruthy();
+        });
+        
+        // End stream with final message
+        rerender(
+            <ChatBubbleTree
+                tree={tree}
+                branches={branches}
+                setBranches={setBranches}
+                handleEdit={handleEdit}
+                handleRegenerateResponse={handleRegenerateResponse}
+                handleReply={handleReply}
+                handleRetry={handleRetry}
+                removeMessages={removeMessages}
+                isBotOnlyChat={true}
+                isEditingMessage={false}
+                isReplyingToMessage={false}
+                messageStream={{
+                    __type: "end",
+                    finalMessage: "Hello World!",
+                    botId,
+                } as ChatSocketEventPayloads["responseStream"]}
+            />,
+        );
+        
+        // Should display final message
+        await waitFor(() => {
+            expect(screen.getByText("Hello World!")).toBeTruthy();
+        });
     });
 });

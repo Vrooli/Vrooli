@@ -193,63 +193,63 @@ describe("generateContextLabel", () => {
     it("should return the entire string if it is shorter than the limit", () => {
         const input = "Short string";
         const expected = "Short string";
-        expect(generateContextLabel(input)).to.equal(expected);
+        expect(generateContextLabel(input)).toBe(expected);
     });
 
     it("should truncate the string and add an ellipsis if it is longer than the limit", () => {
         const input = "This is a very long string that should be truncated.";
         const expected = input.slice(0, CONTEXT_LABEL_LENGTH - 1) + "…";
-        expect(generateContextLabel(input)).to.equal(expected);
+        expect(generateContextLabel(input)).toBe(expected);
     });
 
     it("should return the stringified number if it is shorter than the limit", () => {
         const input = 12345;
         const expected = "12345";
-        expect(generateContextLabel(input)).to.equal(expected);
+        expect(generateContextLabel(input)).toBe(expected);
     });
 
     it("should truncate and add an ellipsis to the stringified number if it is longer than the limit", () => {
         // eslint-disable-next-line @typescript-eslint/no-loss-of-precision
         const input = -123456789012345678901234567890.2343243;
         const expected = input.toString().slice(0, CONTEXT_LABEL_LENGTH - 1) + "…";
-        expect(generateContextLabel(input)).to.equal(expected);
+        expect(generateContextLabel(input)).toBe(expected);
     });
 
     it("should return the stringified boolean", () => {
-        expect(generateContextLabel(true)).to.equal("true");
-        expect(generateContextLabel(false)).to.equal("false");
+        expect(generateContextLabel(true)).toBe("true");
+        expect(generateContextLabel(false)).toBe("false");
     });
 
     it("should label arrays as \"Array\"", () => {
-        expect(generateContextLabel([1, 2, 3])).to.equal("Array");
+        expect(generateContextLabel([1, 2, 3])).toBe("Array");
     });
 
     it("should label objects as \"Object\"", () => {
-        expect(generateContextLabel({ key: "value" })).to.equal("Object");
+        expect(generateContextLabel({ key: "value" })).toBe("Object");
     });
 
     it("should handle null values correctly", () => {
-        expect(generateContextLabel(null)).to.equal("Value");
+        expect(generateContextLabel(null)).toBe("Value");
     });
 
     it("should handle undefined values correctly", () => {
-        expect(generateContextLabel(undefined)).to.equal("Value");
+        expect(generateContextLabel(undefined)).toBe("Value");
     });
 
     it("should handle function values correctly", () => {
-        expect(generateContextLabel(noop)).to.equal("Value");
+        expect(generateContextLabel(noop)).toBe("Value");
     });
 
     it("handles empty strings correctly", () => {
-        expect(generateContextLabel("")).to.equal("");
+        expect(generateContextLabel("")).toBe("");
     });
 
     it("handles empty objects correctly", () => {
-        expect(generateContextLabel({})).to.equal("Object");
+        expect(generateContextLabel({})).toBe("Object");
     });
 
     it("handles empty arrays correctly", () => {
-        expect(generateContextLabel([])).to.equal("Array");
+        expect(generateContextLabel([])).toBe("Array");
     });
 });
 
@@ -285,7 +285,7 @@ const task5 = {
 function validateTotalContexts(data: UseChatTaskReturn, expected: number) {
     const totalContexts = Object.keys(data.contexts).reduce((acc, key) => acc + data.contexts[key].length, 0);
     // @ts-ignore: expect-message
-    expect(totalContexts, `Total contexts is incorrect. Expected ${expected}, got ${totalContexts}`).to.equal(expected);
+    expect(totalContexts, `Total contexts is incorrect. Expected ${expected}, got ${totalContexts}`).toBe(expected);
 }
 
 /**
@@ -293,10 +293,10 @@ function validateTotalContexts(data: UseChatTaskReturn, expected: number) {
  */
 function validateContextsForTask(data: UseChatTaskReturn, taskId: string, labels: string[]) {
     const contexts = data.contexts[taskId];
-    expect(contexts).to.have.lengthOf(labels.length);
+    expect(contexts).toHaveLength(labels.length);
     for (let i = 0; i < labels.length; i++) {
         // @ts-ignore: expect-message
-        expect(contexts[i].label, `Context ${i} for task ${taskId} has incorrect label`).to.equal(labels[i]);
+        expect(contexts[i].label, `Context ${i} for task ${taskId} has incorrect label`).toBe(labels[i]);
     }
 }
 
@@ -325,7 +325,7 @@ describe("useChatTasks", () => {
     describe("initial state", () => {
         it("activeTask should initially be the start task", () => {
             const { result } = renderHook(() => useChatTasks({ chatId: "main" }));
-            expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+            expect(result.current.activeTask.task).toBe(LlmTask.Start);
         });
         it("contexts should initially have no data", () => {
             const { result } = renderHook(() => useChatTasks({ chatId: "main" }));
@@ -400,7 +400,7 @@ describe("useChatTasks", () => {
             rerender({ chatId: "new" });
 
             // Make sure the task was cleared
-            expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+            expect(result.current.activeTask.task).toBe(LlmTask.Start);
         });
         it("clears inactive tasks", async () => {
             const { result, rerender } = renderHook((props: { chatId: string }) => useChatTasks(props), { initialProps: { chatId: "main" } });
@@ -459,7 +459,7 @@ describe("useChatTasks", () => {
                         });
 
                         validateTotalContexts(result.current, 0);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("replace with no existing data", async () => {
@@ -487,7 +487,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("add with no existing data", async () => {
@@ -515,7 +515,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("replace with existing data", async () => {
@@ -568,7 +568,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("add with existing data", async () => {
@@ -623,7 +623,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 4);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop", "Old value 1", "Old value 2", "Old value 3"]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                 });
@@ -670,7 +670,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, task.taskId, ["Boop"]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([task]);
                     });
                     it("taskType", async () => {
@@ -715,7 +715,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, task.taskId, ["Boop"]);
-                        expect(result.current.activeTask.task).to.equal(task.task);
+                        expect(result.current.activeTask.task).toBe(task.task);
                         expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
                     });
                     describe("contextId", () => {
@@ -762,7 +762,7 @@ describe("useChatTasks", () => {
 
                             validateTotalContexts(result.current, 1);
                             validateContextsForTask(result.current, task.taskId, ["Boop"]);
-                            expect(result.current.activeTask.task).to.equal(task.task);
+                            expect(result.current.activeTask.task).toBe(task.task);
                             expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
                         });
                         it("did previously exist", async () => {
@@ -830,7 +830,7 @@ describe("useChatTasks", () => {
 
                             validateTotalContexts(result.current, 1);
                             expect(result.current.contexts[task.taskId]).toEqual(newContexts);
-                            expect(result.current.activeTask.task).to.equal(task.task);
+                            expect(result.current.activeTask.task).toBe(task.task);
                             expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
                         });
                     });
@@ -861,8 +861,8 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).to.equal(true);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toBe(true);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("number", async () => {
@@ -890,8 +890,8 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).to.equal(-420.69);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toBe(-420.69);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("string", async () => {
@@ -919,8 +919,8 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).to.equal("Boop");
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toBe("Boop");
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("object", async () => {
@@ -949,7 +949,7 @@ describe("useChatTasks", () => {
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
                         expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toEqual({ key: "value" });
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("array", async () => {
@@ -978,7 +978,7 @@ describe("useChatTasks", () => {
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
                         expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toEqual([1, 2, 3]);
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                     it("null", async () => {
@@ -1006,8 +1006,8 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         validateContextsForTask(result.current, DEFAULT_ACTIVE_TASK_ID, ["Boop"]);
-                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).to.be.null;
-                        expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                        expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID][0].data).toBeNull();
+                        expect(result.current.activeTask.task).toBe(LlmTask.Start);
                         expect(result.current.inactiveTasks).toEqual([]);
                     });
                 });
@@ -1062,7 +1062,7 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, 3);
                     expect(result.current.contexts[task.taskId]).toEqual(originalContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task]);
 
                     // Update some data
@@ -1099,7 +1099,7 @@ describe("useChatTasks", () => {
                         data: { key: "old value 3" },
                     }];
                     expect(result.current.contexts[task.taskId]).toEqual(expectedContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task]);
                 });
                 it("some values existing", async () => {
@@ -1137,7 +1137,7 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, 3);
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toEqual(originalContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([]);
 
                     // Update one value and try to update one that doesn't exist
@@ -1174,7 +1174,7 @@ describe("useChatTasks", () => {
                         data: { key: "old value 3" },
                     }];
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toEqual(expectedContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([]);
                 });
             });
@@ -1245,7 +1245,7 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, originalContexts.length + 2);
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toEqual(originalContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
 
                     // Remove context by task type
@@ -1260,8 +1260,8 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, 2);
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toBeUndefined();
-                    expect(result.current.contexts[task1.task].length).to.equal(2);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.contexts[task1.task].length).toBe(2);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
                 });
 
@@ -1331,7 +1331,7 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, originalContexts.length + 2);
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toEqual(originalContexts);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
 
                     // Remove context by task ID
@@ -1346,8 +1346,8 @@ describe("useChatTasks", () => {
 
                     validateTotalContexts(result.current, 2);
                     expect(result.current.contexts[DEFAULT_ACTIVE_TASK_ID]).toBeUndefined();
-                    expect(result.current.contexts[task1.task].length).to.equal(2);
-                    expect(result.current.activeTask.task).to.equal(LlmTask.Start);
+                    expect(result.current.contexts[task1.task].length).toBe(2);
+                    expect(result.current.activeTask.task).toBe(LlmTask.Start);
                     expect(result.current.inactiveTasks).toEqual([task1, task2]);
                 });
 
@@ -1393,7 +1393,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 2);
                         expect(result.current.contexts[task1.taskId]).toEqual(originalContexts);
-                        expect(result.current.activeTask.task).to.equal(task1.task);
+                        expect(result.current.activeTask.task).toBe(task1.task);
                         expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
 
                         // Remove context by context ID
@@ -1408,7 +1408,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         expect(result.current.contexts[task1.taskId]).toEqual([originalContexts[1]]);
-                        expect(result.current.activeTask.task).to.equal(task1.task);
+                        expect(result.current.activeTask.task).toBe(task1.task);
                         expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
                     });
                     it("some values existing", async () => {
@@ -1452,7 +1452,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 2);
                         expect(result.current.contexts[task1.taskId]).toEqual(originalContexts);
-                        expect(result.current.activeTask.task).to.equal(task1.task);
+                        expect(result.current.activeTask.task).toBe(task1.task);
                         expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
 
                         // Remove context by context ID
@@ -1470,7 +1470,7 @@ describe("useChatTasks", () => {
 
                         validateTotalContexts(result.current, 1);
                         expect(result.current.contexts[task1.taskId]).toEqual([originalContexts[1]]);
-                        expect(result.current.activeTask.task).to.equal(task1.task);
+                        expect(result.current.activeTask.task).toBe(task1.task);
                         expect(result.current.inactiveTasks).toEqual([DEFAULT_ACTIVE_TASK]);
                     });
                 });
@@ -2197,7 +2197,7 @@ describe("useChatTasks", () => {
     //                 result.current.unselectTask();
     //             });
 
-    //             expect(result.current.activeTask).to.be.null;
+    //             expect(result.current.activeTask).toBeNull();
     //         });
 
     //         it("should add the previous active task back to suggestedTasks", async () => {
@@ -2360,7 +2360,7 @@ describe("useChatTasks", () => {
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // No context collected since ID does not match
-//         expect(timesSubscribeCalled).to.equal(1); // Still called, but ignored
+//         expect(timesSubscribeCalled).toBe(1); // Still called, but ignored
 //     });
 
 //     it("should ignore context collection if task does not match", async () => {
@@ -2388,7 +2388,7 @@ describe("useChatTasks", () => {
 //         });
 
 //         expect(onSendMessage).toHaveBeenCalledWith("Hello");  // No context collected since the task does not match
-//         expect(timesSubscribeCalled).to.equal(1); // Still called, but ignored
+//         expect(timesSubscribeCalled).toBe(1); // Still called, but ignored
 //     });
 
 //     it("should ignore context collection if __type does not match", async () => {

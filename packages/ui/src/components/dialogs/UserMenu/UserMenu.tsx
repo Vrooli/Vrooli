@@ -21,6 +21,7 @@ import { SessionContext } from "../../../contexts/session.js";
 import { useLazyFetch } from "../../../hooks/useFetch.js";
 import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { useIsAdmin } from "../../../hooks/useIsAdmin.js";
 import { Icon, IconCommon, type IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ProfileAvatar, noSelect } from "../../../styles.js";
@@ -195,6 +196,7 @@ export function UserMenu() {
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const isLoggedIn = checkIfLoggedIn(session);
+    const { isAdmin } = useIsAdmin();
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -353,16 +355,25 @@ export function UserMenu() {
         }
 
         // Include all links when logged in
-        return [
+        const baseItems = [
             { label: t("Bookmark", { count: 2 }), iconInfo: { name: "BookmarkFilled" as const, type: "Common" as const }, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
             { label: t("Calendar", { count: 2 }), iconInfo: { name: "Month" as const, type: "Common" as const }, link: LINKS.Calendar, action: null },
             { label: t("History", { count: 2 }), iconInfo: { name: "History" as const, type: "Common" as const }, link: LINKS.History, action: null },
             { label: t("Award", { count: 2 }), iconInfo: { name: "Award" as const, type: "Common" as const }, link: LINKS.Awards, action: null },
             { label: t("Pro"), iconInfo: { name: "Premium" as const, type: "Common" as const }, link: LINKS.Pro, action: null },
             { label: t("Settings"), iconInfo: { name: "Settings" as const, type: "Common" as const }, link: LINKS.Settings, action: null },
-            { label: t("Tutorial"), iconInfo: { name: "Help" as const, type: "Common" as const }, action: Actions.tutorial },
-        ] as const;
-    }, [t, isLoggedIn]);
+        ];
+
+        // Add admin link if user is admin
+        if (isAdmin) {
+            baseItems.push({ label: t("Admin"), iconInfo: { name: "Shield" as const, type: "Common" as const }, link: LINKS.Admin, action: null });
+        }
+
+        // Add tutorial at the end
+        baseItems.push({ label: t("Tutorial"), iconInfo: { name: "Help" as const, type: "Common" as const }, action: Actions.tutorial });
+
+        return baseItems as const;
+    }, [t, isLoggedIn, isAdmin]);
 
     const handleNavItemClick = useCallback(function handleNavItemClickCallback(event: React.MouseEvent<HTMLElement>, item: typeof navItems[number]) {
         if (item.action) {

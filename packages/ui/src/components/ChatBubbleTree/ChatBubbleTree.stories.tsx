@@ -1,13 +1,23 @@
 import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Radio from "@mui/material/Radio";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import { Switch } from "../inputs/Switch/Switch.js";
+import { Slider } from "../inputs/Slider.js";
 // Simple action replacement
 const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
-import { MINUTES_10_MS, generatePK, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads } from "@vrooli/shared";
-import { useCallback, useEffect, useState } from "react";
+import { MINUTES_10_MS, generatePK, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ReactionSummary, type ChatMessageRunConfig } from "@vrooli/shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { pagePaddingBottom } from "../../styles.js";
 import { type BranchMap } from "../../utils/localStorage.js";
-import { ChatBubbleTree } from "./ChatBubbleTree.js";
+import { ChatBubbleTree, ChatBubble } from "./ChatBubbleTree.js";
 
 const bot1Id = generatePK().toString();
 const botMessage1Id = generatePK().toString();
@@ -554,7 +564,7 @@ Finally, make sure to add comprehensive error handling and validation to ensure 
                 currentText += (currentWordIndex > 0 ? " " : "") + words[currentWordIndex];
                 setMessageStream({
                     __type: "stream",
-                    message: currentText,
+                    chunk: words[currentWordIndex],
                     botId: bot1Id,
                 });
                 currentWordIndex++;
@@ -562,7 +572,7 @@ Finally, make sure to add comprehensive error handling and validation to ensure 
                 // End the stream
                 setMessageStream({
                     __type: "end",
-                    message: currentText,
+                    finalMessage: currentText,
                     botId: bot1Id,
                 });
                 clearInterval(interval);
@@ -727,5 +737,666 @@ export function EditingState() {
     );
 }
 EditingState.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+// Create Story type for the showcase story
+type Story = {
+    render: () => JSX.Element;
+};
+
+/**
+ * ChatBubble Showcase: Interactive playground for testing individual ChatBubble components
+ */
+export const ChatBubbleShowcase: Story = {
+    render: () => {
+        // Message configuration state
+        const [messageFrom, setMessageFrom] = useState<"you" | "user" | "bot">("bot");
+        const [messageStatus, setMessageStatus] = useState<ChatMessageStatus>("sent");
+        const [reactionCount, setReactionCount] = useState<number>(0);
+        const [reportCount, setReportCount] = useState<number>(0);
+        const [contentType, setContentType] = useState<"none" | "short" | "long" | "code">("short");
+        const [hasVersions, setHasVersions] = useState(false);
+        const [activeVersion, setActiveVersion] = useState(0);
+        
+        // Generate user/bot data based on messageFrom
+        const userId = messageFrom === "you" ? signedInUserId : generatePK().toString();
+        const userName = messageFrom === "you" ? "You" : messageFrom === "bot" ? "AI Assistant" : "Other User";
+        const userHandle = messageFrom === "you" ? "you" : messageFrom === "bot" ? "ai_assistant" : "otheruser";
+        const isBot = messageFrom === "bot";
+        const isOwn = messageFrom === "you";
+        
+        // Generate message content based on contentType
+        const getMessageContent = () => {
+            switch (contentType) {
+                case "none":
+                    return "";
+                case "short":
+                    return "This is a short message to test the chat bubble appearance.";
+                case "long":
+                    return `This is a much longer message that demonstrates how the chat bubble handles extensive content. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+This message has multiple paragraphs to show how the bubble expands and handles text wrapping. It should display nicely with proper spacing and formatting.`;
+                case "code":
+                    return `Here's an example of how to implement a binary search algorithm:
+
+\`\`\`typescript
+function binarySearch<T>(arr: T[], target: T, compareFn?: (a: T, b: T) => number): number {
+    let left = 0;
+    let right = arr.length - 1;
+    
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const comparison = compareFn ? compareFn(arr[mid], target) : 0;
+        
+        if (comparison === 0) {
+            return mid;
+        } else if (comparison < 0) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    
+    return -1; // Element not found
+}
+
+// Example usage:
+const numbers = [1, 3, 5, 7, 9, 11, 13, 15];
+const index = binarySearch(numbers, 7);
+console.log(\`Found at index: \${index}\`); // Output: Found at index: 3
+\`\`\`
+
+This implementation uses a generic type parameter and an optional comparison function for flexibility.`;
+                default:
+                    return "Default message content";
+            }
+        };
+        
+        // Generate reactions based on reactionCount
+        const generateReactions = (): ReactionSummary[] => {
+            if (reactionCount === 0) return [];
+            
+            const emojis = ["👍", "❤️", "😂", "🎉", "🤔", "👏", "🔥", "💯", "😍", "🚀", "💪", "🙏", "😊", "🤩", "👀", "💡", "⭐", "✨", "🎯", "💎", "🌟", "🔮", "🎨", "🎵", "🌈", "⚡", "🎪", "🌸", "🎭", "🎸"];
+            const reactions: ReactionSummary[] = [];
+            
+            // Distribute reaction count across different emojis
+            let remaining = reactionCount;
+            // Use more emojis as reaction count increases to better showcase the toggle feature
+            const numEmojis = Math.min(
+                reactionCount > 80 ? 12 : 
+                reactionCount > 60 ? 10 : 
+                reactionCount > 40 ? 8 : 
+                reactionCount > 20 ? 6 : 
+                reactionCount > 10 ? 4 : 
+                reactionCount > 5 ? 3 : 2, 
+                emojis.length
+            );
+            
+            for (let i = 0; i < numEmojis && remaining > 0; i++) {
+                const count = i === numEmojis - 1 
+                    ? remaining 
+                    : Math.ceil(remaining / (numEmojis - i) * (0.5 + Math.random() * 0.5));
+                
+                reactions.push({
+                    __typename: "ReactionSummary" as const,
+                    emoji: emojis[i],
+                    count: Math.min(count, remaining),
+                });
+                
+                remaining -= count;
+            }
+            
+            return reactions;
+        };
+        
+        // Create the message object
+        const message: ChatMessageShape = {
+            __typename: "ChatMessage" as const,
+            id: generatePK().toString(),
+            createdAt: new Date(Date.now() - 5 * MINUTES_10_MS).toISOString(),
+            updatedAt: new Date(Date.now() - 5 * MINUTES_10_MS).toISOString(),
+            translations: [{
+                __typename: "ChatMessageTranslation" as const,
+                id: generatePK().toString(),
+                language: "en",
+                text: getMessageContent(),
+            }],
+            reactionSummaries: generateReactions(),
+            status: messageStatus,
+            user: {
+                __typename: "User" as const,
+                id: userId,
+                name: userName,
+                handle: userHandle,
+                isBot: isBot,
+            },
+            versionIndex: activeVersion,
+            parent: null,
+            // Add report info if reportCount > 0
+            ...(reportCount > 0 && {
+                reportsCount: reportCount,
+                you: {
+                    canDelete: true,
+                    canReact: true,
+                    canReply: true,
+                    canUpdate: isOwn,
+                    isBookmarked: false,
+                    reaction: null,
+                },
+            }),
+        };
+        
+        const handleActiveIndexChange = (index: number) => {
+            setActiveVersion(index);
+            action("handleActiveIndexChange")(index);
+        };
+        
+        return (
+            <Box sx={{ 
+                p: 2, 
+                height: "100vh", 
+                overflow: "auto",
+                bgcolor: "background.default" 
+            }}>
+                <Box sx={{ 
+                    display: "flex", 
+                    gap: 2, 
+                    flexDirection: { xs: "column", lg: "row" },
+                    maxWidth: 1400, 
+                    mx: "auto" 
+                }}>
+                    {/* Controls Section */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        height: "fit-content",
+                        minWidth: { lg: 320 }
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>ChatBubble Controls</Typography>
+                        
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            {/* Message From Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Message From</FormLabel>
+                                <RadioGroup
+                                    value={messageFrom}
+                                    onChange={(e) => setMessageFrom(e.target.value as "you" | "user" | "bot")}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="you" control={<Radio size="small" />} label="You (current user)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="user" control={<Radio size="small" />} label="Another User" sx={{ m: 0 }} />
+                                    <FormControlLabel value="bot" control={<Radio size="small" />} label="Bot" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
+                            
+                            {/* Message Status Control */}
+                            <FormControl size="small" fullWidth>
+                                <FormLabel sx={{ fontSize: "0.875rem", mb: 1 }}>Message Status</FormLabel>
+                                <Select
+                                    value={messageStatus}
+                                    onChange={(e) => setMessageStatus(e.target.value as ChatMessageStatus)}
+                                >
+                                    <MenuItem value="unsent">Unsent</MenuItem>
+                                    <MenuItem value="editing">Editing</MenuItem>
+                                    <MenuItem value="sending">Sending</MenuItem>
+                                    <MenuItem value="sent">Sent</MenuItem>
+                                    <MenuItem value="failed">Failed</MenuItem>
+                                </Select>
+                            </FormControl>
+                            
+                            {/* Reaction Count Control */}
+                            <FormControl component="fieldset" size="small">
+                                <Slider
+                                    value={reactionCount}
+                                    onChange={(value) => setReactionCount(value)}
+                                    min={0}
+                                    max={100}
+                                    label={`Reactions: ${reactionCount}`}
+                                    showValue={false}
+                                    marks={[
+                                        { value: 0, label: "None" },
+                                        { value: 5, label: "Few" },
+                                        { value: 15, label: "Many" },
+                                        { value: 50, label: "Lots" },
+                                        { value: 100, label: "Max" },
+                                    ]}
+                                />
+                            </FormControl>
+                            
+                            {/* Report Count Control */}
+                            <FormControl component="fieldset" size="small">
+                                <Slider
+                                    value={reportCount}
+                                    onChange={(value) => setReportCount(value)}
+                                    min={0}
+                                    max={10}
+                                    label={`Reports: ${reportCount}`}
+                                    showValue={false}
+                                    marks={Array.from({ length: 11 }, (_, i) => ({ value: i }))}
+                                />
+                            </FormControl>
+                            
+                            {/* Content Type Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Content Type</FormLabel>
+                                <RadioGroup
+                                    value={contentType}
+                                    onChange={(e) => setContentType(e.target.value as "none" | "short" | "long" | "code")}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="none" control={<Radio size="small" />} label="No Content" sx={{ m: 0 }} />
+                                    <FormControlLabel value="short" control={<Radio size="small" />} label="Short Text" sx={{ m: 0 }} />
+                                    <FormControlLabel value="long" control={<Radio size="small" />} label="Long Text" sx={{ m: 0 }} />
+                                    <FormControlLabel value="code" control={<Radio size="small" />} label="Code Block" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
+                            
+                            {/* Has Versions Control */}
+                            <FormControl component="fieldset" size="small">
+                                <Switch
+                                    checked={hasVersions}
+                                    onChange={(checked) => setHasVersions(checked)}
+                                    size="sm"
+                                    label="Has Multiple Versions"
+                                    labelPosition="right"
+                                />
+                            </FormControl>
+                        </Box>
+                    </Box>
+                    
+                    {/* Preview Section */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        flex: 1,
+                        overflow: "hidden"
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>ChatBubble Preview</Typography>
+                        
+                        <Box sx={{ 
+                            bgcolor: "background.default", 
+                            borderRadius: 2, 
+                            p: 2,
+                            minHeight: 400,
+                            display: "flex",
+                            alignItems: "flex-start",
+                            overflow: "auto"
+                        }}>
+                            <Box sx={{ width: "100%", maxWidth: 800 }}>
+                                <ChatBubble
+                                    activeIndex={activeVersion}
+                                    chatWidth={800}
+                                    message={message}
+                                    numSiblings={hasVersions ? 3 : 1}
+                                    isBotOnlyChat={false}
+                                    isOwn={isOwn}
+                                    onActiveIndexChange={handleActiveIndexChange}
+                                    onDeleted={action("onDeleted")}
+                                    onEdit={action("onEdit")}
+                                    onReply={action("onReply")}
+                                    onRegenerateResponse={action("onRegenerateResponse")}
+                                    onRetry={action("onRetry")}
+                                />
+                            </Box>
+                        </Box>
+                        
+                        {/* State Information */}
+                        <Box sx={{ mt: 3 }}>
+                            <Typography variant="subtitle2" color="text.secondary">
+                                Current State Information:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" component="pre" sx={{ mt: 1 }}>
+                                {JSON.stringify({
+                                    isOwn,
+                                    isBot,
+                                    status: messageStatus,
+                                    reactionCount,
+                                    reportCount,
+                                    hasVersions,
+                                    activeVersion: hasVersions ? activeVersion : 0,
+                                }, null, 2)}
+                            </Typography>
+                        </Box>
+                    </Box>
+                </Box>
+            </Box>
+        );
+    },
+};
+ChatBubbleShowcase.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+// Generate long content for performance testing
+function generateLongText(paragraphs: number = 3): string {
+    const sentences = [
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
+        "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+        "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.",
+        "Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.",
+        "Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores.",
+        "Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.",
+        "Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam.",
+        "Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur."
+    ];
+    
+    const paragraphTexts: string[] = [];
+    for (let p = 0; p < paragraphs; p++) {
+        const sentenceCount = 4 + Math.floor(Math.random() * 4); // 4-7 sentences per paragraph
+        const paragraphSentences: string[] = [];
+        for (let s = 0; s < sentenceCount; s++) {
+            paragraphSentences.push(sentences[Math.floor(Math.random() * sentences.length)]);
+        }
+        paragraphTexts.push(paragraphSentences.join(" "));
+    }
+    
+    return paragraphTexts.join("\n\n");
+}
+
+// Generate realistic reactions for performance testing
+function generateManyReactions(count: number): ReactionSummary[] {
+    const emojis = ["👍", "❤️", "😂", "🎉", "🤔", "👏", "🔥", "💯", "😍", "🚀", "💪", "🙏", "😊", "🤩", "👀", "💡", "⭐", "✨"];
+    const reactions: ReactionSummary[] = [];
+    
+    for (let i = 0; i < Math.min(count, emojis.length); i++) {
+        reactions.push({
+            __typename: "ReactionSummary",
+            emoji: emojis[i],
+            count: 1 + Math.floor(Math.random() * 10),
+        });
+    }
+    
+    return reactions;
+}
+
+// Create hundreds of messages for performance testing
+function createPerformanceTestMessages(messageCount: number = 200): ChatMessageShape[] {
+    const messages: ChatMessageShape[] = [];
+    const userIds = [bot1Id, signedInUserId];
+    const userNames = ["AI Assistant", "Test User"];
+    const userHandles = ["ai_assistant", "testuser"];
+    const isBot = [true, false];
+    
+    let currentTime = Date.now() - (messageCount * 30000); // Start 30 seconds apart
+    
+    for (let i = 0; i < messageCount; i++) {
+        const userIndex = i % 2; // Alternate between bot and user
+        const messageId = generatePK().toString();
+        const parentId = i > 0 ? messages[i - 1].id : null;
+        
+        messages.push({
+            __typename: "ChatMessage",
+            id: messageId,
+            createdAt: new Date(currentTime + (i * 30000)).toISOString(),
+            updatedAt: new Date(currentTime + (i * 30000)).toISOString(),
+            translations: [{
+                __typename: "ChatMessageTranslation",
+                id: generatePK().toString(),
+                language: "en",
+                text: generateLongText(2 + Math.floor(Math.random() * 4)), // 2-5 paragraphs
+            }],
+            reactionSummaries: Math.random() > 0.3 ? generateManyReactions(Math.floor(Math.random() * 8)) : [], // 70% chance of reactions
+            status: "sent" as ChatMessageStatus,
+            user: {
+                __typename: "User",
+                id: userIds[userIndex],
+                name: userNames[userIndex],
+                handle: userHandles[userIndex],
+                isBot: isBot[userIndex],
+            },
+            versionIndex: 0,
+            parent: parentId ? {
+                __typename: "ChatMessageParent",
+                id: parentId,
+            } : null,
+        });
+    }
+    
+    return messages;
+}
+
+/**
+ * Performance Test: Hundreds of messages with long content to test rendering performance
+ * Use this story to benchmark performance optimizations
+ */
+export function PerformanceTest() {
+    const performanceMessages = useMemo(() => createPerformanceTestMessages(50), []); // Start with 50 messages
+    
+    const {
+        tree,
+        branches,
+        setBranches,
+        handleEdit,
+        handleReactionAdd,
+        handleRegenerateResponse,
+        handleReply,
+        handleRetry,
+        removeMessages,
+    } = useStoryMessages(performanceMessages);
+
+    // Add performance monitoring
+    const renderStart = performance.now();
+    
+    useEffect(() => {
+        const renderEnd = performance.now();
+        console.log(`📊 ChatBubbleTree Performance Test - Render time: ${(renderEnd - renderStart).toFixed(2)}ms`);
+        console.log(`📊 Message count: ${performanceMessages.length}`);
+        console.log(`📊 Tree size: ${tree.getMap().size} nodes`);
+    });
+
+    return (
+        <>
+            <Box sx={{ 
+                position: "absolute", 
+                top: 10, 
+                right: 10, 
+                background: "rgba(0,0,0,0.7)", 
+                color: "white", 
+                padding: 1, 
+                borderRadius: 1,
+                fontSize: "0.8rem",
+                zIndex: 1000
+            }}>
+                📊 Performance Test: {performanceMessages.length} messages
+            </Box>
+            <ChatBubbleTree
+                tree={tree}
+                branches={branches}
+                setBranches={setBranches}
+                handleEdit={handleEdit}
+                handleRegenerateResponse={handleRegenerateResponse}
+                handleReply={handleReply}
+                handleRetry={handleRetry}
+                removeMessages={removeMessages}
+                isBotOnlyChat={false}
+                isEditingMessage={false}
+                isReplyingToMessage={false}
+                messageStream={null}
+            />
+        </>
+    );
+}
+PerformanceTest.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+// Mock run configurations for testing
+function createMockRuns(): ChatMessageRunConfig[] {
+    const runId1 = generatePK().toString();
+    const runId2 = generatePK().toString();
+    const runId3 = generatePK().toString();
+    
+    return [
+        {
+            runId: runId1,
+            resourceVersionId: generatePK().toString(),
+            resourceVersionName: "Data Processing Routine",
+            taskId: generatePK().toString(),
+            runStatus: "Completed",
+            createdAt: new Date(Date.now() - 5 * MINUTES_10_MS).toISOString(),
+            completedAt: new Date(Date.now() - 2 * MINUTES_10_MS).toISOString(),
+        },
+        {
+            runId: runId2,
+            resourceVersionId: generatePK().toString(), 
+            resourceVersionName: "File Converter",
+            taskId: generatePK().toString(),
+            runStatus: "InProgress",
+            createdAt: new Date(Date.now() - 3 * MINUTES_10_MS).toISOString(),
+        },
+        {
+            runId: runId3,
+            resourceVersionId: generatePK().toString(),
+            resourceVersionName: "API Integration",
+            taskId: generatePK().toString(), 
+            runStatus: "Failed",
+            createdAt: new Date(Date.now() - 4 * MINUTES_10_MS).toISOString(),
+            completedAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
+        },
+    ];
+}
+
+// Create messages with runs
+const messagesWithRuns: ChatMessageShape[] = [
+    // Initial bot message 
+    {
+        __typename: "ChatMessage" as const,
+        id: generatePK().toString(),
+        createdAt: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 10 * MINUTES_10_MS).toISOString(),
+        translations: [{
+            __typename: "ChatMessageTranslation" as const,
+            id: generatePK().toString(),
+            language: "en",
+            text: "I'll help you process those files and integrate with the API. Let me start the necessary routines.",
+        }],
+        reactionSummaries: [],
+        status: "sent" as ChatMessageStatus,
+        user: {
+            id: bot1Id,
+            name: "AI Assistant",
+            handle: "ai_assistant", 
+            isBot: true,
+            __typename: "User",
+        },
+        versionIndex: 0,
+        parent: null,
+        config: {
+            runs: createMockRuns(),
+        },
+    },
+    // User follow-up message
+    {
+        __typename: "ChatMessage" as const,
+        id: generatePK().toString(),
+        createdAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
+        translations: [{
+            __typename: "ChatMessageTranslation" as const,
+            id: generatePK().toString(),
+            language: "en",
+            text: "Great! I can see the progress. The data processing completed successfully, but it looks like the API integration failed. Can you retry that one?",
+        }],
+        reactionSummaries: [],
+        status: "sent" as ChatMessageStatus,
+        user: {
+            __typename: "User" as const,
+            id: signedInUserId,
+            name: "Test User", 
+            handle: "testuser",
+            isBot: false,
+        },
+        versionIndex: 0,
+        parent: {
+            __typename: "ChatMessageParent" as const,
+            id: generatePK().toString(),
+        },
+    },
+    // Bot response with another run
+    {
+        __typename: "ChatMessage" as const,
+        id: generatePK().toString(),
+        createdAt: new Date(Date.now() - 2 * MINUTES_10_MS).toISOString(),
+        updatedAt: new Date(Date.now() - 2 * MINUTES_10_MS).toISOString(),
+        translations: [{
+            __typename: "ChatMessageTranslation" as const,
+            id: generatePK().toString(),
+            language: "en",
+            text: "I see the API integration failed due to authentication issues. Let me retry with updated credentials.",
+        }],
+        reactionSummaries: [{
+            __typename: "ReactionSummary" as const,
+            count: 1,
+            emoji: "👍",
+        }],
+        status: "sent" as ChatMessageStatus,
+        user: {
+            id: bot1Id,
+            name: "AI Assistant",
+            handle: "ai_assistant",
+            isBot: true,
+            __typename: "User",
+        },
+        versionIndex: 0,
+        parent: {
+            __typename: "ChatMessageParent" as const,
+            id: generatePK().toString(),
+        },
+        config: {
+            runs: [{
+                runId: generatePK().toString(),
+                resourceVersionId: generatePK().toString(),
+                resourceVersionName: "API Integration (Retry)",
+                taskId: generatePK().toString(),
+                runStatus: "Running",
+                createdAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
+            }],
+        },
+    },
+];
+
+/**
+ * With Routine Executors: Shows messages with routine executions displayed underneath
+ */
+export function WithRoutineExecutors() {
+    const {
+        tree,
+        branches,
+        setBranches,
+        handleEdit,
+        handleReactionAdd,
+        handleRegenerateResponse,
+        handleReply,
+        handleRetry,
+        removeMessages,
+    } = useStoryMessages(messagesWithRuns);
+
+    return (
+        <ChatBubbleTree
+            tree={tree}
+            branches={branches}
+            setBranches={setBranches}
+            handleEdit={handleEdit}
+            handleRegenerateResponse={handleRegenerateResponse}
+            handleReply={handleReply}
+            handleRetry={handleRetry}
+            removeMessages={removeMessages}
+            isBotOnlyChat={true}
+            isEditingMessage={false}
+            isReplyingToMessage={false}
+            messageStream={null}
+        />
+    );
+}
+WithRoutineExecutors.parameters = {
     session: signedInPremiumWithCreditsSession,
 };

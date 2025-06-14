@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { DUMMY_ID, type ChatMessage } from "@vrooli/shared";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { act } from "react";
-import sinon from "sinon";
+
 import { MessageTree, useMessageTree, type MessageNode, type MinimumChatMessage } from "./messages.js";
 
 const MessageTreeProperty = {
@@ -788,7 +788,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
             const map = result.current.tree[MessageTreeProperty.map];
             const roots = result.current.tree[MessageTreeProperty.roots];
-            expect(() => TreeTestUtils.assertTreeIntegrity(map, roots, skip)).not.to.throw();
+            expect(() => TreeTestUtils.assertTreeIntegrity(map, roots, skip)).not.toThrow();
         });
 
         it(`${caseTitle} - Result has the same number of messages as the input`, () => {
@@ -805,7 +805,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                 totalNodes += TreeTestUtils.countNodesInTree(map, rootId);
             }
 
-            expect(totalNodes).to.equal(caseData.length);
+            expect(totalNodes).toBe(caseData.length);
         });
 
         it(`${caseTitle} - Roots and children are ordered by sequence`, () => {
@@ -820,18 +820,18 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
             for (let i = 0; i < roots.length - 1; i++) {
                 const nextSequence = map.get(roots[i + 1])?.message?.sequence;
-                expect(typeof nextSequence).to.equal("number");
-                expect(map.get(roots[i])?.message?.sequence).to.be.lessThan(nextSequence ?? 0);
+                expect(typeof nextSequence).toBe("number");
+                expect(map.get(roots[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
             }
 
             function checkChildOrder(messageId: string) {
                 const node = map.get(messageId);
-                expect(node).to.exist;
+                expect(node).toBeDefined();
                 if (!node) return;
                 for (let i = 0; i < node.children.length - 1; i++) {
                     const nextSequence = map.get(node.children[i + 1])?.message?.sequence;
-                    expect(typeof nextSequence).to.equal("number");
-                    expect(map.get(node.children[i])?.message?.sequence).to.be.lessThan(nextSequence ?? 0);
+                    expect(typeof nextSequence).toBe("number");
+                    expect(map.get(node.children[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
                 }
                 node.children.forEach(checkChildOrder);
             }
@@ -856,14 +856,14 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
                 const originalMap = originalResult.current.tree[MessageTreeProperty.map];
                 const originalRoots = originalResult.current.tree[MessageTreeProperty.roots];
-                expect(() => TreeTestUtils.assertTreeIntegrity(originalMap, originalRoots, skip)).not.to.throw();
+                expect(() => TreeTestUtils.assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
 
                 const shuffledMap = shuffledResult.current.tree[MessageTreeProperty.map];
                 const shuffledRoots = shuffledResult.current.tree[MessageTreeProperty.roots];
-                expect(() => TreeTestUtils.assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.to.throw();
+                expect(() => TreeTestUtils.assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
 
                 // Check that the trees have the same structure
-                expect(TreeTestUtils.treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).to.equal(true);
+                expect(TreeTestUtils.treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
             }
         });
     });
@@ -901,10 +901,10 @@ describe("useMessageTree", () => {
             const map = result.current.tree[MessageTreeProperty.map];
             const roots = result.current.tree[MessageTreeProperty.roots];
 
-            expect(roots).to.have.lengthOf(1);
+            expect(roots).toHaveLength(1);
             const rootId = roots[0];
             const isValidStructure = TreeTestUtils.verifySingleNodeStructureAndSequentialIds(map, rootId, "1");
-            expect(isValidStructure).to.equal(true);
+            expect(isValidStructure).toBe(true);
         });
 
         runCommonTests(case2, chatId, "Case 2");
@@ -918,14 +918,14 @@ describe("useMessageTree", () => {
             const map = result.current.tree[MessageTreeProperty.map];
             const roots = result.current.tree[MessageTreeProperty.roots];
 
-            expect(roots).to.have.lengthOf(2);
+            expect(roots).toHaveLength(2);
             const firstRootId = roots[0];
             const firstRoot = map.get(firstRootId);
             const secondRootId = roots[1];
 
-            expect(firstRoot?.children).to.have.lengthOf(0);
+            expect(firstRoot?.children).toHaveLength(0);
             const isValidStructureForSecondRoot = TreeTestUtils.verifySingleNodeStructureAndSequentialIds(map, secondRootId, "2");
-            expect(isValidStructureForSecondRoot).to.equal(true);
+            expect(isValidStructureForSecondRoot).toBe(true);
         });
 
         runCommonTests(case3, chatId, "Case 3");
@@ -939,18 +939,18 @@ describe("useMessageTree", () => {
             const map = result.current.tree[MessageTreeProperty.map];
             const roots = result.current.tree[MessageTreeProperty.roots];
 
-            expect(roots).to.have.lengthOf(1);
+            expect(roots).toHaveLength(1);
             const rootId = roots[0];
             const root = map.get(rootId);
 
-            expect(root?.children).to.have.lengthOf(1);
+            expect(root?.children).toHaveLength(1);
             const childId = root?.children[0];
             const child = map.get(childId ?? "");
 
-            expect(child?.children).to.have.lengthOf(3);
+            expect(child?.children).toHaveLength(3);
             for (const grandchildId of (child?.children ?? [])) {
                 const grandchild = map.get(grandchildId);
-                expect(grandchild?.children).to.have.lengthOf(2);
+                expect(grandchild?.children).toHaveLength(2);
             }
         });
 
@@ -965,11 +965,11 @@ describe("useMessageTree", () => {
             const map = result.current.tree[MessageTreeProperty.map];
             const roots = result.current.tree[MessageTreeProperty.roots];
 
-            expect(roots).to.have.lengthOf(1);
+            expect(roots).toHaveLength(1);
             const rootId = roots[0];
             const root = map.get(rootId);
 
-            expect(root?.children).to.have.lengthOf(1);
+            expect(root?.children).toHaveLength(1);
         });
     });
 
@@ -1003,8 +1003,8 @@ describe("useMessageTree", () => {
 
                 // Find and verify the newly added message
                 const newMessageNode = result.current.tree[MessageTreeProperty.map].get(newMessage.id);
-                expect(newMessageNode).to.exist;
-                expect(newMessageNode!.message.id).to.equal(newMessage.id);
+                expect(newMessageNode).toBeDefined();
+                expect(newMessageNode!.message.id).toBe(newMessage.id);
             });
 
             it("Won't add the same message twice", () => {
@@ -1021,7 +1021,7 @@ describe("useMessageTree", () => {
                     result.current.addMessages([newMessage] as ChatMessage[]);
                 });
 
-                expect(result.current.tree[MessageTreeProperty.map].size).to.equal(initialNodeCount);
+                expect(result.current.tree[MessageTreeProperty.map].size).toBe(initialNodeCount);
             });
 
             it("Won't add the same messages (plural) twice", () => {
@@ -1039,7 +1039,7 @@ describe("useMessageTree", () => {
                     result.current.addMessages(case4 as ChatMessage[]);
                 });
 
-                expect(result.current.tree[MessageTreeProperty.map].size).to.equal(case4.length);
+                expect(result.current.tree[MessageTreeProperty.map].size).toBe(case4.length);
             });
         });
 
@@ -1065,8 +1065,8 @@ describe("useMessageTree", () => {
                 });
 
                 const updatedNode = result.current.tree[MessageTreeProperty.map].get(updatedMessage.id);
-                expect(updatedNode).to.exist;
-                expect(updatedNode!.message).to.deep.equal(updatedMessage);
+                expect(updatedNode).toBeDefined();
+                expect(updatedNode!.message).toEqual(updatedMessage);
             });
 
             it("Doesn't edit if the message is missing", () => {
@@ -1091,7 +1091,7 @@ describe("useMessageTree", () => {
 
                 const updatedNode = result.current.tree[MessageTreeProperty.map].get(updatedMessage.id);
                 // Expect the node to be undefined since it wasn't added
-                expect(updatedNode).to.be.undefined;
+                expect(updatedNode).toBeUndefined();
             });
         });
 
@@ -1108,7 +1108,7 @@ describe("useMessageTree", () => {
                 });
 
                 const removedNode = result.current.tree[MessageTreeProperty.map].get(newMessage.id);
-                expect(removedNode).to.be.undefined;
+                expect(removedNode).toBeUndefined();
             });
         });
 
@@ -1121,8 +1121,8 @@ describe("useMessageTree", () => {
                 });
 
                 // Verify that the tree is not empty
-                expect(result.current.tree[MessageTreeProperty.map].size).to.be.greaterThan(0);
-                expect(result.current.tree[MessageTreeProperty.roots].length).to.be.greaterThan(0);
+                expect(result.current.tree[MessageTreeProperty.map].size).toBeGreaterThan(0);
+                expect(result.current.tree[MessageTreeProperty.roots].length).toBeGreaterThan(0);
 
                 // Clear the message tree
                 act(() => {
@@ -1130,8 +1130,8 @@ describe("useMessageTree", () => {
                 });
 
                 // Verify that the message tree is reset
-                expect(result.current.tree[MessageTreeProperty.map].size).to.equal(0);
-                expect(result.current.tree[MessageTreeProperty.roots]).to.have.lengthOf(0);
+                expect(result.current.tree[MessageTreeProperty.map].size).toBe(0);
+                expect(result.current.tree[MessageTreeProperty.roots]).toHaveLength(0);
             });
 
             it("Clearing then adding back messages is the same as just adding messages", () => {
@@ -1153,7 +1153,7 @@ describe("useMessageTree", () => {
                 const result1Map = result1.current.tree[MessageTreeProperty.map];
                 const result1Roots = result1.current.tree[MessageTreeProperty.roots];
                 const result2Roots = result2.current.tree[MessageTreeProperty.roots];
-                expect(TreeTestUtils.treesHaveSameStructure(result1Map, result1Roots, result2Roots)).to.equal(true);
+                expect(TreeTestUtils.treesHaveSameStructure(result1Map, result1Roots, result2Roots)).toBe(true);
             });
         });
 
@@ -1209,13 +1209,13 @@ describe("useMessageTree", () => {
 
             // Verify final state
             const tree = result.current.tree;
-            expect(tree.getMessagesCount()).to.equal(1);
-            expect(tree.getRoots()).to.have.lengthOf(1);
-            expect(tree.getRoots()[0]).to.equal("1");
+            expect(tree.getMessagesCount()).toBe(1);
+            expect(tree.getRoots()).toHaveLength(1);
+            expect(tree.getRoots()[0]).toBe("1");
 
             const firstMessage = tree.getMap().get("1");
-            expect(firstMessage?.message.translations[0].text).to.equal("Edited first message");
-            expect(firstMessage?.children).to.have.lengthOf(0);
+            expect(firstMessage?.message.translations[0].text).toBe("Edited first message");
+            expect(firstMessage?.children).toHaveLength(0);
         });
 
         it("should handle branch updates correctly", () => {
@@ -1254,7 +1254,7 @@ describe("useMessageTree", () => {
             });
 
             // Verify branch selection
-            expect(result.current.branches["1"]).to.equal("3");
+            expect(result.current.branches["1"]).toBe("3");
         });
     });
 });
@@ -1269,13 +1269,13 @@ describe("MessageTree Class Operations", () => {
     describe("addMessagesBatch", () => {
         it("should handle empty input", () => {
             tree.addMessagesBatch([]);
-            expect(tree.getMessagesCount()).to.equal(0);
+            expect(tree.getMessagesCount()).toBe(0);
         });
 
         it("should handle null input", () => {
             // @ts-expect-error Testing null input
             tree.addMessagesBatch(null);
-            expect(tree.getMessagesCount()).to.equal(0);
+            expect(tree.getMessagesCount()).toBe(0);
         });
 
         it("should add messages in correct sequence order regardless of input order", () => {
@@ -1302,10 +1302,10 @@ describe("MessageTree Class Operations", () => {
 
             tree.addMessagesBatch(messages);
             const roots = tree.getRoots();
-            expect(roots).to.have.lengthOf(3);
-            expect(roots[0]).to.equal("1");
-            expect(roots[1]).to.equal("2");
-            expect(roots[2]).to.equal("3");
+            expect(roots).toHaveLength(3);
+            expect(roots[0]).toBe("1");
+            expect(roots[1]).toBe("2");
+            expect(roots[2]).toBe("3");
         });
 
         it("should handle duplicate messages by keeping the latest version", () => {
@@ -1332,9 +1332,9 @@ describe("MessageTree Class Operations", () => {
             tree.addMessagesBatch([originalMessage]);
             tree.addMessagesBatch([updatedMessage]);
 
-            expect(tree.getMessagesCount()).to.equal(1);
+            expect(tree.getMessagesCount()).toBe(1);
             const node = tree.getMap().get("1");
-            expect(node?.message.translations[0].text).to.equal("Updated text");
+            expect(node?.message.translations[0].text).toBe("Updated text");
         });
 
         it("should handle complex parent-child relationships", () => {
@@ -1365,10 +1365,10 @@ describe("MessageTree Class Operations", () => {
             tree.addMessagesBatch(messages);
 
             const root = tree.getMap().get("1");
-            expect(root?.children).to.contain("2");
+            expect(root?.children).toContain("2");
 
             const child = tree.getMap().get("2");
-            expect(child?.children).to.contain("3");
+            expect(child?.children).toContain("3");
         });
 
         it("should handle orphaned messages gracefully", () => {
@@ -1393,11 +1393,11 @@ describe("MessageTree Class Operations", () => {
 
             // Messages should be added as roots since parent doesn't exist
             const roots = tree.getRoots();
-            expect(roots).to.include("2");
+            expect(roots).toContain("2");
 
             // Child relationship should be maintained
             const parent = tree.getMap().get("2");
-            expect(parent?.children).to.contain("3");
+            expect(parent?.children).toContain("3");
         });
     });
 
@@ -1407,7 +1407,7 @@ describe("MessageTree Class Operations", () => {
                 id: "nonexistent",
                 translations: [],
             });
-            expect(result).to.be.false;
+            expect(result).toBe(false);
         });
 
         it("should successfully edit existing message", () => {
@@ -1433,9 +1433,9 @@ describe("MessageTree Class Operations", () => {
                 }],
             });
 
-            expect(result).to.be.true;
+            expect(result).toBe(true);
             const node = tree.getMap().get("1");
-            expect(node?.message.translations[0].text).to.equal("Updated text");
+            expect(node?.message.translations[0].text).toBe("Updated text");
         });
 
         it("should preserve child relationships when editing", () => {
@@ -1467,9 +1467,9 @@ describe("MessageTree Class Operations", () => {
                 }],
             });
 
-            expect(result).to.be.true;
+            expect(result).toBe(true);
             const node = tree.getMap().get("1");
-            expect(node?.children).to.contain("2");
+            expect(node?.children).toContain("2");
         });
 
         it("should only update specified fields", () => {
@@ -1496,11 +1496,11 @@ describe("MessageTree Class Operations", () => {
                 }],
             });
 
-            expect(result).to.be.true;
+            expect(result).toBe(true);
             const node = tree.getMap().get("1");
-            expect(node?.message.translations[0].text).to.equal("Updated text");
-            expect(node?.message.sequence).to.equal(1);
-            expect(node?.message.user?.id).to.equal("user1");
+            expect(node?.message.translations[0].text).toBe("Updated text");
+            expect(node?.message.sequence).toBe(1);
+            expect(node?.message.user?.id).toBe("user1");
         });
     });
 });

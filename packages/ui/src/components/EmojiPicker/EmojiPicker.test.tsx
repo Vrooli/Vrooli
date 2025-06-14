@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "../../__test/testUtils.js";
 import { EmojiPicker } from "./EmojiPicker.js";
@@ -51,7 +51,19 @@ const mockEmojiData = {
     sheet: { cols: 0, rows: 0 }
 };
 
+// Mock localStorage to speed up emoji data caching
+const localStorageMock = {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    clear: vi.fn(),
+    removeItem: vi.fn(),
+    length: 0,
+    key: vi.fn(),
+};
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
 beforeEach(() => {
+    // Mock fetch to return data immediately
     global.fetch = vi.fn((url) => {
         if (url.includes('locales/en.json')) {
             return Promise.resolve({
@@ -62,46 +74,61 @@ beforeEach(() => {
             json: () => Promise.resolve(mockEmojiData),
         } as Response);
     });
+    
+    // Clear any cached data
+    localStorageMock.getItem.mockReturnValue(null);
 });
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
 });
 
 describe("EmojiPicker", () => {
     it("renders the emoji picker button", async () => {
         const onSelect = vi.fn();
-        const { container } = render(<EmojiPicker onSelect={onSelect} />);
-        
-        // Wait for any async operations to complete
-        await act(async () => {
-            await new Promise(resolve => setTimeout(resolve, 0));
-        });
+        const { unmount } = render(<EmojiPicker onSelect={onSelect} />);
         
         const button = screen.getByRole("button", { name: /add/i });
         expect(button).toBeTruthy();
+        
+        // Clean up properly to avoid act warnings
+        await act(async () => {
+            unmount();
+        });
     });
 
     it("opens the fallback picker when clicked", async () => {
         const onSelect = vi.fn();
-        render(<EmojiPicker onSelect={onSelect} />);
+        const { unmount } = render(<EmojiPicker onSelect={onSelect} />);
 
         const button = screen.getByRole("button", { name: /add/i });
-        fireEvent.click(button);
+        
+        await act(async () => {
+            fireEvent.click(button);
+        });
 
+        // Look for the search input placeholder which indicates the picker is open
         await waitFor(() => {
-            // Look for the search input placeholder which indicates the picker is open
             expect(screen.getByPlaceholderText("Search...")).toBeTruthy();
-        }, { timeout: 3000 });
+        });
+        
+        // Clean up properly
+        await act(async () => {
+            unmount();
+        });
     });
 
     it("has a working search input", async () => {
         const onSelect = vi.fn();
-        render(<EmojiPicker onSelect={onSelect} />);
+        const { unmount } = render(<EmojiPicker onSelect={onSelect} />);
 
         // Open the picker
         const button = screen.getByRole("button", { name: /add/i });
-        fireEvent.click(button);
+        
+        await act(async () => {
+            fireEvent.click(button);
+        });
 
         await waitFor(() => {
             const searchInput = screen.getByPlaceholderText("Search...");
@@ -110,7 +137,12 @@ describe("EmojiPicker", () => {
             // Test typing in the search input
             fireEvent.change(searchInput, { target: { value: "smile" } });
             expect((searchInput as HTMLInputElement).value).toBe("smile");
-        }, { timeout: 3000 });
+        });
+        
+        // Clean up properly
+        await act(async () => {
+            unmount();
+        });
     });
 
     // NOT TESTED: "closes the picker when clicking outside"

@@ -1,5 +1,6 @@
 import { DUMMY_ID, LlmTask, SEEDED_PUBLIC_IDS, TaskType, endpointsTask, getTranslation, nanoid, noop, type AITaskInfo, type CheckTaskStatusesInput, type CheckTaskStatusesResult, type StartSwarmTaskInput, type TaskContextInfo } from "@vrooli/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getValidatedPreferredModel } from "../api/ai.js";
 import { fetchLazyWrapper } from "../api/fetchWrapper.js";
 import type { IconInfo } from "../icons/Icons.js";
 import { useActiveChat } from "../stores/activeChatStore.js";
@@ -158,7 +159,7 @@ export function useAutoFill<T = object>({
 }: UseAutoFillProps<T>) {
     // Should always be associated with the main active chat
     const { chat, latestMessageId } = useActiveChat({ setMessage: noop });
-    const model = "gpt-4o-mini"; //TODO
+    const model = getValidatedPreferredModel();
 
     /**
      * ID used when sending form data as a task context to the server. 
@@ -171,7 +172,7 @@ export function useAutoFill<T = object>({
     const autoFill = useCallback(function autoFillCallback() {
         const chatId = chat?.id;
         if (!chatId) {
-            console.error("No chat ID found for autofill");
+            // No chat ID found for autofill
             return;
         }
 
@@ -203,7 +204,7 @@ export function useAutoFill<T = object>({
             },
             // TODO should be handled by socket event
             // onSuccess: (result) => {
-            //     console.log("got autofill response", result);
+            //     // Got autofill response
 
             //     const { originalValues, updatedValues } = shapeAutoFillResult(result);
             //     handleUpdate(updatedValues);
@@ -235,7 +236,7 @@ export function useAutoFill<T = object>({
     useEffect(function suggestTaskEffect() {
         const chatId = chat?.id;
         if (!chatId) {
-            console.error("No chat ID found for autofill");
+            // No chat ID found for autofill
             return;
         }
 
@@ -255,7 +256,7 @@ export function useAutoFill<T = object>({
     useEffect(function sendAutoFillDataEffect() {
         const chatId = chat?.id;
         if (!chatId) {
-            console.error("No chat ID found for autofill");
+            // No chat ID found for autofill
             return;
         }
 
@@ -326,7 +327,7 @@ function getTaskId(
         const taskKey = Object.entries(contexts).find(([, value]) => value.some(entry => entry.id === connect.data))?.[0];
         return taskKey || null;
     } else {
-        console.error("Unknown context connect type:", (connect as { __type: string }).__type);
+        // Unknown context connect type
         return null;
     }
 }
@@ -576,7 +577,7 @@ export function useChatTasks({
                             // Add to beginning of the list
                             updatedContexts[taskKey] = [...value, ...currentContext];
                         } else {
-                            console.error("Unknown context behavior:", behavior);
+                            // Unknown context behavior
                         }
                     }
                 }
