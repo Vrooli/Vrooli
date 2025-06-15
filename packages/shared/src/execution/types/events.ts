@@ -1,375 +1,180 @@
 /**
  * Core type definitions for the event-driven architecture
  * These types define the communication protocol between tiers
+ * 
+ * IMPORTANT: These types reflect the actual implementation where complex behaviors
+ * emerge from AI decisions rather than being hardcoded. The architecture uses
+ * simple event types with flexible payloads instead of prescriptive enums.
  */
 
+import type { ResourceUsage } from "./core.js";
+
 /**
- * Base event interface for all system events
+ * Base event interface matching actual implementation
+ * The implementation uses a simpler structure with optional fields
  */
-export interface BaseEvent {
+export interface ExecutionEvent {
     id: string;
     type: string;
     timestamp: Date;
-    source: EventSource;
-    correlationId: string;
+    source?: {  // Optional in implementation
+        tier: string;  // Actually uses strings like "tier1.swarm", "cross-cutting"
+        component: string;
+        instanceId: string;
+    };
+    correlationId?: string;  // Optional in implementation
     causationId?: string;
-    metadata: EventMetadata;
+    data?: unknown;  // The implementation uses 'data' field for payloads
+    metadata?: Record<string, unknown>;  // Simple object, not structured
 }
 
 /**
- * Event source identification
+ * Event channel patterns actually used in the implementation
+ * These follow hierarchical dot notation or slash notation
  */
-export interface EventSource {
-    tier: 1 | 2 | 3 | "cross-cutting";
-    component: string;
-    instanceId: string;
-}
+export type EventChannel = 
+    | `execution.metrics.${string}`
+    | `execution.events.type.${string}`
+    | "strategy/performance/completed"
+    | `state.machine.${string}`
+    | "metric.recorded"
+    | "error.occurred"
+    | `swarm.${string}`
+    | `run.${string}`
+    | `step.${string}`;
 
 /**
- * Event metadata
+ * Tier 1 event types as actually implemented
  */
-export interface EventMetadata {
-    userId?: string;
-    sessionId?: string;
-    requestId?: string;
-    version: string;
-    tags: string[];
-    priority: EventPriority;
-    ttl?: number; // Time to live in seconds
-}
+export type SwarmEventType = 
+    | "swarm_started"
+    | "external_message_created"
+    | "tool_approval_response"
+    | "ApprovedToolExecutionRequest"
+    | "RejectedToolExecutionRequest"
+    | "internal_task_assignment"
+    | "internal_status_update"
+    | "swarm.started"  // Event bus format
+    | "swarm.state.changed"
+    | "team.formed"
+    | "team.updated";
 
 /**
- * Event priority levels
+ * Tier 2 event types as actually implemented
  */
-export enum EventPriority {
-    LOW = "LOW",
-    NORMAL = "NORMAL",
-    HIGH = "HIGH",
-    CRITICAL = "CRITICAL"
-}
+export type RunEventType =
+    | "START_EXECUTION"
+    | "EXECUTION_RESULT"
+    | "EXECUTION_ERROR"
+    | "run.started"
+    | "run.completed"
+    | "run.failed"
+    | "run.step_ready"
+    | "step.navigation";
 
 /**
- * Event categories for routing
+ * Tier 3 event types as actually implemented
  */
-export enum EventCategory {
-    // Lifecycle events
-    LIFECYCLE = "LIFECYCLE",
-    
-    // Coordination events
-    COORDINATION = "COORDINATION",
-    TEAM_MANAGEMENT = "TEAM_MANAGEMENT",
-    GOAL_MANAGEMENT = "GOAL_MANAGEMENT",
-    
-    // Process events
-    PROCESS = "PROCESS",
-    NAVIGATION = "NAVIGATION",
-    OPTIMIZATION = "OPTIMIZATION",
-    
-    // Execution events
-    EXECUTION = "EXECUTION",
-    STRATEGY = "STRATEGY",
-    TOOL = "TOOL",
-    
-    // Cross-cutting events
-    SECURITY = "SECURITY",
-    MONITORING = "MONITORING",
-    RESOURCE = "RESOURCE",
-    ERROR = "ERROR"
+export type StepEventType =
+    | "step.started"
+    | "step.completed"
+    | "step.failed"
+    | "strategy.selected"
+    | "tool.executed"
+    | "EXECUTE_STEP";
+
+/**
+ * Cross-cutting event types
+ */
+export type SystemEventType =
+    | "metric.recorded"
+    | "error.occurred"
+    | "resource.tracked"
+    | "security.alert";
+
+/**
+ * Simplified event interface for internal use
+ * Matches BaseStateMachine implementation
+ */
+export interface BaseEvent {
+    type: string;
+    timestamp?: Date;
+    metadata?: Record<string, unknown>;
 }
 
 /**
- * Event subscription configuration
+ * Event subscription as implemented
+ * The actual implementation uses simpler patterns
  */
 export interface EventSubscription {
-    id: string;
-    subscriber: EventSource;
-    filters: EventFilter[];
-    handler: string; // Handler function name
-    config: SubscriptionConfig;
+    pattern: string;  // e.g., "swarm.*", "run.completed"
+    handler: (event: ExecutionEvent) => void | Promise<void>;
+    filter?: (event: ExecutionEvent) => boolean;
 }
 
 /**
- * Event filter
- */
-export interface EventFilter {
-    field: string;
-    operator: "equals" | "contains" | "startsWith" | "endsWith" | "in" | "regex";
-    value: unknown;
-}
-
-/**
- * Subscription configuration
- */
-export interface SubscriptionConfig {
-    maxRetries: number;
-    timeout: number;
-    deadLetterQueue?: string;
-    batchSize?: number;
-    batchTimeout?: number;
-}
-
-/**
- * Event bus interface
+ * Simple event bus interface matching actual implementation
  */
 export interface EventBus {
-    // Publishing
-    publish(event: BaseEvent): Promise<void>;
-    publishBatch(events: BaseEvent[]): Promise<void>;
-    
-    // Subscribing
-    subscribe(subscription: EventSubscription): Promise<void>;
-    unsubscribe(subscriptionId: string): Promise<void>;
-    
-    // Query
-    getEvents(query: EventQuery): Promise<BaseEvent[]>;
-    getEventStream(query: EventQuery): AsyncIterator<BaseEvent>;
+    emit(event: ExecutionEvent): void;
+    on(pattern: string, handler: (event: ExecutionEvent) => void): void;
+    off(pattern: string, handler: (event: ExecutionEvent) => void): void;
+    subscribe(subscription: EventSubscription): void;
+    shutdown(): Promise<void>;
 }
 
 /**
- * Event query
+ * Event payloads are kept simple and flexible
+ * Complex behaviors emerge from AI interpretation of these events
  */
-export interface EventQuery {
-    filters: EventFilter[];
-    timeRange?: TimeRange;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    orderDirection?: "asc" | "desc";
-}
 
 /**
- * Time range for queries
+ * Common event data patterns used across tiers
  */
-export interface TimeRange {
-    start: Date;
-    end: Date;
-}
-
-/**
- * Tier 1 Coordination Events
- */
-export interface CoordinationEvent extends BaseEvent {
-    source: EventSource & { tier: 1 };
-    payload: CoordinationEventPayload;
-}
-
-export type CoordinationEventPayload = 
-    | SwarmLifecyclePayload
-    | TeamManagementPayload
-    | GoalManagementPayload
-    | ResourceAllocationPayload
-    | CommunicationPayload;
-
-export interface SwarmLifecyclePayload {
-    type: "swarm_lifecycle";
+export interface SwarmEventData {
     swarmId: string;
-    state: string;
-    previousState?: string;
-    reason?: string;
+    [key: string]: unknown;
 }
 
-export interface TeamManagementPayload {
-    type: "team_management";
-    teamId: string;
-    action: "formed" | "disbanded" | "modified";
-    agents: string[];
-    goal?: string;
-}
-
-export interface GoalManagementPayload {
-    type: "goal_management";
-    goalId: string;
-    action: "assigned" | "completed" | "failed" | "modified";
-    assignedTo?: string;
-    result?: unknown;
-}
-
-export interface ResourceAllocationPayload {
-    type: "resource_allocation";
-    resourceId: string;
-    action: "allocated" | "released" | "exhausted";
-    consumer: string;
-    amount?: number;
-}
-
-export interface CommunicationPayload {
-    type: "communication";
-    action: "message" | "consensus" | "conflict";
-    participants: string[];
-    content: unknown;
-}
-
-/**
- * Tier 2 Process Events
- */
-export interface ProcessEvent extends BaseEvent {
-    source: EventSource & { tier: 2 };
-    payload: ProcessEventPayload;
-}
-
-export type ProcessEventPayload = 
-    | RunLifecyclePayload
-    | StepExecutionPayload
-    | NavigationPayload
-    | OptimizationPayload
-    | ContextUpdatePayload;
-
-export interface RunLifecyclePayload {
-    type: "run_lifecycle";
+export interface RunEventData {
     runId: string;
-    routineId: string;
-    state: string;
-    previousState?: string;
-    error?: string;
+    [key: string]: unknown;
 }
 
-export interface StepExecutionPayload {
-    type: "step_execution";
+export interface StepEventData {
     stepId: string;
-    runId: string;
-    action: "started" | "completed" | "failed" | "skipped";
-    result?: unknown;
-    error?: string;
+    runId?: string;
+    [key: string]: unknown;
 }
 
-export interface NavigationPayload {
-    type: "navigation";
-    runId: string;
-    from: string;
-    to: string[];
-    reason: string;
-}
-
-export interface OptimizationPayload {
-    type: "optimization";
-    runId: string;
-    optimizationType: string;
-    target: string[];
-    expectedImprovement: number;
-    applied: boolean;
-}
-
-export interface ContextUpdatePayload {
-    type: "context_update";
-    runId: string;
-    updates: Record<string, unknown>;
-    scope: string;
-}
+// ResourceUsage is now imported from core.ts to avoid duplication
 
 /**
- * Tier 3 Execution Events
+ * Event patterns for emergent agent subscriptions
+ * Agents can subscribe to these patterns to provide capabilities
  */
-export interface ExecutionEvent extends BaseEvent {
-    source: EventSource & { tier: 3 };
-    payload: ExecutionEventPayload;
-}
-
-export type ExecutionEventPayload = 
-    | StrategyExecutionPayload
-    | ToolExecutionPayload
-    | AdaptationPayload
-    | LearningPayload;
-
-export interface StrategyExecutionPayload {
-    type: "strategy_execution";
-    stepId: string;
-    strategy: string;
-    result: "success" | "failure" | "partial";
-    confidence: number;
-    resourceUsage: Record<string, number>;
-}
-
-export interface ToolExecutionPayload {
-    type: "tool_execution";
-    toolName: string;
-    stepId: string;
-    parameters: Record<string, unknown>;
-    result?: unknown;
-    error?: string;
-    duration: number;
-}
-
-export interface AdaptationPayload {
-    type: "adaptation";
-    stepId: string;
-    adaptationType: string;
-    before: unknown;
-    after: unknown;
-    reason: string;
-}
-
-export interface LearningPayload {
-    type: "learning";
-    pattern: string;
-    confidence: number;
-    impact: number;
-    applicableTo: string[];
-}
+export const EMERGENT_EVENT_PATTERNS = {
+    // Monitoring agents subscribe to these
+    PERFORMANCE: ["*.completed", "*.failed", "metric.recorded"],
+    
+    // Security agents subscribe to these
+    SECURITY: ["*.failed", "security.*", "tool.executed"],
+    
+    // Optimization agents subscribe to these
+    OPTIMIZATION: ["step.completed", "resource.tracked", "strategy/performance/*"],
+    
+    // Learning agents subscribe to these
+    LEARNING: ["*.completed", "adaptation.*", "pattern.discovered"],
+} as const;
 
 /**
- * Cross-cutting Events
+ * Type guard for execution events
  */
-export interface SystemEvent extends BaseEvent {
-    source: EventSource & { tier: "cross-cutting" };
-    payload: SystemEventPayload;
-}
-
-export type SystemEventPayload = 
-    | SecurityEventPayload
-    | MonitoringEventPayload
-    | ResourceEventPayload
-    | ErrorEventPayload;
-
-export interface SecurityEventPayload {
-    type: "security";
-    action: "violation" | "authentication" | "authorization" | "audit";
-    severity: "low" | "medium" | "high" | "critical";
-    details: Record<string, unknown>;
-}
-
-export interface MonitoringEventPayload {
-    type: "monitoring";
-    metric: string;
-    value: number;
-    threshold?: number;
-    status: "normal" | "warning" | "critical";
-}
-
-export interface ResourceEventPayload {
-    type: "resource";
-    resourceType: string;
-    action: "allocated" | "released" | "exhausted" | "limited";
-    current: number;
-    limit?: number;
-}
-
-export interface ErrorEventPayload {
-    type: "error";
-    errorType: string;
-    message: string;
-    stack?: string;
-    context: Record<string, unknown>;
-    severity: "low" | "medium" | "high" | "critical";
-}
-
-/**
- * Event store interface for persistence
- */
-export interface EventStore {
-    save(event: BaseEvent): Promise<void>;
-    saveBatch(events: BaseEvent[]): Promise<void>;
-    get(eventId: string): Promise<BaseEvent | null>;
-    query(query: EventQuery): Promise<BaseEvent[]>;
-    stream(query: EventQuery): AsyncIterator<BaseEvent>;
-}
-
-/**
- * Event replay configuration
- */
-export interface EventReplayConfig {
-    fromTimestamp: Date;
-    toTimestamp?: Date;
-    eventTypes?: string[];
-    speed?: number; // 1 = real-time, 2 = 2x speed, etc.
-    filters?: EventFilter[];
+export function isExecutionEvent(event: unknown): event is ExecutionEvent {
+    return (
+        typeof event === "object" &&
+        event !== null &&
+        "type" in event &&
+        typeof (event as any).type === "string"
+    );
 }

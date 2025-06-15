@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
+import { ExecutionSocketEventEmitter } from "../shared/SocketEventEmitter.js";
 import { RunStateMachine } from "./orchestration/runStateMachine.js";
 import { NavigatorRegistry } from "./navigation/navigatorRegistry.js";
 import { BranchCoordinator } from "./orchestration/branchCoordinator.js";
@@ -42,6 +43,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
     // Intelligence components removed - functionality provided by emergent agents
     private readonly moiseGate: MOISEGate;
     private readonly stateStore: IRunStateStore;
+    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; runId: string }> = new Map();
@@ -129,6 +131,20 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 routineVersionId: config.routineVersionId,
                 swarmId: config.swarmId,
             });
+
+            // Emit socket event for run progress (resolve swarmId to chatId in socket emitter)
+            await this.socketEmitter.emitSwarmConfigUpdate(
+                config.swarmId,
+                {
+                    // Update task progress - this would be mapped from the run
+                    subtasks: [], // TODO: Map run steps to subtasks for display
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        lastProcessingCycleEndedAt: Date.now(),
+                    },
+                },
+            );
 
         } catch (error) {
             this.logger.error("[TierTwoOrchestrator] Failed to start run", {

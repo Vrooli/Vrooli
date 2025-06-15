@@ -4,9 +4,9 @@
  */
 
 /**
- * Resource types
+ * System resource types for execution tracking
  */
-export enum ResourceType {
+export enum SystemResourceType {
     COMPUTE = "COMPUTE",
     MEMORY = "MEMORY",
     STORAGE = "STORAGE",
@@ -48,7 +48,7 @@ export enum ResourceUnit {
  */
 export interface SystemResource {
     id: string;
-    type: ResourceType;
+    type: SystemResourceType;
     name: string;
     description?: string;
     unit: ResourceUnit;
@@ -179,7 +179,7 @@ export enum LimitScope {
  * Resource limit
  */
 export interface ResourceLimit {
-    resourceType: ResourceType;
+    resourceType: SystemResourceType;
     limit: number;
     period?: LimitPeriod;
     rollover: boolean;
@@ -308,7 +308,7 @@ export interface ResourceAccounting {
  * Resource usage summary
  */
 export interface ResourceUsageSummary {
-    resourceType: ResourceType;
+    resourceType: SystemResourceType;
     totalConsumed: number;
     peakUsage: number;
     averageUsage: number;
@@ -319,7 +319,7 @@ export interface ResourceUsageSummary {
  * Resource cost summary
  */
 export interface ResourceCostSummary {
-    resourceType: ResourceType;
+    resourceType: SystemResourceType;
     totalCost: number;
     breakdown: Array<{
         category: string;

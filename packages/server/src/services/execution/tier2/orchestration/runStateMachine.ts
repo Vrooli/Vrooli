@@ -13,15 +13,14 @@ import {
     type RunConfig,
     type RunProgress,
     type RunEvent,
-    type RunEventType,
     type Location,
     type TierCommunicationInterface,
     type TierExecutionRequest,
     type ExecutionResult,
     type ExecutionStatus,
     RunState as RunStateEnum,
-    RunEventType as RunEventTypeEnum,
-    generatePk,
+    RunEventTypeEnum,
+    generatePK,
 } from "@vrooli/shared";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
 import { type IRunStateStore } from "../state/runStateStore.js";
@@ -142,7 +141,7 @@ export class TierTwoRunStateMachine extends BaseStateMachine<BaseState, RunState
      * Creates a new run and queues start event
      */
     async createRun(params: RunInitParams): Promise<Run> {
-        const runId = generatePk();
+        const runId = generatePK();
         
         this.logger.info("[RunStateMachine] Creating run", {
             runId,
@@ -315,11 +314,11 @@ export class TierTwoRunStateMachine extends BaseStateMachine<BaseState, RunState
 
     private async emitRunEvent(
         run: Run,
-        type: RunEventType,
+        type: keyof typeof RunEventTypeEnum,
         metadata?: any,
     ): Promise<void> {
         const event = {
-            id: generatePk(),
+            id: generatePK(),
             runId: run.id,
             type,
             metadata: {

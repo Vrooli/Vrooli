@@ -1,6 +1,6 @@
 import { type PrismaClient } from "@prisma/client";
 import { type Logger } from "winston";
-import { type Routine, type RoutineMetadata, generatePk } from "@vrooli/shared";
+import { type Routine, type RoutineMetadata, generatePK } from "@vrooli/shared";
 
 /**
  * Routine storage service that integrates with Vrooli's database

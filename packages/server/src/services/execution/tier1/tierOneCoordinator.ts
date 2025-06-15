@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
+import { ExecutionSocketEventEmitter } from "../shared/SocketEventEmitter.js";
 import { SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { 
     type TierCommunicationInterface,
@@ -49,6 +50,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly chatStore: PrismaChatStore;
     private readonly conversationBridge: ConversationBridge;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
+    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
         super(logger, eventBus, "TierOneCoordinator");
@@ -56,6 +58,9 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         
         // Initialize state store
         this.stateStore = SwarmStateStoreFactory.getInstance(logger);
+        
+        // Set state store for socket emitter
+        this.socketEmitter.setStateStore(this.stateStore);
         
         // Initialize minimal components
         this.teamManager = new TeamManager(logger);
@@ -361,6 +366,25 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
 
             // Store swarm state
             await this.stateStore.createSwarm(config.swarmId, swarm);
+
+            // Emit initial swarm state
+            await this.socketEmitter.emitSwarmStateUpdate(
+                config.swarmId,
+                ExecutionStates.UNINITIALIZED,
+                "Swarm initialization in progress",
+                conversationId, // Pass chatId directly since we have it
+            );
+
+            // Emit initial resource allocation
+            await this.socketEmitter.emitSwarmResourceUpdate(
+                config.swarmId,
+                {
+                    allocated: config.resources.maxCredits,
+                    consumed: 0,
+                    remaining: config.resources.maxCredits,
+                },
+                conversationId,
+            );
 
             // Create state machine
             const stateMachine = new SwarmStateMachine(

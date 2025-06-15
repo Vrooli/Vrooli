@@ -1,6 +1,7 @@
 import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { BaseComponent } from "../shared/BaseComponent.js";
+import { ExecutionSocketEventEmitter } from "../shared/SocketEventEmitter.js";
 import { UnifiedExecutor } from "./engine/unifiedExecutor.js";
 import { StrategySelector } from "./engine/strategySelector.js";
 import { ToolOrchestrator } from "./engine/toolOrchestrator.js";
@@ -31,6 +32,7 @@ import {
 export class TierThreeExecutor extends BaseComponent implements TierCommunicationInterface {
     private readonly unifiedExecutor: UnifiedExecutor;
     private readonly contextExporter: ContextExporter;
+    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     // Track active executions for interface compliance
     private readonly activeExecutions: Map<ExecutionId, { status: ExecutionStatus; startTime: Date; context: ExecutionContext }> = new Map();
@@ -227,6 +229,29 @@ export class TierThreeExecutor extends BaseComponent implements TierCommunicatio
                 startTime: this.activeExecutions.get(executionId)!.startTime,
                 context,
             });
+
+            // Emit socket event for execution completion (if swarmId is available)
+            if (context.swarmId) {
+                await this.socketEmitter.emitSwarmConfigUpdate(
+                    context.swarmId,
+                    {
+                        records: [{
+                            id: generatePk().toString(),
+                            routine_id: input.stepId || "unknown",
+                            routine_name: input.toolName || "Tool Execution",
+                            params: input.parameters || {},
+                            output_resource_ids: [], // TODO: Extract from result
+                            caller_bot_id: context.userId || "system",
+                            created_at: new Date().toISOString(),
+                        }],
+                        stats: {
+                            totalToolCalls: 1, // Increment would need to be tracked
+                            totalCredits: allocation?.maxCredits?.toString() || "0",
+                            lastProcessingCycleEndedAt: Date.now(),
+                        },
+                    },
+                );
+            }
 
             return result as ExecutionResult<TOutput>;
 

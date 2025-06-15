@@ -2,6 +2,7 @@
 import { type AITaskInfo } from "../ai/types.js";
 import { type ChatMessage, type ChatParticipant, type Notification } from "../api/types.js";
 import { type DeferredDecisionData, type RunTaskInfo } from "../run/types.js";
+import { type ChatConfigObject } from "../shape/configs/chat.js";
 import { type JOIN_CHAT_ROOM_ERRORS, type JOIN_RUN_ROOM_ERRORS, type JOIN_USER_ROOM_ERRORS, type LEAVE_CHAT_ROOM_ERRORS, type LEAVE_RUN_ROOM_ERRORS, type LEAVE_USER_ROOM_ERRORS } from "./api.js";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
@@ -18,6 +19,47 @@ export interface StreamErrorPayload {
     toolCallId?: string;
     /** Hint for the UI if a retry might be possible */
     retryable?: boolean;
+}
+
+export type SwarmSocketEventPayloads = {
+    /**
+     * Updates to swarm configuration
+     */
+    swarmConfigUpdate: {
+        chatId: string;
+        config: Partial<ChatConfigObject> & { __typename?: "ChatConfigObject" };
+    };
+    /**
+     * Updates to swarm execution state
+     */
+    swarmStateUpdate: {
+        chatId: string;
+        swarmId: string;
+        state: "UNINITIALIZED" | "STARTING" | "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "TERMINATED" | "ARCHIVED";
+        message?: string;
+    };
+    /**
+     * Updates to swarm resource allocation and consumption
+     */
+    swarmResourceUpdate: {
+        chatId: string;
+        swarmId: string;
+        resources: {
+            allocated: number;
+            consumed: number;
+            remaining: number;
+        };
+    };
+    /**
+     * Updates to swarm team members and assignments
+     */
+    swarmTeamUpdate: {
+        chatId: string;
+        swarmId: string;
+        teamId?: string;
+        swarmLeader?: string;
+        subtaskLeaders?: Record<string, string>;
+    };
 }
 
 export type UserSocketEventPayloads = {
@@ -129,7 +171,7 @@ export type ReservedSocketEventPayloads = {
     connect_error: never;
     disconnect: never;
 }
-export type SocketEventPayloads = UserSocketEventPayloads & RunSocketEventPayloads & ChatSocketEventPayloads & ReservedSocketEventPayloads;
+export type SocketEventPayloads = UserSocketEventPayloads & RunSocketEventPayloads & ChatSocketEventPayloads & SwarmSocketEventPayloads & ReservedSocketEventPayloads;
 
 export type JoinChatRoomCallbackData = {
     success: boolean;

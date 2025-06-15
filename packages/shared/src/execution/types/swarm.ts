@@ -4,85 +4,41 @@
  */
 
 import type { ChatConfigObject } from "../../shape/configs/chat.js";
+import type { SwarmEventType } from "./events.js";
 
 /**
- * Swarm lifecycle states
- * Maintains compatibility with existing SwarmStateMachine
+ * Execution states used by all state machines
+ * These are the actual operational states - complex behaviors like
+ * team formation, planning, etc. emerge from AI decisions within RUNNING state
  */
-export enum SwarmState {
-    UNINITIALIZED = "UNINITIALIZED",
-    FORMING = "FORMING",
-    PLANNING = "PLANNING",
-    STARTING = "STARTING",
-    EXECUTING = "EXECUTING",
-    RUNNING = "RUNNING",
-    IDLE = "IDLE",
-    PAUSED = "PAUSED",
-    SUSPENDED = "SUSPENDED",
-    COMPLETED = "COMPLETED",
-    STOPPED = "STOPPED",
-    FAILED = "FAILED",
-    TERMINATED = "TERMINATED"
-}
+export const ExecutionStates = {
+    UNINITIALIZED: "UNINITIALIZED",
+    STARTING: "STARTING",
+    RUNNING: "RUNNING",
+    IDLE: "IDLE",
+    PAUSED: "PAUSED",
+    STOPPED: "STOPPED",
+    FAILED: "FAILED",
+    TERMINATED: "TERMINATED",
+} as const;
+
+export type ExecutionState = typeof ExecutionStates[keyof typeof ExecutionStates];
+
+// SwarmEventType moved to events.ts to avoid duplication
+// Import from events.ts when needed
 
 /**
- * Swarm event types for event-driven coordination
- */
-export enum SwarmEventType {
-    // Lifecycle events
-    SWARM_CREATED = "SWARM_CREATED",
-    SWARM_STARTED = "SWARM_STARTED",
-    SWARM_STOPPED = "SWARM_STOPPED",
-    SWARM_FAILED = "SWARM_FAILED",
-    SWARM_COMPLETED = "SWARM_COMPLETED",
-    SWARM_TERMINATED = "SWARM_TERMINATED",
-    STATE_CHANGED = "STATE_CHANGED",
-
-    // Coordination events
-    TEAM_FORMED = "TEAM_FORMED",
-    TEAM_UPDATED = "TEAM_UPDATED",
-    TEAM_DISBANDED = "TEAM_DISBANDED",
-    AGENT_JOINED = "AGENT_JOINED",
-    AGENT_LEFT = "AGENT_LEFT",
-
-    // Goal management events
-    GOAL_ASSIGNED = "GOAL_ASSIGNED",
-    GOAL_COMPLETED = "GOAL_COMPLETED",
-    GOAL_FAILED = "GOAL_FAILED",
-    SUBTASK_CREATED = "SUBTASK_CREATED",
-
-    // Resource events
-    RESOURCE_ALLOCATED = "RESOURCE_ALLOCATED",
-    RESOURCE_RELEASED = "RESOURCE_RELEASED",
-    RESOURCE_EXHAUSTED = "RESOURCE_EXHAUSTED",
-    RESOURCE_RESERVED = "RESOURCE_RESERVED",
-    RESOURCE_UNRESERVED = "RESOURCE_UNRESERVED",
-
-    // Parent-child swarm events
-    CHILD_SWARM_SPAWNED = "CHILD_SWARM_SPAWNED",
-    CHILD_SWARM_COMPLETED = "CHILD_SWARM_COMPLETED",
-    CHILD_SWARM_FAILED = "CHILD_SWARM_FAILED",
-    PARENT_SWARM_NOTIFIED = "PARENT_SWARM_NOTIFIED",
-
-    // Communication events
-    MESSAGE_SENT = "MESSAGE_SENT",
-    CONSENSUS_REACHED = "CONSENSUS_REACHED",
-    CONFLICT_DETECTED = "CONFLICT_DETECTED",
-
-    // Decision events
-    DECISION_PROPOSED = "DECISION_PROPOSED",
-    DECISION_EXECUTED = "DECISION_EXECUTED",
-    STRATEGY_ADAPTED = "STRATEGY_ADAPTED"
-}
-
-/**
- * Base event interface for all swarm events
+ * Simplified swarm event matching implementation
+ * Complex event data is passed through flexible payloads
  */
 export interface SwarmEvent {
-    type: SwarmEventType;
-    timestamp: Date;
-    swarmId: string;
+    type: string;  // Any string, not limited to SwarmEventType
+    timestamp?: Date;
     metadata?: Record<string, unknown>;
+    conversationId?: string;
+    sessionUser?: any;  // SessionUser type
+    goal?: string;
+    payload?: any;
 }
 
 /**
@@ -165,19 +121,19 @@ export interface SwarmConfiguration {
     id: string;
     chatConfig: ChatConfigObject;
     teams: SwarmTeam[];
-    state: SwarmState;
+    state: ExecutionState;
     metadata: SwarmMetadata;
 }
 
 /**
- * Swarm metadata
+ * Swarm metadata as actually used
  */
 export interface SwarmMetadata {
-    conversationId: string;
-    initiatingUserId: string;
-    createdAt: Date;
-    updatedAt: Date;
-    version: string;
+    goal?: string;
+    resources?: any;
+    agents?: Array<{ id: string; role: string }>;
+    startTime?: string;
+    [key: string]: unknown;  // Allow any additional fields
 }
 
 /**
@@ -350,7 +306,7 @@ export interface Swarm {
     id: string;
     name: string;
     description: string;
-    state: SwarmState;
+    state: ExecutionState;
     config: SwarmConfig;
     team?: TeamFormation;
     metadata: Record<string, unknown>;

@@ -47,5 +47,10 @@ export {
     type ValidationWarning,
 } from "./contextValidator.js";
 
+// Socket event emission
+export {
+    ExecutionSocketEventEmitter,
+} from "./SocketEventEmitter.js";
+
 // Note: Tier-specific context types should be imported directly from their respective tiers
 // to avoid circular dependencies. Do not re-export them here.

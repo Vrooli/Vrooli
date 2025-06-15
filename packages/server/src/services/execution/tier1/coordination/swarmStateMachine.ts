@@ -28,6 +28,7 @@ import {
     generatePK,
     PendingToolCallStatus,
     ChatConfig,
+    ExecutionStates,
 } from "@vrooli/shared";
 import { type Logger } from "winston";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
@@ -35,6 +36,7 @@ import { type ISwarmStateStore } from "../state/swarmStateStore.js";
 import { type ConversationBridge } from "../intelligence/conversationBridge.js";
 import { SocketService } from "../../../../sockets/io.js";
 import { BaseStateMachine, BaseStates, type BaseEvent } from "../../shared/BaseStateMachine.js";
+import { ExecutionSocketEventEmitter } from "../../shared/SocketEventEmitter.js";
 
 /**
  * Swarm event types
@@ -97,6 +99,7 @@ export type State = keyof typeof SwarmState;
 export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
     private conversationId: string | null = null;
     private initiatingUser: SessionUser | null = null;
+    private readonly socketEmitter = ExecutionSocketEventEmitter.get();
 
     constructor(
         logger: Logger,
@@ -179,6 +182,32 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
                 };
                 
                 this.state = SwarmState.IDLE;
+                
+                // Emit state change to UI
+                await this.socketEmitter.emitSwarmStateUpdate(
+                    this.conversationId!, // We know conversationId is set at this point
+                    ExecutionStates.STARTING,
+                    "Swarm initialization complete, entering idle state",
+                    convoId,
+                );
+                
+                // Emit initial config
+                await this.socketEmitter.emitSwarmConfigUpdate(
+                    this.conversationId!,
+                    {
+                        goal,
+                        subtasks: [],
+                        swarmLeader: leaderBot.id,
+                        stats: {
+                            startedAt: Date.now(),
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            lastProcessingCycleEndedAt: null,
+                        },
+                    },
+                    convoId,
+                );
+                
                 await this.handleEvent(startEvent);
                 
                 // Process any queued events
@@ -190,6 +219,15 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
             }, "startSwarm", { conversationId: convoId, goal });
         } catch (error) {
             this.state = SwarmState.FAILED;
+            
+            // Emit failure state
+            await this.socketEmitter.emitSwarmStateUpdate(
+                this.conversationId!,
+                ExecutionStates.FAILED,
+                `Swarm initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+                convoId,
+            );
+            
             throw error;
         }
     }

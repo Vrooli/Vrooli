@@ -4,6 +4,7 @@
  */
 
 import type { ContextScope } from "./context.js";
+import type { Location, RunConfig, RunProgress } from "../../run/types.js";
 
 /**
  * Run lifecycle states
@@ -24,8 +25,9 @@ export enum RunState {
 
 /**
  * Run event types for event-driven orchestration
+ * Using enum for structured event names - renamed to avoid conflict with events.ts
  */
-export enum RunEventType {
+export enum RunEventTypeEnum {
     // Lifecycle events
     RUN_STARTED = "RUN_STARTED",
     RUN_PAUSED = "RUN_PAUSED",
@@ -59,32 +61,13 @@ export enum RunEventType {
  * Base event interface for all run events
  */
 export interface RunEvent {
-    type: RunEventType;
+    type: RunEventTypeEnum;
     timestamp: Date;
     runId: string;
     stepId?: string;
     metadata?: Record<string, unknown>;
 }
 
-/**
- * Location in execution graph
- * Compatible with existing navigation system
- */
-export interface Location {
-    id: string;
-    routineId: string;
-    nodeId: string;
-    branchId?: string;
-    index?: number;
-}
-
-/**
- * Location stack for nested execution context
- */
-export interface LocationStack {
-    locations: Location[];
-    depth: number;
-}
 
 /**
  * Step execution status
@@ -109,31 +92,6 @@ export interface BranchExecution {
     parallel: boolean;
 }
 
-/**
- * Run progress tracking
- */
-export interface RunProgress {
-    totalSteps: number;
-    completedSteps: number;
-    failedSteps: number;
-    skippedSteps: number;
-    currentLocation: Location;
-    locationStack: LocationStack;
-    branches: BranchExecution[];
-}
-
-/**
- * Run configuration
- */
-export interface RunConfig {
-    maxSteps?: number;
-    maxDepth?: number;
-    maxTime?: number;
-    maxCost?: number;
-    parallelization: boolean;
-    checkpointInterval?: number;
-    recoveryStrategy: "retry" | "skip" | "fail";
-}
 
 /**
  * Navigator interface for universal workflow support
