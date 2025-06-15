@@ -117,46 +117,49 @@ interface ChatInvite {
 - Automatic expiration handling
 
 ### **ChatTranslation** - Internationalization
-Translations for chat metadata in multiple languages.
+Translations for chat metadata in multiple languages with AI embeddings.
 
 ```typescript
 interface ChatTranslation {
   id: bigint;                        // Primary key
-  embedding?: Vector;                // AI embedding for semantic search
-  embeddingExpiredAt?: Date;         // Embedding cache expiration
   chatId: bigint;                    // Parent chat
-  language: string;                  // Language code (ISO 3-letter)
+  language: string;                  // Language code (ISO 639-1)
   name?: string;                     // Translated chat name
   description?: string;              // Translated description
+  embedding?: number[];              // AI embedding vector (1536 dimensions)
+  embeddingExpiredAt?: Date;         // Embedding cache expiration
 }
 ```
 
 **Key Features:**
-- Multi-language chat metadata
-- AI embeddings for semantic search
-- Embedding cache management
+- Multi-language chat metadata with semantic search
+- AI-powered chat discovery and recommendation
+- Embedding cache management with expiration
+- Cross-language chat organization
 
 ### **Email** - Email Management
-Email addresses and verification for user accounts.
+Email addresses and verification for user accounts and teams.
 
 ```typescript
 interface Email {
-  id: bigint;                        // Primary key
-  emailAddress: string;              // Email address (unique, citext)
-  receivesAccountUpdates: boolean;   // Account notification preference
-  receivesBusinessUpdates: boolean;  // Business notification preference
-  verified: boolean;                 // Email verification status
-  userId: bigint;                    // Owner user
-  createdAt: Date;
-  updatedAt: Date;
+  id: bigint;                              // Primary key
+  createdAt: Date;                         // Creation timestamp
+  updatedAt: Date;                         // Last update timestamp
+  emailAddress: string;                    // Email address (unique, citext)
+  verifiedAt?: Date;                       // Email verification timestamp
+  verificationCode?: string;               // Current verification code
+  lastVerificationCodeRequestAttempt?: Date; // Last code request
+  teamId?: bigint;                         // Associated team (if team email)
+  userId?: bigint;                         // Associated user (if user email)
 }
 ```
 
 **Key Features:**
-- Email verification system
-- Granular notification preferences
-- Multiple emails per user support
-- Case-insensitive email storage
+- Email verification with timestamp tracking
+- Support for both user and team emails
+- Verification code management with rate limiting
+- Case-insensitive email storage (citext)
+- Automatic verification code cleanup
 
 ### **Notification** - System Notifications
 System-generated notifications for users.
@@ -337,9 +340,144 @@ const threadMessages = await prisma.chatMessage.findMany({
 });
 ```
 
+## 📱 Extended Communication Entities
+
+### **Phone** - Phone Numbers
+Phone numbers for SMS notifications and two-factor authentication.
+
+```typescript
+interface Phone {
+  id: bigint;                    // Primary key
+  createdAt: Date;               // Creation timestamp
+  updatedAt: Date;               // Last update timestamp
+  phoneNumber: string;          // Phone number (E.164 format)
+  countryCode: string;          // Country code
+  verifiedAt?: Date;           // Verification timestamp
+  verificationCode?: string;    // Current verification code
+  userId: bigint;              // Associated user
+}
+```
+
+**Key Features:**
+- SMS verification system
+- International phone support
+- Two-factor authentication
+- E.164 format standardization
+
+### **PushDevice** - Push Notification Devices
+Device registration for push notifications.
+
+```typescript
+interface PushDevice {
+  id: bigint;                    // Primary key
+  createdAt: Date;               // Registration timestamp
+  updatedAt: Date;               // Last update timestamp
+  deviceToken: string;          // Device push token
+  platform: string;            // Platform (ios, android, web)
+  userId: bigint;              // Device owner
+  isActive: boolean;           // Device active status
+  lastUsedAt: Date;            // Last notification sent
+}
+```
+
+**Key Features:**
+- Multi-platform push support
+- Device token management
+- Active status tracking
+- Usage analytics
+
+### **Meeting** - Virtual Meetings
+Meeting and conference management.
+
+```typescript
+interface Meeting {
+  id: bigint;                    // Primary key
+  createdAt: Date;               // Creation timestamp
+  updatedAt: Date;               // Last update timestamp
+  name: string;                 // Meeting name
+  description?: string;         // Meeting description
+  startTime: Date;             // Scheduled start time
+  endTime?: Date;              // Scheduled end time
+  timezone: string;            // Meeting timezone
+  url?: string;                // Meeting URL/link
+  teamId?: bigint;             // Associated team
+  createdById: bigint;         // Meeting organizer
+}
+```
+
+**Key Features:**
+- Schedule management
+- Team integration
+- Timezone support
+- External meeting links
+
+### **MeetingAttendees** - Meeting Participants
+Meeting participant tracking and management.
+
+```typescript
+interface MeetingAttendees {
+  id: bigint;                    // Primary key
+  meetingId: bigint;            // Associated meeting
+  userId: bigint;               // Attendee user
+  joinedAt?: Date;             // Join timestamp
+  leftAt?: Date;               // Leave timestamp
+  status: string;              // Attendance status
+}
+```
+
+**Key Features:**
+- Attendance tracking
+- Join/leave timestamps
+- Status management
+- Participation analytics
+
+### **MeetingInvite** - Meeting Invitations
+Invitations to meetings and conferences.
+
+```typescript
+interface MeetingInvite {
+  id: bigint;                    // Primary key
+  createdAt: Date;               // Invitation creation
+  updatedAt: Date;               // Last update timestamp
+  meetingId: bigint;            // Target meeting
+  userId: bigint;               // Invited user
+  invitedById: bigint;          // Inviter user
+  status: InviteStatus;         // Invitation status
+  message?: string;             // Custom message
+}
+```
+
+**Key Features:**
+- Meeting invitation system
+- Status tracking
+- Custom messaging
+- Organizer identification
+
+### **MeetingTranslation** - Meeting Translations
+Multi-language meeting content with AI embeddings.
+
+```typescript
+interface MeetingTranslation {
+  id: bigint;                    // Primary key
+  language: string;             // Language code (ISO 639-1)
+  name: string;                // Translated meeting name
+  description?: string;        // Translated description
+  meetingId: bigint;           // Parent meeting
+  embedding?: number[];        // AI embedding vector (1536 dimensions)
+  embeddingExpiredAt?: Date;   // Embedding expiration timestamp
+}
+```
+
+**Key Features:**
+- Localized meeting content with semantic search
+- AI-powered meeting discovery
+- Multi-language support
+- Global meeting accessibility
+- Cultural adaptation
+
 ---
 
 **Related Documentation:**
 - [Core Entities](core.md) - Users, teams, resources, runs
 - [Content Management](content.md) - Comments, issues, pull requests  
-- [Authentication](auth.md) - Sessions, API keys, user auth
+- [Commerce & Billing](commerce.md) - Payments, plans, credits

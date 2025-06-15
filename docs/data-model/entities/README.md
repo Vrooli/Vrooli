@@ -28,37 +28,38 @@ Comprehensive documentation of all database entities in Vrooli, organized by bus
   - Multi-currency support and detailed transaction logging
   - **Models**: Plan, Payment, CreditAccount, CreditLedgerEntry, Wallet
 
-## 🚧 **Planned Modules**
+### **✅ Organization & Scheduling**
+- **[organization.md](organization.md)** - **Invites, Reminders, Schedules, Transfers**
+  - Team invitations, reminder management, scheduling, and resource transfers
+  - Time management, workflow automation, and team coordination
+  - **Models**: MemberInvite, ReminderList, Reminder, ReminderItem, Schedule, ScheduleRecurrence, ScheduleException, Transfer
 
-### **Organization & Productivity**
-- **[organization.md]** - **Bookmarks, Tags, Schedules, Meetings**
-  - Content organization, categorization, and time management
-  - **Models**: bookmark, bookmark_list, tag, tag_translation, schedule, schedule_exception, schedule_recurrence, meeting, meeting_attendees, meeting_invite, meeting_translation, reminder, reminder_item, reminder_list
+### **✅ Analytics & Internationalization**
+- **[analytics.md](analytics.md)** - **Statistics, Translations, Tags**
+  - Platform analytics, multi-language support, and content categorization
+  - Performance metrics, global accessibility, and tag management
+  - **Models**: StatsResource, StatsSite, StatsTeam, StatsUser, ResourceTranslation, TeamTranslation, UserTranslation, TagTranslation, TeamTag
 
-### **Analytics & Gamification**
-- **[analytics.md]** - **Statistics, Awards, Reputation, Views**
-  - Usage analytics, performance metrics, and gamification systems
-  - **Models**: stats_resource, stats_site, stats_team, stats_user, award, reputation_history, view
-
-### **Authentication & Security**
-- **[auth.md]** - **Sessions, API Keys, User Auth, Devices**
-  - Authentication systems, API access control, and device management
-  - **Models**: session, api_key, api_key_external, user_auth, user_translation, phone, push_device, transfer
+### **✅ Security & Authentication**
+- **[security.md](security.md)** - **Sessions, API Keys, Auth, Achievements**
+  - Authentication systems, API access control, and user achievements
+  - Security management, external integrations, and gamification
+  - **Models**: Session, UserAuth, ApiKey, ApiKeyExternal, Award, View
 
 ## 📊 **Coverage Statistics**
 
 | Module | Models | Status | Lines | Priority |
 |--------|--------|---------|-------|----------|
-| Core | 8 | ✅ Complete | ~400 | Critical |
-| Communication | 8 | ✅ Complete | ~350 | Critical |
+| Core | 10 | ✅ Complete | ~500 | Critical |
+| Communication | 14 | ✅ Complete | ~650 | Critical |
 | Content | 10 | ✅ Complete | ~500 | High |
 | Commerce | 5 | ✅ Complete | ~400 | High |
-| Organization | 12 | 🚧 Planned | - | Medium |
-| Analytics | 8 | 🚧 Planned | - | Medium |
-| Authentication | 8 | 🚧 Planned | - | Medium |
-| **Total** | **59** | **31 Done** | **1650** | - |
+| Organization | 8 | ✅ Complete | ~450 | Medium |
+| Analytics | 9 | ✅ Complete | ~400 | Medium |
+| Security | 6 | ✅ Complete | ~350 | Medium |
+| **Total** | **62** | **62 Done** | **3250** | - |
 
-**Schema Coverage**: 47% (31/66 models documented)
+**Schema Coverage**: 94% (62/66 models documented)
 
 ## 🔗 **Cross-References**
 
@@ -99,13 +100,13 @@ When adding new entity documentation:
 ```
 docs/data-model/entities/
 ├── README.md              # This navigation file
-├── core.md               # Foundation entities
-├── communication.md      # Messaging and notifications
-├── content.md           # User-generated content
-├── commerce.md          # Billing and payments
-├── organization.md      # [Planned] Bookmarks, tags, schedules
-├── analytics.md         # [Planned] Statistics and gamification
-└── auth.md             # [Planned] Authentication and security
+├── core.md               # Foundation entities (User, Team, Resource, etc.)
+├── communication.md      # Messaging, notifications, meetings
+├── content.md           # User-generated content and collaboration
+├── commerce.md          # Billing, payments, and credits
+├── organization.md      # Scheduling, reminders, and transfers
+├── analytics.md         # Statistics, translations, and tags
+└── security.md          # Authentication, API keys, and achievements
 ```
 
 ---

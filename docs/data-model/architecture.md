@@ -352,69 +352,7 @@ export async function logDataAccess(
 
 ## 🚀 Performance Optimization
 
-### **Query Optimization**
-```typescript
-// Efficient pagination with cursor-based pagination
-export async function getPaginatedResources(
-  cursor?: string,
-  limit: number = 20
-): Promise<PaginatedResult<Resource>> {
-  const resources = await prisma.resource.findMany({
-    take: limit + 1,
-    cursor: cursor ? { id: BigInt(cursor) } : undefined,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      creator: true,
-      versions: {
-        where: { isLatest: true },
-        take: 1
-      }
-    }
-  });
-  
-  const hasNextPage = resources.length > limit;
-  const items = hasNextPage ? resources.slice(0, -1) : resources;
-  
-  return {
-    items,
-    hasNextPage,
-    nextCursor: hasNextPage ? items[items.length - 1].id.toString() : null
-  };
-}
-```
-
-### **Bulk Operations**
-```typescript
-// Efficient bulk inserts
-export async function bulkCreateRuns(
-  runData: CreateRunData[]
-): Promise<void> {
-  const batchSize = 100;
-  
-  for (let i = 0; i < runData.length; i += batchSize) {
-    const batch = runData.slice(i, i + batchSize);
-    
-    await prisma.run.createMany({
-      data: batch,
-      skipDuplicates: true
-    });
-  }
-}
-
-// Batch updates with transaction
-export async function batchUpdateRunStatus(
-  updates: { runId: string; status: RunStatus }[]
-): Promise<void> {
-  await prisma.$transaction(
-    updates.map(({ runId, status }) =>
-      prisma.run.update({
-        where: { id: BigInt(runId) },
-        data: { status, updatedAt: new Date() }
-      })
-    )
-  );
-}
-```
+For comprehensive performance optimization strategies, query patterns, indexing, and caching, see **[Performance Guide](performance.md)**.
 
 ## 💾 Backup & Recovery
 
@@ -560,6 +498,6 @@ export async function generateCapacityReport(): Promise<CapacityReport> {
 ---
 
 **Related Documentation:**
-- [Entity Model](entities.md) - Database schema and relationships
+- [Entity Models](entities/README.md) - Database schema and relationships
 - [Performance Guide](performance.md) - Optimization strategies
 - [Schema Evolution](schema-evolution.md) - Migration procedures

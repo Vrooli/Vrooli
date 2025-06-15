@@ -1022,6 +1022,6 @@ export async function reconcileResourceBookmarks(resourceId: string): Promise<vo
 ---
 
 **Related Documentation:**
-- [Entity Model](entities.md) - Database schema and relationships
+- [Entity Models](entities/README.md) - Database schema and relationships
 - [Performance Guide](performance.md) - Query optimization strategies
 - [Database Architecture](architecture.md) - Infrastructure configuration

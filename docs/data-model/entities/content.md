@@ -111,24 +111,25 @@ interface Issue {
 - Community engagement metrics
 
 ### **IssueTranslation** - Issue Internationalization
-Translations for issue content in multiple languages.
+Translations for issue content in multiple languages with AI embeddings.
 
 ```typescript
 interface IssueTranslation {
   id: bigint;                        // Primary key
-  embedding?: Vector;                // AI embedding for semantic search
-  embeddingExpiredAt?: Date;         // Embedding cache expiration
   issueId: bigint;                   // Parent issue
-  language: string;                  // Language code (ISO 3-letter)
+  language: string;                  // Language code (ISO 639-1)
   name: string;                      // Issue title
   description?: string;              // Issue description
+  embedding?: number[];              // AI embedding vector (1536 dimensions)
+  embeddingExpiredAt?: Date;         // Embedding cache expiration
 }
 ```
 
 **Key Features:**
-- Multi-language issue support
+- Multi-language issue support with semantic search
+- AI-powered issue similarity detection
 - Title and description translations
-- Semantic search capabilities
+- Cross-language issue discovery
 
 ### **PullRequest** - Code Review and Collaboration
 Pull request system for collaborative development.
@@ -484,4 +485,4 @@ const popularContent = await prisma.reactionSummary.groupBy({
 **Related Documentation:**
 - [Communication](communication.md) - Chats, messages, notifications
 - [Core Entities](core.md) - Users, teams, resources, runs
-- [Analytics & Stats](analytics.md) - Engagement metrics and analytics
+- [Commerce & Billing](commerce.md) - Payments, plans, credits

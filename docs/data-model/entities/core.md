@@ -176,6 +176,8 @@ Central entity representing all users in the system.
 interface User {
   id: bigint;                        // Primary key
   publicId: string;                  // URL-safe identifier (12 chars)
+  createdAt: Date;                   // Creation timestamp
+  updatedAt: Date;                   // Last update timestamp
   name: string;                      // Display name (required)
   handle?: string;                   // Unique @username (citext)
   bannerImage?: string;              // Profile banner URL
@@ -202,16 +204,6 @@ interface User {
   currentStreak: number;             // Current activity streak
   longestStreak: number;             // Longest activity streak
   accountTabsOrder?: string;         // UI tab order preference
-  botSettings: object;               // Bot-specific settings
-  creditSettings: object;            // Credit/billing settings
-  notificationSettings?: string;     // Notification preferences
-  bookmarks: number;                 // Denormalized bookmark count
-  views: number;                     // Profile view count
-  reputation: number;                // Community reputation score
-  stripeCustomerId?: string;         // Stripe customer ID
-  status: AccountStatus;             // Account status
-  createdAt: Date;
-  updatedAt: Date;
 }
 ```
 
@@ -603,9 +595,53 @@ interface Issue {
 }
 ```
 
+## 📂 User Organization Entities
+
+### **BookmarkList** - Bookmark Collections
+User-created collections for organizing bookmarks.
+
+```typescript
+interface BookmarkList {
+  id: bigint;                    // Primary key
+  publicId: string;              // URL-safe identifier (12 chars)
+  createdAt: Date;               // Creation timestamp
+  updatedAt: Date;               // Last update timestamp
+  name: string;                  // List name
+  description?: string;          // List description
+  isPrivate: boolean;           // Visibility control
+  userId: bigint;               // List owner
+}
+```
+
+**Key Features:**
+- Personal bookmark organization
+- Privacy controls
+- Custom naming and descriptions
+- User ownership
+
+### **ResourceVersionRelation** - Version Relationships
+Relationships between different resource versions.
+
+```typescript
+interface ResourceVersionRelation {
+  id: bigint;                         // Primary key
+  createdAt: Date;                    // Relationship creation
+  updatedAt: Date;                    // Last update timestamp
+  fromResourceVersionId: bigint;      // Source version
+  toResourceVersionId: bigint;        // Target version
+  relationType: string;               // Relationship type
+}
+```
+
+**Key Features:**
+- Version dependency tracking
+- Relationship categorization
+- Bidirectional version linking
+- Evolution history
+
 ---
 
 **Related Documentation:**
-- [Entity Relationships](relationships.md) - Detailed relationship patterns
-- [Data Dictionary](data-dictionary.md) - Field definitions and constraints
-- [Database Architecture](architecture.md) - Infrastructure and configuration
+- [Entity Relationships](../relationships.md) - Detailed relationship patterns
+- [Data Dictionary](../data-dictionary.md) - Field definitions and constraints
+- [Database Architecture](../architecture.md) - Infrastructure and configuration

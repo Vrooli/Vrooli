@@ -385,5 +385,5 @@ const CREDIT_COSTS = {
 
 **Related Documentation:**
 - [Core Entities](core.md) - Users, teams, resources, runs
-- [Authentication](auth.md) - API keys and user authentication
-- [Analytics & Stats](analytics.md) - Usage analytics and reporting
+- [Communication](communication.md) - Chats, messages, notifications
+- [Content Management](content.md) - Comments, issues, pull requests

@@ -867,4 +867,4 @@ export async function checkPerformanceAlerts() {
 **Related Documentation:**
 - [Database Architecture](architecture.md) - Infrastructure configuration
 - [Access Patterns](access-patterns.md) - Query implementation patterns  
-- [Entity Model](entities.md) - Schema structure and relationships
+- [Entity Models](entities/README.md) - Schema structure and relationships

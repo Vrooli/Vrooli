@@ -798,4 +798,4 @@ export async function generateChangeReport(
 **Related Documentation:**
 - [Database Architecture](architecture.md) - Infrastructure setup and configuration
 - [Performance Guide](performance.md) - Query optimization and monitoring
-- [Entity Model](entities.md) - Current schema structure and relationships
+- [Entity Models](entities/README.md) - Current schema structure and relationships

@@ -86,20 +86,33 @@ enum RunStepStatus {
 }
 ```
 
-### **ResourceType**
-Types of resources in the system.
-
-```typescript
-enum ResourceType {
-  Api = 'Api',                 // External API integration
-  Code = 'Code',               // Code snippets/libraries
-  Project = 'Project',         // Project containers
-  Routine = 'Routine',         // Automation workflows
-  Standard = 'Standard',       // Reusable patterns
-  Team = 'Team',               // Team profiles
-  User = 'User'                // User profiles
-}
+**Database Definition:**
+```sql
+CREATE TYPE "RunStepStatus" AS ENUM (
+  'InProgress',
+  'Completed',
+  'Skipped'
+);
 ```
+
+### **ResourceType**
+Resource type stored as string value.
+
+```sql
+-- Resource type field
+resourceType VARCHAR(32) NOT NULL
+```
+
+**Common Values:**
+- `'Api'` - External API integration
+- `'Code'` - Code snippets/libraries  
+- `'Project'` - Project containers
+- `'Routine'` - Automation workflows
+- `'Standard'` - Reusable patterns
+- `'Team'` - Team profiles
+- `'User'` - User profiles
+
+> **Note**: ResourceType is stored as a string field, not an enum in the database schema.
 
 ### **InviteStatus**
 Status for invitations.
@@ -108,8 +121,7 @@ Status for invitations.
 enum InviteStatus {
   Pending = 'Pending',         // Invitation sent
   Accepted = 'Accepted',       // Invitation accepted
-  Declined = 'Declined',       // Invitation declined
-  Expired = 'Expired'          // Invitation expired
+  Declined = 'Declined'        // Invitation declined
 }
 ```
 
@@ -120,18 +132,19 @@ Status for issues and bug reports.
 enum IssueStatus {
   Draft = 'Draft',             // Work in progress
   Open = 'Open',               // Ready for review
-  InProgress = 'InProgress',   // Being worked on
-  Closed = 'Closed',           // Resolved
-  ClosedResolved = 'ClosedResolved', // Resolved and closed
-  ClosedNotPlanned = 'ClosedNotPlanned' // Closed without resolution
+  Canceled = 'Canceled',       // Cancelled by user
+  ClosedResolved = 'ClosedResolved',   // Resolved and closed
+  ClosedUnresolved = 'ClosedUnresolved', // Closed without resolution
+  Rejected = 'Rejected'        // Rejected after review
 }
 ```
 
-### **StatPeriodType**
+### **PeriodType**
 Statistical period types.
 
 ```typescript
-enum StatPeriodType {
+enum PeriodType {
+  Hourly = 'Hourly',           // Hourly statistics
   Daily = 'Daily',             // Daily statistics
   Weekly = 'Weekly',           // Weekly aggregates
   Monthly = 'Monthly',         // Monthly aggregates
@@ -145,11 +158,8 @@ Payment transaction status.
 ```typescript
 enum PaymentStatus {
   Pending = 'Pending',         // Payment initiated
-  Processing = 'Processing',   // Payment processing
-  Succeeded = 'Succeeded',     // Payment successful
-  Failed = 'Failed',           // Payment failed
-  Canceled = 'Canceled',       // Payment cancelled
-  Refunded = 'Refunded'        // Payment refunded
+  Paid = 'Paid',               // Payment successful
+  Failed = 'Failed'            // Payment failed
 }
 ```
 
@@ -158,22 +168,53 @@ User account status.
 
 ```typescript
 enum AccountStatus {
-  Unlocked = 'Unlocked',       // Normal active account
+  Deleted = 'Deleted',         // Account deleted
+  Unlocked = 'Unlocked',       // Normal active state
   SoftLocked = 'SoftLocked',   // Temporarily restricted
-  HardLocked = 'HardLocked',   // Permanently suspended
-  Deleted = 'Deleted'          // Account marked for deletion
+  HardLocked = 'HardLocked'    // Permanently restricted
 }
 ```
 
-### **InviteStatus**
-Status for invitations.
+**Database Definition:**
+```sql
+CREATE TYPE "AccountStatus" AS ENUM (
+  'Deleted',
+  'Unlocked',
+  'SoftLocked',
+  'HardLocked'
+);
+```
+
+### **TransferStatus**
+Status for resource transfers.
 
 ```typescript
-enum InviteStatus {
-  Pending = 'Pending',         // Invitation sent
-  Accepted = 'Accepted',       // Invitation accepted
-  Declined = 'Declined',       // Invitation declined
-  Expired = 'Expired'          // Invitation expired
+enum TransferStatus {
+  Accepted = 'Accepted',       // Transfer accepted
+  Denied = 'Denied',           // Transfer denied
+  Pending = 'Pending'          // Transfer initiated
+}
+```
+
+**Database Definition:**
+```sql
+CREATE TYPE "TransferStatus" AS ENUM (
+  'Accepted',
+  'Denied',
+  'Pending'
+);
+```
+
+### **PullRequestStatus**
+Status for pull requests.
+
+```typescript
+enum PullRequestStatus {
+  Draft = 'Draft',             // Work in progress
+  Open = 'Open',               // Ready for review
+  Canceled = 'Canceled',       // Cancelled by author
+  Merged = 'Merged',           // Merged into target
+  Rejected = 'Rejected'        // Rejected by maintainer
 }
 ```
 
@@ -181,7 +222,7 @@ enum InviteStatus {
 
 ### **User Fields**
 
-> **Note**: For complete entity definitions and relationships, see [Entity Model](entities.md#user-entity).
+> **Note**: For complete entity definitions and relationships, see [Entity Models](entities/README.md).
 
 #### **Core Identity Fields**
 ```sql
@@ -277,6 +318,20 @@ completedAt TIMESTAMPTZ
 transferredAt TIMESTAMPTZ
 -- Soft delete flag
 isDeleted BOOLEAN DEFAULT FALSE NOT NULL
+-- Internal resource flag
+isInternal BOOLEAN
+```
+
+#### **Resource Ownership**
+```sql
+-- Created by user
+createdById BIGINT REFERENCES user(id) ON DELETE SET NULL
+-- Owned by team
+ownedByTeamId BIGINT REFERENCES team(id) ON DELETE CASCADE
+-- Owned by user  
+ownedByUserId BIGINT REFERENCES user(id) ON DELETE CASCADE
+-- Parent resource version (for forks)
+parentId BIGINT REFERENCES resource_version(id) ON DELETE SET NULL
 ```
 
 **Validation Rules:**
@@ -622,6 +677,8 @@ CREATE TRIGGER trigger_resource_updated_at
 
 ### **Data Encryption**
 ```typescript
+import crypto from 'crypto';
+
 // Encrypt sensitive fields before storage
 export async function encryptPersonalData(data: string): Promise<string> {
   const algorithm = 'aes-256-gcm';
@@ -738,6 +795,6 @@ export async function findSimilarResources(
 ---
 
 **Related Documentation:**
-- [Entity Model](entities.md) - Entity definitions and relationships
+- [Entity Models](entities/README.md) - Entity definitions and relationships
 - [Database Architecture](architecture.md) - Infrastructure configuration
 - [Schema Evolution](schema-evolution.md) - Migration and versioning

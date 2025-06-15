@@ -22,14 +22,11 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 - Storage systems and caching
 - Backup and recovery strategies
 
-#### 🔗 **Entity Models**
+#### 🔗 **[Entity Models](entities/README.md)**
 - **[Core Entities](entities/core.md)** - Users, teams, resources, runs
 - **[Communication](entities/communication.md)** - Chats, messages, notifications, emails
 - **[Content Management](entities/content.md)** - Comments, issues, pull requests, reactions
 - **[Commerce & Billing](entities/commerce.md)** - Payments, plans, credits, wallets
-- **[Organization](entities/organization.md)** - Bookmarks, tags, schedules, meetings
-- **[Analytics & Stats](entities/analytics.md)** - Statistics, awards, reputation, views
-- **[Authentication](entities/auth.md)** - Sessions, API keys, user auth, devices
 
 #### 🔄 **[Entity Relationships](relationships.md)**
 - Core relationship patterns
@@ -66,7 +63,7 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 ## 🚀 Quick Start
 
 ### For Developers
-1. Start with **[Entity Model](entities.md)** to understand the data structure
+1. Start with **[Entity Models](entities/README.md)** to understand the data structure
 2. Review **[Relationships](relationships.md)** for foreign key patterns
 3. Check **[Access Patterns](access-patterns.md)** for implementation guidance
 
@@ -77,7 +74,7 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 
 ### For Data Analysts
 1. Explore **[Data Dictionary](data-dictionary.md)** for field definitions
-2. Understand **[Entity Model](entities.md)** for data relationships
+2. Understand **[Entity Models](entities/README.md)** for data relationships
 3. Use **[Access Patterns](access-patterns.md)** for efficient queries
 
 ## 🔍 Key Concepts
@@ -92,7 +89,7 @@ User (BigInt ID)
 └── Runs (Execution instances)
 ```
 
-> **Note**: For complete entity definitions and field specifications, see [Entity Model](entities.md).
+> **Note**: For complete entity definitions and field specifications, see [Entity Models](entities/README.md).
 
 ### **Data Flow**
 ```mermaid
@@ -109,76 +106,22 @@ graph LR
 
 ## 🔧 Common Operations
 
-### **Creating a Resource**
-```typescript
-// 1. Create base resource
-const resource = await prisma.resource.create({
-  data: {
-    resourceType: 'Routine',
-    isPrivate: false,
-    createdById: userId
-  }
-});
-
-// 2. Create initial version
-const version = await prisma.resourceVersion.create({
-  data: {
-    rootId: resource.id,
-    versionIndex: 0,
-    versionLabel: '1.0.0',
-    isLatest: true,
-    config: routineConfig
-  }
-});
-```
-
-### **Executing a Resource**
-```typescript
-// Create run instance
-const run = await prisma.run.create({
-  data: {
-    name: 'Automated Task Execution',
-    resourceVersionId: version.id,
-    status: 'Scheduled',
-    isPrivate: false
-  }
-});
-
-// Track execution steps
-const step = await prisma.runStep.create({
-  data: {
-    runId: run.id,
-    name: 'Data Processing',
-    status: 'Running',
-    step: 1
-  }
-});
-```
+For detailed implementation examples, see:
+- **[Access Patterns](access-patterns.md)** - Repository patterns and transactions
+- **[Entity Models](entities/README.md)** - Specific entity operations
+- **[Performance Guide](performance.md)** - Optimized query patterns
 
 ## 📊 Performance Overview
 
 For detailed database statistics, performance targets, and optimization strategies, see **[Performance Guide](performance.md)**.
 
-## 🔒 Security Considerations
+## 🔒 Security Overview
 
-- **Row-Level Security**: Implemented via application logic and permissions JSON
-- **Audit Logging**: All modifications tracked with timestamps and user attribution
-- **Data Encryption**: Sensitive fields encrypted at application level
-- **Access Control**: Role-based permissions enforced through member relationships
+For comprehensive security implementation, encryption patterns, and access control, see **[Data Dictionary](data-dictionary.md#security-implementation)**.
 
-## 📈 Monitoring & Health
+## 📈 Monitoring Overview
 
-### **Key Metrics**
-- Query performance (p95 < 100ms for reads)
-- Connection pool utilization (< 80%)
-- Cache hit rates (> 90% for frequently accessed data)
-- Storage growth trends and capacity planning
-
-### **Health Checks**
-- Database connectivity and response time
-- Replication lag for read replicas
-- Backup completion and integrity
-- Index usage and query plan analysis
+For detailed monitoring setup, alerting rules, and health checks, see **[Database Architecture](architecture.md#monitoring--alerting)**.
 
 ## 🔗 Related Documentation
 
@@ -196,6 +139,6 @@ For detailed database statistics, performance targets, and optimization strategi
 
 ---
 
-**Last Updated**: 2024-01-15  
+**Last Updated**: 2025-01-15  
 **Schema Version**: 1.0  
-**Next Review**: 2024-04-15
+**Next Review**: 2025-04-15
