@@ -1,6 +1,6 @@
-# Entity Model
+# Core Entities
 
-Complete documentation of Vrooli's database entities, their relationships, and field definitions.
+Primary entities that form the foundation of Vrooli's data model: Users, Teams, Resources, and Runs.
 
 ## 🔗 Entity Relationship Diagram
 
@@ -174,18 +174,42 @@ Central entity representing all users in the system.
 
 ```typescript
 interface User {
-  id: bigint;                    // Primary key
-  publicId: string;              // URL-safe public identifier
-  email: string;                 // Unique email address
-  isBot: boolean;                // Whether user is an AI bot
-  isPrivate: boolean;            // Profile visibility setting
-  languages: string[];           // Preferred languages (ISO codes)
-  bannerImage?: string;          // Profile banner URL
-  profileImage?: string;         // Avatar image URL
-  handle?: string;               // Unique username handle
-  name?: string;                 // Display name
-  bio?: string;                  // User biography
-  theme: UserTheme;              // UI theme preference
+  id: bigint;                        // Primary key
+  publicId: string;                  // URL-safe identifier (12 chars)
+  name: string;                      // Display name (required)
+  handle?: string;                   // Unique @username (citext)
+  bannerImage?: string;              // Profile banner URL
+  profileImage?: string;             // Profile image URL
+  confirmationCode?: string;         // Email confirmation code
+  confirmationCodeDate?: Date;       // Code expiration
+  invitedByUserId?: bigint;         // User who invited this user
+  isBot: boolean;                    // Bot account flag
+  isBotDepictingPerson: boolean;     // Bot representing real person
+  isPrivate: boolean;                // Profile visibility
+  isPrivateMemberships: boolean;     // Hide team memberships
+  isPrivatePullRequests: boolean;    // Hide PR activity
+  isPrivateResources: boolean;       // Hide resource activity
+  isPrivateResourcesCreated: boolean;// Hide created resources
+  isPrivateTeamsCreated: boolean;    // Hide created teams
+  isPrivateBookmarks: boolean;       // Hide bookmarks
+  isPrivateVotes: boolean;           // Hide voting activity
+  languages: string[];               // Preferred languages (ISO codes)
+  theme: string;                     // UI theme preference
+  lastExport?: Date;                 // Last data export
+  lastLoginAttempt: Date;            // Last login attempt
+  logInAttempts: number;             // Failed login count
+  numExports: number;                // Total exports performed
+  currentStreak: number;             // Current activity streak
+  longestStreak: number;             // Longest activity streak
+  accountTabsOrder?: string;         // UI tab order preference
+  botSettings: object;               // Bot-specific settings
+  creditSettings: object;            // Credit/billing settings
+  notificationSettings?: string;     // Notification preferences
+  bookmarks: number;                 // Denormalized bookmark count
+  views: number;                     // Profile view count
+  reputation: number;                // Community reputation score
+  stripeCustomerId?: string;         // Stripe customer ID
+  status: AccountStatus;             // Account status
   createdAt: Date;
   updatedAt: Date;
 }

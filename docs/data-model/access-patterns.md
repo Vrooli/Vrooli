@@ -12,9 +12,9 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
   protected abstract model: any;
   protected abstract selectFields: any;
   
-  async findById(id: string | bigint): Promise<T | null> {
+  async findById(id: bigint): Promise<T | null> {
     return this.model.findUnique({
-      where: { id: typeof id === 'string' ? BigInt(id) : id },
+      where: { id },
       select: this.selectFields
     });
   }
@@ -33,18 +33,18 @@ export abstract class BaseRepository<T, CreateInput, UpdateInput> {
     });
   }
   
-  async update(id: string | bigint, data: UpdateInput): Promise<T | null> {
+  async update(id: bigint, data: UpdateInput): Promise<T | null> {
     return this.model.update({
-      where: { id: typeof id === 'string' ? BigInt(id) : id },
+      where: { id },
       data,
       select: this.selectFields
     });
   }
   
-  async delete(id: string | bigint): Promise<boolean> {
+  async delete(id: bigint): Promise<boolean> {
     try {
       await this.model.delete({
-        where: { id: typeof id === 'string' ? BigInt(id) : id }
+        where: { id }
       });
       return true;
     } catch (error) {

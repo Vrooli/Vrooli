@@ -22,11 +22,14 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 - Storage systems and caching
 - Backup and recovery strategies
 
-#### 🔗 **[Entity Model](entities.md)**
-- Complete entity relationship diagram
-- Core entity definitions and fields
-- Primary and supporting entities
-- Entity hierarchies and organization
+#### 🔗 **Entity Models**
+- **[Core Entities](entities/core.md)** - Users, teams, resources, runs
+- **[Communication](entities/communication.md)** - Chats, messages, notifications, emails
+- **[Content Management](entities/content.md)** - Comments, issues, pull requests, reactions
+- **[Commerce & Billing](entities/commerce.md)** - Payments, plans, credits, wallets
+- **[Organization](entities/organization.md)** - Bookmarks, tags, schedules, meetings
+- **[Analytics & Stats](entities/analytics.md)** - Statistics, awards, reputation, views
+- **[Authentication](entities/auth.md)** - Sessions, API keys, user auth, devices
 
 #### 🔄 **[Entity Relationships](relationships.md)**
 - Core relationship patterns
@@ -89,13 +92,7 @@ User (BigInt ID)
 └── Runs (Execution instances)
 ```
 
-### **Resource Types**
-- **Routines**: Automation workflows and procedures
-- **APIs**: External service integrations
-- **Projects**: Organizational containers
-- **Standards**: Reusable patterns and templates
-- **Teams**: Collaborative workspaces
-- **Users**: Individual profiles and data
+> **Note**: For complete entity definitions and field specifications, see [Entity Model](entities.md).
 
 ### **Data Flow**
 ```mermaid
@@ -158,15 +155,9 @@ const step = await prisma.runStep.create({
 });
 ```
 
-## 📊 Database Statistics
+## 📊 Performance Overview
 
-| Entity Type | Estimated Volume | Growth Rate | Retention |
-|-------------|------------------|-------------|-----------|
-| Users | 100K+ | ~1K/month | Permanent |
-| Resources | 1M+ | ~10K/month | Permanent |
-| Runs | 10M+ | ~100K/month | 2 years |
-| Messages | 5M+ | ~50K/month | 5 years |
-| RunSteps | 50M+ | ~500K/month | 1 year |
+For detailed database statistics, performance targets, and optimization strategies, see **[Performance Guide](performance.md)**.
 
 ## 🔒 Security Considerations
 
@@ -194,14 +185,14 @@ const step = await prisma.runStep.create({
 - **[Schema File](../../packages/server/src/db/schema.prisma)** - Source of truth Prisma schema
 - **[API Documentation](../api/README.md)** - REST and GraphQL endpoints
 - **[Architecture Guide](../architecture/README.md)** - System design overview
-- **[Performance Guide](../operations/production-guide.md)** - Production operations
+- **[Production Operations](../operations/production-guide.md)** - Production deployment and operations
 
 ## 🛠️ Tools & Utilities
 
 - **[Prisma Studio](https://www.prisma.io/studio)** - Visual database browser
 - **[Database Migrations](../../packages/server/src/db/migrations/)** - Schema change history
-- **[Seed Scripts](../../packages/server/src/db/seed/)** - Development data seeding
-- **[Backup Scripts](../../scripts/backup/)** - Automated backup procedures
+- **[Seed Scripts](../../packages/server/src/db/seeds/)** - Development data seeding
+- **[Backup Scripts](../../scripts/main/backup.sh)** - Automated backup procedures
 
 ---
 

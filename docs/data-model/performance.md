@@ -686,18 +686,10 @@ export async function createResource(data: any) {
 
 ### **Connection Pooling**
 
-#### **Optimized Pool Configuration**
-```typescript
-// Production connection pool settings
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: `${process.env.DATABASE_URL}?connection_limit=20&pool_timeout=10&socket_timeout=30`
-    }
-  },
-  log: process.env.NODE_ENV === 'development' ? ['query', 'info', 'warn', 'error'] : ['error']
-});
+> **Note**: For complete connection pooling configuration and settings, see [Database Architecture](architecture.md#connection-management).
 
+#### **Pool Monitoring**
+```typescript
 // Pool monitoring
 export async function getConnectionPoolStats() {
   const result = await prisma.$queryRaw`

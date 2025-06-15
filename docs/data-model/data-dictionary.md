@@ -56,6 +56,7 @@ Execution status for run instances.
 enum RunStatus {
   Scheduled = 'Scheduled',     // Queued for execution
   InProgress = 'InProgress',   // Currently executing
+  Paused = 'Paused',           // Execution paused
   Completed = 'Completed',     // Successfully finished
   Failed = 'Failed',           // Execution failed
   Cancelled = 'Cancelled'      // User cancelled
@@ -66,7 +67,8 @@ enum RunStatus {
 ```sql
 CREATE TYPE "RunStatus" AS ENUM (
   'Scheduled',
-  'InProgress', 
+  'InProgress',
+  'Paused',
   'Completed',
   'Failed',
   'Cancelled'
@@ -78,10 +80,8 @@ Status for individual execution steps.
 
 ```typescript
 enum RunStepStatus {
-  Scheduled = 'Scheduled',     // Waiting to execute
   InProgress = 'InProgress',   // Currently executing
   Completed = 'Completed',     // Step completed
-  Failed = 'Failed',           // Step failed
   Skipped = 'Skipped'          // Step skipped
 }
 ```
@@ -153,11 +153,37 @@ enum PaymentStatus {
 }
 ```
 
+### **AccountStatus**
+User account status.
+
+```typescript
+enum AccountStatus {
+  Unlocked = 'Unlocked',       // Normal active account
+  SoftLocked = 'SoftLocked',   // Temporarily restricted
+  HardLocked = 'HardLocked',   // Permanently suspended
+  Deleted = 'Deleted'          // Account marked for deletion
+}
+```
+
+### **InviteStatus**
+Status for invitations.
+
+```typescript
+enum InviteStatus {
+  Pending = 'Pending',         // Invitation sent
+  Accepted = 'Accepted',       // Invitation accepted
+  Declined = 'Declined',       // Invitation declined
+  Expired = 'Expired'          // Invitation expired
+}
+```
+
 ## 🔤 Field Specifications
 
 ### **User Fields**
 
-#### **Core Identity**
+> **Note**: For complete entity definitions and relationships, see [Entity Model](entities.md#user-entity).
+
+#### **Core Identity Fields**
 ```sql
 -- Email address (unique, case-insensitive)
 email CITEXT UNIQUE NOT NULL
@@ -359,7 +385,7 @@ versionIndex INTEGER DEFAULT 0 NOT NULL
 ```
 
 **Validation Rules:**
-- Language: ISO 639-1 language code
+- Language: ISO 639-2/3 language code (2-3 characters)
 - Text: 1-32768 characters, markdown supported
 - VersionIndex: Incremented on each edit
 
@@ -387,8 +413,8 @@ const handleRegex = /^[a-zA-Z0-9_-]{3,50}$/;
 // Public ID validation (Base62)
 const publicIdRegex = /^[A-Za-z0-9]{12}$/;
 
-// Language code validation (ISO 639-1)
-const languageRegex = /^[a-z]{2}$/;
+// Language code validation (ISO 639-2/3)
+const languageRegex = /^[a-z]{2,3}$/;
 ```
 
 ### **Numeric Validation**
@@ -416,7 +442,7 @@ const userPreferencesSchema = {
   type: 'object',
   properties: {
     theme: { enum: ['light', 'dark', 'auto'] },
-    language: { type: 'string', pattern: '^[a-z]{2}$' },
+    language: { type: 'string', pattern: '^[a-z]{2,3}$' },
     notifications: {
       type: 'object',
       properties: {
@@ -590,6 +616,123 @@ CREATE TRIGGER trigger_user_updated_at
 CREATE TRIGGER trigger_resource_updated_at
   BEFORE UPDATE ON resource
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+## 🔒 Security Implementation
+
+### **Data Encryption**
+```typescript
+// Encrypt sensitive fields before storage
+export async function encryptPersonalData(data: string): Promise<string> {
+  const algorithm = 'aes-256-gcm';
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY!, 'salt', 32);
+  const iv = crypto.randomBytes(16);
+  
+  const cipher = crypto.createCipher(algorithm, key, { iv });
+  let encrypted = cipher.update(data, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+// Decrypt sensitive fields on retrieval
+export async function decryptPersonalData(encryptedData: string): Promise<string> {
+  const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+  const algorithm = 'aes-256-gcm';
+  const key = crypto.scryptSync(process.env.ENCRYPTION_KEY!, 'salt', 32);
+  
+  const decipher = crypto.createDecipher(algorithm, key, {
+    iv: Buffer.from(ivHex, 'hex'),
+    authTag: Buffer.from(authTagHex, 'hex')
+  });
+  
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+```
+
+### **Access Control Implementation**
+```typescript
+// Role-based access control via permissions JSON
+interface UserPermissions {
+  canCreateResources: boolean;
+  canInviteMembers: boolean;
+  canModifySettings: boolean;
+  resourceTypes: ResourceType[];
+  maxResourcesPerDay?: number;
+}
+
+// Validate user permissions
+export function hasPermission(
+  userPermissions: UserPermissions,
+  action: string,
+  resourceType?: ResourceType
+): boolean {
+  switch (action) {
+    case 'CREATE_RESOURCE':
+      return userPermissions.canCreateResources && 
+             (!resourceType || userPermissions.resourceTypes.includes(resourceType));
+    case 'INVITE_MEMBER':
+      return userPermissions.canInviteMembers;
+    case 'MODIFY_SETTINGS':
+      return userPermissions.canModifySettings;
+    default:
+      return false;
+  }
+}
+```
+
+## 🎯 Vector Data Types
+
+### **Embedding Storage**
+```sql
+-- Vector embedding fields for AI features (Prisma schema)
+embedding Unsupported("vector(1536)")
+
+-- Actual PostgreSQL type
+embedding vector(1536)  -- OpenAI embedding dimensions
+```
+
+**Vector Data Specifications:**
+- **Dimensions**: 1536 (OpenAI text-embedding-ada-002)
+- **Data Type**: `vector(1536)` (pgvector extension)
+- **Prisma Type**: `Unsupported("vector(1536)")` 
+- **Storage**: ~6KB per embedding (float32 × 1536)
+- **Indexing**: HNSW index for similarity search
+
+### **Vector Operations**
+```typescript
+// Store embeddings for semantic search
+export async function storeResourceEmbedding(
+  resourceId: string,
+  content: string
+): Promise<void> {
+  const embedding = await generateEmbedding(content);
+  
+  await prisma.resourceVersion.update({
+    where: { id: BigInt(resourceId) },
+    data: {
+      embedding: `[${embedding.join(',')}]` // Store as vector
+    }
+  });
+}
+
+// Semantic similarity search
+export async function findSimilarResources(
+  queryEmbedding: number[],
+  limit: number = 10
+): Promise<Resource[]> {
+  return prisma.$queryRaw`
+    SELECT r.*, rv.embedding <-> ${`[${queryEmbedding.join(',')}]`}::vector as distance
+    FROM resource r
+    JOIN resource_version rv ON r.id = rv.rootId AND rv.isLatest = true
+    WHERE rv.embedding IS NOT NULL
+    ORDER BY distance ASC
+    LIMIT ${limit}
+  `;
+}
 ```
 
 ---

@@ -597,6 +597,10 @@ export async function checkRelationshipHealth() {
 ---
 
 **Related Documentation:**
-- [Entity Model](entities.md) - Entity definitions and fields
+- **Entity Models:**
+  - [Core Entities](entities/core.md) - Users, teams, resources, runs
+  - [Communication](entities/communication.md) - Chats, messages, notifications
+  - [Content Management](entities/content.md) - Comments, issues, pull requests
+  - [Commerce & Billing](entities/commerce.md) - Payments, plans, credits
 - [Data Dictionary](data-dictionary.md) - Field specifications and constraints
 - [Performance Guide](performance.md) - Query optimization strategies

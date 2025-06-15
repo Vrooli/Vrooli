@@ -154,6 +154,8 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 ```
 
+> **Note**: For detailed performance tuning and optimization strategies, see [Performance Guide](performance.md#database-scaling).
+
 #### **Replication Setup**
 ```yaml
 # Primary database
@@ -204,19 +206,16 @@ databases 16
 ```
 
 #### **Cache Patterns**
+
+> **Note**: For comprehensive caching strategies and implementation patterns, see [Performance Guide](../data-model/performance.md#caching-strategy).
+
+Basic cache usage:
 ```typescript
-// User session caching
-const SESSION_TTL = 24 * 60 * 60; // 24 hours
-await redis.setex(`session:${sessionId}`, SESSION_TTL, JSON.stringify(userData));
+// Session storage
+await redis.setex(`session:${sessionId}`, 86400, JSON.stringify(userData));
 
-// Query result caching
-const QUERY_TTL = 5 * 60; // 5 minutes
-const cacheKey = `user:${userId}:teams`;
-await redis.setex(cacheKey, QUERY_TTL, JSON.stringify(teams));
-
-// Real-time data caching
-const REALTIME_TTL = 30; // 30 seconds
-await redis.setex(`run:${runId}:status`, REALTIME_TTL, runStatus);
+// Query result caching  
+await redis.setex(`user:${userId}:teams`, 300, JSON.stringify(teams));
 ```
 
 ## 🔧 Connection Management
