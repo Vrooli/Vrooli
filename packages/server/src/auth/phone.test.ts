@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import { generatePhoneVerificationCode } from "./phone.js";
 
 describe("generatePhoneVerificationCode function", () => {
@@ -25,7 +25,7 @@ describe("generatePhoneVerificationCode function", () => {
     validLengths.forEach(length => {
         it(`should generate a code of exactly ${length} characters`, () => {
             const code = generatePhoneVerificationCode(length);
-            expect(code.length).to.equal(length);
+            expect(code.length).toBe(length);
         });
     });
 
@@ -33,7 +33,7 @@ describe("generatePhoneVerificationCode function", () => {
     invalidLengths.forEach(length => {
         it(`should throw an error when length is ${JSON.stringify(length)}`, () => {
             // @ts-ignore: Testing runtime scenario
-            expect(() => generatePhoneVerificationCode(length)).to.throw();
+            expect(() => generatePhoneVerificationCode(length)).toThrow();
         });
     });
 });

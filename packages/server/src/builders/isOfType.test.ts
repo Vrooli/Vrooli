@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import { isRelationshipArray, isRelationshipObject } from "./isOfType.js";
 
 describe("isRelationshipObject", () => {
@@ -27,13 +27,13 @@ describe("isRelationshipObject", () => {
 
     validCases.forEach(({ description, value }) => {
         it(`should return true for ${description}`, () => {
-            expect(isRelationshipObject(value)).to.equal(true);
+            expect(isRelationshipObject(value)).toBe(true);
         });
     });
 
     invalidCases.forEach(({ description, value }) => {
         it(`should return false for ${description}`, () => {
-            expect(isRelationshipObject(value)).to.equal(false);
+            expect(isRelationshipObject(value)).toBe(false);
         });
     });
 });
@@ -58,13 +58,13 @@ describe("isRelationshipArray", () => {
 
     validCases.forEach(({ description, value }) => {
         it(`should return true for ${description}`, () => {
-            expect(isRelationshipArray(value)).to.equal(true);
+            expect(isRelationshipArray(value)).toBe(true);
         });
     });
 
     invalidCases.forEach(({ description, value }) => {
         it(`should return false for ${description}`, () => {
-            expect(isRelationshipArray(value)).to.equal(false);
+            expect(isRelationshipArray(value)).toBe(false);
         });
     });
 });

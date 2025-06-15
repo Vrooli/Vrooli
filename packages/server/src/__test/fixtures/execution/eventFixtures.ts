@@ -1,26 +1,12 @@
-import { generatePublicId } from "@vrooli/shared";
+import { generatePublicId, generatePK } from "@vrooli/shared";
 import {
     type BaseEvent,
-    type EventSource,
-    type EventMetadata,
-    type EventSubscription,
-    type EventFilter,
-    type CoordinationEvent,
-    type ProcessEvent,
     type ExecutionEvent,
-    type SystemEvent,
-    type SwarmLifecyclePayload,
-    type TeamManagementPayload,
-    type GoalManagementPayload,
-    type RunLifecyclePayload,
-    type StepExecutionPayload,
-    type StrategyExecutionPayload,
-    type ToolExecutionPayload,
-    type SecurityEventPayload,
-    type MonitoringEventPayload,
-    type ErrorEventPayload,
-    EventPriority,
-    EventCategory,
+    type EventSubscription,
+    type SwarmEventType,
+    type RunEventType,
+    type StepEventType,
+    type SystemEventType,
 } from "@vrooli/shared";
 import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
@@ -44,13 +30,13 @@ export const eventDbIds = {
 /**
  * Default event metadata
  */
-export const defaultEventMetadata: EventMetadata = {
+export const defaultEventMetadata: Record<string, unknown> = {
     userId: generatePublicId(),
     sessionId: generatePublicId(),
     requestId: generatePublicId(),
     version: "1.0.0",
     tags: ["test"],
-    priority: EventPriority.NORMAL,
+    priority: "NORMAL",
 };
 
 /**
@@ -58,31 +44,31 @@ export const defaultEventMetadata: EventMetadata = {
  */
 export const eventSources = {
     tier1: {
-        tier: 1 as const,
+        tier: "tier1.swarm",
         component: "SwarmStateMachine",
-        instanceId: generatePK(),
+        instanceId: generatePK().toString(),
     },
     tier2: {
-        tier: 2 as const,
+        tier: "tier2.run",
         component: "RunStateMachine",
-        instanceId: generatePK(),
+        instanceId: generatePK().toString().toString(),
     },
     tier3: {
-        tier: 3 as const,
+        tier: "tier3.step",
         component: "UnifiedExecutor",
-        instanceId: generatePK(),
+        instanceId: generatePK().toString().toString(),
     },
     crossCutting: {
-        tier: "cross-cutting" as const,
+        tier: "cross-cutting",
         component: "EventBus",
-        instanceId: generatePK(),
+        instanceId: generatePK().toString().toString(),
     },
 };
 
 /**
  * Minimal base event
  */
-export const minimalEvent: BaseEvent = {
+export const minimalEvent: ExecutionEvent = {
     id: eventDbIds.event1,
     type: "test.event",
     timestamp: new Date(),
@@ -94,7 +80,7 @@ export const minimalEvent: BaseEvent = {
 /**
  * Coordination event - Swarm lifecycle
  */
-export const swarmLifecycleEvent: CoordinationEvent = {
+export const swarmLifecycleEvent: ExecutionEvent = {
     id: eventDbIds.event2,
     type: "swarm.lifecycle.started",
     timestamp: new Date(),
@@ -102,61 +88,60 @@ export const swarmLifecycleEvent: CoordinationEvent = {
     correlationId: eventDbIds.correlation1,
     metadata: {
         ...defaultEventMetadata,
-        priority: EventPriority.HIGH,
         tags: ["swarm", "lifecycle"],
     },
-    payload: {
+    data: {
         type: "swarm_lifecycle",
-        swarmId: generatePK(),
+        swarmId: generatePK().toString().toString(),
         state: "EXECUTING",
         previousState: "PLANNING",
         reason: "Planning phase completed successfully",
-    } as SwarmLifecyclePayload,
+    },
 };
 
 /**
  * Coordination event - Team management
  */
-export const teamManagementEvent: CoordinationEvent = {
-    id: generatePK(),
+export const teamManagementEvent: ExecutionEvent = {
+    id: generatePK().toString().toString(),
     type: "team.management.formed",
     timestamp: new Date(),
     source: eventSources.tier1,
     correlationId: eventDbIds.correlation1,
     metadata: defaultEventMetadata,
-    payload: {
+    data: {
         type: "team_management",
-        teamId: generatePK(),
+        teamId: generatePK().toString().toString(),
         action: "formed",
-        agents: [generatePK(), generatePK(), generatePK()],
+        agents: [generatePK().toString().toString(), generatePK().toString().toString(), generatePK().toString().toString()],
         goal: "Process customer data analysis",
-    } as TeamManagementPayload,
+    },
 };
 
 /**
  * Process event - Run lifecycle
  */
-export const runLifecycleEvent: ProcessEvent = {
-    id: generatePK(),
+export const runLifecycleEvent: ExecutionEvent = {
+    id: generatePK().toString().toString(),
     type: "run.lifecycle.started",
     timestamp: new Date(),
     source: eventSources.tier2,
     correlationId: eventDbIds.correlation1,
     metadata: defaultEventMetadata,
-    payload: {
+    data: {
         type: "run_lifecycle",
-        runId: generatePK(),
-        routineId: generatePK(),
+        runId: generatePK().toString().toString(),
+        routineId: generatePK().toString().toString(),
         state: "RUNNING",
         previousState: "READY",
-    } as RunLifecyclePayload,
+    },
 };
 
 /**
  * Process event - Step execution
  */
-export const stepExecutionEvent: ProcessEvent = {
-    id: generatePK(),
+export const stepExecutionEvent: ExecutionEvent = {
+    id: generatePK().toString().toString(),
     type: "step.execution.completed",
     timestamp: new Date(),
     source: eventSources.tier2,
@@ -166,28 +151,28 @@ export const stepExecutionEvent: ProcessEvent = {
         ...defaultEventMetadata,
         tags: ["step", "execution", "success"],
     },
-    payload: {
+    data: {
         type: "step_execution",
-        stepId: generatePK(),
-        runId: generatePK(),
+        stepId: generatePK().toString().toString(),
+        runId: generatePK().toString().toString(),
         action: "completed",
         result: { processed: 100, duration: 5000 },
-    } as StepExecutionPayload,
+    },
 };
 
 /**
  * Execution event - Strategy execution
  */
 export const strategyExecutionEvent: ExecutionEvent = {
-    id: generatePK(),
+    id: generatePK().toString(),
     type: "strategy.execution.success",
     timestamp: new Date(),
     source: eventSources.tier3,
     correlationId: eventDbIds.correlation1,
     metadata: defaultEventMetadata,
-    payload: {
+    data: {
         type: "strategy_execution",
-        stepId: generatePK(),
+        stepId: generatePK().toString(),
         strategy: "reasoning",
         result: "success",
         confidence: 0.92,
@@ -196,50 +181,50 @@ export const strategyExecutionEvent: ExecutionEvent = {
             time: 3500,
             cost: 0.05,
         },
-    } as StrategyExecutionPayload,
+    } ,
 };
 
 /**
  * Execution event - Tool execution
  */
 export const toolExecutionEvent: ExecutionEvent = {
-    id: generatePK(),
+    id: generatePK().toString(),
     type: "tool.execution.completed",
     timestamp: new Date(),
     source: eventSources.tier3,
     correlationId: eventDbIds.correlation1,
     metadata: {
         ...defaultEventMetadata,
-        priority: EventPriority.LOW,
+        priority: "LOW",
     },
-    payload: {
+    data: {
         type: "tool_execution",
         toolName: "dataAnalyzer",
-        stepId: generatePK(),
+        stepId: generatePK().toString(),
         parameters: {
             dataset: "customers",
             metric: "retention",
         },
         result: { retention: 0.85, trend: "increasing" },
         duration: 2500,
-    } as ToolExecutionPayload,
+    } ,
 };
 
 /**
  * System event - Security
  */
-export const securityEvent: SystemEvent = {
-    id: generatePK(),
+export const securityEvent: ExecutionEvent = {
+    id: generatePK().toString(),
     type: "security.violation.detected",
     timestamp: new Date(),
     source: eventSources.crossCutting,
     correlationId: eventDbIds.correlation2,
     metadata: {
         ...defaultEventMetadata,
-        priority: EventPriority.CRITICAL,
+        priority: "CRITICAL",
         tags: ["security", "alert"],
     },
-    payload: {
+    data: {
         type: "security",
         action: "violation",
         severity: "high",
@@ -249,102 +234,78 @@ export const securityEvent: SystemEvent = {
             actor: "unknown_agent",
             blocked: true,
         },
-    } as SecurityEventPayload,
+    } ,
 };
 
 /**
  * System event - Monitoring
  */
-export const monitoringEvent: SystemEvent = {
-    id: generatePK(),
+export const monitoringEvent: ExecutionEvent = {
+    id: generatePK().toString(),
     type: "monitoring.metric.threshold",
     timestamp: new Date(),
     source: eventSources.crossCutting,
     correlationId: eventDbIds.correlation2,
     metadata: {
         ...defaultEventMetadata,
-        priority: EventPriority.HIGH,
+        priority: "HIGH",
         ttl: 3600, // 1 hour
     },
-    payload: {
+    data: {
         type: "monitoring",
         metric: "memory_usage",
         value: 0.92,
         threshold: 0.8,
         status: "critical",
-    } as MonitoringEventPayload,
+    } ,
 };
 
 /**
  * System event - Error
  */
-export const errorEvent: SystemEvent = {
-    id: generatePK(),
+export const errorEvent: ExecutionEvent = {
+    id: generatePK().toString(),
     type: "error.execution.failed",
     timestamp: new Date(),
     source: eventSources.crossCutting,
     correlationId: eventDbIds.correlation2,
     metadata: {
         ...defaultEventMetadata,
-        priority: EventPriority.HIGH,
+        priority: "HIGH",
         tags: ["error", "execution"],
     },
-    payload: {
+    data: {
         type: "error",
         errorType: "ExecutionError",
         message: "Failed to execute step: timeout exceeded",
         stack: "Error: Failed to execute step\n  at executor.js:123",
         context: {
-            stepId: generatePK(),
+            stepId: generatePK().toString(),
             duration: 300000,
             attempts: 3,
         },
         severity: "high",
-    } as ErrorEventPayload,
+    } ,
 };
 
 /**
  * Event subscription fixtures
  */
 export const basicSubscription: EventSubscription = {
-    id: eventDbIds.subscription1,
-    subscriber: eventSources.tier2,
-    filters: [
-        {
-            field: "type",
-            operator: "startsWith",
-            value: "swarm.",
-        },
-    ],
-    handler: "handleSwarmEvents",
-    config: {
-        maxRetries: 3,
-        timeout: 30000,
+    pattern: "swarm.*",
+    handler: (event: ExecutionEvent) => {
+        console.log("Handling swarm event:", event);
     },
 };
 
 export const advancedSubscription: EventSubscription = {
-    id: eventDbIds.subscription2,
-    subscriber: eventSources.tier1,
-    filters: [
-        {
-            field: "metadata.priority",
-            operator: "in",
-            value: [EventPriority.HIGH, EventPriority.CRITICAL],
-        },
-        {
-            field: "source.tier",
-            operator: "equals",
-            value: 3,
-        },
-    ],
-    handler: "handleHighPriorityExecutionEvents",
-    config: {
-        maxRetries: 5,
-        timeout: 60000,
-        deadLetterQueue: "dlq.high-priority",
-        batchSize: 10,
-        batchTimeout: 5000,
+    pattern: "*.execution.*",
+    handler: (event: ExecutionEvent) => {
+        console.log("Handling execution event:", event);
+    },
+    filter: (event: ExecutionEvent) => {
+        const priority = event.metadata?.priority;
+        return priority === "HIGH" || priority === "CRITICAL";
     },
 };
 
@@ -361,7 +322,7 @@ export class EventFactory {
         overrides?: Partial<BaseEvent>
     ): BaseEvent {
         return {
-            id: generatePK(),
+            id: generatePK().toString(),
             type,
             timestamp: new Date(),
             source,
@@ -376,43 +337,43 @@ export class EventFactory {
      */
     static createCoordinationEvent(
         eventType: "swarm" | "team" | "goal" | "resource",
-        overrides?: Partial<CoordinationEvent>
-    ): CoordinationEvent {
+        overrides?: Partial<ExecutionEvent>
+    ): ExecutionEvent {
         const payloads = {
             swarm: {
                 type: "swarm_lifecycle",
-                swarmId: generatePK(),
+                swarmId: generatePK().toString(),
                 state: "EXECUTING",
-            } as SwarmLifecyclePayload,
+            } ,
             team: {
                 type: "team_management",
-                teamId: generatePK(),
+                teamId: generatePK().toString(),
                 action: "formed",
-                agents: [generatePK()],
-            } as TeamManagementPayload,
+                agents: [generatePK().toString()],
+            } ,
             goal: {
                 type: "goal_management",
-                goalId: generatePK(),
+                goalId: generatePK().toString(),
                 action: "assigned",
-                assignedTo: generatePK(),
-            } as GoalManagementPayload,
+                assignedTo: generatePK().toString(),
+            } ,
             resource: {
                 type: "resource_allocation",
-                resourceId: generatePK(),
+                resourceId: generatePK().toString(),
                 action: "allocated",
-                consumer: generatePK(),
+                consumer: generatePK().toString(),
                 amount: 100,
             },
         };
 
         return {
-            id: generatePK(),
+            id: generatePK().toString(),
             type: `${eventType}.event`,
             timestamp: new Date(),
             source: eventSources.tier1,
             correlationId: generatePublicId(),
             metadata: defaultEventMetadata,
-            payload: payloads[eventType] as any,
+            data: payloads[eventType] as any,
             ...overrides,
         };
     }
@@ -422,31 +383,31 @@ export class EventFactory {
      */
     static createProcessEvent(
         eventType: "run" | "step" | "navigation" | "optimization",
-        overrides?: Partial<ProcessEvent>
-    ): ProcessEvent {
+        overrides?: Partial<ExecutionEvent>
+    ): ExecutionEvent {
         const payloads = {
             run: {
                 type: "run_lifecycle",
-                runId: generatePK(),
-                routineId: generatePK(),
+                runId: generatePK().toString(),
+                routineId: generatePK().toString(),
                 state: "RUNNING",
-            } as RunLifecyclePayload,
+            } ,
             step: {
                 type: "step_execution",
-                stepId: generatePK(),
-                runId: generatePK(),
+                stepId: generatePK().toString(),
+                runId: generatePK().toString(),
                 action: "started",
-            } as StepExecutionPayload,
+            } ,
             navigation: {
                 type: "navigation",
-                runId: generatePK(),
+                runId: generatePK().toString(),
                 from: "step1",
                 to: ["step2", "step3"],
                 reason: "Conditional branch",
             },
             optimization: {
                 type: "optimization",
-                runId: generatePK(),
+                runId: generatePK().toString(),
                 optimizationType: "parallelize",
                 target: ["step2", "step3"],
                 expectedImprovement: 0.3,
@@ -455,7 +416,7 @@ export class EventFactory {
         };
 
         return {
-            id: generatePK(),
+            id: generatePK().toString(),
             type: `${eventType}.event`,
             timestamp: new Date(),
             source: eventSources.tier2,
@@ -476,23 +437,23 @@ export class EventFactory {
         const payloads = {
             strategy: {
                 type: "strategy_execution",
-                stepId: generatePK(),
+                stepId: generatePK().toString(),
                 strategy: "reasoning",
                 result: "success",
                 confidence: 0.85,
                 resourceUsage: { tokens: 1000 },
-            } as StrategyExecutionPayload,
+            } ,
             tool: {
                 type: "tool_execution",
                 toolName: "calculator",
-                stepId: generatePK(),
+                stepId: generatePK().toString(),
                 parameters: { operation: "sum", values: [1, 2, 3] },
                 result: 6,
                 duration: 100,
-            } as ToolExecutionPayload,
+            } ,
             adaptation: {
                 type: "adaptation",
-                stepId: generatePK(),
+                stepId: generatePK().toString(),
                 adaptationType: "strategy",
                 before: "deterministic",
                 after: "reasoning",
@@ -508,7 +469,7 @@ export class EventFactory {
         };
 
         return {
-            id: generatePK(),
+            id: generatePK().toString(),
             type: `${eventType}.event`,
             timestamp: new Date(),
             source: eventSources.tier3,
@@ -525,22 +486,22 @@ export class EventFactory {
     static createSystemEvent(
         eventType: "security" | "monitoring" | "resource" | "error",
         severity: "low" | "medium" | "high" | "critical" = "medium",
-        overrides?: Partial<SystemEvent>
-    ): SystemEvent {
+        overrides?: Partial<ExecutionEvent>
+    ): ExecutionEvent {
         const payloads = {
             security: {
                 type: "security",
                 action: "audit",
                 severity,
                 details: { action: "data_access", user: generatePublicId() },
-            } as SecurityEventPayload,
+            } ,
             monitoring: {
                 type: "monitoring",
                 metric: "cpu_usage",
                 value: 0.75,
                 threshold: 0.8,
                 status: severity === "critical" ? "critical" : "warning",
-            } as MonitoringEventPayload,
+            } ,
             resource: {
                 type: "resource",
                 resourceType: "memory",
@@ -554,20 +515,20 @@ export class EventFactory {
                 message: "Test error",
                 severity,
                 context: {},
-            } as ErrorEventPayload,
+            } ,
         };
 
         return {
-            id: generatePK(),
+            id: generatePK().toString(),
             type: `${eventType}.event`,
             timestamp: new Date(),
             source: eventSources.crossCutting,
             correlationId: generatePublicId(),
             metadata: {
                 ...defaultEventMetadata,
-                priority: severity === "critical" ? EventPriority.CRITICAL
-                    : severity === "high" ? EventPriority.HIGH
-                    : EventPriority.NORMAL,
+                priority: severity === "critical" ? "CRITICAL"
+                    : severity === "high" ? "HIGH"
+                    : "NORMAL",
             },
             payload: payloads[eventType] as any,
             ...overrides,
@@ -612,17 +573,13 @@ export class EventFactory {
      * Create subscription
      */
     static createSubscription(
-        filters: EventFilter[],
+        pattern: string,
         overrides?: Partial<EventSubscription>
     ): EventSubscription {
         return {
-            id: generatePK(),
-            subscriber: eventSources.tier2,
-            filters,
-            handler: "handleEvents",
-            config: {
-                maxRetries: 3,
-                timeout: 30000,
+            pattern,
+            handler: (event: ExecutionEvent) => {
+                console.log(`Handling event ${event.type}:`, event);
             },
             ...overrides,
         };
@@ -630,14 +587,10 @@ export class EventFactory {
 }
 
 /**
- * Helper to create event filter
+ * Simple pattern matcher for event subscriptions
  */
-export function createEventFilter(
-    field: string,
-    operator: EventFilter["operator"],
-    value: unknown
-): EventFilter {
-    return { field, operator, value };
+export function createEventPattern(eventType: string): string {
+    return `${eventType}.*`;
 }
 
 /**
@@ -729,15 +682,9 @@ export async function seedTestEvents(
     // Create subscriptions if requested
     if (options?.includeSubscriptions) {
         const subscriptions = [
-            EventFactory.createSubscription([
-                createEventFilter("type", "startsWith", "swarm."),
-            ]),
-            EventFactory.createSubscription([
-                createEventFilter("metadata.priority", "equals", EventPriority.HIGH),
-            ]),
-            EventFactory.createSubscription([
-                createEventFilter("source.tier", "in", [1, 2]),
-            ]),
+            EventFactory.createSubscription("swarm.*"),
+            EventFactory.createSubscription("*.execution.*"),
+            EventFactory.createSubscription("run.*"),
         ];
 
         for (const subscription of subscriptions) {
@@ -747,3 +694,18 @@ export async function seedTestEvents(
 
     return events;
 }
+
+/**
+ * Mock events for testing
+ */
+export const mockEvents = {
+    swarmLifecycle: swarmLifecycleEvent,
+    teamManagement: teamManagementEvent,
+    runLifecycle: runLifecycleEvent,
+    stepExecution: stepExecutionEvent,
+    strategyExecution: strategyExecutionEvent,
+    toolExecution: toolExecutionEvent,
+    security: securityEvent,
+    monitoring: monitoringEvent,
+    error: errorEvent,
+};

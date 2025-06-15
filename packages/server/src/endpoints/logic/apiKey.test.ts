@@ -3,9 +3,9 @@ import { randomBytes } from "crypto";
 import { apiKey } from "./apiKey.js";
 
 // Mock the necessary modules
-jest.mock("../../auth/apiKeyEncryption.js");
-jest.mock("../../auth/request.js");
-jest.mock("../../actions/creates.js");
+vi.mock("../../auth/apiKeyEncryption.js");
+vi.mock("../../auth/request.js");
+vi.mock("../../actions/creates.js");
 
 // Import the mocked modules
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -13,31 +13,31 @@ import { RequestService } from "../../auth/request.js";
 
 // Create mock implementations
 const mockApiKeyEncryption = {
-    generateSiteKey: jest.fn(),
-    hashSiteKey: jest.fn(),
-    verifySiteKey: jest.fn(),
+    generateSiteKey: vi.fn(),
+    hashSiteKey: vi.fn(),
+    verifySiteKey: vi.fn(),
 };
 
 const mockRequestService = {
-    assertRequestFrom: jest.fn(),
-    get: jest.fn(() => ({
-        rateLimit: jest.fn(),
+    assertRequestFrom: vi.fn(),
+    get: vi.fn(() => ({
+        rateLimit: vi.fn(),
     })),
 };
 
 // Mock the creates helper
-const mockCreateOneHelper = jest.fn();
-jest.doMock("../../actions/creates.js", () => ({
+const mockCreateOneHelper = vi.fn();
+vi.doMock("../../actions/creates.js", () => ({
     createOneHelper: mockCreateOneHelper,
 }));
 
 // Set up the mocks
-(ApiKeyEncryptionService.get as jest.Mock).mockReturnValue(mockApiKeyEncryption);
-(RequestService.assertRequestFrom as jest.Mock) = mockRequestService.assertRequestFrom;
+(ApiKeyEncryptionService.get as any).mockReturnValue(mockApiKeyEncryption);
+(RequestService.assertRequestFrom as any) = mockRequestService.assertRequestFrom;
 
 describe("API Key Endpoints", () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe("createOne", () => {
@@ -176,8 +176,8 @@ describe("API Key Endpoints", () => {
 
         beforeEach(() => {
             // Reset the rate limiting mock
-            const mockRateLimit = jest.fn();
-            (RequestService.get as jest.Mock).mockReturnValue({
+            const mockRateLimit = vi.fn();
+            (RequestService.get as any).mockReturnValue({
                 rateLimit: mockRateLimit,
             });
         });
@@ -228,8 +228,8 @@ describe("API Key Endpoints", () => {
         });
 
         it("should apply rate limiting", async () => {
-            const mockRateLimit = jest.fn();
-            (RequestService.get as jest.Mock).mockReturnValue({
+            const mockRateLimit = vi.fn();
+            (RequestService.get as any).mockReturnValue({
                 rateLimit: mockRateLimit,
             });
 

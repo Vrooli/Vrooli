@@ -1,5 +1,5 @@
 import { type SessionUser } from "@vrooli/shared";
-import { expect } from "chai";
+import { expect, vi, describe, it, beforeEach, afterEach } from "vitest";
 import { ModelMap } from "../models/base/index.js";
 import { type PreMap } from "../models/types.js";
 import { type InputsById } from "../utils/types.js";
@@ -35,7 +35,7 @@ describe("calculatePreShapeData", () => {
         const preMap: PreMap = {};
 
         Object.assign(ModelMap, {
-            getLogic: jest.fn().mockImplementation(() => ({
+            getLogic: vi.fn().mockImplementation(() => ({
                 mutate: {
                     shape: {
                         // No pre function
@@ -46,7 +46,7 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).to.deep.equal({
+        expect(preMap).toEqual({
             TypeA: {},
             TypeB: {},
         });
@@ -65,10 +65,10 @@ describe("calculatePreShapeData", () => {
         const preMap: PreMap = {};
 
         Object.assign(ModelMap, {
-            getLogic: jest.fn().mockImplementation(() => ({
+            getLogic: vi.fn().mockImplementation(() => ({
                 mutate: {
                     shape: {
-                        pre: jest.fn().mockReturnValue({ beep: "boop" }),
+                        pre: vi.fn().mockReturnValue({ beep: "boop" }),
                     },
                 },
             })),
@@ -76,7 +76,7 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).to.deep.equal({
+        expect(preMap).toEqual({
             TypeA: { beep: "boop" },
         });
     });
@@ -94,10 +94,10 @@ describe("calculatePreShapeData", () => {
         const preMap: PreMap = {};
 
         Object.assign(ModelMap, {
-            getLogic: jest.fn().mockImplementation(() => ({
+            getLogic: vi.fn().mockImplementation(() => ({
                 mutate: {
                     shape: {
-                        pre: jest.fn().mockImplementation(({ Create, Update, Delete }) => {
+                        pre: vi.fn().mockImplementation(({ Create, Update, Delete }) => {
                             Create.push({ node: "TypeA", input: { just: "added" } });
                             Update.push({ node: "TypeA", input: { hello: "world" } });
                             Delete.push({ node: "TypeA", input: { chicken: "nugget" } });
@@ -110,10 +110,10 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).to.deep.equal({
+        expect(preMap).toEqual({
             TypeA: {},
         });
-        expect(inputsByType).to.deep.equal({
+        expect(inputsByType).toEqual({
             TypeA: {
                 Create: [{ node: "TypeA", input: { /* ... */ } }, { node: "TypeA", input: { just: "added" } }],
                 Update: [{ node: "TypeA", input: { hello: "world" } }],

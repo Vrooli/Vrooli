@@ -346,7 +346,7 @@ describe("EndpointsStatsProject", () => {
 
                 expect(result).not.toBeNull();
                 expect(result.edges!.length).toEqual(0);
-                expect(result.edges!.every(edge => edge?.node?.id !== privateProjectStats2.id)).to.be.true;
+                expect(result.edges!.every(edge => edge?.node?.id !== privateProjectStats2.id)).toBe(true);
             });
         });
     });

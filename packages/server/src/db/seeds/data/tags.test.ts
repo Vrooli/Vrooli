@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import { data } from "./tags.js";
 
 const MIN_TAG_LENGTH = 2;

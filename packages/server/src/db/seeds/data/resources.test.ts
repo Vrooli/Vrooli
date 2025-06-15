@@ -47,7 +47,7 @@ describe("Seeded Code Tests", () => {
                                 console.error(`Actual output: ${JSON.stringify(result.actualOutput)}`);
                                 console.error(`Expected output: ${JSON.stringify(testCase.expectedOutput)}`);
                             }
-                            expect(result.passed, `Test failed: ${result.error || "Output mismatch"}`).to.be.true;
+                            expect(result.passed, `Test failed: ${result.error || "Output mismatch"}`).toBe(true);
                         });
                     });
                 });

@@ -175,7 +175,7 @@ describe("RequestService", () => {
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).to.equal("User-Agent: Mozilla/5.0; Accept-Language: en-US,en;q=0.9");
+            expect(result).toBe("User-Agent: Mozilla/5.0; Accept-Language: en-US,en;q=0.9");
         });
 
         it("should return 'Unknown' for missing user-agent", () => {
@@ -185,7 +185,7 @@ describe("RequestService", () => {
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).to.equal("User-Agent: Unknown; Accept-Language: en-US,en;q=0.9");
+            expect(result).toBe("User-Agent: Unknown; Accept-Language: en-US,en;q=0.9");
         });
 
         it("should return 'Unknown' for missing accept-language", () => {
@@ -195,7 +195,7 @@ describe("RequestService", () => {
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).to.equal("User-Agent: Mozilla/5.0; Accept-Language: Unknown");
+            expect(result).toBe("User-Agent: Mozilla/5.0; Accept-Language: Unknown");
         });
 
         it("should return 'Unknown' for both missing headers", () => {
@@ -203,84 +203,84 @@ describe("RequestService", () => {
                 headers: {},
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).to.equal("User-Agent: Unknown; Accept-Language: Unknown");
+            expect(result).toBe("User-Agent: Unknown; Accept-Language: Unknown");
         });
     });
 
     describe("parseAcceptLanguage", () => {
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is missing`, () => {
             const req = { headers: {} };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is "*" `, () => {
             const req = { headers: { "accept-language": "*" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
 
         it("should parse \"en-US,en;q=0.9,fr;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "en-US,en;q=0.9,fr;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["en", "en", "fr"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["en", "en", "fr"]);
         });
 
         it("should parse \"fr-CA,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3\" correctly", () => {
             const req = { headers: { "accept-language": "fr-CA,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["fr", "fr", "en", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["fr", "fr", "en", "en"]);
         });
 
         it("should parse \"es\" correctly", () => {
             const req = { headers: { "accept-language": "es" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["es"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["es"]);
         });
 
         it("should parse \"zh-Hant,zh-Hans;q=0.9,ja;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "zh-Hant,zh-Hans;q=0.9,ja;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["zh", "zh", "ja"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["zh", "zh", "ja"]);
         });
 
         it("should parse \"en-GB,en;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "en-GB,en;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["en", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["en", "en"]);
         });
 
         it("should handle accept-language with wildcard and language codes", () => {
             const req = { headers: { "accept-language": "*,en;q=0.5" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["*", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["*", "en"]);
         });
 
         it("should handle invalid accept-language values", () => {
             const req = { headers: { "accept-language": "invalid" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["invalid"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["invalid"]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is empty string`, () => {
             const req = { headers: { "accept-language": "" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
 
         it("should handle accept-language with extra spaces", () => {
             const req = { headers: { "accept-language": " en-US , en ;q=0.9 " } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([" en", " en "]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([" en", " en "]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is null`, () => {
             const req = { headers: { "accept-language": null } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is undefined`, () => {
             const req = { headers: { "accept-language": undefined } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
 
         it("should handle accept-language with uppercase letters", () => {
             const req = { headers: { "accept-language": "EN-US,en;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["EN", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual(["EN", "en"]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"]  when accept-language header is not a string`, () => {
             const req = { headers: { "accept-language": 42 } };
-            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
         });
     });
 
@@ -316,7 +316,7 @@ describe("RequestService", () => {
                 const req = { session: sessionData };
                 const conditions = { isApiToken: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.deep.equal({});
+                expect(result).toEqual({});
             });
 
             it("should throw MustUseApiToken when isApiToken is true but request is not from API token", () => {
@@ -328,7 +328,7 @@ describe("RequestService", () => {
                 const conditions = { isApiToken: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
         });
 
@@ -342,7 +342,7 @@ describe("RequestService", () => {
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.deep.equal(userData);
+                expect(result).toEqual(userData);
             });
 
             it("should return user data when isUser is true and conditions are met (apiToken)", () => {
@@ -354,7 +354,7 @@ describe("RequestService", () => {
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.deep.equal(userData);
+                expect(result).toEqual(userData);
             });
 
             it("should throw NotLoggedIn when isUser is true and user is not logged in", () => {
@@ -367,7 +367,7 @@ describe("RequestService", () => {
                 const conditions = { isUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
 
             it("should throw NotLoggedIn when isUser is true but conditions are not met", () => {
@@ -380,7 +380,7 @@ describe("RequestService", () => {
                 const conditions = { isUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
         });
 
@@ -394,7 +394,7 @@ describe("RequestService", () => {
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true } as const;
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).to.deep.equal(userData);
+                expect(result).toEqual(userData);
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but user is not logged in", () => {
@@ -407,7 +407,7 @@ describe("RequestService", () => {
                 const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but apiToken is true", () => {
@@ -420,7 +420,7 @@ describe("RequestService", () => {
                 const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but fromSafeOrigin is false", () => {
@@ -433,7 +433,7 @@ describe("RequestService", () => {
                 const conditions = { isOfficialUser: true } as const;
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).to.throw();
+                }).toThrow();
             });
         });
 
@@ -442,7 +442,7 @@ describe("RequestService", () => {
             const req = { session: sessionData };
             const conditions = {};
             const result = RequestService.assertRequestFrom(req, conditions);
-            expect(result).to.deep.equal({});
+            expect(result).toEqual({});
         });
     });
 
@@ -481,8 +481,8 @@ describe("RequestService", () => {
                 await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
                 expect.fail("Expected checkRateLimit to throw");
             } catch (error) {
-                expect(error).to.be.instanceOf(CustomError);
-                expect(error.code).to.equal("RateLimitExceeded");
+                expect(error).toBeInstanceOf(CustomError);
+                expect(error.code).toBe("RateLimitExceeded");
             }
         });
 
@@ -503,7 +503,7 @@ describe("RequestService", () => {
             await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
 
             // Verify the script was loaded (SHA is set)
-            expect(RequestService["tokenBucketScriptSha"]).to.be.a("string");
+            expect(typeof RequestService["tokenBucketScriptSha"]).toBe("string");
         });
 
         it("should not throw if client is null", async () => {
@@ -558,8 +558,8 @@ describe("RequestService", () => {
                 await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
                 expect.fail("Expected rateLimit to throw");
             } catch (error) {
-                expect(error).to.be.instanceOf(CustomError);
-                expect(error.code).to.equal("RateLimitExceeded");
+                expect(error).toBeInstanceOf(CustomError);
+                expect(error.code).toBe("RateLimitExceeded");
             }
         });
 
@@ -610,8 +610,8 @@ describe("RequestService", () => {
                 await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
                 expect.fail("Expected rateLimit to throw");
             } catch (error) {
-                expect(error).to.be.instanceOf(CustomError);
-                expect(error.code).to.equal("RateLimitExceeded");
+                expect(error).toBeInstanceOf(CustomError);
+                expect(error.code).toBe("RateLimitExceeded");
             }
         });
 
@@ -630,8 +630,8 @@ describe("RequestService", () => {
                 await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
                 expect.fail("Expected rateLimit to throw");
             } catch (error) {
-                expect(error).to.be.instanceOf(CustomError);
-                expect(error.code).to.equal("MustUseApiToken");
+                expect(error).toBeInstanceOf(CustomError);
+                expect(error.code).toBe("MustUseApiToken");
             }
         });
 
@@ -681,8 +681,8 @@ describe("RequestService", () => {
                 await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
                 expect.fail("Expected rateLimit to throw");
             } catch (error) {
-                expect(error).to.be.instanceOf(CustomError);
-                expect(error.code).to.equal("RateLimitExceeded");
+                expect(error).toBeInstanceOf(CustomError);
+                expect(error.code).toBe("RateLimitExceeded");
             }
         });
     });
@@ -701,7 +701,7 @@ describe("RequestService", () => {
             await setRateLimitTokens(ipKey, 100, now);
 
             const result = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
-            expect(result).to.be.undefined;
+            expect(result).toBeUndefined();
         });
 
         it("should return error if IP rate limit is exceeded for guest socket", async () => {
@@ -716,7 +716,8 @@ describe("RequestService", () => {
             await setRateLimitTokens(ipKey, 0, Date.now());
 
             const error = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
-            expect(error).to.be.a("string").and.to.include("RateLimitExceeded");
+            expect(typeof error).toBe("string");
+            expect(error).toContain("RateLimitExceeded");
         });
 
         it("should not return error if rate limit is not exceeded for logged-in user socket", async () => {
@@ -735,7 +736,7 @@ describe("RequestService", () => {
             await setRateLimitTokens(userKey, 100, now);
 
             const result = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
-            expect(result).to.be.undefined;
+            expect(result).toBeUndefined();
         });
 
         it("should return error if user rate limit is exceeded for logged-in user socket", async () => {
@@ -753,7 +754,8 @@ describe("RequestService", () => {
             await setRateLimitTokens(userKey, 0, Date.now());
 
             const error = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
-            expect(error).to.be.a("string").and.to.include("RateLimitExceeded");
+            expect(typeof error).toBe("string");
+            expect(error).toContain("RateLimitExceeded");
         });
     });
 });

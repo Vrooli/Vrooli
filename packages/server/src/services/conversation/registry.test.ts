@@ -1,6 +1,6 @@
 import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
-import { expect } from "chai";
-import sinon from "sinon";
+import { expect, describe, it } from "vitest";
+
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry.js";
 
 describe("LlmServiceRegistry", () => {
@@ -21,9 +21,9 @@ describe("LlmServiceRegistry", () => {
     });
 
     it("returns the preferred service when active", () => {
-        expect(registry.getBestService(AnthropicModel.Opus3)).to.equal(LlmServiceId.Anthropic);
-        expect(registry.getBestService(OpenAIModel.Gpt4o_Mini)).to.equal(LlmServiceId.OpenAI);
-        expect(registry.getBestService(MistralModel.Codestral)).to.equal(LlmServiceId.Mistral);
+        expect(registry.getBestService(AnthropicModel.Opus3)).toBe(LlmServiceId.Anthropic);
+        expect(registry.getBestService(OpenAIModel.Gpt4o_Mini)).toBe(LlmServiceId.OpenAI);
+        expect(registry.getBestService(MistralModel.Codestral)).toBe(LlmServiceId.Mistral);
     });
 
     it("returns the first active fallback service when preferred is on cooldown", () => {
@@ -45,37 +45,37 @@ describe("LlmServiceRegistry", () => {
             registry.updateServiceState(serviceId, LlmServiceErrorType.Overloaded);
         });
 
-        expect(registry.getBestService(AnthropicModel.Opus3)).to.be.null;
+        expect(registry.getBestService(AnthropicModel.Opus3)).toBeNull();
     });
 
     it("registers and retrieves service states correctly", () => {
         registry.registerService("testService");
         registry.registerService("testService2");
-        expect(registry.getServiceState("testService")).to.equal(LlmServiceState.Active);
-        expect(registry.getServiceState("testService2")).to.equal(LlmServiceState.Active);
+        expect(registry.getServiceState("testService")).toBe(LlmServiceState.Active);
+        expect(registry.getServiceState("testService2")).toBe(LlmServiceState.Active);
     });
 
     it("automatically registers and activates an unregistered service when its state is requested", () => {
         const serviceState = registry.getServiceState("autoRegisteredService");
-        expect(serviceState).to.equal(LlmServiceState.Active);
+        expect(serviceState).toBe(LlmServiceState.Active);
     });
 
     it("handles critical error by disabling service", () => {
         registry.registerService("criticalErrorService");
         registry.registerService("fineService");
         registry.updateServiceState("criticalErrorService", LlmServiceErrorType.Authentication);
-        expect(registry.getServiceState("criticalErrorService")).to.equal(LlmServiceState.Disabled);
-        expect(registry.getServiceState("fineService")).to.equal(LlmServiceState.Active);
+        expect(registry.getServiceState("criticalErrorService")).toBe(LlmServiceState.Disabled);
+        expect(registry.getServiceState("fineService")).toBe(LlmServiceState.Active);
 
         // Fast-forward to make sure it stays disabled
         clock.tick(1_000_000);
-        expect(registry.getServiceState("criticalErrorService")).to.equal(LlmServiceState.Disabled);
+        expect(registry.getServiceState("criticalErrorService")).toBe(LlmServiceState.Disabled);
     });
 
     it("handles cooldown error by setting service into cooldown", () => {
         registry.registerService("cooldownService");
         registry.updateServiceState("cooldownService", LlmServiceErrorType.Overloaded);
-        expect(registry.getServiceState("cooldownService")).to.equal(LlmServiceState.Cooldown);
+        expect(registry.getServiceState("cooldownService")).toBe(LlmServiceState.Cooldown);
     });
 
     it("resets service from cooldown to active after cooldown period", async () => {
@@ -84,10 +84,10 @@ describe("LlmServiceRegistry", () => {
 
         // Fast-forward a few seconds to make sure it's still in cooldown
         clock.tick(10_000);
-        expect(registry.getServiceState("resetService")).to.equal(LlmServiceState.Cooldown);
+        expect(registry.getServiceState("resetService")).toBe(LlmServiceState.Cooldown);
 
         // Fast-forward to the end of the cooldown period (15 minutes)
         clock.tick(15 * 60 * 1000);
-        expect(registry.getServiceState("resetService")).to.equal(LlmServiceState.Active);
+        expect(registry.getServiceState("resetService")).toBe(LlmServiceState.Active);
     });
 });

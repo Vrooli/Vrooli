@@ -53,7 +53,7 @@ describe("AuthTokensService", () => {
         it("get() should return the same instance", () => {
             const instance1 = AuthTokensService.get();
             const instance2 = AuthTokensService.get();
-            expect(instance1).to.equal(instance2);
+            expect(instance1).toBe(instance2);
         });
     });
 
@@ -84,23 +84,23 @@ describe("AuthTokensService", () => {
         describe("false", () => {
             it("not an object", async () => {
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(null)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(null)).toBe(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(undefined)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(undefined)).toBe(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken("string")).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken("string")).toBe(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(123)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(123)).toBe(false);
             });
 
             it("user data not present", async () => {
                 const payload: SessionData = {};
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("user array empty", async () => {
                 const payload: SessionData = { users: [] };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("missing session data", async () => {
@@ -111,7 +111,7 @@ describe("AuthTokensService", () => {
                         },
                     ] as SessionUser[],
                 };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("missing lastRefreshAt", async () => {
@@ -125,7 +125,7 @@ describe("AuthTokensService", () => {
                         },
                     ] as SessionUser[],
                 };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("session not in database", async () => {
@@ -142,7 +142,7 @@ describe("AuthTokensService", () => {
                     ] as SessionUser[],
                 };
                 // We deliberately don't create a session for this test
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("session is revoked", async () => {
@@ -168,7 +168,7 @@ describe("AuthTokensService", () => {
                         auth_id: testAuth.id,
                     },
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("session is expired", async () => {
@@ -194,7 +194,7 @@ describe("AuthTokensService", () => {
                         auth_id: testAuth.id,
                     },
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
 
             it("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
@@ -220,7 +220,7 @@ describe("AuthTokensService", () => {
                         auth_id: testAuth.id,
                     },
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
         });
 
@@ -248,7 +248,7 @@ describe("AuthTokensService", () => {
                         auth_id: testAuth.id,
                     },
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(true);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(true);
             });
         });
 
@@ -283,13 +283,13 @@ describe("AuthTokensService", () => {
 
     describe("isTokenCorrectType", () => {
         it("returns false if token is null, undefined, or not a string", () => {
-            expect(AuthTokensService.isTokenCorrectType(null)).to.equal(false);
-            expect(AuthTokensService.isTokenCorrectType(undefined)).to.equal(false);
-            expect(AuthTokensService.isTokenCorrectType(123)).to.equal(false);
+            expect(AuthTokensService.isTokenCorrectType(null)).toBe(false);
+            expect(AuthTokensService.isTokenCorrectType(undefined)).toBe(false);
+            expect(AuthTokensService.isTokenCorrectType(123)).toBe(false);
         });
 
         it("returns true if token is a string", () => {
-            expect(AuthTokensService.isTokenCorrectType("string")).to.equal(true);
+            expect(AuthTokensService.isTokenCorrectType("string")).toBe(true);
         });
     });
 
@@ -297,37 +297,37 @@ describe("AuthTokensService", () => {
         describe("true", () => {
             it("string", () => {
                 const payload = { accessExpiresAt: "string" };
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
 
             it("undefined", () => {
                 const payload = {};
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
 
             it("null", () => {
                 const payload = { accessExpiresAt: null };
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
 
             it("in the past", () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = payload.accessExpiresAt - SECONDS_1_MS;
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
 
             it("negative number", () => {
                 // Picked a date that would be in the future if it was positive
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = -(payload.accessExpiresAt + SECONDS_1_MS);
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
         });
 
         describe("false", () => {
             it("in the future", () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(false);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(false);
             });
         });
     });
@@ -431,7 +431,7 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token);
 
-            expect(result.token).to.equal(token);
+            expect(result.token).toBe(token);
             expect(result.payload).to.deep.include(payload);
             expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).to.be.at.most(SECONDS_1_MS);
         });
@@ -475,10 +475,10 @@ describe("AuthTokensService", () => {
             const token = JsonWebToken.get().sign(payload);
             const result = await AuthTokensService.authenticateToken(token);
 
-            expect(result.token).to.equal(token);
+            expect(result.token).toBe(token);
             expect(result.payload).to.deep.include(payload);
-            expect(result.payload.users[0].id).to.equal(userId);
-            expect(result.payload.users[0].session?.id).to.equal(sessionId);
+            expect(result.payload.users[0].id).toBe(userId);
+            expect(result.payload.users[0].session?.id).toBe(sessionId);
         });
 
         it("applies additionalData correctly when provided", async function testAdditionalData() {
@@ -501,14 +501,14 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token, { additionalData });
 
-            expect(result.token).not.to.equal(token);
+            expect(result.token).not.toBe(token);
             expect(result.payload).to.deep.include({
                 ...payload,
                 ...additionalData,
             } as any);
-            expect((result.payload as any).extraField).to.equal("extraValue");
-            expect((result.payload as any).nestedData.key1).to.equal("value1");
-            expect((result.payload as any).nestedData.key2).to.equal(123);
+            expect((result.payload as any).extraField).toBe("extraValue");
+            expect((result.payload as any).nestedData.key1).toBe("value1");
+            expect((result.payload as any).nestedData.key2).toBe(123);
         });
 
         it("uses modifyPayload callback correctly when provided", async function testModifyPayload() {
@@ -532,9 +532,9 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token, { modifyPayload });
 
-            expect(result.token).not.to.equal(token);
-            expect((result.payload as any).modifiedField).to.equal("modified");
-            expect(result.payload.timeZone).to.equal("Europe/London");
+            expect(result.token).not.toBe(token);
+            expect((result.payload as any).modifiedField).toBe("modified");
+            expect(result.payload.timeZone).toBe("Europe/London");
         });
 
         it("refreshes the token if access token expired and can be refreshed", async function testTokenRefresh() {
@@ -573,33 +573,33 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token);
 
-            expect(result.token).not.to.equal(token);
+            expect(result.token).not.toBe(token);
             expect(result.payload).to.deep.include({
                 ...payload,
                 accessExpiresAt: result.payload.accessExpiresAt, // Replace with actual value
             });
-            expect(typeof result.payload.exp).to.equal("number");
-            expect(typeof result.payload.accessExpiresAt).to.equal("number");
+            expect(typeof result.payload.exp).toBe("number");
+            expect(typeof result.payload.accessExpiresAt).toBe("number");
             // Allow for small differences in timestamp values by checking they're close rather than exactly equal
-            expect(result.payload.exp).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result.payload.accessExpiresAt).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
-            expect(result.maxAge).to.be.greaterThan(0);
+            expect(result.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
+            expect(result.maxAge).toBeGreaterThan(0);
 
             // Move time forward to simulate token expiration, and check if it can be refreshed again
             sinon.stub(Date, "now").returns(new Date().getTime() + 2 * ACCESS_TOKEN_EXPIRATION_MS);
             const result2 = await AuthTokensService.authenticateToken(result.token);
 
-            expect(result2.token).not.to.equal(result.token);
+            expect(result2.token).not.toBe(result.token);
             expect(result2.payload).to.deep.include({
                 ...result.payload,
                 accessExpiresAt: result2.payload.accessExpiresAt, // Replace with actual value
                 exp: result2.payload.exp, // Don't try to compare exact exp values
             });
-            expect(typeof result2.payload.exp).to.equal("number");
-            expect(typeof result2.payload.accessExpiresAt).to.equal("number");
-            expect(result2.payload.exp).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result2.payload.accessExpiresAt).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
-            expect(result2.maxAge).to.be.greaterThan(0);
+            expect(typeof result2.payload.exp).toBe("number");
+            expect(typeof result2.payload.accessExpiresAt).toBe("number");
+            expect(result2.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result2.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
+            expect(result2.maxAge).toBeGreaterThan(0);
         });
 
         it("throws 'SessionExpired' error if token is expired and cannot be refreshed", async function testSessionExpired() {
@@ -695,23 +695,23 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
-            expect((res.cookie as sinon.SinonStub).called).to.be.true;
+            expect((res.cookie as sinon.SinonStub).called).toBe(true);
 
             const [cookieName, token, options] = (res.cookie as sinon.SinonStub).args[0];
 
-            expect(cookieName).to.equal(COOKIE.Jwt);
-            expect(typeof token).to.equal("string");
+            expect(cookieName).toBe(COOKIE.Jwt);
+            expect(typeof token).toBe("string");
 
             // Check individual properties instead of deep equality for options
-            expect(options.httpOnly).to.equal(JsonWebToken.getJwtCookieOptions().httpOnly);
-            expect(options.sameSite).to.equal(JsonWebToken.getJwtCookieOptions().sameSite);
-            expect(options.secure).to.equal(JsonWebToken.getJwtCookieOptions().secure);
+            expect(options.httpOnly).toBe(JsonWebToken.getJwtCookieOptions().httpOnly);
+            expect(options.sameSite).toBe(JsonWebToken.getJwtCookieOptions().sameSite);
+            expect(options.secure).toBe(JsonWebToken.getJwtCookieOptions().secure);
             expect(options.maxAge).to.be.a("number");
 
             const payload = await JsonWebToken.get().verify(token);
-            expect(payload.apiToken).to.equal(apiToken);
-            expect(payload.permissions).to.deep.equal(permissions);
-            expect(payload.userId).to.equal(userId);
+            expect(payload.apiToken).toBe(apiToken);
+            expect(payload.permissions).toEqual(permissions);
+            expect(payload.userId).toBe(userId);
         });
 
         it("should not set cookie if headers are already sent", async () => {
@@ -728,7 +728,7 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
-            expect((res.cookie as sinon.SinonStub).called).to.be.false;
+            expect((res.cookie as sinon.SinonStub).called).toBe(false);
         });
     });
 
@@ -790,24 +790,24 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).to.be.true;
+            expect((res.cookie as sinon.SinonStub).called).toBe(true);
 
             const [cookieName, token, options] = (res.cookie as sinon.SinonStub).args[0];
 
-            expect(cookieName).to.equal(COOKIE.Jwt);
-            expect(typeof token).to.equal("string");
+            expect(cookieName).toBe(COOKIE.Jwt);
+            expect(typeof token).toBe("string");
 
             // Check individual properties instead of deep equality for options
-            expect(options.httpOnly).to.equal(JsonWebToken.getJwtCookieOptions().httpOnly);
-            expect(options.sameSite).to.equal(JsonWebToken.getJwtCookieOptions().sameSite);
-            expect(options.secure).to.equal(JsonWebToken.getJwtCookieOptions().secure);
+            expect(options.httpOnly).toBe(JsonWebToken.getJwtCookieOptions().httpOnly);
+            expect(options.sameSite).toBe(JsonWebToken.getJwtCookieOptions().sameSite);
+            expect(options.secure).toBe(JsonWebToken.getJwtCookieOptions().secure);
             expect(options.maxAge).to.be.a("number");
 
             const payload = await JsonWebToken.get().verify(token);
 
-            expect(payload.isLoggedIn).to.equal(true);
-            expect(payload.timeZone).to.equal("UTC");
-            expect(payload.users).to.deep.equal(session.users);
+            expect(payload.isLoggedIn).toBe(true);
+            expect(payload.timeZone).toBe("UTC");
+            expect(payload.users).toEqual(session.users);
         });
 
         it("should not set cookie if headers are already sent", async () => {
@@ -816,7 +816,7 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).to.be.false;
+            expect((res.cookie as sinon.SinonStub).called).toBe(false);
         });
 
         it("should handle partial session data correctly", async () => {
@@ -827,13 +827,13 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).to.be.true;
+            expect((res.cookie as sinon.SinonStub).called).toBe(true);
 
             const [, token] = (res.cookie as sinon.SinonStub).args[0];
             const payload = await JsonWebToken.get().verify(token);
 
-            expect(payload.isLoggedIn).to.equal(false);
-            expect(payload.timeZone).to.equal("America/New_York");
+            expect(payload.isLoggedIn).toBe(false);
+            expect(payload.timeZone).toBe("America/New_York");
             expect(payload.users).to.be.an("array").that.is.empty;
         });
     });

@@ -6,7 +6,7 @@
  * real system events and autonomously improving routines.
  */
 
-import type { IntelligentEvent } from "../../../services/execution/cross-cutting/events/eventBus.js";
+import type { ExecutionEvent } from "@vrooli/shared";
 import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
@@ -81,9 +81,9 @@ export interface LearnedPattern {
 export interface AgentEventHandler {
     agentId: string;
     eventPattern: string;
-    processEvent(event: IntelligentEvent): Promise<AgentResponse>;
+    processEvent(event: ExecutionEvent): Promise<AgentResponse>;
     getHistoricalContext(routineId: string): Promise<HistoricalContext>;
-    analyzePattern(events: IntelligentEvent[]): Promise<PatternAnalysis>;
+    analyzePattern(events: ExecutionEvent[]): Promise<PatternAnalysis>;
     generateProposal(analysis: PatternAnalysis): Promise<RoutineImprovement>;
 }
 
@@ -114,7 +114,7 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
     agentId: "routine_performance_analyzer",
     eventPattern: "routine/execution/completed",
     
-    async processEvent(event: IntelligentEvent): Promise<AgentResponse> {
+    async processEvent(event: ExecutionEvent): Promise<AgentResponse> {
         const { executionTime, memoryUsage, cost, qualityScore } = event.data;
         
         // Get historical baseline
@@ -160,7 +160,7 @@ export const PERFORMANCE_BOTTLENECK_HANDLER: AgentEventHandler = {
         };
     },
     
-    async analyzePattern(events: IntelligentEvent[]): Promise<PatternAnalysis> {
+    async analyzePattern(events: ExecutionEvent[]): Promise<PatternAnalysis> {
         // Mock pattern analysis - would use ML/statistical analysis
         return {
             strategy: "conversational",
@@ -216,7 +216,7 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
     agentId: "adaptive_security_monitor",
     eventPattern: "security/threat/*",
     
-    async processEvent(event: IntelligentEvent): Promise<AgentResponse> {
+    async processEvent(event: ExecutionEvent): Promise<AgentResponse> {
         const { threatType, severity, sourceIP, affectedResources } = event.data;
         
         // Analyze threat pattern
@@ -282,7 +282,7 @@ export const SECURITY_THREAT_HANDLER: AgentEventHandler = {
         };
     },
     
-    async analyzePattern(events: IntelligentEvent[]): Promise<PatternAnalysis> {
+    async analyzePattern(events: ExecutionEvent[]): Promise<PatternAnalysis> {
         return {
             strategy: "deterministic",
             bottlenecks: ["pattern_matching", "context_analysis"],
@@ -335,7 +335,7 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
     agentId: "cost_optimization_specialist",
     eventPattern: "resource/usage/*",
     
-    async processEvent(event: IntelligentEvent): Promise<AgentResponse> {
+    async processEvent(event: ExecutionEvent): Promise<AgentResponse> {
         const { resourceType, usage, cost, efficiency } = event.data;
         
         // Analyze cost efficiency
@@ -395,7 +395,7 @@ export const COST_OPTIMIZATION_HANDLER: AgentEventHandler = {
         };
     },
     
-    async analyzePattern(events: IntelligentEvent[]): Promise<PatternAnalysis> {
+    async analyzePattern(events: ExecutionEvent[]): Promise<PatternAnalysis> {
         return {
             strategy: "conversational",
             bottlenecks: ["redundant_computations", "poor_caching"],
@@ -451,7 +451,7 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
     agentId: "output_quality_monitor",
     eventPattern: "output/quality/*",
     
-    async processEvent(event: IntelligentEvent): Promise<AgentResponse> {
+    async processEvent(event: ExecutionEvent): Promise<AgentResponse> {
         const { qualityScore, biasScore, accuracyScore, outputType } = event.data;
         
         // Quality thresholds
@@ -511,7 +511,7 @@ export const QUALITY_MONITORING_HANDLER: AgentEventHandler = {
         };
     },
     
-    async analyzePattern(events: IntelligentEvent[]): Promise<PatternAnalysis> {
+    async analyzePattern(events: ExecutionEvent[]): Promise<PatternAnalysis> {
         return {
             strategy: "reasoning",
             bottlenecks: ["bias_analysis", "context_understanding"],

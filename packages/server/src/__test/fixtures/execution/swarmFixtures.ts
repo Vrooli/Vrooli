@@ -1,8 +1,8 @@
-import { generatePublicId } from "@vrooli/shared";
+import { generatePublicId, generatePK } from "@vrooli/shared";
 import {
     type Swarm,
     type SwarmConfig,
-    type SwarmState,
+    type ExecutionState,
     type SwarmAgent,
     type SwarmTeam,
     type TeamFormation,
@@ -11,9 +11,7 @@ import {
     type SwarmResource,
     type SwarmSubTask,
     type BlackboardItem,
-    type ResourceLimits,
-    type SchedulingConfig,
-    SwarmState as SwarmStateEnum,
+    ExecutionStates,
 } from "@vrooli/shared";
 import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
@@ -110,7 +108,7 @@ export const minimalSwarm: Partial<Swarm> = {
     id: swarmDbIds.swarm1,
     name: "Test Swarm",
     description: "A minimal test swarm",
-    state: SwarmStateEnum.UNINITIALIZED,
+    state: ExecutionStates.UNINITIALIZED,
     config: minimalSwarmConfig,
     metadata: {},
     createdAt: new Date(),
@@ -123,7 +121,7 @@ export const swarmWithTeam: Partial<Swarm> = {
     id: swarmDbIds.swarm2,
     name: "Team Swarm",
     description: "A swarm with team formation",
-    state: SwarmStateEnum.FORMING,
+    state: ExecutionStates.STARTING,
     config: minimalSwarmConfig,
     team: {
         id: swarmDbIds.team1,
@@ -174,7 +172,7 @@ export const completeSwarm: Partial<Swarm> = {
     id: swarmDbIds.swarm3,
     name: "Complete Swarm",
     description: "A fully configured swarm with all features",
-    state: SwarmStateEnum.EXECUTING,
+    state: ExecutionStates.RUNNING,
     config: {
         ...minimalSwarmConfig,
         maxBudget: 100,
@@ -338,7 +336,7 @@ export class SwarmFactory {
         state: SwarmState,
         overrides?: Partial<Swarm>
     ): Partial<Swarm> {
-        const baseSwarm = state === SwarmStateEnum.UNINITIALIZED
+        const baseSwarm = state === ExecutionStates.UNINITIALIZED
             ? this.createMinimal()
             : this.createWithTeam();
 
@@ -580,9 +578,9 @@ export async function seedTestSwarms(
 ) {
     const swarms = [];
     const states = options?.states || [
-        SwarmStateEnum.UNINITIALIZED,
-        SwarmStateEnum.FORMING,
-        SwarmStateEnum.EXECUTING,
+        ExecutionStates.UNINITIALIZED,
+        ExecutionStates.STARTING,
+        ExecutionStates.RUNNING,
     ];
 
     for (let i = 0; i < count; i++) {
@@ -608,3 +606,22 @@ export async function seedTestSwarms(
 
     return swarms;
 }
+
+/**
+ * Mock swarm coordination for testing
+ */
+export const mockSwarmCoordination = {
+    minimal: minimalSwarm,
+    withTeam: swarmWithTeam,
+    complete: completeSwarm,
+    config: minimalSwarmConfig,
+};
+
+/**
+ * Mock team formation for testing
+ */
+export const mockTeamFormation = {
+    defaultRoles,
+    factory: SwarmFactory,
+    createTeam: createSwarmTeam,
+};

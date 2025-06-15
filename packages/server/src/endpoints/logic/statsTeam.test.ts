@@ -362,8 +362,8 @@ describe("EndpointsStatsTeam", () => {
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
                 expect(result).not.toBeNull();
-                expect(result.edges!.length).to.equal(0);
-                expect(result.edges!.every(edge => edge?.node?.id !== statsTeamData3.id)).to.be.true;
+                expect(result.edges!.length).toBe(0);
+                expect(result.edges!.every(edge => edge?.node?.id !== statsTeamData3.id)).toBe(true);
             });
         });
     });

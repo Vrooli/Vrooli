@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { expect } from "chai";
+import { expect, describe, it } from "vitest";
 import { PasswordAuthService } from "./email.js";
 
 describe("PasswordAuthService", () => {
@@ -33,7 +33,7 @@ describe("PasswordAuthService", () => {
         validLengths.forEach(length => {
             it(`should generate a code of exactly ${length} characters`, () => {
                 const code = PasswordAuthService.generateEmailVerificationCode(length);
-                expect(code.length).to.equal(length);
+                expect(code.length).toBe(length);
             });
         });
 
@@ -41,7 +41,7 @@ describe("PasswordAuthService", () => {
         invalidLengths.forEach(length => {
             it(`should throw an error when length is ${JSON.stringify(length)}`, () => {
                 // @ts-ignore: Testing runtime scenario
-                expect(() => PasswordAuthService.generateEmailVerificationCode(length)).to.throw();
+                expect(() => PasswordAuthService.generateEmailVerificationCode(length)).toThrow();
             });
         });
     });

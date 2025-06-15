@@ -1,5 +1,5 @@
 import { AUTH_PROVIDERS, DAYS_2_MS, LINKS, MINUTES_15_MS, type Session, type TranslationKeyError, generatePK } from "@vrooli/shared";
-import { AccountStatus, type Prisma, type PrismaPromise, type credit_account, type email, type plan, type session, type user, type user_auth } from "@prisma/client";
+import { AccountStatus, type Prisma, type PrismaPromise, type credit_account, type email, type phone, type plan, type session, type user, type user_auth } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { type Request } from "express";
 import { DbProvider } from "../db/provider.js";
@@ -23,7 +23,8 @@ const EMAIL_VERIFICATION_CODE_LENGTH = 8;
 export type UserDataForPasswordAuth = Pick<user, "id" | "handle" | "languages" | "lastLoginAttempt" | "logInAttempts" | "name" | "profileImage" | "publicId" | "theme" | "status" | "updatedAt"> & {
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
-    plan: Pick<plan, "expiresAt"> | null;
+    phones: Pick<phone, "verifiedAt">[];
+    plan: Pick<plan, "expiresAt" | "receivedFreeTrialAt"> | null;
     creditAccount: Pick<credit_account, "id" | "currentBalance"> | null;
     sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revokedAt"> & {
         auth: Pick<user_auth, "id" | "provider">;
@@ -68,10 +69,16 @@ export class PasswordAuthService {
                     emailAddress: true,
                 },
             },
+            phones: {
+                select: {
+                    verifiedAt: true,
+                },
+            },
             languages: true,
             plan: {
                 select: {
                     expiresAt: true,
+                    receivedFreeTrialAt: true,
                 },
             },
             creditAccount: {

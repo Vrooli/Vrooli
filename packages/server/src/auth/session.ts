@@ -84,6 +84,13 @@ export class SessionService {
         if (!userData || !sessionData) {
             throw new CustomError("0510", "NotFound", { userData });
         }
+
+        // Check if user has any verified phone numbers
+        const phoneNumberVerified = userData.phones?.some(phone => phone.verifiedAt !== null) ?? false;
+        
+        // Check if user has received the phone verification reward
+        const hasReceivedPhoneVerificationReward = userData.plan?.receivedFreeTrialAt !== null;
+
         // Return shaped SessionUser object
         const result: SessionUser = {
             __typename: "SessionUser" as const,
@@ -93,8 +100,10 @@ export class SessionService {
             creditAccountId: userData.creditAccount ? userData.creditAccount.id.toString() : undefined,
             handle: userData.handle ?? undefined,
             hasPremium: new Date(userData.plan?.expiresAt ?? 0) > new Date(),
+            hasReceivedPhoneVerificationReward,
             languages: userData.languages,
             name: userData.name,
+            phoneNumberVerified,
             profileImage: userData.profileImage,
             session: {
                 __typename: "SessionUserSession" as const,

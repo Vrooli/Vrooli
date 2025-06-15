@@ -18,7 +18,7 @@ describe("YAML Conversion", () => {
   child: value
   nullChild: null
 `;
-            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
+            expect(objectToYaml(obj)).toEqual(expectedYaml);
         });
 
         it("handles multiple keys and nesting", () => {
@@ -64,7 +64,7 @@ second:
           anotherKey: null
 fourth: null
 `;
-            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
+            expect(objectToYaml(obj)).toEqual(expectedYaml);
         });
 
         it("converts objects with array values to YAML", () => {
@@ -76,24 +76,24 @@ fourth: null
     - subitem1
     - subitem2
 `;
-            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
+            expect(objectToYaml(obj)).toEqual(expectedYaml);
         });
 
         it("returns an empty string for null input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(objectToYaml(null)).to.deep.equal("");
+            expect(objectToYaml(null)).toEqual("");
         });
 
         it("returns an empty string for undefined input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(objectToYaml(undefined)).to.deep.equal("");
+            expect(objectToYaml(undefined)).toEqual("");
         });
 
         it("handles non-object inputs gracefully", () => {
             const nonObjectInputs = ["string", 123, true, []];
             nonObjectInputs.forEach(input => {
                 // @ts-ignore: Testing runtime scenario
-                expect(objectToYaml(input)).to.deep.equal("");
+                expect(objectToYaml(input)).toEqual("");
             });
         });
     });
@@ -124,19 +124,19 @@ fourth: null
 
         it("returns an empty string for null input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(arrayToYaml(null)).to.deep.equal("");
+            expect(arrayToYaml(null)).toEqual("");
         });
 
         it("returns an empty string for undefined input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(arrayToYaml(undefined)).to.deep.equal("");
+            expect(arrayToYaml(undefined)).toEqual("");
         });
 
         it("handles non-array inputs gracefully", () => {
             const nonArrayInputs = ["string", 123, true, {}];
             nonArrayInputs.forEach(input => {
                 // @ts-ignore: Testing runtime scenario
-                expect(arrayToYaml(input)).to.deep.equal("");
+                expect(arrayToYaml(input)).toEqual("");
             });
         });
     });

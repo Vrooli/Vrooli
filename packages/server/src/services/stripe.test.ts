@@ -48,7 +48,7 @@ describe("getPaymentType", () => {
                 const invalidPriceId = "price_invalid";
                 try {
                     getPaymentType(invalidPriceId);
-                    expect(false, "Expected an error to be thrown").to.be.true;
+                    expect.fail("Expected an error to be thrown");
                 } catch (error) { /** Empty */ }
             });
 
@@ -93,14 +93,14 @@ describe("getCustomerId function tests", () => {
     it("throws an error when customer is null", () => {
         try {
             getCustomerId(null);
-            expect(false, "Expected an error to be thrown").to.be.true;
+            expect.fail("Expected an error to be thrown");
         } catch (error) { /** Empty */ }
     });
 
     it("throws an error when customer is undefined", () => {
         try {
             getCustomerId(undefined);
-            expect(false, "Expected an error to be thrown").to.be.true;
+            expect.fail("Expected an error to be thrown");
         } catch (error) { /** Empty */ }
     });
 
@@ -108,7 +108,7 @@ describe("getCustomerId function tests", () => {
         try {
             // @ts-ignore Testing runtime scenario
             getCustomerId({});
-            expect(false, "Expected an error to be thrown").to.be.true;
+            expect.fail("Expected an error to be thrown");
         } catch (error) { /** Empty */ }
     });
 
@@ -116,32 +116,29 @@ describe("getCustomerId function tests", () => {
         try {
             // @ts-ignore Testing runtime scenario
             getCustomerId({ id: 12345 });
-            expect(false, "Expected an error to be thrown").to.be.true;
+            expect.fail("Expected an error to be thrown");
         } catch (error) { /** Empty */ }
     });
 });
 
 describe("handlerResult", () => {
     let mockRes: any;
-    let loggerErrorStub: sinon.SinonStub;
+    let loggerErrorStub: any;
 
     beforeEach(() => {
-        // Reset stubs
-        sinon.restore();
-
         // Setup a mock Express response object
         mockRes = createRes();
 
         // Stub logger.error
-        loggerErrorStub = sinon.stub();
+        loggerErrorStub = vi.fn();
 
         // Directly stub the logger's error method
-        sinon.stub(loggerModule.logger, "error").callsFake(loggerErrorStub);
+        vi.spyOn(loggerModule.logger, "error").mockImplementation(loggerErrorStub);
     });
 
     afterEach(() => {
         // Restore all stubs
-        sinon.restore();
+        vi.restoreAllMocks();
     });
 
     it("sets the correct response status and message", () => {
@@ -150,8 +147,8 @@ describe("handlerResult", () => {
 
         handlerResult(status, mockRes, message);
 
-        expect(mockRes.status.calledWith(status)).to.be.true;
-        expect(mockRes.send.calledWith(message)).to.be.true;
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+        expect(mockRes.send).toHaveBeenCalledWith(message);
     });
 
     it("logs an error message when status is not OK", () => {
@@ -161,11 +158,11 @@ describe("handlerResult", () => {
 
         handlerResult(status, mockRes, message, trace);
 
-        expect(mockRes.status.calledWith(status)).to.be.true;
-        expect(mockRes.send.calledWith(message)).to.be.true;
-        expect(loggerErrorStub.calledOnce).to.be.true;
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+        expect(mockRes.send).toHaveBeenCalledWith(message);
+        expect(loggerErrorStub).toHaveBeenCalledTimes(1);
         expect(loggerErrorStub.firstCall.args[0]).toBe(message);
-        expect(loggerErrorStub.firstCall.args[1]).to.deep.include({ trace });
+        expect(loggerErrorStub.mock.calls[0][1]).toMatchObject({ trace });
     });
 
     it("does not log an error for HttpStatus.Ok", () => {
@@ -174,7 +171,7 @@ describe("handlerResult", () => {
 
         handlerResult(status, mockRes, message);
 
-        expect(loggerErrorStub.called).to.be.false;
+        expect(loggerErrorStub).not.toHaveBeenCalled();
     });
 
     it("handles undefined message and trace", () => {
@@ -182,10 +179,10 @@ describe("handlerResult", () => {
 
         handlerResult(status, mockRes);
 
-        expect(mockRes.status.calledWith(status)).to.be.true;
-        expect(loggerErrorStub.calledOnce).to.be.true;
+        expect(mockRes.status).toHaveBeenCalledWith(status);
+        expect(loggerErrorStub).toHaveBeenCalledTimes(1);
         expect(loggerErrorStub.firstCall.args[0]).toBe("Stripe handler error");
-        expect(loggerErrorStub.firstCall.args[1].trace).toBe("0523");
+        expect(loggerErrorStub.mock.calls[0][1].trace).toBe("0523");
     });
 
     it("logs additional arguments when provided", () => {
@@ -194,23 +191,24 @@ describe("handlerResult", () => {
 
         handlerResult(status, mockRes, undefined, undefined, additionalArgs);
 
-        expect(loggerErrorStub.calledOnce).to.be.true;
-        expect(loggerErrorStub.firstCall.args[1]).to.have.property("0");
-        expect(loggerErrorStub.firstCall.args[1]["0"]).toBe(additionalArgs);
+        expect(loggerErrorStub).toHaveBeenCalledTimes(1);
+        expect(loggerErrorStub.mock.calls[0][1]).toHaveProperty("0");
+        expect(loggerErrorStub.mock.calls[0][1]["0"]).toBe(additionalArgs);
     });
 });
 
 describe("Redis Price Operations", () => {
     const originalEnv = process.env.NODE_ENV;
-    let sandbox: sinon.SinonSandbox;
+    // Using vitest mocking instead of sinon sandbox
 
     beforeEach(async function beforeEach() {
-        sandbox = sinon.createSandbox();
+        // Clear all mocks before each test
+        vi.clearAllMocks();
         process.env.NODE_ENV = "test";
     });
 
     afterEach(async function afterEach() {
-        sandbox.restore();
+        vi.restoreAllMocks();
         await closeRedis();
     });
 
@@ -253,7 +251,7 @@ describe("Redis Price Operations", () => {
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
 
             // Verify that null is returned for the non-existent price
-            expect(fetchedPrice).to.be.null;
+            expect(fetchedPrice).toBeNull();
         });
 
         it("returns null when the stored price is not a number", async function () {
@@ -270,7 +268,7 @@ describe("Redis Price Operations", () => {
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
 
             // Verify that null is returned for the invalid price
-            expect(fetchedPrice).to.be.null;
+            expect(fetchedPrice).toBeNull();
         });
 
         it("returns null when the price is less than 0", async function () {
@@ -284,7 +282,7 @@ describe("Redis Price Operations", () => {
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
 
             // Verify that null is returned for the negative price
-            expect(fetchedPrice).to.be.null;
+            expect(fetchedPrice).toBeNull();
         });
 
         it("returns null when the price is NaN", async function () {
@@ -298,7 +296,7 @@ describe("Redis Price Operations", () => {
             const fetchedPrice = await fetchPriceFromRedis(paymentType);
 
             // Verify that null is returned for the NaN price
-            expect(fetchedPrice).to.be.null;
+            expect(fetchedPrice).toBeNull();
         });
     });
 });
@@ -566,37 +564,37 @@ describe("getVerifiedSubscriptionInfo", () => {
 
     it("returns verified subscription info for an active subscription with valid session", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_user1", "user1");
-        expect(result).not.to.be.null;
-        expect(result).to.have.property("session");
-        expect(result).to.have.property("subscription");
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("session");
+        expect(result).toHaveProperty("subscription");
         expect(result?.paymentType).toBe("PremiumMonthly");
     });
 
     it("returns null if user in metadata does not match what we expect", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_user1", "beep");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("returns null if no subscriptions exist for the customer", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_randomDude", "user1");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("returns null if subscriptions exist but none are active or trialing", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_user2", "user2");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("returns null if the session metadata's payment type is not recognized", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_user3", "user3");
-        expect(result).to.be.null;
+        expect(result).toBeNull();
     });
 
     it("returns verified subscription info if first one was invalid but second one is valid", async () => {
         const result = await getVerifiedSubscriptionInfo(stripe, "cus_user4", "user4");
-        expect(result).not.to.be.null;
-        expect(result).to.have.property("session");
-        expect(result).to.have.property("subscription");
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("session");
+        expect(result).toHaveProperty("subscription");
         expect(result?.paymentType).toBe("PremiumYearly");
     });
 });
@@ -757,38 +755,38 @@ describe("getVerifiedCustomerInfo", () => {
 
     it("should return null if userId is not provided", async () => {
         const result = await getVerifiedCustomerInfo({ userId: undefined, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.be.null;
-        expect(result.emails).to.deep.equal([]);
+        expect(result.stripeCustomerId).toBeNull();
+        expect(result.userId).toBeNull();
+        expect(result.emails).toEqual([]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return null if the user does not exist", async () => {
         const result = await getVerifiedCustomerInfo({ userId: `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
-        expect(result.userId).to.be.null;
-        expect(result.emails).to.deep.equal([]);
+        expect(result.stripeCustomerId).toBeNull();
+        expect(result.userId).toBeNull();
+        expect(result.emails).toEqual([]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return the user's Stripe customer ID if it exists", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user1Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).toBe("cus_123");
         expect(result.userId).toBe(user1Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "user@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "user@example.com" }]);
         expect(result.hasPremium).toBe(true);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return the Stripe customer ID associated with the user's email if the user does not have a Stripe customer ID", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user2Id, stripe, validateSubscription: false });
         expect(result.stripeCustomerId).toBe("cus_test1");
         expect(result.userId).toBe(user2Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "user2@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "user2@example.com" }]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
 
         // Should also update the user's Stripe customer ID in the database
         // @ts-ignore Testing runtime scenario
@@ -798,47 +796,47 @@ describe("getVerifiedCustomerInfo", () => {
 
     it("should return null if the user does not have a Stripe customer ID and their email is not associated with any Stripe customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user3Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
+        expect(result.stripeCustomerId).toBeNull();
         expect(result.userId).toBe(user3Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "missing@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "missing@example.com" }]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return null if the user's Stripe customer ID is invalid", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user4Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
+        expect(result.stripeCustomerId).toBeNull();
         expect(result.userId).toBe(user4Id);
-        expect(result.emails).to.deep.equal([]);
+        expect(result.emails).toEqual([]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return null if the user's Stripe customer ID is associated with a deleted customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user5Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
+        expect(result.stripeCustomerId).toBeNull();
         expect(result.userId).toBe(user5Id);
-        expect(result.emails).to.deep.equal([]);
+        expect(result.emails).toEqual([]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return null if the user's email is associated with a deleted customer", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user6Id, stripe, validateSubscription: false });
-        expect(result.stripeCustomerId).to.be.null;
+        expect(result.stripeCustomerId).toBeNull();
         expect(result.userId).toBe(user6Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "emailForDeletedCustomer@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "emailForDeletedCustomer@example.com" }]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.subscriptionInfo).toBeNull();
     });
 
     it("should return the Stripe customer ID if the user has a valid subscription", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user1Id, stripe, validateSubscription: true });
         expect(result.stripeCustomerId).toBe("cus_123");
         expect(result.userId).toBe(user1Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "user@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "user@example.com" }]);
         expect(result.hasPremium).toBe(true);
-        expect(result.subscriptionInfo).not.to.be.null;
+        expect(result.subscriptionInfo).not.toBeNull();
     });
 
     it("should return the Stripe customer ID associated with the user's email if the user's customer ID does not have a valid subscription, but the email does", async () => {
@@ -850,9 +848,9 @@ describe("getVerifiedCustomerInfo", () => {
         const result = await getVerifiedCustomerInfo({ userId: user7Id, stripe, validateSubscription: true });
         expect(result.stripeCustomerId).toBe("cus_789");
         expect(result.userId).toBe(user7Id);
-        expect(result.emails).to.deep.equal([{ emailAddress: "emailWithSubscription@example.com" }]);
+        expect(result.emails).toEqual([{ emailAddress: "emailWithSubscription@example.com" }]);
         expect(result.hasPremium).toBe(false);
-        expect(result.subscriptionInfo).not.to.be.null;
+        expect(result.subscriptionInfo).not.toBeNull();
 
         // Check that original customer ID (tied to inactive subscription) was changed to customer associated with email
         // @ts-ignore Testing runtime scenario
@@ -862,8 +860,8 @@ describe("getVerifiedCustomerInfo", () => {
 
     it("should return null if the user does not have a valid subscription", async () => {
         const result = await getVerifiedCustomerInfo({ userId: user3Id, stripe, validateSubscription: true });
-        expect(result.stripeCustomerId).to.be.null;
-        expect(result.subscriptionInfo).to.be.null;
+        expect(result.stripeCustomerId).toBeNull();
+        expect(result.subscriptionInfo).toBeNull();
     });
 });
 
@@ -903,10 +901,10 @@ describe("createStripeCustomerId", () => {
             requireUserToExist: true,
             stripe,
         });
-        expect(result).to.be.a.string;
+        expect(typeof result).toBe("string");
         // @ts-ignore Testing runtime scenario
         const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
-        expect(updatedUser.stripeCustomerId).to.be.a.string;
+        expect(typeof updatedUser.stripeCustomerId).toBe("string");
     });
 
     it("creates a new Stripe customer without requiring an existing user", async () => {
@@ -922,7 +920,7 @@ describe("createStripeCustomerId", () => {
             requireUserToExist: false,
             stripe,
         });
-        expect(result).to.be.a.string;
+        expect(typeof result).toBe("string");
     });
 
     it("throws an error when no user ID is provided but requireUserToExist is true", async () => {
@@ -1000,7 +998,7 @@ describe("handleCheckoutSessionExpired", () => {
         // @ts-ignore Testing runtime scenario
         const updatedPayments = JSON.parse(JSON.stringify(await PrismaClient.instance.payment.findMany({ where: {} })));
 
-        expect(updatedPayments).to.deep.equal(originalPayments);
+        expect(updatedPayments).toEqual(originalPayments);
     });
 
     it("marks related pending payments as failed", async () => {
@@ -1018,7 +1016,7 @@ describe("handleCheckoutSessionExpired", () => {
 
         await handleCheckoutSessionExpired({ event, res, stripe });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
     });
 });
 
@@ -1063,7 +1061,7 @@ describe("handleCustomerDeleted", () => {
         // Verify the stripeCustomerId was set to null for the user
         // @ts-ignore Testing runtime scenario
         const updatedUser = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
-        expect(updatedUser.stripeCustomerId).to.be.null;
+        expect(updatedUser.stripeCustomerId).toBeNull();
     });
 
     it("does not affect users unrelated to the deleted customer", async () => {
@@ -1085,7 +1083,7 @@ describe("handleCustomerDeleted", () => {
         await handleCustomerDeleted({ event, res, stripe });
 
         // Check if the response status was set to OK
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
     });
 
     it("handles cases where the customer does not exist gracefully", async () => {
@@ -1095,7 +1093,7 @@ describe("handleCustomerDeleted", () => {
         await handleCustomerDeleted({ event, res, stripe });
 
         // Expect the function to still return an OK status without throwing any errors
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
     });
 });
 
@@ -1110,7 +1108,7 @@ describe("handleCustomerSourceExpiring", () => {
     });
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes();
         Bull.resetMock();
 
@@ -1137,10 +1135,10 @@ describe("handleCustomerSourceExpiring", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSourceExpiring({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(emailQueue.add).toHaveBeenCalledTimes(2);
-        expect(emailQueue.add.mock.calls[0][0].to).to.deep.equal(["user1@example.com"]);
-        expect(emailQueue.add.mock.calls[1][0].to).to.deep.equal(["user2@example.com"]);
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user1@example.com"]);
+        expect(emailQueue.add.mock.calls[1][0].to).toEqual(["user2@example.com"]);
     });
 
     it("should return an error when the user is not found", async () => {
@@ -1149,7 +1147,7 @@ describe("handleCustomerSourceExpiring", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSourceExpiring({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 });
@@ -1163,7 +1161,7 @@ function expectEmailQueue(mockQueue, expectedData) {
 
     // If there's expected data, match it against the actual data
     if (expectedData) {
-        expect(actualData).to.deep.equal(expectedData);
+        expect(actualData).toEqual(expectedData);
     }
 }
 
@@ -1179,7 +1177,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
     });
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes();
         Bull.resetMock();
 
@@ -1218,7 +1216,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expectEmailQueue(emailQueue, { to: ["user@example.com"] });
         // Also make sure it didn't affect the premium status
         // @ts-ignore Testing runtime scenario
@@ -1232,7 +1230,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 
@@ -1242,7 +1240,7 @@ describe("handleCustomerSubscriptionDeleted", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionDeleted({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 });
@@ -1292,7 +1290,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expectEmailQueue(emailQueue, { to: ["user@example.com"] });
     });
 
@@ -1302,7 +1300,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 
@@ -1312,7 +1310,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionTrialWillEnd({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 });
@@ -1324,7 +1322,7 @@ describe("calculateExpiryAndStatus", () => {
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(futureTimestamp);
 
         expect(isActive).toBe(true);
-        expect(newExpiresAt).to.deep.equal(new Date(futureTimestamp * 1000));
+        expect(newExpiresAt).toEqual(new Date(futureTimestamp * 1000));
     });
 
     it("should calculate isActive as false for subscriptions that have already ended", () => {
@@ -1332,14 +1330,14 @@ describe("calculateExpiryAndStatus", () => {
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(pastTimestamp);
 
         expect(isActive).toBe(false);
-        expect(newExpiresAt).to.deep.equal(new Date(pastTimestamp * 1000));
+        expect(newExpiresAt).toEqual(new Date(pastTimestamp * 1000));
     });
 
     it("should correctly calculate the newExpiresAt date for a given timestamp", () => {
         const timestamp = 1609459200; // January 1, 2021
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(timestamp);
 
-        expect(newExpiresAt).to.deep.equal(new Date(timestamp * 1000));
+        expect(newExpiresAt).toEqual(new Date(timestamp * 1000));
         // The isActive result depends on when the test is run relative to the fixed timestamp
         // and thus is not asserted in this test.
     });
@@ -1355,7 +1353,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes(); // Assuming this creates a mock response object
         Bull.resetMock();
         PrismaClient.injectData({ // Assuming this injects mock data into your Prisma client
@@ -1377,7 +1375,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(emailQueue.add).not.toHaveBeenCalled();
     });
 
@@ -1388,8 +1386,8 @@ describe("handleCustomerSubscriptionUpdated", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
-        expect(emailQueue.add.mock.calls[0][0].to).to.deep.equal(["user@example.com"]);
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user@example.com"]);
     });
 
     it("should update expiry time to past and not send thank you email for inactive premium status", async () => {
@@ -1399,8 +1397,8 @@ describe("handleCustomerSubscriptionUpdated", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
-        expect(emailQueue.add.mock.calls[0][0].to).to.deep.equal(["user@example.com"]);
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
+        expect(emailQueue.add.mock.calls[0][0].to).toEqual(["user@example.com"]);
     });
 
     it("should return error when user is not found", async () => {
@@ -1409,7 +1407,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
         } as unknown as Stripe.Event;
         await handleCustomerSubscriptionUpdated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 });
 
@@ -1428,8 +1426,8 @@ describe("parseInvoiceData", () => {
 
         const result = parseInvoiceData(mockInvoice);
 
-        expect(result).not.to.have.property("error");
-        expect(result.data).to.deep.equal({
+        expect(result).not.toHaveProperty("error");
+        expect(result.data).toEqual({
             checkoutId: "inv_valid",
             amount: 2000,
             currency: "usd",
@@ -1448,7 +1446,7 @@ describe("parseInvoiceData", () => {
 
         const result = parseInvoiceData(mockInvoice);
 
-        expect(result.error).to.deep.equal("No lines found in invoice");
+        expect(result.error).toEqual("No lines found in invoice");
     });
 
     it("should throw an error for unknown payment type", () => {
@@ -1463,7 +1461,7 @@ describe("parseInvoiceData", () => {
             },
         } as Stripe.Invoice;
 
-        expect(() => { parseInvoiceData(mockInvoice); }).to.throw();
+        expect(() => { parseInvoiceData(mockInvoice); }).toThrow();
     });
 });
 
@@ -1471,7 +1469,7 @@ describe("handleInvoicePaymentCreated", () => {
     let res;
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
             User: [{
@@ -1502,15 +1500,15 @@ describe("handleInvoicePaymentCreated", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentCreated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // Verify that the payment exists and has valid data
         // @ts-ignore Testing runtime scenario
         const createdPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
-        expect(createdPayment).not.to.be.null;
+        expect(createdPayment).not.toBeNull();
         expect(createdPayment?.amount).toBe(2000);
         expect(createdPayment?.paymentMethod).toBe("Stripe");
         expect(createdPayment?.status).toBe("Pending");
-        expect(createdPayment?.user).not.to.be.null;
+        expect(createdPayment?.user).not.toBeNull();
     });
 
     it("should update an existing payment if found", async () => {
@@ -1526,11 +1524,11 @@ describe("handleInvoicePaymentCreated", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentCreated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // Verify that the payment was updated and has valid data
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
-        expect(updatedPayment).not.to.be.null;
+        expect(updatedPayment).not.toBeNull();
         expect(updatedPayment?.amount).toBe(2000);
         expect(updatedPayment?.paymentMethod).toBe("Stripe");
         expect(updatedPayment?.status).toBe("Pending");
@@ -1547,7 +1545,7 @@ describe("handleInvoicePaymentCreated", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentCreated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 
     it("should return error when no lines found in invoice", async () => {
@@ -1562,7 +1560,7 @@ describe("handleInvoicePaymentCreated", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentCreated({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 
     it("should throw error for unknown payment type", async () => {
@@ -1575,7 +1573,7 @@ describe("handleInvoicePaymentCreated", () => {
                 },
             },
         } as unknown as Stripe.Event;
-        await expect(handleInvoicePaymentCreated({ event: mockEvent, res })).rejects.to.throw();
+        await expect(handleInvoicePaymentCreated({ event: mockEvent, res })).rejects.toThrow();
     });
 });
 
@@ -1589,7 +1587,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
             User: [{
@@ -1617,7 +1615,7 @@ describe("handleInvoicePaymentFailed", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentFailed({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // Verify that payment status was updated to Failed
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
@@ -1637,14 +1635,14 @@ describe("handleInvoicePaymentFailed", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentFailed({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // Verify that a new payment was created with status set to Failed
         // @ts-ignore Testing runtime scenario
         const newPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
         expect(newPayment?.status).toBe("Failed");
         expect(newPayment?.amount).toBe(2000);
         expect(newPayment?.paymentMethod).toBe("Stripe");
-        expect(newPayment?.user).not.to.be.null;
+        expect(newPayment?.user).not.toBeNull();
     });
 
     it("returns an error when parseInvoiceData returns an error", async () => {
@@ -1660,7 +1658,7 @@ describe("handleInvoicePaymentFailed", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentFailed({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 
     it("notifies user when payment fails", async () => {
@@ -1669,7 +1667,7 @@ describe("handleInvoicePaymentFailed", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentFailed({ event: mockEvent, res });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expectEmailQueue(emailQueue, { to: ["user@example.com"] });
     });
 });
@@ -1679,7 +1677,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     let stripeMock;
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         res = createRes();
         PrismaClient.injectData({
             User: [{
@@ -1715,7 +1713,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // @ts-ignore Testing runtime scenario
         const updatedPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_123" } });
         expect(updatedPayment?.status).toBe(PaymentStatus.Paid);
@@ -1735,13 +1733,13 @@ describe("handleInvoicePaymentSucceeded", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // @ts-ignore Testing runtime scenario
         const newPayment = await PrismaClient.instance.payment.findUnique({ where: { checkoutId: "inv_321" } });
         expect(newPayment?.status).toBe(PaymentStatus.Paid);
         expect(newPayment?.amount).toBe(2000);
         expect(newPayment?.paymentMethod).toBe("Stripe");
-        expect(newPayment?.user).not.to.be.null;
+        expect(newPayment?.user).not.toBeNull();
     });
 
     it("returns an error when parseInvoiceData returns an error", async () => {
@@ -1758,7 +1756,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 
     it("updates user premium status for subscription payments", async () => {
@@ -1775,7 +1773,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         // @ts-ignore Testing runtime scenario
         const user = await PrismaClient.instance.user.findUnique({ where: { id: "user1" } });
         expect(user?.premium?.isActive).toBe(true);
@@ -1797,7 +1795,7 @@ describe("handleInvoicePaymentSucceeded", () => {
         } as unknown as Stripe.Event;
         await handleInvoicePaymentSucceeded({ event: mockEvent, res, stripe: stripeMock });
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 });
 
@@ -1806,7 +1804,7 @@ describe("handlePriceUpdated", () => {
     let res;
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         RedisClientMock.resetMock();
         RedisClientMock.__setAllMockData({});
         res = createRes();
@@ -1829,8 +1827,8 @@ describe("handlePriceUpdated", () => {
         // Assert
         const storedPrice = await fetchPriceFromRedis(PaymentType.PremiumMonthly);
         expect(storedPrice).toBe(1000);
-        expect(result).to.deep.equal({ status: HttpStatus.Ok });
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(result).toEqual({ status: HttpStatus.Ok });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
     });
 
     it("handles an event with undefined unit_amount by not storing the price", async () => {
@@ -1849,8 +1847,8 @@ describe("handlePriceUpdated", () => {
         const result = await handlePriceUpdated({ event, res });
 
         // Assert
-        expect(result).to.deep.equal({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(result).toEqual({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
         const originalStoredPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
         expect(originalStoredPrice).toBe(420);
     });
@@ -1870,8 +1868,8 @@ describe("handlePriceUpdated", () => {
         const result = await handlePriceUpdated({ event, res });
 
         // Assert
-        expect(result).to.deep.equal({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
+        expect(result).toEqual({ status: HttpStatus.InternalServerError, message: "Price amount not found" });
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
     });
 });
 
@@ -1882,7 +1880,7 @@ describe("checkSubscriptionPrices", () => {
     const yearlyPrice = 10_000;
 
     beforeEach(async function beforeEach() {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
 
         // Setup Stripe Mock
         stripeMock = new StripeMock() as unknown as Stripe;
@@ -1914,13 +1912,13 @@ describe("checkSubscriptionPrices", () => {
 
         await checkSubscriptionPrices(stripeMock, res);
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(res.json.calledWith({
             data: {
                 monthly: 69,
                 yearly: 420,
             },
-        })).to.be.true;
+        })).toBe(true);
     });
 
     it("should fallback to Stripe when prices are not available in Redis", async () => {
@@ -1931,13 +1929,13 @@ describe("checkSubscriptionPrices", () => {
         expect(redisMonthlyPrice).toBe(monthlyPrice);
         expect(redisYearlyPrice).toBe(yearlyPrice);
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(res.json.calledWith({
             data: {
                 monthly: monthlyPrice,
                 yearly: yearlyPrice,
             },
-        })).to.be.true;
+        })).toBe(true);
     });
 
     it("should recover from redis failures", async () => {
@@ -1945,13 +1943,13 @@ describe("checkSubscriptionPrices", () => {
 
         await checkSubscriptionPrices(stripeMock, res);
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(res.json.calledWith({
             data: {
                 monthly: monthlyPrice,
                 yearly: yearlyPrice,
             },
-        })).to.be.true;
+        })).toBe(true);
     });
 
     it("should handle partial data availability", async () => {
@@ -1962,13 +1960,13 @@ describe("checkSubscriptionPrices", () => {
         const redisYearlyPrice = await fetchPriceFromRedis(PaymentType.PremiumYearly);
         expect(redisYearlyPrice).toBe(yearlyPrice);
 
-        expect(res.status.calledWith(HttpStatus.Ok)).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.Ok);
         expect(res.json.calledWith({
             data: {
                 monthly: 69,
                 yearly: yearlyPrice,
             },
-        })).to.be.true;
+        })).toBe(true);
     });
 
     it("should catch stripe errors", async () => {
@@ -1976,8 +1974,8 @@ describe("checkSubscriptionPrices", () => {
 
         await checkSubscriptionPrices(stripeMock, res);
 
-        expect(res.status.calledWith(HttpStatus.InternalServerError)).to.be.true;
-        expect(res.json.calledWith({ error: expect.any(Object) })).to.be.true;
+        expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
+        expect(res.json).toHaveBeenCalledWith({ error: expect.any(Object) });
     });
 });
 
@@ -2022,13 +2020,13 @@ describe("isStripeObjectOlderThan", () => {
 describe("setupStripe", () => {
     let app;
     beforeEach(() => {
-        app = { get: jest.fn(), post: jest.fn() };
+        app = { get: vi.fn(), post: vi.fn() };
         process.env.STRIPE_SECRET_KEY = "sk_test_123";
         process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_456";
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should log error and return if Stripe keys are missing", () => {
@@ -2053,12 +2051,12 @@ describe("setupStripe", () => {
 
         // Check GETs
         gets.forEach((endpoint) => {
-            expect(app.get.mock.calls.flat()).to.include(endpoint);
+            expect(app.get.mock.calls.flat()).toContain(endpoint);
         });
 
         // Check POSTs
         posts.forEach((endpoint) => {
-            expect(app.post.mock.calls.flat()).to.include(endpoint);
+            expect(app.post.mock.calls.flat()).toContain(endpoint);
         });
     });
 });

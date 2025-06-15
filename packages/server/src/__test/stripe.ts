@@ -1,4 +1,4 @@
-import { uuid } from "@vrooli/shared";
+// No uuid import needed - using hard-coded test IDs
 import type Stripe from "stripe";
 import { type RecursivePartial } from "../types.js";
 
@@ -19,7 +19,7 @@ const emptyGlobalStore: StripeGlobalStore = {
 let globalDataStore: StripeGlobalStore = emptyGlobalStore;
 
 const createBillingPortalSession = (data: Partial<Stripe.BillingPortal.Session>) => ({
-    id: uuid(),
+    id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     object: "billing_portal.session" as const,
     created: Date.now(),
     livemode: process.env.NODE_ENV === "production",
@@ -27,7 +27,7 @@ const createBillingPortalSession = (data: Partial<Stripe.BillingPortal.Session>)
 } as Stripe.BillingPortal.Session);
 
 const createCheckoutSession = (data: Partial<Stripe.Checkout.Session>) => ({
-    id: uuid(),
+    id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     object: "checkout.session",
     created: Date.now(),
     livemode: process.env.NODE_ENV === "production" as const,
@@ -35,7 +35,7 @@ const createCheckoutSession = (data: Partial<Stripe.Checkout.Session>) => ({
 } as Stripe.Checkout.Session);
 
 const createCustomer = (data: Partial<Stripe.Customer>) => ({
-    id: uuid(),
+    id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     object: "customer",
     created: Date.now(),
     livemode: process.env.NODE_ENV === "production" as const,
@@ -43,7 +43,7 @@ const createCustomer = (data: Partial<Stripe.Customer>) => ({
 } as Stripe.Customer);
 
 const createPrice = (data: Partial<Stripe.Price>) => ({
-    id: uuid(),
+    id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     object: "price",
     created: Date.now(),
     currency: "usd",
@@ -52,7 +52,7 @@ const createPrice = (data: Partial<Stripe.Price>) => ({
 } as Stripe.Price);
 
 const createSubscription = (data: Partial<Stripe.Subscription>) => ({
-    id: uuid(),
+    id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     object: "subscription",
     created: Date.now(),
     currency: "usd",
@@ -173,7 +173,7 @@ class StripeMock {
                     line_items: {
                         object: "list",
                         data: (line_items?.map(item => ({
-                            id: uuid(),
+                            id: `stripe-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                             object: "item" as const,
                             price: item.price,
                             quantity: item.quantity,

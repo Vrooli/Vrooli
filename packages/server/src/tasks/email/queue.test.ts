@@ -1,7 +1,7 @@
 import { PaymentType } from "@vrooli/shared";
 import type Bull from "bull";
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import sinon from "sinon";
+
 import * as yup from "yup";
 import { logger } from "../../events/logger.js";
 import { type EmailProcessPayload, emailQueue, feedbackNotifyAdmin, sendCreditCardExpiringSoon, sendMail, sendPaymentFailed, sendPaymentThankYou, sendResetPasswordLink, sendSubscriptionCanceled, sendSubscriptionEnded, sendVerificationLink } from "./queue.js";
@@ -73,32 +73,32 @@ describe("Email Queue Tests", () => {
      */
     async function expectEmailToBeEnqueuedWith(expectedData) {
         // Verify the add method was called
-        expect(queueAddStub.called).to.be.true;
+        expect(queueAddStub.called).toBe(true);
 
         // Get the actual data passed to add
         const actualData = queueAddStub.firstCall.args[0];
 
         // Validate against schema
         const validatedData = await emailSchema.validate(actualData);
-        expect(validatedData).to.deep.equal(actualData);
+        expect(validatedData).toEqual(actualData);
 
         // Check if it matches expected data
         if (expectedData) {
             if (expectedData.to) {
-                expect(actualData.to).to.deep.equal(expectedData.to);
+                expect(actualData.to).toEqual(expectedData.to);
             }
             if (expectedData.subject) {
-                expect(actualData.subject).to.equal(expectedData.subject);
+                expect(actualData.subject).toBe(expectedData.subject);
             }
             if (expectedData.text) {
-                expect(actualData.text).to.equal(expectedData.text);
+                expect(actualData.text).toBe(expectedData.text);
             }
             // Special handling for html field, which can be undefined
             if ("html" in expectedData) {
                 if (expectedData.html === undefined) {
-                    expect(actualData.html).to.be.undefined;
+                    expect(actualData.html).toBeUndefined();
                 } else {
-                    expect(actualData.html).to.equal(expectedData.html);
+                    expect(actualData.html).toBe(expectedData.html);
                 }
             }
         }
@@ -125,7 +125,7 @@ describe("Email Queue Tests", () => {
 
             // Check if the delay option is set correctly
             const options = queueAddStub.firstCall.args[1];
-            expect(options).to.deep.equal({ delay });
+            expect(options).toEqual({ delay });
         });
 
         it("enqueues an email without the html parameter", async () => {
@@ -139,14 +139,14 @@ describe("Email Queue Tests", () => {
             const actualData = queueAddStub.firstCall.args[0];
 
             // Check each property individually
-            expect(actualData.to).to.deep.equal(testEmails);
-            expect(actualData.subject).to.equal(subject);
-            expect(actualData.text).to.equal(text);
-            expect(actualData.html).to.be.undefined;
+            expect(actualData.to).toEqual(testEmails);
+            expect(actualData.subject).toBe(subject);
+            expect(actualData.text).toBe(text);
+            expect(actualData.html).toBeUndefined();
 
             // Check that default delay is 0
             const options = queueAddStub.firstCall.args[1];
-            expect(options).to.deep.equal({ delay: 0 });
+            expect(options).toEqual({ delay: 0 });
         });
 
         it("enqueues an email with a delay", async () => {
@@ -157,20 +157,20 @@ describe("Email Queue Tests", () => {
             const actualData = queueAddStub.firstCall.args[0];
 
             // Check each property individually
-            expect(actualData.to).to.deep.equal(["delayed@example.com"]);
-            expect(actualData.subject).to.equal("Delayed Email");
-            expect(actualData.text).to.equal("This is a delayed email.");
-            expect(actualData.html).to.be.undefined;
+            expect(actualData.to).toEqual(["delayed@example.com"]);
+            expect(actualData.subject).toBe("Delayed Email");
+            expect(actualData.text).toBe("This is a delayed email.");
+            expect(actualData.html).toBeUndefined();
 
             // Check if the delay option is set correctly
             const options = queueAddStub.firstCall.args[1];
-            expect(options).to.deep.equal({ delay });
+            expect(options).toEqual({ delay });
         });
 
         it("throws an error if no recipient is provided", async () => {
             expect(() => {
                 sendMail([], "Subject", "Text body");
-            }).to.throw();
+            }).toThrow();
         });
     });
 
@@ -188,8 +188,8 @@ describe("Email Queue Tests", () => {
 
             // Make sure that the text and html both include `${userPublicId}:${code}`
             const partialLink = `${userPublicId}:${code}`;
-            expect(actualData.text).to.include(partialLink);
-            expect(actualData.html).to.include(partialLink);
+            expect(actualData.text).toContain(partialLink);
+            expect(actualData.html).toContain(partialLink);
         });
 
         it("correctly enqueues email for sendVerificationLink function", async () => {
@@ -203,8 +203,8 @@ describe("Email Queue Tests", () => {
 
             // Make sure that the text and html both include `${userPublicId}:${code}`
             const partialLink = `${userPublicId}:${code}`;
-            expect(actualData.text).to.include(partialLink);
-            expect(actualData.html).to.include(partialLink);
+            expect(actualData.text).toContain(partialLink);
+            expect(actualData.html).toContain(partialLink);
         });
 
         it("correctly enqueues feedback notification email for the admin", async () => {

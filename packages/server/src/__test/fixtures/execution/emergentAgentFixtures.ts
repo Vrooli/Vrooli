@@ -8,10 +8,12 @@
  */
 
 import type { EmergentAgentConfig, EmergentSwarmConfig } from "../../../services/execution/cross-cutting/agents/agentDeploymentService.js";
-import type { IntelligentEvent } from "../../../services/execution/cross-cutting/events/eventBus.js";
+import type { ExecutionEvent } from "@vrooli/shared";
 
 /**
  * Extended agent configuration that includes capabilities and learning patterns
+ * These extra fields represent what could be stored in bot persona configuration
+ * for emergent behavior (though not currently implemented)
  */
 export interface ExtendedAgentConfig extends EmergentAgentConfig {
     name: string;
@@ -1586,7 +1588,7 @@ export const TEST_SWARMS: Record<string, EmergentSwarmConfig> = {
 /**
  * Sample events that trigger agent learning and improvement proposals
  */
-export const TEST_LEARNING_EVENTS: Record<string, IntelligentEvent> = {
+export const TEST_LEARNING_EVENTS: Record<string, ExecutionEvent> = {
     // Performance degradation event
     PERFORMANCE_DEGRADATION: {
         id: "perf_degradation_001",
@@ -1807,7 +1809,7 @@ export function createTestEvent(
     category: string,
     data: any,
     options?: Partial<IntelligentEvent>,
-): IntelligentEvent {
+): ExecutionEvent {
     return {
         id: `test_event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type,

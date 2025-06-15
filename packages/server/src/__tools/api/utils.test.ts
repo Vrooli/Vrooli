@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { findSelection } from "./utils.js";
 
 // Mock the console.warn to test warning outputs
 const originalConsoleWarn = console.warn;
 beforeAll(() => {
-    console.warn = jest.fn();
+    console.warn = vi.fn();
 });
 
 afterAll(() => {
@@ -30,7 +30,7 @@ describe("findSelection", () => {
     selectionTests.forEach(([selection, expected]) => {
         it(`should return the specified selection ${selection} when it exists`, () => {
             const result = findSelection(baseApiPartial, selection);
-            expect(result).to.deep.equal(expected);
+            expect(result).toBe(expected);
         });
     });
 
@@ -42,13 +42,13 @@ describe("findSelection", () => {
             nav: {},
         };
         const result = findSelection(apiPartial, "common");
-        expect(result).to.deep.equal("list");
+        expect(result).toBe("list");
     });
 
     it("should throw an error if none of the selections exist", () => {
         const apiPartial = {
         };
-        expect(() => findSelection(apiPartial, "common")).to.throw();
+        expect(() => findSelection(apiPartial, "common")).toThrow();
     });
 
     it("should log a warning if the specified selection does not exist but another valid selection is found", () => {
@@ -57,7 +57,7 @@ describe("findSelection", () => {
             list: {},
         };
         findSelection(apiPartial, "common");
-        expect(console.warn).to.have.been.calledWith(sinon.match(/Specified selection type 'common' for 'TestType' does not exist. Try using 'list' instead./));
+        expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/Specified selection type 'common' for 'TestType' does not exist. Try using 'list' instead./));
     });
 
     const fallbackTests = [
@@ -75,7 +75,7 @@ describe("findSelection", () => {
             apiPartial[expectedOrder[expectedOrder.length - 1]] = {};
 
             const result = findSelection(apiPartial, selection);
-            expect(result).to.deep.equal(expectedOrder[expectedOrder.length - 1]);
+            expect(result).toBe(expectedOrder[expectedOrder.length - 1]);
         });
     });
 

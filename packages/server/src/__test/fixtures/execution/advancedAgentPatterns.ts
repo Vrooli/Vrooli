@@ -9,7 +9,7 @@
  * - Self-organizing agent hierarchies
  */
 
-import type { IntelligentEvent } from "../../../services/execution/cross-cutting/events/eventBus.js";
+import type { ExecutionEvent } from "@vrooli/shared";
 import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
 
 /**
