@@ -11,7 +11,7 @@ import { notificationCreateProcess } from "./notification/process.js";
 import { pushProcess } from "./push/process.js";
 import type { BaseTaskData } from "./queueFactory.js";
 import { buildRedis, ManagedQueue } from "./queueFactory.js";
-import { activeRunsRegistry, runProcess } from "./run/process.js";
+import { activeRunRegistry, runProcess } from "./run/process.js";
 import { RUN_QUEUE_LIMITS } from "./run/queue.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
@@ -106,6 +106,17 @@ export class QueueService {
             QueueService.instance = new QueueService();
         }
         return QueueService.instance;
+    }
+
+    /**
+     * Reset singleton instance (for testing)
+     * This ensures each test gets a fresh connection
+     */
+    public static async reset(): Promise<void> {
+        if (QueueService.instance) {
+            await QueueService.instance.shutdown();
+            QueueService.instance = null;
+        }
     }
 
     /**
@@ -620,7 +631,7 @@ export class QueueService {
                     async () => {
                         try {
                             await checkLongRunningTasksInRegistry(
-                                activeRunsRegistry,
+                                activeRunRegistry,
                                 RUN_QUEUE_LIMITS,
                                 "Run",
                             );

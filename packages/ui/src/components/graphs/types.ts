@@ -10,4 +10,10 @@ export interface LineGraphProps {
     lineWidth?: number;
     /** Label for the y-axis of the line graph */
     yAxisLabel?: string;
+    /** Whether to hide Y-axis labels */
+    hideAxes?: boolean;
+    /** Whether to hide tooltips */
+    hideTooltips?: boolean;
+    /** Color for data point dots */
+    dotColor?: string;
 }

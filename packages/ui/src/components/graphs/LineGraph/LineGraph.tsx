@@ -117,6 +117,9 @@ export function LineGraph({
     lineColor = "#000",
     lineWidth = 2,
     yAxisLabel,
+    hideAxes = false,
+    hideTooltips = false,
+    dotColor,
 }: LineGraphProps) {
     // Find the maximum and minimum value in the data array
     const maxData = Math.max(...data.map(toValue));
@@ -203,6 +206,7 @@ export function LineGraph({
     const closeTimeout = useRef<number | null>(null);
 
     const dataPoints = useMemo(() => {
+        const effectiveDotColor = dotColor || lineColor;
         return points.map((point, index) => (
             <g key={`point-${index}`}>
                 {/* Actual displayed circle */}
@@ -210,52 +214,56 @@ export function LineGraph({
                     cx={point.x}
                     cy={point.y}
                     r={3}
-                    fill={selectedPoint === point ? lineColor : "#ccc"}
+                    fill={selectedPoint === point ? effectiveDotColor : effectiveDotColor}
                     stroke={lineColor}
                     strokeWidth={1}
                 />
                 {/* Invisible circle that is used to increase the size of the hover area */}
-                <circle
-                    cx={point.x}
-                    cy={point.y}
-                    r={12} // Increase the radius to create a larger hover area
-                    fill="transparent" // Make the circle invisible
-                    onMouseEnter={(e) => {
-                        // Clear the timeout if it exists
-                        if (closeTimeout.current) {
-                            clearTimeout(closeTimeout.current);
-                            closeTimeout.current = null;
-                        }
-                        setSelectedPoint(point);
-                        setAnchorEl(e.currentTarget as unknown as HTMLElement);
-                    }}
-                    onMouseLeave={() => {
-                        // Delay the tooltip removal
-                        closeTimeout.current = window.setTimeout(() => {
-                            setSelectedPoint(null);
-                            setAnchorEl(null); // Remove the anchor element
-                        }, 500);
-                    }}
-                />
+                {!hideTooltips && (
+                    <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r={12} // Increase the radius to create a larger hover area
+                        fill="transparent" // Make the circle invisible
+                        onMouseEnter={(e) => {
+                            // Clear the timeout if it exists
+                            if (closeTimeout.current) {
+                                clearTimeout(closeTimeout.current);
+                                closeTimeout.current = null;
+                            }
+                            setSelectedPoint(point);
+                            setAnchorEl(e.currentTarget as unknown as HTMLElement);
+                        }}
+                        onMouseLeave={() => {
+                            // Delay the tooltip removal
+                            closeTimeout.current = window.setTimeout(() => {
+                                setSelectedPoint(null);
+                                setAnchorEl(null); // Remove the anchor element
+                            }, 500);
+                        }}
+                    />
+                )}
             </g>
         ));
-    }, [lineColor, points, selectedPoint]);
+    }, [dotColor, hideTooltips, lineColor, points, selectedPoint]);
 
     return (
         <>
             {/* The line graph */}
             <svg width={dims.width} height={dims.height}>
-                {grid}
+                {!hideAxes && grid}
                 {/* <g transform={`translate(0, ${dims.height})`}>
                     <XAxisLabels data={data} xScale={xScale} height={dims.height} />
                 </g> */}
-                <g transform={`translate(${dims.width}, 0)`}>
-                    <YAxisLabels
-                        yScale={yScale}
-                        numOfHorizontalLines={numOfHorizontalLines}
-                        width={dims.width}
-                    />
-                </g>
+                {!hideAxes && (
+                    <g transform={`translate(${dims.width}, 0)`}>
+                        <YAxisLabels
+                            yScale={yScale}
+                            numOfHorizontalLines={numOfHorizontalLines}
+                            width={dims.width}
+                        />
+                    </g>
+                )}
                 <path
                     d={path}
                     stroke={lineColor}
@@ -285,7 +293,7 @@ export function LineGraph({
                 />
                 {dataPoints}
             </svg>
-            {selectedPoint && anchorEl && (
+            {!hideTooltips && selectedPoint && anchorEl && (
                 <PopoverWithArrow
                     anchorEl={anchorEl}
                     handleClose={() => {
