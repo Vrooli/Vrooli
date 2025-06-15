@@ -604,3 +604,4 @@ export async function checkRelationshipHealth() {
   - [Commerce & Billing](entities/commerce.md) - Payments, plans, credits
 - [Data Dictionary](data-dictionary.md) - Field specifications and constraints
 - [Performance Guide](performance.md) - Query optimization strategies
+- [Access Patterns](access-patterns.md) - Repository patterns and transactions

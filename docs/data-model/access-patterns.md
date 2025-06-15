@@ -436,6 +436,8 @@ export class RunRepository extends BaseRepository<Run, CreateRunInput, UpdateRun
 
 ## 💾 Transaction Patterns
 
+> **Default Isolation Level**: PostgreSQL uses `READ COMMITTED` by default. For scenarios requiring stronger consistency, use `SERIALIZABLE` isolation level.
+
 ### **Simple Transactions**
 
 #### **Basic Transaction Wrapper**

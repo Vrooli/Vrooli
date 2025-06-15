@@ -14,6 +14,8 @@ Comprehensive guide to database performance optimization, indexing strategies, q
 | **Bulk Operations** | < 2s (p95) | 50+ QPS |
 | **Real-time Updates** | < 50ms (p95) | 2000+ QPS |
 
+> **Note**: Performance alert thresholds are set higher than targets (e.g., 200ms for avg, 500ms for p95) to avoid noise while still catching significant degradations.
+
 ### **Current Performance Metrics**
 
 ```typescript
@@ -476,6 +478,10 @@ export async function getResourcesWithCreators(resourceIds: string[]) {
 
 ## 💾 Caching Strategy
 
+> **Note**: For Redis infrastructure configuration, see [Database Architecture - Redis Configuration](architecture.md#redis-configuration).
+
+> **Important**: This section contains the authoritative cache TTL guidelines. Other documentation should reference these values rather than duplicating them.
+
 ### **Redis Caching Patterns**
 
 #### **Query Result Caching**
@@ -484,7 +490,7 @@ export async function getResourcesWithCreators(resourceIds: string[]) {
 export async function getCachedResourceList(
   key: string,
   queryFn: () => Promise<any[]>,
-  ttl: number = 300 // 5 minutes
+  ttl: number = 300 // 5 minutes default, see TTL guidelines below
 ) {
   const cached = await redis.get(key);
   if (cached) {
@@ -593,6 +599,17 @@ export async function getCachedCounts() {
   return result;
 }
 ```
+
+### **Cache TTL Guidelines**
+
+| Data Type | Recommended TTL | Rationale |
+|-----------|----------------|-----------|
+| **User Sessions** | 24 hours | Balances security with user convenience |
+| **Query Results** | 5 minutes | Frequently changing data |
+| **Trending Data** | 1 hour | Less frequent updates, higher cost |
+| **Static Counts** | 2 hours | Expensive aggregations |
+| **Entity Data** | 30 minutes | Balance freshness with performance |
+| **Real-time Status** | 30 seconds | Near real-time requirements |
 
 ### **Application-Level Caching**
 
@@ -811,6 +828,46 @@ export async function timedQuery<T>(
 }
 ```
 
+### **Vector Search Optimization**
+
+#### **pgvector Performance**
+```typescript
+// Optimize vector similarity searches
+export async function optimizedVectorSearch(
+  queryEmbedding: number[],
+  filters: VectorSearchFilters = {}
+): Promise<SimilarityResult[]> {
+  const { limit = 10, threshold = 0.8, resourceType } = filters;
+  
+  // Use HNSW index for fast approximate search
+  return prisma.$queryRaw`
+    WITH filtered_resources AS (
+      SELECT r.id, r.publicId, r.resourceType, rv.embedding
+      FROM resource r
+      JOIN resource_version rv ON r.id = rv.rootId AND rv.isLatest = true
+      WHERE r.isPrivate = false
+        AND r.isDeleted = false
+        ${resourceType ? Prisma.sql`AND r.resourceType = ${resourceType}` : Prisma.empty}
+        AND rv.embedding IS NOT NULL
+    )
+    SELECT 
+      publicId,
+      resourceType,
+      1 - (embedding <=> ${`[${queryEmbedding.join(',')}]`}::vector) as similarity
+    FROM filtered_resources
+    WHERE 1 - (embedding <=> ${`[${queryEmbedding.join(',')}]`}::vector) > ${threshold}
+    ORDER BY embedding <=> ${`[${queryEmbedding.join(',')}]`}::vector
+    LIMIT ${limit}
+  `;
+}
+
+// Create optimized vector index
+CREATE INDEX idx_resource_version_embedding_hnsw 
+ON resource_version 
+USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
+```
+
 ### **Automated Performance Alerts**
 
 #### **Alert Configuration**
@@ -868,3 +925,5 @@ export async function checkPerformanceAlerts() {
 - [Database Architecture](architecture.md) - Infrastructure configuration
 - [Access Patterns](access-patterns.md) - Query implementation patterns  
 - [Entity Models](entities/README.md) - Schema structure and relationships
+- [Data Dictionary](data-dictionary.md) - Data types and validation
+- [Schema Evolution](schema-evolution.md) - Migration strategies

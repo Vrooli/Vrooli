@@ -22,11 +22,11 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 - Storage systems and caching
 - Backup and recovery strategies
 
-#### 🔗 **[Entity Models](entities/README.md)**
-- **[Core Entities](entities/core.md)** - Users, teams, resources, runs
-- **[Communication](entities/communication.md)** - Chats, messages, notifications, emails
-- **[Content Management](entities/content.md)** - Comments, issues, pull requests, reactions
-- **[Commerce & Billing](entities/commerce.md)** - Payments, plans, credits, wallets
+#### 🔗 **[Entity Model](entities.md)**
+- Complete entity relationship diagram
+- Core entity definitions and fields
+- Primary and supporting entities
+- Entity hierarchies and organization
 
 #### 🔄 **[Entity Relationships](relationships.md)**
 - Core relationship patterns
@@ -63,7 +63,7 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 ## 🚀 Quick Start
 
 ### For Developers
-1. Start with **[Entity Models](entities/README.md)** to understand the data structure
+1. Start with **[Entity Model](entities.md)** to understand the data structure
 2. Review **[Relationships](relationships.md)** for foreign key patterns
 3. Check **[Access Patterns](access-patterns.md)** for implementation guidance
 
@@ -74,7 +74,7 @@ Vrooli's data model is designed to support a complex AI-powered platform with th
 
 ### For Data Analysts
 1. Explore **[Data Dictionary](data-dictionary.md)** for field definitions
-2. Understand **[Entity Models](entities/README.md)** for data relationships
+2. Understand **[Entity Model](entities.md)** for data relationships
 3. Use **[Access Patterns](access-patterns.md)** for efficient queries
 
 ## 🔍 Key Concepts
@@ -89,7 +89,7 @@ User (BigInt ID)
 └── Runs (Execution instances)
 ```
 
-> **Note**: For complete entity definitions and field specifications, see [Entity Models](entities/README.md).
+> **Note**: For complete entity definitions and field specifications, see [Entity Model](entities.md).
 
 ### **Data Flow**
 ```mermaid
@@ -108,7 +108,7 @@ graph LR
 
 For detailed implementation examples, see:
 - **[Access Patterns](access-patterns.md)** - Repository patterns and transactions
-- **[Entity Models](entities/README.md)** - Specific entity operations
+- **[Entity Model](entities.md)** - Specific entity operations
 - **[Performance Guide](performance.md)** - Optimized query patterns
 
 ## 📊 Performance Overview
@@ -140,5 +140,5 @@ For detailed monitoring setup, alerting rules, and health checks, see **[Databas
 ---
 
 **Last Updated**: 2025-01-15  
-**Schema Version**: 1.0  
+**Schema Version**: 2025.01.0  
 **Next Review**: 2025-04-15

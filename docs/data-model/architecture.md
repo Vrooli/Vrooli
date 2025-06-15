@@ -207,7 +207,7 @@ databases 16
 
 #### **Cache Patterns**
 
-> **Note**: For comprehensive caching strategies and implementation patterns, see [Performance Guide](../data-model/performance.md#caching-strategy).
+> **Note**: For comprehensive caching strategies and implementation patterns, see [Performance Guide](performance.md#caching-strategy).
 
 Basic cache usage:
 ```typescript
@@ -313,23 +313,10 @@ ALTER SYSTEM SET ssl_require = on;
 ```
 
 ### **Application-Level Security**
+
+> **Note**: For complete security implementation including encryption and access control, see [Data Dictionary - Security Implementation](data-dictionary.md#security-implementation).
+
 ```typescript
-// Sensitive data encryption
-import crypto from 'crypto';
-
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-
-export function encryptSensitiveData(data: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipher('aes-256-gcm', ENCRYPTION_KEY, iv);
-  
-  let encrypted = cipher.update(data, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  
-  const authTag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-}
-
 // Audit logging
 export async function logDataAccess(
   operation: string,

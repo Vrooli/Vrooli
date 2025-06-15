@@ -4,6 +4,31 @@ Comprehensive reference for data types, enums, field specifications, and validat
 
 ## 📊 Core Data Types
 
+> **Naming Conventions**: 
+> - SQL contexts use uppercase: `BIGINT`, `VARCHAR`, `BOOLEAN`
+> - TypeScript/Prisma contexts use lowercase: `bigint`, `string`, `boolean`
+> - Both refer to the same underlying data types
+
+### **Base Entity Pattern**
+All entities in the system share common fields. Rather than repeating these in every entity definition, they inherit from this base pattern:
+
+```typescript
+interface BaseEntity {
+  // Primary key - BigInt using Snowflake algorithm
+  id: bigint;
+  
+  // Timestamps - Always timezone-aware
+  createdAt: Date;  // Set automatically on creation
+  updatedAt: Date;  // Updated automatically on modification
+}
+
+// Most entities also include
+interface PublicEntity extends BaseEntity {
+  // Public identifier - URL-safe Base62 string
+  publicId: string;  // Unique, 12 characters
+}
+```
+
 ### **Primary Key Pattern**
 ```sql
 -- All entities use BigInt primary keys
@@ -13,6 +38,8 @@ id BIGINT PRIMARY KEY
 - **Range**: -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
 - **Generation**: Application-generated using Snowflake algorithm
 - **Benefits**: Sortable, time-ordered, distributed-safe
+
+> **Convention Note**: SQL data types are shown in uppercase (BIGINT, VARCHAR) in documentation for clarity, though PostgreSQL accepts both cases.
 
 ### **Public Identifier Pattern**
 ```sql
@@ -105,7 +132,6 @@ resourceType VARCHAR(32) NOT NULL
 
 **Common Values:**
 - `'Api'` - External API integration
-- `'Code'` - Code snippets/libraries  
 - `'Project'` - Project containers
 - `'Routine'` - Automation workflows
 - `'Standard'` - Reusable patterns
@@ -218,6 +244,50 @@ enum PullRequestStatus {
 }
 ```
 
+### **CreditEntryType**
+Types of credit account transactions.
+
+```typescript
+enum CreditEntryType {
+  // Incoming credits
+  Purchase = 'Purchase',                   // Credits purchased
+  TransferIn = 'TransferIn',              // Transfer received
+  RollOver = 'RollOver',                  // Rollover from previous period
+  Bonus = 'Bonus',                        // Bonus credits awarded
+  Refund = 'Refund',                      // Refund processed
+  DonationReceived = 'DonationReceived',  // Donation received
+  MigrationImport = 'MigrationImport',    // Imported during migration
+  AdjustmentIncrease = 'AdjustmentIncrease', // Manual adjustment up
+  
+  // Outgoing credits
+  Spend = 'Spend',                        // Credits spent
+  TransferOut = 'TransferOut',            // Transfer sent
+  DonationGiven = 'DonationGiven',        // Donation made
+  Expire = 'Expire',                      // Credits expired
+  Chargeback = 'Chargeback',              // Chargeback processed
+  AdjustmentDecrease = 'AdjustmentDecrease', // Manual adjustment down
+  Penalty = 'Penalty',                    // Penalty applied
+  
+  // General
+  Other = 'Other'                         // Other transaction types
+}
+```
+
+### **CreditSourceSystem**
+Systems that can create credit transactions.
+
+```typescript
+enum CreditSourceSystem {
+  Stripe = 'Stripe',                      // Stripe payment system
+  CryptoGateway = 'CryptoGateway',        // Cryptocurrency payments
+  PartnerGateway = 'PartnerGateway',      // Partner payment systems
+  Scheduler = 'Scheduler',                // Automated scheduler
+  InternalAgent = 'InternalAgent',        // Internal AI agent
+  Admin = 'Admin',                        // Administrative action
+  MigrationScript = 'MigrationScript'     // Data migration
+}
+```
+
 ## 🔤 Field Specifications
 
 ### **User Fields**
@@ -226,21 +296,23 @@ enum PullRequestStatus {
 
 #### **Core Identity Fields**
 ```sql
--- Email address (unique, case-insensitive)
-email CITEXT UNIQUE NOT NULL
--- Display name
-name VARCHAR(128)
--- Unique handle (@username)
+-- Display name (required)
+name VARCHAR(128) NOT NULL
+-- Unique handle (@username, case-insensitive)
 handle CITEXT UNIQUE
--- User biography
-bio VARCHAR(2048)
+-- Profile and banner images
+profileImage VARCHAR(2048)
+bannerImage VARCHAR(2048)
 ```
 
 **Validation Rules:**
-- Email: RFC 5322 compliant, maximum 254 characters
-- Name: 1-128 characters, UTF-8 supported
-- Handle: 3-50 characters, alphanumeric + underscore/hyphen
-- Bio: Maximum 2048 characters, markdown supported
+- Name: 1-128 characters, UTF-8 supported, required
+- Handle: 3-50 characters, alphanumeric + underscore/hyphen, optional
+- Images: Valid URL format, maximum 2048 characters
+
+**Related Tables:**
+- **Email addresses**: Stored in separate `email` table with `emailAddress CITEXT UNIQUE`
+- **Biography**: Stored in `user_translation` table as `bio VARCHAR(2048)` per language
 
 #### **Profile Settings**
 ```sql
@@ -440,7 +512,7 @@ versionIndex INTEGER DEFAULT 0 NOT NULL
 ```
 
 **Validation Rules:**
-- Language: ISO 639-2/3 language code (2-3 characters)
+- Language: ISO 639-1 language code (2 characters)
 - Text: 1-32768 characters, markdown supported
 - VersionIndex: Incremented on each edit
 
@@ -468,8 +540,8 @@ const handleRegex = /^[a-zA-Z0-9_-]{3,50}$/;
 // Public ID validation (Base62)
 const publicIdRegex = /^[A-Za-z0-9]{12}$/;
 
-// Language code validation (ISO 639-2/3)
-const languageRegex = /^[a-z]{2,3}$/;
+// Language code validation (ISO 639-1)
+const languageRegex = /^[a-z]{2}$/;
 ```
 
 ### **Numeric Validation**
@@ -746,7 +818,7 @@ export function hasPermission(
 ### **Embedding Storage**
 ```sql
 -- Vector embedding fields for AI features (Prisma schema)
-embedding Unsupported("vector(1536)")
+embedding?: number[]                 // AI embedding vector (stored as vector(1536) in PostgreSQL)
 
 -- Actual PostgreSQL type
 embedding vector(1536)  -- OpenAI embedding dimensions
@@ -754,8 +826,8 @@ embedding vector(1536)  -- OpenAI embedding dimensions
 
 **Vector Data Specifications:**
 - **Dimensions**: 1536 (OpenAI text-embedding-ada-002)
-- **Data Type**: `vector(1536)` (pgvector extension)
-- **Prisma Type**: `Unsupported("vector(1536)")` 
+- **PostgreSQL Type**: `vector(1536)` (pgvector extension)
+- **TypeScript Type**: `number[]` (array of numbers in application code)
 - **Storage**: ~6KB per embedding (float32 × 1536)
 - **Indexing**: HNSW index for similarity search
 
