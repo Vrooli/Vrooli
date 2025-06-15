@@ -3,7 +3,7 @@ import { ChatConfigObject, ExecutionStates, PendingToolCallStatus } from "@vrool
 import { SwarmDetailPanel } from "./SwarmDetailPanel.js";
 
 const meta: Meta<typeof SwarmDetailPanel> = {
-    title: "Components/Swarm/SwarmDetailPanel",
+    title: "Components/Chat/SwarmDetailPanel",
     component: SwarmDetailPanel,
     parameters: {
         layout: "fullscreen",

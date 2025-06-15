@@ -1,12 +1,20 @@
-import { Box } from "@mui/material";
+import type { Meta, StoryObj } from "@storybook/react";
+import { Box, FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, TextField, Typography } from "@mui/material";
 import { ChatConfigObject, ExecutionStates, PendingToolCallStatus, SwarmSubTask } from "@vrooli/shared";
 import { useState } from "react";
-// Simple action replacement
-const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
 import { SwarmPlayer } from "./SwarmPlayer.js";
-import { SwarmDetailPanel } from "./SwarmDetailPanel.js";
-import { useMenu } from "../../hooks/useMenu.js";
-import { ELEMENT_IDS } from "../../utils/consts.js";
+import { Switch } from "../inputs/Switch/Switch.js";
+
+const meta: Meta<typeof SwarmPlayer> = {
+    title: "Components/Chat/SwarmPlayer",
+    component: SwarmPlayer,
+    parameters: {
+        layout: "fullscreen",
+    },
+};
+
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 // Helper to create mock swarm config
 function createMockSwarmConfig(overrides?: Partial<ChatConfigObject>): ChatConfigObject {
@@ -51,428 +59,293 @@ function createMockSwarmConfig(overrides?: Partial<ChatConfigObject>): ChatConfi
                 created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
             },
         ],
-        swarmLeader: "market_analysis_leader_bot_abc123",
-        teamId: "dynamic_market_team_def456",
+        swarmLeader: "coordinator_bot_123",
         subtaskLeaders: {
             "T1": "data_collector_bot_789",
             "T2": "competitive_analyst_bot_101",
             "T3": "trend_analyst_bot_202",
             "T4": "report_writer_bot_303",
         },
-        blackboard: [
-            {
-                id: "insight_1",
-                value: "Tech sector showing 15% growth trend compared to Q4 2023",
-                created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-            },
-            {
-                id: "insight_2",
-                value: "Key competitors: CloudFlare (+25%), Nvidia (+18%), ServiceNow (+14%)",
-                created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-            },
-        ],
-        resources: [
-            {
-                id: "market_data_q1_2024",
-                kind: "File",
-                mime: "application/json",
-                creator_bot_id: "data_collector_bot_789",
-                created_at: new Date(Date.now() - 28 * 60 * 1000).toISOString(),
-                meta: { size: 2500000, records: 8500, sources: 3 },
-            },
-            {
-                id: "competitor_analysis_draft",
-                kind: "Note",
-                creator_bot_id: "competitive_analyst_bot_101",
-                created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-            },
-        ],
-        records: [
-            {
-                id: "exec_001",
-                routine_id: "financial_data_collection_v4",
-                routine_name: "Tech Sector Data Collection",
-                params: { sector: "technology", timeframe: "2024_Q1" },
-                output_resource_ids: ["market_data_q1_2024"],
-                caller_bot_id: "data_collector_bot_789",
-                created_at: new Date(Date.now() - 28 * 60 * 1000).toISOString(),
-            },
-        ],
+        teamId: "analytics_team_001",
         stats: {
-            totalToolCalls: 15,
-            totalCredits: "4250",
-            startedAt: Date.now() - 35 * 60 * 1000,
+            totalToolCalls: 23,
+            totalCredits: "4750",
+            startedAt: Date.now() - 45 * 60 * 1000,
             lastProcessingCycleEndedAt: Date.now() - 2 * 60 * 1000,
         },
-        limits: {
-            maxCredits: "10000",
-            maxDurationMs: 7200000, // 2 hours
-            maxToolCallsPerBotResponse: 15,
-        },
-        scheduling: {
-            requiresApprovalTools: ["premium_api", "expensive_analysis"],
-            approvalTimeoutMs: 300000, // 5 minutes
-            autoRejectOnTimeout: true,
-        },
-        pendingToolCalls: [],
         ...overrides,
     };
-    
     return baseConfig;
 }
 
-/**
- * Storybook configuration for SwarmPlayer
- */
-export default {
-    title: "Components/Swarm/SwarmPlayer",
-    component: SwarmPlayer,
-};
+export const SwarmPlayerShowcase: Story = {
+    render: () => {
+        const [status, setStatus] = useState<string>(ExecutionStates.RUNNING);
+        const [isLoading, setIsLoading] = useState(false);
+        const [hasSwarm, setHasSwarm] = useState(true);
+        const [goalLength, setGoalLength] = useState<"short" | "medium" | "long">("medium");
+        const [creditAmount, setCreditAmount] = useState<"low" | "medium" | "high">("medium");
+        const [taskProgress, setTaskProgress] = useState<"none" | "partial" | "complete">("partial");
+        const [hasPendingApprovals, setHasPendingApprovals] = useState(false);
 
-/**
- * Default story: Active swarm in running state
- */
-export function ActiveSwarm() {
-    const [swarmStatus, setSwarmStatus] = useState(ExecutionStates.RUNNING);
-    const swarmConfig = createMockSwarmConfig();
+        // Build swarm config based on controls
+        const getGoalText = () => {
+            switch (goalLength) {
+                case "short":
+                    return "Analyze Q1 2024 data";
+                case "long":
+                    return "Create a comprehensive market analysis report for Q1 2024 including competitor analysis, growth trends, market opportunities, customer sentiment analysis, technological disruptions, regulatory changes, and strategic recommendations for the next fiscal year with detailed financial projections and risk assessments";
+                default:
+                    return "Create a comprehensive market analysis report for Q1 2024";
+            }
+        };
 
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={swarmStatus}
-                onPause={() => {
-                    action("onPause")();
-                    setSwarmStatus(ExecutionStates.PAUSED);
-                }}
-                onResume={() => {
-                    action("onResume")();
-                    setSwarmStatus(ExecutionStates.RUNNING);
-                }}
-                onStop={() => {
-                    action("onStop")();
-                    setSwarmStatus(ExecutionStates.STOPPED);
-                }}
-            />
-        </Box>
-    );
-}
+        const getCredits = () => {
+            switch (creditAmount) {
+                case "low":
+                    return "7500000"; // $0.08
+                case "high":
+                    return "123456700000000"; // $1,234.57
+                default:
+                    return "475000000"; // $4.75
+            }
+        };
 
-/**
- * Paused swarm
- */
-export function PausedSwarm() {
-    const [swarmStatus, setSwarmStatus] = useState(ExecutionStates.PAUSED);
-    const swarmConfig = createMockSwarmConfig({
-        subtasks: [
-            ...createMockSwarmConfig().subtasks!.slice(0, 2),
-            {
-                id: "T3",
-                description: "Task failed due to API error",
-                status: "failed",
-                assignee_bot_id: "trend_analyst_bot_202",
-                priority: "high",
-                created_at: new Date().toISOString(),
+        const getSubtasks = (): SwarmSubTask[] => {
+            const baseTasks = createMockSwarmConfig().subtasks || [];
+            switch (taskProgress) {
+                case "none":
+                    return baseTasks.map(task => ({ ...task, status: "todo" }));
+                case "complete":
+                    return baseTasks.map(task => ({ ...task, status: "done" }));
+                default:
+                    return baseTasks;
+            }
+        };
+
+        const swarmConfig = hasSwarm ? createMockSwarmConfig({
+            goal: getGoalText(),
+            subtasks: getSubtasks(),
+            stats: {
+                ...createMockSwarmConfig().stats,
+                totalCredits: getCredits(),
             },
-            ...createMockSwarmConfig().subtasks!.slice(3),
-        ],
-    });
+            pendingToolCalls: hasPendingApprovals ? [
+                {
+                    pendingId: "pending_001",
+                    toolCallId: "call_001",
+                    toolName: "premium_analysis",
+                    toolArguments: JSON.stringify({ depth: "comprehensive" }),
+                    callerBotId: "analyst_bot",
+                    conversationId: "conv_123",
+                    requestedAt: Date.now() - 60000,
+                    status: PendingToolCallStatus.PENDING_APPROVAL,
+                    approvalTimeoutAt: Date.now() + 240000,
+                    executionAttempts: 0,
+                },
+            ] : [],
+        }) : null;
 
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={swarmStatus}
-                onPause={() => {
-                    action("onPause")();
-                    setSwarmStatus(ExecutionStates.PAUSED);
-                }}
-                onResume={() => {
-                    action("onResume")();
-                    setSwarmStatus(ExecutionStates.RUNNING);
-                }}
-                onStop={() => {
-                    action("onStop")();
-                    setSwarmStatus(ExecutionStates.STOPPED);
-                }}
-            />
-        </Box>
-    );
-}
+        const statuses = [
+            ExecutionStates.UNINITIALIZED,
+            ExecutionStates.STARTING,
+            ExecutionStates.RUNNING,
+            ExecutionStates.IDLE,
+            ExecutionStates.PAUSED,
+            ExecutionStates.STOPPED,
+            ExecutionStates.FAILED,
+            ExecutionStates.TERMINATED,
+        ];
 
-/**
- * Failed swarm
- */
-export function FailedSwarm() {
-    const swarmConfig = createMockSwarmConfig({
-        subtasks: createMockSwarmConfig().subtasks!.map((task, index) => ({
-            ...task,
-            status: index < 2 ? "done" : index === 2 ? "failed" : "blocked",
-        })) as SwarmSubTask[],
-        stats: {
-            ...createMockSwarmConfig().stats,
-            totalCredits: "9850", // Near limit
-        },
-    });
+        return (
+            <Box sx={{ 
+                p: 2, 
+                height: "100vh", 
+                overflow: "auto",
+                bgcolor: "background.default" 
+            }}>
+                <Box sx={{ 
+                    display: "flex", 
+                    gap: 2, 
+                    flexDirection: "column",
+                    maxWidth: 1200, 
+                    mx: "auto" 
+                }}>
+                    {/* Controls Section */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>SwarmPlayer Controls</Typography>
+                        
+                        <Box sx={{ 
+                            display: "grid", 
+                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+                            gap: 3 
+                        }}>
+                            {/* Status Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Swarm Status</FormLabel>
+                                <RadioGroup
+                                    value={status}
+                                    onChange={(e) => setStatus(e.target.value)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    {statuses.map(s => (
+                                        <FormControlLabel 
+                                            key={s} 
+                                            value={s} 
+                                            control={<Radio size="small" />} 
+                                            label={s.charAt(0) + s.slice(1).toLowerCase().replace('_', ' ')} 
+                                            sx={{ m: 0 }} 
+                                        />
+                                    ))}
+                                </RadioGroup>
+                            </FormControl>
 
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={ExecutionStates.FAILED}
-            />
-        </Box>
-    );
-}
+                            {/* Goal Length Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Goal Text Length</FormLabel>
+                                <RadioGroup
+                                    value={goalLength}
+                                    onChange={(e) => setGoalLength(e.target.value as typeof goalLength)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="short" control={<Radio size="small" />} label="Short" sx={{ m: 0 }} />
+                                    <FormControlLabel value="medium" control={<Radio size="small" />} label="Medium" sx={{ m: 0 }} />
+                                    <FormControlLabel value="long" control={<Radio size="small" />} label="Long (Scrolling)" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
 
-/**
- * Loading state
- */
-export function LoadingSwarm() {
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={null}
-                swarmStatus={ExecutionStates.STARTING}
-                isLoading={true}
-            />
-        </Box>
-    );
-}
+                            {/* Credit Amount Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Credits Used</FormLabel>
+                                <RadioGroup
+                                    value={creditAmount}
+                                    onChange={(e) => setCreditAmount(e.target.value as typeof creditAmount)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="low" control={<Radio size="small" />} label="Low ($0.08)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="medium" control={<Radio size="small" />} label="Medium ($4.75)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="high" control={<Radio size="small" />} label="High ($1,234.57)" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
 
-/**
- * No swarm active
- */
-export function NoSwarm() {
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={null}
-                swarmStatus={ExecutionStates.UNINITIALIZED}
-            />
-        </Box>
-    );
-}
+                            {/* Task Progress Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Task Progress</FormLabel>
+                                <RadioGroup
+                                    value={taskProgress}
+                                    onChange={(e) => setTaskProgress(e.target.value as typeof taskProgress)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="none" control={<Radio size="small" />} label="0% (All Todo)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="partial" control={<Radio size="small" />} label="25% (Partial)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="complete" control={<Radio size="small" />} label="100% (Complete)" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
 
-/**
- * Swarm with high credit usage
- */
-export function HighCreditUsage() {
-    const swarmConfig = createMockSwarmConfig({
-        stats: {
-            ...createMockSwarmConfig().stats,
-            totalCredits: "1234567", // 1.2M credits
-            totalToolCalls: 250,
-        },
-    });
+                            {/* Toggle Controls */}
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                <Switch
+                                    checked={hasSwarm}
+                                    onChange={setHasSwarm}
+                                    size="sm"
+                                    label="Has Swarm"
+                                    labelPosition="right"
+                                />
+                                <Switch
+                                    checked={isLoading}
+                                    onChange={setIsLoading}
+                                    size="sm"
+                                    label="Loading State"
+                                    labelPosition="right"
+                                />
+                                <Switch
+                                    checked={hasPendingApprovals}
+                                    onChange={setHasPendingApprovals}
+                                    size="sm"
+                                    label="Pending Approvals"
+                                    labelPosition="right"
+                                />
+                            </Box>
+                        </Box>
+                    </Box>
 
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={ExecutionStates.RUNNING}
-                onPause={action("onPause")}
-                onResume={action("onResume")}
-                onStop={action("onStop")}
-            />
-        </Box>
-    );
-}
+                    {/* Player Display */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>SwarmPlayer Preview</Typography>
+                        
+                        <Box sx={{ maxWidth: 800, mx: "auto" }}>
+                            <SwarmPlayer
+                                swarmConfig={swarmConfig}
+                                swarmStatus={status}
+                                isLoading={isLoading}
+                                onPause={() => {
+                                    console.log("Pause clicked");
+                                    setStatus(ExecutionStates.PAUSED);
+                                }}
+                                onResume={() => {
+                                    console.log("Resume clicked");
+                                    setStatus(ExecutionStates.RUNNING);
+                                }}
+                                onStop={() => {
+                                    console.log("Stop clicked");
+                                    setStatus(ExecutionStates.STOPPED);
+                                }}
+                            />
+                        </Box>
 
-/**
- * Swarm with pending approvals
- */
-export function WithPendingApprovals() {
-    const swarmConfig = createMockSwarmConfig({
-        pendingToolCalls: [
-            {
-                pendingId: "pending_001",
-                toolCallId: "call_001",
-                toolName: "premium_competitive_intelligence",
-                toolArguments: JSON.stringify({
-                    companies: ["AAPL", "MSFT", "GOOGL"],
-                    analysis_depth: "comprehensive",
-                }),
-                callerBotId: "competitive_analyst_bot_101",
-                conversationId: "conv_123",
-                requestedAt: Date.now() - 60000,
-                status: PendingToolCallStatus.PENDING_APPROVAL,
-                approvalTimeoutAt: Date.now() + 240000, // 4 minutes remaining
-                executionAttempts: 0,
-            },
-            {
-                pendingId: "pending_002",
-                toolCallId: "call_002",
-                toolName: "expensive_data_analysis",
-                toolArguments: JSON.stringify({
-                    dataset: "market_data_q1_2024",
-                    algorithms: ["regression", "clustering"],
-                }),
-                callerBotId: "trend_analyst_bot_202",
-                conversationId: "conv_123",
-                requestedAt: Date.now() - 30000,
-                status: PendingToolCallStatus.PENDING_APPROVAL,
-                approvalTimeoutAt: Date.now() + 30000, // 30 seconds remaining (urgent!)
-                executionAttempts: 0,
-            },
-        ],
-    });
+                        {/* Status Information */}
+                        <Box sx={{ mt: 4 }}>
+                            <Typography variant="h6" sx={{ mb: 2 }}>Current State</Typography>
+                            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                                <Typography variant="body2">
+                                    <strong>Status:</strong> {status}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Progress:</strong> {
+                                        taskProgress === "none" ? "0%" : 
+                                        taskProgress === "complete" ? "100%" : 
+                                        "25%"
+                                    }
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Credits:</strong> {(() => {
+                                        if (!swarmConfig?.stats.totalCredits) return "$0.00";
+                                        try {
+                                            const credits = BigInt(swarmConfig.stats.totalCredits);
+                                            const usd = Number(credits / BigInt(1e8)) / 100;
+                                            return `$${usd.toFixed(2)}`;
+                                        } catch {
+                                            return "$0.00";
+                                        }
+                                    })()}
+                                </Typography>
+                                <Typography variant="body2">
+                                    <strong>Goal Length:</strong> {getGoalText().length} chars
+                                </Typography>
+                            </Box>
+                        </Box>
 
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={ExecutionStates.RUNNING}
-                onPause={action("onPause")}
-                onResume={action("onResume")}
-                onStop={action("onStop")}
-            />
-        </Box>
-    );
-}
-
-/**
- * Complete swarm (all tasks done)
- */
-export function CompleteSwarm() {
-    const swarmConfig = createMockSwarmConfig({
-        subtasks: createMockSwarmConfig().subtasks!.map(task => ({
-            ...task,
-            status: "done",
-        })) as SwarmSubTask[],
-        stats: {
-            totalToolCalls: 47,
-            totalCredits: "8750",
-            startedAt: Date.now() - 95 * 60 * 1000,
-            lastProcessingCycleEndedAt: Date.now() - 5 * 60 * 1000,
-        },
-        resources: [
-            ...createMockSwarmConfig().resources!,
-            {
-                id: "final_report_q1_2024",
-                kind: "File",
-                mime: "application/pdf",
-                creator_bot_id: "report_writer_bot_303",
-                created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-                meta: { pages: 25, size: 850000 },
-            },
-        ],
-    });
-
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={ExecutionStates.STOPPED}
-            />
-        </Box>
-    );
-}
-
-/**
- * Story with long goal text to test marquee scrolling
- */
-export function LongGoalText() {
-    const [swarmStatus, setSwarmStatus] = useState(ExecutionStates.RUNNING);
-    const swarmConfig = createMockSwarmConfig({
-        goal: "Create a comprehensive market analysis report for Q1 2024 including competitor analysis, growth trends, market opportunities, customer sentiment analysis, technological disruptions, regulatory changes, and strategic recommendations for the next fiscal year",
-    });
-
-    return (
-        <Box sx={{ p: 2, maxWidth: 800, mx: "auto" }}>
-            <SwarmPlayer
-                swarmConfig={swarmConfig}
-                swarmStatus={swarmStatus}
-                onPause={() => {
-                    action("onPause")();
-                    setSwarmStatus(ExecutionStates.PAUSED);
-                }}
-                onResume={() => {
-                    action("onResume")();
-                    setSwarmStatus(ExecutionStates.RUNNING);
-                }}
-                onStop={() => {
-                    action("onStop")();
-                    setSwarmStatus(ExecutionStates.STOPPED);
-                }}
-            />
-        </Box>
-    );
-}
-
-/**
- * Story showing SwarmPlayer with SwarmDetailPanel integration
- */
-export function WithDetailPanel() {
-    const [swarmStatus, setSwarmStatus] = useState(ExecutionStates.RUNNING);
-    const { isOpen: isRightDrawerOpen } = useMenu({
-        id: ELEMENT_IDS.RightDrawer,
-        isMobile: false,
-    });
-    
-    const swarmConfig = createMockSwarmConfig({
-        pendingToolCalls: [
-            {
-                pendingId: "pending_003",
-                toolCallId: "call_003",
-                toolName: "web_search",
-                toolArguments: JSON.stringify({
-                    query: "latest tech market trends 2024",
-                    num_results: 10,
-                }),
-                callerBotId: "trend_analyst_bot_202",
-                conversationId: "conv_123",
-                requestedAt: Date.now() - 120000,
-                status: PendingToolCallStatus.PENDING_APPROVAL,
-                approvalTimeoutAt: Date.now() + 180000,
-                executionAttempts: 0,
-            },
-        ],
-    });
-
-    return (
-        <Box sx={{ display: "flex", height: "100vh" }}>
-            <Box sx={{ flex: 1, p: 2 }}>
-                <Box sx={{ maxWidth: 800, mx: "auto" }}>
-                    <SwarmPlayer
-                        swarmConfig={swarmConfig}
-                        swarmStatus={swarmStatus}
-                        onPause={() => {
-                            action("onPause")();
-                            setSwarmStatus(ExecutionStates.PAUSED);
-                        }}
-                        onResume={() => {
-                            action("onResume")();
-                            setSwarmStatus(ExecutionStates.RUNNING);
-                        }}
-                        onStop={() => {
-                            action("onStop")();
-                            setSwarmStatus(ExecutionStates.STOPPED);
-                        }}
-                    />
+                        {/* Action Buttons Info */}
+                        <Box sx={{ mt: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                Click anywhere on the player to open the detail panel. 
+                                Action buttons (pause/resume/stop) are shown based on the current status.
+                                {goalLength === "long" && " Long text will scroll with a marquee effect."}
+                            </Typography>
+                        </Box>
+                    </Box>
                 </Box>
             </Box>
-            
-            {/* Simulate right drawer */}
-            <Box
-                sx={{
-                    width: isRightDrawerOpen ? 400 : 0,
-                    height: "100%",
-                    borderLeft: 1,
-                    borderColor: "divider",
-                    overflow: "hidden",
-                    transition: "width 0.3s ease",
-                }}
-            >
-                {isRightDrawerOpen && (
-                    <SwarmDetailPanel
-                        swarmConfig={swarmConfig}
-                        swarmStatus={swarmStatus}
-                        onApproveToolCall={action("onApproveToolCall")}
-                        onRejectToolCall={action("onRejectToolCall")}
-                    />
-                )}
-            </Box>
-        </Box>
-    );
-}
+        );
+    },
+};

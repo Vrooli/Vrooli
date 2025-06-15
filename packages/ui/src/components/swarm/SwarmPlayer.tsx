@@ -90,6 +90,7 @@ const ControlSection = styled(Box)(({ theme }) => ({
 export interface SwarmPlayerProps {
     swarmConfig: ChatConfigObject | null;
     swarmStatus?: string;
+    chatId?: string | null;
     onPause?: () => void;
     onResume?: () => void;
     onStop?: () => void;
@@ -103,6 +104,7 @@ export interface SwarmPlayerProps {
 export function SwarmPlayer({
     swarmConfig,
     swarmStatus = ExecutionStates.UNINITIALIZED,
+    chatId,
     onPause = noop,
     onResume = noop,
     onStop = noop,
@@ -125,13 +127,18 @@ export function SwarmPlayer({
         return Math.round((completed / swarmConfig.subtasks.length) * 100);
     }, [swarmConfig?.subtasks]);
 
-    // Format credits for display
+    // Format credits for display as USD
     const formattedCredits = useMemo(() => {
-        if (!swarmConfig?.stats?.totalCredits) return "0";
-        const credits = BigInt(swarmConfig.stats.totalCredits);
-        if (credits < 1000n) return credits.toString();
-        if (credits < 1000000n) return `${(Number(credits) / 1000).toFixed(1)}K`;
-        return `${(Number(credits) / 1000000).toFixed(1)}M`;
+        if (!swarmConfig?.stats?.totalCredits) return "$0.00";
+        try {
+            const credits = BigInt(swarmConfig.stats.totalCredits);
+            // Convert credits to USD: 1 USD = 100,000,000 credits
+            const usd = Number(credits / BigInt(1e8)) / 100;
+            return `$${usd.toFixed(2)}`;
+        } catch (error) {
+            console.error("Error formatting credits:", error);
+            return "$0.00";
+        }
     }, [swarmConfig?.stats?.totalCredits]);
 
     // Get status display text
@@ -158,16 +165,16 @@ export function SwarmPlayer({
     const statusIcon = useMemo(() => {
         switch (swarmStatus) {
             case ExecutionStates.RUNNING:
-                return "PlayCircle";
+                return "Play";
             case ExecutionStates.PAUSED:
-                return "PauseCircle";
+                return "Pause";
             case ExecutionStates.FAILED:
-                return "ErrorOutline";
+                return "Error";
             case ExecutionStates.STOPPED:
             case ExecutionStates.TERMINATED:
-                return "StopCircle";
+                return "Cancel";
             default:
-                return "CircleOutlined";
+                return "Info";
         }
     }, [swarmStatus]);
 
@@ -178,6 +185,7 @@ export function SwarmPlayer({
             isOpen: true,
             data: { 
                 view: "swarmDetail",
+                chatId,
                 swarmConfig,
                 swarmStatus,
                 onApproveToolCall: (pendingId: string) => {
@@ -190,7 +198,7 @@ export function SwarmPlayer({
                 },
             }
         });
-    }, [swarmConfig, swarmStatus]);
+    }, [chatId, swarmConfig, swarmStatus]);
 
     // Check if goal text overflows
     useEffect(() => {
@@ -253,7 +261,7 @@ export function SwarmPlayer({
                                 )}
                                 
                                 <CreditDisplay>
-                                    {formattedCredits} {t("Credits")}
+                                    {formattedCredits}
                                 </CreditDisplay>
                             </InfoSection>
 
@@ -305,6 +313,8 @@ export function SwarmPlayer({
                                     "& .MuiLinearProgress-bar": {
                                         bgcolor: swarmStatus === ExecutionStates.FAILED 
                                             ? "error.main" 
+                                            : progress === 100
+                                            ? "success.main"
                                             : "primary.main",
                                     },
                                 }}

@@ -1,14 +1,15 @@
-import { Box, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Paper, Typography, Chip, Tooltip, LinearProgress, Alert } from "@mui/material";
+import { Alert, Box, Chip, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from "@mui/material";
 import { styled, useTheme } from "@mui/material/styles";
-import { ChatConfigObject, ExecutionStates, SwarmSubTask, SwarmResource, ChatToolCallRecord, PendingToolCallStatus, PendingToolCallEntry, getTranslation } from "@vrooli/shared";
-import { useCallback, useMemo, useState } from "react";
+import { ChatConfigObject, ExecutionStates, PendingToolCallStatus } from "@vrooli/shared";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SessionContext } from "../../contexts/session.js";
+import { useSwarmData } from "../../hooks/useSwarmData.js";
+import { useSocketSwarm } from "../../hooks/useSocketSwarm.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
-import { PubSub } from "../../utils/pubsub.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
-import { useContext } from "react";
-import { SessionContext } from "../../contexts/session.js";
+import { PubSub } from "../../utils/pubsub.js";
 import { PageTabs } from "../PageTabs/PageTabs.js";
 
 const PanelContainer = styled(Box)(({ theme }) => ({
@@ -83,6 +84,8 @@ const StatBox = styled(Box)(({ theme }) => ({
     textAlign: "center",
     borderRadius: theme.shape.borderRadius,
     backgroundColor: theme.palette.action.hover,
+    minWidth: "120px",
+    flexShrink: 0,
 }));
 
 interface TabPanelProps {
@@ -91,14 +94,15 @@ interface TabPanelProps {
     value: number;
 }
 
-function CustomTabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
+function CustomTabPanel(props: TabPanelProps & { sx?: any }) {
+    const { children, value, index, sx, ...other } = props;
     return (
         <TabPanel
             role="tabpanel"
             hidden={value !== index}
             id={`swarm-tabpanel-${index}`}
             aria-labelledby={`swarm-tab-${index}`}
+            sx={sx}
             {...other}
         >
             {value === index && children}
@@ -109,8 +113,10 @@ function CustomTabPanel(props: TabPanelProps) {
 export interface SwarmDetailPanelProps {
     swarmConfig: ChatConfigObject | null;
     swarmStatus?: string;
+    chatId?: string | null;
     onApproveToolCall?: (pendingId: string) => void;
     onRejectToolCall?: (pendingId: string, reason?: string) => void;
+    onConfigUpdate?: (config: Partial<ChatConfigObject>) => void;
 }
 
 /**
@@ -118,16 +124,70 @@ export interface SwarmDetailPanelProps {
  * Displayed in the right drawer when SwarmPlayer is clicked.
  */
 export function SwarmDetailPanel({
-    swarmConfig,
+    swarmConfig: initialSwarmConfig,
     swarmStatus = ExecutionStates.UNINITIALIZED,
+    chatId,
     onApproveToolCall,
     onRejectToolCall,
+    onConfigUpdate,
 }: SwarmDetailPanelProps) {
     const { t } = useTranslation();
     const theme = useTheme();
     const session = useContext(SessionContext);
     const languages = useMemo(() => getUserLanguages(session), [session]);
     
+    // Local state for swarm config to handle real-time updates
+    const [swarmConfig, setSwarmConfig] = useState<ChatConfigObject | null>(initialSwarmConfig);
+    const [localSwarmStatus, setLocalSwarmStatus] = useState(swarmStatus);
+    
+    // Update local state when props change
+    useEffect(() => {
+        setSwarmConfig(initialSwarmConfig);
+    }, [initialSwarmConfig]);
+    
+    useEffect(() => {
+        setLocalSwarmStatus(swarmStatus);
+    }, [swarmStatus]);
+    
+    // Load referenced data (bots, resources, teams)
+    const { bots, resources, team, loading, errors, getBotById, getResourceById } = useSwarmData(swarmConfig);
+    
+    // Handle socket events for real-time updates
+    useSocketSwarm({
+        chatId,
+        onConfigUpdate: useCallback((configUpdate) => {
+            setSwarmConfig(prev => prev ? { ...prev, ...configUpdate } : null);
+            onConfigUpdate?.(configUpdate);
+        }, [onConfigUpdate]),
+        onStateUpdate: useCallback((stateUpdate) => {
+            setLocalSwarmStatus(stateUpdate.state);
+        }, []),
+        onResourceUpdate: useCallback((resourceUpdate) => {
+            // Update stats with resource consumption
+            setSwarmConfig(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    stats: {
+                        ...prev.stats,
+                        totalCredits: resourceUpdate.resources.consumed.toString(),
+                    },
+                };
+            });
+        }, []),
+        onTeamUpdate: useCallback((teamUpdate) => {
+            setSwarmConfig(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    teamId: teamUpdate.teamId || prev.teamId,
+                    swarmLeader: teamUpdate.swarmLeader || prev.swarmLeader,
+                    subtaskLeaders: teamUpdate.subtaskLeaders || prev.subtaskLeaders,
+                };
+            });
+        }, []),
+    });
+
     // Configure tabs for PageTabs component
     const tabOptions = useMemo(() => [
         { key: "tasks", label: t("Tasks"), index: 0, iconInfo: { name: "Reminder" as const, type: "Common" as const } },
@@ -136,7 +196,7 @@ export function SwarmDetailPanel({
         { key: "approvals", label: t("Approvals"), index: 3, iconInfo: { name: "Lock" as const, type: "Common" as const } },
         { key: "history", label: t("History"), index: 4, iconInfo: { name: "History" as const, type: "Common" as const } },
     ], [t]);
-    
+
     const [currTab, setCurrTab] = useState(tabOptions[0]);
 
     const handleTabChange = useCallback((event: React.SyntheticEvent, tab: typeof tabOptions[0]) => {
@@ -144,9 +204,9 @@ export function SwarmDetailPanel({
     }, []);
 
     const handleClose = useCallback(() => {
-        PubSub.get().publish("menu", { 
-            id: ELEMENT_IDS.RightDrawer, 
-            isOpen: false 
+        PubSub.get().publish("menu", {
+            id: ELEMENT_IDS.RightDrawer,
+            isOpen: false
         });
     }, []);
 
@@ -161,8 +221,8 @@ export function SwarmDetailPanel({
             tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL
         ).length || 0;
 
-        const elapsedTime = swarmConfig.stats.startedAt 
-            ? Date.now() - swarmConfig.stats.startedAt 
+        const elapsedTime = swarmConfig.stats.startedAt
+            ? Date.now() - swarmConfig.stats.startedAt
             : 0;
 
         return {
@@ -181,7 +241,7 @@ export function SwarmDetailPanel({
         const seconds = Math.floor(ms / 1000);
         const minutes = Math.floor(seconds / 60);
         const hours = Math.floor(minutes / 60);
-        
+
         if (hours > 0) {
             return t("SwarmElapsedHours", { hours, minutes: minutes % 60 });
         } else if (minutes > 0) {
@@ -195,17 +255,17 @@ export function SwarmDetailPanel({
     const getTaskIcon = useCallback((status: string) => {
         switch (status) {
             case "done":
-                return "CheckCircle";
+                return "Complete";
             case "in_progress":
-                return "Loop";
+                return "Refresh";
             case "failed":
                 return "Cancel";
             case "blocked":
-                return "Block";
+                return "Lock";
             case "canceled":
-                return "DoNotDisturb";
+                return "Cancel";
             default:
-                return "RadioButtonUnchecked";
+                return "Info";
         }
     }, []);
 
@@ -213,17 +273,17 @@ export function SwarmDetailPanel({
     const getResourceIcon = useCallback((kind: string) => {
         switch (kind) {
             case "File":
-                return "Description";
+                return "File";
             case "URL":
                 return "Link";
             case "Image":
                 return "Image";
             case "Vector":
-                return "DataArray";
+                return "Grid";
             case "Note":
-                return "StickyNote";
+                return "Note";
             default:
-                return "Folder";
+                return "File";
         }
     }, []);
 
@@ -244,6 +304,9 @@ export function SwarmDetailPanel({
             </PanelContainer>
         );
     }
+    
+    // Show loading indicator while fetching referenced data
+    const isLoading = loading.bots || loading.resources || loading.team;
 
     return (
         <PanelContainer>
@@ -260,8 +323,27 @@ export function SwarmDetailPanel({
             </PanelHeader>
 
             {/* Statistics Overview */}
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-                <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1}>
+            <Box sx={{
+                p: 2,
+                borderBottom: 1,
+                borderColor: "divider",
+                overflowX: "auto",
+                "&::-webkit-scrollbar": {
+                    height: 6,
+                },
+                "&::-webkit-scrollbar-track": {
+                    backgroundColor: "transparent",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: "divider",
+                    borderRadius: 3,
+                },
+            }}>
+                <Box
+                    display="grid"
+                    gridTemplateColumns="repeat(3, 1fr)"
+                    gap={1}
+                    sx={{ minWidth: "fit-content" }}>
                     <StatBox>
                         <Typography variant="caption" color="text.secondary">
                             {t("TasksComplete")}
@@ -275,7 +357,16 @@ export function SwarmDetailPanel({
                             {t("CreditsUsed")}
                         </Typography>
                         <Typography variant="h6">
-                            {stats?.credits.toLocaleString()}
+                            {(() => {
+                                if (!stats?.credits) return "$0.00";
+                                try {
+                                    const usd = Number(stats.credits / BigInt(1e8)) / 100;
+                                    return `$${usd.toFixed(2)}`;
+                                } catch (error) {
+                                    console.error("Error formatting credits:", error);
+                                    return "$0.00";
+                                }
+                            })()}
                         </Typography>
                     </StatBox>
                     <StatBox>
@@ -287,7 +378,7 @@ export function SwarmDetailPanel({
                         </Typography>
                     </StatBox>
                 </Box>
-                
+
                 {stats?.pendingApprovals && stats.pendingApprovals > 0 && (
                     <Alert severity="warning" sx={{ mt: 2 }}>
                         {t("PendingApprovals", { count: stats.pendingApprovals })}
@@ -295,13 +386,13 @@ export function SwarmDetailPanel({
                 )}
             </Box>
 
-            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
                 <PageTabs
                     ariaLabel="swarm-detail-tabs"
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabOptions}
-                    fullWidth={false}
+                    fullWidth={true}
                 />
             </Box>
 
@@ -310,34 +401,22 @@ export function SwarmDetailPanel({
                 <List>
                     {swarmConfig.subtasks?.map((task) => (
                         <TaskItem key={task.id} status={task.status}>
-                            <ListItemIcon>
-                                <IconCommon name={getTaskIcon(task.status)} />
-                            </ListItemIcon>
                             <ListItemText
                                 primary={
                                     <Box display="flex" alignItems="center" gap={1}>
+                                        {task.priority && (
+                                            <IconCommon name={getTaskIcon(task.status)} />
+                                        )}
                                         <Typography variant="body1">
                                             {task.description}
                                         </Typography>
-                                        {task.priority && (
-                                            <Chip 
-                                                label={task.priority}
-                                                size="small"
-                                                color={
-                                                    task.priority === "high" ? "error" :
-                                                    task.priority === "medium" ? "warning" :
-                                                    "default"
-                                                }
-                                                variant="outlined"
-                                            />
-                                        )}
                                     </Box>
                                 }
                                 secondary={
                                     <Box>
                                         {task.assignee_bot_id && (
                                             <Typography variant="caption" color="text.secondary">
-                                                {t("AssignedTo")}: {task.assignee_bot_id}
+                                                {t("AssignedTo")}: {getBotById(task.assignee_bot_id)?.name || task.assignee_bot_id}
                                             </Typography>
                                         )}
                                         {task.depends_on && task.depends_on.length > 0 && (
@@ -361,27 +440,27 @@ export function SwarmDetailPanel({
             </CustomTabPanel>
 
             {/* Agents Tab */}
-            <CustomTabPanel value={currTab.index} index={1}>
+            <CustomTabPanel value={currTab.index} index={1} sx={{ p: 0 }}>
                 <List>
                     {swarmConfig.swarmLeader && (
                         <ListItem>
                             <ListItemIcon>
-                                <IconCommon name="Star" color="warning" />
+                                <IconCommon name="Award" fill="warning.main" />
                             </ListItemIcon>
                             <ListItemText
                                 primary={t("SwarmLeader")}
-                                secondary={swarmConfig.swarmLeader}
+                                secondary={swarmConfig.swarmLeader ? (getBotById(swarmConfig.swarmLeader)?.name || swarmConfig.swarmLeader) : "Unknown"}
                             />
                         </ListItem>
                     )}
                     {swarmConfig.teamId && (
                         <ListItem>
                             <ListItemIcon>
-                                <IconCommon name="Group" />
+                                <IconCommon name="Team" />
                             </ListItemIcon>
                             <ListItemText
                                 primary={t("Team")}
-                                secondary={swarmConfig.teamId}
+                                secondary={team?.name || swarmConfig.teamId}
                             />
                         </ListItem>
                     )}
@@ -392,11 +471,11 @@ export function SwarmDetailPanel({
                     {swarmConfig.subtaskLeaders && Object.entries(swarmConfig.subtaskLeaders).map(([taskId, botId]) => (
                         <ListItem key={taskId}>
                             <ListItemIcon>
-                                <IconCommon name="SmartToy" />
+                                <IconCommon name="Bot" />
                             </ListItemIcon>
                             <ListItemText
                                 primary={taskId}
-                                secondary={botId}
+                                secondary={getBotById(botId)?.name || botId}
                             />
                         </ListItem>
                     ))}
@@ -411,14 +490,14 @@ export function SwarmDetailPanel({
                             <IconCommon name={getResourceIcon(resource.kind)} size={32} />
                             <Box flex={1}>
                                 <Typography variant="body1" fontWeight="medium">
-                                    {resource.id}
+                                    {getResourceById(resource.id)?.name || resource.id}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
                                     {resource.kind} • {resource.mime || t("Unknown")}
                                 </Typography>
                                 {resource.meta && (
                                     <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                                        {Object.entries(resource.meta).map(([key, value]) => 
+                                        {Object.entries(resource.meta).map(([key, value]) =>
                                             `${key}: ${value}`
                                         ).join(" • ")}
                                     </Typography>
@@ -441,7 +520,7 @@ export function SwarmDetailPanel({
                 {swarmConfig.pendingToolCalls
                     ?.filter(tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL)
                     .map((toolCall) => {
-                        const timeRemaining = toolCall.approvalTimeoutAt 
+                        const timeRemaining = toolCall.approvalTimeoutAt
                             ? toolCall.approvalTimeoutAt - Date.now()
                             : null;
                         const isUrgent = timeRemaining && timeRemaining < 60000; // Less than 1 minute
@@ -454,7 +533,7 @@ export function SwarmDetailPanel({
                                             {toolCall.toolName}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            {t("RequestedBy")}: {toolCall.callerBotId}
+                                            {t("RequestedBy")}: {getBotById(toolCall.callerBotId)?.name || toolCall.callerBotId}
                                         </Typography>
                                     </Box>
                                     {timeRemaining && timeRemaining > 0 && (
@@ -465,10 +544,10 @@ export function SwarmDetailPanel({
                                         />
                                     )}
                                 </Box>
-                                
-                                <Box sx={{ 
-                                    p: 1.5, 
-                                    bgcolor: "background.default", 
+
+                                <Box sx={{
+                                    p: 1.5,
+                                    bgcolor: "background.default",
                                     borderRadius: 1,
                                     mb: 2,
                                     fontFamily: "monospace",
@@ -498,14 +577,14 @@ export function SwarmDetailPanel({
                             </ApprovalCard>
                         );
                     })}
-                {(!swarmConfig.pendingToolCalls || 
-                  swarmConfig.pendingToolCalls.filter(tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL).length === 0) && (
-                    <Box textAlign="center" py={3}>
-                        <Typography color="text.secondary">
-                            {t("NoPendingApprovals")}
-                        </Typography>
-                    </Box>
-                )}
+                {(!swarmConfig.pendingToolCalls ||
+                    swarmConfig.pendingToolCalls.filter(tc => tc.status === PendingToolCallStatus.PENDING_APPROVAL).length === 0) && (
+                        <Box textAlign="center" py={3}>
+                            <Typography color="text.secondary">
+                                {t("NoPendingApprovals")}
+                            </Typography>
+                        </Box>
+                    )}
             </CustomTabPanel>
 
             {/* History Tab */}
