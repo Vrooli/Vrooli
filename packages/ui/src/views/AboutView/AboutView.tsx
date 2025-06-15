@@ -126,7 +126,7 @@ const memberButtonProps = {
 const teamMembers: MemberData[] = [
     {
         fullName: "Matt Halloran",
-        role: "Leader/developer",
+        role: "Founder & Chief Architect",
         photo: MattProfilePic,
         socials: {
             website: "https://matthalloran.info",
@@ -196,7 +196,7 @@ export function AboutView(_props: ViewProps) {
                         >
                             <Box position="relative" zIndex={1}>
                                 <GradientText variant="h3" component="h1" gutterBottom fontWeight="bold" textAlign="center">
-                                    Vrooli: Automate, Collaborate, Evolve <RotatedBox>👋</RotatedBox>
+                                    Vrooli: Where AI Builds Better AI <RotatedBox>🚀</RotatedBox>
                                 </GradientText>
                                 <Typography 
                                     variant="h6" 
@@ -204,13 +204,13 @@ export function AboutView(_props: ViewProps) {
                                     textAlign="center"
                                     sx={{ 
                                         color: palette.text.secondary,
-                                        maxWidth: "600px",
+                                        maxWidth: "700px",
                                         margin: "0 auto",
                                         lineHeight: 1.6,
                                         fontSize: { xs: "1.1rem", md: "1.25rem" },
                                     }}
                                 >
-                                    Welcome to Vrooli, the platform designed to delegate like a billionaire! Let our AI agents handle the details so you can focus on what truly matters. We empower users to create autonomous agents, build dynamic teams, and run powerful routines to automate workflows with unprecedented efficiency.
+                                    Experience the world's first <strong>recursive intelligence platform</strong>—where AI agents don't just execute tasks, they evolve. Through collaborative swarms and compound knowledge effects, we're building systems that improve themselves exponentially, making billionaire-level productivity accessible to everyone.
                                 </Typography>
                             </Box>
                         </Box>
@@ -218,14 +218,14 @@ export function AboutView(_props: ViewProps) {
 
                     <Stack spacing={5}>
                         {[
-                            { icon: <IconCommon name="Bot" />, title: "Autonomous Agents", text: "Create AI-driven bots, known as autonomous agents, capable of performing tasks without constant human supervision. Interact with them through chat to complete various tasks, from managing projects to automating workflows. These agents provide reliable support around the clock, making your life easier and your operations smoother.", color: "#FF6B6B" },
-                            { icon: <IconCommon name="Team" />, title: "Dynamic Teams", text: "Organize users and bots into teams with assigned roles. Teams collaborate towards specific goals, such as building a business, conducting research, or any project benefiting from collaboration. Add or remove bots anytime, providing flexibility to grow and reshape your initiatives without traditional overhead.", color: "#4ECDC4" },
-                            { icon: <IconRoutine name="Routine" />, title: "Powerful Routines", text: "Accomplish tasks using routines—reusable building blocks combining standards, APIs, code, and more. Tailor routines for any purpose, like internal processes, tutorials, or cognitive architectures for bots. Routines can be run by users, bots, or both, enabling seamless collaboration and consistent, automated workflows. Routines are polymorphic, meaning their output adapts based on the executing agent's unique personality and role.", color: "#45B7D1" },
-                            { icon: <IconCommon name="Refresh" />, title: "Recursive Self-Improvement", text: "At the heart of Vrooli is recursive self-improvement. Bots utilize cognitive routines to continuously enhance their own capabilities and those of the platform. By analyzing metrics and identifying inefficiencies, routines (and the routines that improve routines) are constantly refined, enabling the platform to evolve and become more efficient over time.", color: "#96CEB4" },
-                            { icon: <IconCommon name="Comment" />, title: "Integrated Human and Bot Collaboration", text: "Vrooli's platform seamlessly integrates human and bot employees within teams. Engage with multiple bots and humans in the same conversation, facilitating smooth collaboration. Our upcoming messaging features will further enhance interaction, allowing users to guide, provide feedback to, and assign tasks to bots within their team environment.", color: "#FFEAA7" },
-                            { icon: <IconCommon name="Wallet" />, title: "Reducing Costs Through Collaboration", text: "Vrooli tackles the high costs of starting and maintaining organizations. Since routines can be publicly shared and improved, humans and bots collaborate to enhance all teams simultaneously. As automation increases, the cost of running operations drops significantly, benefiting consumers, supporting growth, or enhancing employee benefits. Anyone can copy a public team, gaining access to refined processes and on-demand bot employees at no extra cost.", color: "#DDA0DD" },
-                            { icon: <IconCommon name="HeartFilled" />, title: "Our Commitment", text: "At Vrooli, we're committed to ethical and beneficial outcomes. We prioritize responsible development and transparency. Our platform operates under the AGPLv3 license, ensuring that the software and its improvements remain free and open-source, fostering a collaborative ecosystem where technology serves society transparently and reliably.", color: "#FDA085" },
-                            { icon: <IconService name="GitHub" />, title: "Get Involved", text: () => (<>Join us in building the future of automation! Explore Vrooli and see how our platform enables transparent and reliable autonomous systems. Visit our <Link href={SOCIALS.GitHub} target="_blank" rel="noopener">GitHub page</Link> to learn more, contribute, or join the team. We look forward to collaborating with you!</>), color: "#A8E6CF" },
+                            { icon: <IconCommon name="Bot" />, title: "Three-Tier Intelligence Architecture", text: "Experience the future of AI coordination through our revolutionary three-tier system: Coordination Intelligence orchestrates swarms through metacognition, Process Intelligence provides universal workflow execution (BPMN, Langchain, Temporal), and Execution Intelligence delivers context-aware processing that evolves from conversational to deterministic strategies. Every tier works in perfect harmony to create compound intelligence effects.", color: "#FF6B6B" },
+                            { icon: <IconCommon name="Team" />, title: "Dynamic Swarm Intelligence", text: "Unlike rigid automation, our swarms assemble dynamically around objectives, then gracefully disband when complete. Using MOISE+ organizational modeling, agents form sophisticated hierarchies with specialized roles—from security monitoring to performance optimization. Teams provide strategic direction while swarms handle tactical execution with unprecedented flexibility.", color: "#4ECDC4" },
+                            { icon: <IconRoutine name="Routine" />, title: "Evolutionary Routines", text: "Routines aren't just workflows—they're living intelligence that evolves. Starting as conversational interactions, they progress through reasoning frameworks to become deterministic automation. With recursive composition and unlimited nesting, every routine becomes a building block for more sophisticated capabilities. The result? Exponential growth in what your agents can accomplish.", color: "#45B7D1" },
+                            { icon: <IconCommon name="Refresh" />, title: "Compound Knowledge Effects", text: "This is where the magic happens: every routine executed, every pattern learned, every improvement made compounds throughout the entire system. Optimization agents analyze execution patterns and propose enhancements. Success patterns propagate across teams. The system doesn't just get better—it gets better at getting better, creating true recursive self-improvement.", color: "#96CEB4" },
+                            { icon: <IconCommon name="Comment" />, title: "Event-Driven Intelligence", text: "Instead of hard-coded features, specialized agent swarms subscribe to events and provide capabilities through reactive intelligence. Security agents monitor threats and evolve defenses. Quality agents detect bias and validate outputs. Performance agents identify bottlenecks and optimize resource usage. The system gains new capabilities simply by deploying new agent swarms.", color: "#FFEAA7" },
+                            { icon: <IconCommon name="Wallet" />, title: "Democratizing Billionaire Productivity", text: "By enabling compound knowledge effects and collaborative improvement, we're making elite-level productivity accessible to everyone. Routines evolve from 450 credits and 5+ minutes to 75 credits and 45 seconds while improving quality. Teams share successful patterns. The cost of automation drops exponentially while capabilities grow. This is how we level the playing field.", color: "#DDA0DD" },
+                            { icon: <IconCommon name="HeartFilled" />, title: "Built for Responsible AI", text: "Our multi-layered security architecture addresses both traditional and AI-specific threats. Synchronous guard rails provide sub-10ms safety checks. Adaptive security agents evolve defenses in real-time. Privacy preservation through sensitivity classification. Complete audit transparency. All open-source under AGPLv3, ensuring this technology serves humanity transparently.", color: "#FDA085" },
+                            { icon: <IconService name="GitHub" />, title: "Join the Revolution", text: () => (<>Be part of building the future where AI systems enhance their own capabilities. Whether you're interested in Kubernetes orchestration, API development, or AI architecture, there's a place for you. Check out our <Link href={SOCIALS.GitHub} target="_blank" rel="noopener">GitHub</Link> and help us build the infrastructure for recursive intelligence!</>), color: "#A8E6CF" },
                         ].map((section, index) => (
                             <Grow
                                 key={section.title}
@@ -305,6 +305,46 @@ export function AboutView(_props: ViewProps) {
                         ))}
                     </Stack>
 
+                    <Fade in timeout={1000}>
+                        <Box
+                            p={{ xs: 4, md: 6 }}
+                            borderRadius={4}
+                            sx={{
+                                background: `linear-gradient(135deg, ${palette.secondary.main}10, ${palette.primary.main}05)`,
+                                border: `1px solid ${palette.secondary.main}20`,
+                                textAlign: "center",
+                                position: "relative",
+                                overflow: "hidden",
+                                "&::after": {
+                                    content: '""',
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    background: `radial-gradient(circle at center, ${palette.secondary.main}05, transparent 70%)`,
+                                    animation: `${pulseGlow} 4s ease-in-out infinite`,
+                                },
+                            }}
+                        >
+                            <Box position="relative" zIndex={1}>
+                                <Typography variant="h4" component="h2" gutterBottom fontWeight="bold" color="primary">
+                                    The Future Isn't Built—It Builds Itself
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: palette.text.secondary, maxWidth: "800px", margin: "0 auto", lineHeight: 1.7 }}>
+                                    Traditional AI gives you tools. Vrooli gives you <strong>evolving intelligence</strong>. 
+                                    Every day, our platform becomes more capable through compound knowledge effects and recursive improvement. 
+                                    We're not just automating tasks—we're creating the infrastructure for AI systems that enhance their own capabilities.
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: palette.text.secondary, maxWidth: "800px", margin: "2rem auto 0", lineHeight: 1.7 }}>
+                                    <em>"Big ideas deserve big teams"</em>—and now, everyone can have one. 
+                                    Launch your first swarm in under a minute. Watch it grow. See it evolve. 
+                                    Experience what happens when intelligence truly compounds.
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Fade>
+
                     <Fade in timeout={1200}>
                         <Box
                             mt={6}
@@ -328,9 +368,12 @@ export function AboutView(_props: ViewProps) {
                             }}
                         >
                             <Box position="relative" zIndex={1}>
-                                <GradientText variant='h3' component="h2" pb={4} textAlign="center" fontWeight="bold">
-                                    Meet The Team
+                                <GradientText variant='h3' component="h2" pb={2} textAlign="center" fontWeight="bold">
+                                    Building the Future Together
                                 </GradientText>
+                                <Typography variant="h6" pb={4} textAlign="center" sx={{ color: palette.text.secondary, maxWidth: "600px", margin: "0 auto" }}>
+                                    While AI builds better AI, humans guide the vision. Meet the team creating the infrastructure for recursive intelligence.
+                                </Typography>
                         <Stack id="members-stack" direction="column" spacing={4}>
                             {teamMembers.map((member, key) => {
                                 function openPersonalWebsite() {
