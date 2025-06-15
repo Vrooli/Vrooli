@@ -86,6 +86,7 @@ CREATE TABLE "api_key_external" (
     "service" VARCHAR(128) NOT NULL,
     "teamId" BIGINT,
     "userId" BIGINT,
+    "resourceId" BIGINT,
 
     CONSTRAINT "api_key_external_pkey" PRIMARY KEY ("id")
 );
@@ -988,6 +989,7 @@ CREATE TABLE "user" (
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
     "accountTabsOrder" VARCHAR(255),
     "botSettings" JSONB DEFAULT '{}',
+    "creditSettings" JSONB DEFAULT '{}',
     "notificationSettings" VARCHAR(2048),
     "bookmarks" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
@@ -1009,6 +1011,11 @@ CREATE TABLE "user_auth" (
     "lastResetPasswordRequestAttempt" TIMESTAMPTZ(6),
     "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMPTZ(6) NOT NULL,
+    "access_token" VARCHAR(1024),
+    "refresh_token" VARCHAR(1024),
+    "token_expires_at" TIMESTAMPTZ(6),
+    "granted_scopes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "last_used_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "user_auth_pkey" PRIMARY KEY ("id")
 );
@@ -1093,6 +1100,9 @@ CREATE INDEX "idx_api_key_external_userId" ON "api_key_external"("userId");
 
 -- CreateIndex
 CREATE INDEX "idx_api_key_external_teamId" ON "api_key_external"("teamId");
+
+-- CreateIndex
+CREATE INDEX "idx_api_key_external_resourceId" ON "api_key_external"("resourceId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "api_key_external_userId_service_name_key" ON "api_key_external"("userId", "service", "name");
@@ -1801,6 +1811,9 @@ ALTER TABLE "api_key_external" ADD CONSTRAINT "api_key_external_teamId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "api_key_external" ADD CONSTRAINT "api_key_external_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "api_key_external" ADD CONSTRAINT "api_key_external_resourceId_fkey" FOREIGN KEY ("resourceId") REFERENCES "resource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookmark" ADD CONSTRAINT "bookmark_listId_fkey" FOREIGN KEY ("listId") REFERENCES "bookmark_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;

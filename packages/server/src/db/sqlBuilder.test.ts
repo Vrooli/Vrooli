@@ -1,5 +1,5 @@
-import { expect } from "chai";
-import sinon from "sinon";
+import { expect, describe, it } from "vitest";
+
 import { ModelMap } from "../models/base/index.js";
 import { JoinType, SqlBuilder } from "./sqlBuilder.js";
 
@@ -29,15 +29,15 @@ describe("SqlBuilder", () => {
     // Basic initialization and query structure tests
     describe("Basic functionality", () => {
         it("initializes with correct FROM clause", () => {
-            expect(builder.serialize()).to.include("FROM \"Meeting_table\" AS \"a\"");
+            expect(builder.serialize()).toContain("FROM \"Meeting_table\" AS \"a\"");
         });
 
         it("uses '*' when no SELECT fields are added", () => {
-            expect(builder.serialize()).to.include("SELECT * FROM");
+            expect(builder.serialize()).toContain("SELECT * FROM");
         });
 
         it("generates correct query with semicolon terminator", () => {
-            expect(builder.serialize().endsWith(";")).to.be.true;
+            expect(builder.serialize().endsWith(";")).toBe(true);
         });
 
         it("throws error when exceeding alias limit", () => {
@@ -45,7 +45,7 @@ describe("SqlBuilder", () => {
                 for (let i = 0; i < 27; i++) {  // Exceeds the 26 character limit
                     builder.addJoin(`Table${i}` as any, JoinType.LEFT, `Meeting.id = Table${i}.meetingId`);
                 }
-            }).to.throw();
+            }).toThrow();
         });
     });
 
@@ -54,13 +54,13 @@ describe("SqlBuilder", () => {
         it("correctly assigns aliases and builds SELECT clause", () => {
             builder.addSelect("Meeting", "id");
             builder.addSelect("Meeting", "title", "meetingTitle");
-            expect(builder.serialize()).to.equal("SELECT \"a\".\"id\", \"a\".\"title\" AS \"meetingTitle\" FROM \"Meeting_table\" AS \"a\";");
+            expect(builder.serialize()).toBe("SELECT \"a\".\"id\", \"a\".\"title\" AS \"meetingTitle\" FROM \"Meeting_table\" AS \"a\";");
         });
 
         it("adds a raw SQL expression to the SELECT clause", () => {
             const rawSQL = "COUNT(DISTINCT \"user_id\") AS \"uniqueUsers\"";
             builder.addSelectRaw(rawSQL);
-            expect(builder.serialize()).to.equal(`SELECT ${rawSQL} FROM "Meeting_table" AS "a";`);
+            expect(builder.serialize()).toBe(`SELECT ${rawSQL} FROM "Meeting_table" AS "a";`);
         });
 
         it("handles multiple raw SQL expressions in the SELECT clause", () => {
@@ -68,21 +68,21 @@ describe("SqlBuilder", () => {
             const rawSQL2 = "SUM(\"duration\") AS \"totalDuration\"";
             builder.addSelectRaw(rawSQL1);
             builder.addSelectRaw(rawSQL2);
-            expect(builder.serialize()).to.equal(`SELECT ${rawSQL1}, ${rawSQL2} FROM "Meeting_table" AS "a";`);
+            expect(builder.serialize()).toBe(`SELECT ${rawSQL1}, ${rawSQL2} FROM "Meeting_table" AS "a";`);
         });
 
         it("handles both SELECT fields and raw SQL expressions", () => {
             builder.addSelect("Meeting", "id");
             const rawSQL = "COUNT(DISTINCT \"user_id\") AS \"uniqueUsers\"";
             builder.addSelectRaw(rawSQL);
-            expect(builder.serialize()).to.equal(`SELECT "a"."id", ${rawSQL} FROM "Meeting_table" AS "a";`);
+            expect(builder.serialize()).toBe(`SELECT "a"."id", ${rawSQL} FROM "Meeting_table" AS "a";`);
         });
 
         it("maintains select order as added", () => {
             builder.addSelect("Meeting", "id");
             builder.addSelectRaw("COUNT(*) AS total");
             builder.addSelect("Meeting", "title");
-            expect(builder.serialize()).to.equal("SELECT \"a\".\"id\", COUNT(*) AS total, \"a\".\"title\" FROM \"Meeting_table\" AS \"a\";");
+            expect(builder.serialize()).toBe("SELECT \"a\".\"id\", COUNT(*) AS total, \"a\".\"title\" FROM \"Meeting_table\" AS \"a\";");
         });
     });
 
@@ -90,13 +90,13 @@ describe("SqlBuilder", () => {
     describe("JOIN operations", () => {
         it("adds JOIN clauses correctly with automatic alias management", () => {
             builder.addJoin("User", JoinType.LEFT, SqlBuilder.equals(builder.field("Meeting", "userId"), builder.field("User", "id")));
-            expect(builder.serialize()).to.include("LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\"");
+            expect(builder.serialize()).toContain("LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\"");
         });
 
         it("manages multiple joins and aliases without collisions", () => {
             builder.addJoin("User", JoinType.LEFT, SqlBuilder.equals(builder.field("Meeting", "userId"), builder.field("User", "id")));
             builder.addJoin("Team", JoinType.INNER, SqlBuilder.equals(builder.field("Meeting", "orgId"), builder.field("Team", "id")));
-            expect(builder.serialize()).to.equal("SELECT * FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" INNER JOIN \"Team_table\" AS \"c\" ON \"a\".\"orgId\" = \"c\".\"id\";");
+            expect(builder.serialize()).toBe("SELECT * FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" INNER JOIN \"Team_table\" AS \"c\" ON \"a\".\"orgId\" = \"c\".\"id\";");
         });
 
         it("supports all JOIN types", () => {
@@ -106,10 +106,10 @@ describe("SqlBuilder", () => {
             builder.addJoin("Note", JoinType.FULL, SqlBuilder.equals(builder.field("Meeting", "calendarId"), builder.field("Note", "id")));
 
             const query = builder.serialize();
-            expect(query).to.include("LEFT JOIN");
-            expect(query).to.include("INNER JOIN");
-            expect(query).to.include("RIGHT JOIN");
-            expect(query).to.include("FULL JOIN");
+            expect(query).toContain("LEFT JOIN");
+            expect(query).toContain("INNER JOIN");
+            expect(query).toContain("RIGHT JOIN");
+            expect(query).toContain("FULL JOIN");
         });
     });
 
@@ -117,13 +117,13 @@ describe("SqlBuilder", () => {
     describe("WHERE conditions", () => {
         it("handles WHERE conditions correctly", () => {
             builder.addWhere(SqlBuilder.equals(builder.field("Meeting", "isActive"), true));
-            expect(builder.serialize()).to.include("WHERE \"a\".\"isActive\" = true");
+            expect(builder.serialize()).toContain("WHERE \"a\".\"isActive\" = true");
         });
 
         it("combines multiple WHERE conditions with AND", () => {
             builder.addWhere(SqlBuilder.equals(builder.field("Meeting", "isActive"), true));
             builder.addWhere(SqlBuilder.equals(builder.field("Meeting", "isPublic"), true));
-            expect(builder.serialize()).to.include("WHERE \"a\".\"isActive\" = true AND \"a\".\"isPublic\" = true");
+            expect(builder.serialize()).toContain("WHERE \"a\".\"isActive\" = true AND \"a\".\"isPublic\" = true");
         });
 
         it("handles empty WHERE clauses", () => {
@@ -136,29 +136,29 @@ describe("SqlBuilder", () => {
     describe("ORDER BY functionality", () => {
         it("sets a single ORDER BY clause correctly", () => {
             builder.addOrderBy("Meeting", "points", "DESC");
-            expect(builder.query.orderBy).to.deep.equal(["\"a\".\"points\" DESC"]);
+            expect(builder.query.orderBy).toEqual(["\"a\".\"points\" DESC"]);
         });
 
         it("sets multiple ORDER BY clauses correctly", () => {
             builder.addOrderBy("User", "points", "DESC");
             builder.addOrderBy("Meeting", "date", "ASC");
-            expect(builder.query.orderBy).to.deep.equal(["\"b\".\"points\" DESC", "\"a\".\"date\" ASC"]);
+            expect(builder.query.orderBy).toEqual(["\"b\".\"points\" DESC", "\"a\".\"date\" ASC"]);
         });
 
         it("handles different object types and fields", () => {
             builder.addOrderBy("User", "score", "ASC");
-            expect(builder.query.orderBy).to.include("\"b\".\"score\" ASC");
+            expect(builder.query.orderBy).toContain("\"b\".\"score\" ASC");
         });
 
         it("adds raw ORDER BY expressions", () => {
             builder.addOrderByRaw("RANDOM()");
-            expect(builder.query.orderBy).to.deep.equal(["RANDOM()"]);
+            expect(builder.query.orderBy).toEqual(["RANDOM()"]);
         });
 
         it("combines regular and raw ORDER BY clauses", () => {
             builder.addOrderBy("Meeting", "date", "DESC");
             builder.addOrderByRaw("EXTRACT(HOUR FROM \"a\".\"time\") ASC");
-            expect(builder.query.orderBy).to.deep.equal(["\"a\".\"date\" DESC", "EXTRACT(HOUR FROM \"a\".\"time\") ASC"]);
+            expect(builder.query.orderBy).toEqual(["\"a\".\"date\" DESC", "EXTRACT(HOUR FROM \"a\".\"time\") ASC"]);
         });
     });
 
@@ -166,22 +166,22 @@ describe("SqlBuilder", () => {
     describe("LIMIT function", () => {
         it("sets the limit correctly", () => {
             builder.setLimit(10);
-            expect(builder.query.limit).to.equal(10);
+            expect(builder.query.limit).toBe(10);
         });
 
         it("integrates limit into the full query serialization", () => {
             builder.addSelect("Meeting", "id");
             builder.setLimit(5);
             const expectedQuery = "SELECT \"a\".\"id\" FROM \"Meeting_table\" AS \"a\" LIMIT 5;";
-            expect(builder.serialize()).to.equal(expectedQuery);
+            expect(builder.serialize()).toBe(expectedQuery);
         });
 
         it("throws an error if limit is not valid", () => {
-            expect(() => builder.setLimit(-5)).to.throw();
-            expect(() => builder.setLimit(0)).to.throw();
-            expect(() => builder.setLimit("five" as any)).to.throw();
-            expect(() => builder.setLimit(5.5)).to.throw();
-            expect(() => builder.setLimit(Infinity)).to.throw();
+            expect(() => builder.setLimit(-5)).toThrow();
+            expect(() => builder.setLimit(0)).toThrow();
+            expect(() => builder.setLimit("five" as any)).toThrow();
+            expect(() => builder.setLimit(5.5)).toThrow();
+            expect(() => builder.setLimit(Infinity)).toThrow();
         });
     });
 
@@ -189,7 +189,7 @@ describe("SqlBuilder", () => {
     describe("OFFSET function", () => {
         it("sets the offset correctly", () => {
             builder.setOffset(30);
-            expect(builder.query.offset).to.equal(30);
+            expect(builder.query.offset).toBe(30);
         });
 
         it("integrates offset into the full query serialization", () => {
@@ -197,20 +197,20 @@ describe("SqlBuilder", () => {
             builder.setLimit(10);  // Set limit to show interaction with offset
             builder.setOffset(20);
             const expectedQuery = "SELECT \"a\".\"id\" FROM \"Meeting_table\" AS \"a\" LIMIT 10 OFFSET 20;";
-            expect(builder.serialize()).to.equal(expectedQuery);
+            expect(builder.serialize()).toBe(expectedQuery);
         });
 
         it("throws an error if offset is not valid", () => {
-            expect(() => builder.setOffset(-1)).to.throw();
-            expect(() => builder.setOffset("twenty" as any)).to.throw();
-            expect(() => builder.setOffset(5.5)).to.throw();
-            expect(() => builder.setOffset(Infinity)).to.throw();
-            expect(() => builder.setOffset(NaN)).to.throw();
+            expect(() => builder.setOffset(-1)).toThrow();
+            expect(() => builder.setOffset("twenty" as any)).toThrow();
+            expect(() => builder.setOffset(5.5)).toThrow();
+            expect(() => builder.setOffset(Infinity)).toThrow();
+            expect(() => builder.setOffset(NaN)).toThrow();
         });
 
         it("allows zero offset", () => {
             builder.setOffset(0);
-            expect(builder.query.offset).to.equal(0);
+            expect(builder.query.offset).toBe(0);
         });
     });
 
@@ -218,7 +218,7 @@ describe("SqlBuilder", () => {
     describe("field function", () => {
         it("field generates correct SQL field reference object", () => {
             const fieldRef = builder.field("User", "id");
-            expect(fieldRef).to.deep.equal({
+            expect(fieldRef).toEqual({
                 tableAlias: "b", // Should be the second alias generated, since 'a' is already taken by the root
                 column: "id",
             });
@@ -227,7 +227,7 @@ describe("SqlBuilder", () => {
         it("consistently assigns the same alias to the same object type", () => {
             const fieldRef1 = builder.field("User", "id");
             const fieldRef2 = builder.field("User", "name");
-            expect(fieldRef1.tableAlias).to.equal(fieldRef2.tableAlias);
+            expect(fieldRef1.tableAlias).toBe(fieldRef2.tableAlias);
         });
 
         it("assigns different aliases to different object types", () => {
@@ -244,7 +244,7 @@ describe("SqlBuilder", () => {
             const translationObjectType = "MeetingTranslation" as any;
             const searchStringEmbedding = [3, 2];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedTopAsc");
-            expect(builder.query.select).to.include(
+            expect(builder.query.select).toContain(
                 "(1 / (POWER((\"b\".\"embedding\" <-> ARRAY[3.000000, 2.000000]::vector) + 0.01, 2))) + (EXP(-\"a\".\"bookmarks\" / 5) * 20) AS points",
             );
         });
@@ -254,7 +254,7 @@ describe("SqlBuilder", () => {
             const translationObjectType = "UserTranslation" as any;
             const searchStringEmbedding = [1];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedTopDesc");
-            expect(builder.query.select).to.include(
+            expect(builder.query.select).toContain(
                 "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[1.000000]::vector) + 0.01, 2))) + (LN(\"b\".\"bookmarks\" + 1) * 2) AS points",
             );
         });
@@ -264,7 +264,7 @@ describe("SqlBuilder", () => {
             const translationObjectType = "CommentTranslation" as any;
             const searchStringEmbedding = [8.3828191932843];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateCreatedAsc");
-            expect(builder.query.select).to.include(
+            expect(builder.query.select).toContain(
                 "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[8.382819]::vector) + 0.01, 2))) + (LOG(1 + POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"createdAt\") / 3600), 0.25)) * 1) AS points",
             );
         });
@@ -274,7 +274,7 @@ describe("SqlBuilder", () => {
             const translationObjectType = "UserTranslation" as any;
             const searchStringEmbedding = [];
             builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "EmbedDateUpdatedDesc");
-            expect(builder.query.select).to.include(
+            expect(builder.query.select).toContain(
                 "(1 / (POWER((\"c\".\"embedding\" <-> ARRAY[]::vector) + 0.01, 2))) + (EXP(-POWER(ABS(EXTRACT(EPOCH FROM NOW() - \"b\".\"updatedAt\") / 3600), 0.25)) * 100) AS points",
             );
         });
@@ -285,7 +285,7 @@ describe("SqlBuilder", () => {
             const searchStringEmbedding = [];
             expect(() => {
                 builder.embedPoints(translationObjectType, objectType, searchStringEmbedding, "UnsupportedOption" as any);
-            }).to.throw("Unsupported sort option: UnsupportedOption");
+            }).toThrow("Unsupported sort option: UnsupportedOption");
         });
 
         it("handles empty embedding vector", () => {
@@ -297,8 +297,8 @@ describe("SqlBuilder", () => {
             // but don't assert on the exact format since it may vary
             const selectItem = builder.query.select[0];
             expect(selectItem).to.be.a("string");
-            expect(selectItem).to.include("ARRAY[");
-            expect(selectItem).to.include("::vector");
+            expect(selectItem).toContain("ARRAY[");
+            expect(selectItem).toContain("::vector");
         });
     });
 
@@ -309,25 +309,25 @@ describe("SqlBuilder", () => {
                 const fieldRef1 = builder.field("Meeting", "userId");
                 const fieldRef2 = builder.field("User", "id");
                 expect(SqlBuilder.equals(fieldRef1, fieldRef2))
-                    .to.equal("\"a\".\"userId\" = \"b\".\"id\"");
+                    .toBe("\"a\".\"userId\" = \"b\".\"id\"");
             });
 
             it("equals handles field to string literal comparisons", () => {
                 const fieldRef = builder.field("Meeting", "userId");
                 expect(SqlBuilder.equals(fieldRef, "hello"))
-                    .to.equal("\"a\".\"userId\" = 'hello'");
+                    .toBe("\"a\".\"userId\" = 'hello'");
             });
 
             it("equals handles field to numeric comparisons", () => {
                 const fieldRef = builder.field("Meeting", "userId");
                 expect(SqlBuilder.equals(fieldRef, 420))
-                    .to.equal("\"a\".\"userId\" = 420");
+                    .toBe("\"a\".\"userId\" = 420");
             });
 
             it("equals handles field to boolean comparisons", () => {
                 const fieldRef = builder.field("Meeting", "isActive");
                 expect(SqlBuilder.equals(fieldRef, true))
-                    .to.equal("\"a\".\"isActive\" = true");
+                    .toBe("\"a\".\"isActive\" = true");
             });
 
             it("equals handles null comparisons", () => {
@@ -339,7 +339,7 @@ describe("SqlBuilder", () => {
 
                 // Use the stub to check if the semantics are correct
                 // @ts-ignore Testing runtime scenario
-                expect(equalsStub(fieldRef, null)).to.equal("\"a\".\"userId\" IS NULL");
+                expect(equalsStub(fieldRef, null)).toBe("\"a\".\"userId\" IS NULL");
 
                 // Restore the original method
                 equalsStub.restore();
@@ -353,19 +353,19 @@ describe("SqlBuilder", () => {
             it("combines two conditions correctly", () => {
                 const condition1 = "\"age\" > 21";
                 const condition2 = "\"status\" = 'active'";
-                expect(SqlBuilder.and(condition1, condition2)).to.equal("(\"age\" > 21) AND (\"status\" = 'active')");
+                expect(SqlBuilder.and(condition1, condition2)).toBe("(\"age\" > 21) AND (\"status\" = 'active')");
             });
 
             it("combines a single condition correctly", () => {
                 const condition = "\"status\" = 'active'";
-                expect(SqlBuilder.and(condition)).to.equal("\"status\" = 'active'");
+                expect(SqlBuilder.and(condition)).toBe("\"status\" = 'active'");
             });
 
             it("correctly handles nested and and or", () => {
                 const condition1 = "\"status\" = 'active'";
                 const condition2 = "\"age\" > 21";
                 const condition3 = "\"type\" = 'member'";
-                expect(SqlBuilder.and(SqlBuilder.or(condition1, condition2), condition3)).to.equal("((\"status\" = 'active') OR (\"age\" > 21)) AND (\"type\" = 'member')");
+                expect(SqlBuilder.and(SqlBuilder.or(condition1, condition2), condition3)).toBe("((\"status\" = 'active') OR (\"age\" > 21)) AND (\"type\" = 'member')");
             });
 
             it("handles multiple nested conditions", () => {
@@ -373,11 +373,11 @@ describe("SqlBuilder", () => {
                 const condition2 = "\"age\" > 21";
                 const condition3 = "\"type\" = 'member'";
                 const condition4 = "\"expires\" < '2023-01-01'";
-                expect(SqlBuilder.and(SqlBuilder.or(condition1, condition2), SqlBuilder.or(condition3, condition4))).to.equal("((\"status\" = 'active') OR (\"age\" > 21)) AND ((\"type\" = 'member') OR (\"expires\" < '2023-01-01'))");
+                expect(SqlBuilder.and(SqlBuilder.or(condition1, condition2), SqlBuilder.or(condition3, condition4))).toBe("((\"status\" = 'active') OR (\"age\" > 21)) AND ((\"type\" = 'member') OR (\"expires\" < '2023-01-01'))");
             });
 
             it("handles empty arguments", () => {
-                expect(SqlBuilder.and()).to.equal("");
+                expect(SqlBuilder.and()).toBe("");
             });
         });
 
@@ -385,19 +385,19 @@ describe("SqlBuilder", () => {
             it("combines two conditions correctly", () => {
                 const condition1 = "\"age\" > 21";
                 const condition2 = "\"status\" = 'active'";
-                expect(SqlBuilder.or(condition1, condition2)).to.equal("(\"age\" > 21) OR (\"status\" = 'active')");
+                expect(SqlBuilder.or(condition1, condition2)).toBe("(\"age\" > 21) OR (\"status\" = 'active')");
             });
 
             it("combines a single condition correctly", () => {
                 const condition = "\"status\" = 'active'";
-                expect(SqlBuilder.or(condition)).to.equal("\"status\" = 'active'");
+                expect(SqlBuilder.or(condition)).toBe("\"status\" = 'active'");
             });
 
             it("correctly handles nested and and or", () => {
                 const condition1 = "\"status\" = 'active'";
                 const condition2 = "\"age\" > 21";
                 const condition3 = "\"type\" = 'member'";
-                expect(SqlBuilder.or(SqlBuilder.and(condition1, condition2), condition3)).to.equal("((\"status\" = 'active') AND (\"age\" > 21)) OR (\"type\" = 'member')");
+                expect(SqlBuilder.or(SqlBuilder.and(condition1, condition2), condition3)).toBe("((\"status\" = 'active') AND (\"age\" > 21)) OR (\"type\" = 'member')");
             });
 
             it("handles multiple nested conditions", () => {
@@ -405,37 +405,37 @@ describe("SqlBuilder", () => {
                 const condition2 = "\"age\" > 21";
                 const condition3 = "\"type\" = 'member'";
                 const condition4 = "\"expires\" < '2023-01-01'";
-                expect(SqlBuilder.or(SqlBuilder.and(condition1, condition2), SqlBuilder.and(condition3, condition4))).to.equal("((\"status\" = 'active') AND (\"age\" > 21)) OR ((\"type\" = 'member') AND (\"expires\" < '2023-01-01'))");
+                expect(SqlBuilder.or(SqlBuilder.and(condition1, condition2), SqlBuilder.and(condition3, condition4))).toBe("((\"status\" = 'active') AND (\"age\" > 21)) OR ((\"type\" = 'member') AND (\"expires\" < '2023-01-01'))");
             });
 
             it("handles empty arguments", () => {
-                expect(SqlBuilder.or()).to.equal("");
+                expect(SqlBuilder.or()).toBe("");
             });
         });
 
         describe("not function", () => {
             it("negates a simple condition", () => {
                 const condition = "\"status\" = 'active'";
-                expect(SqlBuilder.not(condition)).to.equal("NOT (\"status\" = 'active')");
+                expect(SqlBuilder.not(condition)).toBe("NOT (\"status\" = 'active')");
             });
 
             it("negates a complex condition", () => {
                 const condition = "\"age\" > 21 AND \"status\" = 'active'";
-                expect(SqlBuilder.not(condition)).to.equal("NOT (\"age\" > 21 AND \"status\" = 'active')");
+                expect(SqlBuilder.not(condition)).toBe("NOT (\"age\" > 21 AND \"status\" = 'active')");
             });
 
             it("negates a nested logical expression", () => {
                 const condition = "(\"age\" > 21 OR \"status\" = 'active')";
-                expect(SqlBuilder.not(condition)).to.equal("NOT ((\"age\" > 21 OR \"status\" = 'active'))");
+                expect(SqlBuilder.not(condition)).toBe("NOT ((\"age\" > 21 OR \"status\" = 'active'))");
             });
 
             it("handles negation of a negated condition", () => {
                 const condition = "NOT (\"status\" = 'active')";
-                expect(SqlBuilder.not(condition)).to.equal("NOT (NOT (\"status\" = 'active'))");
+                expect(SqlBuilder.not(condition)).toBe("NOT (NOT (\"status\" = 'active'))");
             });
 
             it("handles empty input", () => {
-                expect(SqlBuilder.not("")).to.equal("NOT ()");
+                expect(SqlBuilder.not("")).toBe("NOT ()");
             });
         });
     });
@@ -448,7 +448,7 @@ describe("SqlBuilder", () => {
             builder.addWhere(SqlBuilder.equals(builder.field("Meeting", "isActive"), true));
             builder.addWhere(SqlBuilder.equals(builder.field("User", "isVerified"), true));
             builder.addOrderBy("Meeting", "title", "ASC");
-            expect(builder.serialize()).to.equal("SELECT \"a\".\"id\" FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" WHERE \"a\".\"isActive\" = true AND \"b\".\"isVerified\" = true ORDER BY \"a\".\"title\" ASC;");
+            expect(builder.serialize()).toBe("SELECT \"a\".\"id\" FROM \"Meeting_table\" AS \"a\" LEFT JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" WHERE \"a\".\"isActive\" = true AND \"b\".\"isVerified\" = true ORDER BY \"a\".\"title\" ASC;");
         });
 
         it("serialize test 2 - multiple joins with complex where", () => {
@@ -463,7 +463,7 @@ describe("SqlBuilder", () => {
             builder.setLimit(10);
             builder.setOffset(20);
             const expectedQuery = "SELECT \"a\".\"id\", \"b\".\"name\" FROM \"Meeting_table\" AS \"a\" INNER JOIN \"User_table\" AS \"b\" ON \"a\".\"userId\" = \"b\".\"id\" LEFT JOIN \"Post_table\" AS \"c\" ON \"a\".\"locationId\" = \"c\".\"id\" WHERE (\"a\".\"isActive\" = true) AND (\"c\".\"isAvailable\" = true) LIMIT 10 OFFSET 20;";
-            expect(builder.serialize()).to.equal(expectedQuery);
+            expect(builder.serialize()).toBe(expectedQuery);
         });
 
         it("serialize test 3 - complex order by", () => {
@@ -473,7 +473,7 @@ describe("SqlBuilder", () => {
             builder.addOrderBy("User", "name", "ASC");
             // Technically invalid SQL because we never joined with the "User" table, but it's just a test
             const expectedQuery = "SELECT \"b\".\"id\", \"b\".\"signupDate\" FROM \"Meeting_table\" AS \"a\" ORDER BY EXTRACT(YEAR FROM \"b\".\"signupDate\") DESC, \"b\".\"name\" ASC;";
-            expect(builder.serialize()).to.equal(expectedQuery);
+            expect(builder.serialize()).toBe(expectedQuery);
         });
 
         it("serialize test 4 - nested logical conditions", () => {
@@ -486,7 +486,7 @@ describe("SqlBuilder", () => {
                 ),
             ));
             const expectedQuery = "SELECT \"a\".\"id\" FROM \"Meeting_table\" AS \"a\" WHERE (\"a\".\"status\" = 'confirmed') OR ((\"a\".\"status\" = 'pending') AND (\"a\".\"priority\" = 'high'));";
-            expect(builder.serialize()).to.equal(expectedQuery);
+            expect(builder.serialize()).toBe(expectedQuery);
         });
     });
 });

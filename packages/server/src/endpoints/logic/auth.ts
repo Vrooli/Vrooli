@@ -17,6 +17,26 @@ import { SocketService } from "../../sockets/io.js";
 import type { ApiEndpoint, SessionData } from "../../types.js";
 import { hasProfanity } from "../../utils/censor.js";
 
+export type OAuthInitiateInput = {
+    resourceId: string;
+    redirectUri: string;
+};
+
+export type OAuthInitiateResult = {
+    authUrl: string;
+    state: string;
+};
+
+export type OAuthCallbackInput = {
+    code: string;
+    state: string;
+};
+
+export type OAuthCallbackResult = {
+    success: boolean;
+    provider: string;
+};
+
 export type EndpointsAuth = {
     emailLogIn: ApiEndpoint<EmailLogInInput, Session>;
     emailSignUp: ApiEndpoint<EmailSignUpInput, Session>;
@@ -29,6 +49,8 @@ export type EndpointsAuth = {
     switchCurrentAccount: ApiEndpoint<SwitchCurrentAccountInput, Session>;
     walletInit: ApiEndpoint<WalletInitInput, WalletInit>;
     walletComplete: ApiEndpoint<WalletCompleteInput, WalletComplete>;
+    oauthInitiate: ApiEndpoint<OAuthInitiateInput, OAuthInitiateResult>;
+    oauthCallback: ApiEndpoint<OAuthCallbackInput, OAuthCallbackResult>;
 }
 
 /** Expiry time for wallet authentication */
@@ -634,5 +656,205 @@ export const auth: EndpointsAuth = {
                 __typename: "Wallet",
             },
         } as const;
+    },
+    oauthInitiate: async ({ input }, { req }) => {
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
+        
+        const userData = SessionService.getUser(req);
+        if (!userData?.id) {
+            throw new CustomError("0002", "NotSignedIn");
+        }
+
+        const resourceId = BigInt(input.resourceId);
+
+        // Get the API resource with its config
+        const resource = await DbProvider.get().resource.findUnique({
+            where: { id: resourceId },
+            include: {
+                versions: {
+                    where: { isLatest: true },
+                    include: {
+                        translations: {
+                            where: { language: "en" },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!resource?.versions?.[0]) {
+            throw new CustomError("0305", "ResourceNotFound", { id: input.resourceId });
+        }
+
+        const version = resource.versions[0];
+        const { ApiVersionConfig } = await import("@vrooli/shared");
+        const { logger } = await import("../../logger.js");
+        const config = ApiVersionConfig.parse(version, logger);
+
+        if (config.authentication?.type !== "oauth2") {
+            throw new CustomError("0315", "InvalidAuthType", { expected: "oauth2", actual: config.authentication?.type });
+        }
+
+        const oauthSettings = config.authentication.settings;
+        if (!oauthSettings?.clientId || !oauthSettings?.authUrl) {
+            throw new CustomError("0316", "IncompleteOAuthConfig");
+        }
+
+        // Generate state for CSRF protection
+        const state = randomString(32);
+        
+        // Store state in Redis (in production) or in-memory for now
+        // For production, use Redis with TTL
+        const stateKey = `oauth:state:${state}`;
+        const stateData = {
+            userId: userData.id,
+            resourceId: input.resourceId,
+            expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        };
+        
+        // TODO: Use Redis in production
+        // await redis.setex(stateKey, 900, JSON.stringify(stateData));
+        
+        // For now, store in session
+        req.session.oauthState = { [state]: stateData };
+
+        // Build authorization URL
+        const authUrl = new URL(oauthSettings.authUrl);
+        authUrl.searchParams.append("client_id", oauthSettings.clientId);
+        authUrl.searchParams.append("redirect_uri", input.redirectUri);
+        authUrl.searchParams.append("response_type", "code");
+        authUrl.searchParams.append("state", state);
+        
+        if (oauthSettings.scopes?.length > 0) {
+            authUrl.searchParams.append("scope", oauthSettings.scopes.join(" "));
+        }
+
+        return {
+            authUrl: authUrl.toString(),
+            state,
+        };
+    },
+    oauthCallback: async ({ input }, { req }) => {
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        RequestService.assertRequestFrom(req, { isApiToken: false });
+        
+        const userData = SessionService.getUser(req);
+        if (!userData?.id) {
+            throw new CustomError("0002", "NotSignedIn");
+        }
+
+        // Verify state from session
+        const stateData = req.session.oauthState?.[input.state];
+        if (!stateData || stateData.userId !== userData.id) {
+            throw new CustomError("0317", "InvalidOAuthState");
+        }
+
+        // Check if state expired
+        if (stateData.expires < Date.now()) {
+            delete req.session.oauthState[input.state];
+            throw new CustomError("0318", "OAuthStateExpired");
+        }
+
+        // Remove state after validation
+        delete req.session.oauthState[input.state];
+
+        const resourceId = BigInt(stateData.resourceId);
+
+        // Get the API resource with its config
+        const resource = await DbProvider.get().resource.findUnique({
+            where: { id: resourceId },
+            include: {
+                versions: {
+                    where: { isLatest: true },
+                    include: {
+                        translations: {
+                            where: { language: "en" },
+                            take: 1,
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!resource?.versions?.[0]) {
+            throw new CustomError("0305", "ResourceNotFound", { id: stateData.resourceId });
+        }
+
+        const version = resource.versions[0];
+        const { ApiVersionConfig } = await import("@vrooli/shared");
+        const { logger } = await import("../../logger.js");
+        const config = ApiVersionConfig.parse(version, logger);
+        const providerName = version.translations[0].name.toLowerCase();
+
+        const oauthSettings = config.authentication?.settings;
+        if (!oauthSettings?.clientId || !oauthSettings?.clientSecret || !oauthSettings?.tokenUrl) {
+            throw new CustomError("0316", "IncompleteOAuthConfig");
+        }
+
+        // Exchange code for tokens
+        const tokenResponse = await fetch(oauthSettings.tokenUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+                grant_type: "authorization_code",
+                code: input.code,
+                client_id: oauthSettings.clientId,
+                client_secret: oauthSettings.clientSecret,
+                redirect_uri: oauthSettings.redirectUri || "",
+            }),
+        });
+
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            logger.error("OAuth token exchange failed", { error: errorText });
+            throw new CustomError("0319", "OAuthTokenExchangeFailed");
+        }
+
+        const tokenData = await tokenResponse.json();
+
+        // Calculate token expiry
+        let tokenExpiresAt: Date | null = null;
+        if (tokenData.expires_in) {
+            tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+        }
+
+        // Store or update OAuth tokens
+        const userId = BigInt(userData.id);
+        await DbProvider.get().user_auth.upsert({
+            where: {
+                user_auth_provider_provider_user_id_unique: {
+                    provider: providerName,
+                    provider_user_id: tokenData.user_id || userData.id,
+                },
+            },
+            create: {
+                id: generatePK(),
+                user_id: userId,
+                provider: providerName,
+                provider_user_id: tokenData.user_id || userData.id,
+                access_token: tokenData.access_token,
+                refresh_token: tokenData.refresh_token,
+                token_expires_at: tokenExpiresAt,
+                granted_scopes: tokenData.scope ? tokenData.scope.split(" ") : [],
+                last_used_at: new Date(),
+            },
+            update: {
+                access_token: tokenData.access_token,
+                refresh_token: tokenData.refresh_token,
+                token_expires_at: tokenExpiresAt,
+                granted_scopes: tokenData.scope ? tokenData.scope.split(" ") : [],
+                last_used_at: new Date(),
+            },
+        });
+
+        return {
+            __typename: "Success" as const,
+            success: true,
+            provider: providerName,
+        };
     },
 };

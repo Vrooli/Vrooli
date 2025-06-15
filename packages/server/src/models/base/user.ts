@@ -116,8 +116,27 @@ export const UserModel: UserModelLogic = ({
                     };
                 }
                 const profileData = data as ProfileUpdateInput;
+                
+                // Security: Sanitize creditSettings to prevent manipulation of server-controlled fields
+                let sanitizedCreditSettings = profileData.creditSettings;
+                if (sanitizedCreditSettings) {
+                    sanitizedCreditSettings = { ...sanitizedCreditSettings };
+                    
+                    // Remove server-controlled tracking fields that users shouldn't be able to set
+                    if (sanitizedCreditSettings.rollover) {
+                        const { lastProcessedMonth: _, ...userRolloverSettings } = sanitizedCreditSettings.rollover;
+                        sanitizedCreditSettings.rollover = userRolloverSettings;
+                    }
+                    
+                    if (sanitizedCreditSettings.donation) {
+                        const { lastProcessedMonth: _, ...userDonationSettings } = sanitizedCreditSettings.donation;
+                        sanitizedCreditSettings.donation = userDonationSettings;
+                    }
+                }
+                
                 return {
                     ...commonData,
+                    creditSettings: sanitizedCreditSettings,
                     theme: noNull(profileData.theme),
                     isPrivate: noNull(profileData.isPrivate),
                     isPrivateMemberships: noNull(profileData.isPrivateMemberships),
