@@ -369,3 +369,119 @@ export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "
     versions: string[];
 }
 
+// Radio component types
+export type RadioVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info" | "custom";
+export type RadioSize = "sm" | "md" | "lg";
+
+export interface RadioProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
+    /** Visual style variant */
+    color?: RadioVariant;
+    /** Custom color for the custom variant (hex, rgb, hsl, etc.) */
+    customColor?: string;
+    /** Size of the radio button */
+    size?: RadioSize;
+    /** Whether the radio is checked */
+    checked?: boolean;
+    /** Default checked state for uncontrolled component */
+    defaultChecked?: boolean;
+    /** Value of the radio button */
+    value?: string | number;
+    /** Name attribute for grouping radios */
+    name?: string;
+    /** Whether the radio is disabled */
+    disabled?: boolean;
+    /** Whether the radio is required */
+    required?: boolean;
+    /** Change handler */
+    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Click handler */
+    onClick?: (event: React.MouseEvent<HTMLInputElement>) => void;
+    /** Focus handler */
+    onFocus?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+}
+
+// Checkbox component types
+export type CheckboxVariant = "primary" | "secondary" | "danger" | "success" | "warning" | "info" | "custom";
+export type CheckboxSize = "sm" | "md" | "lg";
+
+export interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "size" | "type" | "onChange"> {
+    /** Visual style variant */
+    color?: CheckboxVariant;
+    /** Custom color for the custom variant (hex, rgb, hsl, etc.) */
+    customColor?: string;
+    /** Size of the checkbox */
+    size?: CheckboxSize;
+    /** Whether the checkbox is checked */
+    checked?: boolean;
+    /** Default checked state for uncontrolled component */
+    defaultChecked?: boolean;
+    /** Whether the checkbox is in indeterminate state */
+    indeterminate?: boolean;
+    /** Whether the checkbox is disabled */
+    disabled?: boolean;
+    /** Whether the checkbox is required */
+    required?: boolean;
+    /** Change handler */
+    onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    /** Click handler */
+    onClick?: (event: React.MouseEvent<HTMLInputElement>) => void;
+    /** Focus handler */
+    onFocus?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Blur handler */
+    onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+}
+
+// FormControlLabel component types
+export type FormControlLabelPlacement = "end" | "start" | "top" | "bottom";
+
+export interface FormControlLabelProps {
+    /** The control element (Radio, Checkbox, Switch) */
+    control: React.ReactElement;
+    /** The label content */
+    label: React.ReactNode;
+    /** The placement of the label relative to the control */
+    labelPlacement?: FormControlLabelPlacement;
+    /** Whether the control is disabled */
+    disabled?: boolean;
+    /** Whether the control is required */
+    required?: boolean;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+    /** Value to be used in controlled forms */
+    value?: any;
+    /** Change handler */
+    onChange?: (event: React.SyntheticEvent, checked: boolean) => void;
+}
+
+// FormGroup component types
+export interface FormGroupProps {
+    /** The content of the form group */
+    children: React.ReactNode;
+    /** Display group items in a row */
+    row?: boolean;
+    /** Additional CSS classes */
+    className?: string;
+    /** Inline styles */
+    style?: React.CSSProperties;
+    /** MUI sx prop for custom styling */
+    sx?: SxType;
+}
+

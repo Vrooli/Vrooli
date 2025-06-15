@@ -1,5 +1,5 @@
+import { keyframes, styled, useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Fade from "@mui/material/Fade";
 import Grow from "@mui/material/Grow";
 import IconButton from "@mui/material/IconButton";
@@ -7,13 +7,12 @@ import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { keyframes } from "@mui/material";
-import { styled, useTheme } from "@mui/material";
 import { SOCIALS } from "@vrooli/shared";
 import { cloneElement, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import MattProfilePic from "../../assets/img/profile-matt.webp";
 import { PageContainer } from "../../components/Page/Page.js";
+import { Button } from "../../components/buttons/Button.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { IconCommon, IconRoutine, IconService } from "../../icons/Icons.js";
@@ -102,16 +101,6 @@ const GradientText = styled(Typography)(({ theme }) => ({
     animation: `${shimmer} 3s ease-in-out infinite`,
 }));
 
-const GlowingButton = styled(Button)(({ theme }) => ({
-    background: `linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.dark})`,
-    animation: `${pulseGlow} 2s ease-in-out infinite`,
-    "&:hover": {
-        background: `linear-gradient(135deg, ${theme.palette.secondary.light}, ${theme.palette.secondary.main})`,
-        transform: "scale(1.05) translateY(-2px)",
-        boxShadow: `0 8px 25px ${theme.palette.secondary.main}40`,
-    },
-}));
-
 const memberButtonProps = {
     background: "transparent",
     border: "0",
@@ -198,11 +187,11 @@ export function AboutView(_props: ViewProps) {
                                 <GradientText variant="h3" component="h1" gutterBottom fontWeight="bold" textAlign="center">
                                     Vrooli: Where AI Builds Better AI <RotatedBox>🚀</RotatedBox>
                                 </GradientText>
-                                <Typography 
-                                    variant="h6" 
+                                <Typography
+                                    variant="h6"
                                     component="p"
                                     textAlign="center"
-                                    sx={{ 
+                                    sx={{
                                         color: palette.text.secondary,
                                         maxWidth: "700px",
                                         margin: "0 auto",
@@ -218,7 +207,7 @@ export function AboutView(_props: ViewProps) {
 
                     <Stack spacing={5}>
                         {[
-                            { icon: <IconCommon name="Bot" />, title: "Three-Tier Intelligence Architecture", text: "Experience the future of AI coordination through our revolutionary three-tier system: Coordination Intelligence orchestrates swarms through metacognition, Process Intelligence provides universal workflow execution (BPMN, Langchain, Temporal), and Execution Intelligence delivers context-aware processing that evolves from conversational to deterministic strategies. Every tier works in perfect harmony to create compound intelligence effects.", color: "#FF6B6B" },
+                            { icon: <IconCommon name="Bot" />, title: "AI That Manages Itself", text: "Think of Vrooli as a self-organizing company. At the top, AI managers decide what needs to be done and assign the right agents. In the middle, AI supervisors break big goals into step-by-step plans. At the bottom, AI workers execute tasks and learn from experience. Just like a real company, but running 24/7 at the speed of thought. The best part? They get smarter and more efficient without you lifting a finger.", color: "#FF6B6B" },
                             { icon: <IconCommon name="Team" />, title: "Dynamic Swarm Intelligence", text: "Unlike rigid automation, our swarms assemble dynamically around objectives, then gracefully disband when complete. Using MOISE+ organizational modeling, agents form sophisticated hierarchies with specialized roles—from security monitoring to performance optimization. Teams provide strategic direction while swarms handle tactical execution with unprecedented flexibility.", color: "#4ECDC4" },
                             { icon: <IconRoutine name="Routine" />, title: "Evolutionary Routines", text: "Routines aren't just workflows—they're living intelligence that evolves. Starting as conversational interactions, they progress through reasoning frameworks to become deterministic automation. With recursive composition and unlimited nesting, every routine becomes a building block for more sophisticated capabilities. The result? Exponential growth in what your agents can accomplish.", color: "#45B7D1" },
                             { icon: <IconCommon name="Refresh" />, title: "Compound Knowledge Effects", text: "This is where the magic happens: every routine executed, every pattern learned, every improvement made compounds throughout the entire system. Optimization agents analyze execution patterns and propose enhancements. Success patterns propagate across teams. The system doesn't just get better—it gets better at getting better, creating true recursive self-improvement.", color: "#96CEB4" },
@@ -262,10 +251,10 @@ export function AboutView(_props: ViewProps) {
                                 >
                                     <Stack direction="row" spacing={2} alignItems="flex-start" mb={2}>
                                         {section.icon && typeof section.icon !== "string" ? (
-                                            <Box 
-                                                sx={{ 
+                                            <Box
+                                                sx={{
                                                     color: section.color,
-                                                    display: "flex", 
+                                                    display: "flex",
                                                     alignItems: "center",
                                                     p: 1.5,
                                                     borderRadius: 2,
@@ -277,11 +266,11 @@ export function AboutView(_props: ViewProps) {
                                             </Box>
                                         ) : null}
                                         <Box flex={1}>
-                                            <Typography 
-                                                variant="h5" 
-                                                component="h2" 
+                                            <Typography
+                                                variant="h5"
+                                                component="h2"
                                                 gutterBottom
-                                                sx={{ 
+                                                sx={{
                                                     fontWeight: 600,
                                                     color: palette.text.primary,
                                                 }}
@@ -290,9 +279,9 @@ export function AboutView(_props: ViewProps) {
                                             </Typography>
                                         </Box>
                                     </Stack>
-                                    <Typography 
-                                        variant="body1" 
-                                        sx={{ 
+                                    <Typography
+                                        variant="body1"
+                                        sx={{
                                             lineHeight: 1.7,
                                             color: palette.text.secondary,
                                             fontSize: "1.05rem",
@@ -332,13 +321,13 @@ export function AboutView(_props: ViewProps) {
                                     The Future Isn't Built—It Builds Itself
                                 </Typography>
                                 <Typography variant="h6" sx={{ color: palette.text.secondary, maxWidth: "800px", margin: "0 auto", lineHeight: 1.7 }}>
-                                    Traditional AI gives you tools. Vrooli gives you <strong>evolving intelligence</strong>. 
-                                    Every day, our platform becomes more capable through compound knowledge effects and recursive improvement. 
+                                    Traditional AI gives you tools. Vrooli gives you <strong>evolving intelligence</strong>.
+                                    Every day, our platform becomes more capable through compound knowledge effects and recursive improvement.
                                     We're not just automating tasks—we're creating the infrastructure for AI systems that enhance their own capabilities.
                                 </Typography>
                                 <Typography variant="h6" sx={{ color: palette.text.secondary, maxWidth: "800px", margin: "2rem auto 0", lineHeight: 1.7 }}>
-                                    <em>"Big ideas deserve big teams"</em>—and now, everyone can have one. 
-                                    Launch your first swarm in under a minute. Watch it grow. See it evolve. 
+                                    <em>"Big ideas deserve big teams"</em>—and now, everyone can have one.
+                                    Launch your first swarm in under a minute. Watch it grow. See it evolve.
                                     Experience what happens when intelligence truly compounds.
                                 </Typography>
                             </Box>
@@ -374,187 +363,182 @@ export function AboutView(_props: ViewProps) {
                                 <Typography variant="h6" pb={4} textAlign="center" sx={{ color: palette.text.secondary, maxWidth: "600px", margin: "0 auto" }}>
                                     While AI builds better AI, humans guide the vision. Meet the team creating the infrastructure for recursive intelligence.
                                 </Typography>
-                        <Stack id="members-stack" direction="column" spacing={4}>
-                            {teamMembers.map((member, key) => {
-                                function openPersonalWebsite() {
-                                    openLink(setLocation, member.socials.website as string);
-                                }
-                                function openX() {
-                                    openLink(setLocation, member.socials.x as string);
-                                }
-                                function openGitHub() {
-                                    openLink(setLocation, member.socials.github as string);
-                                }
+                                <Stack id="members-stack" direction="column" spacing={4}>
+                                    {teamMembers.map((member, key) => {
+                                        function openPersonalWebsite() {
+                                            openLink(setLocation, member.socials.website as string);
+                                        }
+                                        function openX() {
+                                            openLink(setLocation, member.socials.x as string);
+                                        }
+                                        function openGitHub() {
+                                            openLink(setLocation, member.socials.github as string);
+                                        }
 
-                                return (
-                                    <Grow in timeout={1000} key={key}>
-                                        <FloatingCard
-                                            key={key}
-                                            sx={{
-                                                display: "flex",
-                                                flexDirection: { xs: "column", sm: "row" },
-                                                alignItems: "center",
-                                                justifyContent: "flex-start",
-                                                background: `linear-gradient(135deg, ${palette.primary.dark}E6 0%, ${palette.primary.main}E6 50%, ${palette.secondary.main}E6 100%)`,
-                                                color: palette.primary.contrastText,
-                                                borderRadius: 4,
-                                                padding: { xs: 3, md: 4 },
-                                                overflow: "hidden",
-                                                gap: { xs: 3, md: 4 },
-                                                border: `1px solid ${palette.primary.light}40`,
-                                                position: "relative",
-                                                "&::before": {
-                                                    content: '""',
-                                                    position: "absolute",
-                                                    top: 0,
-                                                    left: 0,
-                                                    right: 0,
-                                                    bottom: 0,
-                                                    background: `linear-gradient(45deg, transparent 40%, ${palette.secondary.light}10 50%, transparent 60%)`,
-                                                    animation: `${shimmer} 5s ease-in-out infinite`,
-                                                },
-                                            }}
-                                        >
-                                            <Box position="relative" zIndex={1} display="flex" flexDirection={{ xs: "column", sm: "row" }} alignItems="center" gap={{ xs: 3, md: 4 }} width="100%">
-                                                <Box 
-                                                    component="img" 
-                                                    src={member.photo} 
-                                                    alt={`${member.fullName} profile picture`} 
+                                        return (
+                                            <Grow in timeout={1000} key={key}>
+                                                <FloatingCard
+                                                    key={key}
                                                     sx={{
-                                                        width: { xs: "150px", sm: "180px" },
-                                                        height: { xs: "150px", sm: "180px" },
-                                                        aspectRatio: "1 / 1",
-                                                        objectFit: "cover",
-                                                        borderRadius: "50%",
-                                                        flexShrink: 0,
-                                                        border: `4px solid ${palette.secondary.light}`,
-                                                        boxShadow: `0 8px 32px ${palette.common.black}40`,
-                                                        transition: "all 0.3s ease",
-                                                        "&:hover": {
-                                                            transform: "scale(1.05)",
-                                                            boxShadow: `0 12px 48px ${palette.common.black}60`,
+                                                        display: "flex",
+                                                        flexDirection: { xs: "column", sm: "row" },
+                                                        alignItems: "center",
+                                                        justifyContent: "flex-start",
+                                                        background: `linear-gradient(135deg, ${palette.primary.dark}E6 0%, ${palette.primary.main}E6 50%, ${palette.secondary.main}E6 100%)`,
+                                                        color: palette.primary.contrastText,
+                                                        borderRadius: 4,
+                                                        padding: { xs: 3, md: 4 },
+                                                        overflow: "hidden",
+                                                        gap: { xs: 3, md: 4 },
+                                                        border: `1px solid ${palette.primary.light}40`,
+                                                        position: "relative",
+                                                        "&::before": {
+                                                            content: '""',
+                                                            position: "absolute",
+                                                            top: 0,
+                                                            left: 0,
+                                                            right: 0,
+                                                            bottom: 0,
+                                                            background: `linear-gradient(45deg, transparent 40%, ${palette.secondary.light}10 50%, transparent 60%)`,
+                                                            animation: `${shimmer} 5s ease-in-out infinite`,
                                                         },
-                                                    }} 
-                                                />
-                                                <Box
-                                                    width={{ xs: "100%", sm: "auto" }}
-                                                    flexGrow={1}
-                                                    textAlign={{ xs: "center", sm: "left" }}
+                                                    }}
                                                 >
-                                                    <Typography variant='h4' component="h3" mb={1} fontWeight="bold" sx={{ color: "white" }}>
-                                                        {member.fullName}
-                                                    </Typography>
-                                                    <Typography variant='h6' mb={3} sx={{ color: palette.grey[200], fontStyle: "italic" }}>
-                                                        {member.role}
-                                                    </Typography>
-                                                    <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-start" }} spacing={2}>
-                                                        {member.socials.website && (
-                                                            <Tooltip title="Personal website" placement="bottom">
-                                                                <IconButton
-                                                                    aria-label="Personal website"
-                                                                    onClick={openPersonalWebsite}
-                                                                    sx={{ 
-                                                                        ...memberButtonProps, 
-                                                                        color: palette.secondary.light,
-                                                                        background: `${palette.secondary.light}20`,
-                                                                        "&:hover": {
-                                                                            background: `${palette.secondary.light}30`,
-                                                                            transform: "scale(1.15) rotate(5deg)",
-                                                                        },
-                                                                    }}
-                                                                >
-                                                                    <IconCommon decorative name="Website" size={40} />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                        {member.socials.x && (
-                                                            <Tooltip title="X/Twitter" placement="bottom">
-                                                                <IconButton
-                                                                    aria-label="X/Twitter"
-                                                                    onClick={openX}
-                                                                    sx={{ 
-                                                                        ...memberButtonProps, 
-                                                                        color: palette.secondary.light,
-                                                                        background: `${palette.secondary.light}20`,
-                                                                        "&:hover": {
-                                                                            background: `${palette.secondary.light}30`,
-                                                                            transform: "scale(1.15) rotate(-5deg)",
-                                                                        },
-                                                                    }}
-                                                                >
-                                                                    <IconService decorative name="X" size={36} />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                        {member.socials.github && (
-                                                            <Tooltip title="GitHub" placement="bottom">
-                                                                <IconButton
-                                                                    aria-label="GitHub"
-                                                                    onClick={openGitHub}
-                                                                    sx={{ 
-                                                                        ...memberButtonProps, 
-                                                                        color: palette.secondary.light,
-                                                                        background: `${palette.secondary.light}20`,
-                                                                        "&:hover": {
-                                                                            background: `${palette.secondary.light}30`,
-                                                                            transform: "scale(1.15) rotate(5deg)",
-                                                                        },
-                                                                    }}
-                                                                >
-                                                                    <IconService decorative name="GitHub" size={36} />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                    </Stack>
-                                                </Box>
-                                            </Box>
-                                        </FloatingCard>
-                                    </Grow>
-                                );
-                            })}
-                                <Stack direction="row" justifyContent="center" alignItems="center" pt={4}>
-                                    <Grow in timeout={1400}>
-                                        <GlowingButton
-                                            fullWidth
-                                            size="large"
-                                            href={joinTeamLink}
-                                            onClick={handleJoinTeam}
-                                            variant="contained"
-                                            sx={{
-                                                maxWidth: "500px",
-                                                py: 2,
-                                                px: 4,
-                                                fontSize: "1.2rem",
-                                                fontWeight: "bold",
-                                                borderRadius: 3,
-                                                color: "white",
-                                                position: "relative",
-                                                overflow: "hidden",
-                                                "&::before": {
-                                                    content: '""',
-                                                    position: "absolute",
-                                                    top: 0,
-                                                    left: "-100%",
-                                                    width: "100%",
-                                                    height: "100%",
-                                                    background: `linear-gradient(90deg, transparent, ${palette.common.white}30, transparent)`,
-                                                    transition: "left 0.5s ease",
-                                                },
-                                                "&:hover::before": {
-                                                    left: "100%",
-                                                },
-                                            }}
-                                            startIcon={<IconCommon
-                                                decorative
-                                                name="Team"
-                                                size={28}
-                                            />}
-                                        >
-                                            🚀 Join the Team
-                                        </GlowingButton>
-                                    </Grow>
+                                                    <Box position="relative" zIndex={1} display="flex" flexDirection={{ xs: "column", sm: "row" }} alignItems="center" gap={{ xs: 3, md: 4 }} width="100%">
+                                                        <Box
+                                                            component="img"
+                                                            src={member.photo}
+                                                            alt={`${member.fullName} profile picture`}
+                                                            sx={{
+                                                                width: { xs: "150px", sm: "180px" },
+                                                                height: { xs: "150px", sm: "180px" },
+                                                                aspectRatio: "1 / 1",
+                                                                objectFit: "cover",
+                                                                borderRadius: "50%",
+                                                                flexShrink: 0,
+                                                                border: `4px solid ${palette.secondary.light}`,
+                                                                boxShadow: `0 8px 32px ${palette.common.black}40`,
+                                                                transition: "all 0.3s ease",
+                                                                "&:hover": {
+                                                                    transform: "scale(1.05)",
+                                                                    boxShadow: `0 12px 48px ${palette.common.black}60`,
+                                                                },
+                                                            }}
+                                                        />
+                                                        <Box
+                                                            width={{ xs: "100%", sm: "auto" }}
+                                                            flexGrow={1}
+                                                            textAlign={{ xs: "center", sm: "left" }}
+                                                        >
+                                                            <Typography variant='h4' component="h3" mb={1} fontWeight="bold" sx={{ color: "white" }}>
+                                                                {member.fullName}
+                                                            </Typography>
+                                                            <Typography variant='h6' mb={3} sx={{ color: palette.grey[200], fontStyle: "italic" }}>
+                                                                {member.role}
+                                                            </Typography>
+                                                            <Stack direction="row" alignItems="center" justifyContent={{ xs: "center", sm: "flex-start" }} spacing={2}>
+                                                                {member.socials.website && (
+                                                                    <Tooltip title="Personal website" placement="bottom">
+                                                                        <IconButton
+                                                                            aria-label="Personal website"
+                                                                            onClick={openPersonalWebsite}
+                                                                            sx={{
+                                                                                ...memberButtonProps,
+                                                                                color: palette.secondary.light,
+                                                                                background: `${palette.secondary.light}20`,
+                                                                                "&:hover": {
+                                                                                    background: `${palette.secondary.light}30`,
+                                                                                    transform: "scale(1.15) rotate(5deg)",
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            <IconCommon decorative name="Website" size={40} />
+                                                                        </IconButton>
+                                                                    </Tooltip>
+                                                                )}
+                                                                {member.socials.x && (
+                                                                    <Tooltip title="X/Twitter" placement="bottom">
+                                                                        <IconButton
+                                                                            aria-label="X/Twitter"
+                                                                            onClick={openX}
+                                                                            sx={{
+                                                                                ...memberButtonProps,
+                                                                                color: palette.secondary.light,
+                                                                                background: `${palette.secondary.light}20`,
+                                                                                "&:hover": {
+                                                                                    background: `${palette.secondary.light}30`,
+                                                                                    transform: "scale(1.15) rotate(-5deg)",
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            <IconService decorative name="X" size={36} />
+                                                                        </IconButton>
+                                                                    </Tooltip>
+                                                                )}
+                                                                {member.socials.github && (
+                                                                    <Tooltip title="GitHub" placement="bottom">
+                                                                        <IconButton
+                                                                            aria-label="GitHub"
+                                                                            onClick={openGitHub}
+                                                                            sx={{
+                                                                                ...memberButtonProps,
+                                                                                color: palette.secondary.light,
+                                                                                background: `${palette.secondary.light}20`,
+                                                                                "&:hover": {
+                                                                                    background: `${palette.secondary.light}30`,
+                                                                                    transform: "scale(1.15) rotate(5deg)",
+                                                                                },
+                                                                            }}
+                                                                        >
+                                                                            <IconService decorative name="GitHub" size={36} />
+                                                                        </IconButton>
+                                                                    </Tooltip>
+                                                                )}
+                                                            </Stack>
+                                                        </Box>
+                                                    </Box>
+                                                </FloatingCard>
+                                            </Grow>
+                                        );
+                                    })}
+                                    <Stack direction="row" justifyContent="center" alignItems="center" pt={4}>
+                                        <Grow in timeout={1400}>
+                                            <Button
+                                                fullWidth
+                                                size="lg"
+                                                href={joinTeamLink}
+                                                onClick={handleJoinTeam}
+                                                variant="space"
+                                                sx={{
+                                                    maxWidth: "500px",
+                                                    py: 2,
+                                                    px: 4,
+                                                    fontSize: "1.2rem",
+                                                    fontWeight: "bold",
+                                                    borderRadius: 3,
+                                                    color: "white",
+                                                    position: "relative",
+                                                    overflow: "hidden",
+                                                    "&::before": {
+                                                        content: '""',
+                                                        position: "absolute",
+                                                        top: 0,
+                                                        left: "-100%",
+                                                        width: "100%",
+                                                        height: "100%",
+                                                        background: `linear-gradient(90deg, transparent, ${palette.common.white}30, transparent)`,
+                                                        transition: "left 0.5s ease",
+                                                    },
+                                                    "&:hover::before": {
+                                                        left: "100%",
+                                                    },
+                                                }}
+                                            >
+                                                🚀 Join the Team
+                                            </Button>
+                                        </Grow>
+                                    </Stack>
                                 </Stack>
-                        </Stack>
                             </Box>
                         </Box>
                     </Fade>
