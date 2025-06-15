@@ -13,7 +13,7 @@ import type {
 } from "@vrooli/shared";
 import { MONITORING_TOOL_DEFINITIONS, createMonitoringToolInstances } from "../tools/index.js";
 import { type EventBus } from "../../cross-cutting/events/eventBus.js";
-import { type RollingHistoryAdapter as RollingHistory } from "../../monitoring/adapters/RollingHistoryAdapter.js";
+// RollingHistory removed - monitoring now handled by emergent agents
 
 /**
  * Tool approval status
@@ -109,13 +109,11 @@ export class IntegratedToolRegistry {
     initializeMonitoringTools(
         user: SessionUser,
         eventBus: EventBus,
-        rollingHistory?: RollingHistory,
     ): void {
         this.monitoringToolInstances = createMonitoringToolInstances(
             user,
             this.logger,
             eventBus,
-            rollingHistory,
         );
 
         // Register monitoring tool definitions

@@ -5,7 +5,7 @@ import {
     type StepInfo,
 } from "@vrooli/shared";
 import { GenericStore } from "../../../shared/GenericStore.js";
-import { redis } from "../../../../../redis/index.js";
+import { CacheService } from "../../../../../redisConn.js";
 
 /**
  * Native Vrooli routine definition format
@@ -58,19 +58,27 @@ export class NativeNavigator implements Navigator {
     readonly version = "1.0.0";
     
     private readonly logger: Logger;
-    private definitionCache: GenericStore<NativeRoutineDefinition>;
+    private definitionCache: GenericStore<NativeRoutineDefinition> | null = null;
 
     constructor(logger: Logger) {
         this.logger = logger;
-        this.definitionCache = new GenericStore<NativeRoutineDefinition>(
-            redis,
-            logger,
-            {
-                keyPrefix: "navigator.native.definitions",
-                defaultTTL: 7200, // 2 hours
-                publishEvents: false // Internal cache, no events needed
-            }
-        );
+        // definitionCache will be initialized asynchronously
+    }
+    
+    private async ensureCache(): Promise<GenericStore<NativeRoutineDefinition>> {
+        if (!this.definitionCache) {
+            const redis = await CacheService.get().raw();
+            this.definitionCache = new GenericStore<NativeRoutineDefinition>(
+                this.logger,
+                redis as any,
+                {
+                    keyPrefix: "navigator.native.definitions",
+                    defaultTTL: 7200, // 2 hours
+                    publishEvents: false // Internal cache, no events needed
+                }
+            );
+        }
+        return this.definitionCache;
     }
 
     /**
@@ -140,7 +148,8 @@ export class NativeNavigator implements Navigator {
      * Gets the next possible locations from current location
      */
     async getNextLocations(current: Location, context: Record<string, unknown>): Promise<Location[]> {
-        const defResult = await this.definitionCache.get(current.routineId);
+        const cache = await this.ensureCache();
+        const defResult = await cache.get(current.routineId);
         if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${current.routineId} not in cache`);
         }
@@ -181,7 +190,8 @@ export class NativeNavigator implements Navigator {
      * Checks if location is an end location
      */
     async isEndLocation(location: Location): Promise<boolean> {
-        const defResult = await this.definitionCache.get(location.routineId);
+        const cache = await this.ensureCache();
+        const defResult = await cache.get(location.routineId);
         if (!defResult.success || !defResult.data) {
             throw new Error(`Routine ${location.routineId} not in cache`);
         }
@@ -285,7 +295,7 @@ export class NativeNavigator implements Navigator {
         // Cache for future use (using first step ID as routine ID for now)
         const routineId = def.steps[0].id; // TODO: Use proper routine ID
         // Fire and forget cache operation
-        this.definitionCache.set(routineId, def).catch(err => 
+        this.ensureCache().then(cache => cache.set(routineId, def)).catch(err => 
             this.logger.warn("Failed to cache routine definition", { routineId, error: err })
         );
 

@@ -8,34 +8,9 @@
 
 import { type Logger } from "winston";
 import { EventEmitter } from "events";
+import { type ExecutionEvent } from "@vrooli/shared";
 
-/**
- * Basic event interface
- */
-export interface BaseEvent {
-    id: string;
-    type: string;
-    category?: string;
-    subcategory?: string;
-    timestamp: Date;
-    source: {
-        tier: 1 | 2 | 3 | "cross-cutting";
-        component: string;
-        instanceId: string;
-    };
-    correlationId?: string;
-    causationId?: string;
-    data: any;
-    metadata?: {
-        version?: string;
-        tags?: string[];
-        priority?: "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
-        userId?: string;
-        sessionId?: string;
-        requestId?: string;
-        ttl?: number;
-    };
-}
+// BaseEvent interface removed - using ExecutionEvent from @vrooli/shared instead
 
 /**
  * Event subscription configuration
@@ -43,7 +18,7 @@ export interface BaseEvent {
 export interface EventSubscription {
     id: string;
     pattern: string;
-    handler: (event: BaseEvent) => Promise<void>;
+    handler: (event: ExecutionEvent) => Promise<void>;
     filters?: Array<{
         field: string;
         operator: "equals" | "contains" | "startsWith" | "endsWith" | "in" | "regex";
@@ -58,7 +33,7 @@ export class EventBus {
     private readonly emitter: EventEmitter;
     private readonly logger: Logger;
     private readonly subscriptions = new Map<string, EventSubscription>();
-    private readonly eventHistory: BaseEvent[] = [];
+    private readonly eventHistory: ExecutionEvent[] = [];
     private readonly maxHistorySize = 1000;
 
     constructor(logger: Logger) {
@@ -70,7 +45,7 @@ export class EventBus {
     /**
      * Publish an event to all matching subscribers
      */
-    async publish(event: BaseEvent): Promise<void> {
+    async publish(event: ExecutionEvent): Promise<void> {
         try {
             // Store in history
             this.addToHistory(event);
@@ -115,7 +90,7 @@ export class EventBus {
     /**
      * Publish multiple events in batch
      */
-    async publishBatch(events: BaseEvent[]): Promise<void> {
+    async publishBatch(events: ExecutionEvent[]): Promise<void> {
         for (const event of events) {
             await this.publish(event);
         }
@@ -147,14 +122,14 @@ export class EventBus {
     /**
      * Subscribe to events using Node.js EventEmitter pattern
      */
-    on(eventType: string, handler: (event: BaseEvent) => void): void {
+    on(eventType: string, handler: (event: ExecutionEvent) => void): void {
         this.emitter.on(eventType, handler);
     }
 
     /**
      * Remove event listener
      */
-    off(eventType: string, handler: (event: BaseEvent) => void): void {
+    off(eventType: string, handler: (event: ExecutionEvent) => void): void {
         this.emitter.off(eventType, handler);
     }
 
@@ -164,12 +139,12 @@ export class EventBus {
     getEvents(criteria?: {
         type?: string;
         source?: {
-            tier?: 1 | 2 | 3 | "cross-cutting";
+            tier?: string;
             component?: string;
         };
         since?: Date;
         limit?: number;
-    }): BaseEvent[] {
+    }): ExecutionEvent[] {
         let events = [...this.eventHistory];
 
         if (criteria) {
@@ -201,7 +176,7 @@ export class EventBus {
     /**
      * Get event stream (simplified - returns recent events)
      */
-    async *getEventStream(): AsyncIterableIterator<BaseEvent> {
+    async *getEventStream(): AsyncIterableIterator<ExecutionEvent> {
         // For a simple implementation, just yield recent events
         // In a full implementation, this would stream live events
         for (const event of this.eventHistory.slice(-10)) {
@@ -250,7 +225,7 @@ export class EventBus {
     /**
      * Private helper methods
      */
-    private addToHistory(event: BaseEvent): void {
+    private addToHistory(event: ExecutionEvent): void {
         this.eventHistory.push(event);
         
         // Keep history size manageable
@@ -259,7 +234,7 @@ export class EventBus {
         }
     }
 
-    private matchesSubscription(event: BaseEvent, subscription: EventSubscription): boolean {
+    private matchesSubscription(event: ExecutionEvent, subscription: EventSubscription): boolean {
         // Check pattern match
         if (!this.matchesPattern(event.type, subscription.pattern)) {
             return false;
@@ -291,7 +266,7 @@ export class EventBus {
         return eventType === pattern;
     }
 
-    private matchesFilter(event: BaseEvent, filter: {
+    private matchesFilter(event: ExecutionEvent, filter: {
         field: string;
         operator: "equals" | "contains" | "startsWith" | "endsWith" | "in" | "regex";
         value: any;

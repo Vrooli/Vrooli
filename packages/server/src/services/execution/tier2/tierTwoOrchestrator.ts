@@ -108,14 +108,7 @@ export class TierTwoOrchestrator extends BaseComponent implements TierCommunicat
                 this.logger,
                 this.eventBus,
                 this.stateStore,
-                this.navigatorRegistry,
-                this.branchCoordinator,
-                this.stepExecutor,
-                this.contextManager,
-                this.checkpointManager,
-                this.performanceMonitor,
-                this.pathOptimizer,
-                this.moiseGate,
+                this.tier3Executor,
             );
 
             this.runMachines.set(config.runId, stateMachine);

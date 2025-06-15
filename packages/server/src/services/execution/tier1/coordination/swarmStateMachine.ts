@@ -71,9 +71,6 @@ export interface SwarmStartedEvent extends SwarmEvent {
 export const SwarmState = BaseStates;
 export type State = keyof typeof SwarmState;
 
-// Use ConversationState from the conversation types instead of defining our own
-import { type ConversationState } from "../../../services/conversation/types.js";
-
 /**
  * SwarmStateMachine
  * 
@@ -105,7 +102,7 @@ export class SwarmStateMachine extends BaseStateMachine<State, SwarmEvent> {
         logger: Logger,
         eventBus: EventBus,
         private readonly stateStore: ISwarmStateStore,
-        private readonly conversationBridge: ConversationBridge,
+        private readonly conversationBridge?: ConversationBridge, // Optional for backward compatibility
     ) {
         super(logger, eventBus, SwarmState.UNINITIALIZED);
     }

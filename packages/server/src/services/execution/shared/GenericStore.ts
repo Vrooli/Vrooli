@@ -1,5 +1,5 @@
 import { Redis } from "ioredis";
-import { Logger } from "../../../common/logger.js";
+import { type Logger } from "winston";
 import { ErrorHandler, Result } from "./ErrorHandler.js";
 import { EventPublisher } from "./EventPublisher.js";
 

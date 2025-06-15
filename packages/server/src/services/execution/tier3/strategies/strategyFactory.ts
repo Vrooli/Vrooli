@@ -17,19 +17,18 @@ import { ValidationEngine } from "../engine/validationEngine.js";
  * - Strategy instantiation based on type
  * - Strategy selection based on context
  * - Strategy lifecycle management
- * - Strategy performance tracking
+ * 
+ * Performance tracking emerges from monitoring agents observing execution events
  */
 export class StrategyFactory {
     private readonly logger: Logger;
     private readonly strategies: Map<StrategyType, ExecutionStrategy>;
-    private readonly strategyUsage: Map<StrategyType, number>;
     private toolOrchestrator?: ToolOrchestrator;
     private validationEngine?: ValidationEngine;
 
     constructor(logger: Logger, toolOrchestrator?: ToolOrchestrator, validationEngine?: ValidationEngine) {
         this.logger = logger;
         this.strategies = new Map();
-        this.strategyUsage = new Map();
         this.toolOrchestrator = toolOrchestrator;
         this.validationEngine = validationEngine;
         
@@ -80,7 +79,6 @@ export class StrategyFactory {
      */
     private registerStrategy(strategy: ExecutionStrategy): void {
         this.strategies.set(strategy.type, strategy);
-        this.strategyUsage.set(strategy.type, 0);
         
         this.logger.debug("[StrategyFactory] Strategy registered", {
             type: strategy.type,
@@ -94,12 +92,6 @@ export class StrategyFactory {
      */
     getStrategy(type: StrategyType): ExecutionStrategy | undefined {
         const strategy = this.strategies.get(type);
-        
-        if (strategy) {
-            // Track usage
-            const currentUsage = this.strategyUsage.get(type) || 0;
-            this.strategyUsage.set(type, currentUsage + 1);
-        }
         
         return strategy;
     }
@@ -298,29 +290,16 @@ export class StrategyFactory {
     }
 
     /**
-     * Get factory statistics
+     * Get factory statistics - minimal implementation
+     * Real statistics emerge from monitoring agents
      */
     getStatistics(): {
         availableStrategies: string[];
-        usage: Record<string, number>;
-        performance: Record<string, any>;
     } {
         const availableStrategies = Array.from(this.strategies.keys());
-        const usage: Record<string, number> = {};
-        const performance: Record<string, any> = {};
-        
-        for (const [type, count] of this.strategyUsage) {
-            usage[type] = count;
-        }
-        
-        for (const [type, strategy] of this.strategies) {
-            performance[type] = strategy.getPerformanceMetrics();
-        }
         
         return {
             availableStrategies,
-            usage,
-            performance,
         };
     }
 
@@ -328,11 +307,7 @@ export class StrategyFactory {
      * Reset factory state
      */
     reset(): void {
-        this.strategyUsage.clear();
-        for (const type of this.strategies.keys()) {
-            this.strategyUsage.set(type, 0);
-        }
-        
+        // No state to reset in minimal implementation
         this.logger.info("[StrategyFactory] Factory reset completed");
     }
 }

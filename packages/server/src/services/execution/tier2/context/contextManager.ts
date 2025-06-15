@@ -6,7 +6,7 @@ import {
 import { type IRunStateStore } from "../state/runStateStore.js";
 import { ContextValidator, type ValidationResult } from "../../shared/contextValidator.js";
 import { GenericStore } from "../../shared/GenericStore.js";
-import { redis } from "../../../redis/index.js";
+import { CacheService } from "../../../../redisConn.js";
 
 /**
  * Process-specific RunContext interface for Tier 2
@@ -61,9 +61,15 @@ export class ContextManager {
         this.stateStore = stateStore;
         this.logger = logger;
         this.validator = new ContextValidator(logger);
+        // Initialize contextCache as null, will be set up asynchronously
+        this.contextCache = null as any; // Will be initialized in initialize()
+    }
+    
+    async initialize(): Promise<void> {
+        const redis = await CacheService.get().raw();
         this.contextCache = new GenericStore<ProcessRunContext>(
-            redis,
-            logger,
+            this.logger,
+            redis as any,
             {
                 keyPrefix: "tier2.context",
                 defaultTTL: 3600, // 1 hour

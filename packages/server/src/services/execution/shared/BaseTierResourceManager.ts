@@ -11,7 +11,7 @@ import { type Logger } from "winston";
 import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { ResourceManager as UnifiedResourceManager } from "../cross-cutting/resources/resourceManager.js";
 import { ResourcePoolManager } from "../cross-cutting/resources/resourcePool.js";
-import { UsageTracker } from "../cross-cutting/resources/usageTracker.js";
+import { UsageTracker, type UsageTrackerConfig } from "../cross-cutting/resources/usageTracker.js";
 import { RateLimiter } from "../cross-cutting/resources/rateLimiter.js";
 import { EventPublisher } from "./EventPublisher.js";
 import { ErrorHandler, ComponentErrorHandler } from "./ErrorHandler.js";
@@ -81,7 +81,15 @@ export abstract class BaseTierResourceManager<TAdapter extends TierResourceAdapt
      */
     private initializeSharedComponents(): void {
         this.poolManager = new ResourcePoolManager(this.logger);
-        this.usageTracker = new UsageTracker(this.logger);
+        
+        // Create usage tracker config
+        const usageConfig: UsageTrackerConfig = {
+            trackerId: `tier${this.config.tier}-usage-tracker`,
+            scope: "tier",
+            scopeId: `tier${this.config.tier}`,
+        };
+        this.usageTracker = new UsageTracker(usageConfig, this.logger, this.eventBus);
+        
         this.rateLimiter = new RateLimiter(this.logger, this.eventBus);
         
         // Configure rate limiter with tier-specific settings

@@ -12,7 +12,7 @@ import {
     type StepExecution,
 } from "@vrooli/shared";
 import { type ProcessRunContext } from "../context/contextManager.js";
-import { redis } from "../../../../redisConn.js";
+import { CacheService } from "../../../../redisConn.js";
 import { logger } from "../../../../events/logger.js";
 import { RedisStore } from "../../shared/BaseStore.js";
 import { RedisIndexManager } from "../../shared/RedisIndexManager.js";
@@ -88,9 +88,11 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     private readonly indexPrefix = "run_index:";
     private readonly subsidiaryTtl = 86400; // 24 hours
     private readonly indexManager: RedisIndexManager;
+    private redis: Redis;
     
-    constructor() {
+    constructor(redis: Redis) {
         super(logger, redis, "run", 86400); // 24 hours TTL
+        this.redis = redis;
         this.indexManager = new RedisIndexManager(redis, logger, 86400);
     }
     
@@ -163,7 +165,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     
     async getRunState(runId: string): Promise<RunState> {
         const key = this.getStateKey(runId);
-        const state = await redis.get(key);
+        const state = await this.redis.get(key);
         
         return (state as RunState) || RunState.PENDING;
     }
@@ -171,7 +173,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     async updateRunState(runId: string, state: RunState): Promise<void> {
         const oldState = await this.getRunState(runId);
         const key = this.getStateKey(runId);
-        await redis.setex(key, this.subsidiaryTtl, state);
+        await this.redis.setex(key, this.subsidiaryTtl, state);
         
         // Update state index using IndexManager
         await this.indexManager.updateStateIndex(
@@ -191,7 +193,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     
     async getContext(runId: string): Promise<ProcessRunContext> {
         const key = this.getContextKey(runId);
-        const data = await redis.get(key);
+        const data = await this.redis.get(key);
         
         if (!data) {
             return {
@@ -210,7 +212,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     
     async updateContext(runId: string, context: ProcessRunContext): Promise<void> {
         const key = this.getContextKey(runId);
-        await redis.setex(key, this.subsidiaryTtl, JSON.stringify(context));
+        await this.redis.setex(key, this.subsidiaryTtl, JSON.stringify(context));
     }
     
     async setVariable(runId: string, name: string, value: unknown): Promise<void> {
@@ -226,7 +228,7 @@ export class RedisRunStateStore extends RedisStore<RunConfig> implements IRunSta
     
     async getCurrentLocation(runId: string): Promise<Location | null> {
         const key = this.getCurrentLocationKey(runId);
-        const data = await redis.get(key);
+        const data = await this.redis.get(key);
         
         return data ? JSON.parse(data) : null;
     }
@@ -493,9 +495,10 @@ let runStateStore: RedisRunStateStore | null = null;
 /**
  * Get the run state store instance
  */
-export function getRunStateStore(): RedisRunStateStore {
+export async function getRunStateStore(): Promise<RedisRunStateStore> {
     if (!runStateStore) {
-        runStateStore = new RedisRunStateStore();
+        const redis = await CacheService.get().raw();
+        runStateStore = new RedisRunStateStore(redis as Redis);
     }
     return runStateStore;
 }

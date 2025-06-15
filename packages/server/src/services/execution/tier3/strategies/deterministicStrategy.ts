@@ -1,13 +1,12 @@
 import { type Logger } from "winston";
 import {
     type ExecutionContext as StrategyExecutionContext,
-    type ExecutionStrategy,
     type StrategyExecutionResult,
     type ResourceUsage,
-    type StrategyFeedback,
-    type StrategyPerformance,
     StrategyType,
 } from "@vrooli/shared";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/strategyBase.js";
 import { ToolOrchestrator } from "../engine/toolOrchestrator.js";
 import { ValidationEngine } from "../engine/validationEngine.js";
 import { BaseStore } from "../../shared/BaseStore.js";
@@ -58,42 +57,27 @@ interface ExecutionMetrics {
 }
 
 /**
- * DeterministicStrategy - Enhanced with legacy implementation patterns
+ * DeterministicStrategy - Pure deterministic execution
  * 
- * This strategy combines the new architecture capabilities with proven legacy patterns:
+ * This strategy provides deterministic execution patterns:
  * - 3-phase execution pattern (validate → execute → validate)
  * - Execution logic routing (API/code/transform/direct)
- * - Strict input/output validation (adapted from legacy)
- * - Predictable cost calculation model (from legacy implementation)
- * - Missing input generation capability (enhanced for new architecture)
+ * - Strict input/output validation
+ * - Caching for repeated operations
  * 
- * Migration from legacy DeterministicStrategy (509 lines) with enhancements:
- * - Preserved execution routing and validation logic
- * - Enhanced caching and performance tracking
- * - Integrated with new ToolOrchestrator and ValidationEngine
- * - Added learning capabilities and resource optimization
+ * All performance tracking and optimization emerges from agents
+ * monitoring the execution events.
  */
-export class DeterministicStrategy implements ExecutionStrategy {
+export class DeterministicStrategy extends MinimalStrategyBase {
     readonly type = StrategyType.DETERMINISTIC;
     readonly name = "DeterministicStrategy";
-    readonly version = "2.0.0-enhanced";
+    readonly version = "3.0.0-minimal";
 
-    private readonly logger: Logger;
     private readonly toolOrchestrator: ToolOrchestrator;
     private readonly validationEngine: ValidationEngine;
     private readonly cache: BaseStore<CacheEntry>;
     
-    // Performance tracking (new capability)
-    private performanceHistory: Array<{
-        timestamp: Date;
-        executionTime: number;
-        resourcesUsed: number;
-        success: boolean;
-        confidence: number;
-        executionPath: string;
-    }> = [];
-    
-    // Legacy cost constants adapted for new architecture
+    // Cost constants for resource estimation
     private static readonly BASE_DETERMINISTIC_COST = 10;
     private static readonly COMPLEXITY_COST_MULTIPLIER = 2;
     private static readonly API_CALL_COST = 5;
@@ -101,54 +85,40 @@ export class DeterministicStrategy implements ExecutionStrategy {
     private static readonly TRANSFORMATION_COST = 2;
     private static readonly MINIMAL_COST = 1;
 
-    constructor(logger: Logger) {
-        this.logger = logger;
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus);
         this.toolOrchestrator = new ToolOrchestrator(logger);
         this.validationEngine = new ValidationEngine(logger);
         this.cache = new BaseStore<CacheEntry>(logger);
     }
 
     /**
-     * Enhanced execution with legacy 3-phase pattern
+     * Core deterministic execution implementation
      */
-    async execute(context: StrategyExecutionContext): Promise<StrategyExecutionResult> {
-        const startTime = Date.now();
+    protected async executeStrategy(
+        context: StrategyExecutionContext,
+        metadata: MinimalExecutionMetadata
+    ): Promise<StrategyExecutionResult> {
         const stepId = context.stepId;
-        let resourcesUsed = 0;
-        let executionPath = "unknown";
-
-        this.logger.info("[DeterministicStrategy] Starting enhanced execution", {
-            stepId,
-            stepType: context.stepType,
-        });
 
         try {
-            // LEGACY PATTERN: Check cache first for efficiency
+            // Check cache first for efficiency
             const cachedResult = await this.checkCache(context);
             if (cachedResult) {
                 this.logger.debug("[DeterministicStrategy] Cache hit", { stepId });
-                return this.createCachedResult(cachedResult, Date.now() - startTime, {
-                    stepsExecuted: 0,
-                    cacheHits: 1,
-                    apiCalls: 0,
-                    transformations: 0,
-                    validationsPassed: 0,
-                    totalDuration: Date.now() - startTime,
-                });
+                return this.createCachedResult(cachedResult, metadata);
             }
 
-            // LEGACY PATTERN: Phase 1 - Strict input validation
+            // Phase 1 - Strict input validation
             const inputValidation = await this.validateInputsStrict(context);
             if (!inputValidation.isValid) {
                 throw new Error(`Input validation failed: ${inputValidation.errors.join("; ")}`);
             }
 
-            // LEGACY PATTERN: Phase 2 - Execute with routing
+            // Phase 2 - Execute with routing
             const executionResult = await this.executeWithRouting(context);
-            resourcesUsed = executionResult.resourcesUsed;
-            executionPath = executionResult.executionPath;
 
-            // LEGACY PATTERN: Phase 3 - Strict output validation
+            // Phase 3 - Strict output validation
             const outputValidation = await this.validateOutputsStrict(executionResult.outputs);
             if (!outputValidation.isValid) {
                 throw new Error(`Output validation failed: ${outputValidation.errors.join("; ")}`);
@@ -157,45 +127,14 @@ export class DeterministicStrategy implements ExecutionStrategy {
             // Cache successful results
             await this.cacheResult(context, executionResult.outputs);
 
-            // Track performance for learning
-            this.trackPerformance({
-                timestamp: new Date(),
-                executionTime: Date.now() - startTime,
-                resourcesUsed,
-                success: true,
-                confidence: 1.0,
-                executionPath,
-            });
-
             return {
                 success: true,
-                result: executionResult.outputs,
-                metadata: {
-                    strategyType: this.type,
-                    executionTime: Date.now() - startTime,
-                    resourceUsage: this.calculateResourceUsage({
-                        stepsExecuted: 1,
-                        cacheHits: 0,
-                        apiCalls: resourcesUsed,
-                        transformations: 0,
-                        validationsPassed: 1,
-                        totalDuration: Date.now() - startTime,
-                    }),
-                    confidence: 1.0, // Deterministic strategies have high confidence
-                    fallbackUsed: false,
-                },
-                feedback: {
-                    outcome: "success",
-                    performanceScore: this.calculatePerformanceScore({
-                        stepsExecuted: 1,
-                        cacheHits: 0,
-                        apiCalls: executionResult.resourcesUsed,
-                        transformations: 0,
-                        validationsPassed: 1,
-                        totalDuration: Date.now() - startTime,
-                    }, { success: true }),
-                    improvements: this.suggestImprovements(executionResult, context),
-                },
+                outputs: executionResult.outputs,
+                resourcesUsed: this.calculateResourceUsage(
+                    metadata.startTime,
+                    new Date(),
+                    executionResult.resourcesUsed
+                ),
             };
 
         } catch (error) {
@@ -204,30 +143,20 @@ export class DeterministicStrategy implements ExecutionStrategy {
                 error: error instanceof Error ? error.message : String(error),
             });
             
-            // Track failure for learning
-            this.trackPerformance({
-                timestamp: new Date(),
-                executionTime: Date.now() - startTime,
-                resourcesUsed,
-                success: false,
-                confidence: 0,
-                executionPath,
-            });
-
-            return this.handleExecutionError(error as Error, Date.now() - startTime, context);
+            throw error;
         }
     }
 
     /**
-     * Enhanced canHandle with legacy patterns
+     * Check if this strategy can handle the given step type
      */
     canHandle(stepType: string, config?: Record<string, unknown>): boolean {
-        // Legacy pattern: Check explicit strategy request
+        // Check explicit strategy request
         if (config?.strategy === "deterministic") {
             return true;
         }
 
-        // Legacy pattern: Enhanced deterministic keywords
+        // Deterministic keywords
         const deterministicKeywords = [
             "process", "transform", "convert", "calculate",
             "automate", "batch", "sync", "replicate",
@@ -237,7 +166,7 @@ export class DeterministicStrategy implements ExecutionStrategy {
             "code", "script", "execute", "compute",
         ];
 
-        // Legacy pattern: Check step type and config description
+        // Check step type and config description
         const routineName = config?.name as string || "";
         const routineDescription = config?.description as string || "";
         const combined = `${stepType} ${routineName} ${routineDescription}`.toLowerCase();
@@ -246,10 +175,9 @@ export class DeterministicStrategy implements ExecutionStrategy {
     }
 
     /**
-     * Enhanced resource estimation with legacy cost model
+     * Estimate resources needed for execution
      */
     estimateResources(context: StrategyExecutionContext): ResourceUsage {
-        // Legacy pattern: Predictable cost calculation
         const inputCount = Object.keys(context.inputs).length;
         const outputCount = Object.keys(context.config.expectedOutputs || {}).length;
         
@@ -283,48 +211,6 @@ export class DeterministicStrategy implements ExecutionStrategy {
             apiCalls: estimatedApiCalls,
             computeTime: totalCost * 100, // Convert to milliseconds
             cost: totalCost * 0.001, // Convert to currency units
-        };
-    }
-
-
-    /**
-     * Enhanced performance metrics tracking
-     */
-    getPerformanceMetrics(): StrategyPerformance {
-        const recentHistory = this.performanceHistory.slice(-100); // Last 100 executions
-        
-        if (recentHistory.length === 0) {
-            return {
-                totalExecutions: 0,
-                successCount: 0,
-                failureCount: 0,
-                averageExecutionTime: 0,
-                averageResourceUsage: {},
-                averageConfidence: 0.95,
-                evolutionScore: 0.9,
-            };
-        }
-        
-        const successCount = recentHistory.filter(h => h.success).length;
-        const avgExecutionTime = recentHistory.reduce((sum, h) => sum + h.executionTime, 0) / recentHistory.length;
-        const avgResourcesUsed = recentHistory.reduce((sum, h) => sum + h.resourcesUsed, 0) / recentHistory.length;
-        const avgConfidence = recentHistory.reduce((sum, h) => sum + h.confidence, 0) / recentHistory.length;
-        
-        // Evolution score: improvement over time
-        const evolutionScore = this.calculateEvolutionScore(recentHistory);
-        
-        return {
-            totalExecutions: this.performanceHistory.length,
-            successCount,
-            failureCount: recentHistory.length - successCount,
-            averageExecutionTime: avgExecutionTime,
-            averageResourceUsage: {
-                apiCalls: this.calculateAverageApiCalls(recentHistory),
-                computeTime: avgExecutionTime,
-                cost: avgResourcesUsed * 0.001,
-            },
-            averageConfidence: avgConfidence,
-            evolutionScore,
         };
     }
 
@@ -389,65 +275,224 @@ export class DeterministicStrategy implements ExecutionStrategy {
         });
     }
 
-    private buildExecutionPlan(context: StrategyExecutionContext): ExecutionPlan {
-        const steps: ExecutionStep[] = [];
-        const validations: ValidationCheck[] = [];
-
-        // Analyze step type to determine operations
-        const operations = this.analyzeRequiredOperations(context);
-
-        // Build steps based on operations
-        for (const op of operations) {
-            const step = this.createExecutionStep(op, context);
-            steps.push(step);
-
-            // Add validation for critical steps
-            if (op.critical) {
-                validations.push(this.createValidationCheck(step));
+    /**
+     * Validate inputs strictly
+     */
+    private async validateInputsStrict(context: StrategyExecutionContext): Promise<ValidationResult> {
+        const errors: string[] = [];
+        const expectedInputs = context.config.expectedInputs as Record<string, any> || {};
+        
+        for (const [key, schema] of Object.entries(expectedInputs)) {
+            const value = context.inputs[key];
+            
+            if (schema.required && value === undefined) {
+                errors.push(`Missing required input: ${key}`);
+                continue;
+            }
+            
+            if (value !== undefined && schema.type) {
+                const actualType = Array.isArray(value) ? "array" : typeof value;
+                if (actualType !== schema.type.toLowerCase()) {
+                    errors.push(`Input ${key} type mismatch: expected ${schema.type}, got ${actualType}`);
+                }
             }
         }
-
-        // Add final output validation
-        validations.push({
-            stepId: "final",
-            type: "schema",
-            validation: (result) => this.validateFinalOutput(result, context),
-            errorMessage: "Final output validation failed",
-        });
-
-        // Build rollback plan for critical operations
-        const rollbackPlan = this.buildRollbackPlan(steps);
-
-        return { steps, validations, rollbackPlan };
+        
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
     }
 
-    private analyzeRequiredOperations(
+    /**
+     * Execute with routing based on execution type
+     */
+    private async executeWithRouting(context: StrategyExecutionContext): Promise<{
+        outputs: Record<string, unknown>;
+        resourcesUsed: number;
+        executionPath: string;
+    }> {
+        const operations = this.determineOperations(context);
+        const steps = operations.map(op => this.createExecutionStep(op, context));
+        const plan: ExecutionPlan = {
+            steps,
+            validations: steps.map(step => this.createValidationCheck(step)),
+            rollbackPlan: operations.filter(op => op.critical).map(op => ({
+                triggerStepId: op.id,
+                action: "rollback",
+                parameters: {},
+            })),
+        };
+        const metrics: ExecutionMetrics = {
+            stepsExecuted: 0,
+            cacheHits: 0,
+            apiCalls: 0,
+            transformations: 0,
+            validationsPassed: 0,
+            totalDuration: 0,
+            validations: 0,
+        };
+        
+        const outputs: Record<string, unknown> = {};
+        
+        for (const step of plan.steps) {
+            const stepStart = Date.now();
+            const resultsMap = new Map(Object.entries(outputs));
+            const result = await this.executeStep(step, resultsMap, context, metrics);
+            const stepDuration = Date.now() - stepStart;
+            
+            // Emit execution events for monitoring agents instead of tracking directly
+            this.eventBus.publish("execution.step_completed", {
+                stepId: step.id,
+                stepType: step.type,
+                duration: stepDuration,
+                success: true,
+                timestamp: new Date(),
+            }).catch(() => {}); // Fire and forget
+            
+            // Update minimal metrics for backward compatibility
+            metrics.totalDuration += stepDuration;
+            metrics.stepsExecuted++;
+            
+            Object.assign(outputs, result);
+        }
+        
+        return {
+            outputs,
+            resourcesUsed: metrics.stepsExecuted, // Use step count instead of hardcoded tracking
+            executionPath: plan.steps.map(s => s.type).join("->"),
+        };
+    }
+
+    /**
+     * Validate outputs strictly
+     */
+    private async validateOutputsStrict(outputs: Record<string, unknown>): Promise<ValidationResult> {
+        const errors: string[] = [];
+        
+        for (const [key, value] of Object.entries(outputs)) {
+            if (value === null || value === undefined) {
+                errors.push(`Output ${key} is null or undefined`);
+            }
+        }
+        
+        // Use ValidationEngine if available for additional validation
+        if (this.validationEngine) {
+            try {
+                const engineValidation = await this.validationEngine.validateOutputs(
+                    outputs,
+                    {}, // No specific schema for strict validation
+                );
+                if (!engineValidation.valid) {
+                    errors.push(...engineValidation.errors);
+                }
+            } catch (error) {
+                this.logger.warn("[DeterministicStrategy] ValidationEngine error", {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        }
+        
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
+    }
+
+    private async cacheResult(
         context: StrategyExecutionContext,
-    ): Array<{ type: string; critical: boolean }> {
-        const operations: Array<{ type: string; critical: boolean }> = [];
+        result: unknown,
+    ): Promise<void> {
+        const cacheKey = this.generateCacheKey(context);
+        const ttl = context.config.cacheTTL || 3600000; // 1 hour default
 
-        // Common operation patterns
+        await this.cache.set(cacheKey, {
+            value: result,
+            createdAt: new Date(),
+            expiresAt: new Date(Date.now() + (typeof ttl === 'number' ? ttl : 3600000)),
+            contextHash: this.hashContext(context),
+            executionTime: 0, // Will be set by metrics
+        });
+    }
+
+    private createCachedResult(
+        cachedValue: unknown,
+        metadata: MinimalExecutionMetadata
+    ): StrategyExecutionResult {
+        return {
+            success: true,
+            outputs: cachedValue as Record<string, unknown>,
+            resourcesUsed: {
+                cpu: 0,
+                memory: 0,
+                credits: 0, // No cost for cache hit
+            },
+        };
+    }
+
+    /**
+     * Analyze execution type
+     */
+    private analyzeExecutionType(context: StrategyExecutionContext): "simple" | "moderate" | "complex" {
+        const inputCount = Object.keys(context.inputs).length;
+        const stepComplexity = this.estimateTaskComplexity(context);
+        
+        if (inputCount <= 2 && stepComplexity < 2) return "simple";
+        if (inputCount <= 5 && stepComplexity < 4) return "moderate";
+        return "complex";
+    }
+
+    private estimateTaskComplexity(context: StrategyExecutionContext): number {
+        let complexity = 1;
+
+        // Input complexity
+        const inputSize = JSON.stringify(context.inputs).length;
+        complexity += Math.log10(inputSize + 1) * 0.1;
+
+        // Operation complexity
+        if (context.stepType.includes("batch")) {
+            complexity += 2;
+        }
+
         if (context.stepType.includes("transform")) {
-            operations.push({ type: "data_transform", critical: true });
+            complexity += 1;
         }
 
-        if (context.stepType.includes("api") || context.stepType.includes("fetch")) {
-            operations.push({ type: "api_call", critical: true });
-        }
+        return Math.min(complexity, 5);
+    }
 
-        if (context.stepType.includes("process") || context.stepType.includes("batch")) {
-            operations.push({ type: "batch_process", critical: false });
+    /**
+     * Determine operations based on context
+     */
+    private determineOperations(context: StrategyExecutionContext): Array<{
+        id: string;
+        type: string;
+        critical: boolean;
+    }> {
+        const operations: Array<{ id: string; type: string; critical: boolean }> = [];
+        const stepType = context.stepType.toLowerCase();
+        
+        if (stepType.includes("transform")) {
+            operations.push({ id: "transform_1", type: "data_transformation", critical: false });
         }
-
-        if (context.stepType.includes("validate")) {
-            operations.push({ type: "validation", critical: true });
+        
+        if (stepType.includes("api") || stepType.includes("fetch")) {
+            operations.push({ id: "api_1", type: "api_integration", critical: true });
         }
-
-        // Default operation if none detected
+        
+        if (stepType.includes("process") || stepType.includes("batch")) {
+            operations.push({ id: "process_1", type: "batch_processing", critical: false });
+        }
+        
+        if (stepType.includes("validate")) {
+            operations.push({ id: "validate_1", type: "validation", critical: false });
+        }
+        
+        // Default operation if none match
         if (operations.length === 0) {
-            operations.push({ type: "computation", critical: false });
+            operations.push({ id: "default_1", type: "direct_execution", critical: false });
         }
-
+        
         return operations;
     }
 
@@ -561,122 +606,6 @@ export class DeterministicStrategy implements ExecutionStrategy {
         return result !== null && result !== undefined;
     }
 
-    private validateFinalOutput(
-        result: unknown,
-        context: StrategyExecutionContext,
-    ): boolean {
-        // Check against output schema if provided
-        if (context.config.outputSchema) {
-            // TODO: Implement schema validation
-            return true;
-        }
-
-        // Basic validation
-        return result !== null && result !== undefined;
-    }
-
-    private buildRollbackPlan(steps: ExecutionStep[]): RollbackStep[] {
-        const rollbackSteps: RollbackStep[] = [];
-
-        for (const step of steps) {
-            if (step.type === "api_call" && step.parameters.method === "POST") {
-                rollbackSteps.push({
-                    triggerStepId: step.id,
-                    action: "delete_resource",
-                    parameters: {
-                        resourceId: `${step.id}_result`,
-                    },
-                });
-            }
-        }
-
-        return rollbackSteps;
-    }
-
-    private validateExecutionPlan(
-        plan: ExecutionPlan,
-        context: StrategyExecutionContext,
-    ): void {
-        // Check resource availability
-        for (const step of plan.steps) {
-            if (step.type === "api_call") {
-                const hasApiAccess = context.resources?.tools?.some(
-                    tool => tool.name === step.parameters.endpoint,
-                );
-                if (!hasApiAccess) {
-                    throw new Error(`API ${step.parameters.endpoint} not available`);
-                }
-            }
-        }
-
-        // Check time constraints
-        const estimatedTime = plan.steps.reduce((sum, step) => sum + step.timeout, 0);
-        if (context.constraints.maxTime && estimatedTime > context.constraints.maxTime) {
-            throw new Error(`Estimated execution time ${estimatedTime}ms exceeds limit`);
-        }
-    }
-
-    private async executePlan(
-        plan: ExecutionPlan,
-        context: StrategyExecutionContext,
-        metrics: ExecutionMetrics,
-    ): Promise<{ success: boolean; outputs?: Record<string, unknown>; error?: string }> {
-        const results = new Map<string, unknown>();
-        const startTime = Date.now();
-
-        try {
-            // Execute steps in order
-            for (const step of plan.steps) {
-                this.logger.debug(`[DeterministicStrategy] Executing step ${step.id}`, {
-                    type: step.type,
-                    operation: step.operation,
-                });
-
-                const stepResult = await this.executeStep(step, results, context, metrics);
-                results.set(step.id, stepResult);
-
-                // Validate step result
-                const validation = plan.validations.find(v => v.stepId === step.id);
-                if (validation && !validation.validation(stepResult)) {
-                    throw new Error(validation.errorMessage);
-                }
-
-                metrics.stepsExecuted++;
-            }
-
-            // Final validation
-            const finalValidation = plan.validations.find(v => v.stepId === "final");
-            const finalOutput = this.compileFinalOutput(results, plan);
-            
-            if (finalValidation && !finalValidation.validation(finalOutput)) {
-                throw new Error(finalValidation.errorMessage);
-            }
-
-            metrics.validationsPassed = plan.validations.length;
-
-            return {
-                success: true,
-                outputs: finalOutput,
-            };
-
-        } catch (error) {
-            this.logger.error("[DeterministicStrategy] Plan execution failed", {
-                error: error instanceof Error ? error.message : String(error),
-                stepsCompleted: metrics.stepsExecuted,
-            });
-
-            // Execute rollback if available
-            if (plan.rollbackPlan) {
-                await this.executeRollback(plan.rollbackPlan, results);
-            }
-
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Execution failed",
-            };
-        }
-    }
-
     private async executeStep(
         step: ExecutionStep,
         previousResults: Map<string, unknown>,
@@ -689,18 +618,15 @@ export class DeterministicStrategy implements ExecutionStrategy {
             previousResults,
         );
 
-        // Execute based on step type
+        // Execute based on step type - metrics now tracked by events
         switch (step.type) {
             case "cache_check":
-                metrics.cacheHits++;
                 return this.executeCacheCheck(resolvedParams);
 
             case "api_call":
-                metrics.apiCalls++;
                 return this.executeApiCall(resolvedParams, step.timeout);
 
             case "data_transform":
-                metrics.transformations++;
                 return this.executeDataTransform(resolvedParams);
 
             case "computation":
@@ -778,466 +704,6 @@ export class DeterministicStrategy implements ExecutionStrategy {
             errors: [],
         };
     }
-
-    private compileFinalOutput(
-        results: Map<string, unknown>,
-        plan: ExecutionPlan,
-    ): Record<string, unknown> {
-        // Compile results from all steps
-        const output: Record<string, unknown> = {};
-
-        // Get the last step's result as primary output
-        const lastStep = plan.steps[plan.steps.length - 1];
-        const lastResult = results.get(lastStep.id);
-
-        if (typeof lastResult === "object" && lastResult !== null) {
-            Object.assign(output, lastResult);
-        } else {
-            output.result = lastResult;
-        }
-
-        // Add metadata
-        output._metadata = {
-            stepsExecuted: plan.steps.length,
-            executionPlan: plan.steps.map(s => s.operation),
-        };
-
-        return output;
-    }
-
-    private async executeRollback(
-        rollbackPlan: RollbackStep[],
-        results: Map<string, unknown>,
-    ): Promise<void> {
-        this.logger.info("[DeterministicStrategy] Executing rollback plan");
-
-        for (const rollback of rollbackPlan) {
-            try {
-                // Execute rollback action
-                this.logger.debug(`[DeterministicStrategy] Rollback: ${rollback.action}`, {
-                    triggerStep: rollback.triggerStepId,
-                });
-                
-                // TODO: Implement actual rollback logic
-            } catch (error) {
-                this.logger.error("[DeterministicStrategy] Rollback failed", {
-                    action: rollback.action,
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-    }
-
-    private async cacheResult(
-        context: StrategyExecutionContext,
-        result: unknown,
-    ): Promise<void> {
-        const cacheKey = this.generateCacheKey(context);
-        const ttl = context.config.cacheTTL || 3600000; // 1 hour default
-
-        await this.cache.set(cacheKey, {
-            value: result,
-            createdAt: new Date(),
-            expiresAt: new Date(Date.now() + (typeof ttl === 'number' ? ttl : 3600000)),
-            contextHash: this.hashContext(context),
-            executionTime: 0, // Will be set by metrics
-        });
-
-        // BaseStore handles size management automatically, so no manual eviction needed
-    }
-
-    // Cache eviction is handled automatically by BaseStore
-
-    private createCachedResult(
-        cachedValue: unknown,
-        executionTime: number,
-        metrics: ExecutionMetrics,
-    ): StrategyExecutionResult {
-        return {
-            success: true,
-            result: cachedValue,
-            metadata: {
-                strategyType: this.type,
-                executionTime,
-                resourceUsage: {
-                    computeTime: executionTime,
-                    cost: 0, // No cost for cache hit
-                },
-                confidence: 1.0,
-                fallbackUsed: false,
-            },
-            feedback: {
-                outcome: "success",
-                performanceScore: 1.0, // Perfect score for cache hit
-            },
-        };
-    }
-
-    private calculateResourceUsage(metrics: ExecutionMetrics): ResourceUsage {
-        return {
-            apiCalls: metrics.apiCalls,
-            computeTime: metrics.totalDuration,
-            cost: (metrics.apiCalls * 0.001) + (metrics.transformations * 0.0001),
-        };
-    }
-
-    private calculatePerformanceScore(
-        metrics: ExecutionMetrics,
-        result: { success: boolean },
-    ): number {
-        if (!result.success) return 0;
-
-        let score = 0.7; // Base score
-
-        // Cache hit bonus
-        if (metrics.cacheHits > 0) {
-            score += 0.2;
-        }
-
-        // Efficiency bonus
-        const efficiencyRatio = metrics.stepsExecuted / (metrics.apiCalls + 1);
-        if (efficiencyRatio > 2) {
-            score += 0.1;
-        }
-
-        return Math.min(1, score);
-    }
-
-    private suggestOptimizations(
-        metrics: ExecutionMetrics,
-        result: { success: boolean },
-    ): string[] {
-        const suggestions: string[] = [];
-
-        // Suggest caching
-        if (metrics.cacheHits === 0 && metrics.apiCalls > 2) {
-            suggestions.push("Consider implementing result caching for repeated API calls");
-        }
-
-        // Suggest batching
-        if (metrics.apiCalls > 5) {
-            suggestions.push("Consider batching API calls to reduce overhead");
-        }
-
-        // Suggest parallel execution
-        if (metrics.stepsExecuted > 3 && metrics.totalDuration > 10000) {
-            suggestions.push("Consider parallel execution for independent steps");
-        }
-
-        return suggestions;
-    }
-
-    private estimateTaskComplexity(context: StrategyExecutionContext): number {
-        let complexity = 1;
-
-        // Input complexity
-        const inputSize = JSON.stringify(context.inputs).length;
-        complexity += Math.log10(inputSize + 1) * 0.1;
-
-        // Operation complexity
-        if (context.stepType.includes("batch")) {
-            complexity += 2;
-        }
-
-        if (context.stepType.includes("transform")) {
-            complexity += 1;
-        }
-
-        return Math.min(complexity, 5);
-    }
-
-    /**
-     * Validate inputs strictly
-     */
-    private async validateInputsStrict(context: StrategyExecutionContext): Promise<ValidationResult> {
-        const errors: string[] = [];
-        const expectedInputs = context.config.expectedInputs as Record<string, any> || {};
-        
-        for (const [key, schema] of Object.entries(expectedInputs)) {
-            const value = context.inputs[key];
-            
-            if (schema.required && value === undefined) {
-                errors.push(`Missing required input: ${key}`);
-                continue;
-            }
-            
-            if (value !== undefined && schema.type) {
-                const actualType = Array.isArray(value) ? "array" : typeof value;
-                if (actualType !== schema.type.toLowerCase()) {
-                    errors.push(`Input ${key} type mismatch: expected ${schema.type}, got ${actualType}`);
-                }
-            }
-        }
-        
-        return {
-            isValid: errors.length === 0,
-            errors,
-        };
-    }
-
-    /**
-     * Execute with routing based on execution type
-     */
-    private async executeWithRouting(context: StrategyExecutionContext): Promise<{
-        outputs: Record<string, unknown>;
-        resourcesUsed: number;
-        executionPath: string;
-    }> {
-        const operations = this.determineOperations(context);
-        const steps = operations.map(op => this.createExecutionStep(op, context));
-        const plan: ExecutionPlan = {
-            steps,
-            validations: steps.map(step => this.createValidationCheck(step)),
-            rollbackPlan: operations.filter(op => op.critical).map(op => ({
-                triggerStepId: op.id,
-                action: "rollback",
-                parameters: {},
-            })),
-        };
-        const metrics: ExecutionMetrics = {
-            stepsExecuted: 0,
-            cacheHits: 0,
-            apiCalls: 0,
-            transformations: 0,
-            validationsPassed: 0,
-            totalDuration: 0,
-            validations: 0,
-        };
-        
-        const outputs: Record<string, unknown> = {};
-        
-        for (const step of plan.steps) {
-            const stepStart = Date.now();
-            const resultsMap = new Map(Object.entries(outputs));
-            const result = await this.executeStep(step, resultsMap, context, metrics);
-            metrics.totalDuration += Date.now() - stepStart;
-            metrics.stepsExecuted++;
-            
-            if (step.type === "api_call") metrics.apiCalls++;
-            if (step.type === "data_transform") metrics.transformations++;
-            if (step.type === "validation") metrics.validations++;
-            
-            Object.assign(outputs, result);
-        }
-        
-        return {
-            outputs,
-            resourcesUsed: metrics.apiCalls + metrics.transformations,
-            executionPath: plan.steps.map(s => s.type).join("->"),
-        };
-    }
-
-    /**
-     * Validate outputs strictly
-     */
-    private async validateOutputsStrict(outputs: Record<string, unknown>): Promise<ValidationResult> {
-        const errors: string[] = [];
-        
-        for (const [key, value] of Object.entries(outputs)) {
-            if (value === null || value === undefined) {
-                errors.push(`Output ${key} is null or undefined`);
-            }
-        }
-        
-        // Use ValidationEngine if available for additional validation
-        if (this.validationEngine) {
-            try {
-                const engineValidation = await this.validationEngine.validateOutputs(
-                    outputs,
-                    {}, // No specific schema for strict validation
-                );
-                if (!engineValidation.valid) {
-                    errors.push(...engineValidation.errors);
-                }
-            } catch (error) {
-                this.logger.warn("[DeterministicStrategy] ValidationEngine error", {
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-        }
-        
-        return {
-            isValid: errors.length === 0,
-            errors,
-        };
-    }
-
-    /**
-     * Track performance metrics
-     */
-    private trackPerformance(metrics: {
-        timestamp: Date;
-        executionTime: number;
-        resourcesUsed: number;
-        success: boolean;
-        confidence: number;
-        executionPath: string;
-    }): void {
-        this.performanceHistory.push(metrics);
-        
-        // Keep only last 1000 entries
-        if (this.performanceHistory.length > 1000) {
-            this.performanceHistory = this.performanceHistory.slice(-1000);
-        }
-    }
-
-    /**
-     * Handle execution errors
-     */
-    private handleExecutionError(
-        error: Error,
-        executionTime: number,
-        context: StrategyExecutionContext,
-    ): StrategyExecutionResult {
-        return {
-            success: false,
-            error: error.message,
-            metadata: {
-                strategyType: this.type,
-                executionTime,
-                resourceUsage: {
-                    computeTime: executionTime,
-                    cost: 0,
-                },
-                confidence: 0,
-                fallbackUsed: false,
-            },
-            feedback: {
-                outcome: "failure",
-                performanceScore: 0,
-                issues: [error.message],
-                improvements: ["Check input validation", "Review execution plan"],
-            },
-        };
-    }
-
-    /**
-     * Analyze execution type
-     */
-    private analyzeExecutionType(context: StrategyExecutionContext): "simple" | "moderate" | "complex" {
-        const inputCount = Object.keys(context.inputs).length;
-        const stepComplexity = this.estimateTaskComplexity(context);
-        
-        if (inputCount <= 2 && stepComplexity < 2) return "simple";
-        if (inputCount <= 5 && stepComplexity < 4) return "moderate";
-        return "complex";
-    }
-
-    /**
-     * Optimize for successful feedback
-     */
-    private optimizeForSuccess(feedback: StrategyFeedback): void {
-        this.logger.debug("[DeterministicStrategy] Optimizing for success", {
-            performanceScore: feedback.performanceScore,
-        });
-        // Future: Implement optimization logic
-    }
-
-    /**
-     * Adjust for failure feedback
-     */
-    private adjustForFailure(feedback: StrategyFeedback): void {
-        this.logger.debug("[DeterministicStrategy] Adjusting for failure", {
-            issues: feedback.issues,
-        });
-        // Future: Implement failure adjustment logic
-    }
-
-    /**
-     * Update performance metrics
-     */
-    private updatePerformanceMetrics(feedback: StrategyFeedback): void {
-        this.logger.debug("[DeterministicStrategy] Updating performance metrics", {
-            outcome: feedback.outcome,
-        });
-        // Future: Implement metric updates
-    }
-
-    /**
-     * Calculate evolution score
-     */
-    private calculateEvolutionScore(history: typeof this.performanceHistory): number {
-        if (history.length < 10) return 0.5;
-        
-        const recent = history.slice(-50);
-        const older = history.slice(-100, -50);
-        
-        if (older.length === 0) return 0.5;
-        
-        const recentSuccess = recent.filter(h => h.success).length / recent.length;
-        const olderSuccess = older.filter(h => h.success).length / older.length;
-        
-        return Math.max(0, Math.min(1, (recentSuccess - olderSuccess) + 0.5));
-    }
-
-    /**
-     * Calculate average API calls
-     */
-    private calculateAverageApiCalls(history: typeof this.performanceHistory): number {
-        if (history.length === 0) return 0;
-        
-        const totalApiCalls = history.reduce((sum, h) => sum + (h.resourcesUsed || 0), 0);
-        return totalApiCalls / history.length;
-    }
-
-    /**
-     * Suggest improvements based on execution
-     */
-    private suggestImprovements(
-        executionResult: { resourcesUsed: number; executionPath: string },
-        context: StrategyExecutionContext,
-    ): string[] {
-        const improvements: string[] = [];
-        
-        if (executionResult.resourcesUsed > 5) {
-            improvements.push("Consider batching API calls to reduce resource usage");
-        }
-        
-        if (executionResult.executionPath.includes("retry")) {
-            improvements.push("Implement better error handling to reduce retries");
-        }
-        
-        if (context.history.successRate < 0.8) {
-            improvements.push("Review input validation to catch errors earlier");
-        }
-        
-        return improvements;
-    }
-
-    /**
-     * Determine operations based on context
-     */
-    private determineOperations(context: StrategyExecutionContext): Array<{
-        id: string;
-        type: string;
-        critical: boolean;
-    }> {
-        const operations: Array<{ id: string; type: string; critical: boolean }> = [];
-        const stepType = context.stepType.toLowerCase();
-        
-        if (stepType.includes("transform")) {
-            operations.push({ id: "transform_1", type: "data_transformation", critical: false });
-        }
-        
-        if (stepType.includes("api") || stepType.includes("fetch")) {
-            operations.push({ id: "api_1", type: "api_integration", critical: true });
-        }
-        
-        if (stepType.includes("process") || stepType.includes("batch")) {
-            operations.push({ id: "process_1", type: "batch_processing", critical: false });
-        }
-        
-        if (stepType.includes("validate")) {
-            operations.push({ id: "validate_1", type: "validation", critical: false });
-        }
-        
-        // Default operation if none match
-        if (operations.length === 0) {
-            operations.push({ id: "default_1", type: "direct_execution", critical: false });
-        }
-        
-        return operations;
-    }
 }
 
 /**
@@ -1251,7 +717,6 @@ interface CacheEntry {
     executionTime: number;
 }
 
-
 /**
  * Validation result interface
  */
@@ -1259,4 +724,3 @@ interface ValidationResult {
     isValid: boolean;
     errors: string[];
 }
-

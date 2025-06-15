@@ -1,7 +1,7 @@
 /**
  * Resilience Event Publisher
  * Publishes rich resilience events for agent learning with ≤5ms overhead guarantee
- * Integrates with existing telemetry shim and event bus infrastructure
+ * Uses pure event-driven architecture without hard-coded telemetry
  */
 
 import type {
@@ -21,7 +21,7 @@ import {
     ResilienceEventType as EventType,
     UserImpactLevel,
 } from "@vrooli/shared";
-import type { RedisEventBus } from "../events/eventBus.js";
+import type { EventBus } from "../events/eventBus.js";
 import { uuid } from "@vrooli/shared";
 import { logger } from "../../../../events/logger.js";
 
@@ -75,8 +75,7 @@ interface PatternCache {
  * Resilience event publisher with performance guarantees
  */
 export class ResilienceEventPublisher {
-    private readonly telemetryShim: TelemetryShim;
-    private readonly eventBus: RedisEventBus;
+    private readonly eventBus: EventBus;
     private readonly config: PublishingConfig;
     private readonly eventBuffer: ResilienceEvent[] = [];
     private readonly patternCache: PatternCache;
@@ -88,11 +87,9 @@ export class ResilienceEventPublisher {
     private droppedEvents = 0;
 
     constructor(
-        telemetryShim: TelemetryShim,
-        eventBus: RedisEventBus,
+        eventBus: EventBus,
         config: Partial<PublishingConfig> = {},
     ) {
-        this.telemetryShim = telemetryShim;
         this.eventBus = eventBus;
         this.config = { ...DEFAULT_CONFIG, ...config };
         
@@ -142,19 +139,7 @@ export class ResilienceEventPublisher {
 
             await this.publishEvent(event);
 
-            // Fire-and-forget telemetry
-            this.telemetryShim.emitError(
-                error,
-                source.component,
-                this.mapSeverityToTelemetry(classification.severity),
-                {
-                    tier: source.tier,
-                    operation: source.operation,
-                    errorClassification: classification,
-                },
-            ).catch(() => {
-                // Ignore telemetry errors to maintain performance guarantee
-            });
+            // All telemetry now handled by event-driven agents
 
         } finally {
             this.trackOverhead(startTime);
@@ -285,16 +270,7 @@ export class ResilienceEventPublisher {
 
             await this.publishEvent(event);
 
-            // Fire-and-forget telemetry for successful recovery
-            this.telemetryShim.emitTaskCompletion(
-                source.requestId,
-                `recovery_${strategy.strategyType}`,
-                outcome.success ? "success" : "failure",
-                outcome.duration,
-                this.calculateResourceCost(outcome.resourceUsage),
-            ).catch(() => {
-                // Ignore telemetry errors
-            });
+            // All telemetry now handled by event-driven agents
 
         } finally {
             this.trackOverhead(startTime);
@@ -338,21 +314,7 @@ export class ResilienceEventPublisher {
 
             await this.publishEvent(event);
 
-            // Enhanced telemetry for failures
-            if (error) {
-                this.telemetryShim.emitError(
-                    error,
-                    source.component,
-                    "high",
-                    {
-                        recoveryStrategy: strategy.strategyType,
-                        attemptCount: outcome.attemptCount,
-                        tier: source.tier,
-                    },
-                ).catch(() => {
-                    // Ignore telemetry errors
-                });
-            }
+            // All telemetry now handled by event-driven agents
 
         } finally {
             this.trackOverhead(startTime);
@@ -421,20 +383,7 @@ export class ResilienceEventPublisher {
 
             await this.publishEvent(event);
 
-            // High-priority telemetry for circuit breaker events
-            this.telemetryShim.emitComponentHealth(
-                component,
-                "unhealthy",
-                [
-                    {
-                        name: "circuit_breaker",
-                        status: "fail",
-                        message: `Circuit breaker opened after ${failures} failures (threshold: ${threshold})`,
-                    },
-                ],
-            ).catch(() => {
-                // Ignore telemetry errors
-            });
+            // All telemetry now handled by event-driven agents
 
         } finally {
             this.trackOverhead(startTime);
@@ -511,20 +460,7 @@ export class ResilienceEventPublisher {
 
             await this.publishEvent(event);
 
-            // Recovery telemetry
-            this.telemetryShim.emitComponentHealth(
-                component,
-                "healthy",
-                [
-                    {
-                        name: "circuit_breaker",
-                        status: "pass",
-                        message: `Circuit breaker closed after ${recoveryTime}ms recovery`,
-                    },
-                ],
-            ).catch(() => {
-                // Ignore telemetry errors
-            });
+            // All telemetry now handled by event-driven agents
 
         } finally {
             this.trackOverhead(startTime);
@@ -898,20 +834,7 @@ export class ResilienceEventPublisher {
         this.patternCache.lastPatternCheck = new Date();
     }
 
-    private mapSeverityToTelemetry(severity: string): "low" | "medium" | "high" | "critical" {
-        switch (severity) {
-            case "FATAL": return "critical";
-            case "CRITICAL": return "critical";
-            case "ERROR": return "high";
-            case "WARNING": return "medium";
-            case "INFO": return "low";
-            default: return "medium";
-        }
-    }
-
-    private calculateResourceCost(resourceUsage: Record<string, number>): number {
-        return Object.values(resourceUsage).reduce((sum, cost) => sum + (cost || 0), 0);
-    }
+    // Removed telemetry mapping helpers - all handled by event-driven agents
 
     /**
      * Factory methods for common objects

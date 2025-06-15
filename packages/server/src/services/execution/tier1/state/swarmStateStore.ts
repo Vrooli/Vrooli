@@ -1,13 +1,12 @@
 import { type Logger } from "winston";
 import {
     type Swarm,
-    SwarmState,
+    ExecutionStates,
+    type ExecutionState,
     type SwarmConfig,
     type TeamFormation,
     type SwarmAgent,
     type SwarmTeam,
-} from "@vrooli/shared";
-import {
     type BlackboardItem,
     type SwarmResource,
 } from "@vrooli/shared";
@@ -24,8 +23,8 @@ export interface ISwarmStateStore {
     deleteSwarm(swarmId: string): Promise<void>;
     
     // State management
-    getSwarmState(swarmId: string): Promise<SwarmState>;
-    updateSwarmState(swarmId: string, state: SwarmState): Promise<void>;
+    getSwarmState(swarmId: string): Promise<ExecutionState>;
+    updateSwarmState(swarmId: string, state: ExecutionState): Promise<void>;
     
     // Team management
     getTeam(swarmId: string): Promise<TeamFormation | null>;
@@ -109,12 +108,12 @@ export class InMemorySwarmStateStore extends InMemoryStore<Swarm> implements ISw
         this.logger.debug("[SwarmStateStore] Deleted swarm", { swarmId });
     }
 
-    async getSwarmState(swarmId: string): Promise<SwarmState> {
+    async getSwarmState(swarmId: string): Promise<ExecutionState> {
         const swarm = await this.getSwarm(swarmId);
-        return swarm?.state || SwarmState.UNINITIALIZED;
+        return swarm?.state || ExecutionStates.UNINITIALIZED;
     }
 
-    async updateSwarmState(swarmId: string, state: SwarmState): Promise<void> {
+    async updateSwarmState(swarmId: string, state: ExecutionState): Promise<void> {
         await this.updateSwarm(swarmId, { state });
     }
 
@@ -131,14 +130,14 @@ export class InMemorySwarmStateStore extends InMemoryStore<Swarm> implements ISw
         const active: string[] = [];
         const allSwarms = await this.getAll();
         for (const [id, swarm] of allSwarms) {
-            if (![SwarmState.STOPPED, SwarmState.FAILED, SwarmState.TERMINATED].includes(swarm.state)) {
+            if (![ExecutionStates.STOPPED, ExecutionStates.FAILED, ExecutionStates.TERMINATED].includes(swarm.state)) {
                 active.push(id);
             }
         }
         return active;
     }
 
-    async getSwarmsByState(state: SwarmState): Promise<string[]> {
+    async getSwarmsByState(state: ExecutionState): Promise<string[]> {
         const matches: string[] = [];
         const allSwarms = await this.getAll();
         for (const [id, swarm] of allSwarms) {

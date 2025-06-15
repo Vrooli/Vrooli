@@ -1,14 +1,11 @@
 /* eslint-disable no-magic-numbers */
+import type { BoxProps } from "@mui/material";
+import { keyframes, styled } from "@mui/material";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { keyframes } from "@mui/material";
-import { styled } from "@mui/material";
-import { useTheme } from "@mui/material";
-import type { BoxProps } from "@mui/material";
 import { LINKS, PaymentType, SOCIALS } from "@vrooli/shared";
 import { lazy, Suspense, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AiDrivenConvo from "../../assets/img/AiDrivenConvo.png";
@@ -17,21 +14,22 @@ import Earth from "../../assets/img/Earth.svg";
 import { default as OrganizationalManagement, default as TourThumbnail } from "../../assets/img/OrganizationalManagement.webp";
 import { PageContainer } from "../../components/Page/Page.js";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
+import { Button } from "../../components/buttons/Button.js";
+import { IconButton } from "../../components/buttons/IconButton.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
 import { SessionContext } from "../../contexts/session.js";
 import { useStripe } from "../../hooks/useStripe.js";
-import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { IconCommon, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
-import { ScrollBox, SlideIconButton } from "../../styles.js";
+import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { darkPalette } from "../../utils/display/theme.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTierType, PricingTiers } from "../ProView/ProView.js";
+import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTiers, PricingTierType } from "../ProView/ProView.js";
 import { type LandingViewProps } from "./types.js";
 
 // Lazy load the animation components
@@ -213,25 +211,11 @@ const pulse = keyframes`
         box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
     }
 `;
-const pulseHover = {
-    background: "#2f9875",
-    borderColor: "#0fa",
-    borderWidth: "2px",
-    filter: "brightness(1.2)",
+
+const moreTransparentButtonStyle = {
+    background: "#017d5366",
+    animation: "none",
 } as const;
-const PulseButton = styled(Button)(({ theme }) => ({
-    // Button border has neon green glow animation
-    animation: `${pulse} 3s infinite ease`,
-    background: "#017d53",
-    borderColor: "#0fa",
-    borderWidth: "2px",
-    borderRadius: theme.spacing(2),
-    color: "white",
-    fontWeight: 550,
-    width: "fit-content",
-    "&:hover": pulseHover,
-    transition: "all 0.2s ease",
-}));
 
 const earthPositions = {
     full: "translate(25%, 25%) scale(0.8)",
@@ -392,18 +376,6 @@ const Slide1Buttons = styled(Box)(({ theme }) => ({
         justifyContent: "center",
     },
 }));
-const Slide1StartButton = styled(PulseButton)(({ theme }) => ({
-    fontSize: "1.5rem",
-    textTransform: "none",
-    width: "fit-content",
-    [theme.breakpoints.down("md")]: {
-        fontSize: "1.25rem",
-    },
-}));
-const Slide1Button = styled(Slide1StartButton)(() => ({
-    animation: "none",
-    background: "#017d5366",
-}));
 
 const Slide1ActionBox = styled(Box)(({ theme }) => ({
     zIndex: 2,
@@ -419,12 +391,6 @@ const Slide6Title = styled(SlideTitle)(({ theme }) => ({
     marginTop: theme.spacing(24),
     marginBottom: theme.spacing(2),
     textAlign: "center",
-}));
-const Slide6StartButton = styled(Slide1StartButton)(({ theme }) => ({
-    zIndex: 6,
-    width: "min(300px, 40vw)",
-    marginTop: theme.spacing(2),
-    marginBottom: theme.spacing(2),
 }));
 const ExternalLinksBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -623,16 +589,25 @@ export function LandingView({
                                     </SlideText>
                                     <Slide1ActionBox>
                                         <Slide1Buttons>
-                                            <Slide1StartButton
-                                                variant="outlined"
-                                                color="secondary"
+                                            <Button
+                                                variant="neon"
+                                                borderRadius="pill"
                                                 onClick={toSignUp}
-                                            >Start for free</Slide1StartButton>
-                                            <Slide1Button
-                                                variant="outlined"
-                                                color="secondary"
+                                                size="lg"
+                                            >Start for free</Button>
+                                            <Button
+                                                variant="outline"
+                                                borderRadius="pill"
                                                 onClick={toApp}
-                                            >Get the app</Slide1Button>
+                                                size="lg"
+                                                style={{
+                                                    background: "rgba(156, 163, 175, 0.2)",
+                                                    borderColor: "#9ca3af",
+                                                    color: "#e5e7eb",
+                                                    animation: "none",
+                                                }}
+                                                className="hover:tw-bg-gray-400 hover:tw-bg-opacity-30 hover:tw-border-gray-300"
+                                            >Get the app</Button>
                                         </Slide1Buttons>
                                         <Slide1Buttons>
                                             <BreadcrumbsBase
@@ -664,12 +639,12 @@ export function LandingView({
                             </HalfWidth>
                             <HalfWidth>
                                 <RightGridContent>
-                                    <SlideTitle variant='h2'>AI Coworkers, Ready on Demand</SlideTitle>
+                                    <SlideTitle variant='h2'>Self-Improving AI Swarms</SlideTitle>
                                     <SlideText variant="h3">
-                                        Our bots work around the clock to handle your repetitive tasks, so you can focus on what matters most.
+                                        Unlike static automation, our AI agents form dynamic swarms that learn, adapt, and enhance their own capabilities through collaborative intelligence.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Whether it&apos;s managing projects, automating workflows, or answering common questions, our AI bots are here to make your life easier and your business run smoother.
+                                        Every task completed, every pattern learned, every optimization discovered—it all compounds throughout the system, creating exponential growth in what your agents can accomplish.
                                     </SlideText>
                                 </RightGridContent>
                             </HalfWidth>
@@ -677,15 +652,15 @@ export function LandingView({
                         <FullWidth id={ELEMENT_IDS.LandingViewSlideRoutines}>
                             <HalfWidth>
                                 <LeftGridContent>
-                                    <SlideTitle variant='h2'>Build Consistent, Automated Workflows</SlideTitle>
+                                    <SlideTitle variant='h2'>Evolutionary Routines That Get Smarter</SlideTitle>
                                     <SlideText variant="h3">
-                                        Create reusable workflows that ensure your AI-driven business operates smoothly, every time.
+                                        Routines aren't just workflows—they're living intelligence that evolves from conversational interactions to sophisticated automation.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Manage your business, create content, and more, in a way that is repeatable and reliable.
+                                        Starting at 450 credits and 5+ minutes, watch as your routines optimize themselves down to 75 credits and 45 seconds while improving quality.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Alternatively, let our AI bots build routines for you based on your preferences and needs.
+                                        With recursive composition and unlimited nesting, every routine becomes a building block for exponentially more sophisticated capabilities.
                                     </SlideText>
                                 </LeftGridContent>
                             </HalfWidth>
@@ -709,12 +684,12 @@ export function LandingView({
                             </HalfWidth>
                             <HalfWidth>
                                 <RightGridContent>
-                                    <SlideTitle variant='h2'>Manage Teams Like a Pro</SlideTitle>
+                                    <SlideTitle variant='h2'>Hierarchical Intelligence at Scale</SlideTitle>
                                     <SlideText variant="h3">
-                                        With AI-powered routines and bots, you can handle the workload of an entire team on your own—no humans required.
+                                        Our three-tier architecture enables true organizational intelligence: coordination tier for strategic planning, process tier for workflow orchestration, and execution tier for adaptive task completion.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Perfect for solo developers or small businesses, Vrooli lets you automate and manage everything from operations to communication, freeing up your time to focus on growth.
+                                        Teams provide strategic direction while dynamic swarms handle tactical execution. Using MOISE+ organizational modeling, agents form sophisticated hierarchies that adapt to any challenge.
                                     </SlideText>
                                 </RightGridContent>
                             </HalfWidth>
@@ -734,8 +709,8 @@ export function LandingView({
                         />
                         <SlideContent id={ELEMENT_IDS.LandingViewSlidePricing}>
                             <Box display="flex" flexDirection="column" pl={2} pr={2} pt={4} alignItems="center" minHeight="100vh" justifyContent="center" zIndex={PAGE_LAYERS.Content}>
-                                <SlideTitle variant='h2'>Supercharge Your Workflow</SlideTitle>
-                                <SlideText>Select the perfect plan for your needs.</SlideText>
+                                <SlideTitle variant='h2'>Democratizing Recursive Intelligence</SlideTitle>
+                                <SlideText>Making self-improving AI accessible to everyone.</SlideText>
                                 <Box mt={4} mb={2}>
                                     <BillingCycleToggle value={billingCycle} onChange={setBillingCycle} />
                                 </Box>
@@ -754,22 +729,36 @@ export function LandingView({
                             <Box display="flex" flexDirection="column" alignItems="center" minHeight="100vh">
                                 <Slide6Title variant='h2'>Ready to Change Your World?</Slide6Title>
                                 <SlideText>Boost your productivity and get more done with Vrooli.</SlideText>
-                                <Slide6StartButton
+                                <Button
                                     aria-label="I'm ready!"
-                                    variant="outlined"
-                                    color="secondary"
+                                    variant="neon"
+                                    borderRadius="pill"
+                                    size="lg"
                                     onClick={toSignUp}
+                                    style={{
+                                        zIndex: 6,
+                                        width: "min(300px, 40vw)",
+                                        marginTop: "16px",
+                                        marginBottom: "16px",
+                                    }}
                                     startIcon={<IconCommon
                                         decorative
                                         fill="white"
                                         name="Launch"
                                     />}
-                                >I&apos;m ready!</Slide6StartButton>
+                                >I&apos;m ready!</Button>
                                 <ExternalLinksBox>
                                     <Tooltip title="Check out our code" placement="bottom">
-                                        <SlideIconButton
+                                        <IconButton
+                                            variant="transparent"
+                                            size="md"
                                             aria-label="Check out our code"
                                             onClick={toGitHub}
+                                            style={{
+                                                background: "transparent",
+                                                border: "1px solid #0fa",
+                                            }}
+                                            className="hover:tw-brightness-125 hover:tw-scale-110 tw-transition-all tw-duration-200"
                                         >
                                             <svg
                                                 width="24"
@@ -782,19 +771,26 @@ export function LandingView({
                                             >
                                                 <path d={gitHubPathD} />
                                             </svg>
-                                        </SlideIconButton>
+                                        </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Follow us on X/Twitter" placement="bottom">
-                                        <SlideIconButton
+                                        <IconButton
+                                            variant="transparent"
+                                            size="md"
                                             aria-label="Follow us on X/Twitter"
                                             onClick={toX}
+                                            style={{
+                                                background: "transparent",
+                                                border: "1px solid #0fa",
+                                            }}
+                                            className="hover:tw-brightness-125 hover:tw-scale-110 tw-transition-all tw-duration-200"
                                         >
                                             <IconService
                                                 decorative
                                                 fill='#0fa'
                                                 name="X"
                                             />
-                                        </SlideIconButton>
+                                        </IconButton>
                                     </Tooltip>
                                 </ExternalLinksBox>
                             </Box>

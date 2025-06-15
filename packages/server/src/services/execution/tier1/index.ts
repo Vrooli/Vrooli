@@ -3,13 +3,12 @@ export * from "./intelligence/index.js";
 export * from "./organization/index.js";
 export * from "./state/index.js";
 export * from "./tierOneCoordinator.js";
-export * from "./tierOneFactory.js";
 
-// MetacognitiveMonitor functionality now provided by emergent agents - see monitoring/README.md
-// export { AgentDeploymentService } from "../cross-cutting/agents/agentDeploymentService.js";
+// Strategic intelligence and monitoring now provided by emergent agents
+// See docs/architecture/execution/emergent-capabilities/
 
 export type {
     MetacognitiveReflection,
-    StrategySelectionResult, SwarmAgent, SwarmConfig, SwarmDecision, SwarmInitParams, SwarmPerformance, SwarmState, SwarmTeam, TeamFormation
+    StrategySelectionResult, SwarmAgent, SwarmConfig, SwarmDecision, SwarmInitParams, SwarmPerformance, SwarmTeam, TeamFormation
 } from "@vrooli/shared";
 

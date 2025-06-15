@@ -626,6 +626,11 @@ export class ReasoningEngine {
 
         } finally {
             // Send cost incurred event 
+            // Calculate which source of credits will be consumed
+            const { calculateFreeCreditsBalance, getConsumedCreditSource } = await import("../billing/creditBalanceService.js");
+            const freeBalance = await calculateFreeCreditsBalance(BigInt(creditAccountId));
+            const consumedSource = getConsumedCreditSource(freeBalance, BigInt(responseStats.creditsUsed));
+
             await BusService.get().getBus().publish({
                 type: "billing:event",
                 id: `${bot.id}-${chatId}-${responseStats.creditsUsed}`,
@@ -636,6 +641,8 @@ export class ReasoningEngine {
                 meta: { // Additional metadata that might be useful to filter events later
                     chatId,
                     botId: bot.id,
+                    consumedCreditSource: consumedSource,
+                    freeCreditsBeforeSpend: freeBalance.toString(),
                 },
             });
 

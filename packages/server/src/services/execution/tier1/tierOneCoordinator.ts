@@ -17,10 +17,12 @@ import { ResourceManager } from "./organization/resourceManager.js";
 // All intelligence functionality now provided by emergent agents - see docs/architecture/execution/emergent-capabilities/
 import { SwarmStateStoreFactory } from "./state/swarmStateStoreFactory.js";
 import { type ISwarmStateStore } from "./state/swarmStateStore.js";
+import { createConversationBridge, type ConversationBridge } from "./intelligence/conversationBridge.js";
 import {
     type SwarmStatus,
     type Swarm,
-    SwarmState,
+    ExecutionStates,
+    type ExecutionState,
     type SessionUser,
     generatePK,
     generatePublicId,
@@ -45,6 +47,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
     private readonly resourceManager: ResourceManager;
     // Intelligence components removed - functionality provided by emergent agents
     private readonly chatStore: PrismaChatStore;
+    private readonly conversationBridge: ConversationBridge;
     private readonly creationLocks: Map<string, Promise<void>> = new Map(); // Simple in-memory lock
 
     constructor(logger: Logger, eventBus: EventBus, tier2Orchestrator: TierCommunicationInterface) {
@@ -58,6 +61,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
         this.teamManager = new TeamManager(logger);
         this.resourceManager = new ResourceManager(logger);
         this.chatStore = new PrismaChatStore();
+        this.conversationBridge = createConversationBridge(logger);
         
         // Setup event handlers
         this.setupEventHandlers();
@@ -300,7 +304,7 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
                 id: config.swarmId,
                 name: config.name,
                 description: config.description,
-                state: SwarmState.UNINITIALIZED,
+                state: ExecutionStates.UNINITIALIZED,
                 config: {
                     maxAgents: 10,
                     minAgents: 1,
@@ -573,15 +577,15 @@ export class TierOneCoordinator extends BaseComponent implements TierCommunicati
             const currentPhase = stateMachine?.getCurrentSagaStatus();
 
             // Map internal state to external status
-            const statusMap: Record<SwarmState, SwarmStatus> = {
-                [SwarmState.UNINITIALIZED]: SwarmStatus.Pending,
-                [SwarmState.STARTING]: SwarmStatus.Running,
-                [SwarmState.RUNNING]: SwarmStatus.Running,
-                [SwarmState.IDLE]: SwarmStatus.Running,
-                [SwarmState.PAUSED]: SwarmStatus.Paused,
-                [SwarmState.STOPPED]: SwarmStatus.Completed,
-                [SwarmState.FAILED]: SwarmStatus.Failed,
-                [SwarmState.TERMINATED]: SwarmStatus.Cancelled,
+            const statusMap: Record<ExecutionState, SwarmStatus> = {
+                [ExecutionStates.UNINITIALIZED]: SwarmStatus.Pending,
+                [ExecutionStates.STARTING]: SwarmStatus.Running,
+                [ExecutionStates.RUNNING]: SwarmStatus.Running,
+                [ExecutionStates.IDLE]: SwarmStatus.Running,
+                [ExecutionStates.PAUSED]: SwarmStatus.Paused,
+                [ExecutionStates.STOPPED]: SwarmStatus.Completed,
+                [ExecutionStates.FAILED]: SwarmStatus.Failed,
+                [ExecutionStates.TERMINATED]: SwarmStatus.Cancelled,
             };
 
             return {

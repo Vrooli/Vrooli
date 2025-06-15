@@ -72,7 +72,7 @@ describe("BranchCoordinator", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        branchCoordinator = new BranchCoordinator(mockEventBus as any, mockLogger, mockStateStore as any);
+        branchCoordinator = new BranchCoordinator(mockLogger, mockEventBus as any, mockStateStore as any);
     });
 
     describe("createBranchesFromConfig", () => {
@@ -444,8 +444,8 @@ describe("BranchCoordinator", () => {
 
     describe("instance identification", () => {
         it("should have unique instance ID for each coordinator", () => {
-            const coordinator1 = new BranchCoordinator(mockEventBus as any, mockLogger, mockStateStore as any);
-            const coordinator2 = new BranchCoordinator(mockEventBus as any, mockLogger, mockStateStore as any);
+            const coordinator1 = new BranchCoordinator(mockLogger, mockEventBus as any, mockStateStore as any);
+            const coordinator2 = new BranchCoordinator(mockLogger, mockEventBus as any, mockStateStore as any);
 
             // Both should have unique instance IDs (can't directly access private field, 
             // but we can verify through event publishing that they're different)

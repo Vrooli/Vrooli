@@ -1,7 +1,8 @@
 import { type Logger } from "winston";
 import {
     type Swarm,
-    type SwarmState,
+    type ExecutionState,
+    ExecutionStates,
     type TeamFormation,
     type BlackboardItem,
     type SwarmAgent,
@@ -90,25 +91,25 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
     /**
      * Gets the current state of a swarm
      */
-    async getSwarmState(swarmId: string): Promise<SwarmState> {
+    async getSwarmState(swarmId: string): Promise<ExecutionState> {
         const swarm = await this.getSwarm(swarmId);
-        return swarm?.state || SwarmState.UNINITIALIZED;
+        return swarm?.state || ExecutionStates.UNINITIALIZED;
     }
 
     /**
      * Updates the state of a swarm
      */
-    async updateSwarmState(swarmId: string, state: SwarmState): Promise<void> {
+    async updateSwarmState(swarmId: string, state: ExecutionState): Promise<void> {
         const oldState = await this.getSwarmState(swarmId);
         await this.updateSwarm(swarmId, { state });
         
         // Use IndexManager for state transition
         await this.indexManager.updateStateIndex(
             swarmId,
-            oldState === SwarmState.UNINITIALIZED ? null : oldState,
+            oldState === ExecutionStates.UNINITIALIZED ? null : oldState,
             state,
             (s) => this.getStateIndexKey(s),
-            Object.values(SwarmState)
+            Object.values(ExecutionStates)
         );
     }
 
@@ -132,13 +133,9 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
      */
     async listActiveSwarms(): Promise<string[]> {
         const activeStates = [
-            SwarmState.INITIALIZING,
-            SwarmState.STRATEGIZING,
-            SwarmState.RESOURCE_ALLOCATION,
-            SwarmState.TEAM_FORMING,
-            SwarmState.READY,
-            SwarmState.ACTIVE,
-            SwarmState.ADAPTING,
+            ExecutionStates.STARTING,
+            ExecutionStates.RUNNING,
+            ExecutionStates.IDLE,
         ];
         
         const results: string[] = [];
@@ -154,7 +151,7 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
     /**
      * Gets swarms by state
      */
-    async getSwarmsByState(state: SwarmState): Promise<string[]> {
+    async getSwarmsByState(state: ExecutionState): Promise<string[]> {
         const key = this.getStateIndexKey(state);
         
         try {
@@ -676,7 +673,7 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
         }
     }
 
-    private getStateIndexKey(state: SwarmState): string {
+    private getStateIndexKey(state: ExecutionState): string {
         return `${this.indexPrefix}state:${state}`;
     }
 
@@ -720,7 +717,7 @@ export class RedisSwarmStateStore extends RedisStore<Swarm> implements ISwarmSta
                 null, // No old state for new swarms
                 swarm.state,
                 (s) => this.getStateIndexKey(s),
-                Object.values(SwarmState)
+                Object.values(ExecutionStates)
             );
         }
         

@@ -100,7 +100,6 @@ interface HealthSummary {
 export class CircuitBreakerManager {
     private readonly registry = new Map<string, CircuitBreakerEntry>();
     private readonly factory: CircuitBreakerFactory;
-    private readonly telemetry: TelemetryShim;
     private readonly eventBus: EventBus;
     private readonly errorClassifier: ErrorClassifier;
     
@@ -117,15 +116,13 @@ export class CircuitBreakerManager {
     private metrics: ResilienceMetrics;
     
     constructor(
-        telemetry: TelemetryShim,
         eventBus: EventBus,
         errorClassifier: ErrorClassifier,
         private readonly healthCheckInterval = 30000, // 30 seconds
     ) {
-        this.telemetry = telemetry;
         this.eventBus = eventBus;
         this.errorClassifier = errorClassifier;
-        this.factory = new CircuitBreakerFactory(telemetry, eventBus);
+        this.factory = new CircuitBreakerFactory(eventBus);
         
         this.healthSummary = this.initializeHealthSummary();
         this.metrics = this.initializeMetrics();
@@ -171,16 +168,7 @@ export class CircuitBreakerManager {
         
         this.registry.set(key, entry);
         
-        // Emit telemetry
-        await this.telemetry.emitComponentHealth(
-            "circuit-breaker-manager",
-            "healthy",
-            [{
-                name: "circuit_breaker_created",
-                status: "pass",
-                message: `Created circuit breaker for ${service}:${operation}`,
-            }],
-        );
+        // All telemetry now handled by event-driven agents
         
         return circuitBreaker;
     }
@@ -257,14 +245,7 @@ export class CircuitBreakerManager {
         
         result.duration = Date.now() - startTime;
         
-        // Emit bulk operation telemetry
-        await this.telemetry.emitTaskCompletion(
-            `bulk-force-state-${Date.now()}`,
-            "bulk_circuit_breaker_operation",
-            result.failed.length === 0 ? "success" : 
-            result.successful.length === 0 ? "failure" : "partial",
-            result.duration,
-        );
+        // All telemetry now handled by event-driven agents
         
         return result;
     }
@@ -414,15 +395,7 @@ export class CircuitBreakerManager {
         await entry.circuitBreaker.shutdown();
         this.registry.delete(key);
         
-        await this.telemetry.emitComponentHealth(
-            "circuit-breaker-manager",
-            "healthy",
-            [{
-                name: "circuit_breaker_removed",
-                status: "pass",
-                message: `Removed circuit breaker for ${service}:${operation}`,
-            }],
-        );
+        // All telemetry now handled by event-driven agents
         
         return true;
     }
@@ -692,28 +665,8 @@ export class CircuitBreakerManager {
         this.lastHealthCheck = new Date();
         this.healthSummary = this.getHealthSummary();
         
-        // Emit health metrics
-        await this.telemetry.emitComponentHealth(
-            "circuit-breaker-manager",
-            this.healthSummary.unhealthy === 0 ? "healthy" : 
-            this.healthSummary.unhealthy < this.healthSummary.total * 0.1 ? "degraded" : "unhealthy",
-            [{
-                name: "circuit_breakers_health",
-                status: this.healthSummary.unhealthy === 0 ? "pass" : "warn",
-                message: `${this.healthSummary.healthy}/${this.healthSummary.total} healthy`,
-            }],
-        );
-        
-        // Emit comprehensive metrics
-        await this.telemetry.emitResourceUtilization(
-            "circuit-breaker-manager",
-            {
-                circuitBreakers: this.registry.size,
-                healthyCount: this.healthSummary.healthy,
-                unhealthyCount: this.healthSummary.unhealthy,
-                patterns: this.patterns.length,
-            } as any,
-        );
+        // All telemetry now handled by event-driven agents
+        // Health data available through getHealthSummary() and getMetrics()
     }
 
     /**

@@ -1,6 +1,6 @@
-import { type EventBus, type BaseEvent } from "../cross-cutting/events/eventBus.js";
+import { type EventBus } from "../cross-cutting/events/eventBus.js";
 import { type Logger } from "winston";
-import { nanoid } from "@vrooli/shared";
+import { nanoid, type ExecutionEvent } from "@vrooli/shared";
 
 export interface EventPublisherConfig {
     /** Maximum retry attempts for failed publishes */
@@ -151,7 +151,7 @@ export class EventPublisher {
         type: string,
         payload: T,
         additionalMetadata?: Record<string, any>,
-    ): BaseEvent {
+    ): ExecutionEvent {
         return {
             id: nanoid(),
             type,

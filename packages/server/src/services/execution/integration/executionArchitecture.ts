@@ -9,7 +9,7 @@ import { type Logger } from "winston";
 import { logger } from "../../../events/logger.js";
 import { CachedConversationStateStore, PrismaChatStore } from "../../conversation/chatStore.js";
 import { getEventBus, type RedisEventBus } from "../cross-cutting/events/eventBus.js";
-import { RollingHistoryAdapter as RollingHistory } from "../monitoring/adapters/RollingHistoryAdapter.js";
+// RollingHistory removed - monitoring now handled by emergent agents
 import { SwarmStateMachine } from "../tier1/coordination/swarmStateMachine.js";
 import { ResourceManager as Tier1ResourceManager } from "../tier1/organization/resourceManager.js";
 import { RedisSwarmStateStore } from "../tier1/state/redisSwarmStateStore.js";
@@ -48,12 +48,8 @@ interface ExecutionArchitectureConfig {
 export interface ExecutionArchitectureOptions {
     /** Use Redis for state storage (production) or in-memory (development) */
     useRedis?: boolean;
-    /** Enable telemetry for monitoring */
-    telemetryEnabled?: boolean;
-    /** Enable rolling history for monitoring */
-    historyEnabled?: boolean;
-    /** Rolling history buffer size */
-    historyBufferSize?: number;
+    // telemetryEnabled removed - monitoring now emergent
+    // Rolling history options removed - monitoring now emergent
     /** Custom logger instance */
     logger?: Logger;
     /** Custom configuration overrides */
@@ -85,12 +81,12 @@ export class ExecutionArchitecture {
     private runStateStore: IRunStateStore | null = null;
     private toolRegistry: IntegratedToolRegistry | null = null;
     private conversationStore: CachedConversationStateStore | null = null;
-    private rollingHistory: RollingHistory | null = null;
+    // rollingHistory removed - monitoring now handled by emergent agents
 
     // Resource management
     private tier1ResourceManager: Tier1ResourceManager | null = null;
     private tier3ResourceManager: Tier3ResourceManager | null = null;
-    private resourceMonitor: ResourceMonitor | null = null;
+    // resourceMonitor removed - monitoring now handled by emergent agents
 
     private readonly logger: Logger;
     private readonly options: ExecutionArchitectureOptions;
@@ -193,15 +189,7 @@ export class ExecutionArchitecture {
         // Initialize integrated tool registry
         this.toolRegistry = IntegratedToolRegistry.getInstance(this.logger, this.conversationStore);
 
-        // Initialize rolling history if enabled
-        if (this.options.historyEnabled) {
-            this.rollingHistory = new RollingHistory(
-                this.eventBus,
-                this.options.historyBufferSize || 10000,
-                this.logger,
-            );
-            await this.rollingHistory.start();
-        }
+        // Rolling history removed - monitoring now handled by emergent agents
 
         // Initialize monitoring tools with system user
         if (this.toolRegistry && this.eventBus) {
@@ -213,7 +201,6 @@ export class ExecutionArchitecture {
             this.toolRegistry.initializeMonitoringTools(
                 systemUser,
                 this.eventBus,
-                this.rollingHistory || undefined,
             );
         }
 
@@ -349,19 +336,7 @@ export class ExecutionArchitecture {
         });
 
         // Subscribe to telemetry events for monitoring
-        if (this.options.telemetryEnabled) {
-            await this.eventBus.subscribe({
-                id: generatePK() as string,
-                handler: "telemetryHandler",
-                filters: [
-                    { field: "type", operator: "startsWith", value: "telemetry." },
-                ],
-                config: {
-                    maxRetries: 1,
-                    timeout: 5000,
-                },
-            });
-        }
+        // Telemetry subscription removed - monitoring now handled by emergent agents
 
         // Subscribe to history pattern detection events if enabled
         if (this.options.historyEnabled) {
@@ -477,12 +452,7 @@ export class ExecutionArchitecture {
         return this.resourceMonitor;
     }
 
-    /**
-     * Get Rolling History (if enabled)
-     */
-    getRollingHistory(): RollingHistory | null {
-        return this.rollingHistory;
-    }
+    // getRollingHistory removed - monitoring now handled by emergent agents
 
     /**
      * Get combined capabilities of all tiers
@@ -517,7 +487,7 @@ export class ExecutionArchitecture {
         stateStoresReady: boolean;
         toolRegistryReady: boolean;
         resourceManagerReady: boolean;
-        rollingHistoryReady: boolean;
+        // rollingHistoryReady removed - monitoring now emergent
         monitoringToolsReady: boolean;
     } {
         return {
@@ -529,7 +499,7 @@ export class ExecutionArchitecture {
             stateStoresReady: !!this.swarmStateStore && !!this.runStateStore,
             toolRegistryReady: !!this.toolRegistry,
             resourceManagerReady: !!this.unifiedResourceManager,
-            rollingHistoryReady: !!this.rollingHistory,
+            // rollingHistoryReady removed - monitoring now emergent
             monitoringToolsReady: !!this.toolRegistry && !!(this.toolRegistry as any)._monitoringToolInstances,
         };
     }
@@ -561,17 +531,7 @@ export class ExecutionArchitecture {
         this.swarmStateStore = null;
         this.runStateStore = null;
 
-        // Stop rolling history if initialized
-        if (this.rollingHistory) {
-            try {
-                await this.rollingHistory.stop();
-            } catch (error) {
-                this.logger.error("[ExecutionArchitecture] Error stopping rolling history", {
-                    error: error instanceof Error ? error.message : String(error),
-                });
-            }
-            this.rollingHistory = null;
-        }
+        // Rolling history cleanup removed - monitoring now handled by emergent agents
 
         // Clear tool registry and conversation store
         this.toolRegistry = null;

@@ -1,13 +1,13 @@
 import { type Logger } from "winston";
 import {
     type ExecutionContext,
-    type ExecutionStrategy,
     type StrategyExecutionResult,
     type ResourceUsage,
     StrategyType,
 } from "@vrooli/shared";
+import { type EventBus } from "../../cross-cutting/events/eventBus.js";
+import { MinimalStrategyBase, type MinimalExecutionMetadata } from "./shared/index.js";
 import { LLMIntegrationService } from "../../integration/llmIntegrationService.js";
-import { StrategyEventEmitter } from "../events/strategyEventEmitter.js";
 
 /**
  * MINIMAL REASONING STRATEGY
@@ -28,19 +28,16 @@ import { StrategyEventEmitter } from "../events/strategyEventEmitter.js";
  * - Performance optimization (optimization agents improve this)
  * - Multi-phase execution patterns (reasoning agents evolve these)
  */
-export class ReasoningStrategy implements ExecutionStrategy {
+export class ReasoningStrategy extends MinimalStrategyBase {
     readonly type = StrategyType.REASONING;
     readonly name = "ReasoningStrategy";
     readonly version = "3.0.0-minimal";
 
-    private readonly logger: Logger;
     private readonly llmService: LLMIntegrationService;
-    private readonly eventEmitter: StrategyEventEmitter;
 
-    constructor(logger: Logger, eventEmitter?: StrategyEventEmitter) {
-        this.logger = logger;
+    constructor(logger: Logger, eventBus: EventBus) {
+        super(logger, eventBus);
         this.llmService = new LLMIntegrationService(logger);
-        this.eventEmitter = eventEmitter || new StrategyEventEmitter(logger);
     }
 
     /**
@@ -49,7 +46,10 @@ export class ReasoningStrategy implements ExecutionStrategy {
      * Performs simple LLM-based reasoning and emits events for agents to analyze.
      * No hard-coded intelligence, frameworks, or optimization logic.
      */
-    async execute(context: ExecutionContext): Promise<StrategyExecutionResult> {
+    protected async executeStrategy(
+        context: ExecutionContext,
+        metadata: MinimalExecutionMetadata
+    ): Promise<StrategyExecutionResult> {
         const startTime = Date.now();
         const stepId = context.stepId;
 
@@ -59,16 +59,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
         });
 
         try {
-            // Emit reasoning start event for agents to observe
-            await this.eventEmitter.emitReasoningStart({
-                stepId,
-                context: {
-                    stepType: context.stepType,
-                    inputs: Object.keys(context.stepData?.inputs || {}),
-                    outputsExpected: Object.keys(context.stepData?.outputs || {}),
-                },
-                timestamp: new Date(),
-            });
+            // Base class handles event emission
 
             // Basic reasoning prompt construction
             const reasoningPrompt = this.buildBasicReasoningPrompt(context);
@@ -99,18 +90,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
                 },
             };
 
-            // Emit reasoning completion event for agents to analyze
-            await this.eventEmitter.emitReasoningComplete({
-                stepId,
-                result: {
-                    success: true,
-                    outputs: Object.keys(result.outputs || {}),
-                    reasoning: response.content,
-                    resourceUsage,
-                    executionTime,
-                },
-                timestamp: new Date(),
-            });
+            // Base class handles event emission
 
             this.logger.info("[ReasoningStrategy] Reasoning execution completed", {
                 stepId,
@@ -131,19 +111,7 @@ export class ReasoningStrategy implements ExecutionStrategy {
                 executionTime,
             });
 
-            // Emit reasoning failure event for agents to analyze
-            await this.eventEmitter.emitReasoningFailure({
-                stepId,
-                error: {
-                    message: errorMessage,
-                    type: error instanceof Error ? error.constructor.name : "UnknownError",
-                },
-                context: {
-                    stepType: context.stepType,
-                    executionTime,
-                },
-                timestamp: new Date(),
-            });
+            // Base class handles event emission
 
             return {
                 success: false,
@@ -217,14 +185,5 @@ Please provide your reasoning and the required outputs in a clear, structured fo
                context.stepType === "decision";
     }
 
-    /**
-     * Provide basic feedback mechanism - agents can enhance this
-     */
-    async feedback(feedback: unknown): Promise<void> {
-        await this.eventEmitter.emitStrategyFeedback({
-            strategy: this.type,
-            feedback,
-            timestamp: new Date(),
-        });
-    }
+    // Feedback is handled by MinimalStrategyBase
 }
