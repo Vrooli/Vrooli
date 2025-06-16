@@ -5,9 +5,10 @@ import { styled } from "@mui/material/styles";
 import { DAYS_30_MS, DUMMY_ID, calculateOccurrences, endpointsFeed, generatePK, getObjectUrl, type CalendarEvent, type ChatParticipantShape, type HomeResult, type Reminder, type ReminderList as ReminderListShape, type Resource, type ResourceList as ResourceListType, type Schedule } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getAvailableModels, getExistingAIConfig } from "../../api/ai.js";
+import { getAvailableModels, getExistingAIConfig, getPreferredAvailableModel, type AvailableModel } from "../../api/ai.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
 import { ChatSettingsMenu, type IntegrationSettings, type ModelConfig, type ShareSettings } from "../../components/ChatSettingsMenu/ChatSettingsMenu.js";
+import { ModelSelectionErrorBoundary } from "../../components/errors/ModelSelectionErrorBoundary.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { EventList } from "../../components/lists/EventList/EventList.js";
 import { ReminderList } from "../../components/lists/ReminderList/ReminderList.js";
@@ -20,6 +21,7 @@ import { useLazyFetch } from "../../hooks/useFetch.js";
 import { useHistoryState } from "../../hooks/useHistoryState.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { useActiveChat } from "../../stores/activeChatStore.js";
+import { useModelPreferencesStore } from "../../stores/modelPreferencesStore.js";
 import { ScrollBox } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS, MAX_CHAT_INPUT_WIDTH } from "../../utils/consts.js";
@@ -95,16 +97,9 @@ export function DashboardView({
         return config ? getAvailableModels(config) : [];
     }, []);
 
-    // Default model config state
-    const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>(() => {
-        const firstModel = availableModels.length > 0 ? availableModels[0] : null;
-        if (!firstModel) return [];
-        return [{
-            model: firstModel,
-            toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
-            requireConfirmation: false,
-        }];
-    });
+    // Default model config state - will be initialized after availableModels loads
+    const [modelConfigs, setModelConfigs] = useState<ModelConfig[]>([]);
+    const [isModelConfigsInitialized, setIsModelConfigsInitialized] = useState(false);
 
     // Participants for dashboard context (e.g., just Valyxa)
     const [participants, setParticipants] = useState<ChatParticipantShape[]>([
@@ -135,17 +130,52 @@ export function DashboardView({
         }],
     }), [session]);
 
+    // Initialize model configs when available models are loaded
+    useEffect(() => {
+        if (!isModelConfigsInitialized) {
+            if (availableModels.length > 0) {
+                try {
+                    const preferredModel = getPreferredAvailableModel(availableModels);
+                    const modelToUse = preferredModel || availableModels[0];
+                    
+                    setModelConfigs([{
+                        model: modelToUse,
+                        toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
+                        requireConfirmation: false,
+                    }]);
+                    setIsModelConfigsInitialized(true);
+                } catch (error) {
+                    // Fallback to first available model without preferences
+                    if (availableModels.length > 0) {
+                        setModelConfigs([{
+                            model: availableModels[0],
+                            toolSettings: { siteActions: true, webSearch: true, fileRetrieval: true },
+                            requireConfirmation: false,
+                        }]);
+                        setIsModelConfigsInitialized(true);
+                    }
+                }
+            } else {
+                // No models available - set as initialized to prevent infinite loop
+                setIsModelConfigsInitialized(true);
+            }
+        }
+    }, [availableModels, isModelConfigsInitialized]);
+
     // Update local state when model config changes
     const handleModelConfigChange = useCallback((newConfigs: ModelConfig[]) => {
-        // TODO: Persist these settings (e.g., to user profile or local storage)
         setModelConfigs(newConfigs);
-        console.log("Dashboard model config updated:", newConfigs);
+        
+        // Save the model preference if a model is selected
+        if (newConfigs.length > 0 && newConfigs[0].model) {
+            useModelPreferencesStore.getState().setPreferredModel(newConfigs[0].model.value);
+        }
     }, []);
 
     // Placeholder callbacks (remain the same)
-    const handleAddParticipant = useCallback((id: string) => { console.log("Dashboard: Add participant:", id); }, []);
-    const handleRemoveParticipant = useCallback((id: string) => { console.log("Dashboard: Remove participant:", id); }, []);
-    const handleUpdateDetails = useCallback((data: { name: string; description?: string }) => { console.log("Dashboard: Update details:", data); }, []);
+    const handleAddParticipant = useCallback((id: string) => { /* Placeholder for add participant */ }, []);
+    const handleRemoveParticipant = useCallback((id: string) => { /* Placeholder for remove participant */ }, []);
+    const handleUpdateDetails = useCallback((data: { name: string; description?: string }) => { /* Placeholder for update details */ }, []);
     const handleToggleShare = useCallback((enabled: boolean) => {
         // Generate invite link when enabled, clear on disable
         const link = enabled ? getObjectUrl(settingsChat) : undefined;
@@ -154,11 +184,10 @@ export function DashboardView({
     const handleIntegrationSettingsChange = useCallback((newSettings: IntegrationSettings) => {
         // TODO: Persist integration settings
         setIntegrationSettings(newSettings);
-        console.log("Dashboard integration settings updated:", newSettings);
     }, []);
     // Placeholder for delete chat - not applicable on dashboard
     const handleDeleteChat = useCallback(() => {
-        console.log("Dashboard: Delete Chat requested (no-op)");
+        // No-op for dashboard view
     }, []);
 
     useEffect(function parseFeedData() {
@@ -351,22 +380,24 @@ export function DashboardView({
             />
 
             {/* Render the settings menu dialog */}
-            <ChatSettingsMenu
-                open={isSettingsOpen}
-                onClose={() => setIsSettingsOpen(false)}
-                chat={settingsChat}
-                participants={participants}
-                modelConfigs={modelConfigs}
-                shareSettings={shareSettings}
-                integrationSettings={integrationSettings}
-                onModelConfigChange={handleModelConfigChange}
-                onAddParticipant={handleAddParticipant}
-                onRemoveParticipant={handleRemoveParticipant}
-                onUpdateDetails={handleUpdateDetails}
-                onToggleShare={handleToggleShare}
-                onIntegrationSettingsChange={handleIntegrationSettingsChange}
-                onDeleteChat={handleDeleteChat}
-            />
+            <ModelSelectionErrorBoundary onRetry={refetch}>
+                <ChatSettingsMenu
+                    open={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                    chat={settingsChat}
+                    participants={participants}
+                    modelConfigs={modelConfigs}
+                    shareSettings={shareSettings}
+                    integrationSettings={integrationSettings}
+                    onModelConfigChange={handleModelConfigChange}
+                    onAddParticipant={handleAddParticipant}
+                    onRemoveParticipant={handleRemoveParticipant}
+                    onUpdateDetails={handleUpdateDetails}
+                    onToggleShare={handleToggleShare}
+                    onIntegrationSettingsChange={handleIntegrationSettingsChange}
+                    onDeleteChat={handleDeleteChat}
+                />
+            </ModelSelectionErrorBoundary>
         </DashboardBox>
     );
 }

@@ -301,8 +301,8 @@ describe("SearchHistory", () => {
         const updatedKeys = Object.keys(history);
 
         expect(updatedKeys.length).toBe(maxLength);           // Length stays at 500
-        expect(updatedKeys).to.include("newOption");             // New item is added
-        expect(updatedKeys).not.to.include("option1");        // option1 should be removed (oldest timestamp)
+        expect(updatedKeys).toContain("newOption");             // New item is added
+        expect(updatedKeys).not.toContain("option1");        // option1 should be removed (oldest timestamp)
     });
 
     it("should add items and then update their bookmarks correctly", () => {
@@ -322,9 +322,9 @@ describe("SearchHistory", () => {
         // Verify updates
         const history = SearchHistory.getSearchHistory(searchBarId, userId);
         expect((history["option1"].option as any).bookmarks).toBe(6);
-        expect((history["option1"].option as any).isBookmarked).to.be.false;
+        expect((history["option1"].option as any).isBookmarked).toBe(false);
         expect((history["option2"].option as any).bookmarks).toBe(11);
-        expect((history["option2"].option as any).isBookmarked).to.be.true;
+        expect((history["option2"].option as any).isBookmarked).toBe(true);
     });
 
     it("should add items to multiple search bars and clear all history", () => {
