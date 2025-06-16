@@ -134,7 +134,54 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return { hasError: true, error, mailToUrl };
     }
 
-    handleRefresh = () => {
+    sendErrorReport = async () => {
+        if (!this.state.shouldSendReport || !this.state.error) return;
+        
+        try {
+            // Validate required fields before sending
+            const userAgent = navigator?.userAgent || 'Unknown';
+            const currentUrl = window?.location?.href || 'Unknown';
+            const errorMessage = this.state.error.toString() || 'Unknown error';
+            const errorStack = this.state.error.stack || undefined;
+            
+            // Apply size limits to prevent oversized payloads
+            const MAX_ERROR_LENGTH = 2000;
+            const MAX_STACK_LENGTH = 5000;
+            const MAX_URL_LENGTH = 500;
+            const MAX_USER_AGENT_LENGTH = 500;
+            
+            const errorReport = {
+                error: errorMessage.substring(0, MAX_ERROR_LENGTH),
+                stack: errorStack ? errorStack.substring(0, MAX_STACK_LENGTH) : undefined,
+                userAgent: userAgent.substring(0, MAX_USER_AGENT_LENGTH),
+                url: currentUrl.substring(0, MAX_URL_LENGTH),
+                timestamp: new Date().toISOString(),
+            };
+            
+            // Send to backend with timeout to prevent blocking user actions
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            
+            try {
+                await fetch('/api/error-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(errorReport),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                throw fetchError;
+            }
+        } catch (reportError) {
+            // Fail silently - don't block user actions due to error reporting issues
+            console.error('Failed to send error report:', reportError);
+        }
+    };
+
+    handleRefresh = async () => {
+        await this.sendErrorReport();
         window.location.reload();
     };
 
@@ -149,7 +196,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         navigator.clipboard.writeText(text ?? "");
     };
 
-    // TODO send report if true and either button is pressed
+    // Error reporting implemented - sends report when shouldSendReport is true and buttons are pressed
     toggleSendReport = () => {
         this.setState(prevState => {
             // Update localStorage when state changes
@@ -159,7 +206,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         });
     };
 
-    toHome = () => {
+    toHome = async () => {
+        await this.sendErrorReport();
         window.location.assign("/");
     };
 

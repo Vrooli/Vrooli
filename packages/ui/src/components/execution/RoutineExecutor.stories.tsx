@@ -1,13 +1,13 @@
-import { Box, FormControl, FormLabel, Select, MenuItem, Typography } from "@mui/material";
-import { generatePK, type ResourceVersion, type Run, type RunStatus, ResourceSubType } from "@vrooli/shared";
-import { useState, Component, ReactNode } from "react";
+import { Box, Collapse, FormControl, FormLabel, IconButton, MenuItem, Select, Typography } from "@mui/material";
+import { IconCommon } from "../../icons/Icons.js";
+import { generatePK, ResourceSubType, type ResourceVersion, type RunStatus } from "@vrooli/shared";
+import { Component, ReactNode, useState } from "react";
 import { signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
-import { RoutineExecutor } from "./RoutineExecutor.js";
 import { PageContainer } from "../Page/Page.js";
-import { Switch } from "../inputs/Switch/Switch.js";
-import { Slider } from "../inputs/Slider.js";
-import { Radio } from "../inputs/Radio.js";
 import { FormGroup } from "../inputs/FormGroup.js";
+import { Radio } from "../inputs/Radio.js";
+import { Switch } from "../inputs/Switch/Switch.js";
+import { RoutineExecutor } from "./RoutineExecutor.js";
 
 // Simple error boundary for debugging
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
@@ -44,9 +44,9 @@ export default {
     decorators: [
         (Story) => (
             <PageContainer size="fullSize">
-                <Box sx={{ 
-                    p: 2, 
-                    height: "100%", 
+                <Box sx={{
+                    p: 2,
+                    height: "100%",
                     overflow: "auto",
                     paddingBottom: "120px" // Generous padding for BottomNav
                 }}>
@@ -95,47 +95,57 @@ export function Showcase() {
     const [progressPercent, setProgressPercent] = useState(45);
     const [stepCount, setStepCount] = useState(8);
     const [currentStep, setCurrentStep] = useState(4);
-    
+    const [controlsOpen, setControlsOpen] = useState(true);
+
     // Mock data generation
     const runId = generatePK().toString();
     const resourceVersion = createMockResourceVersion(routineName, routineType);
-    
+
     const handleToggleCollapse = () => {
         setIsCollapsed(!isCollapsed);
         action("handleToggleCollapse")();
     };
-    
+
     const handleRemove = () => {
         action("handleRemove")();
     };
-    
+
     const handleClose = () => {
         action("handleClose")();
     };
-    
+
     return (
-        <Box sx={{ 
-            display: "flex", 
-            gap: 3, 
-            flexDirection: { xs: "column", lg: "row" },
-            maxWidth: 1400, 
+        <Box sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+            maxWidth: 1400,
             mx: "auto",
             minHeight: "100%"
         }}>
             {/* Controls Section */}
-            <Box sx={{ 
-                p: 3, 
-                bgcolor: "background.paper", 
-                borderRadius: 2, 
+            <Box sx={{
+                p: 3,
+                bgcolor: "background.paper",
+                borderRadius: 2,
                 boxShadow: 1,
-                height: "fit-content",
-                minWidth: { lg: 350 },
-                position: "sticky",
-                top: 0
+                height: "fit-content"
             }}>
-                <Typography variant="h5" sx={{ mb: 3 }}>RoutineExecutor Controls</Typography>
-                
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                    <Typography variant="h5">Controls</Typography>
+                    <IconButton
+                        onClick={() => setControlsOpen(!controlsOpen)}
+                        sx={{
+                            transform: controlsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                            transition: "transform 0.2s"
+                        }}
+                    >
+                        <IconCommon name="ExpandMore" />
+                    </IconButton>
+                </Box>
+
+                <Collapse in={controlsOpen}>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                     {/* Routine Type */}
                     <FormControl size="small" fullWidth>
                         <FormLabel sx={{ fontSize: "0.875rem", mb: 1 }}>Routine Type</FormLabel>
@@ -149,35 +159,37 @@ export function Showcase() {
                             <MenuItem value={ResourceSubType.RoutineCode}>Code Execution</MenuItem>
                         </Select>
                     </FormControl>
-                    
+
                     {/* Run Status */}
                     <Box>
                         <Typography variant="body2" sx={{ fontSize: "0.875rem", mb: 1, fontWeight: 500 }}>
                             Run Status
                         </Typography>
                         <FormGroup>
-                            {["InProgress", "Completed", "Failed"].map((status) => (
-                                <Box key={status} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                                    <Radio
-                                        checked={runStatus === status}
-                                        onChange={() => setRunStatus(status as RunStatus)}
-                                        size="sm"
-                                        variant="primary"
-                                    />
-                                    <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
-                                        {status === "InProgress" ? "In Progress" : status}
-                                    </Typography>
-                                </Box>
-                            ))}
+                            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                                {["InProgress", "Completed", "Failed"].map((status) => (
+                                    <Box key={status} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        <Radio
+                                            checked={runStatus === status}
+                                            onChange={() => setRunStatus(status as RunStatus)}
+                                            size="sm"
+                                            variant="primary"
+                                        />
+                                        <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
+                                            {status === "InProgress" ? "In Progress" : status}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
                         </FormGroup>
                     </Box>
-                    
+
                     {/* Display Options */}
                     <Box>
                         <Typography variant="body2" sx={{ fontSize: "0.875rem", mb: 1, fontWeight: 500 }}>
                             Display Options
                         </Typography>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                        <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                             <Switch
                                 checked={isCollapsed}
                                 onChange={setIsCollapsed}
@@ -186,7 +198,7 @@ export function Showcase() {
                                 label="Collapsed State"
                                 labelPosition="right"
                             />
-                            
+
                             <Switch
                                 checked={chatMode}
                                 onChange={setChatMode}
@@ -197,43 +209,24 @@ export function Showcase() {
                             />
                         </Box>
                     </Box>
-                </Box>
+                    </Box>
+                </Collapse>
             </Box>
-            
+
             {/* Preview Section */}
-            <Box sx={{ 
-                p: 3, 
-                bgcolor: "background.paper", 
-                borderRadius: 2, 
-                boxShadow: 1,
+            <Box sx={{
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
                 mb: 8
             }}>
-                <Typography variant="h5" sx={{ mb: 3, color: "primary.main" }}>
-                    RoutineExecutor Preview
-                </Typography>
-                
-                <Box sx={{ 
-                    bgcolor: "background.default", 
-                    borderRadius: 2, 
-                    p: 2,
-                    flex: 1,
+                <Box sx={{
+                    maxWidth: chatMode ? 600 : 800,
+                    width: "100%",
+                    mx: "auto",
                     display: "flex",
                     flexDirection: "column"
                 }}>
-                    <Box sx={{ 
-                        maxWidth: chatMode ? 600 : 800,
-                        width: "100%",
-                        mx: "auto",
-                        border: 1,
-                        borderColor: "divider",
-                        borderRadius: 1,
-                        bgcolor: "background.paper",
-                        display: "flex",
-                        flexDirection: "column"
-                    }}>
                         <ErrorBoundary>
                             <RoutineExecutor
                                 runId={runId}
@@ -246,8 +239,7 @@ export function Showcase() {
                                 className={chatMode ? "chat-routine-executor" : "standalone-routine-executor"}
                                 chatMode={chatMode}
                             />
-                        </ErrorBoundary>
-                    </Box>
+                    </ErrorBoundary>
                 </Box>
             </Box>
         </Box>
@@ -255,67 +247,5 @@ export function Showcase() {
 }
 
 Showcase.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
-/**
- * Basic Example: Simple RoutineExecutor in default state
- */
-export function Basic() {
-    const runId = generatePK().toString();
-    const resourceVersion = createMockResourceVersion();
-    
-    return (
-        <Box sx={{ maxWidth: 800, mx: "auto" }}>
-            <Box sx={{ 
-                border: 1,
-                borderColor: "divider",
-                borderRadius: 1,
-                overflow: "hidden"
-            }}>
-                <RoutineExecutor
-                    runId={runId}
-                    resourceVersion={resourceVersion}
-                    onToggleCollapse={action("onToggleCollapse")}
-                    onClose={action("onClose")}
-                />
-            </Box>
-        </Box>
-    );
-}
-
-Basic.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
-/**
- * Chat Mode: RoutineExecutor optimized for chat display
- */
-export function ChatMode() {
-    const runId = generatePK().toString();
-    const resourceVersion = createMockResourceVersion("API Integration");
-    
-    return (
-        <Box sx={{ maxWidth: 600, mx: "auto" }}>
-            <Box sx={{ 
-                border: 1,
-                borderColor: "divider",
-                borderRadius: 1,
-                overflow: "hidden"
-            }}>
-                <RoutineExecutor
-                    runId={runId}
-                    resourceVersion={resourceVersion}
-                    onToggleCollapse={action("onToggleCollapse")}
-                    onRemove={action("onRemove")}
-                    className="chat-routine-executor"
-                    chatMode={true}
-                />
-            </Box>
-        </Box>
-    );
-}
-
-ChatMode.parameters = {
     session: signedInPremiumWithCreditsSession,
 };

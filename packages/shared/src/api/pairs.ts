@@ -123,6 +123,14 @@ export const endpointsAuth = {
         endpoint: "/auth/wallet/complete",
         method: "POST" as const,
     },
+    oauthInitiate: {
+        endpoint: "/auth/oauth/initiate",
+        method: "POST" as const,
+    },
+    oauthCallback: {
+        endpoint: "/auth/oauth/callback", 
+        method: "POST" as const,
+    },
 };
 
 export const endpointsAward = {
@@ -468,5 +476,24 @@ export const endpointsView = {
 
 export const endpointsWallet = {
     ...updateOne("wallet"),
+} as const;
+
+export const endpointsAdmin = {
+    siteStats: {
+        endpoint: "/admin/siteStats",
+        method: "GET" as const,
+    },
+    userList: {
+        endpoint: "/admin/users",
+        method: "GET" as const,
+    },
+    userUpdateStatus: {
+        endpoint: "/admin/user/status",
+        method: "PUT" as const,
+    },
+    userResetPassword: {
+        endpoint: "/admin/user/resetPassword",
+        method: "POST" as const,
+    },
 } as const;
 

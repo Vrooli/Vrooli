@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import IconButton from "@mui/material/IconButton";
+// IconButton import removed - using custom IconButton component
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -12,7 +12,7 @@ import { styled } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import type { BoxProps } from "@mui/material/Box";
 import type { Breakpoints } from "@mui/material/styles";
-import type { IconButtonProps } from "@mui/material/IconButton";
+// IconButtonProps import removed - using custom IconButton component
 import type { ListItemProps } from "@mui/material/ListItem";
 import type { Palette } from "@mui/material/styles";
 import { type TranslationFuncCommon, type TranslationKeyCommon } from "@vrooli/shared";
@@ -22,6 +22,7 @@ import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { Icon, IconCommon, IconText, type IconInfo } from "../../../icons/Icons.js";
+import { IconButton as CustomIconButton } from "../../buttons/IconButton.js";
 import { type Dimensions } from "../../../types.js";
 import { keyComboToString } from "../../../utils/display/device.js";
 import { type AdvancedInputAction, type AdvancedInputActiveStates } from "./utils.js";
@@ -126,15 +127,28 @@ function determineViewSize(
     return "full" as const;
 }
 
-interface StyledIconButtonProps extends IconButtonProps {
+// StyledIconButton is now a wrapper component instead of styled component
+const StyledIconButton = forwardRef<HTMLButtonElement, {
     isActive?: boolean;
-}
-const StyledIconButton = styled(IconButton, {
-    shouldForwardProp: (prop) => prop !== "isActive",
-})<StyledIconButtonProps>(({ theme, isActive }) => ({
-    background: isActive ? theme.palette.secondary.main : "transparent",
-    borderRadius: theme.spacing(1),
-}));
+    disabled?: boolean;
+    onClick: (event: React.MouseEvent<HTMLElement>) => void;
+    children: React.ReactNode;
+}>(({ isActive, disabled, onClick, children }, ref) => {
+    const theme = useTheme();
+    return (
+        <CustomIconButton
+            ref={ref}
+            variant={isActive ? "solid" : "transparent"}
+            size={28}
+            disabled={disabled}
+            onClick={onClick}
+            className="tw-rounded"
+        >
+            {children}
+        </CustomIconButton>
+    );
+});
+StyledIconButton.displayName = "StyledIconButton";
 
 const ToolButton = forwardRef(({
     disabled,
@@ -164,7 +178,6 @@ const ToolButton = forwardRef(({
                 ref={ref}
                 disabled={disabled}
                 isActive={isActive}
-                size="small"
                 onClick={handleClick}
             >
                 {icon}

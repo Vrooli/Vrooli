@@ -10,7 +10,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Popover from "@mui/material/Popover";
-import Switch from "@mui/material/Switch";
+// Switch import removed - using custom Switch component
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
@@ -25,6 +25,7 @@ import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useHotkeys } from "../../../hooks/useHotkeys.js";
 import { useUndoRedo } from "../../../hooks/useUndoRedo.js";
 import { Icon, IconCommon, IconRoutine, type IconInfo } from "../../../icons/Icons.js";
+import { Switch } from "../../inputs/Switch/index.js";
 import { AITaskDisplayState, type AITaskDisplay } from "../../../types.js";
 import { randomString } from "../../../utils/codes.js";
 import { keyComboToString } from "../../../utils/display/device.js";
@@ -160,10 +161,10 @@ const NON_FOCUSABLE_SELECTORS = [
     "input",
     "textarea",
     "[contenteditable=\"true\"]",
-    ".MuiIconButton-root",
+    "[class*='tw-icon-button']", // Custom IconButton classes
     ".MuiChip-root",
     ".MuiButtonBase-root",
-    ".MuiSwitch-root",
+    "input[role='switch']", // Custom Switch component
     ".MuiSlider-root",
     ".MuiMenuItem-root",
     ".MuiTab-root",
@@ -182,7 +183,7 @@ const NON_FOCUSABLE_SELECTORS = [
 // Class name added to the AdvancedInput textarea/contentEditable for identification
 const ADVANCED_INPUT_CONTENT_CLASS = advancedInputTextareaClassName;
 
-const toolChipIconButtonStyle = { padding: 0, paddingRight: 0.5 } as const;
+const toolChipIconButtonClassName = "tw-p-0 tw-pr-0.5" as const;
 
 
 type TaskChipProps = AITaskDisplay & {
@@ -268,28 +269,26 @@ function TaskChip({
             if (state !== AITaskDisplayState.Exclusive) {
                 return (
                     <CustomIconButton
-                        size="small"
+                        size={20}
                         onClick={handlePlayClick}
-                        sx={toolChipIconButtonStyle}
+                        className={toolChipIconButtonClassName}
                     >
                         <IconCommon
                             decorative
                             name="Play"
-                            size={20}
                         />
                     </CustomIconButton>
                 );
             }
             return (
                 <CustomIconButton
-                    size="small"
+                    size={20}
                     onClick={handlePlayClick}
-                    sx={toolChipIconButtonStyle}
+                    className={toolChipIconButtonClassName}
                 >
                     <IconCommon
                         decorative
                         name="Pause"
-                        size={20}
                     />
                 </CustomIconButton>
             );
@@ -426,19 +425,22 @@ const PreviewImageAvatar = styled(Avatar)(({ theme }) => ({
     borderRadius: theme.spacing(1),
     border: `1px solid ${theme.palette.divider}`,
 }));
-const RemoveIconButton = styled(CustomIconButton)(({ theme }) => ({
-    width: theme.spacing(2),
-    height: theme.spacing(2),
-    padding: theme.spacing(0.5),
-    position: "absolute",
-    top: theme.spacing(-0.5),
-    right: theme.spacing(-0.5),
-    backgroundColor: theme.palette.background.textSecondary,
-    boxShadow: theme.shadows[1],
-    "&:hover": {
-        backgroundColor: theme.palette.background.textPrimary,
-    },
-}));
+// RemoveIconButton is now a wrapper component instead of styled component
+const RemoveIconButton = ({ onClick, children }: { onClick: (event: React.MouseEvent) => void, children: React.ReactNode }) => {
+    const theme = useTheme();
+    return (
+        <div className="tw-absolute -tw-top-1 -tw-right-1">
+            <CustomIconButton
+                size={16}
+                onClick={onClick}
+                variant="solid"
+                className="tw-p-0.5"
+            >
+                {children}
+            </CustomIconButton>
+        </div>
+    );
+};
 const ContextItemChip = styled(Chip)(({ theme }) => ({
     marginRight: theme.spacing(1),
     marginBottom: theme.spacing(1),
@@ -561,7 +563,7 @@ function ContextItemDisplay({
 }
 
 // Add these styles near the top with other styles
-const toolbarIconButtonStyle = { padding: "4px", opacity: 0.5 } as const;
+const toolbarIconButtonClassName = "tw-p-1 tw-opacity-50" as const;
 
 // Move style objects to constants
 const verticalMiddleStyle = { verticalAlign: "middle" } as const;
@@ -759,10 +761,10 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
                     secondaryTypographyProps={secondaryTypographyProps}
                 />
                 <Switch
-                    edge="end"
                     checked={enterWillSubmit}
-                    onChange={onToggleEnterWillSubmit}
-                    color="secondary"
+                    onChange={() => onToggleEnterWillSubmit()}
+                    variant="default"
+                    size="sm"
                 />
             </MenuItem>
 
@@ -774,10 +776,10 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
                         secondaryTypographyProps={secondaryTypographyProps}
                     />
                     <Switch
-                        edge="end"
                         checked={showToolbar}
-                        onChange={onToggleToolbar}
-                        color="secondary"
+                        onChange={() => onToggleToolbar()}
+                        variant="default"
+                        size="sm"
                     />
                 </MenuItem>
             )}
@@ -789,10 +791,10 @@ const InfoMemo: React.FC<InfoMemoProps> = React.memo(({
                         secondaryTypographyProps={secondaryTypographyProps}
                     />
                     <Switch
-                        edge="end"
                         checked={spellcheck}
-                        onChange={onToggleSpellcheck}
-                        color="secondary"
+                        onChange={() => onToggleSpellcheck()}
+                        variant="default"
+                        size="sm"
                     />
                 </MenuItem>
             )}
@@ -952,9 +954,13 @@ export function AdvancedInputBase({
 
     // Determine if we should use markdown editor
     const useMarkdownEditor = useMemo(() => {
-        // When both settings customization and formatting are disabled, always use markdown
+        // When formatting is disabled, always use markdown
         if (!mergedFeatures.allowFormatting) {
             return true;
+        }
+        // When formatting is enabled and toolbar is visible, prefer lexical editor
+        if (showToolbar) {
+            return false;
         }
         // Otherwise, use markdown if it's enabled or toolbar is hidden
         return isMarkdownOn || !showToolbar;
@@ -1527,13 +1533,13 @@ export function AdvancedInputBase({
                 {mergedFeatures.allowSettingsCustomization && (
                     <CustomIconButton
                         onClick={handleOpenInfoMemoWithStopPropagation}
-                        sx={toolbarIconButtonStyle}
+                        className={toolbarIconButtonClassName}
+                        size={28}
                     >
                         <IconCommon
                             decorative
                             fill="background.textSecondary"
                             name="Settings"
-                            size={20}
                         />
                     </CustomIconButton>
                 )}
@@ -1560,7 +1566,8 @@ export function AdvancedInputBase({
                     <Tooltip placement="top" title={isExpanded ? "Collapse" : "Expand"}>
                         <CustomIconButton
                             onClick={handleToggleExpandWithStopPropagation}
-                            sx={toolbarIconButtonStyle}
+                            className={toolbarIconButtonClassName}
+                            size={28}
                         >
                             <IconCommon
                                 decorative

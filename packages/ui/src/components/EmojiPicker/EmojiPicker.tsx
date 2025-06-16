@@ -85,12 +85,9 @@ const EMOJI_GRID_HEIGHT = 400;
 const EMOJI_GRID_WIDTH = EMOJIS_PER_ROW * EMOJI_ROW_HEIGHT;
 
 
-// Add this near other constants
-const searchCache = new Map<string, Set<string>>();
+// Removed as we're using search index instead
 
-// Add constants for cache and batch sizes
-const CACHE_MAX_SIZE = 1000;
-const BATCH_MULTIPLIER = 4;
+// Removed as we're using search index instead
 
 // Add this near other constants
 const SUGGESTED_BATCH_UPDATE_DELAY = 100; // ms
@@ -356,41 +353,80 @@ type SuggestedItem = {
     count: number;
 };
 
-function getSuggested(): SuggestedItem[] {
-    try {
-        if (!window?.localStorage) {
-            return [];
-        }
-        const recent = JSON.parse(window?.localStorage.getItem(SUGGESTED_LS_KEY) ?? "[]") as SuggestedItem[];
-        return recent.sort((a, b) => b.count - a.count);
-    } catch {
-        return [];
+// Async localStorage operations with in-memory cache
+let suggestedCache: SuggestedItem[] | null = null;
+let suggestedCachePromise: Promise<SuggestedItem[]> | null = null;
+
+async function getSuggestedAsync(): Promise<SuggestedItem[]> {
+    // Return cached value if available
+    if (suggestedCache !== null) {
+        return suggestedCache;
     }
+    
+    // Reuse existing promise if already fetching
+    if (suggestedCachePromise) {
+        return suggestedCachePromise;
+    }
+    
+    suggestedCachePromise = new Promise((resolve) => {
+        // Use requestIdleCallback for better performance
+        const callback = () => {
+            try {
+                if (!window?.localStorage) {
+                    suggestedCache = [];
+                    resolve([]);
+                    return;
+                }
+                const recent = JSON.parse(window.localStorage.getItem(SUGGESTED_LS_KEY) ?? "[]") as SuggestedItem[];
+                const sorted = recent.sort((a, b) => b.count - a.count);
+                suggestedCache = sorted;
+                resolve(sorted);
+            } catch {
+                suggestedCache = [];
+                resolve([]);
+            } finally {
+                suggestedCachePromise = null;
+            }
+        };
+        
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(callback);
+        } else {
+            setTimeout(callback, 0);
+        }
+    });
+    
+    return suggestedCachePromise;
 }
 
-function filterEmoji(searchString: string, emoji: DataEmoji): boolean {
+async function saveSuggestedAsync(items: SuggestedItem[]): Promise<void> {
+    suggestedCache = items; // Update cache immediately
+    
+    return new Promise((resolve) => {
+        const callback = () => {
+            try {
+                if (window?.localStorage) {
+                    window.localStorage.setItem(SUGGESTED_LS_KEY, JSON.stringify(items));
+                }
+            } catch (error) {
+                console.error("Failed to save suggested emojis:", error);
+            }
+            resolve();
+        };
+        
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(callback);
+        } else {
+            setTimeout(callback, 0);
+        }
+    });
+}
+
+// Optimized filter using the search index
+function filterEmojiWithIndex(searchString: string, emoji: DataEmoji, searchResults: Set<string> | null): boolean {
     if (!searchString) return true;
-
-    const unified = emoji[EmojiProperties.unified];
-    const cacheKey = `${searchString}:${unified}`;
-
-    // Check cache first
-    const cachedResult = searchCache.get(cacheKey);
-    if (cachedResult !== undefined) {
-        return true;
-    }
-
-    const searchStrLower = searchString.toLowerCase();
-    const names = namesByCode[unified];
-    if (!Array.isArray(names)) return false;
-
-    const matches = names.some(name => name.toLowerCase().includes(searchStrLower));
-    if (matches) {
-        // Cache positive matches only to prevent cache from growing too large
-        searchCache.set(cacheKey, new Set([searchStrLower]));
-    }
-
-    return matches;
+    if (!searchResults) return false;
+    return searchResults.has(emoji[EmojiProperties.unified]);
 }
 
 const variableSizeListStyle = { willChange: "transform" } as const;
@@ -632,15 +668,74 @@ function setCachedEmojiData(data: any) {
     }
 }
 
-function useEmojiData() {
+// Create a search index for O(1) lookups
+type SearchIndex = Map<string, Set<string>>; // searchTerm -> Set of unified codes
+let searchIndex: SearchIndex | null = null;
+let emojiDataPromise: Promise<any> | null = null;
+
+function buildSearchIndex(namesByCode: Record<string, string[] | undefined>): SearchIndex {
+    const index = new Map<string, Set<string>>();
+    
+    for (const [unified, names] of Object.entries(namesByCode)) {
+        if (!Array.isArray(names)) continue;
+        
+        for (const name of names) {
+            const words = name.toLowerCase().split(/\s+/);
+            for (const word of words) {
+                // Index all prefixes of each word for faster searching
+                for (let i = 1; i <= word.length; i++) {
+                    const prefix = word.substring(0, i);
+                    if (!index.has(prefix)) {
+                        index.set(prefix, new Set());
+                    }
+                    index.get(prefix)!.add(unified);
+                }
+            }
+        }
+    }
+    
+    return index;
+}
+
+function searchEmojisByIndex(searchString: string, index: SearchIndex): Set<string> {
+    if (!searchString) return new Set();
+    
+    const searchLower = searchString.toLowerCase();
+    const words = searchLower.split(/\s+/).filter(w => w.length > 0);
+    
+    if (words.length === 0) return new Set();
+    
+    // Find emojis that match all search words
+    let results: Set<string> | null = null;
+    
+    for (const word of words) {
+        const wordMatches = index.get(word) || new Set();
+        
+        if (results === null) {
+            results = new Set(wordMatches);
+        } else {
+            // Intersection of results with current word matches
+            results = new Set([...results].filter(x => wordMatches.has(x)));
+        }
+        
+        if (results.size === 0) break;
+    }
+    
+    return results || new Set();
+}
+
+function useEmojiData(shouldLoad: boolean) {
     const [emojiData, setEmojiData] = useState<{
         namesByCode: typeof namesByCode;
         emojisByCategory: typeof emojisByCategory;
         emojiByCode: typeof emojiByCode;
         codeByName: typeof codeByName;
+        searchIndex: SearchIndex;
     } | null>(null);
 
     useEffect(function loadData() {
+        if (!shouldLoad) return;
+        
         let isMounted = true;
 
         async function fetchData() {
@@ -649,81 +744,113 @@ function useEmojiData() {
             if (cachedData) {
                 if (!isMounted) return;
 
-                await new Promise(resolve => setTimeout(resolve, 0)); // Let UI update
-
+                // Build search index if not cached
+                if (!cachedData.searchIndex) {
+                    cachedData.searchIndex = buildSearchIndex(cachedData.namesByCode);
+                }
+                
                 setEmojiData(cachedData);
                 namesByCode = cachedData.namesByCode;
                 emojisByCategory = cachedData.emojisByCategory;
                 emojiByCode = cachedData.emojiByCode;
                 codeByName = cachedData.codeByName;
+                searchIndex = cachedData.searchIndex;
+                return;
+            }
+
+            // Reuse existing promise if data is already being fetched
+            if (emojiDataPromise) {
+                try {
+                    const data = await emojiDataPromise;
+                    if (isMounted && data) {
+                        setEmojiData(data);
+                    }
+                } catch (error) {
+                    console.error("Failed to load emoji data from promise:", error);
+                }
                 return;
             }
 
             // Fetch fresh data if no cache
-            try {
-                const [namesResponse, dataResponse] = await Promise.all([
-                    fetch("/emojis/locales/en.json"),
-                    fetch("/emojis/data.json"),
-                ]);
+            emojiDataPromise = (async () => {
+                try {
+                    const [namesResponse, dataResponse] = await Promise.all([
+                        fetch("/emojis/locales/en.json"),
+                        fetch("/emojis/data.json"),
+                    ]);
 
-                if (!isMounted) return;
+                    const [namesData, emojiData] = await Promise.all([
+                        namesResponse.json(),
+                        dataResponse.json(),
+                    ]);
 
-                const [namesData, emojiData] = await Promise.all([
-                    namesResponse.json(),
-                    dataResponse.json(),
-                ]);
-
-                if (!isMounted) return;
-
-                if (typeof namesData !== "object" || typeof emojiData !== "object") {
-                    throw new Error("Invalid emoji data format");
-                }
-
-                const newNamesByCode: typeof namesByCode = namesData;
-                const newEmojisByCategory: typeof emojisByCategory = emojiData;
-                const newEmojiByCode: typeof emojiByCode = {};
-                const newCodeByName: typeof codeByName = {};
-
-                // Process data in a single pass
-                for (const code in newNamesByCode) {
-                    const names = newNamesByCode[code];
-                    if (Array.isArray(names)) {
-                        names.forEach(name => {
-                            newCodeByName[name] = code;
-                        });
+                    if (typeof namesData !== "object" || typeof emojiData !== "object") {
+                        throw new Error("Invalid emoji data format");
                     }
-                }
 
-                Object.entries(newEmojisByCategory).forEach(([category, emojis]) => {
-                    if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
-                        if (process.env.NODE_ENV !== "test") {
-                            console.warn(`Invalid category "${category}" or emojis data for category`);
+                    const newNamesByCode: typeof namesByCode = namesData;
+                    const newEmojisByCategory: typeof emojisByCategory = emojiData;
+                    const newEmojiByCode: typeof emojiByCode = {};
+                    const newCodeByName: typeof codeByName = {};
+
+                    // Process data in a single pass
+                    for (const code in newNamesByCode) {
+                        const names = newNamesByCode[code];
+                        if (Array.isArray(names)) {
+                            names.forEach(name => {
+                                newCodeByName[name] = code;
+                            });
                         }
-                        return;
                     }
-                    emojis.forEach((emojiData: DataEmoji) => {
-                        const unified = emojiData[EmojiProperties.unified];
-                        newEmojiByCode[unified] = emojiData;
+
+                    Object.entries(newEmojisByCategory).forEach(([category, emojis]) => {
+                        if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
+                            if (process.env.NODE_ENV !== "test") {
+                                console.warn(`Invalid category "${category}" or emojis data for category`);
+                            }
+                            return;
+                        }
+                        emojis.forEach((emojiData: DataEmoji) => {
+                            const unified = emojiData[EmojiProperties.unified];
+                            newEmojiByCode[unified] = emojiData;
+                        });
                     });
-                });
 
-                const newData = {
-                    namesByCode: newNamesByCode,
-                    emojisByCategory: newEmojisByCategory,
-                    emojiByCode: newEmojiByCode,
-                    codeByName: newCodeByName,
-                };
+                    // Build search index
+                    const newSearchIndex = buildSearchIndex(newNamesByCode);
 
-                // Cache the processed data
-                setCachedEmojiData(newData);
+                    const newData = {
+                        namesByCode: newNamesByCode,
+                        emojisByCategory: newEmojisByCategory,
+                        emojiByCode: newEmojiByCode,
+                        codeByName: newCodeByName,
+                        searchIndex: newSearchIndex,
+                    };
 
-                setEmojiData(newData);
-                namesByCode = newNamesByCode;
-                emojisByCategory = newEmojisByCategory;
-                emojiByCode = newEmojiByCode;
-                codeByName = newCodeByName;
+                    // Cache the processed data
+                    setCachedEmojiData(newData);
+
+                    namesByCode = newNamesByCode;
+                    emojisByCategory = newEmojisByCategory;
+                    emojiByCode = newEmojiByCode;
+                    codeByName = newCodeByName;
+                    searchIndex = newSearchIndex;
+                    
+                    return newData;
+                } catch (error) {
+                    console.error("Failed to fetch emoji data:", error);
+                    emojiDataPromise = null; // Reset on error
+                    throw error;
+                }
+            })();
+            
+            try {
+                const data = await emojiDataPromise;
+                if (isMounted) {
+                    setEmojiData(data);
+                }
             } catch (error) {
-                console.error("Failed to fetch emoji data:", error);
+                // Error already logged
             }
         }
 
@@ -732,10 +859,58 @@ function useEmojiData() {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [shouldLoad]);
 
     return { emojiData };
 }
+
+// Memoized skin tone options to avoid recreating handlers in render
+const SkinToneOptions = memo(({ 
+    activeSkinTone, 
+    isSkinTonePickerOpen, 
+    setActiveSkinTone, 
+    setIsSkinTonePickerOpen,
+    t
+}: {
+    activeSkinTone: SkinTone;
+    isSkinTonePickerOpen: boolean;
+    setActiveSkinTone: (tone: SkinTone) => void;
+    setIsSkinTonePickerOpen: (open: boolean) => void;
+    t: (key: string, options?: any) => string;
+}) => {
+    const handleSkinToneClick = useCallback((skinToneValue: SkinTone, isActive: boolean) => {
+        if (isSkinTonePickerOpen) {
+            if (!isActive) {
+                setActiveSkinTone(skinToneValue);
+            }
+            setIsSkinTonePickerOpen(false);
+        } else {
+            setIsSkinTonePickerOpen(true);
+        }
+    }, [isSkinTonePickerOpen, setActiveSkinTone, setIsSkinTonePickerOpen]);
+    
+    return (
+        <>
+            {Object.entries(SkinTone).map(([skinToneKey, skinToneValue], index) => {
+                const isActive = skinToneValue === activeSkinTone;
+                return (
+                    <SkinColorOption
+                        aria-pressed={isActive}
+                        aria-label={`Skin tone ${t(`EmojiSkinTone${skinToneKey}`, { defaultValue: skinToneKey })}`}
+                        index={index}
+                        isActive={isActive}
+                        isSkinTonePickerOpen={isSkinTonePickerOpen}
+                        key={skinToneKey}
+                        skinToneValue={skinToneValue}
+                        tabIndex={isSkinTonePickerOpen ? 0 : -1}
+                        onClick={() => handleSkinToneClick(skinToneValue, isActive)}
+                    />
+                );
+            })}
+        </>
+    );
+});
+SkinToneOptions.displayName = "SkinToneOptions";
 
 // Add this new component
 const MemoizedHoveredEmojiContent = memo(({ hoveredEmoji }: { hoveredEmoji: string | null }) => {
@@ -766,22 +941,35 @@ export function FallbackEmojiPicker({
 }) {
     const { t } = useTranslation();
     const { palette } = useTheme();
-
     const listRef = useRef<VariableSizeList | null>(null);
 
     const [searchString, setSearchString] = useState("");
-    const [internalSearchString, setInternalSearchString] = useState("");
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [debouncedSetSearchString] = useDebounce(setSearchString, SEARCH_STRING_DEBOUNCE_MS);
+    
+    // Reset search when picker closes
+    useEffect(() => {
+        if (!anchorEl) {
+            setSearchString("");
+            if (searchInputRef.current) {
+                searchInputRef.current.value = "";
+            }
+        }
+    }, [anchorEl]);
 
-    const handleSearchChange = useCallback((value: string) => {
-        setInternalSearchString(value);
-        debouncedSetSearchString(value);
-    }, [debouncedSetSearchString]);
-
+    // Use uncontrolled input with debounced search to avoid re-renders on every keystroke
     const handleSearchInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const value = event.target.value;
-        handleSearchChange(value);
-    }, [handleSearchChange]);
+        debouncedSetSearchString(value);
+    }, [debouncedSetSearchString]);
+    
+    // For voice input
+    const handleSearchChange = useCallback((value: string) => {
+        if (searchInputRef.current) {
+            searchInputRef.current.value = value;
+        }
+        debouncedSetSearchString(value);
+    }, [debouncedSetSearchString]);
 
     function getInputProps() {
         return {
@@ -794,45 +982,50 @@ export function FallbackEmojiPicker({
         }
     }, [searchString]);
 
+    // Optimize hover state with ref to avoid re-renders
     const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
+    const hoveredEmojiRef = useRef<string | null>(null);
+    
+    const setHoveredEmojiOptimized = useCallback((emoji: string | null) => {
+        // Only update state if the value actually changed
+        if (hoveredEmojiRef.current !== emoji) {
+            hoveredEmojiRef.current = emoji;
+            // Batch the state update
+            requestAnimationFrame(() => {
+                setHoveredEmoji(emoji);
+            });
+        }
+    }, []);
     const [activeSkinTone, setActiveSkinTone] = useState(SkinTone.Neutral);
     const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
     const [suggestedEmojis, setSuggestedEmojis] = useState<SuggestedItem[]>([]);
 
-    // Memoize filtered emojis by category
+    // Memoize search results using the search index
+    const searchResults = useMemo(() => {
+        if (!emojiData || !searchString) return null;
+        return searchEmojisByIndex(searchString, emojiData.searchIndex);
+    }, [emojiData, searchString]);
+    
+    // Memoize filtered emojis by category with better performance
     const filteredEmojisByCategory = useMemo(() => {
         if (!emojiData) return {};
         if (!searchString) return emojiData.emojisByCategory;
 
         const result: Record<CategoryTabOption, DataEmoji[]> = {} as Record<CategoryTabOption, DataEmoji[]>;
 
-        // Clear cache when it gets too large
-        if (searchCache.size > CACHE_MAX_SIZE) {
-            searchCache.clear();
-        }
-
         Object.entries(emojiData.emojisByCategory).forEach(([category, emojis]) => {
             if (!(category in CategoryTabOption) || !Array.isArray(emojis)) return;
-
-            // Use batch processing for better performance
-            const batchSize = 50;
-            const filtered: DataEmoji[] = [];
-
-            for (let i = 0; i < emojis.length; i += batchSize) {
-                const batch = emojis.slice(i, i + batchSize);
-                filtered.push(...batch.filter(emoji => filterEmoji(searchString, emoji)));
-
-                // Allow UI to breathe if processing takes too long
-                if (i % (batchSize * BATCH_MULTIPLIER) === 0) {
-                    new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-
+            
+            // Filter using the pre-built search index for O(1) lookups
+            const filtered = emojis.filter(emoji => 
+                filterEmojiWithIndex(searchString, emoji, searchResults)
+            );
+            
             result[category as CategoryTabOption] = filtered;
         });
 
         return result;
-    }, [emojiData, searchString]);
+    }, [emojiData, searchString, searchResults]);
 
     // Handle categories
     const {
@@ -842,7 +1035,7 @@ export function FallbackEmojiPicker({
     } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "Dialog" });
 
     useEffect(function getSuggestedEmojisCallback() {
-        setSuggestedEmojis(getSuggested());
+        getSuggestedAsync().then(setSuggestedEmojis);
     }, []);
     const filteredTabs: PageTab<TabParamBase<EmojiTabsInfo>>[] = useMemo(() => {
         return tabs.filter(tab => {
@@ -856,6 +1049,7 @@ export function FallbackEmojiPicker({
     const updateSuggestedEmojisRef = useRef<NodeJS.Timeout>();
 
     const handleSelect = useCallback(function handleSelectCallback({ emoji, unified }: EmojiSelectProps) {
+        // Batch updates using React 18's automatic batching
         // Call onSelect immediately for best responsiveness
         onSelect(emoji);
 
@@ -892,14 +1086,8 @@ export function FallbackEmojiPicker({
                 newSuggested.sort((a, b) => b.count - a.count);
                 newSuggested = newSuggested.slice(0, SUGGESTED_EMOJIS_LIMIT);
 
-                // Update local storage in the next tick
-                queueMicrotask(() => {
-                    try {
-                        window.localStorage.setItem(SUGGESTED_LS_KEY, JSON.stringify(newSuggested));
-                    } catch (error) {
-                        console.error("Failed to save suggested emojis:", error);
-                    }
-                });
+                // Update storage asynchronously
+                saveSuggestedAsync(newSuggested);
 
                 return newSuggested;
             });
@@ -925,31 +1113,46 @@ export function FallbackEmojiPicker({
         }
     }, [handleTabChange, scrollToCategory]);
 
+    // Pre-calculate and cache category sizes for better performance
+    const categorySizes = useMemo(() => {
+        const sizes = new Map<string, number>();
+        
+        filteredTabs.forEach((tab, index) => {
+            if (!tab) {
+                sizes.set(`${index}`, 0);
+                return;
+            }
+
+            // Get emojis for this category after filtering
+            let numEmojisInCategory = 0;
+            if (tab.key === CategoryTabOption.Suggested) {
+                if (!searchString) {
+                    numEmojisInCategory = suggestedEmojis.length;
+                } else {
+                    numEmojisInCategory = suggestedEmojis.filter(suggestedItem =>
+                        searchResults?.has(suggestedItem.unified) ?? false
+                    ).length;
+                }
+            } else {
+                numEmojisInCategory = filteredEmojisByCategory[tab.key]?.length ?? 0;
+            }
+
+            const numberOfRows = Math.ceil(numEmojisInCategory / EMOJIS_PER_ROW);
+            const emojisHeight = numberOfRows * EMOJI_ROW_HEIGHT;
+
+            if (emojisHeight === 0) {
+                sizes.set(`${index}`, 0);
+            } else {
+                sizes.set(`${index}`, CATEGORY_TITLE_HEIGHT + emojisHeight);
+            }
+        });
+        
+        return sizes;
+    }, [filteredTabs, searchString, suggestedEmojis, filteredEmojisByCategory, searchResults]);
+    
     const getItemSize = useCallback((index: number) => {
-        const tab = filteredTabs[index];
-        if (!tab) return 0;
-
-        // Height for the category title
-        const categoryTitleHeight = CATEGORY_TITLE_HEIGHT;
-
-        // Get emojis for this category after filtering
-        let numEmojisInCategory = 0;
-        if (tab.key === CategoryTabOption.Suggested) {
-            numEmojisInCategory = suggestedEmojis.filter(suggestedItem =>
-                filterEmoji(searchString, { [EmojiProperties.unified]: suggestedItem.unified }),
-            ).length;
-        } else {
-            numEmojisInCategory = filteredEmojisByCategory[tab.key]?.length ?? 0;
-        }
-
-        const numberOfRows = Math.ceil(numEmojisInCategory / EMOJIS_PER_ROW);
-        const emojisHeight = numberOfRows * EMOJI_ROW_HEIGHT;
-
-        if (emojisHeight === 0) {
-            return 0;
-        }
-        return categoryTitleHeight + emojisHeight;
-    }, [filteredTabs, searchString, suggestedEmojis, filteredEmojisByCategory]);
+        return categorySizes.get(`${index}`) ?? 0;
+    }, [categorySizes]);
 
     const onItemsRendered = useCallback(({ visibleStartIndex }) => {
         const mostVisibleIndex = visibleStartIndex;
@@ -960,6 +1163,11 @@ export function FallbackEmojiPicker({
             setActiveCategory(undefined, mostVisibleTab, true);
         }
     }, [filteredTabs, activeCategory, setActiveCategory]);
+    
+    // Early return if no data and picker is not open
+    if (!anchorEl && !emojiData) {
+        return null;
+    }
 
     return (
         <EmojiPopover
@@ -978,10 +1186,10 @@ export function FallbackEmojiPicker({
                         >
                             <Input
                                 id="emoji-search-input"
+                                inputRef={searchInputRef}
                                 disableUnderline={true}
                                 fullWidth={true}
                                 inputProps={getInputProps()}
-                                value={internalSearchString}
                                 onChange={handleSearchInputChange}
                                 placeholder={t("Search") + "..."}
                                 disabled={emojiData === null}
@@ -1006,33 +1214,13 @@ export function FallbackEmojiPicker({
                         <SkinColorPicker
                             isSkinTonePickerOpen={isSkinTonePickerOpen}
                         >
-                            {Object.entries(SkinTone).map(([skinToneKey, skinToneValue], index) => {
-                                const isActive = skinToneValue === activeSkinTone;
-                                function handleClick() {
-                                    if (isSkinTonePickerOpen) {
-                                        if (!isActive) {
-                                            setActiveSkinTone(skinToneValue);
-                                        }
-                                        setIsSkinTonePickerOpen(false);
-                                    } else {
-                                        setIsSkinTonePickerOpen(true);
-                                    }
-                                }
-
-                                return (
-                                    <SkinColorOption
-                                        aria-pressed={isActive}
-                                        aria-label={`Skin tone ${t(`EmojiSkinTone${skinToneKey}`, { defaultValue: skinToneKey })}`}
-                                        index={index}
-                                        isActive={isActive}
-                                        isSkinTonePickerOpen={isSkinTonePickerOpen}
-                                        key={skinToneKey}
-                                        skinToneValue={skinToneValue}
-                                        tabIndex={isSkinTonePickerOpen ? 0 : -1}
-                                        onClick={handleClick}
-                                    />
-                                );
-                            })}
+                            <SkinToneOptions
+                                activeSkinTone={activeSkinTone}
+                                isSkinTonePickerOpen={isSkinTonePickerOpen}
+                                setActiveSkinTone={setActiveSkinTone}
+                                setIsSkinTonePickerOpen={setIsSkinTonePickerOpen}
+                                t={t}
+                            />
                         </SkinColorPicker>
                     </Box>
                     <PageTabs
@@ -1045,12 +1233,11 @@ export function FallbackEmojiPicker({
                     />
                 </HeaderBox>
                 <EmojiPickerBody id="emoji-picker-body">
-                    {emojiData === null && (
+                    {emojiData === null ? (
                         <LoadingContainer>
                             <CircularProgress size={40} />
                         </LoadingContainer>
-                    )}
-                    {emojiData && (
+                    ) : (
                         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-ignore - VariableSizeList can be used as a JSX component despite the TypeScript error
                         <VariableSizeList
@@ -1076,8 +1263,8 @@ export function FallbackEmojiPicker({
                                                 activeSkinTone={activeSkinTone}
                                                 category={tab.key}
                                                 onSelect={handleSelect}
-                                                setHoveredEmoji={setHoveredEmoji}
-                                                filteredEmojis={suggestedEmojis}
+                                                setHoveredEmoji={setHoveredEmojiOptimized}
+                                                filteredEmojis={searchString ? suggestedEmojis.filter(item => searchResults?.has(item.unified) ?? false) : suggestedEmojis}
                                             />
                                         ) : (
                                             <RenderCategory
@@ -1085,7 +1272,7 @@ export function FallbackEmojiPicker({
                                                 activeSkinTone={activeSkinTone}
                                                 category={tab.key}
                                                 onSelect={handleSelect}
-                                                setHoveredEmoji={setHoveredEmoji}
+                                                setHoveredEmoji={setHoveredEmojiOptimized}
                                                 filteredEmojis={filteredEmojisByCategory[tab.key] ?? emptyArray}
                                             />
                                         )}
@@ -1094,9 +1281,11 @@ export function FallbackEmojiPicker({
                             }}
                         </VariableSizeList>
                     )}
-                    <HoveredEmojiBox>
-                        <MemoizedHoveredEmojiContent hoveredEmoji={hoveredEmoji} />
-                    </HoveredEmojiBox>
+                    {emojiData && (
+                        <HoveredEmojiBox>
+                            <MemoizedHoveredEmojiContent hoveredEmoji={hoveredEmoji} />
+                        </HoveredEmojiBox>
+                    )}
                 </EmojiPickerBody>
             </MainBox>
         </EmojiPopover>
@@ -1119,8 +1308,9 @@ export function EmojiPicker({
 }) {
     const { t } = useTranslation();
 
-    // Start loading emoji data immediately
-    const { emojiData } = useEmojiData();
+    // Only load emoji data when picker is opened
+    const [hasOpened, setHasOpened] = useState(false);
+    const { emojiData } = useEmojiData(hasOpened);
 
     // Hidden input for native emoji picker
     const inputRef = useRef<HTMLInputElement>(null);
@@ -1134,6 +1324,7 @@ export function EmojiPicker({
 
     function handleButtonClick(event: React.MouseEvent<Element>) {
         onOpen?.();
+        setHasOpened(true); // Trigger data loading
         // Get target now, or it will be null after the timeout
         const anchorEl = event.currentTarget;
 
@@ -1186,8 +1377,8 @@ export function EmojiPicker({
     }
 
     function handleCustomPickerClose() {
-        onCloseProp?.();
         setAnchorEl(null);
+        onCloseProp?.();
     }
 
     return (

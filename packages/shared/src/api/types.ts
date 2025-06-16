@@ -2,6 +2,7 @@
 import { type RunConfig } from "../run/types.js";
 import { type BaseConfigObject } from "../shape/configs/base.js";
 import { type BotConfigObject } from "../shape/configs/bot.js";
+import { type CreditConfigObject } from "../shape/configs/credit.js";
 import { type MessageConfigObject } from "../shape/configs/message.js";
 import { type TeamConfigObject } from "../shape/configs/team.js";
 
@@ -19,6 +20,27 @@ type Scalars = {
     Date: any;
     JSONObject: any;
     Upload: any;
+};
+
+// OAuth types
+export type OAuthInitiateInput = {
+    resourceId: string;
+    redirectUri: string;
+};
+
+export type OAuthInitiateResult = {
+    authUrl: string;
+    state: string;
+};
+
+export type OAuthCallbackInput = {
+    code: string;
+    state: string;
+};
+
+export type OAuthCallbackResult = {
+    success: boolean;
+    provider: string;
 };
 
 type Typed<Typename extends string> = {
@@ -1534,6 +1556,7 @@ export type ProfileEmailUpdateInput = {
 
 export type ProfileUpdateInput = BaseTranslatableUpdateInput<UserTranslationCreateInput, UserTranslationUpdateInput> & {
     bannerImage?: InputMaybe<Scalars["Upload"]>;
+    creditSettings?: InputMaybe<CreditConfigObject>;
     handle?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
@@ -2775,11 +2798,14 @@ export type SessionUser = {
     __typename: "SessionUser";
     credits: Scalars["String"];
     creditAccountId?: Maybe<Scalars["String"]>;
+    creditSettings?: Maybe<CreditConfigObject>;
     handle?: Maybe<Scalars["String"]>;
     hasPremium: Scalars["Boolean"];
+    hasReceivedPhoneVerificationReward: Scalars["Boolean"];
     id: Scalars["String"];
     languages: Array<Scalars["String"]>;
     name?: Maybe<Scalars["String"]>;
+    phoneNumberVerified: Scalars["Boolean"];
     profileImage?: Maybe<Scalars["String"]>;
     publicId: Scalars["String"];
     session: SessionUserSession;
@@ -3310,6 +3336,7 @@ export type User = DbObject<"User"> & {
     bookmarkedBy: Array<User>;
     bookmarks: Scalars["Int"];
     botSettings?: Maybe<BotConfigObject>;
+    creditSettings?: Maybe<CreditConfigObject>;
     comments?: Maybe<Array<Comment>>;
     createdAt: Scalars["Date"];
     emails?: Maybe<Array<Email>>;
@@ -3519,3 +3546,68 @@ export type SwarmTask = {
     // The actual type should be defined here.
     id: string;
 };
+
+// Admin types
+export interface AdminUserListInput {
+    searchTerm?: string;
+    status?: AccountStatus;
+    skip?: number;
+    take?: number;
+    sortBy?: "createdAt" | "name" | "email" | "lastActiveAt";
+    sortOrder?: "asc" | "desc";
+}
+
+export interface AdminUserUpdateStatusInput {
+    userId: string;
+    status: AccountStatus;
+    reason?: string;
+}
+
+export interface AdminUserResetPasswordInput {
+    userId: string;
+    reason?: string;
+}
+
+export interface AdminSiteStatsOutput {
+    totalUsers: number;
+    activeUsers: number;
+    newUsersToday: number;
+    totalRoutines: number;
+    activeRoutines: number;
+    totalApiKeys: number;
+    totalApiCalls: number;
+    apiCallsToday: number;
+    totalStorage: number;
+    usedStorage: number;
+    // Credit System Stats
+    creditStats: {
+        totalCreditsInCirculation: string; // bigint as string
+        totalCreditsDonatedThisMonth: string;
+        totalCreditsDonatedAllTime: string;
+        activeDonorsThisMonth: number;
+        averageDonationPercentage: number;
+        lastRolloverJobStatus: 'success' | 'partial' | 'failed' | 'never_run';
+        lastRolloverJobTime: string | null;
+        nextScheduledRollover: string;
+        donationsByMonth: Array<{
+            month: string;
+            amount: string;
+            donors: number;
+        }>; // Last 6 months
+    };
+}
+
+export interface AdminUserListOutput {
+    users: Array<{
+        id: string;
+        name?: string;
+        email?: string;
+        status?: AccountStatus;
+        createdAt: string;
+        lastActiveAt?: string;
+        apiKeyCount: number;
+        routineCount: number;
+        teamCount: number;
+    }>;
+    totalCount: number;
+}

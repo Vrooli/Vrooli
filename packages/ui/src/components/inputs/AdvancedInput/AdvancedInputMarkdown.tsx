@@ -221,6 +221,7 @@ export const AdvancedInputMarkdown = forwardRef<HTMLTextAreaElement, AdvancedInp
         <div style={containerStyle}>
             <textarea
                 className={advancedInputTextareaClassName}
+                data-testid="markdown-editor"
                 disabled={disabled}
                 name={name}
                 placeholder={placeholder}

@@ -60,7 +60,7 @@ export interface BlackboardItem {
 /** 
  * Historical record of a routine/tool invocation 
  */
-export interface ToolCallRecord {
+export interface ChatToolCallRecord {
     /** The ID of the tool call */
     id: string;
     /** The ID of the routine that was called */
@@ -185,7 +185,7 @@ export interface ChatConfigObject {
     /** A list of resources created by the swarm or that are useful context for completing the goal or current subtask. */
     resources?: SwarmResource[];
     /** A list of events that have occurred in the swarm */
-    records?: ToolCallRecord[];
+    records?: ChatToolCallRecord[];
     /** Maps event topics to bot IDs that should respond to them. By default, all events are directed to the leader, which decides to respond or delegate. */
     eventSubscriptions?: Record<string, string[]>;
     /** Governs who can read, publish or join this swarm chat. Optional. */
@@ -269,8 +269,8 @@ export class ChatConfig {
         this.eventSubscriptions = config.eventSubscriptions ?? {};
         this.policy = config.policy;
         this.stats = config.stats ?? ChatConfig.defaultStats();
-        this.limits = config.limits ?? ChatConfig.defaultLimits();
-        this.scheduling = config.scheduling ?? ChatConfig.defaultScheduling();
+        this.limits = config.limits;
+        this.scheduling = config.scheduling;
         this.pendingToolCalls = config.pendingToolCalls ?? [];
     }
 

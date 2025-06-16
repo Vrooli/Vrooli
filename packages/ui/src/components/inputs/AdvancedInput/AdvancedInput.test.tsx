@@ -426,7 +426,7 @@ describe("AdvancedInput Real Component Tests", () => {
             );
             
             const editor = screen.queryByTestId("markdown-editor") || screen.queryByTestId("lexical-editor");
-            expect(editor).toHaveAttribute("spellcheck", "true");
+            expect(editor?.getAttribute("spellcheck")).toBe("true");
         });
 
         it("disables spellcheck when configured", () => {
@@ -438,7 +438,7 @@ describe("AdvancedInput Real Component Tests", () => {
             );
             
             const editor = screen.queryByTestId("markdown-editor") || screen.queryByTestId("lexical-editor");
-            expect(editor).toHaveAttribute("spellcheck", "false");
+            expect(editor?.getAttribute("spellcheck")).toBe("false");
         });
 
         it("shows voice input button when enabled", () => {
@@ -449,7 +449,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 />
             );
             
-            expect(screen.getByTestId("microphone-button")).toBeInTheDocument();
+            expect(screen.getByTestId("microphone-button")).toBeDefined();
         });
 
         it("hides voice input when disabled", () => {
@@ -460,7 +460,7 @@ describe("AdvancedInput Real Component Tests", () => {
                 />
             );
             
-            expect(screen.queryByTestId("microphone-button")).not.toBeInTheDocument();
+            expect(screen.queryByTestId("microphone-button")).toBeNull();
         });
 
         it("shows file dropzone when file attachments enabled", () => {
@@ -471,8 +471,8 @@ describe("AdvancedInput Real Component Tests", () => {
                 />
             );
             
-            expect(screen.getByTestId("dropzone")).toBeInTheDocument();
-            expect(screen.getByTestId("file-input")).toBeInTheDocument();
+            expect(screen.getByTestId("dropzone")).toBeDefined();
+            expect(screen.getByTestId("file-input")).toBeDefined();
         });
 
         it("handles disabled state correctly", () => {
@@ -487,9 +487,9 @@ describe("AdvancedInput Real Component Tests", () => {
             const lexicalEditor = screen.queryByTestId("lexical-editor");
             
             if (markdownEditor) {
-                expect(markdownEditor).toBeDisabled();
+                expect(markdownEditor.disabled).toBe(true);
             } else if (lexicalEditor) {
-                expect(lexicalEditor).toHaveAttribute("contenteditable", "false");
+                expect(lexicalEditor.getAttribute("contenteditable")).toBe("false");
             }
         });
     });
