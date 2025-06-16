@@ -34,14 +34,15 @@ export const LoggedOut: Story = {
 
 /**
  * State for a premium user.
+ * Note: If you click "Home" while logged in, the nav will hide (intended behavior).
  */
 export const SignedIn: Story = {
     parameters: {
         session: signedInPremiumWithCreditsSession,
     },
     play: async () => {
-        // Clear any mocked path to show normal behavior
-        clearMockedLocationForStorybook();
+        // Set to a page where bottom nav is visible for logged-in users
+        mockLocationForStorybook(LINKS.Search);
     },
 };
 
