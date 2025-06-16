@@ -1102,6 +1102,384 @@ function generateLongText(paragraphs: number = 3): string {
     return paragraphTexts.join("\n\n");
 }
 
+// Generate code block content for performance testing
+function generateCodeContent(): string {
+    const codeExamples = [
+        // JavaScript/TypeScript function
+        `Here's a function to handle user authentication:
+
+\`\`\`typescript
+async function authenticateUser(email: string, password: string): Promise<AuthResult> {
+    try {
+        // Validate input
+        if (!email || !password) {
+            throw new Error('Email and password are required');
+        }
+        
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Query the database
+        const user = await db.users.findOne({ 
+            email: email.toLowerCase(),
+            password: hashedPassword 
+        });
+        
+        if (!user) {
+            return { success: false, error: 'Invalid credentials' };
+        }
+        
+        // Generate JWT token
+        const token = jwt.sign(
+            { userId: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+        
+        return { success: true, token, user };
+    } catch (error) {
+        console.error('Authentication error:', error);
+        return { success: false, error: 'Authentication failed' };
+    }
+}
+\`\`\``,
+        
+        // React component with hooks
+        `I've created a custom hook for managing form state:
+
+\`\`\`tsx
+import { useState, useCallback, useEffect } from 'react';
+
+interface FormState<T> {
+    values: T;
+    errors: Partial<Record<keyof T, string>>;
+    touched: Partial<Record<keyof T, boolean>>;
+    isSubmitting: boolean;
+    isValid: boolean;
+}
+
+export function useForm<T extends Record<string, any>>(
+    initialValues: T,
+    validate?: (values: T) => Partial<Record<keyof T, string>>
+) {
+    const [state, setState] = useState<FormState<T>>({
+        values: initialValues,
+        errors: {},
+        touched: {},
+        isSubmitting: false,
+        isValid: true,
+    });
+
+    const handleChange = useCallback((name: keyof T, value: any) => {
+        setState(prev => ({
+            ...prev,
+            values: { ...prev.values, [name]: value },
+            touched: { ...prev.touched, [name]: true },
+        }));
+    }, []);
+
+    const handleSubmit = useCallback(async (onSubmit: (values: T) => Promise<void>) => {
+        setState(prev => ({ ...prev, isSubmitting: true }));
+        
+        try {
+            if (validate) {
+                const errors = validate(state.values);
+                if (Object.keys(errors).length > 0) {
+                    setState(prev => ({ 
+                        ...prev, 
+                        errors, 
+                        isSubmitting: false 
+                    }));
+                    return;
+                }
+            }
+            
+            await onSubmit(state.values);
+            setState(prev => ({ ...prev, isSubmitting: false }));
+        } catch (error) {
+            console.error('Form submission error:', error);
+            setState(prev => ({ ...prev, isSubmitting: false }));
+        }
+    }, [state.values, validate]);
+
+    return {
+        ...state,
+        handleChange,
+        handleSubmit,
+        reset: () => setState({
+            values: initialValues,
+            errors: {},
+            touched: {},
+            isSubmitting: false,
+            isValid: true,
+        }),
+    };
+}
+\`\`\``,
+        
+        // Python data processing
+        `Here's a Python script for data analysis:
+
+\`\`\`python
+import pandas as pd
+import numpy as np
+from typing import List, Dict, Tuple
+import matplotlib.pyplot as plt
+
+class DataAnalyzer:
+    def __init__(self, data_path: str):
+        self.df = pd.read_csv(data_path)
+        self.results = {}
+    
+    def preprocess_data(self) -> pd.DataFrame:
+        """Clean and prepare data for analysis"""
+        # Remove duplicates
+        self.df = self.df.drop_duplicates()
+        
+        # Handle missing values
+        numeric_columns = self.df.select_dtypes(include=[np.number]).columns
+        self.df[numeric_columns] = self.df[numeric_columns].fillna(self.df[numeric_columns].mean())
+        
+        # Convert date columns
+        date_columns = [col for col in self.df.columns if 'date' in col.lower()]
+        for col in date_columns:
+            self.df[col] = pd.to_datetime(self.df[col])
+        
+        return self.df
+    
+    def calculate_statistics(self) -> Dict[str, float]:
+        """Calculate basic statistics"""
+        stats = {
+            'mean': self.df.select_dtypes(include=[np.number]).mean().to_dict(),
+            'median': self.df.select_dtypes(include=[np.number]).median().to_dict(),
+            'std': self.df.select_dtypes(include=[np.number]).std().to_dict(),
+            'correlation': self.df.corr().to_dict()
+        }
+        
+        self.results['statistics'] = stats
+        return stats
+    
+    def generate_report(self, output_path: str = 'report.html'):
+        """Generate HTML report with visualizations"""
+        html_content = f"""
+        <html>
+        <head><title>Data Analysis Report</title></head>
+        <body>
+            <h1>Data Analysis Results</h1>
+            <h2>Dataset Overview</h2>
+            <p>Shape: {self.df.shape}</p>
+            <p>Columns: {', '.join(self.df.columns)}</p>
+            
+            <h2>Statistics</h2>
+            <pre>{self.results.get('statistics', 'No statistics calculated')}</pre>
+        </body>
+        </html>
+        """
+        
+        with open(output_path, 'w') as f:
+            f.write(html_content)
+        
+        return output_path
+
+# Usage example
+analyzer = DataAnalyzer('sales_data.csv')
+analyzer.preprocess_data()
+stats = analyzer.calculate_statistics()
+report_path = analyzer.generate_report()
+print(f"Report generated at: {report_path}")
+\`\`\``,
+        
+        // SQL query
+        `Here's an optimized SQL query for the report:
+
+\`\`\`sql
+WITH monthly_sales AS (
+    SELECT 
+        DATE_TRUNC('month', order_date) as month,
+        product_id,
+        SUM(quantity * unit_price) as revenue,
+        COUNT(DISTINCT customer_id) as unique_customers,
+        AVG(quantity * unit_price) as avg_order_value
+    FROM orders o
+    JOIN order_items oi ON o.order_id = oi.order_id
+    WHERE order_date >= CURRENT_DATE - INTERVAL '12 months'
+    GROUP BY DATE_TRUNC('month', order_date), product_id
+),
+product_rankings AS (
+    SELECT 
+        month,
+        product_id,
+        revenue,
+        unique_customers,
+        avg_order_value,
+        ROW_NUMBER() OVER (PARTITION BY month ORDER BY revenue DESC) as revenue_rank,
+        LAG(revenue) OVER (PARTITION BY product_id ORDER BY month) as prev_month_revenue
+    FROM monthly_sales
+)
+SELECT 
+    pr.month,
+    p.product_name,
+    pr.revenue,
+    pr.unique_customers,
+    pr.avg_order_value,
+    pr.revenue_rank,
+    CASE 
+        WHEN pr.prev_month_revenue IS NULL THEN 'N/A'
+        ELSE ROUND(((pr.revenue - pr.prev_month_revenue) / pr.prev_month_revenue * 100), 2)::text || '%'
+    END as growth_rate
+FROM product_rankings pr
+JOIN products p ON pr.product_id = p.product_id
+WHERE pr.revenue_rank <= 10
+ORDER BY pr.month DESC, pr.revenue_rank;
+\`\`\``,
+        
+        // Algorithm implementation
+        `Here's an efficient algorithm for finding the shortest path:
+
+\`\`\`javascript
+class Graph {
+    constructor() {
+        this.adjacencyList = new Map();
+    }
+    
+    addVertex(vertex) {
+        if (!this.adjacencyList.has(vertex)) {
+            this.adjacencyList.set(vertex, []);
+        }
+    }
+    
+    addEdge(source, destination, weight) {
+        this.addVertex(source);
+        this.addVertex(destination);
+        
+        this.adjacencyList.get(source).push({ node: destination, weight });
+        this.adjacencyList.get(destination).push({ node: source, weight });
+    }
+    
+    dijkstra(start, end) {
+        const distances = {};
+        const previous = {};
+        const priorityQueue = new PriorityQueue();
+        
+        // Initialize distances
+        for (let vertex of this.adjacencyList.keys()) {
+            distances[vertex] = vertex === start ? 0 : Infinity;
+            priorityQueue.enqueue(vertex, distances[vertex]);
+            previous[vertex] = null;
+        }
+        
+        while (!priorityQueue.isEmpty()) {
+            const current = priorityQueue.dequeue().element;
+            
+            if (current === end) {
+                // Reconstruct path
+                const path = [];
+                let temp = end;
+                while (temp !== null) {
+                    path.unshift(temp);
+                    temp = previous[temp];
+                }
+                return { distance: distances[end], path };
+            }
+            
+            if (distances[current] === Infinity) break;
+            
+            // Check neighbors
+            for (let neighbor of this.adjacencyList.get(current)) {
+                const altDistance = distances[current] + neighbor.weight;
+                
+                if (altDistance < distances[neighbor.node]) {
+                    distances[neighbor.node] = altDistance;
+                    previous[neighbor.node] = current;
+                    priorityQueue.updatePriority(neighbor.node, altDistance);
+                }
+            }
+        }
+        
+        return { distance: Infinity, path: [] };
+    }
+}
+
+// Priority queue implementation for Dijkstra's algorithm
+class PriorityQueue {
+    constructor() {
+        this.elements = [];
+    }
+    
+    enqueue(element, priority) {
+        this.elements.push({ element, priority });
+        this.bubbleUp(this.elements.length - 1);
+    }
+    
+    dequeue() {
+        const min = this.elements[0];
+        const end = this.elements.pop();
+        
+        if (this.elements.length > 0) {
+            this.elements[0] = end;
+            this.sinkDown(0);
+        }
+        
+        return min;
+    }
+    
+    isEmpty() {
+        return this.elements.length === 0;
+    }
+    
+    bubbleUp(index) {
+        const element = this.elements[index];
+        
+        while (index > 0) {
+            const parentIndex = Math.floor((index - 1) / 2);
+            const parent = this.elements[parentIndex];
+            
+            if (element.priority >= parent.priority) break;
+            
+            this.elements[parentIndex] = element;
+            this.elements[index] = parent;
+            index = parentIndex;
+        }
+    }
+    
+    sinkDown(index) {
+        const length = this.elements.length;
+        const element = this.elements[index];
+        
+        while (true) {
+            const leftChildIndex = 2 * index + 1;
+            const rightChildIndex = 2 * index + 2;
+            let swap = null;
+            
+            if (leftChildIndex < length) {
+                const leftChild = this.elements[leftChildIndex];
+                if (leftChild.priority < element.priority) {
+                    swap = leftChildIndex;
+                }
+            }
+            
+            if (rightChildIndex < length) {
+                const rightChild = this.elements[rightChildIndex];
+                if (rightChild.priority < element.priority && 
+                    rightChild.priority < this.elements[leftChildIndex].priority) {
+                    swap = rightChildIndex;
+                }
+            }
+            
+            if (swap === null) break;
+            
+            this.elements[index] = this.elements[swap];
+            this.elements[swap] = element;
+            index = swap;
+        }
+    }
+}
+\`\`\``
+    ];
+    
+    return codeExamples[Math.floor(Math.random() * codeExamples.length)];
+}
+
 // Generate realistic reactions for performance testing
 function generateManyReactions(count: number): ReactionSummary[] {
     const emojis = ["👍", "❤️", "😂", "🎉", "🤔", "👏", "🔥", "💯", "😍", "🚀", "💪", "🙏", "😊", "🤩", "👀", "💡", "⭐", "✨"];
@@ -1119,7 +1497,7 @@ function generateManyReactions(count: number): ReactionSummary[] {
 }
 
 // Create hundreds of messages for performance testing
-function createPerformanceTestMessages(messageCount: number = 200): ChatMessageShape[] {
+function createPerformanceTestMessages(messageCount: number = 1000): ChatMessageShape[] {
     const messages: ChatMessageShape[] = [];
     const userIds = [bot1Id, signedInUserId];
     const userNames = ["AI Assistant", "Test User"];
@@ -1133,6 +1511,12 @@ function createPerformanceTestMessages(messageCount: number = 200): ChatMessageS
         const messageId = generatePK().toString();
         const parentId = i > 0 ? messages[i - 1].id : null;
         
+        // Mix code blocks with regular text - 30% chance for code content
+        const includeCode = Math.random() < 0.3;
+        const messageText = includeCode 
+            ? generateCodeContent() 
+            : generateLongText(2 + Math.floor(Math.random() * 4)); // 2-5 paragraphs
+        
         messages.push({
             __typename: "ChatMessage",
             id: messageId,
@@ -1142,7 +1526,7 @@ function createPerformanceTestMessages(messageCount: number = 200): ChatMessageS
                 __typename: "ChatMessageTranslation",
                 id: generatePK().toString(),
                 language: "en",
-                text: generateLongText(2 + Math.floor(Math.random() * 4)), // 2-5 paragraphs
+                text: messageText,
             }],
             reactionSummaries: Math.random() > 0.3 ? generateManyReactions(Math.floor(Math.random() * 8)) : [], // 70% chance of reactions
             status: "sent" as ChatMessageStatus,
@@ -1169,7 +1553,7 @@ function createPerformanceTestMessages(messageCount: number = 200): ChatMessageS
  * Use this story to benchmark performance optimizations
  */
 export function PerformanceTest() {
-    const performanceMessages = useMemo(() => createPerformanceTestMessages(50), []); // Start with 50 messages
+    const performanceMessages = useMemo(() => createPerformanceTestMessages(1000), []); // 1000 messages for stress testing
     
     const {
         tree,
@@ -1229,15 +1613,12 @@ PerformanceTest.parameters = {
     session: signedInPremiumWithCreditsSession,
 };
 
-// Mock run configurations for testing
+// Mock run configurations for testing - includes ALL possible RunStatus states
 function createMockRuns(): ChatMessageRunConfig[] {
-    const runId1 = generatePK().toString();
-    const runId2 = generatePK().toString();
-    const runId3 = generatePK().toString();
-    
     return [
+        // Completed run (no button)
         {
-            runId: runId1,
+            runId: generatePK().toString(),
             resourceVersionId: generatePK().toString(),
             resourceVersionName: "Data Processing Routine",
             taskId: generatePK().toString(),
@@ -1245,22 +1626,52 @@ function createMockRuns(): ChatMessageRunConfig[] {
             createdAt: new Date(Date.now() - 5 * MINUTES_10_MS).toISOString(),
             completedAt: new Date(Date.now() - 2 * MINUTES_10_MS).toISOString(),
         },
+        // InProgress run (pause button)
         {
-            runId: runId2,
+            runId: generatePK().toString(),
             resourceVersionId: generatePK().toString(), 
             resourceVersionName: "File Converter",
             taskId: generatePK().toString(),
             runStatus: "InProgress",
             createdAt: new Date(Date.now() - 3 * MINUTES_10_MS).toISOString(),
         },
+        // Failed run (retry button)
         {
-            runId: runId3,
+            runId: generatePK().toString(),
             resourceVersionId: generatePK().toString(),
             resourceVersionName: "API Integration",
             taskId: generatePK().toString(), 
             runStatus: "Failed",
             createdAt: new Date(Date.now() - 4 * MINUTES_10_MS).toISOString(),
             completedAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
+        },
+        // Scheduled run (play button)
+        {
+            runId: generatePK().toString(),
+            resourceVersionId: generatePK().toString(),
+            resourceVersionName: "Email Automation",
+            taskId: generatePK().toString(),
+            runStatus: "Scheduled",
+            createdAt: new Date(Date.now() - 2 * MINUTES_10_MS).toISOString(),
+        },
+        // Paused run (play button)
+        {
+            runId: generatePK().toString(),
+            resourceVersionId: generatePK().toString(),
+            resourceVersionName: "Batch Image Processing",
+            taskId: generatePK().toString(),
+            runStatus: "Paused",
+            createdAt: new Date(Date.now() - 6 * MINUTES_10_MS).toISOString(),
+        },
+        // Cancelled run (no button)
+        {
+            runId: generatePK().toString(),
+            resourceVersionId: generatePK().toString(),
+            resourceVersionName: "Large File Upload",
+            taskId: generatePK().toString(),
+            runStatus: "Cancelled",
+            createdAt: new Date(Date.now() - 7 * MINUTES_10_MS).toISOString(),
+            completedAt: new Date(Date.now() - 5 * MINUTES_10_MS).toISOString(),
         },
     ];
 }
@@ -1352,14 +1763,26 @@ const messagesWithRuns: ChatMessageShape[] = [
             id: generatePK().toString(),
         },
         config: {
-            runs: [{
-                runId: generatePK().toString(),
-                resourceVersionId: generatePK().toString(),
-                resourceVersionName: "API Integration (Retry)",
-                taskId: generatePK().toString(),
-                runStatus: "Running",
-                createdAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
-            }],
+            runs: [
+                // Alternative way to show InProgress (both InProgress and "Running" should show pause button)
+                {
+                    runId: generatePK().toString(),
+                    resourceVersionId: generatePK().toString(),
+                    resourceVersionName: "API Integration (Retry)",
+                    taskId: generatePK().toString(),
+                    runStatus: "InProgress",
+                    createdAt: new Date(Date.now() - 1 * MINUTES_10_MS).toISOString(),
+                },
+                // Test with "Running" status for compatibility
+                {
+                    runId: generatePK().toString(),
+                    resourceVersionId: generatePK().toString(),
+                    resourceVersionName: "Real-time Data Sync",
+                    taskId: generatePK().toString(),
+                    runStatus: "Running",
+                    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                },
+            ],
         },
     },
 ];

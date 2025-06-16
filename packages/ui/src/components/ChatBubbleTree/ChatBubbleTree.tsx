@@ -8,7 +8,8 @@ import type { BoxProps, CircularProgressProps } from "@mui/material";
 import { styled, useTheme } from "@mui/material";
 import { ReactionFor, ReportFor, endpointsChatMessage, endpointsReaction, getObjectUrl, getTranslation, noop, type ChatMessageShape, type ChatMessageStatus, type ChatSocketEventPayloads, type ListObject, type NavigableObject, type ReactInput, type ReactionSummary, type StreamErrorPayload, type Success } from "@vrooli/shared";
 import { type ChatMessageRunConfig } from "@vrooli/shared";
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState, type RefObject, lazy, Suspense, forwardRef } from "react";
+import { VariableSizeList as List, type ListChildComponentProps } from "react-window";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SessionContext } from "../../contexts/session.js";
@@ -29,9 +30,13 @@ import { type BranchMap } from "../../utils/localStorage.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker.js";
 import { ReportButton } from "../buttons/ReportButton.js";
-import { RunExecutorContainer } from "../execution/RunExecutorContainer.js";
+
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
+
 import { type ChatBubbleProps } from "../types.js";
+
+// Lazy load heavy components
+const RunExecutorContainer = lazy(() => import("../execution/RunExecutorContainer.js").then(module => ({ default: module.RunExecutorContainer })));
 
 const PERCENTS = 100;
 const STILL_SENDING_MAX_PERCENT = 90;
@@ -80,7 +85,8 @@ const NavigationBox = styled(Box)(() => ({
     alignItems: "center",
 }));
 
-export function NavigationArrows({
+// Memoized NavigationArrows component
+const NavigationArrows = React.memo(function NavigationArrows({
     activeIndex,
     numSiblings,
     onIndexChange,
@@ -89,21 +95,23 @@ export function NavigationArrows({
     numSiblings: number,
     onIndexChange: (newIndex: number) => unknown,
 }) {
-    // eslint-disable-next-line no-magic-numbers
-    if (numSiblings < 2) {
-        return null; // Do not render anything if there are less than 2 siblings
-    }
-
-    function handleActiveIndexChange(newIndex: number) {
+    const handleActiveIndexChange = useCallback((newIndex: number) => {
         if (newIndex >= 0 && newIndex < numSiblings) {
             onIndexChange(newIndex);
         }
-    }
-    function handlePrevious() {
+    }, [numSiblings, onIndexChange]);
+
+    const handlePrevious = useCallback(() => {
         handleActiveIndexChange(activeIndex - 1);
-    }
-    function handleNext() {
+    }, [activeIndex, handleActiveIndexChange]);
+
+    const handleNext = useCallback(() => {
         handleActiveIndexChange(activeIndex + 1);
+    }, [activeIndex, handleActiveIndexChange]);
+
+    // eslint-disable-next-line no-magic-numbers
+    if (numSiblings < 2) {
+        return null; // Do not render anything if there are less than 2 siblings
     }
 
     const previousDisabled = activeIndex <= 0;
@@ -146,7 +154,13 @@ export function NavigationArrows({
             </Tooltip>
         </NavigationBox>
     );
-}
+}, (prevProps, nextProps) => {
+    return prevProps.activeIndex === nextProps.activeIndex &&
+           prevProps.numSiblings === nextProps.numSiblings &&
+           prevProps.onIndexChange === nextProps.onIndexChange;
+});
+
+export { NavigationArrows };
 
 interface ChatBubbleOuterBoxProps extends BoxProps {
     showAll: boolean;
@@ -216,7 +230,7 @@ const reactionIconButtonStyle = { borderRadius: 0, background: "transparent" } a
  * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
  * as a list of icons on the right.
  */
-function ChatBubbleReactions({
+const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
     activeIndex,
     handleActiveIndexChange,
     handleCopy,
@@ -242,9 +256,6 @@ function ChatBubbleReactions({
     const [isCompleted, setIsCompleted] = useState(false);
     const [showAllReactions, setShowAllReactions] = useState(false);
     
-    const MAX_VISIBLE_REACTIONS = 6;
-    const hasMoreReactions = reactions.length > MAX_VISIBLE_REACTIONS;
-    const visibleReactions = showAllReactions ? reactions : reactions.slice(0, MAX_VISIBLE_REACTIONS);
 
     const formattedTime = useMemo(() => {
         if (!messageCreatedAt) return "";
@@ -263,7 +274,7 @@ function ChatBubbleReactions({
     }, [messageCreatedAt, messageId]);
 
     useEffect(function chatStatusLoaderEffect() {
-        let timer: NodeJS.Timeout;
+        let timer: NodeJS.Timeout | undefined;
         if (status === "sending") {
             timer = setInterval(() => {
                 setProgress((oldProgress) => {
@@ -277,25 +288,36 @@ function ChatBubbleReactions({
             }, SEND_STATUS_INTERVAL_MS);
         }
         return () => {
-            if (timer) clearInterval(timer);
+            if (timer) {
+                clearInterval(timer);
+                timer = undefined;
+            }
         };
     }, [status]);
 
     useEffect(function chatStatusTimeoutEffect() {
+        let timer: NodeJS.Timeout | undefined;
         if (isCompleted && status !== "sending") {
-            const timer = setTimeout(() => {
+            timer = setTimeout(() => {
                 setProgress(0);
                 setIsCompleted(false);
             }, HIDE_SEND_SUCCESS_DELAY_MS);
-            return () => {
-                clearTimeout(timer);
-            };
         }
+        return () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = undefined;
+            }
+        };
     }, [isCompleted, status]);
 
     const onReactionAdd = useCallback((emoji: string) => {
         handleReactionAdd(emoji);
     }, [handleReactionAdd]);
+
+    const handleShowAllReactions = useCallback(() => {
+        setShowAllReactions(!showAllReactions);
+    }, [showAllReactions]);
 
     if (status === "unsent") return null;
 
@@ -371,7 +393,7 @@ function ChatBubbleReactions({
                     <Tooltip title={showAllReactions ? t("Show fewer reactions") : t("Show all {{count}} reactions", { count: reactions.length })}>
                         <IconButton
                             size="small"
-                            onClick={() => setShowAllReactions(!showAllReactions)}
+                            onClick={handleShowAllReactions}
                             style={reactionIconButtonStyle}
                         >
                             <IconCommon
@@ -457,7 +479,20 @@ function ChatBubbleReactions({
             </Stack>
         </ReactionsOuterBox>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for React.memo
+    return prevProps.activeIndex === nextProps.activeIndex &&
+           prevProps.numSiblings === nextProps.numSiblings &&
+           prevProps.messageId === nextProps.messageId &&
+           prevProps.messageCreatedAt === nextProps.messageCreatedAt &&
+           prevProps.status === nextProps.status &&
+           prevProps.isBot === nextProps.isBot &&
+           prevProps.isBotOnlyChat === nextProps.isBotOnlyChat &&
+           prevProps.isMobile === nextProps.isMobile &&
+           prevProps.isOwn === nextProps.isOwn &&
+           JSON.stringify(prevProps.reactions) === JSON.stringify(nextProps.reactions) &&
+           prevProps.messageStreamError === nextProps.messageStreamError;
+});
 
 interface ChatBubbleBoxProps extends BoxProps {
     isOwn: boolean;
@@ -545,7 +580,7 @@ export const ChatBubble = React.memo(function ChatBubble({
         onActionComplete: () => { onDeleted(message); },
     });
 
-    function handleReactionAdd(emoji: string) {
+    const handleReactionAdd = useCallback((emoji: string) => {
         if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
@@ -575,13 +610,13 @@ export const ChatBubble = React.memo(function ChatBubble({
                 onDeleted({ ...message, reactionSummaries: originalSummaries });
             },
         });
-    }
+    }, [message, onDeleted, react]);
 
-    function startEdit() {
+    const startEdit = useCallback(() => {
         onEdit(message);
-    }
+    }, [onEdit, message]);
 
-    function startRegenerateResponse() {
+    const startRegenerateResponse = useCallback(() => {
         // If this is a retryable error, use the regenerateResponse endpoint
         if (messageStreamError?.retryable && message.user?.isBot) {
             fetchLazyWrapper({
@@ -596,19 +631,20 @@ export const ChatBubble = React.memo(function ChatBubble({
             // Otherwise, use the standard regenerate flow
             onRegenerateResponse(message);
         }
-    }
+    }, [messageStreamError, message, regenerateResponse, onRegenerateResponse]);
 
-    function startReply() {
+    const startReply = useCallback(() => {
         onReply(message);
-    }
-    function startRetry() {
-        onRetry(message);
-    }
+    }, [onReply, message]);
 
-    function handleCopy() {
+    const startRetry = useCallback(() => {
+        onRetry(message);
+    }, [onRetry, message]);
+
+    const handleCopy = useCallback(() => {
         navigator.clipboard.writeText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    }, [message, session]);
 
     const { name, handle, adornments } = useMemo(() => {
         const { title, adornments } = getDisplay(message.user as ListObject);
@@ -620,9 +656,10 @@ export const ChatBubble = React.memo(function ChatBubble({
     }, [message.user]);
 
     const [bubblePressed, setBubblePressed] = useState(false);
-    function toggleBubblePressed() {
+    const toggleBubblePressed = useCallback(() => {
         setBubblePressed(!bubblePressed);
-    }
+    }, [bubblePressed]);
+    
     const pressEvents = usePress({
         onLongPress: toggleBubblePressed,
         onClick: toggleBubblePressed,
@@ -701,14 +738,6 @@ export const ChatBubble = React.memo(function ChatBubble({
                                 content={getTranslation(message, getUserLanguages(session), true)?.text}
                                 sx={markdownDisplayStyle}
                             />
-                            {/* Render routine executors if runs exist in message config */}
-                            {message.config?.runs && message.config.runs.length > 0 && (
-                                <RunExecutorContainer
-                                    runs={message.config.runs as ChatMessageRunConfig[]}
-                                    chatWidth={chatWidth}
-                                    messageId={message.id}
-                                />
-                            )}
                         </ChatBubbleBox>
                         <ChatBubbleReactions
                     activeIndex={activeIndex}
@@ -731,6 +760,16 @@ export const ChatBubble = React.memo(function ChatBubble({
                     onRetry={startRetry}
                     messageStreamError={messageStreamError}
                         />
+                        {/* Render routine executors if runs exist in message config */}
+                        {message.config?.runs && message.config.runs.length > 0 && (
+                            <Suspense fallback={<CircularProgress size={24} />}>
+                                <RunExecutorContainer
+                                    runs={message.config.runs as ChatMessageRunConfig[]}
+                                    chatWidth={chatWidth}
+                                    messageId={message.id}
+                                />
+                            </Suspense>
+                        )}
                     </Box>
                 </Stack>
             </ChatBubbleOuterBox>
@@ -743,22 +782,23 @@ const HIDE_SCROLL_BUTTON_CLASS = "hide-scroll-button";
 
 const ScrollToBottomIconButton = styled(IconButton)(({ theme }) => ({
     background: theme.palette.background.paper,
-    position: "sticky",
+    position: "absolute",
     bottom: theme.spacing(2),
     left: "50%",
     transform: "translateX(-50%)",
     width: "36px",
     height: "36px",
-    opacity: 0.8,
-    transition: "opacity 0.2s ease-in-out !important",
-    zIndex: 1,
-    boxShadow: theme.shadows[2],
-    "&.hide-scroll-button": {
-        opacity: 0,
+    opacity: 0.9,
+    transition: "opacity 0.2s ease-in-out",
+    zIndex: 10,
+    boxShadow: theme.shadows[3],
+    "&:hover": {
+        opacity: 1,
+        background: theme.palette.background.paper,
     },
 }));
 
-export function ScrollToBottomButton({
+const ScrollToBottomButton = React.memo(function ScrollToBottomButton({
     containerRef,
 }: {
     containerRef: RefObject<HTMLElement>,
@@ -767,6 +807,7 @@ export function ScrollToBottomButton({
     const buttonRef = useRef<HTMLButtonElement>(null);
     const lastScrollTop = useRef(0);
     const shouldAutoScroll = useRef(false);
+    const [isNearBottom, setIsNearBottom] = useState(true);
 
     const scrollToBottom = useCallback(function scrollToBottomCallback() {
         const container = containerRef.current;
@@ -779,16 +820,64 @@ export function ScrollToBottomButton({
         shouldAutoScroll.current = true;
     }, [containerRef]);
 
+    // Throttled scroll handler for better performance
+    const handleScroll = useCallback(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = container;
+
+        // Detect scroll direction
+        const isScrollingUp = scrollTop < lastScrollTop.current;
+        lastScrollTop.current = scrollTop;
+
+        // If scrolling up at all, disable auto-scroll
+        if (isScrollingUp) {
+            shouldAutoScroll.current = false;
+        }
+
+        // Only re-enable auto-scroll when manually scrolled to bottom
+        const isAtBottom = scrollHeight - scrollTop - clientHeight === 0;
+        if (isAtBottom) {
+            shouldAutoScroll.current = true;
+        }
+
+        // Update button visibility state
+        const nearBottom = scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_PX;
+        setIsNearBottom(nearBottom);
+    }, [containerRef]);
+
+    // Throttled mutation callback
+    const handleMutation = useCallback(() => {
+        if (shouldAutoScroll.current) {
+            scrollToBottom();
+        }
+    }, [scrollToBottom]);
+
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
 
+        let scrollTimer: NodeJS.Timeout;
+        let mutationTimer: NodeJS.Timeout;
+
+        const SCROLL_THROTTLE_MS = 16; // ~60fps
+        const MUTATION_THROTTLE_MS = 100;
+
+        // Throttled scroll handler
+        const throttledScrollHandler = () => {
+            if (scrollTimer) clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(handleScroll, SCROLL_THROTTLE_MS);
+        };
+
+        // Throttled mutation handler
+        const throttledMutationHandler = () => {
+            if (mutationTimer) clearTimeout(mutationTimer);
+            mutationTimer = setTimeout(handleMutation, MUTATION_THROTTLE_MS);
+        };
+
         // Create mutation observer to watch for content changes
-        const mutationObserver = new MutationObserver(() => {
-            if (shouldAutoScroll.current) {
-                scrollToBottom();
-            }
-        });
+        const mutationObserver = new MutationObserver(throttledMutationHandler);
 
         // Watch for changes to the container's content
         mutationObserver.observe(container, {
@@ -797,54 +886,25 @@ export function ScrollToBottomButton({
             characterData: true,
         });
 
-        // Handle scroll events to show/hide button and track scroll position
-        function handleScroll() {
-            if (!container || !buttonRef.current) return;
-
-            const { scrollTop, scrollHeight, clientHeight } = container;
-
-            // Detect scroll direction
-            const isScrollingUp = scrollTop < lastScrollTop.current;
-            lastScrollTop.current = scrollTop;
-
-            // If scrolling up at all, disable auto-scroll
-            if (isScrollingUp) {
-                shouldAutoScroll.current = false;
-            }
-
-            // Only re-enable auto-scroll when manually scrolled to bottom
-            const isAtBottom = scrollHeight - scrollTop - clientHeight === 0;
-            if (isAtBottom) {
-                shouldAutoScroll.current = true;
-            }
-
-            // Show/hide the scroll button based on being close to the bottom
-            if (buttonRef.current) {
-                const isNearBottom = scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD_PX;
-                if (isNearBottom) {
-                    buttonRef.current.classList.add(HIDE_SCROLL_BUTTON_CLASS);
-                } else {
-                    buttonRef.current.classList.remove(HIDE_SCROLL_BUTTON_CLASS);
-                }
-            }
-        }
-
-        container.addEventListener("scroll", handleScroll);
+        container.addEventListener("scroll", throttledScrollHandler, { passive: true });
 
         // Initial check
         handleScroll();
 
         return () => {
+            if (scrollTimer) clearTimeout(scrollTimer);
+            if (mutationTimer) clearTimeout(mutationTimer);
             mutationObserver.disconnect();
-            container.removeEventListener("scroll", handleScroll);
+            container.removeEventListener("scroll", throttledScrollHandler);
         };
-    }, [containerRef, scrollToBottom]);
+    }, [containerRef, handleScroll, handleMutation]);
 
     return (
         <ScrollToBottomIconButton
             onClick={scrollToBottom}
             ref={buttonRef}
             size="small"
+            className={isNearBottom ? HIDE_SCROLL_BUTTON_CLASS : ""}
         >
             <IconCommon
                 decorative
@@ -853,7 +913,9 @@ export function ScrollToBottomButton({
             />
         </ScrollToBottomIconButton>
     );
-}
+});
+
+export { ScrollToBottomButton };
 
 type MessageRenderData = {
     activeIndex: number;
@@ -889,12 +951,9 @@ const OuterMessageList = styled(Box)(() => ({
     margin: "0 auto",
     maxWidth: "800px",
     overflowX: "hidden",
-    overflowY: "auto",
+    overflowY: "hidden", // Changed to hidden since List handles scrolling
     height: "100%",
     justifyContent: "space-between",
-    [`& .${HIDE_SCROLL_BUTTON_CLASS}`]: {
-        opacity: 0,
-    },
 }));
 
 interface InnerMessageListProps extends BoxProps {
@@ -905,6 +964,113 @@ const InnerMessageList = styled(Box, {
 })<InnerMessageListProps>(({ isEditingOrReplying }) => ({
     filter: isEditingOrReplying ? "blur(20px)" : "none",
 }));
+
+// Row component for virtualized list
+interface VirtualizedMessageRowProps {
+    index: number;
+    style: React.CSSProperties;
+    data: {
+        messageData: MessageRenderData[];
+        streamingMessage: ChatMessageShape | null;
+        messageStream: ChatSocketEventPayloads["responseStream"] | null;
+        dimensions: { width: number; height: number };
+        isBotOnlyChat: boolean;
+        handleEdit: (message: ChatMessageShape) => unknown;
+        handleRegenerateResponse: (message: ChatMessageShape) => unknown;
+        handleReply: (message: ChatMessageShape) => unknown;
+        handleRetry: (message: ChatMessageShape) => unknown;
+        treeMap: Map<string, any>;
+        treeRoots: string[];
+        updateBranchesAndLocation: (parentId: string, newActiveChildId: string) => unknown;
+        setItemSize: (index: number, size: number) => void;
+    };
+}
+
+const VirtualizedMessageRow = React.memo(function VirtualizedMessageRow({ index, style, data }: VirtualizedMessageRowProps) {
+    const {
+        messageData,
+        streamingMessage,
+        messageStream,
+        dimensions,
+        isBotOnlyChat,
+        handleEdit,
+        handleRegenerateResponse,
+        handleReply,
+        handleRetry,
+        treeMap,
+        treeRoots,
+        updateBranchesAndLocation,
+        setItemSize,
+    } = data;
+
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    // Measure and update row height
+    useEffect(() => {
+        if (rowRef.current) {
+            const height = rowRef.current.getBoundingClientRect().height;
+            if (height > 0 && setItemSize) {
+                setItemSize(index, height);
+            }
+        }
+    }, [index, setItemSize]);
+
+    // Handle streaming message as last item
+    if (index === messageData.length && streamingMessage && messageStream) {
+        return (
+            <div ref={rowRef} style={{...style, height: 'auto'}}>
+                <ChatBubble
+                    key="streamingMessage"
+                    activeIndex={0}
+                    chatWidth={dimensions.width}
+                    isBotOnlyChat={isBotOnlyChat}
+                    numSiblings={1}
+                    onActiveIndexChange={noop}
+                    onDeleted={noop}
+                    onEdit={noop}
+                    onRegenerateResponse={noop}
+                    onReply={noop}
+                    onRetry={noop}
+                    message={streamingMessage}
+                    isOwn={false}
+                    messageStreamError={messageStream.error}
+                />
+            </div>
+        );
+    }
+
+    const messageItem = messageData[index];
+    if (!messageItem) return null;
+
+    return (
+        <div ref={rowRef} style={{...style, height: 'auto'}}>
+            <ChatBubble
+                key={messageItem.key}
+                activeIndex={messageItem.activeIndex}
+                chatWidth={dimensions.width}
+                isBotOnlyChat={isBotOnlyChat}
+                numSiblings={messageItem.numSiblings}
+                onActiveIndexChange={(newIndex: number) => {
+                    const messageNode = treeMap.get(messageItem.message.id);
+                    const parentId = messageNode?.message.parent?.id;
+                    const siblings = parentId ? treeMap.get(parentId)?.children ?? [] : treeRoots;
+                    const newSiblingId = siblings[newIndex];
+                    if (parentId && newSiblingId) {
+                        updateBranchesAndLocation(parentId, newSiblingId);
+                    }
+                }}
+                onDeleted={messageItem.onDeleted}
+                onEdit={handleEdit}
+                onRegenerateResponse={handleRegenerateResponse}
+                onReply={handleReply}
+                onRetry={handleRetry}
+                message={messageItem.message}
+                isOwn={messageItem.isOwn}
+                messageStreamError={messageItem.messageStreamError}
+            />
+        </div>
+    );
+});
 
 export function ChatBubbleTree({
     branches,
@@ -923,8 +1089,10 @@ export function ChatBubbleTree({
 }: ChatBubbleTreeProps) {
     const session = useContext(SessionContext);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const { palette } = useTheme();
 
     const { dimensions, ref: outerBoxRef } = useDimensions();
+    const listRef = useRef<List>(null);
     
     // Track accumulated message for streaming
     const [accumulatedMessage, setAccumulatedMessage] = useState("");
@@ -945,105 +1113,171 @@ export function ChatBubbleTree({
         }
     }, [messageStream]);
 
+    // Memoize tree map to avoid repeated computations
+    const treeMap = useMemo(() => tree.getMap(), [tree]);
+    const treeRoots = useMemo(() => tree.getRoots(), [tree]);
+    
     const messageData = useMemo<MessageRenderData[]>(() => {
-        function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
+        const result: MessageRenderData[] = [];
+        
+        function renderMessage(withSiblings: string[], activeIndex: number): void {
             // Find information for current message
             const siblingId = withSiblings[activeIndex];
-            const sibling = siblingId ? tree.getMap().get(siblingId) : null;
-            if (!sibling) return [];
+            const sibling = siblingId ? treeMap.get(siblingId) : null;
+            if (!sibling) return;
+            
             const isOwn = sibling.message.user?.id === userId;
-            const parentId = sibling.message.parent?.id;
+
+            // Add current message to result
+            result.push({
+                activeIndex,
+                key: sibling.message.id,
+                numSiblings: withSiblings.length,
+                updateBranchesAndLocation,
+                onDeleted: (message) => { removeMessages([message.id]); },
+                message: sibling.message,
+                isOwn,
+                messageStreamError: undefined, // Regular messages don't have stream errors
+            });
 
             // Find information for next message
             // Check the stored branch data first
             let childId = branches[siblingId];
             // Fallback to first child if no branch data is found
             if (!childId) childId = sibling.children[0];
-            const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
-            return [
-                {
-                    activeIndex,
-                    key: sibling.message.id,
-                    numSiblings: withSiblings.length,
-                    updateBranchesAndLocation: (parentIdToUpdate: string, newActiveChildId: string) => {
-                        updateBranchesAndLocation(parentIdToUpdate, newActiveChildId);
-                    },
-                    onDeleted: (message) => { removeMessages([message.id]); },
-                    message: sibling.message,
-                    isOwn,
-                    messageStreamError: undefined, // Regular messages don't have stream errors
-                },
-                ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
-            ];
+            
+            if (childId && sibling.children.length > 0) {
+                const activeChildIndex = Math.max(sibling.children.findIndex(id => id === childId), 0);
+                renderMessage(sibling.children, activeChildIndex);
+            }
         }
-        return renderMessage(tree.getRoots(), 0);
-    }, [branches, removeMessages, tree, updateBranchesAndLocation, userId]);
+        
+        renderMessage(treeRoots, 0);
+        return result;
+    }, [branches, treeMap, treeRoots, updateBranchesAndLocation, removeMessages, userId]);
 
     // Create streaming message object outside of render
-    const streamingMessage = useMemo(() => messageStream ? {
-        id: "streamingMessage",
-        reactionSummaries: [],
-        status: messageStream.__type === "error" ? "failed" : "sending",
-        translations: [{
-            language: "en",
-            text: accumulatedMessage || "",
-        }],
-        user: messageStream.botId ? {
-            id: messageStream.botId,
-            isBot: true,
-        } : undefined,
-        versionIndex: 0,
-    } as unknown as ChatMessageShape : null, [messageStream, accumulatedMessage]);
+    const streamingMessage = useMemo(() => {
+        if (!messageStream) return null;
+        
+        return {
+            id: "streamingMessage",
+            reactionSummaries: [],
+            status: messageStream.__type === "error" ? "failed" : "sending",
+            translations: [{
+                language: "en",
+                text: accumulatedMessage || "",
+            }],
+            user: messageStream.botId ? {
+                id: messageStream.botId,
+                isBot: true,
+            } : undefined,
+            versionIndex: 0,
+        } as unknown as ChatMessageShape;
+    }, [messageStream, accumulatedMessage]);
+
+    // Calculate item count including streaming message
+    const itemCount = messageData.length + (streamingMessage ? 1 : 0);
+
+    // Height cache for variable size list
+    const itemHeights = useRef<{ [index: number]: number }>({});
+    const estimatedItemSize = 250; // Fixed estimate - react-window will measure and correct
+    
+    const getItemSize = useCallback((index: number) => {
+        // Return measured height if available, otherwise use estimate
+        return itemHeights.current[index] || estimatedItemSize;
+    }, []);
+
+    const setItemSize = useCallback((index: number, size: number) => {
+        itemHeights.current[index] = size;
+        if (listRef.current) {
+            listRef.current.resetAfterIndex(index);
+        }
+    }, []);
+
+    // Track scroll position for scroll-to-bottom button
+    const [isNearBottom, setIsNearBottom] = useState(true);
+    
+    // Auto-scroll to bottom when new messages arrive (only if already near bottom)
+    useEffect(() => {
+        if (listRef.current && itemCount > 0 && isNearBottom) {
+            listRef.current.scrollToItem(itemCount - 1, "end");
+        }
+    }, [itemCount, isNearBottom]);
+    
+    // Handle scroll events from the virtualized list
+    const handleScroll = useCallback(({ scrollOffset, scrollUpdateWasRequested }: { scrollOffset: number; scrollUpdateWasRequested: boolean }) => {
+        if (!listRef.current || scrollUpdateWasRequested) return;
+        
+        // For variable size lists, we can check if we're near the last item
+        // by seeing which items are currently visible
+        const list = listRef.current;
+        const lastItemIndex = itemCount - 1;
+        
+        // Check if the last item is visible or nearly visible
+        // @ts-ignore - accessing private method but it's the most reliable way
+        const isLastItemVisible = list._instanceProps?.visibleStopIndex >= lastItemIndex - 2;
+        
+        setIsNearBottom(isLastItemVisible);
+    }, [itemCount]);
+    
+    // Scroll to bottom handler
+    const scrollToBottom = useCallback(() => {
+        if (listRef.current && itemCount > 0) {
+            listRef.current.scrollToItem(itemCount - 1, "end");
+            setIsNearBottom(true);
+        }
+    }, [itemCount]);
+
+    // Data for virtualized rows
+    const rowData = useMemo(() => ({
+        messageData,
+        streamingMessage,
+        messageStream,
+        dimensions,
+        isBotOnlyChat,
+        handleEdit,
+        handleRegenerateResponse,
+        handleReply,
+        handleRetry,
+        treeMap,
+        treeRoots,
+        updateBranchesAndLocation,
+        setItemSize,
+    }), [messageData, streamingMessage, messageStream, dimensions, isBotOnlyChat, 
+         handleEdit, handleRegenerateResponse, handleReply, handleRetry, 
+         treeMap, treeRoots, updateBranchesAndLocation, setItemSize]);
 
     return (
         <OuterMessageList id={id} ref={outerBoxRef}>
             <InnerMessageList isEditingOrReplying={isEditingMessage || isReplyingToMessage}>
-                {messageData.map((data) => (
-                    <ChatBubble
-                        key={data.key}
-                        activeIndex={data.activeIndex}
-                        chatWidth={dimensions.width}
-                        isBotOnlyChat={isBotOnlyChat}
-                        numSiblings={data.numSiblings}
-                        onActiveIndexChange={(newIndex) => {
-                            const messageNode = tree.getMap().get(data.message.id);
-                            const parentId = messageNode?.message.parent?.id;
-                            const siblings = parentId ? tree.getMap().get(parentId)?.children ?? [] : tree.getRoots();
-                            const newSiblingId = siblings[newIndex];
-                            if (parentId && newSiblingId) {
-                                data.updateBranchesAndLocation(parentId, newSiblingId);
-                            }
-                        }}
-                        onDeleted={data.onDeleted}
-                        onEdit={handleEdit}
-                        onRegenerateResponse={handleRegenerateResponse}
-                        onReply={handleReply}
-                        onRetry={handleRetry}
-                        message={data.message}
-                        isOwn={data.isOwn}
-                        messageStreamError={data.messageStreamError}
-                    />
-                ))}
-                {streamingMessage && messageStream && (
-                    <ChatBubble
-                        key="streamingMessage"
-                        activeIndex={0}
-                        chatWidth={dimensions.width}
-                        isBotOnlyChat={isBotOnlyChat}
-                        numSiblings={1}
-                        onActiveIndexChange={noop}
-                        onDeleted={noop}
-                        onEdit={noop}
-                        onRegenerateResponse={noop}
-                        onReply={noop}
-                        onRetry={noop}
-                        message={streamingMessage}
-                        isOwn={false}
-                        messageStreamError={messageStream.error}
-                    />
+                {dimensions.height > 0 && (
+                    <List
+                        ref={listRef}
+                        height={dimensions.height}
+                        width={dimensions.width}
+                        itemCount={itemCount}
+                        itemSize={getItemSize}
+                        itemData={rowData}
+                        overscanCount={5}
+                        onScroll={handleScroll}
+                    >
+                        {VirtualizedMessageRow}
+                    </List>
                 )}
             </InnerMessageList>
-            <ScrollToBottomButton containerRef={outerBoxRef} />
+            {!isNearBottom && (
+                <ScrollToBottomIconButton
+                    onClick={scrollToBottom}
+                    size="small"
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.background.textSecondary}
+                        name="ArrowDown"
+                    />
+                </ScrollToBottomIconButton>
+            )}
         </OuterMessageList>
     );
 }

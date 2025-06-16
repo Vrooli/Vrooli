@@ -7,6 +7,14 @@ import { NavigationArrows, ScrollToBottomButton, ChatBubbleTree } from "./ChatBu
 import { MessageTree } from "../../hooks/messages.js";
 import { generatePK, type ChatMessageShape, type ChatSocketEventPayloads } from "@vrooli/shared";
 
+// Mock the useDimensions hook to provide fixed dimensions
+vi.mock("../../hooks/useDimensions.js", () => ({
+    useDimensions: () => ({
+        dimensions: { width: 800, height: 600 },
+        ref: { current: document.createElement('div') }
+    })
+}));
+
 describe("NavigationArrows Component", () => {
     const handleIndexChangeMock = vi.fn();
     
@@ -80,25 +88,28 @@ describe("ScrollToBottomButton", () => {
         cleanup();
     });
 
-    it("renders and handles scroll events correctly", () => {
+    it("renders and handles scroll events correctly", async () => {
         const containerRef = { current: containerElement };
         render(<ScrollToBottomButton containerRef={containerRef} />);
         
         const button = screen.getByRole("button");
         expect(button).toBeTruthy();
         
-        // Initial state - not at bottom
+        // Initial state - not at bottom, button should be visible
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
         
-        // Scroll to middle
+        // Scroll to middle - button should remain visible
         containerElement.scrollTop = 300;
         fireEvent.scroll(containerElement);
         expect(button.classList.contains("hide-scroll-button")).toBe(false);
         
-        // Scroll close to bottom
-        containerElement.scrollTop = 901;
+        // Scroll to bottom (within threshold of 200px)
+        containerElement.scrollTop = 500; // scrollHeight(1000) - clientHeight(500) = 500
         fireEvent.scroll(containerElement);
-        expect(button.classList.contains("hide-scroll-button")).toBe(true);
+        // Wait for state update
+        await waitFor(() => {
+            expect(button.classList.contains("hide-scroll-button")).toBe(true);
+        });
         
         // Click button to scroll to bottom
         fireEvent.click(button);
