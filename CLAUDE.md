@@ -13,6 +13,12 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 5. **Dependencies**: Never install packages without explicit permission
 6. **Documentation**: Read `/docs/` files at session start for context
 
+## 🔄 Maintenance Task Tracking
+For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
+- **Before starting:** Check existing work with `rg "AI_CHECK:.*TASK_ID" --type ts`
+- **After completing:** Add/update comment: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
+- **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance-tracking.md)
+
 ## 🏗️ Architecture Overview
 **Three-Tier AI System:**
 - **Tier 1**: Coordination Intelligence (strategic planning, resource allocation)

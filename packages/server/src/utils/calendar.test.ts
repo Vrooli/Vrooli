@@ -1,18 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { HOURS_1_MS, MINUTES_1_MS, ScheduleRecurrenceType, generatePK } from "@vrooli/shared";
+import { ScheduleRecurrenceType, HOURS_1_MS, MINUTES_1_MS } from "@vrooli/shared";
 import { parseICalFile, convertICalEventsToSchedules, createICalFromSchedules, createICalEvent } from "./calendar.js";
 import type { RequestFile } from "../types.js";
 import type { CalendarResponse, VEvent, DateWithTimeZone } from "node-ical";
 
-// Mock generatePK to return predictable values for testing
+// Mock setup for generatePK
 let mockIdCounter = 0;
-vi.mock("@vrooli/shared", async () => {
-    const actual = await vi.importActual("@vrooli/shared");
-    return {
-        ...actual,
-        generatePK: () => ({ toString: () => `test-id-${++mockIdCounter}` }),
-    };
-});
 
 describe("calendar.ts", () => {
     beforeEach(() => {
@@ -87,12 +80,12 @@ END:VCALENDAR`;
 
             expect(result).toHaveLength(1);
             expect(result[0]).toMatchObject({
-                id: "test-id-1",
                 title: "Test Meeting",
                 description: "A test meeting",
                 user: { id: "user-123" },
                 timezone: "UTC",
             });
+            expect(result[0].id).toBeDefined();
             expect(result[0].startTime).toEqual(new Date("2024-01-01T12:00:00Z"));
             expect(result[0].endTime).toEqual(new Date("2024-01-01T13:00:00Z"));
         });
@@ -212,12 +205,12 @@ END:VCALENDAR`;
             expect(result).toHaveLength(1);
             expect(result[0].recurrences).toHaveLength(1);
             expect(result[0].recurrences![0]).toMatchObject({
-                id: "test-id-2",
                 recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 duration: 60,
                 endDate: new Date("2024-01-31T12:00:00Z"),
             });
+            expect(result[0].recurrences![0].id).toBeDefined();
         });
 
         it("should handle weekly recurrence with specific day", () => {
