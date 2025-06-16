@@ -2,7 +2,6 @@ import { generatePublicId, generatePK } from "@vrooli/shared";
 import {
     type Swarm,
     type SwarmConfig,
-    type ExecutionState,
     type SwarmAgent,
     type SwarmTeam,
     type TeamFormation,

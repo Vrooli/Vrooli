@@ -4,7 +4,6 @@ import {
     type ExecutionEvent,
     type EventSubscription,
     type SwarmEventType,
-    type RunEventType,
     type StepEventType,
     type SystemEventType,
 } from "@vrooli/shared";

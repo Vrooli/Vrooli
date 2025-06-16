@@ -15,6 +15,23 @@
 set -euo pipefail
 
 ###############################################################################
+# Privilege handling
+###############################################################################
+# If run with sudo/root, drop privileges to FALLBACK_USER instead of exiting.
+FALLBACK_USER=${FALLBACK_USER:-matt}
+
+if [[ $EUID -eq 0 ]]; then
+  echo "⚠️  Detected root privileges. Re-executing as '${FALLBACK_USER}'..."
+  if id -u "$FALLBACK_USER" &>/dev/null; then
+    # Re-exec the same script under the fallback user, preserving all args.
+    exec sudo -u "$FALLBACK_USER" -- "$(realpath "$0")" "$@"
+  else
+    echo "❌  Fallback user '${FALLBACK_USER}' does not exist." >&2
+    exit 1
+  fi
+fi
+
+###############################################################################
 # Config
 ###############################################################################
 BATCH_SIZE=${BATCH_SIZE:-50}

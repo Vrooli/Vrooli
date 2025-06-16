@@ -58,7 +58,7 @@ export const userWithAuthDb: Prisma.UserCreateInput = {
         create: [{
             id: userDbIds.email1,
             emailAddress: "authuser@example.com",
-            verified: true,
+            verifiedAt: new Date(),
         }],
     },
 };
@@ -90,12 +90,12 @@ export const completeUserDb: Prisma.UserCreateInput = {
             {
                 id: userDbIds.email2,
                 emailAddress: "complete@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
             {
                 id: userDbIds.email3,
                 emailAddress: "complete.secondary@example.com",
-                verified: false,
+                verifiedAt: null,
             },
         ],
     },
@@ -166,7 +166,7 @@ export class UserDbFactory {
                 create: [{
                     id: generatePK(),
                     emailAddress: email,
-                    verified: true,
+                    verifiedAt: new Date(),
                 }],
             },
             ...overrides,
