@@ -1,4 +1,4 @@
-import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow, IconButton, Collapse } from "@mui/material";
+import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow, IconButton, Collapse, useTheme } from "@mui/material";
 import { ExecutionStep } from "./RoutineExecutor.js";
 import { IconCommon } from "../../icons/Icons.js";
 import { ResourceVersion, ResourceSubType, CodeLanguage } from "@vrooli/shared";
@@ -38,7 +38,8 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
     config?: any;
     onConfigExpandChange?: (expanded: boolean) => void;
 }) {
-    const [showFullConfig, setShowFullConfig] = useState(false);
+    const theme = useTheme();
+    const [showFullConfig, setShowFullConfig] = useState(false); // Default to collapsed
     
     const handleToggleConfig = () => {
         const newState = !showFullConfig;
@@ -153,8 +154,7 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
                                         borderRadius: 1,
                                         fontFamily: "monospace",
                                         whiteSpace: "pre-wrap",
-                                        overflow: "auto",
-                                        maxHeight: 200
+                                        overflow: "auto"
                                     }}
                                 >
                                     {codeConfig.code}
@@ -236,56 +236,65 @@ function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: {
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Typography variant="subtitle2">
-                        Routine Information
-                    </Typography>
-                    <Chip
-                        label={routineType.replace("Routine", "")}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                    />
-                </Box>
+        <Box sx={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {typeDescriptions[routineType]}
+                </Typography>
+
+                {renderTypeSpecificContent()}
+
+                {/* Expandable Full Configuration */}
+                <Collapse in={showFullConfig} timeout="auto" unmountOnExit>
+                    <Box sx={{ mt: 2 }}>
+                        <Divider sx={{ mb: 2 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                            Full Configuration
+                        </Typography>
+                        <CodeInputBase
+                            codeLanguage={CodeLanguage.Json}
+                            content={JSON.stringify(routineConfig, null, 2)}
+                            disabled={true}
+                            handleCodeLanguageChange={() => { }}
+                            handleContentChange={() => { }}
+                            name="routine-config"
+                        />
+                    </Box>
+                </Collapse>
+            </Box>
+
+            {/* Expand/Collapse button sticky at bottom */}
+            <Box
+                sx={{
+                    position: "sticky",
+                    bottom: 0,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    pt: 2,
+                    pb: 1,
+                    mt: 2,
+                    zIndex: 100
+                }}
+            >
                 <IconButton
                     size="small"
                     onClick={handleToggleConfig}
-                    title={showFullConfig ? "Hide configuration" : "Show full configuration"}
+                    title={showFullConfig ? "Compress configuration" : "Show full configuration"}
                     sx={{
-                        transform: showFullConfig ? "rotate(180deg)" : "rotate(0deg)",
-                        transition: "transform 0.2s"
+                        bgcolor: "background.paper",
+                        boxShadow: 2,
+                        border: 1,
+                        borderColor: "divider",
+                        "&:hover": {
+                            bgcolor: "action.hover",
+                            boxShadow: 3,
+                        }
                     }}
                 >
-                    <IconCommon name="ExpandMore" size={20} />
+                    <IconCommon name={showFullConfig ? "Compress" : "OpenThread"} size={20} />
                 </IconButton>
             </Box>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {typeDescriptions[routineType]}
-            </Typography>
-
-            {renderTypeSpecificContent()}
-
-            {/* Expandable Full Configuration */}
-            <Collapse in={showFullConfig} timeout="auto" unmountOnExit>
-                <Box sx={{ mt: 2 }}>
-                    <Divider sx={{ mb: 2 }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                        Full Configuration
-                    </Typography>
-                    <CodeInputBase
-                        codeLanguage={CodeLanguage.Json}
-                        content={JSON.stringify(routineConfig, null, 2)}
-                        disabled={true}
-                        handleCodeLanguageChange={() => { }}
-                        handleContentChange={() => { }}
-                        name="routine-config"
-                    />
-                </Box>
-            </Collapse>
-        </Paper>
+        </Box>
     );
 }
 
@@ -358,72 +367,6 @@ export function StepDetails({
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Execution Metrics */}
-            <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                    Execution Details
-                </Typography>
-                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 2, mt: 1 }}>
-                    <Box>
-                        <Typography variant="caption" color="text.secondary">
-                            Duration
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {calculateDuration(step.startTime, step.endTime)}
-                        </Typography>
-                    </Box>
-                    {step.startTime && (
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Started
-                            </Typography>
-                            <Typography variant="body2">
-                                {new Date(step.startTime).toLocaleTimeString()}
-                            </Typography>
-                        </Box>
-                    )}
-                    {step.endTime && (
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Completed
-                            </Typography>
-                            <Typography variant="body2">
-                                {new Date(step.endTime).toLocaleTimeString()}
-                            </Typography>
-                        </Box>
-                    )}
-                    {step.retryCount !== undefined && step.retryCount > 0 && (
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Retries
-                            </Typography>
-                            <Typography variant="body2" color="warning.main" sx={{ fontWeight: 500 }}>
-                                {step.retryCount}
-                            </Typography>
-                        </Box>
-                    )}
-                </Box>
-                
-                {/* Progress indicator for running steps */}
-                {step.status === "running" && (
-                    <Box sx={{ mt: 2 }}>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-                            <Typography variant="caption" color="text.secondary">
-                                Processing...
-                            </Typography>
-                            {step.progress !== undefined && (
-                                <Typography variant="caption" color="primary">
-                                    {Math.round(step.progress)}%
-                                </Typography>
-                            )}
-                        </Box>
-                        <LinearProgress 
-                            variant={step.progress !== undefined ? "determinate" : "indeterminate"}
-                            value={step.progress}
-                        />
-                    </Box>
-                )}
-            </Paper>
 
             {/* Error Alert */}
             {step.error && (

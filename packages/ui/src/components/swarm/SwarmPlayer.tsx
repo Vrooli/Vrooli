@@ -11,8 +11,8 @@ import "./SwarmPlayer.css";
 const PlayerContainer = styled(Box)(({ theme }) => ({
     position: "relative",
     backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[900] : theme.palette.grey[100],
-    borderRadius: theme.shape.borderRadius,
-    padding: theme.spacing(1, 2),
+    borderRadius: theme.shape.borderRadius * 3,
+    overflow: "hidden",
     marginTop: theme.spacing(1),
     marginBottom: theme.spacing(1),
     transition: "all 0.3s ease",
@@ -32,6 +32,7 @@ const PlayerContent = styled(Box)(({ theme }) => ({
     justifyContent: "space-between",
     gap: theme.spacing(1),
     width: "100%",
+    padding: theme.spacing(1, 2),
 }));
 
 const InfoSection = styled(Box)(({ theme }) => ({
@@ -227,10 +228,30 @@ export function SwarmPlayer({
     return (
         <PlayerContainer onClick={handlePlayerClick}>
                 {isLoading ? (
-                    <Box>
-                        <Skeleton variant="text" width="100%" height={32} />
-                        <Skeleton variant="rectangular" width="100%" height={4} sx={{ mt: 1 }} />
-                    </Box>
+                    <>
+                        <PlayerContent>
+                            <InfoSection>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    <Skeleton variant="circular" width={20} height={20} />
+                                    <Skeleton variant="text" width={80} height={20} />
+                                </Box>
+                                <Skeleton variant="text" width="40%" height={20} sx={{ flex: 1, mx: 2 }} />
+                                <Skeleton variant="text" width={60} height={20} />
+                            </InfoSection>
+                        </PlayerContent>
+                        <Skeleton 
+                            variant="rectangular" 
+                            width="100%" 
+                            height={4} 
+                            sx={{ 
+                                position: "absolute",
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                borderRadius: 0,
+                            }} 
+                        />
+                    </>
                 ) : (
                     <>
                         <PlayerContent>
@@ -306,16 +327,19 @@ export function SwarmPlayer({
                                 variant="determinate"
                                 value={progress}
                                 sx={{
-                                    mt: 1,
+                                    position: "absolute",
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
                                     height: 4,
-                                    borderRadius: 2,
+                                    borderRadius: 0,
                                     bgcolor: "action.hover",
                                     "& .MuiLinearProgress-bar": {
                                         bgcolor: swarmStatus === ExecutionStates.FAILED 
                                             ? "error.main" 
                                             : progress === 100
                                             ? "success.main"
-                                            : "primary.main",
+                                            : "secondary.main",
                                     },
                                 }}
                             />

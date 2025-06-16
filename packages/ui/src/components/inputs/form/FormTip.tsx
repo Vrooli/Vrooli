@@ -44,9 +44,11 @@ function handleLinkClick(link: string, event: React.MouseEvent) {
 function getIconForTip(element: FormTipType, palette: Palette): {
     iconInfo: IconInfo,
     color: string,
+    borderColor: string,
 } {
     let iconInfo: IconInfo | null = null;
     let color: string | null = null;
+    let borderColor: string | null = null;
 
     // Handle custom icons
     if (element.icon) {
@@ -60,6 +62,7 @@ function getIconForTip(element: FormTipType, palette: Palette): {
         if (isYouTubeLink(element.link)) {
             iconInfo = { name: "Play", type: "Common" } as const;
             color = palette.mode === "light" ? "#001cd3" : "#dd86db";
+            borderColor = palette.divider;
         }
         // Add more URL-based icon logic if needed
     }
@@ -70,16 +73,22 @@ function getIconForTip(element: FormTipType, palette: Palette): {
 
     if (element.icon === "Warning") {
         color = palette.warning.main;
+        borderColor = palette.warning.light;
     } else if (element.icon === "Info") {
-        color = palette.background.textSecondary;
+        color = palette.info.main;
+        borderColor = palette.info.light;
     } else if (element.icon === "Error") {
         color = palette.error.main;
+        borderColor = palette.error.light;
     }
     if (!color) {
         color = palette.primary.main;
     }
+    if (!borderColor) {
+        borderColor = palette.divider;
+    }
 
-    return { iconInfo, color };
+    return { iconInfo, color, borderColor };
 }
 
 const StyledLink = styled(Link)(({ theme }) => ({
@@ -95,7 +104,7 @@ export function FormTip({
     onUpdate,
 }: FormTipProps) {
     const { t } = useTranslation();
-    const { palette } = useTheme();
+    const { palette, spacing, shape } = useTheme();
 
     function openElementLink(event: React.MouseEvent) {
         if (!element.link) {
@@ -157,14 +166,32 @@ export function FormTip({
     const icon = getIconForTip(element, palette);
 
     const TipContent = useMemo(() => {
-        const markdownStyle = {
-            color: "inherit",
-        } as const;
         if (element.isMarkdown) {
-            return <MarkdownDisplay content={element.label} variant="caption" sx={markdownStyle} />;
+            return (
+                <MarkdownDisplay 
+                    content={element.label} 
+                    sx={{ 
+                        "& > *:first-of-type": { 
+                            marginTop: 0 
+                        },
+                        "& > *:last-child": { 
+                            marginBottom: 0 
+                        },
+                        "& p": {
+                            fontSize: "0.75rem",
+                            lineHeight: 1.5,
+                            letterSpacing: "0.03333em",
+                        },
+                        "& li": {
+                            fontSize: "0.75rem",
+                            lineHeight: 1.5,
+                        },
+                    }} 
+                />
+            );
         }
         return (
-            <Typography variant="caption" component="span">
+            <Typography variant="caption" component="span" sx={{ fontSize: "0.75rem" }}>
                 {element.label}
             </Typography>
         );
@@ -173,27 +200,60 @@ export function FormTip({
     const [iconAnchorEl, openIconPopover, closeIconPopover, isIconPopoverOpen] = usePopover();
 
     if (!isEditing) {
+        const tipStyle = {
+            display: "flex",
+            alignItems: "center",
+            padding: spacing(1.5, 2),
+            borderRadius: shape.borderRadius,
+            border: `1px solid ${icon.borderColor}`,
+            backgroundColor: 
+                element.icon === "Error" ? `${palette.error.main}08` : 
+                element.icon === "Warning" ? `${palette.warning.main}08` : 
+                element.icon === "Info" ? `${palette.info.main}08` : 
+                palette.action.hover,
+        };
+        
         const content = (
-            <Box display="flex" alignItems="center" color={icon.color}>
-                <Box mr={1}>
+            <Box sx={tipStyle}>
+                <Box sx={{ 
+                    mr: 1.5, 
+                    display: "flex",
+                    alignItems: "center",
+                    color: icon.color,
+                }}>
                     <Icon
                         decorative
                         info={icon.iconInfo}
+                        size={20}
                     />
                 </Box>
-                {element.link ? (
-                    <StyledLink
-                        href={element.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="body2"
-                        onClick={openElementLink}
-                    >
-                        {TipContent}
-                    </StyledLink>
-                ) : (
-                    TipContent
-                )}
+                <Box sx={{ 
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                }}>
+                    {element.link ? (
+                        <StyledLink
+                            href={element.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="body2"
+                            onClick={openElementLink}
+                            sx={{ 
+                                display: "block",
+                                textDecoration: "none",
+                                "&:hover": {
+                                    textDecoration: "underline",
+                                },
+                            }}
+                        >
+                            {TipContent}
+                        </StyledLink>
+                    ) : (
+                        TipContent
+                    )}
+                </Box>
             </Box>
         );
         return content;

@@ -1,6 +1,7 @@
-import { Box, IconButton, LinearProgress, Typography } from "@mui/material";
+import { Box, IconButton, LinearProgress, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
+import { OrbitalSpinner, CircularProgress } from "../indicators/CircularProgress.js";
 
 interface ExecutionHeaderProps {
     title: string;
@@ -44,6 +45,7 @@ export function ExecutionHeader({
     onResume,
     onRetry,
 }: ExecutionHeaderProps) {
+    const theme = useTheme();
     const [displayTime, setDisplayTime] = useState(elapsedTime);
 
     useEffect(() => {
@@ -78,15 +80,31 @@ export function ExecutionHeader({
                     },
                 }}
             >
-                <IconButton 
-                    size="small" 
-                    onClick={(e) => {
-                        e.stopPropagation(); // Prevent double-click when clicking the icon directly
-                        handleToggleCollapse(e);
-                    }}
-                >
-                    <IconCommon name={isCollapsed ? "ExpandMore" : "ExpandLess"} size={chatMode ? 20 : 24} />
-                </IconButton>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                    <IconButton 
+                        size="small" 
+                        onClick={(e) => {
+                            e.stopPropagation(); // Prevent double-click when clicking the icon directly
+                            handleToggleCollapse(e);
+                        }}
+                    >
+                        <IconCommon name={isCollapsed ? "ExpandMore" : "ExpandLess"} size={chatMode ? 20 : 24} />
+                    </IconButton>
+                    {/* Show spinner when run is in progress */}
+                    {(runStatus === "InProgress" || runStatus === "Running") && (
+                        <Box sx={{ ml: 1, display: "flex", alignItems: "center" }}>
+                            {theme.palette.mode === "dark" ? (
+                                <OrbitalSpinner size={chatMode ? 28 : 32} />
+                            ) : (
+                                <CircularProgress 
+                                    size={chatMode ? 28 : 32} 
+                                    thickness={3}
+                                    variant="primary"
+                                />
+                            )}
+                        </Box>
+                    )}
+                </Box>
                 <Box sx={{ flex: 1, mx: 1 }}>
                     <Typography variant={chatMode ? "subtitle2" : "h6"} sx={{ fontWeight: 500 }}>
                         {title}

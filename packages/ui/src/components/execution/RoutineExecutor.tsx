@@ -337,7 +337,11 @@ export function RoutineExecutor({
                 minHeight: chatMode && !isCollapsed ? 200 : "auto",
                 maxHeight: isConfigExpanded ? { xs: "80vh", sm: "90vh" } : (chatMode && !isCollapsed ? 400 : "none"),
                 minWidth: { xs: 280, sm: chatMode ? 480 : 500, md: chatMode ? 600 : 700 },
-                maxWidth: isConfigExpanded ? { xs: "95vw", sm: "90vw", md: "1200px" } : "none",
+                maxWidth: isConfigExpanded 
+                    ? { xs: "95vw", sm: "90vw", md: "100%" } 
+                    : { xs: "100%", sm: chatMode ? 600 : 800, md: chatMode ? 700 : 900 },
+                width: isConfigExpanded ? "100%" : "auto",
+                mx: isConfigExpanded ? 0 : "auto",
                 bgcolor: showInUnifiedContainer ? "transparent" : "background.paper",
                 borderRadius: showInUnifiedContainer 
                     ? 0 
@@ -386,23 +390,25 @@ export function RoutineExecutor({
                         </Box>
                     )}
                     
-                    <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
-                        {state.pendingDecision ? (
-                            <DecisionPrompt
-                                decision={state.pendingDecision}
-                                onSubmit={(decision) => handleDecisionSubmit(state.pendingDecision!.stepId, decision)}
-                                onCancel={() => dispatch({ type: "DECISION_SUBMITTED", stepId: state.pendingDecision!.stepId })}
-                            />
-                        ) : (
-                            <StepDetails
-                                step={state.steps[state.currentStepIndex]}
-                                contextValues={state.contextValues}
-                                totalSteps={state.steps.length}
-                                currentStepIndex={state.currentStepIndex}
-                                resourceVersion={resourceVersion}
-                                onConfigExpandChange={setIsConfigExpanded}
-                            />
-                        )}
+                    <Box sx={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+                        <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
+                            {state.pendingDecision ? (
+                                <DecisionPrompt
+                                    decision={state.pendingDecision}
+                                    onSubmit={(decision) => handleDecisionSubmit(state.pendingDecision!.stepId, decision)}
+                                    onCancel={() => dispatch({ type: "DECISION_SUBMITTED", stepId: state.pendingDecision!.stepId })}
+                                />
+                            ) : (
+                                <StepDetails
+                                    step={state.steps[state.currentStepIndex]}
+                                    contextValues={state.contextValues}
+                                    totalSteps={state.steps.length}
+                                    currentStepIndex={state.currentStepIndex}
+                                    resourceVersion={resourceVersion}
+                                    onConfigExpandChange={setIsConfigExpanded}
+                                />
+                            )}
+                        </Box>
                     </Box>
                 </Box>
             )}

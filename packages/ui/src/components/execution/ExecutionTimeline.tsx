@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
-import { ExecutionStep } from "./RoutineExecutor.js";
+import { useEffect, useState } from "react";
 import { IconCommon } from "../../icons/Icons.js";
-import { useState, useEffect } from "react";
+import { ExecutionStep } from "./RoutineExecutor.js";
 
 interface ExecutionTimelineProps {
     steps: ExecutionStep[];
@@ -12,7 +12,7 @@ interface ExecutionTimelineProps {
 
 const statusIcons = {
     pending: "Add", // Using Add as placeholder for unchecked state
-    running: "Pause", // Using Pause as placeholder for loading state
+    running: "Ellipsis", // Ellipsis icon for running state
     completed: "Complete",
     failed: "Error",
 } as const;
@@ -27,7 +27,7 @@ const statusColors = {
 // Animated ellipsis component
 function AnimatedEllipsis() {
     const [dots, setDots] = useState("");
-    
+
     useEffect(() => {
         const interval = setInterval(() => {
             setDots(prev => {
@@ -35,11 +35,53 @@ function AnimatedEllipsis() {
                 return prev + ".";
             });
         }, 500); // Change dots every 500ms
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return <span>{dots}</span>;
+}
+
+// Animated ellipsis icon component
+function AnimatedEllipsisIcon({ size, fill }: { size: number; fill: string }) {
+    const [dotCount, setDotCount] = useState(1);
+    
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setDotCount(prev => prev >= 3 ? 1 : prev + 1);
+        }, 500); // Change dots every 500ms
         
         return () => clearInterval(interval);
     }, []);
     
-    return <span>{dots}</span>;
+    const dotSize = size / 10;
+    const spacing = size / 4;
+    
+    return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="#9e9e9e">
+            {/* Dot 1 */}
+            <circle
+                cx={size / 2 - spacing}
+                cy={size / 2}
+                r={dotSize}
+                opacity={dotCount >= 1 ? 0.8 : 0.2}
+            />
+            {/* Dot 2 */}
+            <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={dotSize}
+                opacity={dotCount >= 2 ? 0.8 : 0.2}
+            />
+            {/* Dot 3 */}
+            <circle
+                cx={size / 2 + spacing}
+                cy={size / 2}
+                r={dotSize}
+                opacity={dotCount >= 3 ? 0.8 : 0.2}
+            />
+        </svg>
+    );
 }
 
 // Helper function to calculate elapsed time
@@ -48,7 +90,7 @@ function calculateElapsedTime(startTime?: string, endTime?: string): string {
     const start = new Date(startTime).getTime();
     const end = endTime ? new Date(endTime).getTime() : Date.now();
     const duration = Math.floor((end - start) / 1000);
-    
+
     if (duration < 60) return `${duration}s`;
     if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`;
     return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
@@ -67,7 +109,7 @@ export function ExecutionTimeline({
     const lineHeight = (steps.length - 1) * stepHeight;
 
     // Calculate the progress line height based on completed steps
-    const completedSteps = steps.filter((step, index) => 
+    const completedSteps = steps.filter((step, index) =>
         step.status === "completed" && index < steps.length - 1
     ).length;
     const progressLineHeight = completedSteps * stepHeight;
@@ -89,7 +131,7 @@ export function ExecutionTimeline({
                     }}
                 />
             )}
-            
+
             {/* Progress line showing completed segments */}
             {steps.length > 1 && progressLineHeight > 0 && (
                 <Box
@@ -106,16 +148,16 @@ export function ExecutionTimeline({
                     }}
                 />
             )}
-            
+
             {steps.map((step, index) => {
                 const isActive = index === currentStepIndex;
                 const isPast = index < currentStepIndex;
                 const isFuture = index > currentStepIndex;
 
                 return (
-                    <Box 
-                        key={step.id} 
-                        sx={{ 
+                    <Box
+                        key={step.id}
+                        sx={{
                             position: "relative",
                             height: stepHeight,
                             display: "flex",
@@ -150,38 +192,31 @@ export function ExecutionTimeline({
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    bgcolor: step.status === "completed" 
-                                        ? "success.main" 
+                                    bgcolor: step.status === "completed"
+                                        ? "success.main"
                                         : step.status === "running"
-                                        ? "primary.main"
-                                        : step.status === "failed"
-                                        ? "error.main"
-                                        : "background.paper",
-                                    border: step.status === "pending" ? 2 : step.status === "running" ? 2 : 0,
-                                    borderColor: step.status === "pending" ? "divider" : step.status === "running" ? "success.main" : "transparent",
-                                    ...(step.status === "running" && {
-                                        animation: "pulse 2s ease-in-out infinite",
-                                        "@keyframes pulse": {
-                                            "0%": { 
-                                                boxShadow: "0 0 0 0 rgba(25, 118, 210, 0.7)" 
-                                            },
-                                            "70%": { 
-                                                boxShadow: "0 0 0 10px rgba(25, 118, 210, 0)" 
-                                            },
-                                            "100%": { 
-                                                boxShadow: "0 0 0 0 rgba(25, 118, 210, 0)" 
-                                            },
-                                        },
-                                    }),
+                                            ? "background.paper"
+                                            : step.status === "failed"
+                                                ? "error.main"
+                                                : "background.paper",
+                                    border: step.status === "pending" ? 2 : step.status === "running" ? 3 : 0,
+                                    borderColor: step.status === "pending" ? "divider" : step.status === "running" ? "info.main" : "transparent",
                                 }}
                             >
-                                <IconCommon
-                                    name={statusIcons[step.status]}
-                                    size={compact ? 16 : 18}
-                                    fill={step.status === "pending" ? "text.secondary" : "white"}
-                                />
+                                {step.status === "running" ? (
+                                    <AnimatedEllipsisIcon 
+                                        size={compact ? 16 : 18} 
+                                        fill="currentColor"
+                                    />
+                                ) : statusIcons[step.status] && (
+                                    <IconCommon
+                                        name={statusIcons[step.status]}
+                                        size={compact ? 16 : 18}
+                                        fill={step.status === "completed" ? "white" : "text.secondary"}
+                                    />
+                                )}
                             </Box>
-                            
+
                             <Box sx={{ flex: 1, minWidth: 0 }}>
                                 <Typography
                                     variant={compact ? "body2" : "body1"}
@@ -193,11 +228,6 @@ export function ExecutionTimeline({
                                 >
                                     {step.name}
                                 </Typography>
-                                {step.status === "running" && (
-                                    <Typography variant="caption" color="primary.main" sx={{ fontWeight: 500, minHeight: "1.2em" }}>
-                                        Processing<AnimatedEllipsis />
-                                    </Typography>
-                                )}
                                 {step.status === "completed" && isPast && (
                                     <Typography variant="caption" color="success.main" sx={{ fontWeight: 500 }}>
                                         Completed{calculateElapsedTime(step.startTime, step.endTime) && ` • ${calculateElapsedTime(step.startTime, step.endTime)}`}

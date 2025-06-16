@@ -287,11 +287,11 @@ export function Showcase() {
                 mb: 8
             }}>
                 <Box sx={{
-                    maxWidth: chatMode ? 600 : 800,
                     width: "100%",
                     mx: "auto",
                     display: "flex",
-                    flexDirection: "column"
+                    flexDirection: "column",
+                    px: 2
                 }}>
                         <ErrorBoundary>
                             <RoutineExecutor
