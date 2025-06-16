@@ -46,6 +46,10 @@ flock -n "$LOCK_FD" || {
 
 trap 'echo -e "\n🚦  Supervisor aborted." >&2' INT TERM
 
+# Always use the real coreutils timeout, never the npm-run-all shim
+TIMEOUT_BIN=$(command -v timeout)
+[[ $TIMEOUT_BIN == */node_modules/* ]] && TIMEOUT_BIN=/usr/bin/timeout
+
 # --- helpers -----------------------------------------------------------------
 next_at() {                        # next epoch for HH:MM TODAY or TOMORROW
   local hhmm=$1
