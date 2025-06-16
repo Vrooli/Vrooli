@@ -32,5 +32,8 @@ const config: StorybookConfig = {
     "core": {
         "disableTelemetry": true,
     },
+    "typescript": {
+        "configFile": "../tsconfig.stories.json"
+    },
 };
 export default config;

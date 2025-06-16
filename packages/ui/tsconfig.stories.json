@@ -1,0 +1,27 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "jsx": "react-jsx",
+        "allowJs": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "moduleResolution": "nodenext",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "rootDir": null
+    },
+    "include": [
+        "src/**/*.stories.ts",
+        "src/**/*.stories.tsx",
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        ".storybook/**/*"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/dist",
+        "**/coverage"
+    ]
+}

@@ -328,7 +328,7 @@ pnpm test -- execution
 pnpm test-watch
 
 # Coverage report
-pnpm coverage-report
+pnpm test-coverage
 ```
 
 ### Quality Standards

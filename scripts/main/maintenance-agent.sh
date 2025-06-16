@@ -51,11 +51,23 @@ fi
 BATCH_SIZE=${BATCH_SIZE:-50}
 COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-5}
 COOLDOWN_BETWEEN_TASKS=${COOLDOWN_BETWEEN_TASKS:-10}
+# Tools Claude is allowed to use (NO “Task”!  Bash(*) gives it full shell access)
 NEEDED_TOOLS=(
   "Bash" "Edit" "Write" "Glob" "Grep" "LS" "ReadFile"
   "MultiEdit" "Git" "WebSearch" "WebFetch"
 )
 
+# Build --allowedTools arguments from NEEDED_TOOLS
+ALLOWED_TOOLS_ARGS=()
+for tool in "${NEEDED_TOOLS[@]}"; do
+  if [[ $tool == "Bash" ]]; then
+    ALLOWED_TOOLS_ARGS+=(--allowedTools "Bash(*)")
+  else
+    ALLOWED_TOOLS_ARGS+=(--allowedTools "$tool")
+  fi
+done
+
+# Log directory per day
 log_dir="logs/$(date +%F)"
 mkdir -p "$log_dir"
 trap 'echo -e "\n🔴  Aborted"; kill 0; exit 130' INT
@@ -69,8 +81,7 @@ for f in \
   ".claude/settings.json" \
   "$HOME/.claude/settings.json"
 do
-  [[ -f $f ]] || continue
-  settings_files+=("$f")
+  [[ -f $f ]] && settings_files+=("$f")
 done
 
 # If none exist yet, create local settings (highest precedence)
@@ -84,8 +95,8 @@ fi
 # Helper: patch one file in-place
 ###############################################################################
 patch_settings() {
-  local file=$1; shift
-  tmp=$(mktemp)
+  local file=$1
+  local tmp; tmp=$(mktemp)
 
   jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" \
                       | jq -R . | jq -s '.')" '
@@ -116,15 +127,12 @@ else
 fi
 
 ###############################################################################
-# Wrapper that retries once with --dangerously-skip-permissions
+# Wrapper: log and continue on non-zero exit (no unsafe retry)
 ###############################################################################
 run_claude() {
-  "$CLAUDE" "$@" && return 0
-  echo "⚠️  CLI exited non-zero; retrying with --dangerously-skip-permissions" >&2
-  "$CLAUDE" --dangerously-skip-permissions "$@" || {
-    echo "❌  Second attempt failed – continuing to next batch" >&2
-    return 0
-  }
+  if ! "$CLAUDE" "$@"; then
+    echo "❌  Claude exited non-zero - skipping to next batch" >&2
+  fi
 }
 
 ###############################################################################
@@ -152,13 +160,18 @@ run_task() {
             | LC_ALL=C tr -cd 'A-Za-z0-9_.\- ' \
             | tr ' ' '_'
     )
-    out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
+    local out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
+
 
     run_claude "$PROMPT_FLAG" "$prompt" \
-       --max-turns "$t" --output-format stream-json --verbose \
-       ${session:+--resume "$session"} \
-       | tee "$out_file"
+      --max-turns "$t" \
+      --output-format stream-json \
+      --verbose \
+      "${ALLOWED_TOOLS_ARGS[@]}" \
+      ${session:+--resume "$session"} \
+      | tee "$out_file"
 
+    # Extract session-id for resume
     session=$(jq -r '(.sessionId // .session_id // empty)' "$out_file" | tail -1 || true)
     (( remain -= t ))
     (( remain )) && sleep "$COOLDOWN_SECONDS"
@@ -168,9 +181,11 @@ run_task() {
 ###############################################################################
 # Parse PROMPT/TURNS pairs
 ###############################################################################
-[[ $# -ge 2 && $(( $# % 2 )) -eq 0 ]] || {
-  echo "Usage: $0 \"PROMPT1\" TURNS1 [\"PROMPT2\" TURNS2 ...]" >&2; exit 1;
-}
+if [[ $# -lt 2 || $(( $# % 2 )) -ne 0 ]]; then
+  echo "Usage: $0 \"PROMPT1\" TURNS1 [\"PROMPT2\" TURNS2 ...]" >&2
+  exit 1
+fi
+
 while (( $# )); do
   run_task "$1" "$2"
   shift 2

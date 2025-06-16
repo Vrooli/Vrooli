@@ -9,6 +9,7 @@ import { Route, Switch, type RouteProps } from "./route/router.js";
 import { useLayoutStore } from "./stores/layoutStore.js";
 import { type PageProps, type ViewDisplayType } from "./types.js";
 import { BotUpsert } from "./views/objects/bot/BotUpsert.js";
+import { AdminRoute } from "./components/auth/AdminRoute.js";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {
@@ -60,8 +61,10 @@ const { ReminderCrud } = lazily(() => import("./views/objects/reminder/index.js"
 const { RoutineSingleStepUpsert, RoutineMultiStepCrud, RoutineSingleStepView } = lazily(() => import("./views/objects/routine/index.js"));
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract/index.js"));
 const { UserView } = lazily(() => import("./views/objects/user/UserView.js"));
-const { RunView } = lazily(() => import("./views/runs/RunView.js"));
+// TODO: Replace with new execution architecture component
+// const { RunView } = lazily(() => import("./views/runs/RunView.js"));
 const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView.js"));
+const { AdminView } = lazily(() => import("./views/admin/AdminView.js"));
 
 /**
  * Fallback displayed while route is being loaded.
@@ -124,6 +127,11 @@ export function Routes({ sessionChecked, display }: RoutesProps) {
                     {...commonProps}
                 >
                     <AboutView display={display} />
+                </NavRoute>
+                <NavRoute path={LINKS.Admin} excludePageContainer mustBeLoggedIn={true} {...commonProps}>
+                    <AdminRoute>
+                        <AdminView display="Page" />
+                    </AdminRoute>
                 </NavRoute>
                 <NavRoute path={`${LINKS.Api}/add`} excludePageContainer mustBeLoggedIn={true} {...commonProps}>
                     <ApiUpsert display={display} isCreate={true} />
@@ -324,9 +332,10 @@ export function Routes({ sessionChecked, display }: RoutesProps) {
                 <NavRoute path={`${LINKS.RoutineMultiStep}/:rootId/:versionId?`} excludePageContainer {...commonProps}>
                     <RoutineMultiStepCrud display={display} isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...commonProps}>
+                {/* TODO: Replace with new execution architecture route */}
+                {/* <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...commonProps}>
                     <RunView display={display} />
-                </NavRoute>
+                </NavRoute> */}
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
                     excludePageContainer

@@ -722,6 +722,7 @@ export function AdvancedInputLexicalComponents({
             sx={outerBoxStyle}>
             <RichTextPlugin
                 contentEditable={<ContentEditable
+                    data-testid="lexical-editor"
                     tabIndex={tabIndex}
                     style={{
                         outline: "none",

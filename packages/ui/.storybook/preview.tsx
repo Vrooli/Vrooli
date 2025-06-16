@@ -271,7 +271,8 @@ const preview: Preview = {
                                 <Celebration />
                                 <AlertDialog />
                                 <SnackStack />
-                                <TutorialDialog />
+                                {/* Don't render TutorialDialog globally for TutorialDialog stories to avoid duplicates */}
+                                {!context.title?.includes('TutorialDialog') && <TutorialDialog />}
                                 <VideoPopup
                                     open={!!openVideoData}
                                     onClose={closePopupVideo}

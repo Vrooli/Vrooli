@@ -1,8 +1,10 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Redirect, useLocation } from "../../route/router.js";
 import { useIsAdmin } from "../../hooks/useIsAdmin.js";
-import { PageLoader } from "../Page/PageLoader.js";
-import { AlertBox } from "../AlertBox/AlertBox.js";
+import { DiagonalWaveLoader } from "../Spinners.js";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { LINKS } from "@vrooli/shared";
 
 interface AdminRouteProps {
     children: React.ReactNode;
@@ -34,11 +36,20 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
     showLoading = true 
 }) => {
     const { isAdmin, loading } = useIsAdmin();
-    const location = useLocation();
+    const [{ pathname }] = useLocation();
     
     // Show loading state while checking admin status
     if (loading && showLoading) {
-        return <PageLoader />;
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                minHeight: '200px' 
+            }}>
+                <DiagonalWaveLoader />
+            </div>
+        );
     }
     
     // If user is not admin, show fallback or redirect
@@ -47,11 +58,10 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
             return <>{fallback}</>;
         }
         
-        // Redirect to home page, preserving the intended destination in state
+        // Redirect to home page
         return (
-            <Navigate 
-                to="/" 
-                state={{ from: location }} 
+            <Redirect 
+                to={LINKS.Home} 
                 replace 
             />
         );
@@ -66,14 +76,25 @@ export const AdminRoute: React.FC<AdminRouteProps> = ({
  */
 export const AdminAccessDenied: React.FC = () => {
     return (
-        <AlertBox 
-            severity="error"
-            title="Access Denied"
-            sx={{ m: 2 }}
+        <Box 
+            sx={{ 
+                m: 2, 
+                p: 2, 
+                border: '1px solid',
+                borderColor: 'error.main',
+                borderRadius: 1,
+                backgroundColor: 'error.light',
+                color: 'error.contrastText'
+            }}
         >
-            You need administrator privileges to access this page. 
-            Please contact your system administrator if you believe this is an error.
-        </AlertBox>
+            <Typography variant="h6" component="h2" gutterBottom>
+                Access Denied
+            </Typography>
+            <Typography variant="body2">
+                You need administrator privileges to access this page. 
+                Please contact your system administrator if you believe this is an error.
+            </Typography>
+        </Box>
     );
 };
 

@@ -338,13 +338,20 @@ const CONVERSATION_STATE_L2_CACHE_TTL_SEC = CONVERSATION_STATE_L2_CACHE_TTL_MINU
  */
 export class CachedConversationStateStore implements ConversationStateStore {
     private readonly cache: LRUCache<string, ConversationState>;
-    private readonly cacheService = CacheService.get();
+    private cacheService: CacheService | null = null;
 
     constructor(
         private readonly chatStore: ChatStore,
         maxEntries = DEFAULT_MAX_CONCURRENT_CONVERSATIONS,
     ) {
         this.cache = new LRUCache<string, ConversationState>({ limit: maxEntries });
+    }
+
+    private getCacheService(): CacheService {
+        if (!this.cacheService) {
+            this.cacheService = CacheService.get();
+        }
+        return this.cacheService;
     }
 
     private getL2CacheKey(conversationId: string): string {
@@ -359,7 +366,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
 
         if (invalidate) {
             this.cache.delete(conversationId); // Invalidate L1
-            await this.cacheService.del(l2Key); // Invalidate L2
+            await this.getCacheService().del(l2Key); // Invalidate L2
         }
 
         // Try L1 first
@@ -369,7 +376,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
 
         // Try L2 (Redis) next
         try {
-            const l2State = await this.cacheService.get<ConversationState>(l2Key);
+            const l2State = await this.getCacheService().get<ConversationState>(l2Key);
             if (l2State) {
                 this.cache.set(conversationId, l2State); // Populate L1
                 return l2State;
@@ -384,7 +391,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         if (freshFromDb) {
             this.cache.set(conversationId, freshFromDb); // Populate L1
             try {
-                await this.cacheService.set(l2Key, freshFromDb, CONVERSATION_STATE_L2_CACHE_TTL_SEC); // Populate L2
+                await this.getCacheService().set(l2Key, freshFromDb, CONVERSATION_STATE_L2_CACHE_TTL_SEC); // Populate L2
             } catch (error) {
                 logger.error(`Error setting ConversationState to L2 cache for ${conversationId}`, { error });
             }
@@ -430,7 +437,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         this.cache.delete(conversationId); // Delete from L1
         const l2Key = this.getL2CacheKey(conversationId);
         try {
-            await this.cacheService.del(l2Key); // Delete from L2
+            await this.getCacheService().del(l2Key); // Delete from L2
         } catch (error) {
             logger.error(`Error deleting ConversationState from L2 cache for ${conversationId}`, { error });
         }
@@ -444,7 +451,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         this.cache.delete(conversationId); // Invalidate L1
         const l2Key = this.getL2CacheKey(conversationId);
         try {
-            await this.cacheService.del(l2Key); // Invalidate L2
+            await this.getCacheService().del(l2Key); // Invalidate L2
         } catch (error) {
             logger.error(`Error invalidating distributed ConversationState from L2 cache for ${conversationId}`, { error });
         }
@@ -471,7 +478,7 @@ export class CachedConversationStateStore implements ConversationStateStore {
         // Update L2 cache (Redis) 
         const l2Key = this.getL2CacheKey(conversationId);
         try {
-            await this.cacheService.set(l2Key, updatedState, CONVERSATION_STATE_L2_CACHE_TTL_SEC);
+            await this.getCacheService().set(l2Key, updatedState, CONVERSATION_STATE_L2_CACHE_TTL_SEC);
         } catch (error) {
             logger.error(`Error updating team config in L2 cache for ${conversationId}`, { error });
             // Continue even if L2 cache update fails - L1 cache is updated

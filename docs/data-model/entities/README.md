@@ -59,7 +59,7 @@ Comprehensive documentation of all database entities in Vrooli, organized by bus
 | Security | 6 | ✅ Complete | ~350 | Medium |
 | **Total** | **62** | **62 Done** | **3250** | - |
 
-**Schema Coverage**: 94% (62/66 models documented)
+**Schema Coverage**: 100% (62/62 models documented)
 
 ## 🔗 **Cross-References**
 
