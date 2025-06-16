@@ -11,7 +11,7 @@
 #
 #   • Safeguards
 #       - flock locking  (only one supervisor instance per user)
-#       - Kills the agent only if it stops writing to its logfile for LONG_ENOUGH_MS.
+#       - Kills the agent only if it stops writing to its logfile for LONG_ENOUGH_S.
 #       - skip if previous run of same task still active
 #       - privilege drop to FALLBACK_USER
 ###############################################################################
@@ -21,7 +21,8 @@ set -euo pipefail
 # CONFIG (edit here)
 ###############################################################################
 FALLBACK_USER=${FALLBACK_USER:-matt}
-LONG_ENOUGH_MS=${LONG_ENOUGH_MS:-360000}   # kill if no log output for 360 s
+LONG_ENOUGH_S=${LONG_ENOUGH_S:-360}
+TIGHT_COOLDOWN_S=${TIGHT_COOLDOWN_S:-5}
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 AGENT_SCRIPT="${SCRIPT_DIR}/maintenance-agent.sh"
@@ -33,7 +34,9 @@ fi
 LOG_DIR="/home/${FALLBACK_USER}/agent-logs"
 mkdir -p "${LOG_DIR}"
 # ensure writable even if root created it first
-chown "$FALLBACK_USER":"$FALLBACK_USER" "$LOG_DIR" 2>/dev/null || true
+if [[ $EUID -eq 0 ]]; then   ## only chown when we actually can
+  chown "$FALLBACK_USER":"$FALLBACK_USER" "$LOG_DIR" 2>/dev/null || true
+fi
 
 # Task table:  name|schedule|prompt|turns
 TASKS=(
@@ -59,7 +62,9 @@ touch "$LOCK_FILE" 2>/dev/null || {
 }
 chmod 600 "$LOCK_FILE"
 # if root created it earlier, transfer ownership
-chown "$LOCK_USER":"$LOCK_USER" "$LOCK_FILE" 2>/dev/null || true
+if [[ $EUID -eq 0 ]]; then
+  chown "$LOCK_USER":"$LOCK_USER" "$LOCK_FILE" 2>/dev/null || true
+fi
 
 exec {LOCK_FD}<> "$LOCK_FILE" || {
   echo "⛔️  Cannot open lock file $LOCK_FILE" >&2
@@ -71,46 +76,45 @@ flock -n "$LOCK_FD" || {
   exit 1
 }
 
-# clean up lock on all exits (INT, TERM, normal)
-_cleanup() {
-  rm -f "$LOCK_FILE"
-  echo -e "\n🚦  Supervisor exited." >&2
-}
-trap _cleanup EXIT INT TERM
+# clean up lock file in all cases
+trap 'rm -f "$LOCK_FILE"' EXIT
+trap 'echo -e "\n🚦  Supervisor exited." >&2; exit' INT TERM
 
 # --- helpers -----------------------------------------------------------------
 # choose coreutils date (gdate on macOS, date elsewhere)
 DATE_BIN=$(command -v gdate || command -v date)
 
-# portable timeout finder (ignores node_modules shims)
-find_timeout() {
-  local cand
-  for cand in timeout /usr/bin/timeout /bin/timeout gtimeout; do
-    [[ -x $(command -v "$cand" 2>/dev/null) ]] && { command -v "$cand"; return; }
-  done
-  echo "⛔️  GNU timeout not found; install coreutils." >&2
-  exit 1
+# return mtime (epoch s) portable across GNU/BSD
+get_mtime() {
+  local file=$1
+  if "$DATE_BIN" --version >/dev/null 2>&1; then
+    "$DATE_BIN" -r "$file" +%s
+  else
+    stat -f %m "$file"
+  fi
 }
-TIMEOUT_BIN=$(find_timeout)
 
-# conditional sudo drop
-if [[ $(id -un) == "$FALLBACK_USER" ]]; then
+# conditional sudo drop (see note-to-AI)
+if [[ $(id -u) -eq 0 ]]; then
+  SUDO=(sudo -u "$FALLBACK_USER" --)
+elif [[ $(id -un) == "$FALLBACK_USER" ]]; then
   SUDO=()
 else
-  SUDO=(sudo -u "$FALLBACK_USER" --)
+  echo "⛔️  Must be run as root or ${FALLBACK_USER}; refusing to continue." >&2
+  exit 1
 fi
 
 next_at() {             # HH:MM → next epoch (today or tomorrow)
-  local hhmm=$1
-  local tgt
-  tgt=$("$DATE_BIN" -d "$("$DATE_BIN" +%F) $hhmm" +%s 2>/dev/null || true)
+  local hhmm=$1 tgt
+  tgt=$("$DATE_BIN" -d "$( "$DATE_BIN" +%F ) $hhmm" +%s 2>/dev/null || true)
   if [[ -z $tgt ]]; then  # fallback for BSD date w/out -d
     local today=$("$DATE_BIN" +%F)
     tgt=$("$DATE_BIN" -j -f "%F %H:%M" "$today $hhmm" +%s)
   fi
-  [[ $tgt -le $("$DATE_BIN" +%s) ]] && \
-      tgt=$("$DATE_BIN" -d "tomorrow $hhmm" +%s 2>/dev/null || \
-            "$DATE_BIN" -j -f "%F %H:%M" "$( "$DATE_BIN" -v+1d +%F ) $hhmm" +%s
+  if [[ $tgt -le $("$DATE_BIN" +%s) ]]; then
+    tgt=$("$DATE_BIN" -d "tomorrow $hhmm" +%s 2>/dev/null || \
+          "$DATE_BIN" -j -f "%F %H:%M" "$( "$DATE_BIN" -v+1d +%F ) $hhmm" +%s)
+  fi
   echo "$tgt"
 }
 
@@ -127,20 +131,20 @@ run_task() {
 
   echo "[$("$DATE_BIN")] ▶️  Starting $name" | tee -a "$logfile"
 
-  "${SUDO[@]}" "$AGENT_SCRIPT" "$prompt" "$turns" &>> "$logfile" &
+  "${SUDO[@]}" "$AGENT_SCRIPT" "$prompt" "$turns" >>"$logfile" 2>&1
   local run_pid=$!
   echo "$run_pid" > "$pid_file"
 
   # ---------- watchdog -------------------------------------------------------
   (
-    local idle_ms=$LONG_ENOUGH_MS
+    local idle_secs=$LONG_ENOUGH_S
     local check_int=2
     while kill -0 "$run_pid" 2>/dev/null; do
-      local last_mod=$("$DATE_BIN" -r "$logfile" +%s)
+      local last_mod=$(get_mtime "$logfile")
       local now=$("$DATE_BIN" +%s)
-      if (( (now - last_mod)*1000 > idle_ms )); then
-        echo "[$("$DATE_BIN")] ⏱  No log output for $((idle_ms/1000)) s – terminating $name" | tee -a "$logfile"
-        pkill -TERM -P "$run_pid" 2>/dev/null || true   # children
+      if (( now - last_mod > idle_secs )); then
+        echo "[$("$DATE_BIN")] ⏱  No log output for $idle_secs s – terminating $name" | tee -a "$logfile"
+        pkill -TERM -P "$run_pid" 2>/dev/null || true
         kill -TERM "$run_pid" 2>/dev/null || true
         sleep 3
         kill -KILL "$run_pid" 2>/dev/null || true
@@ -171,11 +175,18 @@ now=$(date +%s)
 for entry in "${TASKS[@]}"; do
   IFS='|' read -r name sched _ <<<"$entry"
   case $sched in
-    tight)      NEXT_RUN["$name"]=$now ;;
+    tight)      NEXT_RUN["$name"]=0 ;;
     every:*)    NEXT_RUN["$name"]=$(( now + ${sched#every:} )) ;;
     at:*)       NEXT_RUN["$name"]=$(next_at "${sched#at:}") ;;
     *)          echo "⛔️ Unknown schedule '$sched' for $name" >&2; exit 1 ;;
   esac
+done
+
+# remove stale pid-files on startup
+for entry in "${TASKS[@]}"; do
+  IFS='|' read -r name _ <<<"$entry"
+  pid_file="/tmp/${name}.running"
+  task_running "$pid_file" || rm -f "$pid_file"
 done
 
 ###############################################################################
@@ -200,8 +211,8 @@ while true; do
     if (( run_at <= now )); then
       run_task "$name" "$prompt" "$turns" &
       case $sched in
-        tight)   NEXT_RUN["$name"]=$("$DATE_BIN" +%s) ;;        # asap
-        every:*) NEXT_RUN["$name"]=$(( $( "$DATE_BIN" +%s ) + ${sched#every:} ))
+        tight)   NEXT_RUN["$name"]=$(( $( "$DATE_BIN" +%s ) + TIGHT_COOLDOWN_S )) ;;  # cooldown
+        every:*) NEXT_RUN["$name"]=$(( $( "$DATE_BIN" +%s ) + ${sched#every:} )) ;;
         at:*)    NEXT_RUN["$name"]=$(next_at "${sched#at:}") ;;
       esac
       run_at=${NEXT_RUN["$name"]}
