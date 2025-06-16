@@ -131,8 +131,9 @@ fi
 ###############################################################################
 run_claude() {
   if ! "$CLAUDE" "$@"; then
-    echo "❌  Claude exited non-zero - skipping to next batch" >&2
+    echo "⚠️  Claude exited non-zero (possibly max-turns, so we shouldn't quit) - continuing…" >&2
   fi
+  return 0               # ← never let a CLI error abort the script
 }
 
 ###############################################################################
@@ -162,14 +163,18 @@ run_task() {
     )
     local out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
 
-
-    run_claude "$PROMPT_FLAG" "$prompt" \
-      --max-turns "$t" \
-      --output-format stream-json \
-      --verbose \
-      "${ALLOWED_TOOLS_ARGS[@]}" \
-      ${session:+--resume "$session"} \
-      | tee "$out_file"
+    # ──────────────────────────────────────────────────────────────────────
+    # If Claude stops because of max-turns, we *expect* a non-zero exit.
+    # `|| true` swallows it so the loop keeps ticking.
+    # ──────────────────────────────────────────────────────────────────────
+    ( run_claude "$PROMPT_FLAG" "$prompt" \
+        --max-turns "$t" \
+        --output-format stream-json \
+        --verbose \
+        "${ALLOWED_TOOLS_ARGS[@]}" \
+        ${session:+--resume "$session"} ) \
+      | tee "$out_file" || true
+    # ──────────────────────────────────────────────────────────────────────
 
     # Extract session-id for resume
     session=$(jq -r '(.sessionId // .session_id // empty)' "$out_file" | tail -1 || true)
