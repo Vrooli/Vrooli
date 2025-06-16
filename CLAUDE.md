@@ -17,7 +17,7 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
 - **Before starting:** Check existing work with `rg "AI_CHECK:.*TASK_ID" --type ts`
 - **After completing:** Add/update comment: `// AI_CHECK: TASK_ID=count | LAST: YYYY-MM-DD`
-- **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance-tracking.md)
+- **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance/README.md)
 
 ## 🏗️ Architecture Overview
 **Three-Tier AI System:**
@@ -132,7 +132,6 @@ These commands can be invoked by using the keywords listed for each:
 | Error | Solution |
 |-------|----------|
 | `Missing script: type-check` | No root-level type-check - use package-specific commands |
-| Tests failing with `jest is not defined` | Tests using vitest, not jest - check test setup |
 | `cd: packages/ui: No such file or directory` | Ensure you're in project root `/root/Vrooli` first |
 
 

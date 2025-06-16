@@ -17,10 +17,10 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 
 ## Standard Task IDs
 
-| Task ID | Description | When to Use |
+| Task ID | Instructions | When to Use |
 |---------|-------------|-------------|
-| `TEST_QUALITY` | Tests written to test expected behavior, not implementation | User asks to identify/fix tests written to pass |
-| `TEST_COVERAGE` | Code coverage improvements for existing test files | User asks to improve test coverage |
+| `TEST_QUALITY` | [TEST_QUALITY.md](./tasks/TEST_QUALITY.md) | User asks to identify/fix tests written to pass |
+| `TEST_COVERAGE` | [TEST_COVERAGE.md](./tasks/TEST_COVERAGE.md) | User asks to improve test coverage |
 | `REACT_PERF` | React component performance optimization | User asks to improve React component performance |
 | `TYPE_SAFETY` | TypeScript usage improvements | User asks to improve type safety |
 | `UNSAFE_CASTS` | Unsafe type casting fixes | User asks to identify/fix unsafe type casts |
@@ -28,7 +28,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `ACCESSIBILITY` | A11y compliance improvements | User asks to improve accessibility |
 | `SECURITY` | Security vulnerability checks | User asks to review security |
 | `CODE_QUALITY` | General code quality improvements | User asks for code quality review |
-| `EASY_WINS` | Quick code improvement opportunities | User asks to suggest "easy wins" |
+| `EASY_WINS` | [EASY_WINS.md](./tasks/EASY_WINS.md) | User asks to suggest "easy wins" |
 | `DEAD_CODE` | Unused files/functions identification | User asks to identify unused code |
 | `TODO_CLEANUP` | TODOs/FIXMEs/BUGs/DEPRECATED cleanup | User asks to address TODOs/FIXMEs |
 | `DOCS_TO_CODE` | Update documentation to match actual code behavior | User asks to sync docs with current code |
@@ -39,7 +39,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `DATABASE` | Database query optimization and design | User asks to optimize database usage |
 | `BUNDLE_SIZE` | Bundle size optimization | User asks to optimize bundle size |
 | `IMPORTS` | Import organization, unused imports, circular dependencies | User asks to clean up imports |
-| `COMMENTS` | Code comment quality and maintenance | User asks to improve/update comments |
+| `COMMENTS` | [COMMENTS.md](./tasks/COMMENTS.md) | User asks to improve/update comments |
 | `FORMS` | Form validation, error handling, UX consistency | User asks to improve form implementations |
 | `STATE_MGMT` | State management patterns and optimization | User asks to improve state management |
 | `ASYNC_SAFETY` | Race conditions, proper async/await usage, error handling | User asks to fix async/concurrency issues |
