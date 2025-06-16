@@ -1,6 +1,3 @@
-# Privacy Policy  
-*Last updated October 02, 2021*
-
 Thank you for choosing to be part of the [<BUSINESS_NAME>](<APP_URL>) ("**Company**," "**we**," "**us**," or "**our**") community. We are committed to protecting your personal information and your right to privacy. If you have any questions or concerns about this privacy notice or our practices with regard to your personal information, please contact us at [<SUPPORT_EMAIL.Label>](<SUPPORT_EMAIL.Link>).
 
 In this privacy notice, if we refer to:

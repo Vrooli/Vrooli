@@ -14,6 +14,9 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../../api/responseParser.js";
 import { ChatBubbleTree } from "../../../components/ChatBubbleTree/ChatBubbleTree.js";
+import { SwarmPlayer } from "../../../components/swarm/SwarmPlayer.js";
+// TODO: Import useSwarmConfig hook when implemented
+// import { useSwarmConfig } from "../../../hooks/useSwarmConfig.js";
 import { HelpButton } from "../../../components/buttons/HelpButton.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { ChatMessageInput } from "../../../components/inputs/ChatMessageInput/ChatMessageInput.js";
@@ -221,6 +224,9 @@ function ChatForm({
     }, [existing.id, existing.participants, session]);
 
     const messageTree = useMessageTree(existing.id);
+    
+    // TODO: Fetch swarm configuration for this chat
+    // const { swarmConfig, swarmStatus, pauseSwarm, resumeSwarm, stopSwarm } = useSwarmConfig(existing.id);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
@@ -532,6 +538,24 @@ function ChatForm({
                             tree={messageTree.tree}
                         />
                     </ChatTreeContainer>
+                    {/* Swarm player displays between messages and input */}
+                    <SwarmPlayer
+                        swarmConfig={null} // TODO: Fetch swarm config from server based on chat ID
+                        swarmStatus={undefined} // TODO: Get swarm status from server
+                        chatId={values.id}
+                        onPause={() => {
+                            // TODO: Implement pause swarm via API
+                            console.log("Pause swarm for chat:", values.id);
+                        }}
+                        onResume={() => {
+                            // TODO: Implement resume swarm via API
+                            console.log("Resume swarm for chat:", values.id);
+                        }}
+                        onStop={() => {
+                            // TODO: Implement stop swarm via API
+                            console.log("Stop swarm for chat:", values.id);
+                        }}
+                    />
                     <ChatMessageInput
                         disabled={!existing}
                         display={display}

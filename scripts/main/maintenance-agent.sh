@@ -147,7 +147,11 @@ run_task() {
 
     # Sanitize prompt for filename and add sub-second timestamp
     local sanitized_prompt
-    sanitized_prompt=$(tr -cd 'A-Za-z0-9_.- ' <<<"$prompt_raw" | tr ' ' '_')
+    sanitized_prompt=$(
+        printf '%s' "$prompt_raw" \
+            | LC_ALL=C tr -cd 'A-Za-z0-9_.\- ' \
+            | tr ' ' '_'
+    )
     out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
 
     run_claude "$PROMPT_FLAG" "$prompt" \

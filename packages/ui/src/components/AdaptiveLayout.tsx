@@ -16,8 +16,8 @@ import { useLayoutStore, type LayoutComponentId, type LayoutPositionId } from ".
 import { ViewDisplayType } from "../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
-import { ChatCrud } from "../views/objects/chat/ChatCrud.js";
 import { SiteNavigator } from "./navigation/SiteNavigator.js";
+import { RightDrawerContent } from "./RightDrawerContent.js";
 
 // Drawer sizes and limits
 const LEFT_DRAWER_WIDTH_DEFAULT_PX = 280;
@@ -80,7 +80,7 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
                     ? <Story args={{ display }} />
                     : <Routes sessionChecked={session !== undefined} display={display} />;
             case "secondary":
-                return <ChatCrud display={display} isCreate={false} />;
+                return <RightDrawerContent display={display} />;
             default:
                 return <Box>Unknown component</Box>;
         }
