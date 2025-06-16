@@ -22,7 +22,7 @@ set -euo pipefail
 ###############################################################################
 FALLBACK_USER=${FALLBACK_USER:-matt}
 LONG_ENOUGH_S=${LONG_ENOUGH_S:-360}
-TIGHT_COOLDOWN_S=${TIGHT_COOLDOWN_S:-5}
+TIGHT_COOLDOWN_S=${TIGHT_COOLDOWN_S:-30}
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 AGENT_SCRIPT="${SCRIPT_DIR}/maintenance-agent.sh"
@@ -40,12 +40,14 @@ fi
 
 # Task table:  name|schedule|prompt|turns
 TASKS=(
-  'TEST_QUALITY|every:900|Do maintenance task TEST_QUALITY in the shared package. Make sure you `pnpm run test` modified files and address any failures|50'
+  'TEST_QUALITY|tight|Do maintenance task TEST_QUALITY in the shared package. Make sure you `pnpm run test` modified files and address any failures|50'
   'TEST_COVERAGE|every:3600|Do maintenance task TEST_COVERAGE in the shared package|50'
   'UNSAFE_CASTS|every:3600|Do maintenance task UNSAFE_CASTS in the shared package|100'
   'CODE_QUALITY|every:3600|Do maintenance task CODE_QUALITY in the shared package|100'
   'TODO_CLEANUP|at:05:00|Do maintenance task TODO_CLEANUP in the shared package|300'
 )
+
+echo "🔍  Starting maintenance-supervisor for user '$FALLBACK_USER'"
 
 ###############################################################################
 # INTERNALS (you normally don’t touch these)

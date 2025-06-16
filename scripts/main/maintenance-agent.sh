@@ -23,12 +23,26 @@ FALLBACK_USER=${FALLBACK_USER:-matt}
 if [[ $EUID -eq 0 ]]; then
   echo "⚠️  Detected root privileges. Re-executing as '${FALLBACK_USER}'..."
   if id -u "$FALLBACK_USER" &>/dev/null; then
-    # Re-exec the same script under the fallback user, preserving all args.
-    exec sudo -u "$FALLBACK_USER" -- "$(realpath "$0")" "$@"
+    if command -v sudo &>/dev/null; then
+      # Re-exec the same script under the fallback user, preserving all args.
+      exec sudo -u "$FALLBACK_USER" -- "$(realpath "$0")" "$@"
+    elif command -v su &>/dev/null; then
+      # Fallback if sudo is unavailable.
+      exec su -s /bin/bash - "$FALLBACK_USER" -c "$(printf '%q ' "$(realpath "$0")" "$@")"
+    else
+      echo "❌  Neither sudo nor su available for privilege drop." >&2
+      exit 1
+    fi
   else
     echo "❌  Fallback user '${FALLBACK_USER}' does not exist." >&2
     exit 1
   fi
+fi
+
+# Ensure $HOME is correct after any privilege drop.
+if [[ -z "${HOME:-}" || "$HOME" == "/root" ]]; then
+  HOME=$(getent passwd "$USER" | cut -d: -f6)
+  export HOME
 fi
 
 ###############################################################################
@@ -44,7 +58,7 @@ NEEDED_TOOLS=(
 
 log_dir="logs/$(date +%F)"
 mkdir -p "$log_dir"
-trap 'echo -e "\n🔴  Aborted"; exit 130' INT
+trap 'echo -e "\n🔴  Aborted"; kill 0; exit 130' INT
 
 ###############################################################################
 # Discover all settings files that could block us
@@ -75,7 +89,7 @@ patch_settings() {
   jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" | jq -R . | jq -s .)" '
       (.permissions //= {}) |
       (.permissions.allow //= []) |
-      (.permissions.allow |= (. + $need | unique))
+      (.permissions.allow |= (. + $need) | sort | unique)
     ' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
@@ -98,9 +112,11 @@ fi
 # Wrapper that retries once with --dangerously-skip-permissions
 ###############################################################################
 run_claude() {
-  "$CLAUDE" "$@" || {
-    echo "⚠️  CLI exited non-zero; retrying with --dangerously-skip-permissions" >&2
-    "$CLAUDE" --dangerously-skip-permissions "$@"
+  "$CLAUDE" "$@" && return 0
+  echo "⚠️  CLI exited non-zero; retrying with --dangerously-skip-permissions" >&2
+  "$CLAUDE" --dangerously-skip-permissions "$@" || {
+    echo "❌  Second attempt failed – continuing to next batch" >&2
+    return 0
   }
 }
 
@@ -108,24 +124,33 @@ run_claude() {
 # Core batch runner
 ###############################################################################
 run_task() {
-  local prompt=$1 turns_total=$2
+  local prompt_raw=$1 turns_total=$2
   [[ $turns_total =~ ^[0-9]+$ ]] || { echo "Turns must be numeric"; exit 1; }
 
-  echo -e "\n🛠️  \"$prompt\" ($turns_total turns)"
+  # Inject current date into the prompt
+  local date_str
+  date_str=$(date +%F)
+  local prompt="[$date_str] $prompt_raw"
+
+  echo -e "\n🛠️  \"$prompt_raw\" ($turns_total turns)"
   local remain=$turns_total session=""
   while (( remain > 0 )); do
     local t=$(( remain < BATCH_SIZE ? remain : BATCH_SIZE ))
     echo "➡️  Batch $t  (left $remain)"
 
-    out_file="$log_dir/$(date +%H%M%S)_${prompt// /_}.json"
+    # Sanitize prompt for filename and add sub-second timestamp
+    local sanitized_prompt
+    sanitized_prompt=$(tr -cd 'A-Za-z0-9_.- ' <<<"$prompt_raw" | tr ' ' '_')
+    out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
+
     run_claude "$PROMPT_FLAG" "$prompt" \
        --max-turns "$t" --output-format stream-json --verbose \
        ${session:+--resume "$session"} \
        | tee "$out_file"
 
-    session=$(grep -oP '"sessionId"\s*:\s*"\K[^"]+' "$out_file" | tail -1 || true)
+    session=$(jq -r '(.sessionId // .session_id // empty)' "$out_file" | tail -1 || true)
     (( remain -= t ))
-    (( remain )) && { sleep "$COOLDOWN_SECONDS"; }
+    (( remain )) && sleep "$COOLDOWN_SECONDS"
   done
 }
 
