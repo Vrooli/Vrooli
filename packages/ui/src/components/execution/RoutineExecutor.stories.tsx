@@ -63,20 +63,81 @@ function createMockResourceVersion(
     subType: ResourceSubType = ResourceSubType.RoutineMultiStep,
     config?: any
 ): ResourceVersion {
+    // Generate appropriate descriptions and configs based on routine type
+    const routineTypeConfigs = {
+        [ResourceSubType.RoutineMultiStep]: {
+            description: "A comprehensive multi-step workflow for complex processes",
+            defaultName: "Multi-Step Workflow",
+            config: config || {
+                graph: {
+                    nodes: [
+                        { id: "step-1", data: { routine: { name: "Initialize Process" } } },
+                        { id: "step-2", data: { routine: { name: "Process Data" } } },
+                        { id: "step-3", data: { routine: { name: "Generate Report" } } },
+                        { id: "step-4", data: { routine: { name: "Send Notification" } } }
+                    ]
+                }
+            }
+        },
+        [ResourceSubType.RoutineInternalAction]: {
+            description: "Internal system action for managing Vrooli resources",
+            defaultName: "Internal Action",
+            config: config || { callDataAction: { toolName: "ResourceManage" } }
+        },
+        [ResourceSubType.RoutineApi]: {
+            description: "REST API call routine for external service integration",
+            defaultName: "API Call",
+            config: config || { callDataApi: { endpoint: "https://api.example.com/data", method: "POST" } }
+        },
+        [ResourceSubType.RoutineCode]: {
+            description: "Sandboxed code execution routine for data transformation",
+            defaultName: "Code Execution",
+            config: config || { callDataCode: { inputTemplate: {}, outputMappings: [] } }
+        },
+        [ResourceSubType.RoutineData]: {
+            description: "Data processing and transformation routine",
+            defaultName: "Data Processing",
+            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } }
+        },
+        [ResourceSubType.RoutineGenerate]: {
+            description: "AI-powered content generation routine",
+            defaultName: "AI Generation",
+            config: config || { callDataGenerate: { prompt: "Generate content based on input", maxTokens: 1000 } }
+        },
+        [ResourceSubType.RoutineInformational]: {
+            description: "Information retrieval and display routine",
+            defaultName: "Information Retrieval",
+            config: config || { formInput: { elements: [] }, formOutput: { elements: [] } }
+        },
+        [ResourceSubType.RoutineSmartContract]: {
+            description: "Blockchain smart contract interaction routine",
+            defaultName: "Smart Contract",
+            config: config || { callDataSmartContract: { contractAddress: "0x...", chain: "ethereum", methodName: "transfer" } }
+        },
+        [ResourceSubType.RoutineWeb]: {
+            description: "Web search and content retrieval routine",
+            defaultName: "Web Search",
+            config: config || { callDataWeb: { queryTemplate: "Search for {{input.query}}", outputMapping: {} } }
+        }
+    };
+
+    const typeConfig = routineTypeConfigs[subType] || routineTypeConfigs[ResourceSubType.RoutineMultiStep];
+    const displayName = name === "Data Processing Routine" ? typeConfig.defaultName : name;
+    
     return {
         id: generatePK().toString(),
-        name,
-        description: "A comprehensive routine for processing data files",
+        name: displayName,
+        description: typeConfig.description,
         versionLabel: "1.0.2",
         isComplete: true,
         isPrivate: false,
         resourceSubType: subType,
-        config: config,
+        config: typeConfig.config,
         translations: [{
             id: generatePK().toString(),
             language: "en",
-            name,
-            description: "A comprehensive routine for processing data files",
+            name: displayName,
+            description: typeConfig.description,
         }],
         __typename: "ResourceVersion",
     } as ResourceVersion;
@@ -154,9 +215,14 @@ export function Showcase() {
                             onChange={(e) => setRoutineType(e.target.value as ResourceSubType)}
                         >
                             <MenuItem value={ResourceSubType.RoutineMultiStep}>Multi-Step Workflow</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineInternalAction}>Internal Action</MenuItem>
                             <MenuItem value={ResourceSubType.RoutineApi}>API Call</MenuItem>
-                            <MenuItem value={ResourceSubType.RoutineGenerate}>AI Generation</MenuItem>
                             <MenuItem value={ResourceSubType.RoutineCode}>Code Execution</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineData}>Data Processing</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineGenerate}>AI Generation</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineInformational}>Information Retrieval</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineSmartContract}>Smart Contract</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineWeb}>Web Search</MenuItem>
                         </Select>
                     </FormControl>
 

@@ -42,6 +42,18 @@ function AnimatedEllipsis() {
     return <span>{dots}</span>;
 }
 
+// Helper function to calculate elapsed time
+function calculateElapsedTime(startTime?: string, endTime?: string): string {
+    if (!startTime) return "";
+    const start = new Date(startTime).getTime();
+    const end = endTime ? new Date(endTime).getTime() : Date.now();
+    const duration = Math.floor((end - start) / 1000);
+    
+    if (duration < 60) return `${duration}s`;
+    if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`;
+    return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+}
+
 export function ExecutionTimeline({
     steps,
     currentStepIndex,
@@ -144,9 +156,9 @@ export function ExecutionTimeline({
                                         ? "primary.main"
                                         : step.status === "failed"
                                         ? "error.main"
-                                        : "action.disabled",
-                                    border: step.status === "pending" ? 2 : 0,
-                                    borderColor: "divider",
+                                        : "background.paper",
+                                    border: step.status === "pending" ? 2 : step.status === "running" ? 2 : 0,
+                                    borderColor: step.status === "pending" ? "divider" : step.status === "running" ? "success.main" : "transparent",
                                     ...(step.status === "running" && {
                                         animation: "pulse 2s ease-in-out infinite",
                                         "@keyframes pulse": {
@@ -188,7 +200,7 @@ export function ExecutionTimeline({
                                 )}
                                 {step.status === "completed" && isPast && (
                                     <Typography variant="caption" color="success.main" sx={{ fontWeight: 500 }}>
-                                        Completed
+                                        Completed{calculateElapsedTime(step.startTime, step.endTime) && ` • ${calculateElapsedTime(step.startTime, step.endTime)}`}
                                     </Typography>
                                 )}
                                 {step.error && (

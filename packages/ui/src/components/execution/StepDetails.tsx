@@ -1,7 +1,9 @@
-import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow } from "@mui/material";
+import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow, IconButton, Collapse } from "@mui/material";
 import { ExecutionStep } from "./RoutineExecutor.js";
 import { IconCommon } from "../../icons/Icons.js";
-import { ResourceVersion, ResourceSubType } from "@vrooli/shared";
+import { ResourceVersion, ResourceSubType, CodeLanguage } from "@vrooli/shared";
+import { useState } from "react";
+import { CodeInputBase } from "../inputs/CodeInput/CodeInput.js";
 
 interface StepDetailsProps {
     step?: ExecutionStep;
@@ -10,6 +12,7 @@ interface StepDetailsProps {
     currentStepIndex: number;
     resourceVersion?: ResourceVersion;
     currentSubroutine?: ResourceVersion;
+    onConfigExpandChange?: (expanded: boolean) => void;
 }
 
 function formatValue(value: unknown): string {
@@ -30,7 +33,19 @@ function calculateDuration(startTime?: string, endTime?: string): string {
 }
 
 // Component to display routine-type specific information
-function RoutineTypeDetails({ resourceVersion, config }: { resourceVersion?: ResourceVersion; config?: any }) {
+function RoutineTypeDetails({ resourceVersion, config, onConfigExpandChange }: { 
+    resourceVersion?: ResourceVersion; 
+    config?: any;
+    onConfigExpandChange?: (expanded: boolean) => void;
+}) {
+    const [showFullConfig, setShowFullConfig] = useState(false);
+    
+    const handleToggleConfig = () => {
+        const newState = !showFullConfig;
+        setShowFullConfig(newState);
+        onConfigExpandChange?.(newState);
+    };
+    
     if (!resourceVersion || !resourceVersion.resourceSubType) return null;
 
     const routineType = resourceVersion.resourceSubType;
@@ -222,16 +237,29 @@ function RoutineTypeDetails({ resourceVersion, config }: { resourceVersion?: Res
 
     return (
         <Paper variant="outlined" sx={{ p: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                <Typography variant="subtitle2">
-                    Routine Information
-                </Typography>
-                <Chip
-                    label={routineType.replace("Routine", "")}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="subtitle2">
+                        Routine Information
+                    </Typography>
+                    <Chip
+                        label={routineType.replace("Routine", "")}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                    />
+                </Box>
+                <IconButton
                     size="small"
-                    color="primary"
-                    variant="outlined"
-                />
+                    onClick={handleToggleConfig}
+                    title={showFullConfig ? "Hide configuration" : "Show full configuration"}
+                    sx={{
+                        transform: showFullConfig ? "rotate(180deg)" : "rotate(0deg)",
+                        transition: "transform 0.2s"
+                    }}
+                >
+                    <IconCommon name="ExpandMore" size={20} />
+                </IconButton>
             </Box>
             
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -239,6 +267,24 @@ function RoutineTypeDetails({ resourceVersion, config }: { resourceVersion?: Res
             </Typography>
 
             {renderTypeSpecificContent()}
+
+            {/* Expandable Full Configuration */}
+            <Collapse in={showFullConfig} timeout="auto" unmountOnExit>
+                <Box sx={{ mt: 2 }}>
+                    <Divider sx={{ mb: 2 }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                        Full Configuration
+                    </Typography>
+                    <CodeInputBase
+                        codeLanguage={CodeLanguage.Json}
+                        content={JSON.stringify(routineConfig, null, 2)}
+                        disabled={true}
+                        handleCodeLanguageChange={() => { }}
+                        handleContentChange={() => { }}
+                        name="routine-config"
+                    />
+                </Box>
+            </Collapse>
         </Paper>
     );
 }
@@ -250,7 +296,55 @@ export function StepDetails({
     currentStepIndex,
     resourceVersion,
     currentSubroutine,
+    onConfigExpandChange,
 }: StepDetailsProps) {
+    // For single-step routines, show just the routine information
+    if (!step && totalSteps === 0) {
+        return (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {/* Routine-Specific Information */}
+                {resourceVersion && (
+                    <RoutineTypeDetails 
+                        resourceVersion={resourceVersion}
+                        config={resourceVersion.config}
+                        onConfigExpandChange={onConfigExpandChange}
+                    />
+                )}
+
+                {/* Context Values */}
+                {Object.keys(contextValues).length > 0 && (
+                    <Paper variant="outlined" sx={{ p: 2 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                            Context
+                        </Typography>
+                        <Box sx={{ mt: 1 }}>
+                            {Object.entries(contextValues).map(([key, value], index) => (
+                                <Box key={key}>
+                                    {index > 0 && <Divider sx={{ my: 1 }} />}
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                            {key}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                fontFamily: "monospace",
+                                                whiteSpace: "pre-wrap",
+                                                wordBreak: "break-word",
+                                            }}
+                                        >
+                                            {formatValue(value)}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Box>
+                    </Paper>
+                )}
+            </Box>
+        );
+    }
+
     if (!step) {
         return (
             <Box sx={{ p: 3, textAlign: "center" }}>
@@ -261,38 +355,9 @@ export function StepDetails({
         );
     }
 
-    const statusConfig = {
-        pending: { color: "default", icon: "Add" },
-        running: { color: "primary", icon: "Pause" },
-        completed: { color: "success", icon: "Complete" },
-        failed: { color: "error", icon: "Error" },
-    } as const;
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Header with step info */}
-            <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
-                    <Typography variant="h5">
-                        {step.name}
-                    </Typography>
-                    <Chip
-                        label={step.status.charAt(0).toUpperCase() + step.status.slice(1)}
-                        color={statusConfig[step.status].color as any}
-                        size="small"
-                        icon={<IconCommon name={statusConfig[step.status].icon} size={16} />}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                        Step {currentStepIndex + 1} of {totalSteps}
-                    </Typography>
-                </Box>
-                {step.description && (
-                    <Typography variant="body1" color="text.secondary">
-                        {step.description}
-                    </Typography>
-                )}
-            </Box>
-
             {/* Execution Metrics */}
             <Paper variant="outlined" sx={{ p: 2 }}>
                 <Typography variant="subtitle2" gutterBottom>
@@ -382,6 +447,7 @@ export function StepDetails({
                 <RoutineTypeDetails 
                     resourceVersion={currentSubroutine || resourceVersion}
                     config={(currentSubroutine || resourceVersion)?.config}
+                    onConfigExpandChange={onConfigExpandChange}
                 />
             )}
 
