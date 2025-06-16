@@ -30,6 +30,7 @@ import { ELEMENT_IDS } from "../../utils/consts.js";
 import { darkPalette } from "../../utils/display/theme.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTiers, PricingTierType } from "../ProView/ProView.js";
+import { InstallPWADialog } from "../../components/dialogs/InstallPWADialog/InstallPWADialog.js";
 import { type LandingViewProps } from "./types.js";
 
 // Lazy load the animation components
@@ -431,6 +432,11 @@ export function LandingView({
         setIsCreditDialogOpen(false);
     }
 
+    const [isInstallPWADialogOpen, setIsInstallPWADialogOpen] = useState(false);
+    function closeInstallPWADialog() {
+        setIsInstallPWADialogOpen(false);
+    }
+
     function onTierClick(tier: PricingTierType) {
         switch (tier) {
             case PricingTierType.Basic:
@@ -476,7 +482,7 @@ export function LandingView({
         openLink(setLocation, LINKS.Signup);
     }
     function toApp() {
-        openLink(setLocation, LINKS.Signup); //TODO: Change to popup that shows app download options and instructions for installing the app from the website
+        setIsInstallPWADialogOpen(true);
     }
     function toGitHub() {
         openLink(setLocation, SOCIALS.GitHub);
@@ -568,6 +574,10 @@ export function LandingView({
                 onClose={closeCreditDialog}
                 startCheckout={startCheckout}
             />
+            <InstallPWADialog
+                open={isInstallPWADialogOpen}
+                onClose={closeInstallPWADialog}
+            />
             <PageContainer size="fullSize">
                 <Suspense fallback={<Box sx={{ background: "black", position: "fixed", width: "100%", height: "100%", zIndex: 0 }} />}>
                     <NeonScene isVisible={earthPosition === "hidden"} />
@@ -639,12 +649,12 @@ export function LandingView({
                             </HalfWidth>
                             <HalfWidth>
                                 <RightGridContent>
-                                    <SlideTitle variant='h2'>Self-Improving AI Swarms</SlideTitle>
+                                    <SlideTitle variant='h2'>Build Anything Without Writing Code</SlideTitle>
                                     <SlideText variant="h3">
-                                        Unlike static automation, our AI agents form dynamic swarms that learn, adapt, and enhance their own capabilities through collaborative intelligence.
+                                        Just describe what you want. Your AI swarm handles the rest. Want a fitness app? They'll design interfaces, write code, create content, and prepare store listings. Need a data dashboard? They'll connect APIs, analyze patterns, and build visualizations.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Every task completed, every pattern learned, every optimization discovered—it all compounds throughout the system, creating exponential growth in what your agents can accomplish.
+                                        No technical skills required. No team to manage. No months of development. Whether it's an app, a business, or a research project—if you can describe it, your swarm can build it.
                                     </SlideText>
                                 </RightGridContent>
                             </HalfWidth>
@@ -652,15 +662,15 @@ export function LandingView({
                         <FullWidth id={ELEMENT_IDS.LandingViewSlideRoutines}>
                             <HalfWidth>
                                 <LeftGridContent>
-                                    <SlideTitle variant='h2'>Evolutionary Routines That Get Smarter</SlideTitle>
+                                    <SlideTitle variant='h2'>Work That Gets Better While You Sleep</SlideTitle>
                                     <SlideText variant="h3">
-                                        Routines aren't just workflows—they're living intelligence that evolves from conversational interactions to sophisticated automation.
+                                        Set up a workflow once. Watch it improve itself. What took an hour last week takes minutes today. Your AI agents learn from every run, finding shortcuts you never imagined.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Starting at 450 credits and 5+ minutes, watch as your routines optimize themselves down to 75 credits and 45 seconds while improving quality.
+                                        No more tweaking, optimizing, or managing. Your routines evolve like living things—getting faster, smarter, and more efficient with each use. Wake up to workflows that run better than when you left them.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        With recursive composition and unlimited nesting, every routine becomes a building block for exponentially more sophisticated capabilities.
+                                        Build complex processes from simple pieces. Like digital LEGO blocks that assemble themselves into whatever you need. The more you build, the more powerful each piece becomes.
                                     </SlideText>
                                 </LeftGridContent>
                             </HalfWidth>
@@ -684,12 +694,12 @@ export function LandingView({
                             </HalfWidth>
                             <HalfWidth>
                                 <RightGridContent>
-                                    <SlideTitle variant='h2'>Hierarchical Intelligence at Scale</SlideTitle>
+                                    <SlideTitle variant='h2'>Your AI Company, Running at Light Speed</SlideTitle>
                                     <SlideText variant="h3">
-                                        Our three-tier architecture enables true organizational intelligence: coordination tier for strategic planning, process tier for workflow orchestration, and execution tier for adaptive task completion.
+                                        Think of it as a self-organizing company in your pocket. AI executives set strategy. AI managers break down goals. AI workers execute with precision. All coordinating in perfect harmony, 24/7, at the speed of thought.
                                     </SlideText>
                                     <SlideText variant="h3">
-                                        Teams provide strategic direction while dynamic swarms handle tactical execution. Using MOISE+ organizational modeling, agents form sophisticated hierarchies that adapt to any challenge.
+                                        When challenges arise, watch your swarm dynamically reorganize—forming specialist teams, hierarchies, and workflows on demand. Problems that took weeks now solve themselves while you sleep.
                                     </SlideText>
                                 </RightGridContent>
                             </HalfWidth>
@@ -709,8 +719,8 @@ export function LandingView({
                         />
                         <SlideContent id={ELEMENT_IDS.LandingViewSlidePricing}>
                             <Box display="flex" flexDirection="column" pl={2} pr={2} pt={4} alignItems="center" minHeight="100vh" justifyContent="center" zIndex={PAGE_LAYERS.Content}>
-                                <SlideTitle variant='h2'>Democratizing Recursive Intelligence</SlideTitle>
-                                <SlideText>Making self-improving AI accessible to everyone.</SlideText>
+                                <SlideTitle variant='h2'>Start Free. Scale Infinitely.</SlideTitle>
+                                <SlideText>Because big ideas deserve big teams—regardless of your budget.</SlideText>
                                 <Box mt={4} mb={2}>
                                     <BillingCycleToggle value={billingCycle} onChange={setBillingCycle} />
                                 </Box>
