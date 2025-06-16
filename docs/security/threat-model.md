@@ -407,8 +407,8 @@ graph TB
 
 - [Security Best Practices](best-practices.md)
 - [Incident Response](incident-response.md)
-- [AI Security](ai-security.md)
-- [Security Monitoring](monitoring.md)
+- [Security Agents](../architecture/execution/emergent-capabilities/agent-examples/security-agents.md)
+- [Monitoring Agents](../architecture/execution/emergent-capabilities/routine-examples/monitoring-agents.md)
 
 ---
 
