@@ -1,10 +1,6 @@
-import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import IconButton from "@mui/material/IconButton";
-import type { IconButtonProps } from "@mui/material/IconButton";
-import type { Palette } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { styled, useTheme } from "@mui/material/styles";
@@ -15,6 +11,7 @@ import { useSpeech } from "../../hooks/useSpeech.js";
 import { Icon } from "../../icons/Icons.js";
 import { Z_INDEX } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
+import { IconButton, type IconButtonVariant } from "./IconButton.js";
 import { type MicrophoneButtonProps } from "./types.js";
 
 type MicrophoneStatus = "On" | "Off" | "Disabled";
@@ -22,22 +19,6 @@ type MicrophoneStatus = "On" | "Off" | "Disabled";
 const HINT_AFTER_MILLI = 3000;
 const DEFAULT_HEIGHT = 48;
 const DEFAULT_WIDTH = 48;
-const PADDING_SMALL_THRESHOLD_PX = 16;
-const PADDING_MEDIUM_THRESHOLD_PX = 32;
-
-type StyledIconButtonProps = IconButtonProps & {
-    disabled?: boolean;
-    height?: number;
-    status: MicrophoneStatus;
-    width?: number;
-};
-const StyledIconButton = styled(IconButton)<StyledIconButtonProps>(({ theme, disabled, height, status, width }) => ({
-    width: width || DEFAULT_WIDTH,
-    height: height || DEFAULT_HEIGHT,
-    padding: (width && width <= PADDING_SMALL_THRESHOLD_PX) ? "0px" : (width && width <= PADDING_MEDIUM_THRESHOLD_PX) ? "4px" : "8px",
-    background: status === "On" ? theme.palette.background.textSecondary : "transparent",
-    opacity: disabled ? 0.5 : 1,
-}));
 
 interface TranscriptDialogProps {
     handleClose: () => unknown;
@@ -46,37 +27,24 @@ interface TranscriptDialogProps {
     transcript: string;
 }
 
-function waveBarSx(palette: Palette) {
-    return {
-        width: "8px",
-        background: `linear-gradient(to top, ${palette.secondary.dark}, ${palette.secondary.light})`,
-        animation: "waveAnimation 1s infinite ease-in-out",
-        borderRadius: "5px",
-        "&:nth-child(2)": { animationDelay: "0.1s" },
-        "&:nth-child(3)": { animationDelay: "0.2s" },
-        "&:nth-child(4)": { animationDelay: "0.3s" },
-        "&:nth-child(5)": { animationDelay: "0.4s" },
-    };
+// WaveForm component using Tailwind classes
+function WaveForm() {
+    return (
+        <div className="tw-flex tw-justify-center tw-items-center tw-mb-4 tw-h-[50px] tw-gap-2">
+            <div className="tw-wave-bar" />
+            <div className="tw-wave-bar" />
+            <div className="tw-wave-bar" />
+            <div className="tw-wave-bar" />
+            <div className="tw-wave-bar" />
+        </div>
+    );
 }
 
-const WaveForm = styled(Box)(() => ({
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: "16px",
-    height: "50px",
-    gap: "8px",
-    "@keyframes waveAnimation": {
-        "0%, 40%, 100%": { height: "20px" },
-        "20%": { height: "50px" },
-    },
-}));
-
-const CustomDialog = styled(Dialog)(({ theme }) => ({
+const CustomDialog = styled(Dialog)(() => ({
     zIndex: Z_INDEX.Popup,
     "& > .MuiDialog-container": {
         "& > .MuiPaper-root": {
-            borderRadius: theme.spacing(2),
+            borderRadius: "16px",
             zIndex: Z_INDEX.Popup,
         },
     },
@@ -92,7 +60,6 @@ export function TranscriptDialog({
     transcript,
 }: TranscriptDialogProps) {
     const { t } = useTranslation();
-    const { palette } = useTheme();
 
     return (
         <CustomDialog
@@ -101,13 +68,7 @@ export function TranscriptDialog({
         >
             <DialogTitle>{t("Listening")}</DialogTitle>
             <DialogContent>
-                <WaveForm>
-                    <Box sx={waveBarSx(palette)}></Box>
-                    <Box sx={waveBarSx(palette)}></Box>
-                    <Box sx={waveBarSx(palette)}></Box>
-                    <Box sx={waveBarSx(palette)}></Box>
-                    <Box sx={waveBarSx(palette)}></Box>
-                </WaveForm>
+                <WaveForm />
                 {/* Centered transcript */}
                 <Typography align="center" variant="body1">
                     {transcript.length > 0 ? transcript : showHint ? t("SpeakClearly") : ""}
@@ -119,6 +80,13 @@ export function TranscriptDialog({
 
 
 /**
+ * Extended MicrophoneButton props including variant
+ */
+export interface ExtendedMicrophoneButtonProps extends MicrophoneButtonProps {
+    variant?: IconButtonVariant;
+}
+
+/**
  * A microphone icon that can be used to trigger speech recognition
  */
 export function MicrophoneButton({
@@ -127,8 +95,9 @@ export function MicrophoneButton({
     height = DEFAULT_HEIGHT,
     onTranscriptChange,
     showWhenUnavailable = false,
+    variant = "transparent",
     width = DEFAULT_WIDTH,
-}: MicrophoneButtonProps) {
+}: ExtendedMicrophoneButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -189,6 +158,9 @@ export function MicrophoneButton({
         return true;
     }, [status, stopListening, transcript, startListening, resetTranscript, resetTranscriptTimeout]);
 
+    // Use custom size if width/height differ from defaults
+    const size = width === height ? width : width || DEFAULT_WIDTH;
+
     if (!isSpeechSupported && !showWhenUnavailable) return null;
     return (
         <>
@@ -199,20 +171,22 @@ export function MicrophoneButton({
                 transcript={transcript}
             />
             <Tooltip title={isMicrophoneDisabled ? t("SpeechNotAvailable") : t("SearchByVoice")}>
-                <StyledIconButton
-                    aria-disabled={isMicrophoneDisabled}
-                    aria-label="Search by voice"
-                    height={height}
-                    onClick={handleClick}
-                    status={status}
-                    width={width}
-                >
-                    <Icon
-                        decorative
-                        fill={status === "On" ? palette.background.default : (fill ?? palette.background.textPrimary)}
-                        info={iconInfo}
-                    />
-                </StyledIconButton>
+                <span>
+                    <IconButton
+                        variant={variant}
+                        size={size}
+                        className={status === "On" ? "tw-microphone-listening tw-animate-microphone-pulse" : undefined}
+                        disabled={isMicrophoneDisabled}
+                        aria-label="Search by voice"
+                        onClick={handleClick}
+                    >
+                        <Icon
+                            decorative
+                            fill={status === "On" ? palette.background.default : fill}
+                            info={iconInfo}
+                        />
+                    </IconButton>
+                </span>
             </Tooltip>
         </>
     );

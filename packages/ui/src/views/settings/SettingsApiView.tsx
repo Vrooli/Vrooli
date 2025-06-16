@@ -13,6 +13,7 @@ import FormGroup from "@mui/material/FormGroup";
 import FormHelperText from "@mui/material/FormHelperText";
 import FormLabel from "@mui/material/FormLabel";
 import IconButton from "@mui/material/IconButton";
+import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
@@ -20,7 +21,7 @@ import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
-import { ApiKeyPermission, DeleteType, FormStructureType, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User } from "@vrooli/shared";
+import { ApiKeyPermission, DeleteType, FormStructureType, ResourceType, ResourceSearchInput, ResourceSearchResult, Resource, ApiVersionConfig, endpointsActions, endpointsApiKey, endpointsApiKeyExternal, endpointsResource, endpointsAuth, noop, type ApiKey, type ApiKeyCreateInput, type ApiKeyCreated, type ApiKeyExternal, type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, type ApiKeyUpdateInput, type DeleteOneInput, type Success, type User, type OAuthInitiateInput, type OAuthInitiateResult } from "@vrooli/shared";
 import { Formik } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -305,75 +306,156 @@ export function ApiKeyPermissionsSelector({
     }
 
     return (
-        <Box>
+        <Box sx={{ mt: 2 }}>
             <FormControl component="fieldset" fullWidth>
-                <FormLabel component="legend">API Key Permission Level</FormLabel>
+                <FormLabel component="legend" sx={{ fontWeight: 600, color: "text.primary", mb: 2 }}>
+                    API Key Permission Level
+                </FormLabel>
                 <RadioGroup
                     value={selectedPreset}
                     onChange={handlePresetChange}
+                    sx={{ gap: 1.5 }}
                 >
                     {Object.entries(PERMISSION_PRESETS).map(([key, preset]) => (
-                        <FormControlLabel
+                        <Box
                             key={key}
-                            value={key}
-                            control={<Radio />}
+                            onClick={() => handlePresetChange({ target: { value: key } } as any)}
+                            sx={{
+                                border: 1,
+                                borderColor: selectedPreset === key ? "primary.main" : "divider",
+                                borderRadius: 2,
+                                p: 2,
+                                bgcolor: selectedPreset === key ? "rgba(15, 170, 170, 0.08)" : "background.paper",
+                                transition: "all 0.2s ease",
+                                cursor: "pointer",
+                                "&:hover": {
+                                    borderColor: "primary.main",
+                                    bgcolor: "rgba(15, 170, 170, 0.08)",
+                                },
+                            }}
+                        >
+                            <FormControlLabel
+                                value={key}
+                                control={<Radio sx={{ mt: -0.5 }} />}
+                                label={
+                                    <Box>
+                                        <Typography variant="body1" fontWeight={600}>
+                                            {preset.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                            {preset.description}
+                                        </Typography>
+                                    </Box>
+                                }
+                                sx={{ m: 0, alignItems: "flex-start", width: "100%" }}
+                            />
+                        </Box>
+                    ))}
+                    <Box
+                        onClick={(e) => {
+                            // Don't trigger if clicking on a child checkbox
+                            if ((e.target as HTMLElement).type !== 'checkbox') {
+                                handlePresetChange({ target: { value: "custom" } } as any);
+                            }
+                        }}
+                        sx={{
+                            border: 1,
+                            borderColor: selectedPreset === "custom" ? "primary.main" : "divider",
+                            borderRadius: 2,
+                            p: 2,
+                            bgcolor: selectedPreset === "custom" ? "rgba(15, 170, 170, 0.08)" : "background.paper",
+                            transition: "all 0.2s ease",
+                            cursor: "pointer",
+                            "&:hover": {
+                                borderColor: "primary.main",
+                                bgcolor: "rgba(15, 170, 170, 0.08)",
+                            },
+                        }}
+                    >
+                        <FormControlLabel
+                            value="custom"
+                            control={<Radio sx={{ mt: -0.5 }} />}
                             label={
                                 <Box>
-                                    <Typography variant="body1">{preset.name}</Typography>
-                                    <Typography variant="body2" color="text.secondary">{preset.description}</Typography>
+                                    <Typography variant="body1" fontWeight={600}>
+                                        Custom Permissions
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                        Select individual permissions
+                                    </Typography>
                                 </Box>
                             }
+                            sx={{ m: 0, alignItems: "flex-start", width: "100%" }}
                         />
-                    ))}
-                    <FormControlLabel
-                        value="custom"
-                        control={<Radio />}
-                        label={
-                            <Box>
-                                <Typography variant="body1">Custom Permissions</Typography>
-                                <Typography variant="body2" color="text.secondary">Select individual permissions</Typography>
-                            </Box>
-                        }
-                    />
-                </RadioGroup>
-            </FormControl>
-
-            {selectedPreset === "custom" && (
-                <Box mt={3} ml={4}>
-                    <FormControl component="fieldset" fullWidth>
-                        <FormLabel component="legend">Individual Permissions</FormLabel>
-                        <FormGroup>
-                            {Object.values(ApiKeyPermission).map((permission) => (
-                                <Box key={permission} mb={2}>
-                                    <FormControlLabel
-                                        control={
+                        
+                        {/* Individual permissions inside the custom box when selected */}
+                        {selectedPreset === "custom" && (
+                            <Box sx={{ mt: 3, pl: 4, pr: 1 }}>
+                                <Divider sx={{ mb: 2 }} />
+                                <FormGroup sx={{ gap: 2 }}>
+                                    {Object.values(ApiKeyPermission).map((permission) => (
+                                        <Box 
+                                            key={permission}
+                                            onClick={() => handlePermissionToggle(permission, !selectedPermissions.includes(permission))}
+                                            sx={{
+                                                p: 2,
+                                                border: 1,
+                                                borderColor: "divider",
+                                                borderRadius: 1,
+                                                bgcolor: "background.default",
+                                                cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "flex-start",
+                                                gap: 2,
+                                                "&:hover": {
+                                                    borderColor: "primary.main",
+                                                    bgcolor: "background.paper",
+                                                },
+                                            }}
+                                        >
                                             <Checkbox
                                                 checked={selectedPermissions.includes(permission)}
-                                                onChange={(e) => handlePermissionToggle(permission, e.target.checked)}
+                                                onChange={(e) => {
+                                                    e.stopPropagation();
+                                                    handlePermissionToggle(permission, e.target.checked);
+                                                }}
+                                                sx={{
+                                                    p: 0,
+                                                    mt: 0.25,
+                                                    color: "primary.main",
+                                                    "&.Mui-checked": {
+                                                        color: "primary.main",
+                                                    },
+                                                }}
                                             />
-                                        }
-                                        label={
-                                            <Box display="flex" alignItems="center">
-                                                <Typography variant="body1">{PERMISSION_NAMES[permission]}</Typography>
-                                                <Chip
-                                                    label={PERMISSION_SECURITY_LEVELS[permission].toUpperCase()}
-                                                    size="small"
-                                                    sx={{
-                                                        ml: 1,
-                                                        backgroundColor: getSecurityLevelColor(PERMISSION_SECURITY_LEVELS[permission]),
-                                                        color: "#fff",
-                                                    }}
-                                                />
+                                            <Box flex={1}>
+                                                <Box display="flex" alignItems="center" gap={1}>
+                                                    <Typography variant="body1" fontWeight={500}>
+                                                        {PERMISSION_NAMES[permission]}
+                                                    </Typography>
+                                                    <Chip
+                                                        label={PERMISSION_SECURITY_LEVELS[permission].toUpperCase()}
+                                                        size="small"
+                                                        sx={{
+                                                            backgroundColor: getSecurityLevelColor(PERMISSION_SECURITY_LEVELS[permission]),
+                                                            color: "#fff",
+                                                            fontSize: "0.7rem",
+                                                            height: "20px",
+                                                        }}
+                                                    />
+                                                </Box>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                    {PERMISSION_DESCRIPTIONS[permission]}
+                                                </Typography>
                                             </Box>
-                                        }
-                                    />
-                                    <FormHelperText sx={{ ml: 4 }}>{PERMISSION_DESCRIPTIONS[permission]}</FormHelperText>
-                                </Box>
-                            ))}
-                        </FormGroup>
-                    </FormControl>
-                </Box>
-            )}
+                                        </Box>
+                                    ))}
+                                </FormGroup>
+                            </Box>
+                        )}
+                    </Box>
+                </RadioGroup>
+            </FormControl>
         </Box>
     );
 }
@@ -410,47 +492,113 @@ function ApiKeyViewDialog({
             open={open}
             onClose={onClose}
             aria-labelledby="api-key-view-dialog"
-            PaperProps={dialogPaperProps}
+            PaperProps={{
+                sx: {
+                    bgcolor: "background.default",
+                    borderRadius: 3,
+                    boxShadow: 24,
+                    maxWidth: 600,
+                },
+            }}
+            maxWidth={false}
         >
-            <DialogTitle id="api-key-view-dialog">
-                Your New API Key
+            <DialogTitle 
+                id="api-key-view-dialog"
+                sx={{ 
+                    bgcolor: "success.main", 
+                    color: "success.contrastText",
+                    borderRadius: "12px 12px 0 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                }}
+            >
+                <IconCommon name="Success" size={24} />
+                <Typography variant="h5" component="h2" fontWeight={600}>
+                    Your New API Key
+                </Typography>
             </DialogTitle>
-            <DialogContent>
-                <Box display="flex" flexDirection="column" gap={2}>
-                    <Typography variant="body1">
-                        This is your new API key. Please store it in a secure location.
-                    </Typography>
-                    <Typography variant="body2" color="error">
-                        Important: This key will only be shown once. You won&apos;t be able to see it again after closing this dialog.
-                    </Typography>
-                    <Box
-                        position="relative"
-                        p={2}
-                        border={1}
-                        borderColor="divider"
-                        borderRadius={1}
-                        bgcolor={palette.background.paper}
+            <DialogContent sx={{ p: 4 }}>
+                <Box display="flex" flexDirection="column" gap={3}>
+                    <Box>
+                        <Typography variant="body1" gutterBottom sx={{ fontWeight: 500 }}>
+                            Your API key has been created successfully!
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Please store it in a secure location.
+                        </Typography>
+                    </Box>
+                    
+                    <Box 
+                        sx={{ 
+                            p: 2, 
+                            border: 2, 
+                            borderColor: "warning.main", 
+                            borderRadius: 2, 
+                            bgcolor: "warning.light",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2,
+                        }}
                     >
-                        <Typography variant="body2" pr={4} sx={{ wordBreak: "break-all" }}>
+                        <IconCommon name="Warning" fill="warning.main" size={24} />
+                        <Typography variant="body2" color="warning.dark" fontWeight={500}>
+                            Important: This key will only be shown once. You won&apos;t be able to see it again after closing this dialog.
+                        </Typography>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            position: "relative",
+                            p: 3,
+                            border: 1,
+                            borderColor: "divider",
+                            borderRadius: 2,
+                            bgcolor: palette.background.paper,
+                            fontFamily: "monospace",
+                        }}
+                    >
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                wordBreak: "break-all",
+                                fontSize: "0.9rem",
+                                lineHeight: 1.5,
+                                pr: 6,
+                            }}
+                        >
                             {apiKey}
                         </Typography>
                         <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<IconCommon name="Copy" />}
                             sx={{
                                 position: "absolute",
-                                top: 8,
-                                right: 8,
-                                minWidth: "auto",
-                                p: 1,
+                                top: 12,
+                                right: 12,
+                                borderRadius: 1.5,
                             }}
                             onClick={handleCopyKey}
                         >
-                            <IconCommon name="Copy" />
+                            Copy
                         </Button>
                     </Box>
                 </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Close</Button>
+            <DialogActions sx={{ 
+                p: 3, 
+                borderTop: 1, 
+                borderColor: "divider",
+                bgcolor: "background.paper",
+            }}>
+                <Button 
+                    onClick={onClose}
+                    variant="contained"
+                    sx={{ borderRadius: 2, minWidth: 100 }}
+                >
+                    Close
+                </Button>
             </DialogActions>
         </Dialog>
     );
@@ -577,14 +725,30 @@ export function ApiKeyDialog({
         <Dialog
             open={open}
             onClose={onClose}
-            PaperProps={dialogPaperProps}
-            maxWidth="md"
+            PaperProps={{
+                sx: {
+                    bgcolor: "background.default",
+                    borderRadius: 3,
+                    boxShadow: 24,
+                },
+            }}
+            maxWidth="lg"
             fullWidth
         >
-            <DialogTitle>
-                {isEditMode ? t("ApiKeyUpdate") : t("ApiKeyAdd")}
+            <DialogTitle sx={{ 
+                bgcolor: "primary.main", 
+                color: "primary.contrastText",
+                borderRadius: "12px 12px 0 0",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+            }}>
+                <IconCommon name={isEditMode ? "Edit" : "Key"} size={24} />
+                <Typography variant="h5" component="h2" fontWeight={600}>
+                    {isEditMode ? t("ApiKeyUpdate") : t("ApiKeyAdd")}
+                </Typography>
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ p: 0 }}>
                 <Formik
                     enableReinitialize
                     initialValues={initialValues}
@@ -592,50 +756,108 @@ export function ApiKeyDialog({
                 >
                     {({ values, handleSubmit, setFieldValue }) => (
                         <form onSubmit={handleSubmit}>
-                            <TextInput
-                                fullWidth
-                                isRequired
-                                label={t("Name")}
-                                placeholder={isEditMode ? undefined : "My API Key"}
-                                value={values.name}
-                                onChange={(e) => setFieldValue("name", e.target.value)}
-                                sx={{ mb: 2, mt: 1 }}
-                            />
+                            <Box sx={{ p: 3 }}>
+                                {/* Basic Information Section */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "text.primary", mb: 3 }}>
+                                        Basic Information
+                                    </Typography>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <TextInput
+                                            fullWidth
+                                            isRequired
+                                            label={t("Name")}
+                                            placeholder={isEditMode ? undefined : "My API Key"}
+                                            value={values.name}
+                                            onChange={(e) => setFieldValue("name", e.target.value)}
+                                            sx={{
+                                                "& .MuiOutlinedInput-root": {
+                                                    borderRadius: 2,
+                                                },
+                                            }}
+                                        />
+                                    </Box>
+                                </Box>
 
-                            <TextInput
-                                fullWidth
-                                isRequired
-                                label={t("HardLimit")}
-                                type="number"
-                                value={values.limitHard}
-                                onChange={(e) => setFieldValue("limitHard", e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
+                                <Divider sx={{ my: 4 }} />
 
-                            <TextInput
-                                fullWidth
-                                label={t("SoftLimit")}
-                                type="number"
-                                value={values.limitSoft}
-                                onChange={(e) => setFieldValue("limitSoft", e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
+                                {/* Rate Limits Section */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "text.primary", mb: 1 }}>
+                                        Rate Limits
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                        Control how many requests can be made with this API key
+                                    </Typography>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <TextInput
+                                            fullWidth
+                                            isRequired
+                                            label={t("HardLimit")}
+                                            type="number"
+                                            value={values.limitHard}
+                                            onChange={(e) => setFieldValue("limitHard", e.target.value)}
+                                            sx={{
+                                                "& .MuiOutlinedInput-root": {
+                                                    borderRadius: 2,
+                                                },
+                                            }}
+                                        />
+                                        <TextInput
+                                            fullWidth
+                                            label={t("SoftLimit")}
+                                            type="number"
+                                            value={values.limitSoft}
+                                            onChange={(e) => setFieldValue("limitSoft", e.target.value)}
+                                            sx={{
+                                                "& .MuiOutlinedInput-root": {
+                                                    borderRadius: 2,
+                                                },
+                                            }}
+                                        />
+                                    </Box>
+                                </Box>
 
-                            <ApiKeyPermissionsSelector
-                                selectedPermissions={values.permissions}
-                                onChange={(permissions) => setFieldValue("permissions", permissions)}
-                            />
+                                <Divider sx={{ my: 4 }} />
 
-                            <DialogActions sx={{ mt: 3, p: 0 }}>
-                                <Button onClick={onClose} disabled={isSubmitting}>
+                                {/* Permissions Section */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "text.primary", mb: 1 }}>
+                                        Permissions
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                        Choose what this API key can access. Higher permissions allow more actions but increase security risk.
+                                    </Typography>
+                                    <ApiKeyPermissionsSelector
+                                        selectedPermissions={values.permissions}
+                                        onChange={(permissions) => setFieldValue("permissions", permissions)}
+                                    />
+                                </Box>
+                            </Box>
+                            
+                            <DialogActions sx={{ 
+                                p: 3, 
+                                borderTop: 1, 
+                                borderColor: "divider",
+                                bgcolor: "background.paper",
+                                gap: 2,
+                            }}>
+                                <Button 
+                                    onClick={onClose} 
+                                    disabled={isSubmitting}
+                                    variant="outlined"
+                                    sx={{ borderRadius: 2 }}
+                                >
                                     {t("Cancel")}
                                 </Button>
                                 <Button
                                     type="submit"
                                     variant="contained"
                                     disabled={isSubmitting || !values.name}
+                                    startIcon={isSubmitting ? undefined : <IconCommon name={isEditMode ? "Save" : "Plus"} />}
+                                    sx={{ borderRadius: 2, minWidth: 120 }}
                                 >
-                                    {isEditMode ? t("Save") : t("Add")}
+                                    {isSubmitting ? "Processing..." : (isEditMode ? t("Save") : t("Add"))}
                                 </Button>
                             </DialogActions>
                         </form>
@@ -651,6 +873,7 @@ type ExternalKeyDialogFormValues = {
     customService: string;
     name: string;
     key: string;
+    resourceId?: string;
 }
 type ExternalKeyDialogProps = {
     isCreate: boolean;
@@ -668,100 +891,233 @@ function ExternalKeyDialog({
     const [createExternalKey] = useLazyFetch<ApiKeyExternalCreateInput, ApiKeyExternal>(endpointsApiKeyExternal.createOne);
     const [updateExternalKey] = useLazyFetch<ApiKeyExternalUpdateInput, ApiKeyExternal>(endpointsApiKeyExternal.updateOne);
     const { onProfileUpdate, profile } = useProfileQuery();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const initialValues = useMemo<ExternalKeyDialogFormValues>(() => ({
         serviceSelect: keyData && KNOWN_SERVICES.includes(keyData.service) ? keyData.service : "Other",
         customService: !keyData || !KNOWN_SERVICES.includes(keyData.service) ? keyData?.service ?? "" : "",
         name: keyData?.name ?? "",
         key: "",
+        resourceId: keyData?.resourceId ?? undefined,
     }), [keyData]);
 
-    const handleSubmit = useCallback(function handleSubmitCallback(values: ExternalKeyDialogFormValues) {
-        const service = values.serviceSelect === "Other" ? values.customService : values.serviceSelect;
-        if (!service) {
-            PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
-            return;
+    const handleSubmit = useCallback(async function handleSubmitCallback(values: ExternalKeyDialogFormValues) {
+        setIsSubmitting(true);
+        try {
+            const service = values.serviceSelect === "Other" ? values.customService : values.serviceSelect;
+            if (!service) {
+                PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
+                setIsSubmitting(false);
+                return;
+            }
+            if (!isCreate && !keyData) {
+                console.error("This error shouldn't happen. Please report it.", { component: "ExternalKeyDialog", keyData });
+                PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
+                setIsSubmitting(false);
+                return;
+            }
+            const input = isCreate ? {
+                service,
+                name: values.name,
+                key: values.key,
+                resourceId: values.resourceId,
+            } : {
+                id: (keyData as ApiKeyExternal).id,
+                service,
+                name: values.name,
+                key: values.key,
+                resourceId: values.resourceId,
+            };
+            const fetchFunc = isCreate ? createExternalKey : updateExternalKey;
+            fetchLazyWrapper<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>({
+                fetch: fetchFunc as LazyRequestWithResult<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>,
+                inputs: input,
+                onSuccess: (data) => {
+                    if (isCreate) {
+                        const updatedKeys = [...(profile?.apiKeysExternal ?? []), data];
+                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
+                    } else {
+                        const updatedKeys = profile?.apiKeysExternal?.map(k => k.id === data.id ? data : k) ?? [];
+                        onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
+                    }
+                    setIsSubmitting(false);
+                    onClose();
+                },
+                onError: () => {
+                    setIsSubmitting(false);
+                },
+            });
+        } catch (error) {
+            console.error("Error handling external API key", error);
+            setIsSubmitting(false);
         }
-        if (!isCreate && !keyData) {
-            console.error("This error shouldn't happen. Please report it.", { component: "ExternalKeyDialog", keyData });
-            PubSub.get().publish("snack", { messageKey: "MissingRequiredField", severity: "Error" });
-            return;
-        }
-        const input = isCreate ? {
-            service,
-            name: values.name,
-            key: values.key,
-        } : {
-            id: (keyData as ApiKeyExternal).id,
-            service,
-            name: values.name,
-            key: values.key,
-        };
-        const fetchFunc = isCreate ? createExternalKey : updateExternalKey;
-        fetchLazyWrapper<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>({
-            fetch: fetchFunc as LazyRequestWithResult<ApiKeyExternalCreateInput | ApiKeyExternalUpdateInput, ApiKeyExternal>,
-            inputs: input,
-            onSuccess: (data) => {
-                if (isCreate) {
-                    const updatedKeys = [...(profile?.apiKeysExternal ?? []), data];
-                    onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
-                } else {
-                    const updatedKeys = profile?.apiKeysExternal?.map(k => k.id === data.id ? data : k) ?? [];
-                    onProfileUpdate({ ...profile, apiKeysExternal: updatedKeys } as User);
-                }
-                onClose();
-            },
-        });
     }, [createExternalKey, isCreate, keyData, onClose, onProfileUpdate, profile, updateExternalKey]);
 
     return (
-        <Dialog open={open} onClose={onClose} PaperProps={dialogPaperProps}>
-            <DialogTitle>{isCreate ? t("ApiKeyAdd") : t("ApiKeyUpdate")}</DialogTitle>
-            <DialogContent>
+        <Dialog 
+            open={open} 
+            onClose={onClose} 
+            PaperProps={{
+                sx: {
+                    bgcolor: "background.default",
+                    borderRadius: 3,
+                    boxShadow: 24,
+                },
+            }}
+            maxWidth="sm"
+            fullWidth
+        >
+            <DialogTitle sx={{ 
+                bgcolor: "primary.main", 
+                color: "primary.contrastText",
+                borderRadius: "12px 12px 0 0",
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+            }}>
+                <IconCommon name={isCreate ? "Key" : "Edit"} size={24} />
+                <Typography variant="h5" component="h2" fontWeight={600}>
+                    {isCreate ? "Add External API Key" : "Update External API Key"}
+                </Typography>
+            </DialogTitle>
+            <DialogContent sx={{ p: 0 }}>
                 <Formik initialValues={initialValues} onSubmit={handleSubmit}>
                     {({ handleSubmit, values, setFieldValue }) => (
                         <form onSubmit={handleSubmit}>
-                            <Select
-                                fullWidth
-                                value={values.serviceSelect}
-                                onChange={(e) => setFieldValue("serviceSelect", e.target.value)}
-                                displayEmpty
-                                sx={{ mb: 2 }}
-                            >
-                                <MenuItem value="" disabled>Select service</MenuItem>
-                                {KNOWN_SERVICES.map(service => (
-                                    <MenuItem key={service} value={service}>{service}</MenuItem>
-                                ))}
-                                <MenuItem value="Other">{t("Other")}</MenuItem>
-                            </Select>
-                            {values.serviceSelect === "Other" && (
-                                <TextInput
-                                    fullWidth
-                                    isRequired={true}
-                                    label="Custom service name"
-                                    value={values.customService}
-                                    onChange={(e) => setFieldValue("customService", e.target.value)}
-                                    sx={{ mb: 2 }}
+                            <Box sx={{ p: 3 }}>
+                                {/* Service Selection Section */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "text.primary", mb: 3 }}>
+                                        Service Information
+                                    </Typography>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <FormControl fullWidth>
+                                            <InputLabel id="service-select-label">Service</InputLabel>
+                                            <Select
+                                                labelId="service-select-label"
+                                                value={values.serviceSelect}
+                                                onChange={(e) => setFieldValue("serviceSelect", e.target.value)}
+                                                label="Service"
+                                                sx={{
+                                                    borderRadius: 2,
+                                                }}
+                                            >
+                                                {KNOWN_SERVICES.map(service => (
+                                                    <MenuItem key={service} value={service}>
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <IconFavicon href={`https://${service.toLowerCase()}.com`} size={20} />
+                                                            {service}
+                                                        </Box>
+                                                    </MenuItem>
+                                                ))}
+                                                <MenuItem value="Other">
+                                                    <Box display="flex" alignItems="center" gap={1}>
+                                                        <IconCommon name="Settings" size={20} />
+                                                        {t("Other")}
+                                                    </Box>
+                                                </MenuItem>
+                                            </Select>
+                                        </FormControl>
+                                        
+                                        {values.serviceSelect === "Other" && (
+                                            <TextInput
+                                                fullWidth
+                                                isRequired={true}
+                                                label="Custom Service Name"
+                                                placeholder="e.g., MyCustomAPI"
+                                                value={values.customService}
+                                                onChange={(e) => setFieldValue("customService", e.target.value)}
+                                                sx={{
+                                                    "& .MuiOutlinedInput-root": {
+                                                        borderRadius: 2,
+                                                    },
+                                                }}
+                                            />
+                                        )}
+                                        
+                                        <TextInput
+                                            fullWidth
+                                            isRequired={false}
+                                            label="Description (Optional)"
+                                            placeholder="e.g., Production API Key"
+                                            value={values.name}
+                                            onChange={(e) => setFieldValue("name", e.target.value)}
+                                            sx={{
+                                                "& .MuiOutlinedInput-root": {
+                                                    borderRadius: 2,
+                                                },
+                                            }}
+                                        />
+                                    </Box>
+                                </Box>
+
+                                <Divider sx={{ my: 4 }} />
+
+                                {/* API Key Section */}
+                                <Box sx={{ mb: 4 }}>
+                                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: "text.primary", mb: 1 }}>
+                                        API Key
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                                        Enter the API key provided by {values.serviceSelect === "Other" ? "your service" : values.serviceSelect}
+                                    </Typography>
+                                    <PasswordTextInput
+                                        fullWidth
+                                        isRequired={true}
+                                        name="key"
+                                        label={t("ApiKey")}
+                                        placeholder="sk-..."
+                                        value={values.key}
+                                        onChange={(e) => setFieldValue("key", e.target.value)}
+                                        sx={{
+                                            "& .MuiOutlinedInput-root": {
+                                                borderRadius: 2,
+                                                fontFamily: "monospace",
+                                            },
+                                        }}
+                                    />
+                                </Box>
+
+                                {/* Security Notice */}
+                                <FormTip
+                                    element={{
+                                        id: "external-api-key-security-tip",
+                                        icon: "Lock",
+                                        isMarkdown: false,
+                                        label: "Your API key will be encrypted and stored securely. We never share your keys with third parties.",
+                                        type: FormStructureType.Tip,
+                                    }}
+                                    isEditing={false}
+                                    onUpdate={noop}
+                                    onDelete={noop}
                                 />
-                            )}
-                            <TextInput
-                                fullWidth
-                                isRequired={false}
-                                label="Name"
-                                value={values.name}
-                                onChange={(e) => setFieldValue("name", e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
-                            <PasswordTextInput
-                                fullWidth
-                                isRequired={true}
-                                name="key"
-                                label={t("ApiKey")}
-                                value={values.key}
-                                onChange={(e) => setFieldValue("key", e.target.value)}
-                                sx={{ mb: 2 }}
-                            />
-                            <Button type="submit">{isCreate ? t("Add") : t("Update")}</Button>
+                            </Box>
+                            
+                            <DialogActions sx={{ 
+                                p: 3, 
+                                borderTop: 1, 
+                                borderColor: "divider",
+                                bgcolor: "background.paper",
+                                gap: 2,
+                            }}>
+                                <Button 
+                                    onClick={onClose} 
+                                    disabled={isSubmitting}
+                                    variant="outlined"
+                                    sx={{ borderRadius: 2 }}
+                                >
+                                    {t("Cancel")}
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="contained"
+                                    disabled={isSubmitting || !values.key || (values.serviceSelect === "Other" && !values.customService)}
+                                    startIcon={isSubmitting ? undefined : <IconCommon name={isCreate ? "Plus" : "Save"} />}
+                                    sx={{ borderRadius: 2, minWidth: 120 }}
+                                >
+                                    {isSubmitting ? "Processing..." : (isCreate ? t("Add") : t("Update"))}
+                                </Button>
+                            </DialogActions>
                         </form>
                     )}
                 </Formik>
@@ -785,6 +1141,8 @@ export function SettingsApiView({
     const [createExternalKey] = useLazyFetch<ApiKeyExternalCreateInput, ApiKeyExternal>(endpointsApiKeyExternal.createOne);
     const [updateExternalKey] = useLazyFetch<ApiKeyExternalUpdateInput, ApiKeyExternal>(endpointsApiKeyExternal.updateOne);
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
+    const [findResources] = useLazyFetch<ResourceSearchInput, ResourceSearchResult>(endpointsResource.findMany);
+    const [initiateOAuth] = useLazyFetch<OAuthInitiateInput, OAuthInitiateResult>(endpointsAuth.oauthInitiate);
 
     const [newKeyDialogOpen, setNewKeyDialogOpen] = useState(false);
     const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false);
@@ -793,6 +1151,10 @@ export function SettingsApiView({
     const [editingExternalKey, setEditingExternalKey] = useState<ApiKeyExternal | null>(null);
     const [isEditingExternalKey, setIsEditingExternalKey] = useState(false);
     const [isCreatingExternalKey, setIsCreatingExternalKey] = useState(false);
+    
+    // State for dynamic API resources
+    const [apiResources, setApiResources] = useState<Resource[]>([]);
+    const [isLoadingResources, setIsLoadingResources] = useState(false);
 
     function onNewKeyDialogClose() {
         setNewKeyDialogOpen(false);
@@ -886,10 +1248,64 @@ export function SettingsApiView({
         });
     }, [deleteOne, onProfileUpdate, profile]);
 
-    function handleExternalKeyEditClose() {
+    const handleExternalKeyEditClose = useCallback(() => {
         setIsEditingExternalKey(false);
+        setIsCreatingExternalKey(false);
         setEditingExternalKey(null);
-    }
+    }, []);
+
+    // Load API resources
+    const loadApiResources = useCallback(async () => {
+        setIsLoadingResources(true);
+        try {
+            const searchInput: ResourceSearchInput = {
+                resourceType: ResourceType.Api,
+                isDeleted: false,
+                take: 100,
+            };
+            
+            fetchLazyWrapper({
+                fetch: findResources,
+                inputs: searchInput,
+                onSuccess: (data) => {
+                    setApiResources(data.edges.map(edge => edge.node));
+                },
+                onError: () => {
+                    PubSub.get().publish("snack", { 
+                        messageKey: "FailedToLoadServices", 
+                        severity: "Error" 
+                    });
+                },
+            });
+        } finally {
+            setIsLoadingResources(false);
+        }
+    }, [findResources]);
+
+    useEffect(() => {
+        loadApiResources();
+    }, [loadApiResources]);
+
+    // Handle OAuth initiation
+    const handleOAuthConnect = useCallback(async (resourceId: string) => {
+        fetchLazyWrapper({
+            fetch: initiateOAuth,
+            inputs: {
+                resourceId,
+                redirectUri: `${window.location.origin}/settings/api/oauth/callback`,
+            },
+            onSuccess: (data) => {
+                // Redirect to the OAuth authorization URL
+                window.location.href = data.authUrl;
+            },
+            onError: () => {
+                PubSub.get().publish("snack", { 
+                    messageKey: "FailedToInitiateOAuth", 
+                    severity: "Error" 
+                });
+            },
+        });
+    }, [initiateOAuth]);
 
     return (
         <PageContainer size="fullSize">
@@ -905,7 +1321,7 @@ export function SettingsApiView({
                 isCreate={isCreatingExternalKey}
                 keyData={editingExternalKey}
                 onClose={handleExternalKeyEditClose}
-                open={isCreatingExternalKey || (isEditingExternalKey && !!editingExternalKey)}
+                open={isCreatingExternalKey || isEditingExternalKey}
             />
             <ScrollBox>
                 <Navbar title={t("Api", { count: 1 })} />
@@ -1014,33 +1430,103 @@ export function SettingsApiView({
                             ) : (
                                 <Typography variant="body1" color="text.secondary">No external API keys found</Typography>
                             )}
-                            <Button onClick={() => setIsCreatingExternalKey(true)} sx={{ mt: 2 }}>Add External Key</Button>
+                            <Button 
+                onClick={() => {
+                    setEditingExternalKey(null);
+                    setIsEditingExternalKey(false);
+                    setIsCreatingExternalKey(true);
+                }} 
+                sx={{ mt: 2 }}
+            >
+                Add External Key
+            </Button>
                         </Box>
                         <Divider />
-                        {SUPPORTED_INTEGRATIONS.length > 0 && (
+                        {apiResources.length > 0 && (
                             <Box>
                                 <Title title={"External Services"} help={"Connect to external services"} variant="subheader" addSidePadding={false} />
-                                <Box display="flex" flexWrap="wrap" gap={2}>
-                                    {SUPPORTED_INTEGRATIONS.map((integration) => {
-                                        const isConnected = profile?.apiKeysExternal?.some(k => k.service === integration.name && !k.disabledAt) ?? false;
+                                {isLoadingResources ? (
+                                    <Typography variant="body2" color="text.secondary">Loading services...</Typography>
+                                ) : (
+                                    <Box display="flex" flexWrap="wrap" gap={2}>
+                                        {apiResources.map((resource) => {
+                                            const version = resource.versions?.[0];
+                                            const translation = version?.translations?.[0];
+                                            if (!version || !translation) return null;
+                                            
+                                            // Parse the config to check auth type
+                                            let config: ApiVersionConfig | null = null;
+                                            try {
+                                                config = ApiVersionConfig.parse(version, console);
+                                            } catch (e) {
+                                                console.error("Failed to parse API config", e);
+                                            }
+                                            
+                                            const isOAuth = config?.authentication?.type === "oauth2";
+                                            const isApiKey = config?.authentication?.type === "apikey";
+                                            const baseUrl = config?.callLink || version.callLink;
+                                            
+                                            // Check if user has connected this service
+                                            const isConnected = profile?.apiKeysExternal?.some(k => k.resourceId === resource.id && !k.disabledAt) ?? false;
 
-                                        function handleClick() {
-                                            window.open(integration.url, "_blank");
-                                        }
+                                            function handleClick() {
+                                                if (isOAuth) {
+                                                    handleOAuthConnect(resource.id);
+                                                } else if (isApiKey) {
+                                                    // For API key services, open the external key dialog
+                                                    setEditingExternalKey({
+                                                        id: "",
+                                                        createdAt: new Date(),
+                                                        updatedAt: new Date(),
+                                                        key: "",
+                                                        disabledAt: null,
+                                                        name: "",
+                                                        service: translation.name,
+                                                        resourceId: resource.id,
+                                                    } as ApiKeyExternal);
+                                                    setIsCreatingExternalKey(true);
+                                                } else if (baseUrl) {
+                                                    // For services without auth, just open the URL
+                                                    window.open(baseUrl, "_blank");
+                                                }
+                                            }
 
-                                        return (
-                                            <Button
-                                                key={integration.name}
-                                                onClick={handleClick}
-                                                variant="contained"
-                                                startIcon={<IconFavicon href={integration.url} />}
-                                                endIcon={isConnected ? <IconCommon name="Success" /> : null}
-                                            >
-                                                {integration.name}
-                                            </Button>
-                                        );
-                                    })}
-                                </Box>
+                                            return (
+                                                <Button
+                                                    key={resource.id}
+                                                    onClick={handleClick}
+                                                    variant="contained"
+                                                    startIcon={baseUrl ? <IconFavicon href={baseUrl} /> : <IconCommon name="Api" />}
+                                                    endIcon={isConnected ? <IconCommon name="Success" /> : null}
+                                                    sx={{ 
+                                                        position: "relative",
+                                                        "&:hover .auth-type-chip": {
+                                                            opacity: 1,
+                                                        }
+                                                    }}
+                                                >
+                                                    {translation.name}
+                                                    {(isOAuth || isApiKey) && (
+                                                        <Chip 
+                                                            className="auth-type-chip"
+                                                            label={isOAuth ? "OAuth" : "API Key"} 
+                                                            size="small" 
+                                                            sx={{ 
+                                                                position: "absolute",
+                                                                top: -8,
+                                                                right: -8,
+                                                                fontSize: "0.65rem",
+                                                                height: "18px",
+                                                                opacity: 0,
+                                                                transition: "opacity 0.2s",
+                                                            }}
+                                                        />
+                                                    )}
+                                                </Button>
+                                            );
+                                        })}
+                                    </Box>
+                                )}
                             </Box>
                         )}
                     </Stack>

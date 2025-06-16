@@ -7,12 +7,12 @@ import FormLabel from "@mui/material/FormLabel";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import { IconCommon } from "../../icons/Icons.js";
 import { Button } from "./Button.js";
-import type { ButtonVariant, ButtonSize } from "./Button.js";
+import type { ButtonVariant, ButtonSize, ButtonBorderRadius } from "./Button.js";
 import { getCustomButtonStyle } from "./buttonStyles.js";
+import { Switch } from "../inputs/Switch/Switch.js";
 
 const meta: Meta<typeof Button> = {
     title: "Components/Buttons/Button",
@@ -29,12 +29,13 @@ type Story = StoryObj<typeof meta>;
 export const ButtonShowcase: Story = {
     render: () => {
         const [size, setSize] = useState<ButtonSize>("md");
+        const [borderRadius, setBorderRadius] = useState<ButtonBorderRadius>("minimal");
         const [loadingState, setLoadingState] = useState<"none" | "circular" | "orbital">("none");
         const [iconPosition, setIconPosition] = useState<"none" | "start" | "end">("none");
         const [disabled, setDisabled] = useState(false);
         const [customColor, setCustomColor] = useState("#9333EA");
 
-        const variants: ButtonVariant[] = ["primary", "secondary", "outline", "ghost", "danger", "space", "custom"];
+        const variants: ButtonVariant[] = ["primary", "secondary", "outline", "ghost", "danger", "space", "custom", "neon"];
         
         // Determine loading props
         const isLoading = loadingState !== "none";
@@ -73,7 +74,7 @@ export const ButtonShowcase: Story = {
                         
                         <Box sx={{ 
                             display: "grid", 
-                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+                            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
                             gap: 3 
                         }}>
                             {/* Size Control */}
@@ -87,6 +88,20 @@ export const ButtonShowcase: Story = {
                                     <FormControlLabel value="sm" control={<Radio size="small" />} label="Small" sx={{ m: 0 }} />
                                     <FormControlLabel value="md" control={<Radio size="small" />} label="Medium" sx={{ m: 0 }} />
                                     <FormControlLabel value="lg" control={<Radio size="small" />} label="Large" sx={{ m: 0 }} />
+                                </RadioGroup>
+                            </FormControl>
+
+                            {/* Border Radius Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Border Radius</FormLabel>
+                                <RadioGroup
+                                    value={borderRadius}
+                                    onChange={(e) => setBorderRadius(e.target.value as ButtonBorderRadius)}
+                                    sx={{ gap: 0.5 }}
+                                >
+                                    <FormControlLabel value="none" control={<Radio size="small" />} label="None" sx={{ m: 0 }} />
+                                    <FormControlLabel value="minimal" control={<Radio size="small" />} label="Minimal (Default)" sx={{ m: 0 }} />
+                                    <FormControlLabel value="pill" control={<Radio size="small" />} label="Pill" sx={{ m: 0 }} />
                                 </RadioGroup>
                             </FormControl>
 
@@ -120,17 +135,12 @@ export const ButtonShowcase: Story = {
 
                             {/* Disabled Control */}
                             <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>State</FormLabel>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={disabled}
-                                            onChange={(e) => setDisabled(e.target.checked)}
-                                            size="small"
-                                        />
-                                    }
+                                <Switch
+                                    checked={disabled}
+                                    onChange={(checked) => setDisabled(checked)}
+                                    size="sm"
                                     label="Disabled"
-                                    sx={{ m: 0 }}
+                                    labelPosition="right"
                                 />
                             </FormControl>
                             
@@ -163,30 +173,86 @@ export const ButtonShowcase: Story = {
                             gridTemplateColumns: { 
                                 xs: "1fr", 
                                 sm: "repeat(2, 1fr)", 
-                                md: "repeat(3, 1fr)" 
+                                md: "repeat(3, 1fr)",
+                                lg: "repeat(4, 1fr)"
                             }, 
                             gap: 3 
                         }}>
                             {variants.map(variant => (
-                                <Box key={variant} sx={{ textAlign: "center" }}>
-                                    <Typography variant="subtitle2" sx={{ mb: 1, textTransform: "capitalize" }}>
+                                <Box 
+                                    key={variant} 
+                                    sx={{ 
+                                        textAlign: "center",
+                                        p: 2,
+                                        borderRadius: 2,
+                                        backgroundColor: (variant === "space" || variant === "neon") ? "#001122" : "transparent"
+                                    }}
+                                >
+                                    <Typography 
+                                        variant="subtitle2" 
+                                        sx={{ 
+                                            mb: 1, 
+                                            textTransform: "capitalize",
+                                            color: (variant === "space" || variant === "neon") ? "#fff" : "inherit"
+                                        }}
+                                    >
                                         {variant}
                                     </Typography>
                                     <Button
                                         variant={variant}
                                         size={size}
+                                        borderRadius={borderRadius}
                                         isLoading={isLoading}
                                         loadingIndicator={loadingIndicator}
                                         startIcon={startIcon}
                                         endIcon={endIcon}
                                         disabled={disabled}
-                                        style={variant === "custom" ? getCustomButtonStyle(customColor) : undefined}
+                                        style={{
+                                            ...(variant === "custom" ? getCustomButtonStyle(customColor) : {})
+                                        }}
                                         className={variant === "custom" ? "hover:tw-opacity-90" : undefined}
                                     >
                                         Button Text
                                     </Button>
                                 </Box>
                             ))}
+                        </Box>
+                    </Box>
+
+                    {/* Border Radius Showcase */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: "background.paper", 
+                        borderRadius: 2, 
+                        boxShadow: 1,
+                        width: "100%"
+                    }}>
+                        <Typography variant="h5" sx={{ mb: 3 }}>Border Radius Options</Typography>
+                        
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center" }}>
+                            {/* None Example */}
+                            <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>None</Typography>
+                                <Button variant="primary" borderRadius="none">
+                                    Sharp Corners
+                                </Button>
+                            </Box>
+
+                            {/* Minimal Example */}
+                            <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Minimal (Default)</Typography>
+                                <Button variant="primary" borderRadius="minimal">
+                                    Subtle Rounds
+                                </Button>
+                            </Box>
+
+                            {/* Pill Example */}
+                            <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>Pill</Typography>
+                                <Button variant="primary" borderRadius="pill">
+                                    Fully Rounded
+                                </Button>
+                            </Box>
                         </Box>
                     </Box>
                 </Box>

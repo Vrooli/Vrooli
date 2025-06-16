@@ -86,11 +86,18 @@ fi
 patch_settings() {
   local file=$1; shift
   tmp=$(mktemp)
-  jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" | jq -R . | jq -s .)" '
-      (.permissions //= {}) |
-      (.permissions.allow //= []) |
-      (.permissions.allow |= (. + $need) | sort | unique)
-    ' "$file" > "$tmp" && mv "$tmp" "$file"
+
+  jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" \
+                      | jq -R . | jq -s '.')" '
+    (.permissions //= {}) |
+    (.permissions.allow //= []) |
+    # --------------------------------------------------
+    # keep the whole pipeline *inside* |= so only the
+    # array is sorted/uniqued, not the outer object
+    # --------------------------------------------------
+    (.permissions.allow |= ((. + $need) | sort | unique))
+  ' "$file" > "$tmp" &&
+  mv "$tmp" "$file"
 }
 
 for f in "${settings_files[@]}"; do

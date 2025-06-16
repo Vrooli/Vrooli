@@ -112,6 +112,7 @@ export function PhoneListItem({
             fetch: validateMutation,
             inputs: { phoneNumber: data.phoneNumber, verificationCode },
             onSuccess: () => {
+                // Show success message about verification
                 PubSub.get().publish("alertDialog", { messageKey: "PhoneVerifiedMaybeCreditsReceived", buttons: [{ labelKey: "Ok" }] });
                 PubSub.get().publish("celebration");
                 setVerificationCode("");
@@ -157,8 +158,8 @@ export function PhoneListItem({
                         </Tooltip>
                     </Stack>
                 </Stack>
-                {!data.verified && verificationInput}
-                {data.verified && <Box sx={{
+                {!data.verifiedAt && verificationInput}
+                {data.verifiedAt && <Box sx={{
                     borderRadius: 1,
                     border: `2px solid ${palette.success.main}`,
                     color: palette.success.main,

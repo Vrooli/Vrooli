@@ -7,12 +7,12 @@ import FormLabel from "@mui/material/FormLabel";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
-import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import { IconCommon } from "../../icons/Icons.js";
 import { IconButton } from "./IconButton.js";
 import type { IconButtonVariant, IconButtonSize } from "./iconButtonStyles.js";
 import { getCustomIconButtonStyle, getContrastTextColor } from "./iconButtonStyles.js";
+import { Switch } from "../inputs/Switch/Switch.js";
 
 const meta: Meta<typeof IconButton> = {
     title: "Components/Buttons/IconButton",
@@ -35,8 +35,9 @@ export const IconButtonShowcase: Story = {
         const [iconName, setIconName] = useState("Save");
         const [disabled, setDisabled] = useState(false);
         const [customColor, setCustomColor] = useState("#9333EA");
+        const [borderRadius, setBorderRadius] = useState("50");
 
-        const variants: IconButtonVariant[] = ["solid", "transparent", "space", "custom"];
+        const variants: IconButtonVariant[] = ["solid", "transparent", "space", "custom", "neon"];
         const iconOptions = [
             "Save", "Edit", "Delete", "Add", "Remove", 
             "Settings", "Search", "Close", "Info", "Home",
@@ -88,6 +89,7 @@ export const IconButtonShowcase: Story = {
                                     <FormControlLabel value="solid" control={<Radio size="small" />} label="Solid (3D)" sx={{ m: 0 }} />
                                     <FormControlLabel value="transparent" control={<Radio size="small" />} label="Transparent" sx={{ m: 0 }} />
                                     <FormControlLabel value="space" control={<Radio size="small" />} label="Space" sx={{ m: 0 }} />
+                                    <FormControlLabel value="neon" control={<Radio size="small" />} label="Neon" sx={{ m: 0 }} />
                                 </RadioGroup>
                             </FormControl>
 
@@ -151,17 +153,12 @@ export const IconButtonShowcase: Story = {
 
                             {/* Disabled Control */}
                             <FormControl component="fieldset" size="small">
-                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>State</FormLabel>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={disabled}
-                                            onChange={(e) => setDisabled(e.target.checked)}
-                                            size="small"
-                                        />
-                                    }
+                                <Switch
+                                    checked={disabled}
+                                    onChange={(checked) => setDisabled(checked)}
+                                    size="sm"
                                     label="Disabled"
-                                    sx={{ m: 0 }}
+                                    labelPosition="right"
                                 />
                             </FormControl>
                             
@@ -173,6 +170,19 @@ export const IconButtonShowcase: Story = {
                                     value={customColor}
                                     onChange={(e) => setCustomColor(e.target.value)}
                                     size="small"
+                                    sx={{ width: '100%' }}
+                                />
+                            </FormControl>
+                            
+                            {/* Border Radius Control */}
+                            <FormControl component="fieldset" size="small">
+                                <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Border Radius (%)</FormLabel>
+                                <TextField
+                                    type="number"
+                                    value={borderRadius}
+                                    onChange={(e) => setBorderRadius(e.target.value)}
+                                    size="small"
+                                    inputProps={{ min: 0, max: 50, step: 5 }}
                                     sx={{ width: '100%' }}
                                 />
                             </FormControl>
@@ -193,7 +203,9 @@ export const IconButtonShowcase: Story = {
                             display: "grid", 
                             gridTemplateColumns: { 
                                 xs: "repeat(1, 1fr)", 
-                                sm: "repeat(3, 1fr)"
+                                sm: "repeat(2, 1fr)",
+                                md: "repeat(3, 1fr)",
+                                lg: "repeat(5, 1fr)"
                             }, 
                             gap: 3 
                         }}>
@@ -203,7 +215,7 @@ export const IconButtonShowcase: Story = {
                                     sx={{ 
                                         p: 3,
                                         borderRadius: 2,
-                                        backgroundColor: v === "space" ? "#001122" : "transparent",
+                                        backgroundColor: (v === "space" || v === "neon") ? "#001122" : "transparent",
                                         textAlign: "center"
                                     }}
                                 >
@@ -212,26 +224,26 @@ export const IconButtonShowcase: Story = {
                                         sx={{ 
                                             mb: 2, 
                                             textTransform: "capitalize",
-                                            color: v === "space" ? "#fff" : "inherit"
+                                            color: (v === "space" || v === "neon") ? "#fff" : "inherit"
                                         }}
                                     >
-                                        {v === "solid" ? "Solid (3D)" : v === "custom" ? "Custom" : v}
+                                        {v === "solid" ? "Solid (3D)" : v === "custom" ? "Custom" : v === "neon" ? "Neon" : v}
                                     </Typography>
                                     <IconButton
                                         variant={v}
                                         size={finalSize}
                                         disabled={disabled}
                                         aria-label={`${iconName} button`}
-                                        style={v === "custom" ? getCustomIconButtonStyle(customColor) : undefined}
+                                        style={{
+                                            ...(v === "custom" ? getCustomIconButtonStyle(customColor) : {}),
+                                        }}
                                         className={v === "custom" ? "hover:tw-opacity-90" : undefined}
                                     >
                                         <IconCommon name={iconName} />
                                     </IconButton>
-                                    {sizeType === "custom" && (
-                                        <Typography variant="caption" display="block" sx={{ mt: 1, color: v === "space" ? "#aaa" : "text.secondary" }}>
-                                            {customSize}px × {customSize}px
-                                        </Typography>
-                                    )}
+                                    <Typography variant="caption" display="block" sx={{ mt: 1, color: (v === "space" || v === "neon") ? "#aaa" : "text.secondary" }}>
+                                        {sizeType === "custom" ? `${customSize}px × ${customSize}px` : `Size: ${presetSize} (${finalSize})`}
+                                    </Typography>
                                 </Box>
                             ))}
                         </Box>

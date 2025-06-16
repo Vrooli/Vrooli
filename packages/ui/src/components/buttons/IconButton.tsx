@@ -1,10 +1,12 @@
 import React, { type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 import { forwardRef, useCallback, useMemo } from "react";
+import { useTheme } from "@mui/material/styles";
 import { cn } from "../../utils/tailwind-theme.js";
 import { useRippleEffect } from "../../hooks/index.js";
 import {
     ICON_BUTTON_COLORS,
-    buildIconButtonClasses,
+    BASE_ICON_BUTTON_STYLES,
+    ICON_VARIANT_STYLES,
     createIconRippleStyle,
     getNumericSize,
     getRippleColor,
@@ -31,21 +33,63 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
  * Icon wrapper component to ensure icons inherit button state colors and scale properly
  * Provides consistent icon styling across all variants with size-responsive scaling
  */
-const ButtonIcon = ({ children, size }: { children: ReactNode; size: number }) => {
-    // Calculate icon size based on button size - roughly 50% of button size
-    const iconSize = Math.max(16, Math.min(32, Math.round(size * 0.5)));
+const ButtonIcon = ({ children, size, variant }: { children: ReactNode; size: number; variant: IconButtonVariant }) => {
+    const { palette } = useTheme();
+    
+    // Calculate icon size based on button size
+    // Transparent variant gets larger icons (65% of button size) for better visibility
+    const sizeMultiplier = variant === "transparent" ? 0.65 : 0.5;
+    const iconSize = Math.max(16, Math.min(32, Math.round(size * sizeMultiplier)));
+    
+    // Check if the icon has an explicit fill prop
+    const iconElement = children as React.ReactElement;
+    const hasExplicitFill = iconElement?.props?.fill !== undefined;
+    
+    // Calculate dynamic icon color based on variant for proper contrast
+    // Only use variant-based color if icon doesn't have explicit fill
+    const iconColor = useMemo(() => {
+        if (hasExplicitFill) {
+            return "currentColor"; // Let the icon handle its own color
+        }
+        
+        switch (variant) {
+            case "solid":
+                // For solid variant, use white text on the dark gradient background
+                return "#ffffff";
+            case "transparent":
+                // For transparent variant, use theme text color
+                return palette.text.primary;
+            case "space":
+                // For space variant, use light text on dark space background
+                return "#ffffff";
+            case "custom":
+                // For custom variant, color is handled by parent component
+                return "currentColor";
+            case "neon":
+                // For neon variant, use white text on green background
+                return "#ffffff";
+            default:
+                return palette.text.primary;
+        }
+    }, [variant, palette.text.primary, hasExplicitFill]);
     
     return (
         <span 
-            className="tw-inline-flex [&>svg]:tw-fill-current"
+            className={cn(
+                "tw-inline-flex tw-items-center tw-justify-center",
+                // Only force fill: currentColor if icon doesn't have explicit fill
+                !hasExplicitFill && "[&>svg]:tw-fill-current"
+            )}
             style={{
-                fontSize: iconSize,
                 width: iconSize,
                 height: iconSize,
+                color: iconColor,
             }}
         >
-            {React.cloneElement(children as React.ReactElement, {
+            {React.cloneElement(iconElement, {
                 size: iconSize,
+                // Preserve the original fill prop if it exists
+                ...(hasExplicitFill && { fill: iconElement.props.fill }),
             })}
         </span>
     );
@@ -136,10 +180,33 @@ const SpaceBackground = ({
 };
 
 /**
+ * Neon Background Component
+ * Special glowing effects for the neon variant with circular animation
+ */
+const NeonBackground = ({
+    ripples,
+    onRippleComplete
+}: {
+    ripples: Array<{ id: number; x: number; y: number }>;
+    onRippleComplete: (id: number) => void;
+}) => {
+    return (
+        <>
+            {/* Click ripple effects */}
+            <RippleEffect
+                ripples={ripples}
+                onRippleComplete={onRippleComplete}
+                color={ICON_BUTTON_COLORS.RIPPLE.neon}
+            />
+        </>
+    );
+};
+
+/**
  * A performant, accessible icon button component with multiple variants.
  * 
  * Features:
- * - 3 variants: solid (3D physical), transparent, and space-themed
+ * - 5 variants: solid (3D physical), transparent, space-themed, custom, and neon (glowing green)
  * - Flexible sizing with predefined and custom sizes
  * - Ripple effects for visual feedback
  * - Full accessibility support with ARIA attributes
@@ -185,15 +252,20 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         const { ripples, handleRippleClick, handleRippleComplete } = useRippleEffect();
 
         // Memoize button classes for performance
-        const buttonClasses = useMemo(() => 
-            buildIconButtonClasses({
-                variant,
-                size: numericSize,
-                disabled,
-                className,
-            }),
-            [variant, numericSize, disabled, className]
-        );
+        // Note: We exclude padding since we set explicit dimensions
+        const buttonClasses = useMemo(() => cn(
+            // Base styles without padding
+            BASE_ICON_BUTTON_STYLES,
+            
+            // Variant styles
+            ICON_VARIANT_STYLES[variant],
+            
+            // State styles
+            disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
+            
+            // Custom overrides
+            className
+        ), [variant, disabled, className]);
 
         // Memoize ripple color based on variant
         const rippleColor = useMemo(() => getRippleColor(variant), [variant]);
@@ -208,30 +280,54 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         }, [disabled, onClick, handleRippleClick]);
 
         return (
-            <button
-                ref={ref}
-                type={type}
-                disabled={disabled}
-                className={buttonClasses}
-                style={{
-                    width: numericSize,
-                    height: numericSize,
-                }}
-                onClick={handleClick}
-                aria-disabled={disabled}
-                aria-label={props['aria-label'] || 'Icon button'}
-                {...props}
-            >
-                {/* Space background for space variant */}
+            <div style={{ 
+                width: `${numericSize}px`, 
+                height: `${numericSize}px`,
+                flexShrink: 0,
+                display: 'inline-block'
+            }}>
+                <button
+                    ref={ref}
+                    type={type}
+                    disabled={disabled}
+                    className={buttonClasses}
+                    onClick={handleClick}
+                    aria-disabled={disabled}
+                    aria-label={props['aria-label'] || 'Icon button'}
+                    {...props}
+                    style={{
+                        ...props.style,
+                        width: '100%',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                    }}
+                >
+                {/* Space background for space variant - simplified to just sweep animation */}
                 {variant === "space" && (
-                    <SpaceBackground
+                    <>
+                        <div className="tw-icon-button-space-sweep" />
+                        {/* Space-specific ripple effects */}
+                        {ripples.map((ripple) => (
+                            <div
+                                key={ripple.id}
+                                className="tw-button-ripple"
+                                style={createIconRippleStyle(ripple, rippleColor)}
+                                onAnimationEnd={() => handleRippleComplete(ripple.id)}
+                            />
+                        ))}
+                    </>
+                )}
+
+                {/* Neon background for neon variant */}
+                {variant === "neon" && (
+                    <NeonBackground
                         ripples={ripples}
                         onRippleComplete={handleRippleComplete}
                     />
                 )}
 
-                {/* Ripple effects for solid and transparent variants */}
-                {variant !== "space" && (
+                {/* Ripple effects for solid, transparent, and custom variants */}
+                {variant !== "space" && variant !== "neon" && (
                     <RippleEffect
                         ripples={ripples}
                         onRippleComplete={handleRippleComplete}
@@ -239,12 +335,12 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                     />
                 )}
 
-                {/* Icon content with proper z-index for space variant */}
+                {/* Icon content with proper z-index for space and neon variants */}
                 <span className={cn(
                     "tw-relative",
-                    variant === "space" && "tw-z-10"
+                    (variant === "space" || variant === "neon") && "tw-z-10"
                 )}>
-                    <ButtonIcon size={numericSize}>{children}</ButtonIcon>
+                    <ButtonIcon size={numericSize} variant={variant}>{children}</ButtonIcon>
                 </span>
                 
                 {/* Screen reader support for disabled state */}
@@ -253,7 +349,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
                         Button disabled
                     </span>
                 )}
-            </button>
+                </button>
+            </div>
         );
     }
 );
@@ -276,5 +373,9 @@ export const IconButtonFactory = {
     /** Space-themed icon button */
     Space: (props: Omit<IconButtonProps, "variant">) => (
         <IconButton variant="space" {...props} />
+    ),
+    /** Neon glowing green icon button */
+    Neon: (props: Omit<IconButtonProps, "variant">) => (
+        <IconButton variant="neon" {...props} />
     ),
 } as const;

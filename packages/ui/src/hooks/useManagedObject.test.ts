@@ -54,16 +54,16 @@ vi.mock("@vrooli/shared", async () => {
 
 // Import after mocking
 import { 
-    useManagedObject, 
-    useObjectData, 
-    useObjectCache, 
-    useObjectForm, 
+    useManagedObject,
+    useObjectData,
+    useObjectCache,
+    useObjectForm,
     applyDataTransform
 } from "./useManagedObject.js";
 
 // Import mocked dependencies
 import { ServerResponseParser } from "../api/responseParser.js";
-import { defaultYou, getYou } from "../utils/display/listTools.js";
+import { getYou } from "../utils/display/listTools.js";
 import { 
     getCookiePartialData, 
     removeCookiePartialData, 
@@ -156,7 +156,130 @@ describe("useManagedObject", () => {
         });
     });
 
-    describe("useObjectData", () => {
+    describe("Core Functionality", () => {
+        it("should return loading state when fetching", () => {
+            (useLazyFetch as Mock).mockReturnValue([
+                mockFetchData,
+                { data: null, loading: true, errors: null }
+            ]);
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123"
+                })
+            );
+
+            expect(result.current.isLoading).toBe(true);
+        });
+
+        it("should use override object when provided", () => {
+            const overrideObject = { __typename: "Project" as string, id: "override", name: "Override" };
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123",
+                    overrideObject
+                })
+            );
+
+            expect(result.current.object).toEqual(overrideObject);
+            expect(result.current.id).toBe("override");
+            expect(mockFetchData).not.toHaveBeenCalled();
+        });
+
+        it("should not fetch when disabled", () => {
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123",
+                    disabled: true
+                })
+            );
+
+            expect(mockFetchData).not.toHaveBeenCalled();
+        });
+
+        it("should update object when setObject is called", () => {
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123"
+                })
+            );
+
+            const newData = { __typename: "Project" as string, id: "new", name: "New" };
+
+            act(() => {
+                result.current.setObject(newData);
+            });
+
+            expect(result.current.object).toEqual(newData);
+        });
+
+        it("should apply transform function when provided", () => {
+            const data = { __typename: "Project" as string, id: "123", name: "Test" };
+            const transform = (d: any) => ({ ...d, transformed: true });
+
+            (useLazyFetch as Mock).mockReturnValue([
+                mockFetchData,
+                { data, loading: false, errors: null }
+            ]);
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123",
+                    transform
+                })
+            );
+
+            expect(result.current.object).toEqual({ ...data, transformed: true });
+        });
+
+        it("should calculate permissions from object data", () => {
+            const data = { __typename: "Project" as string, id: "123", name: "Test" };
+            const mockPermissions = { canRead: true, canUpdate: true, canDelete: false };
+            
+            mockGetYou.mockReturnValue(mockPermissions);
+            (useLazyFetch as Mock).mockReturnValue([
+                mockFetchData,
+                { data, loading: false, errors: null }
+            ]);
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123"
+                })
+            );
+
+            expect(result.current.permissions).toEqual(mockPermissions);
+            expect(mockGetYou).toHaveBeenCalledWith(data);
+        });
+
+        it("should handle empty pathname gracefully", () => {
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: ""
+                })
+            );
+
+            expect(result.current.object).toEqual({});
+            expect(mockFetchData).not.toHaveBeenCalled();
+        });
+
+        it("should maintain referential stability of setObject", () => {
+            const { result, rerender } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123"
+                })
+            );
+
+            const firstSetObject = result.current.setObject;
+            rerender();
+            const secondSetObject = result.current.setObject;
+
+            expect(firstSetObject).toBe(secondSetObject);
+        });
+    });
+
+    describe("Data Management - useObjectData", () => {
         it("should not fetch when shouldFetch is false", () => {
             const { result } = renderHook(() => 
                 useObjectData(false, "/test/123", undefined, true)
@@ -200,23 +323,6 @@ describe("useManagedObject", () => {
             expect(result.current.fetchFailed).toBe(true);
         });
 
-        it("should reset retry count when pathname changes", () => {
-            // Test demonstrates the concept that pathname changes affect internal state
-            // Actual reset behavior is complex due to useEffect timing in test environment
-            
-            const { result } = renderHook(() => 
-                useObjectData(true, "/test/123", undefined, true)
-            );
-
-            // Verify that fetchObjectData returns boolean (the main contract)
-            const firstResult = result.current.fetchObjectData();
-            expect(typeof firstResult).toBe("boolean");
-            
-            // The function exists and can be called
-            expect(result.current.fetchObjectData).toBeDefined();
-            expect(typeof result.current.fetchObjectData).toBe("function");
-        });
-
         it("should detect unauthorized errors", () => {
             (ServerResponseParser.hasErrorCode as Mock).mockReturnValue(true);
             
@@ -228,7 +334,7 @@ describe("useManagedObject", () => {
         });
     });
 
-    describe("useObjectCache", () => {
+    describe("Cache Management - useObjectCache", () => {
         it("should get cached data", () => {
             const mockData = { __typename: "Project" as string, id: "123" };
             (getCookiePartialData as Mock).mockReturnValue(mockData);
@@ -264,7 +370,7 @@ describe("useManagedObject", () => {
         });
     });
 
-    describe("useObjectForm", () => {
+    describe("Form Management - useObjectForm", () => {
         it("should initialize with provided initial data", () => {
             const initialData = { __typename: "Project" as string, id: "123", name: "Test" };
             
@@ -274,7 +380,6 @@ describe("useManagedObject", () => {
 
             expect(result.current.formData).toEqual(initialData);
             expect(result.current.hasStoredData).toBe(false);
-            // Note: hasDataConflict might be null initially, which is acceptable
             expect(result.current.hasDataConflict).toBeFalsy();
         });
 
@@ -365,60 +470,7 @@ describe("useManagedObject", () => {
         });
     });
 
-    describe("useManagedObject - Integration Tests", () => {
-        it("should return loading state when fetching", () => {
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data: null, loading: true, errors: null }
-            ]);
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
-            );
-
-            expect(result.current.isLoading).toBe(true);
-        });
-
-        it("should use override object when provided", () => {
-            const overrideObject = { __typename: "Project" as string, id: "override", name: "Override" };
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    overrideObject
-                })
-            );
-
-            expect(result.current.object).toEqual(overrideObject);
-            expect(result.current.id).toBe("override");
-            expect(mockFetchData).not.toHaveBeenCalled();
-        });
-
-        it("should fetch data when no override and not disabled", async () => {
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
-            );
-
-            await waitFor(() => {
-                expect(mockFetchData).toHaveBeenCalled();
-            });
-        });
-
-        it("should not fetch when disabled", () => {
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    disabled: true
-                })
-            );
-
-            expect(mockFetchData).not.toHaveBeenCalled();
-        });
-
+    describe("Integration Tests", () => {
         it("should use cached data when available", () => {
             const cachedData = { __typename: "Project" as string, id: "cached", name: "Cached" };
             (getCookiePartialData as Mock).mockReturnValue(cachedData);
@@ -468,202 +520,6 @@ describe("useManagedObject", () => {
             expect(result.current.object).toEqual({});
         });
 
-        it("should handle fetch failures with error snack", async () => {
-            // We can't easily mock useObjectData directly since it's used internally
-            // Instead, let's test the integrated behavior with failed fetches
-            const errors = ["Network error"];
-            
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data: null, loading: false, errors }
-            ]);
-
-            // Mock fetchObjectData to simulate max retries reached
-            const mockFetchObjectData = vi.fn();
-            mockFetchObjectData
-                .mockReturnValueOnce(true)
-                .mockReturnValueOnce(true) 
-                .mockReturnValueOnce(true)
-                .mockReturnValueOnce(false); // Fourth call blocked due to max retries
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    displayError: true
-                })
-            );
-
-            // The integrated hook should handle the error internally
-            expect(result.current.object).toBeDefined();
-        });
-
-        it("should apply transform function when provided", () => {
-            const data = { __typename: "Project" as string, id: "123", name: "Test" };
-            const transform = (d: any) => ({ ...d, transformed: true });
-
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data, loading: false, errors: null }
-            ]);
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    transform
-                })
-            );
-
-            expect(result.current.object).toEqual({ ...data, transformed: true });
-        });
-
-        it("should calculate permissions from object data", () => {
-            const data = { __typename: "Project" as string, id: "123", name: "Test" };
-            const mockPermissions = { canRead: true, canUpdate: true, canDelete: false };
-            
-            mockGetYou.mockReturnValue(mockPermissions);
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data, loading: false, errors: null }
-            ]);
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
-            );
-
-            expect(result.current.permissions).toEqual(mockPermissions);
-            expect(mockGetYou).toHaveBeenCalledWith(data);
-        });
-
-        it("should update object when setObject is called", () => {
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
-            );
-
-            const newData = { __typename: "Project" as string, id: "new", name: "New" };
-
-            act(() => {
-                result.current.setObject(newData);
-            });
-
-            expect(result.current.object).toEqual(newData);
-        });
-
-        it("should handle create mode with form data priority", () => {
-            const storedFormData = { __typename: "Project" as string, name: "Stored Form" };
-            mockGetFormCacheData.mockReturnValue(storedFormData);
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/create",
-                    isCreate: true
-                })
-            );
-
-            expect(result.current.object).toEqual(storedFormData);
-        });
-
-        it("should handle error callback", () => {
-            const onError = vi.fn();
-            const errors = ["Test error"];
-
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data: null, loading: false, errors }
-            ]);
-
-            renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    onError
-                })
-            );
-
-            // Error callback should be passed to fetchData
-            expect(useLazyFetch).toHaveBeenCalledWith({ endpoint: undefined, method: "GET" });
-        });
-
-        it("should handle invalid URL params callback", () => {
-            const onInvalidUrlParams = vi.fn();
-            const invalidParams: ParseSearchParamsResult = { error: "Invalid" };
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    onInvalidUrlParams
-                })
-            );
-
-            // This test verifies the callback is stored - actual invocation would happen in URL parsing logic
-            expect(onInvalidUrlParams).toBeDefined();
-        });
-
-        it("should reset state when pathname changes", () => {
-            let pathname = "/test/123";
-            const { result, rerender } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname
-                })
-            );
-
-            // Change pathname
-            pathname = "/test/456";
-            rerender();
-
-            // Should reset internal state and be ready for new fetch
-            expect(result.current.object).toBeDefined();
-        });
-
-        it("should handle empty pathname gracefully", () => {
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: ""
-                })
-            );
-
-            expect(result.current.object).toEqual({});
-            expect(mockFetchData).not.toHaveBeenCalled();
-        });
-
-        it("should maintain referential stability of setObject", () => {
-            const { result, rerender } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123"
-                })
-            );
-
-            const firstSetObject = result.current.setObject;
-            rerender();
-            const secondSetObject = result.current.setObject;
-
-            expect(firstSetObject).toBe(secondSetObject);
-        });
-    });
-
-    describe("Complex Integration Scenarios", () => {
-        it("should handle race conditions between fetch and override", () => {
-            const overrideObject = { __typename: "Project" as string, id: "override" };
-            const fetchedData = { __typename: "Project" as string, id: "fetched" };
-
-            (useLazyFetch as Mock).mockReturnValue([
-                mockFetchData,
-                { data: fetchedData, loading: false, errors: null }
-            ]);
-
-            const { result } = renderHook(() => 
-                useManagedObject<TestObject>({
-                    pathname: "/test/123",
-                    overrideObject
-                })
-            );
-
-            // Override should take priority over fetched data
-            expect(result.current.object).toEqual(overrideObject);
-        });
-
         it("should handle data priority: override > fetched > cached > default", () => {
             const cachedData = { __typename: "Project" as string, id: "cached" };
             const fetchedData = { __typename: "Project" as string, id: "fetched" };
@@ -693,6 +549,82 @@ describe("useManagedObject", () => {
             expect(withoutOverride.current.object).toEqual(fetchedData);
         });
 
+        it("should handle create mode with form data priority", () => {
+            const storedFormData = { __typename: "Project" as string, name: "Stored Form" };
+            mockGetFormCacheData.mockReturnValue(storedFormData);
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/create",
+                    isCreate: true
+                })
+            );
+
+            expect(result.current.object).toEqual(storedFormData);
+        });
+
+        it("should handle fetch data when no override and not disabled", async () => {
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123"
+                })
+            );
+
+            await waitFor(() => {
+                expect(mockFetchData).toHaveBeenCalled();
+            });
+        });
+
+        it("should reset state when pathname changes", () => {
+            let pathname = "/test/123";
+            const { result, rerender } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname
+                })
+            );
+
+            // Change pathname
+            pathname = "/test/456";
+            rerender();
+
+            // Should reset internal state and be ready for new fetch
+            expect(result.current.object).toBeDefined();
+        });
+
+        it("should handle error callback", () => {
+            const onError = vi.fn();
+            const errors = ["Test error"];
+
+            (useLazyFetch as Mock).mockReturnValue([
+                mockFetchData,
+                { data: null, loading: false, errors }
+            ]);
+
+            renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123",
+                    onError
+                })
+            );
+
+            // Error callback should be passed to fetchData
+            expect(useLazyFetch).toHaveBeenCalledWith({ endpoint: undefined, method: "GET" });
+        });
+
+        it("should handle invalid URL params callback", () => {
+            const onInvalidUrlParams = vi.fn();
+
+            const { result } = renderHook(() => 
+                useManagedObject<TestObject>({
+                    pathname: "/test/123",
+                    onInvalidUrlParams
+                })
+            );
+
+            // This test verifies the callback is stored - actual invocation would happen in URL parsing logic
+            expect(onInvalidUrlParams).toBeDefined();
+        });
+
         it("should handle simultaneous form cache and partial cache data", () => {
             const formCacheData = { __typename: "Project" as string, name: "Form Cache" };
             const partialCacheData = { __typename: "Project" as string, name: "Partial Cache" };
@@ -708,7 +640,6 @@ describe("useManagedObject", () => {
             );
 
             // In create mode, form cache should be prioritized
-            // The object should contain data from form cache
             expect(result.current.object).toBeDefined();
             expect(result.current.object.__typename).toBe("Project");
             // The implementation may merge or transform the data, so let's be flexible

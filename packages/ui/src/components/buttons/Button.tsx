@@ -13,14 +13,17 @@ import {
 } from "./buttonStyles.js";
 
 // Export types for external use
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "space" | "custom";
+export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger" | "space" | "custom" | "neon";
 export type ButtonSize = "sm" | "md" | "lg" | "icon";
+export type ButtonBorderRadius = "none" | "minimal" | "pill";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     /** Visual style variant of the button */
     variant?: ButtonVariant;
     /** Size of the button */
     size?: ButtonSize;
+    /** Border radius style of the button */
+    borderRadius?: ButtonBorderRadius;
     /** Whether the button is in a loading state */
     isLoading?: boolean;
     /** Type of loading indicator to display */
@@ -101,11 +104,38 @@ const SpaceBackground = ({
 );
 
 /**
+ * Neon Background Component
+ * Special glowing effects for the neon variant with circular animation
+ */
+const NeonBackground = ({
+    ripples,
+    onRippleComplete
+}: {
+    ripples: Ripple[];
+    onRippleComplete: (id: number) => void;
+}) => {
+    return (
+        <>
+            {/* Neon-specific ripple effects */}
+            {ripples.map((ripple) => (
+                <div
+                    key={ripple.id}
+                    className="tw-button-ripple"
+                    style={createRippleStyle(ripple, BUTTON_COLORS.RIPPLE.neon)}
+                    onAnimationEnd={() => onRippleComplete(ripple.id)}
+                />
+            ))}
+        </>
+    );
+};
+
+/**
  * A performant, accessible Tailwind CSS button component with multiple variants and sizes.
  * 
  * Features:
- * - 7 variants including custom color support
+ * - 8 variants including custom color support and neon glow
  * - 4 size options with consistent spacing
+ * - 3 border radius options: none, minimal (default), and pill
  * - Loading states with circular/orbital spinners
  * - Ripple effects for visual feedback
  * - Full accessibility support
@@ -113,7 +143,7 @@ const SpaceBackground = ({
  * 
  * @example
  * ```tsx
- * <Button variant="primary" size="md" startIcon={<Icon />}>
+ * <Button variant="primary" size="md" borderRadius="pill" startIcon={<Icon />}>
  *   Click me
  * </Button>
  * ```
@@ -123,6 +153,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {
             variant = "primary",
             size = "md",
+            borderRadius = "minimal",
             isLoading = false,
             loadingIndicator = "circular",
             startIcon,
@@ -148,11 +179,12 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             buildButtonClasses({
                 variant,
                 size,
+                borderRadius,
                 fullWidth,
                 disabled: isDisabled,
                 className,
             }),
-            [variant, size, fullWidth, isDisabled, className]
+            [variant, size, borderRadius, fullWidth, isDisabled, className]
         );
 
         // Memoize start element (loading spinner or start icon) for performance
@@ -199,16 +231,32 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 onClick={handleClick}
                 {...props}
             >
-                {/* Space background for space variant */}
+                {/* Space background for space variant - simplified to just sweep animation */}
                 {variant === "space" && (
-                    <SpaceBackground
+                    <>
+                        <div className="tw-button-space-sweep group-active:tw-animation-pause" />
+                        {/* Space-specific ripple effects */}
+                        {ripples.map((ripple) => (
+                            <div
+                                key={ripple.id}
+                                className="tw-button-ripple"
+                                style={createRippleStyle(ripple, BUTTON_COLORS.RIPPLE.space)}
+                                onAnimationEnd={() => onRippleComplete(ripple.id)}
+                            />
+                        ))}
+                    </>
+                )}
+
+                {/* Neon background for neon variant */}
+                {variant === "neon" && (
+                    <NeonBackground
                         ripples={ripples}
                         onRippleComplete={handleRippleComplete}
                     />
                 )}
 
-                {/* Ripple effects for non-space variants */}
-                {variant !== "space" && (
+                {/* Ripple effects for non-space and non-neon variants */}
+                {variant !== "space" && variant !== "neon" && (
                     <RippleEffect
                         ripples={ripples}
                         onRippleComplete={handleRippleComplete}
@@ -216,10 +264,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     />
                 )}
 
-                {/* Button content with proper spacing and z-index for space variant */}
+                {/* Button content with proper spacing and z-index for space and neon variants */}
                 <span className={cn(
                     "tw-inline-flex tw-items-center tw-justify-center tw-gap-2",
-                    variant === "space" && "tw-relative tw-z-10"
+                    (variant === "space" || variant === "neon") && "tw-relative tw-z-10"
                 )}>
                     {startElement && <ButtonIcon>{startElement}</ButtonIcon>}
                     {children}
@@ -267,5 +315,9 @@ export const ButtonFactory = {
     /** Space-themed button */
     Space: (props: Omit<ButtonProps, "variant">) => (
         <Button variant="space" {...props} />
+    ),
+    /** Neon glowing green button */
+    Neon: (props: Omit<ButtonProps, "variant">) => (
+        <Button variant="neon" {...props} />
     ),
 } as const;

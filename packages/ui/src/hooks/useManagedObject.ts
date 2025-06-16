@@ -163,7 +163,20 @@ export function applyDataTransform<PData extends UrlObject, TData extends UrlObj
     if (!data) {
         return {} as TData;
     }
-    return transform ? transform(data) : (data as unknown as TData);
+    
+    if (transform) {
+        try {
+            return transform(data);
+        } catch (error) {
+            if (process.env.NODE_ENV === "development") {
+                console.error("[applyDataTransform] Transform function threw an error:", error);
+            }
+            // Return the untransformed data as fallback
+            return data as unknown as TData;
+        }
+    }
+    
+    return data as unknown as TData;
 }
 
 /**
@@ -182,7 +195,7 @@ export function useObjectForm<
     const getFormCacheData = useFormCacheStore(state => state.getCacheData);
 
     // Get stored form data if it exists (memoized)
-    const storedFormData = useMemo(() => pathname.length > 1 ? getFormCacheData(pathname) as PData : undefined, [pathname, getFormCacheData]);
+    const storedFormData = useMemo(() => pathname && pathname.length > 1 ? getFormCacheData(pathname) as PData : undefined, [pathname, getFormCacheData]);
 
     // Memoize transform function to prevent unnecessary recalculations
     const stableTransform = useCallback(transform || ((data: Partial<PData>) => data as unknown as TData), [transform]);
@@ -395,7 +408,7 @@ export function useManagedObject<
 
 
         // Priority 7: Initiate fetch when needed
-        if (shouldFetch && pathname.length > 1 && !fetchedData && !isLoading && !stateRef.current.hasAttemptedInitialFetch) {
+        if (shouldFetch && pathname && pathname.length > 1 && !fetchedData && !isLoading && !stateRef.current.hasAttemptedInitialFetch) {
             stateRef.current.hasAttemptedInitialFetch = true;
             fetchObjectData();
             return;

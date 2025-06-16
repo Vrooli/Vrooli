@@ -1,5 +1,5 @@
 import { cn } from "../../utils/tailwind-theme.js";
-import type { ButtonVariant, ButtonSize } from "./Button.js";
+import type { ButtonVariant, ButtonSize, ButtonBorderRadius } from "./Button.js";
 
 /**
  * Button component styling utilities and configuration
@@ -42,72 +42,93 @@ export const BUTTON_COLORS = {
         danger: "rgba(255, 255, 255, 0.5)",
         space: "rgba(15, 170, 170, 0.8)",
         custom: "rgba(255, 255, 255, 0.3)",
+        neon: "rgba(0, 255, 127, 0.6)",
     },
     
-    // CSS variables for space variant
+    // CSS variables for space variant - using visible gradient like signup button
     SPACE: {
         border: {
-            start: "#1a3a4a",
-            mid: "#2a4a6a", 
-            end: "#1a3a4a",
+            start: "#16a361", // secondary.main equivalent
+            mid: "#0faaaa",   // primary.main equivalent  
+            end: "#16a361",
         },
         background: {
-            start: "#0a1a2a",
-            mid: "#16213a",
-            end: "#0a1a2a",
+            start: "#16a361", // secondary.main
+            mid: "#0faaaa",   // primary.main
+            end: "#16a361",
         },
-        glow: "rgba(22, 163, 97, 0.15)",
+        glow: "rgba(22, 163, 97, 0.4)",
         sweep: {
-            light: "rgba(15, 170, 170, 0.4)",
-            dark: "rgba(22, 163, 97, 0.4)",
+            light: "rgba(255, 255, 255, 0.2)",
+            dark: "rgba(255, 255, 255, 0.1)",
         },
+    },
+    
+    // Neon variant colors
+    NEON: {
+        base: "#00ff7f",
+        glow: "rgba(0, 255, 127, 0.4)",
+        shadowInner: "rgba(0, 255, 127, 0.8)",
+        shadowOuter: "rgba(0, 255, 127, 0.3)",
     },
 } as const;
 
 // Variant styles mapping - organized for better maintainability
 export const VARIANT_STYLES: Record<ButtonVariant, string> = {
     primary: cn(
-        "tw-bg-secondary-main tw-text-white",
+        "tw-bg-secondary-main tw-text-white tw-border-0",
         "hover:tw-bg-secondary-dark",
-        "focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2",
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
         "tw-shadow-md hover:tw-shadow-lg"
     ),
     
     secondary: cn(
-        "tw-bg-gray-200 tw-text-gray-800",
+        "tw-bg-gray-200 tw-text-gray-800 tw-border-0",
         "hover:tw-bg-gray-300",
-        "focus:tw-ring-2 focus:tw-ring-gray-400 focus:tw-ring-offset-2",
+        "focus:tw-ring-1 focus:tw-ring-gray-400 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
         "tw-shadow-sm hover:tw-shadow-md"
     ),
     
     outline: cn(
-        "tw-bg-transparent tw-border tw-border-secondary-main tw-text-secondary-main",
-        "hover:tw-bg-secondary-main hover:tw-text-white",
-        "focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2"
+        "tw-bg-transparent tw-text-secondary-main",
+        "tw-border-2 tw-border-solid tw-border-current",
+        "hover:tw-bg-secondary-main hover:tw-text-white hover:tw-border-secondary-main",
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
     ),
     
     ghost: cn(
-        "tw-bg-transparent tw-text-secondary-main",
+        "tw-bg-transparent tw-text-secondary-main tw-border-0",
         "hover:tw-bg-secondary-main hover:tw-bg-opacity-10",
-        "focus:tw-ring-2 focus:tw-ring-secondary-main focus:tw-ring-offset-2"
+        "focus:tw-ring-1 focus:tw-ring-secondary-main focus:tw-ring-offset-1 focus:tw-ring-opacity-50"
     ),
     
     danger: cn(
-        "tw-bg-red-600 tw-text-white",
+        "tw-bg-red-600 tw-text-white tw-border-0",
         "hover:tw-bg-red-700",
-        "focus:tw-ring-2 focus:tw-ring-red-600 focus:tw-ring-offset-2",
+        "focus:tw-ring-1 focus:tw-ring-red-600 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
         "tw-shadow-md hover:tw-shadow-lg"
     ),
     
     space: cn(
-        "tw-button-space-container",
-        "tw-text-white tw-group"
+        "tw-text-white tw-group tw-border-0",
+        "tw-transition-all tw-duration-300",
+        "hover:tw-scale-105",
+        "tw-shadow-md hover:tw-shadow-lg",
+        // Direct gradient application
+        "tw-bg-gradient-to-r tw-from-secondary-main tw-to-primary-main",
+        "hover:tw-from-secondary-dark hover:tw-to-primary-dark",
+        "hover:tw-shadow-secondary-main/40"
     ),
     
     custom: cn(
-        "tw-transition-all tw-duration-200",
-        "focus:tw-ring-2 focus:tw-ring-offset-2",
+        "tw-transition-all tw-duration-200 tw-border-0",
+        "focus:tw-ring-1 focus:tw-ring-offset-1 focus:tw-ring-opacity-50",
         "tw-shadow-md hover:tw-shadow-lg"
+    ),
+    
+    neon: cn(
+        "tw-button-neon-container",
+        "tw-text-white tw-group"
     ),
 };
 
@@ -119,7 +140,14 @@ export const SIZE_STYLES: Record<ButtonSize, string> = {
     icon: "tw-h-10 tw-w-10 tw-p-0",
 };
 
-// Base styles that apply to all button variants
+// Border radius styles mapping
+export const BORDER_RADIUS_STYLES: Record<ButtonBorderRadius, string> = {
+    none: "tw-rounded-none",
+    minimal: "tw-rounded", // Default - 4px
+    pill: "tw-rounded-full",
+};
+
+// Base styles that apply to all button variants (without border radius)
 export const BASE_BUTTON_STYLES = cn(
     // Layout and alignment
     "tw-inline-flex tw-items-center tw-justify-center tw-gap-2",
@@ -127,9 +155,12 @@ export const BASE_BUTTON_STYLES = cn(
     // Typography
     "tw-font-sans tw-font-medium tw-tracking-wider tw-uppercase",
     
+    // Interactions and cursor
+    "tw-cursor-pointer",
+    
     // Transitions and interactions
-    "tw-rounded tw-transition-all tw-duration-200",
-    "tw-border-0 tw-outline-none",
+    "tw-transition-all tw-duration-200",
+    "tw-outline-none",
     "focus:tw-ring-offset-background",
     
     // Positioning for effects
@@ -140,7 +171,7 @@ export const BASE_BUTTON_STYLES = cn(
  * Utility function to determine spinner variant based on button variant
  */
 export const getSpinnerVariant = (variant: ButtonVariant): "current" | "secondary" | "white" => {
-    if (variant === "outline" || variant === "ghost" || variant === "custom") {
+    if (variant === "outline" || variant === "ghost" || variant === "custom" || variant === "neon") {
         return "current";
     }
     if (variant === "secondary") {
@@ -159,17 +190,19 @@ export const getSpinnerConfig = (size: ButtonSize) => ({
 
 /**
  * Utility function to build complete button classes
- * Follows the pattern: base + variant + size + state + custom
+ * Follows the pattern: base + variant + size + borderRadius + state + custom
  */
 export const buildButtonClasses = ({
     variant = "primary",
     size = "md",
+    borderRadius = "minimal",
     fullWidth = false,
     disabled = false,
     className,
 }: {
     variant?: ButtonVariant;
     size?: ButtonSize;
+    borderRadius?: ButtonBorderRadius;
     fullWidth?: boolean;
     disabled?: boolean;
     className?: string;
@@ -181,8 +214,8 @@ export const buildButtonClasses = ({
         // Width styles
         fullWidth ? "tw-w-full" : "tw-w-auto",
         
-        // Special handling for space variant
-        variant === "space" && "tw-group",
+        // Special handling for space and neon variants
+        (variant === "space" || variant === "neon") && "tw-group",
         
         // Variant styles
         VARIANT_STYLES[variant],
@@ -190,8 +223,11 @@ export const buildButtonClasses = ({
         // Size styles
         SIZE_STYLES[size],
         
+        // Border radius styles
+        BORDER_RADIUS_STYLES[borderRadius],
+        
         // State styles
-        disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none",
+        disabled && "tw-opacity-50 tw-cursor-not-allowed tw-pointer-events-none tw-button-disabled",
         
         // Custom overrides
         className
@@ -264,3 +300,8 @@ export const getCustomFocusRingColor = (color: string): string => {
     // Return semi-transparent version of the color
     return `rgba(${r}, ${g}, ${b}, 0.5)`;
 };
+
+/**
+ * Style generators for neon variant with glowing effects
+ */
+// Neon styles are handled entirely by CSS classes
