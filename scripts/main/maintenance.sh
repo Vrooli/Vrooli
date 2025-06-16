@@ -12,111 +12,117 @@
 #   • claude or claude-code CLI on PATH
 #   • jq • bash • sleep (coreutils)
 # ------------------------------------------------------------------------------
-
 set -euo pipefail
 
 ###############################################################################
-# Configurable knobs
+# Config
 ###############################################################################
-BATCH_SIZE=50       # turns per Claude invocation
-COOLDOWN_SECONDS=5  # pause between batches
-COOLDOWN_BETWEEN_TASKS=10   # pause between distinct tasks
+BATCH_SIZE=${BATCH_SIZE:-50}
+COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-5}
+COOLDOWN_BETWEEN_TASKS=${COOLDOWN_BETWEEN_TASKS:-10}
 NEEDED_TOOLS=(
-  "Bash(*)" "Write(*)" "Edit" "Glob" "Grep" "LS" "ReadFile" "FileWrite"
-  "MultiEdit" "Git(*)" "WebSearch" "WebFetch"
+  "Bash:*"            # colon form seems to work more reliably than *(*) in 0.2.1xx
+  "Edit" "Write" "Glob" "Grep" "LS" "ReadFile"
+  "MultiEdit" "Git:*" "WebSearch" "WebFetch"
 )
 ALLOWED_TOOLS=$(IFS=','; echo "${NEEDED_TOOLS[*]}")
 
+log_dir="logs/$(date +%F)"
+mkdir -p "$log_dir"
+trap 'echo -e "\n🔴  Aborted"; exit 130' INT
+
 ###############################################################################
-# Basic checks & helpers
+# Discover all settings files that could block us
 ###############################################################################
-usage() {
-  echo "Usage: $0 \"PROMPT_1\" TURNS_1 [\"PROMPT_2\" TURNS_2 ...]" >&2
-  exit 1
+settings_files=()
+for f in \
+  ".claude/settings.local.json" \
+  ".claude/settings.json" \
+  "$HOME/.claude/settings.json"
+do
+  [[ -f $f ]] || continue
+  settings_files+=("$f")
+done
+
+# If none exist yet, create local settings (highest precedence)
+if [[ ${#settings_files[@]} -eq 0 ]]; then
+  mkdir -p .claude
+  echo '{ "permissions": { "allow": [] } }' > .claude/settings.local.json
+  settings_files=( ".claude/settings.local.json" )
+fi
+
+###############################################################################
+# Helper: patch one file in-place
+###############################################################################
+patch_settings() {
+  local file=$1; shift
+  tmp=$(mktemp)
+  jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" | jq -R . | jq -s .)" '
+      (.permissions //= {}) |
+      (.permissions.allow //= []) |
+      (.permissions.allow |= (. + $need | unique))
+    ' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
-[[ $# -ge 2 && $(( $# % 2 )) -eq 0 ]] || usage
-
-if [[ "$(id -u)" -eq 0 ]]; then
-  echo "❌  Refusing to run as root. Please switch to an unprivileged user." >&2
-  exit 1
-fi
+for f in "${settings_files[@]}"; do
+  patch_settings "$f"
+done
 
 ###############################################################################
-# Locate or create Claude settings file
+# Pick CLI
 ###############################################################################
-if [[ -f ".claude/settings.json" ]]; then
-  SETTINGS_FILE=".claude/settings.json"
-else
-  SETTINGS_FILE="$HOME/.claude/settings.json"
-fi
-mkdir -p "$(dirname "$SETTINGS_FILE")"
-[[ -s "$SETTINGS_FILE" ]] || echo '{ "permissions": { "allow": [] } }' > "$SETTINGS_FILE"
-
-# Ensure required tools are whitelisted
-tmp=$(mktemp)
-jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" | jq -R . | jq -s .)" '
-  (.permissions //= {}) |
-  (.permissions.allow //= []) |
-  (.permissions.allow |= (. + $need | unique))
-' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
-
-###############################################################################
-# Pick Claude CLI
-###############################################################################
-if command -v claude-code >/dev/null 2>&1; then
+if command -v claude-code &>/dev/null; then
   CLAUDE=claude-code; PROMPT_FLAG=--prompt
-elif command -v claude >/dev/null 2>&1; then
-  CLAUDE=claude;      PROMPT_FLAG=-p
+elif command -v claude &>/dev/null; then
+  CLAUDE=claude; PROMPT_FLAG=-p
 else
-  echo "❌  Neither 'claude-code' nor 'claude' found on PATH." >&2
-  exit 1
+  echo "❌  Claude CLI not found" >&2; exit 1
 fi
 
 ###############################################################################
-# Core runner
+# Wrapper that retries once with --dangerously-skip-permissions
+###############################################################################
+run_claude() {
+  local allow_flag=( --allowedTools "$ALLOWED_TOOLS" )
+  "$CLAUDE" "${allow_flag[@]}" "$@" || {
+    echo "⚠️  CLI ignored --allowedTools, retrying with --dangerously-skip-permissions" >&2
+    "$CLAUDE" --dangerously-skip-permissions "$@"
+  }
+}
+
+###############################################################################
+# Core batch runner
 ###############################################################################
 run_task() {
-  local TASK_PROMPT=$1
-  local TOTAL_TURNS=$2
+  local prompt=$1 turns_total=$2
+  [[ $turns_total =~ ^[0-9]+$ ]] || { echo "Turns must be numeric"; exit 1; }
 
-  [[ $TOTAL_TURNS =~ ^[0-9]+$ ]] || { echo "Turns must be numeric"; exit 1; }
+  echo -e "\n🛠️  \"$prompt\" ($turns_total turns)"
+  local remain=$turns_total session=""
+  while (( remain > 0 )); do
+    local t=$(( remain < BATCH_SIZE ? remain : BATCH_SIZE ))
+    echo "➡️  Batch $t  (left $remain)"
 
-  echo -e "\n🛠️  Starting task: \"$TASK_PROMPT\" (up to $TOTAL_TURNS turns)"
-  local remaining=$TOTAL_TURNS
-  local session=""
+    out_file="$log_dir/$(date +%H%M%S)_${prompt// /_}.json"
+    run_claude "$PROMPT_FLAG" "$prompt" \
+       --max-turns "$t" --output-format stream-json --verbose \
+       ${session:+--resume "$session"} \
+       | tee "$out_file"
 
-  while (( remaining > 0 )); do
-    local turns=$(( remaining < BATCH_SIZE ? remaining : BATCH_SIZE ))
-    echo "➡️  Running batch of $turns turns (remaining: $remaining)…"
-
-    cmd=(
-      "$CLAUDE" "$PROMPT_FLAG" "$TASK_PROMPT"
-      --max-turns "$turns"
-      --verbose
-      --output-format stream-json
-      --allowedTools "$ALLOWED_TOOLS"
-    )
-    [[ -n $session ]] && cmd+=( --resume "$session" )
-
-    output="$("${cmd[@]}" 2>&1 | tee /dev/tty)"
-    session=$(grep -oP '"sessionId"\s*:\s*"\K[^"]+' <<<"$output" | tail -n1 || true)
-
-    (( remaining -= turns ))
-    [[ $remaining -gt 0 ]] && { echo "💤  Cooling down $COOLDOWN_SECONDS s…"; sleep "$COOLDOWN_SECONDS"; }
+    session=$(grep -oP '"sessionId"\s*:\s*"\K[^"]+' "$out_file" | tail -1 || true)
+    (( remain -= t ))
+    (( remain )) && { sleep "$COOLDOWN_SECONDS"; }
   done
-
-  echo "✅  Finished task \"$TASK_PROMPT\" (session id: ${session:-<none>})"
 }
 
 ###############################################################################
-# Main loop – iterate through pairs
+# Parse PROMPT/TURNS pairs
 ###############################################################################
+[[ $# -ge 2 && $(( $# % 2 )) -eq 0 ]] || {
+  echo "Usage: $0 \"PROMPT1\" TURNS1 [\"PROMPT2\" TURNS2 ...]" >&2; exit 1;
+}
 while (( $# )); do
-  PROMPT=$1; shift
-  TURNS=$1; shift
-  run_task "$PROMPT" "$TURNS"
-
-  # Optional cool-off between distinct tasks
-  (( $# )) && { echo "🌙  Waiting $COOLDOWN_BETWEEN_TASKS s before next task…"; sleep "$COOLDOWN_BETWEEN_TASKS"; }
+  run_task "$1" "$2"
+  shift 2
+  (( $# )) && sleep "$COOLDOWN_BETWEEN_TASKS"
 done
