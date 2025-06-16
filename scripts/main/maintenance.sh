@@ -21,11 +21,9 @@ BATCH_SIZE=${BATCH_SIZE:-50}
 COOLDOWN_SECONDS=${COOLDOWN_SECONDS:-5}
 COOLDOWN_BETWEEN_TASKS=${COOLDOWN_BETWEEN_TASKS:-10}
 NEEDED_TOOLS=(
-  "Bash:*"            # colon form seems to work more reliably than *(*) in 0.2.1xx
-  "Edit" "Write" "Glob" "Grep" "LS" "ReadFile"
-  "MultiEdit" "Git:*" "WebSearch" "WebFetch"
+  "Bash" "Edit" "Write" "Glob" "Grep" "LS" "ReadFile"
+  "MultiEdit" "Git" "WebSearch" "WebFetch"
 )
-ALLOWED_TOOLS=$(IFS=','; echo "${NEEDED_TOOLS[*]}")
 
 log_dir="logs/$(date +%F)"
 mkdir -p "$log_dir"
@@ -83,9 +81,8 @@ fi
 # Wrapper that retries once with --dangerously-skip-permissions
 ###############################################################################
 run_claude() {
-  local allow_flag=( --allowedTools "$ALLOWED_TOOLS" )
-  "$CLAUDE" "${allow_flag[@]}" "$@" || {
-    echo "⚠️  CLI ignored --allowedTools, retrying with --dangerously-skip-permissions" >&2
+  "$CLAUDE" "$@" || {
+    echo "⚠️  CLI exited non-zero; retrying with --dangerously-skip-permissions" >&2
     "$CLAUDE" --dangerously-skip-permissions "$@"
   }
 }
