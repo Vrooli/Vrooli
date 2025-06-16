@@ -17,5 +17,5 @@ if [ $? -ne 0 ]; then
 fi
 
 echo 'INFO: Starting app...'
-pnpm run start:${NODE_ENV}
+pnpm run start-${NODE_ENV}
 echo 'SUCCESS: App started'

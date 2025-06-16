@@ -132,6 +132,10 @@ EXIT_CODES+=("ERROR_SSH_FILE_MISSING")
 : "${DESC_ERROR_DOCKER_LOGIN_FAILED:=Docker login failed}"
 EXIT_CODES+=("ERROR_DOCKER_LOGIN_FAILED")
 
+: "${EXIT_USER_INTERRUPT:=130}"
+: "${DESC_EXIT_USER_INTERRUPT:=User interrupted execution (Ctrl+C)}"
+EXIT_CODES+=("EXIT_USER_INTERRUPT")
+
 # Helper function to generate exit codes display for usage
 exit_codes::print() {
     local var_name code desc_var description

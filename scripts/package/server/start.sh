@@ -32,4 +32,4 @@ fi
 
 echo 'INFO: Starting server...'
 cd "${PROJECT_DIR}/packages/server"
-pnpm run start:${NODE_ENV}
+pnpm run start-${NODE_ENV}

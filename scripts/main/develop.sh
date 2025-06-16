@@ -15,6 +15,8 @@ source "${MAIN_DIR}/../helpers/utils/targetMatcher.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/var.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/exit_codes.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/develop/index.sh"
 
 develop::parse_arguments() {
@@ -54,7 +56,16 @@ develop::main() {
     export TARGET="$canonical"
     log::header "🏃 Starting development environment for $(match_target "$TARGET")"
 
-    source "${MAIN_DIR}/setup.sh" "$@"
+    # Save the target before setup overwrites it
+    local saved_target="$TARGET"
+    
+    source "${MAIN_DIR}/setup.sh"
+    setup::parse_arguments "$@"
+    
+    # Restore the correct target
+    export TARGET="$saved_target"
+    
+    setup::main "$@"
 
     if env::is_location_remote; then
         proxy::setup
@@ -69,9 +80,21 @@ develop::main() {
         log::error "Target develop script not found: $TARGET_SCRIPT"
         exit "${ERROR_FUNCTION_NOT_FOUND}"
     fi
-    bash "$TARGET_SCRIPT" "$@" || exit $?
-
-    log::success "✅ Development environment started." 
+    
+    # Execute the target script and capture its exit code
+    bash "$TARGET_SCRIPT" "$@"
+    local exit_code=$?
+    
+    # Only show success message if the script completed successfully
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "✅ Development environment started."
+    elif [[ $exit_code -eq "$EXIT_USER_INTERRUPT" ]]; then
+        log::info "Development environment stopped by user."
+    else
+        log::error "Development environment exited with error code: $exit_code"
+    fi
+    
+    exit $exit_code 
 }
 
 develop::main "$@"

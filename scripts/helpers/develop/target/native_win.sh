@@ -8,6 +8,8 @@ DEVELOP_TARGET_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${DEVELOP_TARGET_DIR}/../../utils/flow.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/log.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
 
 nativeWin::start_development_native_win() {
     log::header "Starting native Windows development environment..."
@@ -31,7 +33,7 @@ nativeWin::start_development_native_win() {
     nativeWin::cleanup() {
         log::info "Cleaning up development environment..."
         kill $TYPE_CHECK_PID $LINT_PID
-        exit 0
+        exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$DETACHED"; then
         trap nativeWin::cleanup SIGINT SIGTERM

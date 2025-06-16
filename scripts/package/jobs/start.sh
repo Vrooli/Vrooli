@@ -43,5 +43,5 @@ fi
 
 echo 'INFO: Starting jobs...'
 cd "${PROJECT_DIR}/packages/jobs"
-pnpm run start:${NODE_ENV}
+pnpm run start-${NODE_ENV}
 echo 'SUCCESS: Jobs started'

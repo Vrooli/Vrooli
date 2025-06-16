@@ -12,6 +12,8 @@ source "${DEVELOP_TARGET_DIR}/../../utils/log.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/env.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
 
 dockerOnly::start_development_docker_only() {
     local detached=${DETACHED:-No}
@@ -32,12 +34,17 @@ dockerOnly::start_development_docker_only() {
         cd "$var_ROOT_DIR"
         docker-compose down
         cd "$ORIGINAL_DIR"
-        exit 0
+        exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$detached"; then
         trap dockerOnly::cleanup SIGINT SIGTERM
     fi
     log::info "Starting all services in detached mode (Postgres, Redis, server, jobs, UI)..."
+    
+    # Docker Compose needs to see the environment variables
+    # Export all variables from the environment file for docker-compose
+    export $(grep -v '^#' "$var_ENV_DEV_FILE" | grep -v '^$' | xargs)
+    
     if flow::is_yes "$detached"; then
         docker-compose up -d
     else

@@ -15,6 +15,8 @@ source "${DEVELOP_TARGET_DIR}/../../utils/docker.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/flow.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/system.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
 
 
 # Global variable to store original Docker env to revert
@@ -73,6 +75,12 @@ develop::k8s_ensure_minikube_running() {
     fi
 }
 
+develop::k8s_cleanup() {
+    log::info "🔧 Cleaning up Kubernetes development environment..."
+    develop::k8s_revert_docker_env
+    exit "$EXIT_USER_INTERRUPT"
+}
+
 develop::k8s_cluster_main() {
     log::header "🚀 Starting Kubernetes Development Environment Setup (Target: k8s-cluster)"
 
@@ -81,8 +89,9 @@ develop::k8s_cluster_main() {
     # We'll re-verify minikube status here.
     develop::k8s_ensure_minikube_running
 
-    # Trap to revert docker env on exit
-    trap develop::k8s_revert_docker_env EXIT SIGINT SIGTERM
+    # Trap to cleanup on exit
+    trap develop::k8s_cleanup SIGINT SIGTERM
+    trap develop::k8s_revert_docker_env EXIT
 
     log::info "Configuring shell to use Minikube's Docker daemon..."
     # Save current Docker environment variables to revert later

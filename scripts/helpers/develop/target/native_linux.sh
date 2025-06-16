@@ -10,6 +10,8 @@ source "${DEVELOP_TARGET_DIR}/../../utils/flow.sh"
 source "${DEVELOP_TARGET_DIR}/../../utils/log.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
 
 nativeLinux::start_development_native_linux() {
     log::header "🚀 Starting native Linux development environment..."
@@ -20,7 +22,7 @@ nativeLinux::start_development_native_linux() {
         cd "$var_ROOT_DIR"
         docker-compose down
         cd "$ORIGINAL_DIR"
-        exit 0
+        exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$DETACHED"; then
         trap nativeLinux::cleanup SIGINT SIGTERM

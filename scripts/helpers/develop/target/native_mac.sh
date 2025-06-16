@@ -8,6 +8,8 @@ DEVELOP_TARGET_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${DEVELOP_TARGET_DIR}/../../utils/log.sh"
 # shellcheck disable=SC1091
 source "${DEVELOP_TARGET_DIR}/../../utils/system.sh"
+# shellcheck disable=SC1091
+source "${DEVELOP_TARGET_DIR}/../../utils/exit_codes.sh"
 
 nativeMac::brew_install() {
     if ! system::is_command "brew"; then
