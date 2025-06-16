@@ -116,12 +116,13 @@ Some alternative ideas for slides 1 and 3:
 
 ### 4. `clip04_grand_vision.mp4`
 
-**Prompt**: Night-time cyber-green megacity, drenched in neon blues, magentas, and emeralds. 
-— Scene opens at street level: rain-slick avenue lined with living-wall façades and bioluminescent planters. Pedestrians in smart fabrics stroll beneath glowing kanji and holographic way-finding signs; occasional humanoid service robots glide past, umbrellas raised. Autonomous electric cars hum silently along transparent lanes, their under-glow reflecting on wet asphalt. Small delivery drones buzz overhead, leaving faint emerald light trails.  
-— Camera begins a slow crane-up and backward pull: rises above the crowd, past tree-lined skybridges where people pause to watch the city. e-VTOL taxis lift off from rooftop pads, rotor rings glowing cyan. 
-— Mid-pullback, building exteriors reveal animated circuit-line patterns—soft pulses of neon data running like capillaries across vertical gardens. 
-— Final wide aerial: entire skyline ablaze with coordinated pulses; drones weave in geometric formations; rooftop farms shimmer with bioluminescent vines; humanoid robots assist gardeners on terraces. Camera completes gentle orbit, holding on the vast, living neon metropolis in serene equilibrium. 
-Audio: light rain, soft synthwave bed, distant chatter and hum of e-motors at ground level, which transitions to drone whirring as the camera gets higher
+**Prompt**: Cyber-green megacity at night. Rain glistens on neon-lit street. Pedestrians in reflective smart fabrics pass humanoid service robots holding umbrellas; silent e-cars glide through the puddles.
+
+Camera lifts in a slow crane-up and gentle pull-back. It rises above the crowd to reveal treetop sky-bridges and a few cyan-ring e-VTOL taxis lifting off nearby roofs.
+
+Wide aerial finale. Animated circuit-lines pulse across vertical-garden façades; drones trace soft emerald arcs above the skyline as the city glows in serene equilibrium.
+
+Audio: light rain, soft synthwave bed, distant e-motor hum that fades to faint drone whir as the camera ascends.
 
 ---
 
