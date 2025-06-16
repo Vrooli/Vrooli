@@ -1,12 +1,15 @@
-import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert } from "@mui/material";
+import { Box, Typography, Paper, Divider, LinearProgress, Chip, Alert, Table, TableBody, TableCell, TableRow } from "@mui/material";
 import { ExecutionStep } from "./RoutineExecutor.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { ResourceVersion, ResourceSubType } from "@vrooli/shared";
 
 interface StepDetailsProps {
     step?: ExecutionStep;
     contextValues: Record<string, unknown>;
     totalSteps: number;
     currentStepIndex: number;
+    resourceVersion?: ResourceVersion;
+    currentSubroutine?: ResourceVersion;
 }
 
 function formatValue(value: unknown): string {
@@ -26,11 +29,227 @@ function calculateDuration(startTime?: string, endTime?: string): string {
     return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
 }
 
+// Component to display routine-type specific information
+function RoutineTypeDetails({ resourceVersion, config }: { resourceVersion?: ResourceVersion; config?: any }) {
+    if (!resourceVersion || !resourceVersion.resourceSubType) return null;
+
+    const routineType = resourceVersion.resourceSubType;
+    const routineConfig = config || {};
+
+    const typeDescriptions: Record<ResourceSubType, string> = {
+        [ResourceSubType.RoutineMultiStep]: "Complex workflow with multiple steps and branches",
+        [ResourceSubType.RoutineInternalAction]: "Internal Vrooli action using MCP tools",
+        [ResourceSubType.RoutineApi]: "External API call",
+        [ResourceSubType.RoutineCode]: "Code execution in sandboxed environment",
+        [ResourceSubType.RoutineData]: "Data-only routine with outputs",
+        [ResourceSubType.RoutineGenerate]: "AI/LLM content generation",
+        [ResourceSubType.RoutineInformational]: "Information collection via forms",
+        [ResourceSubType.RoutineSmartContract]: "Blockchain smart contract interaction",
+        [ResourceSubType.RoutineWeb]: "Web search and scraping",
+    };
+
+    const renderTypeSpecificContent = () => {
+        switch (routineType) {
+            case ResourceSubType.RoutineApi:
+                const apiConfig = routineConfig.callDataApi || {};
+                return (
+                    <>
+                        {apiConfig.endpoint && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Endpoint</Typography>
+                                <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
+                                    {apiConfig.method || "GET"} {apiConfig.endpoint}
+                                </Typography>
+                            </Box>
+                        )}
+                        {apiConfig.headers && Object.keys(apiConfig.headers).length > 0 && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" color="text.secondary">Headers</Typography>
+                                <Table size="small" sx={{ mt: 0.5 }}>
+                                    <TableBody>
+                                        {Object.entries(apiConfig.headers).map(([key, value]) => (
+                                            <TableRow key={key}>
+                                                <TableCell sx={{ border: "none", py: 0.5, fontFamily: "monospace" }}>
+                                                    {key}
+                                                </TableCell>
+                                                <TableCell sx={{ border: "none", py: 0.5, fontFamily: "monospace" }}>
+                                                    {String(value)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        )}
+                    </>
+                );
+
+            case ResourceSubType.RoutineGenerate:
+                const generateConfig = routineConfig.callDataGenerate || {};
+                return (
+                    <>
+                        {generateConfig.model && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">AI Model</Typography>
+                                <Typography variant="body2">{generateConfig.model}</Typography>
+                            </Box>
+                        )}
+                        {generateConfig.prompt && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" color="text.secondary">Prompt Template</Typography>
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        mt: 0.5, 
+                                        p: 1, 
+                                        bgcolor: "action.hover", 
+                                        borderRadius: 1,
+                                        fontFamily: "monospace",
+                                        whiteSpace: "pre-wrap"
+                                    }}
+                                >
+                                    {generateConfig.prompt}
+                                </Typography>
+                            </Box>
+                        )}
+                    </>
+                );
+
+            case ResourceSubType.RoutineCode:
+                const codeConfig = routineConfig.callDataCode || {};
+                return (
+                    <>
+                        {resourceVersion.codeLanguage && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Language</Typography>
+                                <Typography variant="body2">{resourceVersion.codeLanguage}</Typography>
+                            </Box>
+                        )}
+                        {codeConfig.code && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" color="text.secondary">Code</Typography>
+                                <Typography 
+                                    variant="body2" 
+                                    component="pre"
+                                    sx={{ 
+                                        mt: 0.5, 
+                                        p: 1, 
+                                        bgcolor: "action.hover", 
+                                        borderRadius: 1,
+                                        fontFamily: "monospace",
+                                        whiteSpace: "pre-wrap",
+                                        overflow: "auto",
+                                        maxHeight: 200
+                                    }}
+                                >
+                                    {codeConfig.code}
+                                </Typography>
+                            </Box>
+                        )}
+                    </>
+                );
+
+            case ResourceSubType.RoutineMultiStep:
+                const graphConfig = routineConfig.graph || {};
+                const nodeCount = graphConfig.nodes?.length || 0;
+                const edgeCount = graphConfig.edges?.length || 0;
+                return (
+                    <>
+                        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Total Nodes</Typography>
+                                <Typography variant="body2">{nodeCount}</Typography>
+                            </Box>
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Connections</Typography>
+                                <Typography variant="body2">{edgeCount}</Typography>
+                            </Box>
+                        </Box>
+                        {graphConfig.nodes && graphConfig.nodes.length > 0 && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" color="text.secondary">Subroutines</Typography>
+                                <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                                    {graphConfig.nodes
+                                        .filter((node: any) => node.data?.routine?.name)
+                                        .map((node: any, index: number) => (
+                                            <Chip
+                                                key={node.id || index}
+                                                label={node.data.routine.name}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ fontFamily: "monospace" }}
+                                            />
+                                        ))}
+                                </Box>
+                            </Box>
+                        )}
+                    </>
+                );
+
+            case ResourceSubType.RoutineWeb:
+                const webConfig = routineConfig.callDataWeb || {};
+                return (
+                    <>
+                        {webConfig.searchQuery && (
+                            <Box>
+                                <Typography variant="caption" color="text.secondary">Search Query</Typography>
+                                <Typography variant="body2">{webConfig.searchQuery}</Typography>
+                            </Box>
+                        )}
+                        {webConfig.urls && webConfig.urls.length > 0 && (
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="caption" color="text.secondary">Target URLs</Typography>
+                                <Box sx={{ mt: 0.5 }}>
+                                    {webConfig.urls.map((url: string, index: number) => (
+                                        <Typography key={index} variant="body2" sx={{ fontFamily: "monospace" }}>
+                                            {url}
+                                        </Typography>
+                                    ))}
+                                </Box>
+                            </Box>
+                        )}
+                    </>
+                );
+
+            default:
+                return (
+                    <Typography variant="body2" color="text.secondary">
+                        Configuration details for this routine type
+                    </Typography>
+                );
+        }
+    };
+
+    return (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <Typography variant="subtitle2">
+                    Routine Information
+                </Typography>
+                <Chip
+                    label={routineType.replace("Routine", "")}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                />
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {typeDescriptions[routineType]}
+            </Typography>
+
+            {renderTypeSpecificContent()}
+        </Paper>
+    );
+}
+
 export function StepDetails({
     step,
     contextValues,
     totalSteps,
     currentStepIndex,
+    resourceVersion,
+    currentSubroutine,
 }: StepDetailsProps) {
     if (!step) {
         return (
@@ -156,6 +375,14 @@ export function StepDetails({
                         </Typography>
                     )}
                 </Alert>
+            )}
+
+            {/* Routine-Specific Information */}
+            {(resourceVersion || currentSubroutine) && (
+                <RoutineTypeDetails 
+                    resourceVersion={currentSubroutine || resourceVersion}
+                    config={(currentSubroutine || resourceVersion)?.config}
+                />
             )}
 
             {/* Inputs */}

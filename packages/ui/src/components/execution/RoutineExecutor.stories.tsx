@@ -1,8 +1,36 @@
-import { Box, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Select, MenuItem, Slider, Typography, Switch } from "@mui/material";
-import { generatePK, type ResourceVersion, type Run, type RunStatus } from "@vrooli/shared";
-import { useState } from "react";
+import { Box, FormControl, FormLabel, Select, MenuItem, Typography } from "@mui/material";
+import { generatePK, type ResourceVersion, type Run, type RunStatus, ResourceSubType } from "@vrooli/shared";
+import { useState, Component, ReactNode } from "react";
 import { signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { RoutineExecutor } from "./RoutineExecutor.js";
+import { PageContainer } from "../Page/Page.js";
+import { Switch } from "../inputs/Switch/Switch.js";
+import { Slider } from "../inputs/Slider.js";
+import { Radio } from "../inputs/Radio.js";
+import { FormGroup } from "../inputs/FormGroup.js";
+
+// Simple error boundary for debugging
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
+    constructor(props: { children: ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <Box sx={{ p: 2, bgcolor: "error.light", color: "error.contrastText" }}>
+                    <strong>Component Error:</strong> {this.state.error?.message}
+                </Box>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 // Simple action replacement
 const action = (name: string) => (...args: any[]) => console.log(`Action: ${name}`, args);
@@ -15,15 +43,26 @@ export default {
     component: RoutineExecutor,
     decorators: [
         (Story) => (
-            <Box sx={{ p: 2, height: "100vh", overflow: "auto" }}>
-                <Story />
-            </Box>
+            <PageContainer size="fullSize">
+                <Box sx={{ 
+                    p: 2, 
+                    height: "100%", 
+                    overflow: "auto",
+                    paddingBottom: "120px" // Generous padding for BottomNav
+                }}>
+                    <Story />
+                </Box>
+            </PageContainer>
         ),
     ],
 };
 
 // Mock ResourceVersion for testing
-function createMockResourceVersion(name: string = "Data Processing Routine"): ResourceVersion {
+function createMockResourceVersion(
+    name: string = "Data Processing Routine",
+    subType: ResourceSubType = ResourceSubType.RoutineMultiStep,
+    config?: any
+): ResourceVersion {
     return {
         id: generatePK().toString(),
         name,
@@ -31,7 +70,8 @@ function createMockResourceVersion(name: string = "Data Processing Routine"): Re
         versionLabel: "1.0.2",
         isComplete: true,
         isPrivate: false,
-        resourceSubType: "Routine",
+        resourceSubType: subType,
+        config: config,
         translations: [{
             id: generatePK().toString(),
             language: "en",
@@ -51,14 +91,14 @@ export function Showcase() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [chatMode, setChatMode] = useState(true);
     const [routineName, setRoutineName] = useState("Data Processing Routine");
+    const [routineType, setRoutineType] = useState<ResourceSubType>(ResourceSubType.RoutineMultiStep);
     const [progressPercent, setProgressPercent] = useState(45);
     const [stepCount, setStepCount] = useState(8);
     const [currentStep, setCurrentStep] = useState(4);
-    const [hasError, setHasError] = useState(false);
     
     // Mock data generation
     const runId = generatePK().toString();
-    const resourceVersion = createMockResourceVersion(routineName);
+    const resourceVersion = createMockResourceVersion(routineName, routineType);
     
     const handleToggleCollapse = () => {
         setIsCollapsed(!isCollapsed);
@@ -80,7 +120,7 @@ export function Showcase() {
             flexDirection: { xs: "column", lg: "row" },
             maxWidth: 1400, 
             mx: "auto",
-            height: "100%"
+            minHeight: "100%"
         }}>
             {/* Controls Section */}
             <Box sx={{ 
@@ -96,136 +136,66 @@ export function Showcase() {
                 <Typography variant="h5" sx={{ mb: 3 }}>RoutineExecutor Controls</Typography>
                 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {/* Routine Name */}
+                    {/* Routine Type */}
                     <FormControl size="small" fullWidth>
-                        <FormLabel sx={{ fontSize: "0.875rem", mb: 1 }}>Routine Name</FormLabel>
+                        <FormLabel sx={{ fontSize: "0.875rem", mb: 1 }}>Routine Type</FormLabel>
                         <Select
-                            value={routineName}
-                            onChange={(e) => setRoutineName(e.target.value)}
+                            value={routineType}
+                            onChange={(e) => setRoutineType(e.target.value as ResourceSubType)}
                         >
-                            <MenuItem value="Data Processing Routine">Data Processing Routine</MenuItem>
-                            <MenuItem value="File Converter">File Converter</MenuItem>
-                            <MenuItem value="API Integration">API Integration</MenuItem>
-                            <MenuItem value="Machine Learning Pipeline">Machine Learning Pipeline</MenuItem>
-                            <MenuItem value="Database Sync">Database Sync</MenuItem>
-                            <MenuItem value="Report Generator">Report Generator</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineMultiStep}>Multi-Step Workflow</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineApi}>API Call</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineGenerate}>AI Generation</MenuItem>
+                            <MenuItem value={ResourceSubType.RoutineCode}>Code Execution</MenuItem>
                         </Select>
                     </FormControl>
                     
                     {/* Run Status */}
-                    <FormControl component="fieldset" size="small">
-                        <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>Run Status</FormLabel>
-                        <RadioGroup
-                            value={runStatus}
-                            onChange={(e) => setRunStatus(e.target.value as RunStatus)}
-                            sx={{ gap: 0.5 }}
-                        >
-                            <FormControlLabel value="Scheduled" control={<Radio size="small" />} label="Scheduled" sx={{ m: 0 }} />
-                            <FormControlLabel value="InProgress" control={<Radio size="small" />} label="In Progress" sx={{ m: 0 }} />
-                            <FormControlLabel value="Running" control={<Radio size="small" />} label="Running" sx={{ m: 0 }} />
-                            <FormControlLabel value="Completed" control={<Radio size="small" />} label="Completed" sx={{ m: 0 }} />
-                            <FormControlLabel value="CompletedWithErrors" control={<Radio size="small" />} label="Completed (Errors)" sx={{ m: 0 }} />
-                            <FormControlLabel value="Failed" control={<Radio size="small" />} label="Failed" sx={{ m: 0 }} />
-                            <FormControlLabel value="Cancelled" control={<Radio size="small" />} label="Cancelled" sx={{ m: 0 }} />
-                        </RadioGroup>
-                    </FormControl>
-                    
-                    {/* Progress */}
-                    <FormControl component="fieldset" size="small">
-                        <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>
-                            Progress: {progressPercent}%
-                        </FormLabel>
-                        <Slider
-                            value={progressPercent}
-                            onChange={(_, value) => setProgressPercent(value as number)}
-                            min={0}
-                            max={100}
-                            marks={[
-                                { value: 0, label: "0%" },
-                                { value: 25, label: "25%" },
-                                { value: 50, label: "50%" },
-                                { value: 75, label: "75%" },
-                                { value: 100, label: "100%" },
-                            ]}
-                        />
-                    </FormControl>
-                    
-                    {/* Step Progress */}
-                    <FormControl component="fieldset" size="small">
-                        <FormLabel component="legend" sx={{ fontSize: "0.875rem", mb: 1 }}>
-                            Current Step: {currentStep} of {stepCount}
-                        </FormLabel>
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="caption" color="text.secondary">
-                                Total Steps:
-                            </Typography>
-                            <Slider
-                                value={stepCount}
-                                onChange={(_, value) => {
-                                    const newStepCount = value as number;
-                                    setStepCount(newStepCount);
-                                    if (currentStep > newStepCount) {
-                                        setCurrentStep(newStepCount);
-                                    }
-                                }}
-                                min={1}
-                                max={20}
-                                marks
-                                sx={{ mt: 1 }}
-                            />
-                        </Box>
-                        <Box>
-                            <Typography variant="caption" color="text.secondary">
-                                Current Step:
-                            </Typography>
-                            <Slider
-                                value={currentStep}
-                                onChange={(_, value) => setCurrentStep(value as number)}
-                                min={1}
-                                max={stepCount}
-                                marks
-                                sx={{ mt: 1 }}
-                            />
-                        </Box>
-                    </FormControl>
+                    <Box>
+                        <Typography variant="body2" sx={{ fontSize: "0.875rem", mb: 1, fontWeight: 500 }}>
+                            Run Status
+                        </Typography>
+                        <FormGroup>
+                            {["InProgress", "Completed", "Failed"].map((status) => (
+                                <Box key={status} sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                                    <Radio
+                                        checked={runStatus === status}
+                                        onChange={() => setRunStatus(status as RunStatus)}
+                                        size="sm"
+                                        variant="primary"
+                                    />
+                                    <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
+                                        {status === "InProgress" ? "In Progress" : status}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </FormGroup>
+                    </Box>
                     
                     {/* Display Options */}
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={isCollapsed}
-                                    onChange={(e) => setIsCollapsed(e.target.checked)}
-                                    size="small"
-                                />
-                            }
-                            label="Collapsed State"
-                            sx={{ m: 0 }}
-                        />
-                        
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={chatMode}
-                                    onChange={(e) => setChatMode(e.target.checked)}
-                                    size="small"
-                                />
-                            }
-                            label="Chat Mode"
-                            sx={{ m: 0 }}
-                        />
-                        
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={hasError}
-                                    onChange={(e) => setHasError(e.target.checked)}
-                                    size="small"
-                                />
-                            }
-                            label="Has Error"
-                            sx={{ m: 0 }}
-                        />
+                    <Box>
+                        <Typography variant="body2" sx={{ fontSize: "0.875rem", mb: 1, fontWeight: 500 }}>
+                            Display Options
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                            <Switch
+                                checked={isCollapsed}
+                                onChange={setIsCollapsed}
+                                size="sm"
+                                variant="default"
+                                label="Collapsed State"
+                                labelPosition="right"
+                            />
+                            
+                            <Switch
+                                checked={chatMode}
+                                onChange={setChatMode}
+                                size="sm"
+                                variant="default"
+                                label="Chat Mode"
+                                labelPosition="right"
+                            />
+                        </Box>
                     </Box>
                 </Box>
             </Box>
@@ -237,55 +207,47 @@ export function Showcase() {
                 borderRadius: 2, 
                 boxShadow: 1,
                 flex: 1,
-                overflow: "hidden"
+                display: "flex",
+                flexDirection: "column",
+                mb: 8
             }}>
-                <Typography variant="h5" sx={{ mb: 3 }}>RoutineExecutor Preview</Typography>
+                <Typography variant="h5" sx={{ mb: 3, color: "primary.main" }}>
+                    RoutineExecutor Preview
+                </Typography>
                 
                 <Box sx={{ 
                     bgcolor: "background.default", 
                     borderRadius: 2, 
                     p: 2,
-                    minHeight: 500,
-                    overflow: "auto"
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column"
                 }}>
                     <Box sx={{ 
                         maxWidth: chatMode ? 600 : 800,
+                        width: "100%",
+                        mx: "auto",
                         border: 1,
                         borderColor: "divider",
                         borderRadius: 1,
-                        overflow: "hidden"
+                        bgcolor: "background.paper",
+                        display: "flex",
+                        flexDirection: "column"
                     }}>
-                        <RoutineExecutor
-                            runId={runId}
-                            resourceVersion={resourceVersion}
-                            isCollapsed={isCollapsed}
-                            onToggleCollapse={handleToggleCollapse}
-                            onRemove={chatMode ? handleRemove : undefined}
-                            onClose={!chatMode ? handleClose : undefined}
-                            className={chatMode ? "chat-routine-executor" : "standalone-routine-executor"}
-                            chatMode={chatMode}
-                        />
+                        <ErrorBoundary>
+                            <RoutineExecutor
+                                runId={runId}
+                                resourceVersion={resourceVersion}
+                                runStatus={runStatus}
+                                isCollapsed={isCollapsed}
+                                onToggleCollapse={handleToggleCollapse}
+                                onRemove={chatMode ? handleRemove : undefined}
+                                onClose={!chatMode ? handleClose : undefined}
+                                className={chatMode ? "chat-routine-executor" : "standalone-routine-executor"}
+                                chatMode={chatMode}
+                            />
+                        </ErrorBoundary>
                     </Box>
-                </Box>
-                
-                {/* State Information */}
-                <Box sx={{ mt: 3 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                        Current Configuration:
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" component="pre" sx={{ mt: 1, fontSize: "0.75rem" }}>
-                        {JSON.stringify({
-                            runId,
-                            routineName,
-                            runStatus,
-                            progressPercent,
-                            currentStep,
-                            stepCount,
-                            isCollapsed,
-                            chatMode,
-                            hasError,
-                        }, null, 2)}
-                    </Typography>
                 </Box>
             </Box>
         </Box>
@@ -355,76 +317,5 @@ export function ChatMode() {
 }
 
 ChatMode.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
-/**
- * Collapsed State: Shows the executor in collapsed state
- */
-export function Collapsed() {
-    const runId = generatePK().toString();
-    const resourceVersion = createMockResourceVersion("File Converter");
-    
-    return (
-        <Box sx={{ maxWidth: 800, mx: "auto" }}>
-            <Box sx={{ 
-                border: 1,
-                borderColor: "divider",
-                borderRadius: 1,
-                overflow: "hidden"
-            }}>
-                <RoutineExecutor
-                    runId={runId}
-                    resourceVersion={resourceVersion}
-                    isCollapsed={true}
-                    onToggleCollapse={action("onToggleCollapse")}
-                    onClose={action("onClose")}
-                />
-            </Box>
-        </Box>
-    );
-}
-
-Collapsed.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
-/**
- * Multiple States: Shows different execution states side by side
- */
-export function MultipleStates() {
-    const states: Array<{ name: string; status: RunStatus; isCollapsed?: boolean }> = [
-        { name: "Scheduled Task", status: "Scheduled" },
-        { name: "Running Process", status: "InProgress" },
-        { name: "Completed Successfully", status: "Completed" },
-        { name: "Failed Process", status: "Failed" },
-        { name: "Completed (Collapsed)", status: "Completed", isCollapsed: true },
-    ];
-    
-    return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 1000, mx: "auto" }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Different Execution States</Typography>
-            {states.map((state, index) => (
-                <Box key={index} sx={{ 
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    overflow: "hidden"
-                }}>
-                    <RoutineExecutor
-                        runId={generatePK().toString()}
-                        resourceVersion={createMockResourceVersion(state.name)}
-                        isCollapsed={state.isCollapsed}
-                        onToggleCollapse={action(`onToggleCollapse-${index}`)}
-                        onClose={action(`onClose-${index}`)}
-                        chatMode={true}
-                    />
-                </Box>
-            ))}
-        </Box>
-    );
-}
-
-MultipleStates.parameters = {
     session: signedInPremiumWithCreditsSession,
 };

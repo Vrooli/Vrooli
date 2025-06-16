@@ -1,4 +1,4 @@
-import { ResourceVersion, RunTaskInfo, Run, RunStatus } from "@vrooli/shared";
+import { ResourceVersion, RunTaskInfo, Run, RunStatus, ResourceSubType, noop } from "@vrooli/shared";
 import { useCallback, useEffect, useReducer } from "react";
 import { Box } from "@mui/material";
 import { ExecutionTimeline } from "./ExecutionTimeline.js";
@@ -6,7 +6,6 @@ import { ExecutionHeader } from "./ExecutionHeader.js";
 import { StepDetails } from "./StepDetails.js";
 import { DecisionPrompt } from "./DecisionPrompt.js";
 import { useSocketRun } from "../../hooks/runs.js";
-import { noop } from "@vrooli/shared";
 
 interface RoutineExecutorProps {
     runId: string;
@@ -170,10 +169,40 @@ export function RoutineExecutor({
     isLastInGroup = true,
     showInUnifiedContainer = false,
 }: RoutineExecutorProps) {
-    const [state, dispatch] = useReducer(executionReducer, {
-        ...initialState,
-        // Initialize with mock steps for display
-        steps: [
+    // Generate appropriate steps based on routine type
+    const generateSteps = (): ExecutionStep[] => {
+        const isMultiStep = resourceVersion?.resourceSubType === ResourceSubType.RoutineMultiStep;
+        
+        if (!isMultiStep) {
+            // Single-step routine
+            const routineTypeName = resourceVersion?.resourceSubType?.replace("Routine", "") || "Process";
+            return [{
+                id: "step-1",
+                name: `Execute ${routineTypeName}`,
+                status: runStatus === "Completed" ? "completed" : 
+                       runStatus === "Failed" ? "failed" :
+                       runStatus === "Running" || runStatus === "InProgress" ? "running" : "pending",
+                startTime: runStatus !== "Scheduled" ? new Date(Date.now() - 2000).toISOString() : undefined,
+                endTime: runStatus === "Completed" || runStatus === "Failed" ? new Date().toISOString() : undefined,
+            }];
+        }
+        
+        // Multi-step routine - generate based on graph config if available
+        const graphConfig = resourceVersion?.config?.graph;
+        if (graphConfig?.nodes && graphConfig.nodes.length > 0) {
+            return graphConfig.nodes.map((node: any, index: number) => ({
+                id: node.id || `step-${index + 1}`,
+                name: node.data?.routine?.name || node.data?.label || `Step ${index + 1}`,
+                status: index === 0 ? "completed" : 
+                       index === 1 ? "running" : "pending",
+                startTime: index === 0 ? new Date(Date.now() - 5000).toISOString() :
+                          index === 1 ? new Date(Date.now() - 2000).toISOString() : undefined,
+                endTime: index === 0 ? new Date(Date.now() - 3000).toISOString() : undefined,
+            }));
+        }
+        
+        // Default multi-step mock data
+        return [
             {
                 id: "step-1",
                 name: "Initialize Environment",
@@ -204,8 +233,14 @@ export function RoutineExecutor({
                 name: "Cleanup Resources",
                 status: "pending",
             },
-        ],
-        currentStepIndex: 2, // Currently on step 3 (0-indexed)
+        ];
+    };
+
+    const generatedSteps = generateSteps();
+    const [state, dispatch] = useReducer(executionReducer, {
+        ...initialState,
+        steps: generatedSteps,
+        currentStepIndex: generatedSteps.findIndex(step => step.status === "running") || 0,
         metrics: {
             elapsedTime: 5, // Start with some elapsed time
             contextSwitches: 0,
@@ -338,6 +373,7 @@ export function RoutineExecutor({
                                 contextValues={state.contextValues}
                                 totalSteps={state.steps.length}
                                 currentStepIndex={state.currentStepIndex}
+                                resourceVersion={resourceVersion}
                             />
                         )}
                     </Box>
