@@ -160,6 +160,13 @@
     border-left: 12px solid rgb(255, 255, 255);
 }
 
+/* Force dialog content to respect max-height */
+.tw-dialog-anchored {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
 /* Dark mode arrow colors */
 @media (prefers-color-scheme: dark) {
     .tw-dialog-arrow-up {

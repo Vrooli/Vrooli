@@ -36,6 +36,15 @@ export const DIALOG_SIZES = {
     full: "tw-max-w-none tw-w-full tw-h-full tw-m-0",
 } as const;
 
+// Anchored dialog size constraints
+export const ANCHORED_DIALOG_SIZES = {
+    sm: "tw-max-w-sm tw-w-[calc(100vw-2rem)] tw-max-h-[45vh]",
+    md: "tw-max-w-md tw-w-[calc(100vw-2rem)] tw-max-h-[55vh]",
+    lg: "tw-max-w-lg tw-w-[calc(100vw-2rem)] tw-max-h-[65vh]",
+    xl: "tw-max-w-xl tw-w-[calc(100vw-2rem)] tw-max-h-[70vh]",
+    full: "tw-max-w-[90vw] tw-w-[calc(100vw-2rem)] tw-max-h-[75vh]", // Even full size is constrained when anchored
+} as const;
+
 // Dialog position styles
 export const DIALOG_POSITIONS = {
     center: "tw-items-center tw-justify-center tw-min-h-full",
@@ -67,6 +76,7 @@ export const DIALOG_STYLES = {
             "tw-transform",
             "tw-scale-100 tw-opacity-100",
             "data-[state=closed]:tw-scale-95 data-[state=closed]:tw-opacity-0",
+            "tw-pointer-events-auto", // Always allow interaction with dialog itself
         ),
     },
 
@@ -79,6 +89,7 @@ export const DIALOG_STYLES = {
             "tw-overflow-hidden",
             "tw-flex tw-flex-col",
             "tw-border tw-border-gray-200 dark:tw-border-gray-700",
+            "tw-max-h-full", // Ensure content respects parent's max-height
         ),
 
         variants: {
@@ -135,7 +146,7 @@ export const DIALOG_STYLES = {
 export function buildOverlayClasses(enableBackgroundBlur: boolean, className?: string) {
     return cn(
         DIALOG_STYLES.overlay.base,
-        enableBackgroundBlur ? "tw-bg-black/50 tw-backdrop-blur-sm" : "tw-bg-transparent",
+        enableBackgroundBlur ? "tw-bg-black/50 tw-backdrop-blur-sm" : "tw-bg-transparent tw-pointer-events-none",
         className,
     );
 }
@@ -192,12 +203,14 @@ export function buildActionsClasses(variant: DialogVariant, className?: string) 
 }
 
 // Helper to get dialog wrapper classes (includes size)
-export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, isDragging?: boolean) {
+export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, isDragging?: boolean, anchored?: boolean) {
     return cn(
         DIALOG_STYLES.dialog.base,
-        DIALOG_SIZES[size],
-        size !== "full" && !draggable && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
+        // Use constrained sizes for anchored dialogs
+        anchored ? ANCHORED_DIALOG_SIZES[size] : DIALOG_SIZES[size],
+        size !== "full" && !draggable && !anchored && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
         draggable && "tw-max-h-[calc(100vh-2rem)] tw-dialog-draggable", // Smaller margin for draggable dialogs + performance class
+        anchored && "tw-dialog-draggable tw-dialog-anchored", // Apply fade-in transition and anchored styles
         isDragging && "tw-dialog-dragging", // Performance class for dragging state
     );
 }

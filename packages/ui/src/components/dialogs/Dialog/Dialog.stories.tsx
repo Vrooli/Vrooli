@@ -502,6 +502,8 @@ export const AnchoredDialog: Story = {
         const [isOpen, setIsOpen] = useState(false);
         const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
         const [placement, setPlacement] = useState<"top" | "bottom" | "left" | "right" | "auto">("auto");
+        const centerRef = React.useRef<HTMLDivElement>(null);
+        const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
         const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
             setAnchorEl(event.currentTarget);
@@ -513,84 +515,219 @@ export const AnchoredDialog: Story = {
             setAnchorEl(null);
         };
 
-        return (
-            <div style={{ padding: "40px", minHeight: "80vh", display: "flex", flexDirection: "column", gap: "20px" }}>
-                <Typography variant="h6">Click any button to anchor the dialog to it:</Typography>
+        // Scroll to center on mount
+        React.useEffect(() => {
+            if (centerRef.current && scrollContainerRef.current) {
+                const centerRect = centerRef.current.getBoundingClientRect();
+                const containerRect = scrollContainerRef.current.getBoundingClientRect();
                 
-                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
-                    <Button 
-                        variant="primary" 
-                        onClick={handleOpen}
-                        style={{ alignSelf: "flex-start" }}
-                    >
-                        Top Area Button
-                    </Button>
-                    
-                    <Button 
-                        variant="secondary" 
-                        onClick={handleOpen}
-                        style={{ alignSelf: "flex-start" }}
-                    >
-                        Another Button
-                    </Button>
+                scrollContainerRef.current.scrollTo({
+                    left: (scrollContainerRef.current.scrollWidth - containerRect.width) / 2,
+                    top: (scrollContainerRef.current.scrollHeight - containerRect.height) / 2,
+                    behavior: "auto"
+                });
+            }
+        }, []);
 
-                    <Button 
-                        variant="primary" 
-                        onClick={handleOpen}
-                        style={{ alignSelf: "flex-start" }}
-                    >
-                        Primary Button
-                    </Button>
-                </div>
-
-                <div style={{ margin: "60px 0", display: "flex", justifyContent: "center" }}>
-                    <Button 
-                        variant="danger" 
-                        onClick={handleOpen}
-                        size="lg"
-                    >
-                        Center Button (Large)
-                    </Button>
-                </div>
-
-                <div style={{ display: "flex", gap: "20px", justifyContent: "flex-end", marginTop: "40px" }}>
-                    <Button 
-                        variant="outline" 
-                        onClick={handleOpen}
-                    >
-                        Bottom Right
-                    </Button>
-                    
-                    <Button 
-                        variant="ghost" 
-                        onClick={handleOpen}
-                    >
-                        Far Right
-                    </Button>
-                </div>
-
-                <div style={{ marginTop: "20px" }}>
-                    <Typography variant="body2" style={{ marginBottom: "10px" }}>
-                        Force placement (for testing):
+        return (
+            <div 
+                ref={scrollContainerRef}
+                style={{ 
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    overflow: "auto",
+                    backgroundColor: "var(--background-default)"
+                }}
+            >
+                <div style={{ 
+                    minHeight: "300vh", 
+                    width: "150vw", 
+                    padding: "40px",
+                    position: "relative"
+                }}>
+                <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
+                    <Typography variant="h4" style={{ marginBottom: "20px", textAlign: "center" }}>
+                        🎯 Anchored Dialog Test Arena
                     </Typography>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                        {(["auto", "top", "bottom", "left", "right"] as const).map((p) => (
-                            <Button
-                                key={p}
-                                variant={placement === p ? "primary" : "outline"}
-                                size="sm"
-                                onClick={() => setPlacement(p)}
-                            >
-                                {p}
-                            </Button>
-                        ))}
+                    <Typography variant="body1" style={{ marginBottom: "40px", textAlign: "center" }}>
+                        Scroll around and click buttons to see dynamic dialog positioning!
+                    </Typography>
+                </div>
+
+                {/* Top Section */}
+                <div style={{ 
+                    marginBottom: "100vh", 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    alignItems: "center", 
+                    gap: "40px",
+                    padding: "40px"
+                }}>
+                    <Typography variant="h5">🔝 Top Section</Typography>
+                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+                        <Button variant="primary" onClick={handleOpen}>Top Left</Button>
+                        <Button variant="secondary" onClick={handleOpen}>Top Center</Button>
+                        <Button variant="danger" onClick={handleOpen}>Top Right</Button>
+                    </div>
+                    <Typography variant="body2" style={{ textAlign: "center", maxWidth: "600px" }}>
+                        When you click these buttons, the dialog should appear below them since there's lots of space below.
+                    </Typography>
+                </div>
+
+                {/* Left Section */}
+                <div style={{ 
+                    position: "absolute",
+                    left: "40px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                    alignItems: "center"
+                }}>
+                    <Typography variant="h6">⬅️ Left Edge</Typography>
+                    <Button variant="outline" onClick={handleOpen}>Left Top</Button>
+                    <Button variant="ghost" onClick={handleOpen}>Left Middle</Button>
+                    <Button variant="primary" onClick={handleOpen}>Left Bottom</Button>
+                </div>
+
+                {/* Right Section */}
+                <div style={{ 
+                    position: "absolute",
+                    right: "40px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                    alignItems: "center"
+                }}>
+                    <Typography variant="h6">➡️ Right Edge</Typography>
+                    <Button variant="space" onClick={handleOpen}>Right Top</Button>
+                    <Button variant="neon" onClick={handleOpen}>Right Middle</Button>
+                    <Button variant="secondary" onClick={handleOpen}>Right Bottom</Button>
+                </div>
+
+                {/* Center Section - This is where we'll scroll to initially */}
+                <div 
+                    ref={centerRef}
+                    style={{ 
+                        position: "absolute",
+                        left: "50%",
+                        top: "50%",
+                        transform: "translate(-50%, -50%)",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "30px",
+                        padding: "60px",
+                        backgroundColor: "var(--background-paper)",
+                        borderRadius: "20px",
+                        border: "3px solid #2196f3",
+                        boxShadow: "0 0 30px rgba(33, 150, 243, 0.3)"
+                    }}
+                >
+                    <Typography variant="h4" style={{ textAlign: "center" }}>
+                        🎯 Center Stage
+                    </Typography>
+                    <Typography variant="body1" style={{ textAlign: "center", maxWidth: "400px" }}>
+                        You start here! Try clicking buttons and then scrolling around to see how the dialog repositions itself automatically.
+                    </Typography>
+                    
+                    <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center" }}>
+                        <Button variant="primary" onClick={handleOpen} size="lg">
+                            🎯 Center Target
+                        </Button>
+                        <Button variant="danger" onClick={handleOpen}>
+                            Emergency
+                        </Button>
+                        <Button variant="secondary" onClick={handleOpen}>
+                            Secondary
+                        </Button>
+                    </div>
+
+                    <div style={{ marginTop: "20px" }}>
+                        <Typography variant="body2" style={{ marginBottom: "10px", textAlign: "center" }}>
+                            Force placement (overrides auto):
+                        </Typography>
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                            {(["auto", "top", "bottom", "left", "right"] as const).map((p) => (
+                                <Button
+                                    key={p}
+                                    variant={placement === p ? "primary" : "outline"}
+                                    size="sm"
+                                    onClick={() => setPlacement(p)}
+                                >
+                                    {p}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                 </div>
+
+                {/* Bottom Section */}
+                <div style={{ 
+                    position: "absolute",
+                    bottom: "40px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "20px",
+                    padding: "40px"
+                }}>
+                    <Typography variant="h5">🔻 Bottom Section</Typography>
+                    <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+                        <Button variant="outline" onClick={handleOpen}>Bottom Left</Button>
+                        <Button variant="ghost" onClick={handleOpen}>Bottom Center</Button>
+                        <Button variant="danger" onClick={handleOpen}>Bottom Right</Button>
+                    </div>
+                    <Typography variant="body2" style={{ textAlign: "center", maxWidth: "600px" }}>
+                        These buttons should show dialogs above them since there's no space below.
+                    </Typography>
+                </div>
+
+                {/* Corner Buttons for Edge Cases */}
+                <Button 
+                    variant="primary" 
+                    onClick={handleOpen}
+                    style={{ position: "absolute", top: "20px", left: "20px" }}
+                >
+                    Top-Left Corner
+                </Button>
+                
+                <Button 
+                    variant="secondary" 
+                    onClick={handleOpen}
+                    style={{ position: "absolute", top: "20px", right: "20px" }}
+                >
+                    Top-Right Corner
+                </Button>
+                
+                <Button 
+                    variant="danger" 
+                    onClick={handleOpen}
+                    style={{ position: "absolute", bottom: "20px", left: "20px" }}
+                >
+                    Bottom-Left Corner
+                </Button>
+                
+                <Button 
+                    variant="outline" 
+                    onClick={handleOpen}
+                    style={{ position: "absolute", bottom: "20px", right: "20px" }}
+                >
+                    Bottom-Right Corner
+                </Button>
 
                 <Dialog
                     isOpen={isOpen}
                     onClose={handleClose}
-                    title="Anchored Dialog"
+                    title="🎯 Smart Anchored Dialog"
                     anchorEl={anchorEl}
                     anchorPlacement={placement}
                     highlightAnchor={true}
@@ -598,16 +735,20 @@ export const AnchoredDialog: Story = {
                 >
                     <DialogContent>
                         <Typography paragraph>
-                            This dialog is anchored to the button you clicked! Notice:
+                            🎉 This dialog intelligently positions itself! 
                         </Typography>
                         <ul style={{ marginLeft: "20px", marginBottom: "16px" }}>
-                            <li>The arrow points to the button</li>
-                            <li>The button is highlighted with a pulsing outline</li>
-                            <li>The dialog automatically positions itself to avoid viewport edges</li>
-                            <li>Dragging is disabled when anchored</li>
+                            <li>📍 Arrow points to the clicked button</li>
+                            <li>✨ Button gets a pulsing highlight</li>
+                            <li>🧠 Auto-calculates best position based on available space</li>
+                            <li>📜 Updates position as you scroll around</li>
+                            <li>🚫 Dragging disabled when anchored</li>
                         </ul>
                         <Typography>
-                            Current placement: <strong>{placement === "auto" ? "auto (calculated)" : placement}</strong>
+                            Current placement: <strong>{placement === "auto" ? "auto (smart)" : placement}</strong>
+                        </Typography>
+                        <Typography variant="body2" style={{ marginTop: "16px", fontStyle: "italic" }}>
+                            💡 Try scrolling around while this dialog is open to see it reposition!
                         </Typography>
                     </DialogContent>
                     <DialogActions>
@@ -615,10 +756,11 @@ export const AnchoredDialog: Story = {
                             Cancel
                         </Button>
                         <Button variant="primary" onClick={handleClose}>
-                            Got it!
+                            Awesome! 🎯
                         </Button>
                     </DialogActions>
                 </Dialog>
+                </div>
             </div>
         );
     },

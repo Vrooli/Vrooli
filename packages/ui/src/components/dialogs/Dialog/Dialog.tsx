@@ -143,12 +143,14 @@ export const DialogActions = forwardRef<HTMLDivElement, DialogActionsProps>(
 DialogActions.displayName = "DialogActions";
 
 // Anchor positioning hook
-function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" | "bottom" | "left" | "right" | "auto" = "auto", isOpen: boolean) {
+function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" | "bottom" | "left" | "right" | "auto" = "auto", isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement>) {
     const [position, setPosition] = useState<{ x: number; y: number; placement: "top" | "bottom" | "left" | "right" } | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
         if (!anchorEl || !isOpen) {
             setPosition(null);
+            setIsInitialized(false);
             return;
         }
 
@@ -157,11 +159,21 @@ function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" 
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             
-            // Estimated dialog size (will be adjusted after render)
-            const dialogWidth = 400;
-            const dialogHeight = 300;
+            // Get actual dialog dimensions if available, otherwise use estimates
+            let dialogWidth = 400;
+            let dialogHeight = 300;
+            
+            if (dialogRef.current) {
+                const dialogRect = dialogRef.current.getBoundingClientRect();
+                // Only use actual dimensions if dialog is visible (not at 0,0)
+                if (dialogRect.width > 0 && dialogRect.height > 0) {
+                    dialogWidth = dialogRect.width;
+                    dialogHeight = dialogRect.height;
+                }
+            }
+            
             const arrowSize = 12;
-            const margin = 8;
+            const margin = 20; // Increased margin for better spacing to prevent overlap
 
             let placement = anchorPlacement;
             let x = 0;
@@ -212,21 +224,30 @@ function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" 
             y = Math.max(margin, Math.min(y, viewportHeight - dialogHeight - margin));
 
             setPosition({ x, y, placement });
+            setIsInitialized(true);
         };
 
-        // Initial calculation
-        calculatePosition();
+        // Initial positioning with a slight delay to get accurate dimensions
+        const timeoutId = setTimeout(() => {
+            calculatePosition();
+            // Do a second calculation after a frame to ensure accuracy
+            requestAnimationFrame(calculatePosition);
+        }, 50);
 
         // Recalculate on scroll/resize
-        const handleUpdate = () => calculatePosition();
+        const handleUpdate = () => {
+            calculatePosition();
+        };
+        
         window.addEventListener("scroll", handleUpdate, true);
         window.addEventListener("resize", handleUpdate);
 
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener("scroll", handleUpdate, true);
             window.removeEventListener("resize", handleUpdate);
         };
-    }, [anchorEl, anchorPlacement, isOpen]);
+    }, [anchorEl, anchorPlacement, isOpen, dialogRef]);
 
     return position;
 }
@@ -250,23 +271,23 @@ function getArrowClasses(placement: "top" | "bottom" | "left" | "right", anchorE
     const baseClasses = "tw-w-0 tw-h-0 tw-z-10";
     
     switch (placement) {
-        case "top":
-            // Arrow pointing up (dialog below anchor)
+        case "bottom":
+            // Dialog is below anchor, arrow points up toward anchor
             return cn(baseClasses, "tw-dialog-arrow-up", 
                      variant === "space" && "tw-dialog-arrow-space",
                      variant === "neon" && "tw-dialog-arrow-neon");
-        case "bottom":
-            // Arrow pointing down (dialog above anchor)
+        case "top":
+            // Dialog is above anchor, arrow points down toward anchor
             return cn(baseClasses, "tw-dialog-arrow-down",
                      variant === "space" && "tw-dialog-arrow-space",
                      variant === "neon" && "tw-dialog-arrow-neon");
-        case "left":
-            // Arrow pointing left (dialog to the right of anchor)
+        case "right":
+            // Dialog is to the right of anchor, arrow points left toward anchor
             return cn(baseClasses, "tw-dialog-arrow-left",
                      variant === "space" && "tw-dialog-arrow-space",
                      variant === "neon" && "tw-dialog-arrow-neon");
-        case "right":
-            // Arrow pointing right (dialog to the left of anchor)
+        case "left":
+            // Dialog is to the left of anchor, arrow points right toward anchor
             return cn(baseClasses, "tw-dialog-arrow-right",
                      variant === "space" && "tw-dialog-arrow-space",
                      variant === "neon" && "tw-dialog-arrow-neon");
@@ -279,27 +300,31 @@ function getArrowPosition(placement: "top" | "bottom" | "left" | "right", anchor
     if (!anchorEl) return {};
     
     switch (placement) {
-        case "top":
-            return {
-                bottom: "-12px",
-                left: "50%",
-                transform: "translateX(-50%)",
-            };
         case "bottom":
+            // Dialog is below anchor, arrow at top of dialog
             return {
                 top: "-12px",
                 left: "50%",
                 transform: "translateX(-50%)",
             };
-        case "left":
+        case "top":
+            // Dialog is above anchor, arrow at bottom of dialog
             return {
-                right: "-12px",
+                bottom: "-12px",
+                left: "50%",
+                transform: "translateX(-50%)",
+            };
+        case "right":
+            // Dialog is to right of anchor, arrow at left of dialog
+            return {
+                left: "-12px",
                 top: "50%",
                 transform: "translateY(-50%)",
             };
-        case "right":
+        case "left":
+            // Dialog is to left of anchor, arrow at right of dialog
             return {
-                left: "-12px",
+                right: "-12px",
                 top: "50%",
                 transform: "translateY(-50%)",
             };
@@ -570,7 +595,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         const titleId = useId();
 
         // Handle anchoring
-        const anchorPosition = useAnchorPosition(anchorEl, anchorPlacement, isOpen);
+        const anchorPosition = useAnchorPosition(anchorEl, anchorPlacement, isOpen, dialogRef);
         useHighlightElement(anchorEl, highlightAnchor, isOpen);
 
         // Handle dragging (disabled when anchored)
@@ -600,16 +625,17 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             }
         }, [closeOnOverlayClick, onClose]);
 
-        // Prevent body scroll when dialog is open
+        // Prevent body scroll when dialog is open (only when background is blurred)
         useEffect(() => {
-            if (isOpen) {
+            // Only prevent scroll when background blur is enabled AND no anchor
+            if (isOpen && enableBackgroundBlur && !anchorEl) {
                 const originalOverflow = document.body.style.overflow;
                 document.body.style.overflow = "hidden";
                 return () => {
                     document.body.style.overflow = originalOverflow;
                 };
             }
-        }, [isOpen]);
+        }, [isOpen, enableBackgroundBlur, anchorEl]);
 
         // Don't render if not open
         if (!isOpen) return null;
@@ -624,7 +650,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                 position,
                 className,
             });
-        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable && !anchorEl, isDragging);
+        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable && !anchorEl, isDragging, !!anchorEl);
         const contentClasses = buildContentClasses({
             variant,
             className: contentClassName,
@@ -648,8 +674,8 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                         top: finalPosition.y,
                         margin: 0,
                         transform: "none", // Override any transform from base classes
-                    } : (draggable && !anchorEl) ? {
-                        // Hide until positioned when draggable
+                    } : ((draggable && !anchorEl) || anchorEl) ? {
+                        // Hide until positioned when draggable OR anchored
                         opacity: 0,
                         position: "fixed",
                         left: 0,
@@ -663,7 +689,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     aria-labelledby={title ? (ariaLabelledBy || titleId) : undefined}
                     aria-describedby={ariaDescribedBy}
                 >
-                    <div className={contentClasses}>
+                    <div className={cn(contentClasses, anchorEl && "tw-max-h-full tw-overflow-hidden tw-flex tw-flex-col")}>
                         {/* Arrow pointing to anchor element */}
                         {anchorPosition && (
                             <div 
