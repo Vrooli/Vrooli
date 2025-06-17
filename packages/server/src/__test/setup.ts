@@ -1,31 +1,32 @@
 /**
- * Working test setup with full initialization but avoiding the segfault
+ * Per-test-file setup that runs after global setup
+ * Global setup handles containers and migrations
+ * This handles ModelMap, DbProvider, and mocks initialization
  */
 
-import { vi, beforeAll, afterAll } from "vitest";
-import { execSync } from "child_process";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { vi, beforeAll, afterAll, expect } from "vitest";
 
-// Mock sharp first
-vi.mock("sharp", () => {
-    const makeChain = () => {
-        const chain: any = {};
-        const pass = () => chain;
-        Object.assign(chain, {
-            resize: pass,
-            toBuffer: async () => Buffer.alloc(0),
-            metadata: async () => ({}),
-        });
-        return chain;
-    };
-    return { __esModule: true, default: () => makeChain() };
-});
+// Note: Sharp mocking is handled in vitest-sharp-mock-simple.ts
 
-let redisContainer: StartedTestContainer | null = null;
-let postgresContainer: StartedTestContainer | null = null;
+// Pre-import services to avoid dynamic import deadlocks in cleanup
+let CacheService: any;
+let QueueService: any;
+let BusService: any;
+let DbProvider: any;
+
+// Import these lazily but store references
+async function preloadServices() {
+    try {
+        ({ CacheService } = await import("../redisConn.js"));
+        ({ QueueService } = await import("../tasks/queues.js"));
+        ({ BusService } = await import("../services/bus.js"));
+        ({ DbProvider } = await import("../db/provider.js"));
+    } catch (e) {
+        console.error("Failed to preload services:", e);
+    }
+}
+
 let componentsInitialized = {
-    containers: false,
-    prisma: false,
     modelMap: false,
     dbProvider: false,
     mocks: false,
@@ -33,47 +34,27 @@ let componentsInitialized = {
 };
 
 beforeAll(async function setup() {
-    console.log("=== Test Setup Starting ===");
+    console.log("=== Per-File Test Setup Starting ===");
     
     try {
-        // Set environment vars
-        process.env.JWT_PRIV = "dummy-key";
-        process.env.JWT_PUB = "dummy-key";
-        process.env.VITE_SERVER_LOCATION = "local";
-        process.env.ANTHROPIC_API_KEY = "dummy";
-        process.env.MISTRAL_API_KEY = "dummy";
-        process.env.OPENAI_API_KEY = "dummy";
+        // Debug environment variables
+        console.log("Environment check:", {
+            REDIS_URL: process.env.REDIS_URL ? 'SET' : 'NOT SET',
+            DB_URL: process.env.DB_URL ? 'SET' : 'NOT SET',
+            NODE_ENV: process.env.NODE_ENV,
+            VITEST: process.env.VITEST
+        });
         
-        // Step 1: Start containers
-        console.log("Step 1: Starting containers...");
-        redisContainer = await new GenericContainer("redis")
-            .withExposedPorts(6379)
-            .start();
-        process.env.REDIS_URL = `redis://${redisContainer.getHost()}:${redisContainer.getMappedPort(6379)}`;
+        // Preload services to avoid dynamic import issues in cleanup
+        await preloadServices();
         
-        const POSTGRES_USER = "testuser";
-        const POSTGRES_PASSWORD = "testpassword";
-        const POSTGRES_DB = "testdb";
-        postgresContainer = await new GenericContainer("pgvector/pgvector:pg15")
-            .withExposedPorts(5432)
-            .withEnvironment({ POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB })
-            .start();
-        process.env.DB_URL = `postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${postgresContainer.getHost()}:${postgresContainer.getMappedPort(5432)}/${POSTGRES_DB}`;
+        // Note: Environment vars, containers, and Prisma are already set up by global setup
         
-        componentsInitialized.containers = true;
-        console.log("✓ Containers started");
-        
-        // Step 2: Setup Prisma
-        console.log("Step 2: Setting up Prisma...");
-        execSync("pnpm prisma migrate deploy", { stdio: "inherit", env: process.env });
-        execSync("pnpm prisma generate", { stdio: "inherit" });
-        componentsInitialized.prisma = true;
-        console.log("✓ Prisma ready");
-        
-        // Step 3: Initialize ModelMap (this is what the tests need)
-        console.log("Step 3: Initializing ModelMap...");
+        // Step 1: Initialize ModelMap (this is what the tests need)
+        console.log("Step 1: Initializing ModelMap...");
         try {
             const { ModelMap } = await import("../models/base/index.js");
+            // ModelMap.init() is already thread-safe and idempotent
             await ModelMap.init();
             componentsInitialized.modelMap = true;
             console.log("✓ ModelMap ready");
@@ -82,10 +63,12 @@ beforeAll(async function setup() {
             // Don't throw - continue without it
         }
         
-        // Step 4: Initialize DbProvider
-        console.log("Step 4: Initializing DbProvider...");
+        // Step 2: Initialize DbProvider
+        console.log("Step 2: Initializing DbProvider...");
         try {
-            const { DbProvider } = await import("../index.js");
+            if (!DbProvider) {
+                ({ DbProvider } = await import("../db/provider.js"));
+            }
             await DbProvider.init();
             componentsInitialized.dbProvider = true;
             console.log("✓ DbProvider ready");
@@ -94,8 +77,8 @@ beforeAll(async function setup() {
             // Don't throw - continue without it
         }
         
-        // Step 5: Setup LLM service mocks
-        console.log("Step 5: Setting up LLM mocks...");
+        // Step 3: Setup LLM service mocks
+        console.log("Step 3: Setting up LLM mocks...");
         try {
             await setupLlmServiceMocks();
             componentsInitialized.mocks = true;
@@ -104,7 +87,7 @@ beforeAll(async function setup() {
             console.error("LLM mock setup failed:", error);
         }
         
-        console.log("=== Test Setup Complete ===");
+        console.log("=== Per-File Test Setup Complete ===");
         console.log("Initialized components:", Object.entries(componentsInitialized)
             .filter(([, enabled]) => enabled)
             .map(([name]) => name)
@@ -171,40 +154,104 @@ async function setupLlmServiceMocks() {
 }
 
 async function cleanup() {
-    console.log("\n=== Cleanup Starting ===");
+    console.log("\n=== Per-File Cleanup Starting ===");
     
-    // Restore mocks
-    vi.restoreAllMocks();
+    // Restore mocks with timeout protection
+    console.log("Restoring all mocks...");
+    try {
+        // Add timeout protection for vi.restoreAllMocks
+        const restorePromise = new Promise<void>((resolve) => {
+            vi.restoreAllMocks();
+            resolve();
+        });
+        const timeoutPromise = new Promise<void>((_, reject) => 
+            setTimeout(() => reject(new Error('Mock restore timeout')), 5000)
+        );
+        await Promise.race([restorePromise, timeoutPromise]);
+        console.log("✓ Mocks restored");
+    } catch (e) {
+        console.error("Mock restore error:", e);
+        // Force clear all mocks even if restore fails
+        try {
+            vi.clearAllMocks();
+            vi.unstubAllGlobals();
+        } catch (clearError) {
+            console.error("Mock clear error:", clearError);
+        }
+    }
+    
+    // Reset singleton services to prevent stale connections
+    console.log("Resetting CacheService...");
+    try {
+        if (CacheService && CacheService.reset) {
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('CacheService reset timeout')), 10000)
+            );
+            await Promise.race([CacheService.reset(), timeoutPromise]);
+            console.log("✓ CacheService reset");
+        } else {
+            console.log("⚠ CacheService not available");
+        }
+    } catch (e) {
+        console.error("CacheService reset error:", e);
+    }
+    
+    try {
+        if (QueueService && QueueService.reset) {
+            await QueueService.reset();
+            console.log("✓ QueueService reset");
+        } else {
+            console.log("⚠ QueueService not available");
+        }
+    } catch (e) {
+        console.error("QueueService reset error:", e);
+    }
+    
+    try {
+        if (BusService && BusService.reset) {
+            await BusService.reset();
+            console.log("✓ BusService reset");
+        } else {
+            console.log("⚠ BusService not available");
+        }
+    } catch (e) {
+        console.error("BusService reset error:", e);
+    }
     
     // Clean up based on what was initialized
     if (componentsInitialized.dbProvider) {
         try {
-            const { DbProvider } = await import("../index.js");
-            await DbProvider.shutdown();
-            console.log("✓ DbProvider shutdown");
+            if (DbProvider && DbProvider.reset) {
+                await DbProvider.reset();
+                console.log("✓ DbProvider reset");
+            } else {
+                console.log("⚠ DbProvider not available");
+            }
         } catch (e) {
-            console.error("DbProvider shutdown error:", e);
+            console.error("DbProvider reset error:", e);
         }
     }
     
-    // Stop containers
-    const stops = [];
-    if (redisContainer) {
-        stops.push(redisContainer.stop({ timeout: 5000 })
-            .then(() => console.log("✓ Redis stopped"))
-            .catch(e => console.error("Redis stop error:", e)));
-    }
-    if (postgresContainer) {
-        stops.push(postgresContainer.stop({ timeout: 5000 })
-            .then(() => console.log("✓ PostgreSQL stopped"))
-            .catch(e => console.error("PostgreSQL stop error:", e)));
-    }
-    
-    await Promise.all(stops);
-    console.log("=== Cleanup Complete ===");
+    // Note: Containers are managed by global teardown
+    console.log("=== Per-File Cleanup Complete ===");
 }
 
-afterAll(cleanup, 60000);
+afterAll(async () => {
+    const testFile = expect.getState().testPath?.split('/').pop() || 'unknown';
+    console.log(`[${new Date().toISOString()}] afterAll cleanup starting for ${testFile}`);
+    const timeoutId = setTimeout(() => {
+        console.error(`[${new Date().toISOString()}] CLEANUP TIMEOUT WARNING for ${testFile} - cleanup taking too long!`);
+    }, 30000);
+    try {
+        await cleanup();
+        clearTimeout(timeoutId);
+        console.log(`[${new Date().toISOString()}] afterAll cleanup completed for ${testFile}`);
+    } catch (error) {
+        clearTimeout(timeoutId);
+        console.error(`[${new Date().toISOString()}] afterAll cleanup error for ${testFile}:`, error);
+        throw error;
+    }
+});
 
 // Export status for tests to check
 export const getSetupStatus = () => ({ ...componentsInitialized });

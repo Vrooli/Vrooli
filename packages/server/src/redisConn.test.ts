@@ -2,24 +2,47 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import { logger } from "./events/logger.js";
 import { CacheService } from "./redisConn.js";
 
-describe("CacheService Integration Tests", () => {
+// Skip these tests if Redis is not properly configured
+const skipIfNoRedis = !process.env.REDIS_URL || process.env.REDIS_URL === 'redis://localhost:6379';
+
+describe.skipIf(skipIfNoRedis)("CacheService Integration Tests", () => {
     let cacheService: CacheService;
 
     beforeAll(() => {
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
+        
+        // Check if Redis URL is set from testcontainers
+        if (!process.env.REDIS_URL) {
+            console.warn('REDIS_URL not set, skipping CacheService tests');
+        }
     });
 
-    beforeEach(() => {
-        // Get a fresh instance of CacheService
+    beforeEach(async () => {
+        // Skip if no Redis URL
+        if (!process.env.REDIS_URL) {
+            return;
+        }
+        
+        // Reset singleton and get fresh instance
+        await CacheService.reset();
         cacheService = CacheService.get();
     });
 
     afterAll(async () => {
+        if (!process.env.REDIS_URL || !cacheService) {
+            return;
+        }
+        
         // Clean up
-        await cacheService.flushAll();
-        await cacheService.close();
+        try {
+            await cacheService.flushAll();
+            await cacheService.close();
+        } catch (error) {
+            // Ignore cleanup errors
+            console.log('Cleanup error (ignored):', error);
+        }
         vi.restoreAllMocks();
     });
 

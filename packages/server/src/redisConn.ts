@@ -61,9 +61,9 @@ export interface CacheOptions {
 const DEFAULT_OPTS: CacheOptions = {
     defaultTtl: parseInt(process.env.CACHE_DEFAULT_TTL || "300"), // 5 min
     localLruSize: parseInt(process.env.CACHE_LOCAL_LRU_SIZE || "1000"),
-    maxReconnectDelayMs: 5_000,
-    reconnectDelayMultiplier: 200,
-    maxReconnectAttempts: 25,
+    maxReconnectDelayMs: parseInt(process.env.REDIS_MAX_RECONNECT_DELAY_MS || "5000"),
+    reconnectDelayMultiplier: parseInt(process.env.REDIS_RECONNECT_DELAY_MULTIPLIER || "200"),
+    maxReconnectAttempts: parseInt(process.env.REDIS_MAX_RECONNECT_ATTEMPTS || "25"),
     namespace: process.env.CACHE_NAMESPACE || "vrooli",
 };
 
@@ -133,6 +133,14 @@ export class CacheService {
         return CacheService.instance;
     }
 
+    /** Reset singleton instance (for testing) */
+    static async reset(): Promise<void> {
+        if (CacheService.instance) {
+            await CacheService.instance.close();
+            CacheService.instance = null;
+        }
+    }
+
     /* ----------------------------------------------------------------
      * 3.1  Connection management (lazy, with back-off)                */
     /* ---------------------------------------------------------------- */
@@ -175,15 +183,38 @@ export class CacheService {
                     : new IORedis(url, {
                         enableReadyCheck: true,
                         connectTimeout: this.opts.maxReconnectDelayMs,
-                        // Recommended: Add a retryStrategy for standalone instances too
-                        // retryStrategy: times => Math.min(times * 50, 2000),
-                        // Keep the client from re-connecting if it's not listening for 'error' events
-                        // lazyConnect: true, // Consider this if you want to control connection timing more explicitly
+                        commandTimeout: this.opts.maxReconnectDelayMs,
+                        lazyConnect: true,
+                        maxRetriesPerRequest: process.env.NODE_ENV === 'test' ? 1 : 3,
+                        maxRetriesForFailover: 1, // Fail fast in tests
+                        retryStrategy: (times: number) => {
+                            // In test environment, fail immediately if can't connect
+                            if (process.env.NODE_ENV === 'test') {
+                                if (times > 1) return null;
+                                return 100; // Short retry once
+                            }
+                            if (times > 3) return null; // Stop retrying after 3 attempts
+                            return Math.min(times * 50, 1000);
+                        },
                     });
 
-                // Instead of explicit connect, let ioredis handle it. We can wait for 'ready' or check status.
-                // await redis.connect(); 
+                // Set up error handling before connecting
                 this.client = redisInstance;
+                
+                // Set up error event listeners
+                this.client.on('error', (err) => {
+                    // In test environment, only log non-timeout errors
+                    if (process.env.NODE_ENV === 'test' && (err as any).code === 'ETIMEDOUT') {
+                        return; // Silently ignore timeout errors in tests
+                    }
+                    logger.error('[CacheService] Redis client error:', {
+                        message: err.message,
+                        code: (err as any).code,
+                    });
+                });
+                
+                // Since we're using lazyConnect, explicitly connect
+                await this.client.connect();
 
                 // Wait for the client to be ready if enableReadyCheck is true
                 // This might involve listening to a 'ready' event or periodically checking status

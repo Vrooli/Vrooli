@@ -12,6 +12,7 @@ import { logger } from "./events/logger.js";
 import { CacheService, getRedisUrl } from "./redisConn.js";
 import { SERVER_PORT, SERVER_URL, server } from "./server.js";
 import { BillingWorker } from "./services/billing.js";
+import { setupErrorReporting } from "./services/errorReporting.js";
 import { setupHealthCheck } from "./services/health.js";
 import { setupMetrics } from "./services/metrics.js";
 import { setupMCP } from "./services/mcp/index.js";
@@ -132,6 +133,9 @@ async function main() {
 
     // Set up metrics endpoint
     setupMetrics(app);
+
+    // Set up error reporting endpoint
+    setupErrorReporting(app);
 
     // Cross-Origin access. Accepts requests from localhost and dns
     // Disable if API is open to the public

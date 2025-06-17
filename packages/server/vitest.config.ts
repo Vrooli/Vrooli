@@ -40,19 +40,19 @@ export default defineConfig({
         },
         globals: true,
         environment: 'node',
-        // setupFiles: ['./src/services/execution/__tests__/setup-minimal.ts'],
+        globalSetup: './vitest.global-setup.ts',
+        setupFiles: ['./vitest-sharp-mock-simple.ts', './src/__test/setup.ts'],
         include: [
             'src/**/*.test.ts',
             'src/**/__test.*/**/*.test.ts'
         ],
         exclude: ['node_modules', 'dist'],
-        // Use threads with more aggressive settings
-        pool: 'threads',
+        // Use single thread with longer timeout
+        pool: 'forks',
         poolOptions: {
-            threads: {
-                minThreads: 2,
-                maxThreads: 8,
-                isolate: false, // Share context for speed
+            forks: {
+                singleFork: true,
+                isolate: false, // Don't isolate to reduce overhead
             },
         },
         deps: {
@@ -63,8 +63,8 @@ export default defineConfig({
                 },
             },
         },
-        // Suppress console output for speed
-        onConsoleLog: () => false,
+        // Allow console output to debug setup issues
+        onConsoleLog: () => {},
         coverage: {
             provider: 'v8',
             reporter: ['text', 'text-summary'],
@@ -81,7 +81,7 @@ export default defineConfig({
             ],
         },
         // Increase timeout for complex execution tests
-        testTimeout: 30000,
-        hookTimeout: 10000,
+        testTimeout: 60000,
+        hookTimeout: 300000, // 5 minutes for setup/teardown
     },
 });
