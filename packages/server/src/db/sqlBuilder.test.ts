@@ -1,4 +1,4 @@
-import { expect, describe, it } from "vitest";
+import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
 
 import { ModelMap } from "../models/base/index.js";
 import { JoinType, SqlBuilder } from "./sqlBuilder.js";
@@ -10,12 +10,12 @@ import { JoinType, SqlBuilder } from "./sqlBuilder.js";
  */
 describe("SqlBuilder", () => {
     let builder: SqlBuilder;
-    let modelMapGetStub: sinon.SinonStub;
+    let modelMapGetStub: any;
 
     beforeEach(() => {
         // Stub ModelMap.get with just the dbTable property needed by SqlBuilder
-        modelMapGetStub = sinon.stub(ModelMap, "get");
-        modelMapGetStub.callsFake((objectType) => {
+        modelMapGetStub = vi.spyOn(ModelMap, "get");
+        modelMapGetStub.mockImplementation((objectType) => {
             return { dbTable: objectType + "_table" } as any;
         });
 
@@ -23,7 +23,7 @@ describe("SqlBuilder", () => {
     });
 
     afterEach(() => {
-        modelMapGetStub.restore();
+        modelMapGetStub.mockRestore();
     });
 
     // Basic initialization and query structure tests
@@ -128,7 +128,7 @@ describe("SqlBuilder", () => {
 
         it("handles empty WHERE clauses", () => {
             // No where clauses added
-            expect(builder.serialize()).to.not.include("WHERE");
+            expect(builder.serialize()).not.toContain("WHERE");
         });
     });
 
@@ -233,7 +233,7 @@ describe("SqlBuilder", () => {
         it("assigns different aliases to different object types", () => {
             const fieldRef1 = builder.field("User", "id");
             const fieldRef2 = builder.field("Team", "id");
-            expect(fieldRef1.tableAlias).to.not.equal(fieldRef2.tableAlias);
+            expect(fieldRef1.tableAlias).not.toBe(fieldRef2.tableAlias);
         });
     });
 
@@ -296,7 +296,7 @@ describe("SqlBuilder", () => {
             // Check for the presence of an empty array vector in the query,
             // but don't assert on the exact format since it may vary
             const selectItem = builder.query.select[0];
-            expect(selectItem).to.be.a("string");
+            expect(typeof selectItem).toBe("string");
             expect(selectItem).toContain("ARRAY[");
             expect(selectItem).toContain("::vector");
         });
@@ -333,16 +333,16 @@ describe("SqlBuilder", () => {
             it("equals handles null comparisons", () => {
                 const fieldRef = builder.field("Meeting", "userId");
                 // Create a direct test stub of the equals method to bypass any bugs in the actual implementation
-                const equalsStub = sinon.stub(SqlBuilder, "equals");
+                const equalsStub = vi.spyOn(SqlBuilder, "equals");
                 // @ts-ignore Testing runtime scenario
-                equalsStub.withArgs(fieldRef, null).returns("\"a\".\"userId\" IS NULL");
+                equalsStub.mockReturnValue("\"a\".\"userId\" IS NULL");
 
                 // Use the stub to check if the semantics are correct
                 // @ts-ignore Testing runtime scenario
                 expect(equalsStub(fieldRef, null)).toBe("\"a\".\"userId\" IS NULL");
 
                 // Restore the original method
-                equalsStub.restore();
+                equalsStub.mockRestore();
 
                 // Add a note that the real implementation needs fixing
                 console.log("Note: The real SqlBuilder.equals implementation doesn't properly handle null values");

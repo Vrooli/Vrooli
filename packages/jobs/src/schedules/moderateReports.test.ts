@@ -2,7 +2,7 @@ import { ReportStatus, ReportSuggestedAction, generatePK, generatePublicId } fro
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { moderateReports } from "./moderateReports.js";
 
-import { DbProvider } from "@vrooli/server/db/provider.js";
+import { DbProvider } from "@vrooli/server";
 
 // Mock the Trigger function only
 vi.mock("@vrooli/server", async () => {

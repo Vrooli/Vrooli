@@ -2,6 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconCommon } from "../../../icons/Icons.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { cn } from "../../../utils/tailwind-theme.js";
 import { IconButton } from "../../buttons/IconButton.js";
 import "./Dialog.css";
@@ -520,6 +521,92 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
     return { position, isDragging };
 }
 
+// Swipe to close hook for mobile
+function useSwipeToClose(
+    isEnabled: boolean,
+    dialogRef: React.RefObject<HTMLDivElement>,
+    titleRef: React.RefObject<HTMLDivElement>,
+    onClose: () => void
+) {
+    useEffect(() => {
+        if (!isEnabled || !dialogRef.current || !titleRef.current) return;
+
+        const dialog = dialogRef.current;
+        const titleBar = titleRef.current;
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let initialTransform = 0;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            // Only start swipe if touching the title bar
+            if (!titleBar.contains(e.target as Node)) return;
+            
+            startY = e.touches[0].clientY;
+            currentY = startY;
+            isDragging = true;
+            initialTransform = 0;
+            
+            // Add transition disable class
+            dialog.style.transition = 'none';
+        };
+
+        const handleTouchMove = (e: TouchEvent) => {
+            if (!isDragging) return;
+            
+            currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            
+            // Only allow downward swipe
+            if (deltaY > 0) {
+                const transform = Math.min(deltaY, 200); // Limit swipe distance
+                dialog.style.transform = `translateY(${transform}px)`;
+                
+                // Add resistance effect
+                const opacity = Math.max(0.3, 1 - (deltaY / 300));
+                dialog.style.opacity = opacity.toString();
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            const deltaY = currentY - startY;
+            
+            // Restore transition
+            dialog.style.transition = '';
+            
+            // If swiped down more than 100px, close the dialog
+            if (deltaY > 100) {
+                onClose();
+            } else {
+                // Snap back to original position
+                dialog.style.transform = '';
+                dialog.style.opacity = '';
+            }
+        };
+
+        // Add event listeners to the title bar only
+        titleBar.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+        return () => {
+            titleBar.removeEventListener('touchstart', handleTouchStart);
+            document.removeEventListener('touchmove', handleTouchMove);
+            document.removeEventListener('touchend', handleTouchEnd);
+            
+            // Clean up styles
+            if (dialog) {
+                dialog.style.transform = '';
+                dialog.style.opacity = '';
+                dialog.style.transition = '';
+            }
+        };
+    }, [isEnabled, dialogRef, titleRef, onClose]);
+}
+
 // Focus trap hook
 function useFocusTrap(isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement>, disableFocusTrap?: boolean) {
     useEffect(() => {
@@ -639,15 +726,23 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         const combinedRef = ref || dialogRef;
         const titleId = useId();
 
+        // Detect if mobile viewport for full size behavior (768px is standard mobile breakpoint)
+        const isMobile = useIsMobile();
+        const effectiveSize = size === "full" && !isMobile ? "xl" : size;
+        const effectivePosition = size === "full" && isMobile ? "bottom" : position;
+
         // Handle anchoring
         const anchorPosition = useAnchorPosition(anchorEl, anchorPlacement, isOpen, dialogRef);
         useHighlightElement(anchorEl, highlightAnchor, isOpen);
 
-        // Handle dragging (disabled when anchored)
-        const { position: dragPosition, isDragging } = useDragDialog(dialogRef, titleRef, draggable && !anchorEl, isOpen);
+        // Handle dragging (disabled when anchored or mobile full screen)
+        const { position: dragPosition, isDragging } = useDragDialog(dialogRef, titleRef, draggable && !anchorEl && !(size === "full" && isMobile), isOpen);
 
         // Handle focus trap
         useFocusTrap(isOpen, dialogRef, disableFocusTrap);
+
+        // Handle swipe to close for mobile full screen
+        useSwipeToClose(size === "full" && isMobile, dialogRef, titleRef, onClose);
 
         // Handle escape key
         useEffect(() => {
@@ -700,18 +795,19 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
 
         // Build classes
         const overlayClasses = buildOverlayClasses(enableBackgroundBlur && !anchorEl, overlayClassName);
-        const overlayPositionClasses = (draggable && !anchorEl) || anchorEl ? 
-            "tw-items-start tw-justify-start" : // Don't center when draggable or anchored
+        const overlayPositionClasses = (draggable && !anchorEl) || anchorEl || (size === "full" && isMobile) ? 
+            "tw-items-start tw-justify-start" : // Don't center when draggable, anchored, or mobile full screen
             buildDialogClasses({
                 variant,
-                size,
-                position,
+                size: effectiveSize,
+                position: effectivePosition,
                 className,
             });
-        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable && !anchorEl, isDragging, !!anchorEl);
+        const dialogWrapperClasses = getDialogWrapperClasses(effectiveSize, draggable && !anchorEl, isDragging, !!anchorEl, size === "full" && isMobile);
         const contentClasses = buildContentClasses({
             variant,
             className: contentClassName,
+            isMobileFullScreen: size === "full" && isMobile,
         });
 
         // Determine final position
@@ -733,8 +829,8 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                         top: finalPosition.y,
                         margin: 0,
                         transform: "none", // Override any transform from base classes
-                    } : ((draggable && !anchorEl) || anchorEl) ? {
-                        // Hide until positioned when draggable OR anchored
+                    } : ((draggable && !anchorEl) || anchorEl) && !(size === "full" && isMobile) ? {
+                        // Hide until positioned when draggable OR anchored (but not mobile full screen)
                         opacity: 0,
                         position: "fixed",
                         left: 0,
@@ -748,7 +844,11 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     aria-labelledby={title ? (ariaLabelledBy || titleId) : undefined}
                     aria-describedby={ariaDescribedBy}
                 >
-                    <div className={cn(contentClasses, anchorEl && "tw-max-h-full tw-overflow-hidden tw-flex tw-flex-col")}>
+                    <div className={cn(
+                        contentClasses, 
+                        anchorEl && "tw-max-h-full tw-overflow-hidden tw-flex tw-flex-col",
+                        size === "full" && isMobile && "tw-flex tw-flex-col"
+                    )}>
                         {/* Arrow pointing to anchor element */}
                         {anchorPosition && (
                             <div 
@@ -768,9 +868,14 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                                     "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
                                     "tw-flex-shrink-0", // Prevent header from shrinking
                                     "tw-relative tw-z-10", // Ensure header is above effects
-                                    draggable && !anchorEl && "tw-cursor-move tw-select-none", // Add drag cursor when draggable and not anchored
+                                    draggable && !anchorEl && !(size === "full" && isMobile) && "tw-cursor-move tw-select-none", // Add drag cursor when draggable and not anchored or mobile full
+                                    size === "full" && isMobile && "tw-cursor-grab tw-select-none", // Add swipe indicator for mobile full screen
                                 )}
                             >
+                                {/* Swipe indicator for mobile full screen */}
+                                {size === "full" && isMobile && (
+                                    <div className="tw-absolute tw-top-2 tw-left-1/2 tw-transform tw--translate-x-1/2 tw-w-10 tw-h-1 tw-bg-gray-400 tw-rounded-full tw-opacity-60" />
+                                )}
                                 {title && (
                                     <DialogTitle
                                         id={titleId}

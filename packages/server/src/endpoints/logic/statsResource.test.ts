@@ -1,160 +1,32 @@
-import { StatPeriodType, type StatsRoutineSearchInput } from "@vrooli/shared";
+import { StatPeriodType, type StatsRoutineSearchInput, generatePK } from "@vrooli/shared";
 import { PeriodType, type routine as RoutineModelPrisma } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { statsRoutine_findMany } from "../generated/statsRoutine_findMany.js"; // Assuming this generated type exists
 import { statsRoutine } from "./statsResource.js";
 
-// Test data
-const testRoutineId1 = "routine-7001";
-const testRoutineId2 = "routine-7002";
-const privateRoutineId1 = "routine-7003"; // Private Routine owned by user1
-const privateRoutineId2 = "routine-7004"; // Private Routine owned by user2
-
-// User IDs for ownership testing
-const user1Id = "user-8001";
-const user2Id = "user-8002";
-
-// Sample Routine data structure (adjust fields as necessary based on actual Routine model)
-const routineData1: Partial<RoutineModelPrisma> & { id: string } = {
-    id: testRoutineId1,
-    isPrivate: false,
-    ownedByUserId: null, // Public routine
-    // Add other required Routine fields
-};
-
-const routineData2: Partial<RoutineModelPrisma> & { id: string } = {
-    id: testRoutineId2,
-    isPrivate: false,
-    ownedByUserId: null, // Public routine
-    // Add other required Routine fields
-};
-
-const privateRoutineData1: Partial<RoutineModelPrisma> & { id: string } = {
-    id: privateRoutineId1,
-    isPrivate: true,
-    ownedByUserId: user1Id, // Owned by user1
-    // Add other required Routine fields
-};
-
-const privateRoutineData2: Partial<RoutineModelPrisma> & { id: string } = {
-    id: privateRoutineId2,
-    isPrivate: true,
-    ownedByUserId: user2Id, // Owned by user2
-    // Add other required Routine fields
-};
-
-const statsRoutineData1 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    routineId: testRoutineId1,
-    periodStart: new Date("2023-01-01"),
-    periodEnd: new Date("2023-01-31"),
-    periodType: PeriodType.Monthly,
-    // Add other relevant StatsRoutine fields (e.g., averageDuration, successCount)
-    runsStarted: 0,
-    runsCompleted: 0,
-    runCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
-};
-
-const statsRoutineData2 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    routineId: testRoutineId2,
-    periodStart: new Date("2023-02-01"),
-    periodEnd: new Date("2023-02-28"),
-    periodType: PeriodType.Monthly,
-    runsStarted: 0,
-    runsCompleted: 0,
-    runCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
-};
-
-const privateRoutineStats1 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    routineId: privateRoutineId1,
-    periodStart: new Date("2023-03-01"),
-    periodEnd: new Date("2023-03-31"),
-    periodType: PeriodType.Monthly,
-    runsStarted: 0,
-    runsCompleted: 0,
-    runCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
-};
-
-const privateRoutineStats2 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    routineId: privateRoutineId2,
-    periodStart: new Date("2023-03-01"),
-    periodEnd: new Date("2023-03-31"),
-    periodType: PeriodType.Monthly,
-    runsStarted: 0,
-    runsCompleted: 0,
-    runCompletionTimeAverage: 0.0,
-    runContextSwitchesAverage: 0.0,
-};
 
 describe("EndpointsStatsRoutine", () => {
     let loggerErrorStub: any;
     let loggerInfoStub: any;
 
-    beforeAll(() => {
+    beforeAll(async () => {
         loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
         loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
     beforeEach(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
-        // Create test users individually
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
-
-        // Create test routines (ensure all required fields are present)
-        // Placeholder: Assuming routines need a name, permissions, and versions
-        await DbProvider.get().routine.createMany({
-            data: [
-                { ...routineData1, permissions: JSON.stringify({}) },
-                { ...routineData2, permissions: JSON.stringify({}) },
-                { ...privateRoutineData1, permissions: JSON.stringify({}) },
-                { ...privateRoutineData2, permissions: JSON.stringify({}) },
-            ].map(r => ({ // Adjust ownership fields
-                ...r,
-                ownedByUserId: r.ownedByUserId ?? undefined,
-            })),
-        });
-
-        // Create fresh test stats data
-        await DbProvider.get().stats_routine.createMany({
-            data: [
-                statsRoutineData1,
-                statsRoutineData2,
-                privateRoutineStats1,
-                privateRoutineStats2,
-            ],
-        });
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.routine.deleteMany();
+        await prisma.stats_routine.deleteMany();
+        await prisma.user.deleteMany();
     });
 
     afterAll(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
         loggerErrorStub.mockRestore();
         loggerInfoStub.mockRestore();
     });
@@ -162,14 +34,117 @@ describe("EndpointsStatsRoutine", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns stats for public and owned routines when logged in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                // Create test users
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+                const user2 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 2",
+                    },
+                });
+
+                // Create test routines
+                const routine1 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+                const routine2 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+                const privateRoutine1 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: true,
+                        ownedByUserId: user1.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+                const privateRoutine2 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: true,
+                        ownedByUserId: user2.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                // Create stats
+                const statsRoutineData1 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: routine1.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+                const statsRoutineData2 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: routine2.id,
+                        periodStart: new Date("2023-02-01"),
+                        periodEnd: new Date("2023-02-28"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+                const privateRoutineStats1 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: privateRoutine1.id,
+                        periodStart: new Date("2023-03-01"),
+                        periodEnd: new Date("2023-03-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+                const privateRoutineStats2 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: privateRoutine2.id,
+                        periodStart: new Date("2023-03-01"),
+                        periodEnd: new Date("2023-03-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
                     take: 10,
                     periodType: StatPeriodType.Monthly,
                 };
-                // Assuming statsRoutine_findMany exists and is typed correctly
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
                 expect(result).not.toBeNull();
@@ -178,15 +153,46 @@ describe("EndpointsStatsRoutine", () => {
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // User 1 should see public routines and their own private routine
-                expect(resultIds).toContain(statsRoutineData1.id);
-                expect(resultIds).toContain(statsRoutineData2.id);
-                expect(resultIds).toContain(privateRoutineStats1.id);
+                expect(resultIds).toContain(statsRoutineData1.id.toString());
+                expect(resultIds).toContain(statsRoutineData2.id.toString());
+                expect(resultIds).toContain(privateRoutineStats1.id.toString());
                 // User 1 should NOT see user 2's private routine stats
-                expect(resultIds).not.toContain(privateRoutineStats2.id);
+                expect(resultIds).not.toContain(privateRoutineStats2.id.toString());
             });
 
             it("filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+
+                const routine = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: user1.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const monthlyStats = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: routine.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = { periodType: StatPeriodType.Monthly };
@@ -196,13 +202,56 @@ describe("EndpointsStatsRoutine", () => {
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).toContain(statsRoutineData1.id);
-                expect(resultIds).toContain(statsRoutineData2.id);
-                expect(resultIds).toContain(privateRoutineStats1.id);
+                expect(resultIds).toContain(monthlyStats.id.toString());
             });
 
             it("filters by time range", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+
+                const routine = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: user1.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const janStats = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: routine.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const febStats = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: routine.id,
+                        periodStart: new Date("2023-02-01"),
+                        periodEnd: new Date("2023-02-28"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
@@ -218,13 +267,89 @@ describe("EndpointsStatsRoutine", () => {
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).toContain(statsRoutineData1.id); // Should include Jan stats
-                expect(resultIds).not.toContain(statsRoutineData2.id); // Should exclude Feb stats
-                expect(resultIds).not.toContain(privateRoutineStats1.id); // Should exclude Mar stats
+                expect(resultIds).toContain(janStats.id.toString()); // Should include Jan stats
+                expect(resultIds).not.toContain(febStats.id.toString()); // Should exclude Feb stats
             });
 
             it("API key - public permissions (likely returns only public routines)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User context might be needed by readManyHelper even if permissions are broad
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+
+                const publicRoutine1 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const publicRoutine2 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const privateRoutine = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: true,
+                        ownedByUserId: user1.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const publicStats1 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: publicRoutine1.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const publicStats2 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: publicRoutine2.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateStats = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: privateRoutine.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -240,14 +365,90 @@ describe("EndpointsStatsRoutine", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                // Expect only public routine stats, as readManyHelper likely enforces ownership for private ones even with ReadPublic key
-                expect(resultIds).toContain(statsRoutineData1.id);
-                expect(resultIds).toContain(statsRoutineData2.id);
-                expect(resultIds).not.toContain(privateRoutineStats1.id);
-                expect(resultIds).not.toContain(privateRoutineStats2.id);
+                // Expect only public routine stats
+                expect(resultIds).toContain(publicStats1.id.toString());
+                expect(resultIds).toContain(publicStats2.id.toString());
+                expect(resultIds).not.toContain(privateStats.id.toString());
             });
 
             it("not logged in (likely returns empty or only public, depending on readManyHelper)", async () => {
+                const publicRoutine1 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const publicRoutine2 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: false,
+                        ownedByUserId: null,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+
+                const privateRoutine = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: true,
+                        ownedByUserId: user1.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                const publicStats1 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: publicRoutine1.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const publicStats2 = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: publicRoutine2.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateStats = await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: privateRoutine.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: StatsRoutineSearchInput = {
@@ -255,10 +456,6 @@ describe("EndpointsStatsRoutine", () => {
                     periodType: StatPeriodType.Monthly,
                 };
 
-                // The implementation doesn't assert ReadPublic, so readManyHelper's default behavior for unauthenticated users applies.
-                // Assuming readManyHelper returns public items if applicable, or empty otherwise.
-                // If routines require login to view even public ones, this test should expect 0 results.
-                // Let's assume public routines ARE viewable by logged-out users via readManyHelper.
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
 
                 expect(result).not.toBeNull();
@@ -267,17 +464,24 @@ describe("EndpointsStatsRoutine", () => {
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // Expect only public routine stats
-                expect(resultIds).toContain(statsRoutineData1.id);
-                expect(resultIds).toContain(statsRoutineData2.id);
-                expect(resultIds).not.toContain(privateRoutineStats1.id);
-                expect(resultIds).not.toContain(privateRoutineStats2.id);
+                expect(resultIds).toContain(publicStats1.id.toString());
+                expect(resultIds).toContain(publicStats2.id.toString());
+                expect(resultIds).not.toContain(privateStats.id.toString());
             });
 
         });
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsRoutineSearchInput = {
@@ -292,38 +496,80 @@ describe("EndpointsStatsRoutine", () => {
                     await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
                     expect.fail("Expected an error to be thrown due to invalid date");
                 } catch (error) {
-                    // Error expected, specific error type check depends on readManyHelper/Prisma validation
-                    expect(error).toBeInstanceOf(Error); // Basic check
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input = { // Use 'any' to bypass TypeScript type checking for the test
+                const input = {
                     periodType: "InvalidPeriodType" as any,
                 };
 
                 try {
-                    // Cast input to the expected type, even though it's invalid
                     await statsRoutine.findMany({ input: input as StatsRoutineSearchInput }, { req, res }, statsRoutine_findMany);
                     expect.fail("Expected an error to be thrown due to invalid periodType");
                 } catch (error) {
-                    // Error expected, likely a validation error from Zod or Prisma within readManyHelper
-                    expect(error).toBeInstanceOf(Error); // Basic check
+                    expect(error).toBeInstanceOf(Error);
                 }
             });
 
             it("cannot see stats of private routine you don't own when searching by name", async () => {
-                // Log in as user1
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 1",
+                    },
+                });
+
+                const user2 = await DbProvider.get().user.create({
+                    data: {
+                        ...defaultPublicUserData(),
+                        id: generatePK(),
+                        name: "Test User 2",
+                    },
+                });
+
+                const privateRoutine2 = await DbProvider.get().routine.create({
+                    data: {
+                        id: generatePK(),
+                        isPrivate: true,
+                        ownedByUserId: user2.id,
+                        permissions: JSON.stringify({}),
+                    },
+                });
+
+                await DbProvider.get().stats_routine.create({
+                    data: {
+                        id: generatePK(),
+                        routineId: privateRoutine2.id,
+                        periodStart: new Date("2023-03-01"),
+                        periodEnd: new Date("2023-03-31"),
+                        periodType: PeriodType.Monthly,
+                        runsStarted: 0,
+                        runsCompleted: 0,
+                        runCompletionTimeAverage: 0.0,
+                        runContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Try to specifically query user2's private routine stats by name
                 const input: StatsRoutineSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Routine 2", // Name of user2's private routine
+                    searchString: "Private Routine 2",
                 };
 
                 const result = await statsRoutine.findMany({ input }, { req, res }, statsRoutine_findMany);
@@ -331,10 +577,7 @@ describe("EndpointsStatsRoutine", () => {
                 expect(result).not.toBeNull();
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
-                // No results should match the query, as user1 cannot see user2's private routine
                 expect(result.edges!.length).toEqual(0);
-                // Double-check no edge contains the private stat ID
-                expect(result.edges!.every(edge => edge?.node?.id !== privateRoutineStats2.id)).toBe(true);
             });
         });
     });

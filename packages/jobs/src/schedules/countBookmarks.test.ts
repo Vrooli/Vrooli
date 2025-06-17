@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countBookmarks } from "./countBookmarks.js";
 
 // Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+const { DbProvider } = await import("@vrooli/server");
 
 describe("countBookmarks integration tests", () => {
     // Store test entity IDs for cleanup
@@ -55,12 +55,13 @@ describe("countBookmarks integration tests", () => {
 
     it("should update bookmark counts when they mismatch", async () => {
         // Create test users
+        const uniqueId = Date.now();
         const bookmarker1 = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Bookmarker 1",
-                handle: "bookmarker1",
+                handle: `bookmarker1_${uniqueId}`,
             },
         });
         testUserIds.push(bookmarker1.id);
@@ -70,7 +71,7 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Bookmarker 2",
-                handle: "bookmarker2",
+                handle: `bookmarker2_${uniqueId}`,
             },
         });
         testUserIds.push(bookmarker2.id);
@@ -80,7 +81,7 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner",
-                handle: "owner1",
+                handle: `owner1_${uniqueId}`,
             },
         });
         testUserIds.push(owner.id);
@@ -89,7 +90,8 @@ describe("countBookmarks integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: owner.id } },
                 name: "Test Issue",
                 description: "Test Description",
                 bookmarks: 10, // Incorrect count
@@ -127,12 +129,13 @@ describe("countBookmarks integration tests", () => {
     });
 
     it("should handle null bookmark counts", async () => {
+        const uniqueId = Date.now();
         const owner = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner 2",
-                handle: "owner2",
+                handle: `owner2_${uniqueId}`,
             },
         });
         testUserIds.push(owner.id);
@@ -142,7 +145,7 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Bookmarker 3",
-                handle: "bookmarker3",
+                handle: `bookmarker3_${uniqueId}`,
             },
         });
         testUserIds.push(bookmarker.id);
@@ -151,7 +154,7 @@ describe("countBookmarks integration tests", () => {
         const tag = await DbProvider.get().tag.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                createdBy: { connect: { id: owner.id } },
                 tag: "test-tag",
                 bookmarks: null, // Null count
             },
@@ -181,12 +184,13 @@ describe("countBookmarks integration tests", () => {
     });
 
     it("should handle multiple entity types", async () => {
+        const uniqueId = Date.now();
         const bookmarker = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Bookmarker 4",
-                handle: "bookmarker4",
+                handle: `bookmarker4_${uniqueId}`,
             },
         });
         testUserIds.push(bookmarker.id);
@@ -196,7 +200,7 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner 3",
-                handle: "owner3",
+                handle: `owner3_${uniqueId}`,
                 bookmarks: 5, // Incorrect count
             },
         });
@@ -207,7 +211,7 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: owner.id,
-                handle: "testteam1",
+                handle: `testteam1_${uniqueId}`,
                 bookmarks: 3, // Incorrect count
                 translations: {
                     create: [{
@@ -293,12 +297,13 @@ describe("countBookmarks integration tests", () => {
     });
 
     it("should handle entities with no bookmarks", async () => {
+        const uniqueId = Date.now();
         const owner = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner 4",
-                handle: "owner4",
+                handle: `owner4_${uniqueId}`,
             },
         });
         testUserIds.push(owner.id);
@@ -307,6 +312,7 @@ describe("countBookmarks integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 name: "Issue with no bookmarks",
                 description: "Should be reset to 0",

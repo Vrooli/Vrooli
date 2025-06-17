@@ -44,6 +44,8 @@ function getCallerFunctionName(): string {
 
 export class ModelMap {
     private static instance: ModelMap;
+    private static initPromise: Promise<void> | null = null;
+    private static isMapInitialized = false;
 
     public map: ObjectMap = {} as ObjectMap;
 
@@ -51,6 +53,11 @@ export class ModelMap {
     private constructor() { }
 
     private async initializeMap() {
+        // Prevent re-initialization
+        if (ModelMap.isMapInitialized) {
+            return;
+        }
+
         const modelNames = Object.keys(ModelType) as (keyof typeof ModelMap.prototype.map)[];
         const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -62,15 +69,25 @@ export class ModelMap {
             return jsExists || tsExists;
         });
 
-        // Dynamically import each model module in parallel
+        // Dynamically import each model module in parallel with timeout
         const importPromises = validModelNames.map(async (modelName) => {
             const fileName = lowercaseFirstLetter(modelName);
             const filePathWithoutExtension = `${dirname}/${fileName}`;
             const importPath = fs.existsSync(`${filePathWithoutExtension}.js`)
                 ? `./${fileName}.js`
                 : `./${fileName}.ts`;
+            
+            // Create a timeout promise to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error(`Import timeout for ${modelName}Model`)), 5000);
+            });
+            
             try {
-                const module = await import(importPath);
+                // Race between import and timeout
+                const module = await Promise.race([
+                    import(importPath),
+                    timeoutPromise
+                ]);
                 this.map[modelName] = module[`${modelName}Model`] || {};
 
                 const translationTable = this.map[modelName].dbTranslationTable;
@@ -88,8 +105,11 @@ export class ModelMap {
             }
         });
 
-        // Wait for all promises to settle
-        await Promise.all(importPromises);
+        // Wait for all promises to settle (not fail on first error/timeout)
+        await Promise.allSettled(importPromises);
+        
+        // Mark as initialized only after successful completion
+        ModelMap.isMapInitialized = true;
     }
 
     public static isModel(objectType: ModelType | `${ModelType}`): boolean {
@@ -156,13 +176,44 @@ export class ModelMap {
     }
 
     public static async init() {
-        if (!ModelMap.instance) {
-            ModelMap.instance = new ModelMap();
+        // If already initializing, wait for the existing promise
+        if (ModelMap.initPromise) {
+            return ModelMap.initPromise;
         }
-        await ModelMap.instance.initializeMap();
+
+        // If already initialized, return immediately
+        if (ModelMap.instance && ModelMap.isMapInitialized) {
+            return;
+        }
+
+        // Create the initialization promise
+        ModelMap.initPromise = (async () => {
+            try {
+                if (!ModelMap.instance) {
+                    ModelMap.instance = new ModelMap();
+                }
+                await ModelMap.instance.initializeMap();
+            } catch (error) {
+                // Reset on error so it can be retried
+                ModelMap.initPromise = null;
+                ModelMap.isMapInitialized = false;
+                throw error;
+            }
+        })();
+
+        return ModelMap.initPromise;
     }
 
     public static isInitialized() {
-        return !!ModelMap.instance;
+        return !!ModelMap.instance && ModelMap.isMapInitialized;
+    }
+
+    /**
+     * Reset the ModelMap instance. Only for testing purposes.
+     */
+    public static reset() {
+        ModelMap.instance = null as any;
+        ModelMap.initPromise = null;
+        ModelMap.isMapInitialized = false;
     }
 }

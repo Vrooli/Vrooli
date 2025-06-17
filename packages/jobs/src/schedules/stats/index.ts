@@ -6,6 +6,13 @@ import { logTeamStats } from "./team.js";
 import { logUserStats } from "./user.js";
 
 /**
+ * Type guard to check if a value is a valid PeriodType
+ */
+function isPeriodType(value: unknown): value is PeriodType {
+    return Object.values(PeriodType).includes(value as PeriodType);
+}
+
+/**
  * Calculates the unix timestamp of periodStart (earliest data to include) 
  * for the given time interval.
  * Hourly is the past hour
@@ -54,12 +61,17 @@ export const statsPeriodCron = {
  */
 
 export function initStatsPeriod(cron: string) {
-    const period = Object.keys(statsPeriodCron).find(key => statsPeriodCron[key as PeriodType] === cron) as PeriodType;
+    const periodEntry = Object.entries(statsPeriodCron).find(([_, cronValue]) => cronValue === cron);
     
     // Return early if unknown cron expression
-    if (!period) {
+    if (!periodEntry) {
         return;
     }
+    
+    if (!isPeriodType(periodEntry[0])) {
+        return;
+    }
+    const period = periodEntry[0];
     
     const periodStart = new Date(getPeriodStart(period)).toISOString();
     const periodEnd = new Date().toISOString();

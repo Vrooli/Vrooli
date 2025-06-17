@@ -30,7 +30,7 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
                 auth: data.keys.auth,
                 p256dh: data.keys.p256dh,
                 name: noNull(data.name),
-                user: { connect: { id: userData.id } },
+                user: { connect: { id: BigInt(userData.id) } },
             }),
             update: async ({ data }) => ({
                 name: noNull(data.name),

@@ -287,10 +287,8 @@ describe("RequestService", () => {
     describe("assertRequestFrom", () => {
         let sessionData: SessionData;
         let userData: SessionUser;
-        let sandbox;
 
         beforeEach(() => {
-            sandbox = sinon.createSandbox();
             sessionData = {
                 isLoggedIn: true,
                 apiToken: null,
@@ -303,7 +301,7 @@ describe("RequestService", () => {
         });
 
         afterEach(() => {
-            sandbox.restore();
+            vi.restoreAllMocks();
         });
 
         describe("isApiToken conditions", () => {
@@ -311,7 +309,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = "testApiToken";
                 // @ts-ignore Testing runtime scenario
-                sandbox.stub(SessionService, "getUser").returns(undefined);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(undefined);
 
                 const req = { session: sessionData };
                 const conditions = { isApiToken: true } as const;
@@ -322,7 +320,7 @@ describe("RequestService", () => {
             it("should throw MustUseApiToken when isApiToken is true but request is not from API token", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = null;
-                sandbox.stub(SessionService, "getUser").returns(null);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(null);
 
                 const req = { session: sessionData };
                 const conditions = { isApiToken: true } as const;
@@ -337,7 +335,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
@@ -349,7 +347,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = false;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
@@ -361,7 +359,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(null);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(null);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
@@ -374,7 +372,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = false;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true } as const;
@@ -389,7 +387,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true } as const;
@@ -401,7 +399,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = false;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(null);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(null);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true } as const;
@@ -414,7 +412,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = true;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true } as const;
@@ -427,7 +425,7 @@ describe("RequestService", () => {
                 sessionData.isLoggedIn = true;
                 sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = false;
-                sandbox.stub(SessionService, "getUser").returns(userData);
+                vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true } as const;
@@ -437,8 +435,17 @@ describe("RequestService", () => {
             });
         });
 
-        it("should return an empty object when no conditions are specified", () => {
-            sandbox.stub(SessionService, "getUser").returns(userData);
+        it("should return user data when no conditions are specified and user is logged in", () => {
+            vi.spyOn(SessionService, "getUser").mockReturnValue(userData);
+            const req = { session: sessionData };
+            const conditions = {};
+            const result = RequestService.assertRequestFrom(req, conditions);
+            expect(result).toEqual(userData);
+        });
+
+        it("should return an empty object when no conditions are specified and user is not logged in", () => {
+            sessionData.isLoggedIn = false;
+            vi.spyOn(SessionService, "getUser").mockReturnValue(null);
             const req = { session: sessionData };
             const conditions = {};
             const result = RequestService.assertRequestFrom(req, conditions);
@@ -503,7 +510,7 @@ describe("RequestService", () => {
             await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
 
             // Verify the script was loaded (SHA is set)
-            expect(typeof RequestService["tokenBucketScriptSha"]).toBe("string");
+            expect(typeof RequestService["scriptSha"]).toBe("string");
         });
 
         it("should not throw if client is null", async () => {

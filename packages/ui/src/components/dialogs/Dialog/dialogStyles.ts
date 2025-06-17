@@ -177,15 +177,19 @@ export function buildDialogClasses({
 interface BuildContentClassesProps {
     variant: DialogVariant;
     className?: string;
+    isMobileFullScreen?: boolean;
 }
 
 export function buildContentClasses({
     variant,
     className,
+    isMobileFullScreen,
 }: BuildContentClassesProps) {
     return cn(
         DIALOG_STYLES.content.base,
         DIALOG_STYLES.content.variants[variant],
+        // Override border radius for mobile full screen
+        isMobileFullScreen && "tw-rounded-t-3xl tw-rounded-b-none",
         className,
     );
 }
@@ -205,14 +209,25 @@ export function buildActionsClasses(variant: DialogVariant, className?: string) 
 }
 
 // Helper to get dialog wrapper classes (includes size)
-export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, isDragging?: boolean, anchored?: boolean) {
+export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, isDragging?: boolean, anchored?: boolean, isMobileFullScreen?: boolean) {
     return cn(
         DIALOG_STYLES.dialog.base,
-        // Use constrained sizes for anchored dialogs
-        anchored ? ANCHORED_DIALOG_SIZES[size] : DIALOG_SIZES[size],
-        size !== "full" && !draggable && !anchored && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
-        draggable && "tw-max-h-[calc(100vh-2rem)] tw-dialog-draggable", // Smaller margin for draggable dialogs + performance class
+        // Don't apply size classes for mobile full screen - use custom styles instead
+        !isMobileFullScreen && (anchored ? ANCHORED_DIALOG_SIZES[size] : DIALOG_SIZES[size]),
+        size !== "full" && !draggable && !anchored && !isMobileFullScreen && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
+        draggable && !isMobileFullScreen && "tw-max-h-[calc(100vh-2rem)] tw-dialog-draggable", // Smaller margin for draggable dialogs + performance class
         anchored && "tw-dialog-draggable tw-dialog-anchored", // Apply fade-in transition and anchored styles
         isDragging && "tw-dialog-dragging", // Performance class for dragging state
+        // Mobile full screen specific styles
+        isMobileFullScreen && cn(
+            "!tw-fixed tw-inset-x-0 tw-bottom-0", // Position at bottom (important to override relative)
+            "!tw-w-full", // Full width (important to override size classes)
+            "!tw-h-[calc(100vh-2rem)]", // Fixed height - always take max space for proper flex layout
+            "tw-rounded-t-3xl tw-rounded-b-none", // Rounded top corners only
+            "!tw-m-0", // Remove margins (important to override)
+            "tw-overflow-hidden", // Ensure content respects rounded corners
+            "tw-flex tw-flex-col", // Ensure flex layout for proper content scrolling
+            "tw-dialog-mobile-full", // Add class for CSS transitions
+        ),
     );
 }

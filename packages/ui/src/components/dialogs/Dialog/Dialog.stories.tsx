@@ -1,6 +1,7 @@
 import { Typography } from "@mui/material";
 import type { Meta, StoryObj } from "@storybook/react";
 import React, { useState } from "react";
+import { useIsMobile, useWindowDimensions } from "../../../hooks/useIsMobile.js";
 import { Button } from "../../buttons/Button.js";
 import { Dialog, DialogActions, DialogContent } from "./Dialog.js";
 
@@ -41,45 +42,184 @@ type Story = StoryObj<typeof meta>;
 export const Sizes: Story = {
     render: () => {
         const [openDialog, setOpenDialog] = useState<string | null>(null);
+        const [contentType, setContentType] = useState<"short" | "medium" | "long">("medium");
         const sizes = ["sm", "md", "lg", "xl", "full"] as const;
+        const isMobile = useIsMobile();
+        const windowSize = useWindowDimensions();
+
+        // Content variations for testing
+        const contentVariations = {
+            short: {
+                title: "Short Content",
+                content: (
+                    <Typography>
+                        This is a short dialog with minimal content to test how mobile full screen behaves with small content.
+                    </Typography>
+                ),
+            },
+            medium: {
+                title: "Medium Content", 
+                content: (
+                    <div>
+                        <Typography paragraph>
+                            This dialog has a moderate amount of content to test the mobile full screen behavior.
+                        </Typography>
+                        <Typography paragraph>
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor 
+                            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud 
+                            exercitation ullamco laboris.
+                        </Typography>
+                        <Typography>
+                            Notice how the dialog should only be as tall as needed on mobile, sitting at the bottom.
+                        </Typography>
+                    </div>
+                ),
+            },
+            long: {
+                title: "Long Content",
+                content: (
+                    <div>
+                        {Array.from({ length: 8 }, (_, i) => (
+                            <Typography key={i} paragraph>
+                                Section {i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+                                Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad 
+                                minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
+                                commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit 
+                                esse cillum dolore eu fugiat nulla pariatur.
+                            </Typography>
+                        ))}
+                        <Typography>
+                            This long content should trigger scrolling when the dialog hits its maximum height 
+                            on mobile (calc(100vh - 2rem)).
+                        </Typography>
+                    </div>
+                ),
+            },
+        };
 
         return (
-            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-                {sizes.map((size) => (
-                    <Button
-                        key={size}
-                        onClick={() => setOpenDialog(size)}
-                        variant="outline"
-                    >
-                        Open {size.toUpperCase()} Dialog
-                    </Button>
-                ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                {/* Device Detection Status */}
+                <div style={{
+                    padding: "12px 16px",
+                    backgroundColor: isMobile ? "#e3f2fd" : "#f3e5f5",
+                    borderRadius: "8px",
+                    border: `2px solid ${isMobile ? "#2196f3" : "#9c27b0"}`,
+                    textAlign: "center"
+                }}>
+                    <Typography variant="body1" style={{ fontWeight: "bold", marginBottom: "4px" }}>
+                        📱 Current Viewport: {windowSize.width}×{windowSize.height}px {isMobile ? "(Mobile)" : "(Desktop)"}
+                    </Typography>
+                    <Typography variant="body2" style={{ color: isMobile ? "#1976d2" : "#7b1fa2" }}>
+                        {isMobile 
+                            ? "🔄 Full size dialogs will slide up from bottom with rounded top corners"
+                            : "📺 Full size dialogs will behave like XL size (centered)"}
+                    </Typography>
+                    <Typography variant="caption" style={{ display: "block", marginTop: "4px", opacity: 0.8 }}>
+                        Breakpoint: {isMobile ? "< 768px" : "≥ 768px"} • Resize window to test responsive behavior
+                    </Typography>
+                </div>
 
-                {sizes.map((size) => (
-                    <Dialog
-                        key={size}
-                        isOpen={openDialog === size}
-                        onClose={() => setOpenDialog(null)}
-                        title={`${size.toUpperCase()} Size Dialog`}
-                        size={size}
-                    >
-                        <DialogContent>
-                            <Typography>
-                                This is a {size} sized dialog. Notice how the width changes based on the size prop.
-                            </Typography>
-                            {size === "full" && (
-                                <Typography sx={{ mt: 2 }}>
-                                    Full size dialogs take up the entire screen.
-                                </Typography>
-                            )}
-                        </DialogContent>
-                        <DialogActions>
-                            <Button variant="primary" onClick={() => setOpenDialog(null)}>
-                                Close
+                {/* Content Type Selector */}
+                <div style={{
+                    padding: "16px",
+                    backgroundColor: "#f5f5f5",
+                    borderRadius: "8px",
+                    border: "1px solid #ddd"
+                }}>
+                    <Typography variant="body2" style={{ marginBottom: "12px", fontWeight: "bold" }}>
+                        📝 Content Amount (especially useful for testing mobile "full" size):
+                    </Typography>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                        {(["short", "medium", "long"] as const).map((type) => (
+                            <Button
+                                key={type}
+                                variant={contentType === type ? "primary" : "outline"}
+                                size="sm"
+                                onClick={() => setContentType(type)}
+                            >
+                                {type.charAt(0).toUpperCase() + type.slice(1)} Content
                             </Button>
-                        </DialogActions>
-                    </Dialog>
-                ))}
+                        ))}
+                    </div>
+                    <Typography variant="caption" style={{ display: "block", marginTop: "8px", opacity: 0.7 }}>
+                        Test how mobile dialogs size to content: Short = minimal height, Long = scrollable
+                    </Typography>
+                </div>
+
+                {/* Size Buttons */}
+                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                    {sizes.map((size) => (
+                        <Button
+                            key={size}
+                            onClick={() => setOpenDialog(size)}
+                            variant="outline"
+                        >
+                            Open {size.toUpperCase()} Dialog
+                        </Button>
+                    ))}
+                </div>
+
+                {/* Dialog Components */}
+                {sizes.map((size) => {
+                    const selectedContent = contentVariations[contentType];
+                    return (
+                        <Dialog
+                            key={`${size}-${contentType}`} // Include contentType in key to force re-render
+                            isOpen={openDialog === size}
+                            onClose={() => setOpenDialog(null)}
+                            title={`${size.toUpperCase()} Size - ${selectedContent.title}`}
+                            size={size}
+                        >
+                            <DialogContent>
+                                {/* Size info */}
+                                <Typography sx={{ mb: 2, p: 1.5, bgcolor: "action.hover", borderRadius: 1, fontSize: "0.875rem" }}>
+                                    <strong>Size:</strong> {size} • <strong>Content:</strong> {contentType}
+                                    {size === "full" && (
+                                        <>
+                                            <br />
+                                            <strong>Mobile behavior:</strong> {isMobile ? "Slide-up from bottom" : "Standard XL-size"}
+                                        </>
+                                    )}
+                                </Typography>
+
+                                {/* Selected content */}
+                                {selectedContent.content}
+
+                                {/* Additional info for full size dialogs */}
+                                {size === "full" && (
+                                    <div style={{ marginTop: "24px", padding: "16px", backgroundColor: isMobile ? "#e3f2fd" : "#f3e5f5", borderRadius: "8px" }}>
+                                        <Typography sx={{ mb: 1, fontWeight: "bold" }}>
+                                            📱 Full Size Behavior Details:
+                                        </Typography>
+                                        <Typography sx={{ mb: 1, fontSize: "0.875rem" }}>
+                                            • <strong>Desktop:</strong> Displays as XL size (centered, max-width)
+                                        </Typography>
+                                        <Typography sx={{ mb: 1, fontSize: "0.875rem" }}>
+                                            • <strong>Mobile:</strong> Slides up from bottom, full width, rounded top corners only
+                                        </Typography>
+                                        <Typography sx={{ mb: 1, fontSize: "0.875rem" }}>
+                                            • <strong>Height:</strong> Only as tall as content needs (up to max)
+                                        </Typography>
+                                        <Typography sx={{ mt: 1.5, p: 1.5, bgcolor: "background.paper", borderRadius: 1, fontSize: "0.875rem" }}>
+                                            <strong>Current:</strong> {windowSize.width}×{windowSize.height}px {isMobile ? "(Mobile)" : "(Desktop)"}
+                                            <br />
+                                            <strong>Effective:</strong> {isMobile ? "Mobile slide-up behavior" : "Desktop XL-size behavior"}
+                                        </Typography>
+                                    </div>
+                                )}
+                            </DialogContent>
+                            <DialogActions>
+                                <Button variant="ghost" onClick={() => setOpenDialog(null)}>
+                                    Cancel
+                                </Button>
+                                <Button variant="primary" onClick={() => setOpenDialog(null)}>
+                                    Close
+                                </Button>
+                            </DialogActions>
+                        </Dialog>
+                    );
+                })}
             </div>
         );
     },

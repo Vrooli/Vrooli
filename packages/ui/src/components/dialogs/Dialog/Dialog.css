@@ -241,3 +241,37 @@
         transform: scale(0.95);
     }
 }
+
+/* Mobile full screen dialog transition */
+.tw-dialog-mobile-full {
+    animation: tw-dialog-slide-up 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    /* Ensure animation doesn't interfere with bottom positioning */
+    animation-fill-mode: both;
+    /* Ensure proper flex layout for content scrolling */
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100vh - 2rem) !important;
+}
+
+/* Ensure the content inside mobile full screen dialog scrolls properly */
+.tw-dialog-mobile-full > div {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+/* Make sure the content area inside the mobile dialog scrolls */
+.tw-dialog-mobile-full .tw-flex-1 {
+    overflow-y: auto !important;
+    min-height: 0 !important;
+}
+
+@keyframes tw-dialog-slide-up {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}

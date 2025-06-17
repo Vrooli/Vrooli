@@ -10,7 +10,7 @@
 import { type Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
 import { RunStatus, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
-import { EmbeddingService } from "@vrooli/server/services/embedding.js";
+import { EmbeddingService } from "@vrooli/server";
 import { API_BATCH_SIZE } from "../constants.js";
 
 // WARNING: Setting RECALCULATE_EMBEDDINGS to true will cause the embeddings to be recalculated for ALL objects. 

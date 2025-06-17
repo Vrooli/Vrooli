@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paymentsFail } from "./paymentsFail.js";
 
 // Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+const { DbProvider } = await import("@vrooli/server");
 
 // Mock QueueService
 vi.mock("@vrooli/server", async () => {

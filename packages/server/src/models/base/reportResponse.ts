@@ -34,7 +34,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
                 actionSuggested: data.actionSuggested,
                 details: noNull(data.details),
                 language: noNull(data.language),
-                createdBy: { connect: { id: rest.userData.id } },
+                createdBy: { connect: { id: BigInt(rest.userData.id) } },
                 report: await shapeHelper({ relation: "report", relTypes: ["Connect"], isOneToOne: true, objectType: "Report", parentRelationshipName: "responses", data, ...rest }),
             }),
             update: async ({ data }) => ({

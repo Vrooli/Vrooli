@@ -50,7 +50,7 @@ export const ReportModel: ReportModelLogic = ({
                 if (Create.length) {
                     const where = {
                         status: "Open",
-                        user: { id: userData.id },
+                        user: { id: BigInt(userData.id) },
                         OR: Create.map((x) => ({
                             [forMapper[x.input.createdForType]]: { id: BigInt(x.input.createdForConnect) },
                         })),
@@ -58,7 +58,7 @@ export const ReportModel: ReportModelLogic = ({
                     const existing = await DbProvider.get().report.findMany({
                         where: {
                             status: "Open",
-                            user: { id: BigInt(userData.id) },
+                            createdBy: { id: BigInt(userData.id) },
                             OR: Create.map((x) => ({
                                 [forMapper[x.input.createdForType]]: { id: BigInt(x.input.createdForConnect) },
                             })),
@@ -139,14 +139,14 @@ export const ReportModel: ReportModelLogic = ({
             status: true,
             createdBy: "User",
         }),
-        permissionResolvers: ({ data, isAdmin, isLoggedIn, isPublic }) => ({
+        permissionResolvers: ({ data, isAdmin, isLoggedIn, isPublic, userId }) => ({
             canConnect: () => isLoggedIn && data.status !== "Open",
             canDisconnect: () => isLoggedIn,
             canDelete: () => isLoggedIn && isAdmin && data.status !== "Open",
             canRead: () => isPublic,
             canRespond: () => isLoggedIn && data.status === "Open",
-            canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
-            isOwn: () => isAdmin,
+            canUpdate: () => isLoggedIn && (isAdmin || (data.createdBy?.id === userId)) && data.status === "Open",
+            isOwn: () => isAdmin || (data.createdBy?.id === userId),
         }),
         owner: (data) => ({
             User: data?.createdBy,

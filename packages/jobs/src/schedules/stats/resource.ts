@@ -43,7 +43,11 @@ async function batchRunCounts(
                 batch.forEach(run => {
                     const versionId = run.resourceVersion?.id;
                     if (!versionId) return;
-                    const currResult = result[versionId.toString()];
+                    
+                    // Safely convert versionId to string  
+                    const versionIdStr = versionId.toString();
+                    
+                    const currResult = result[versionIdStr];
                     if (!currResult) return;
                     // If runStarted within period, increment runsStarted
                     if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
@@ -60,9 +64,8 @@ async function batchRunCounts(
             },
             finalizeResult: (result) => {
                 // For the averages, divide by the number of runs completed
-                Object.keys(result).forEach(versionId => {
-                    const currResult = result[versionId];
-                    if (!currResult) return;
+                Object.entries(result).forEach(([versionId, currResult]) => {
+                    if (!currResult || typeof versionId !== 'string') return;
                     if (currResult.runsCompleted > 0) {
                         currResult.runCompletionTimeAverage /= currResult.runsCompleted;
                         currResult.runContextSwitchesAverage /= currResult.runsCompleted;

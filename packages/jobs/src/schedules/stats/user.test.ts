@@ -1,10 +1,10 @@
 import { PeriodType } from "@prisma/client";
-import { ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
+import { AccountStatus, ResourceType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { logUserStats } from "./user.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("../../../../server/src/db/provider.ts");
+// Direct imports to avoid problematic services
+const { DbProvider } = await import("@vrooli/server");
+const { logUserStats } = await import("./user.js");
 
 describe("logUserStats integration tests", () => {
     // Store test entity IDs for cleanup
@@ -59,8 +59,8 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Inactive User",
-                handle: "inactiveuser",
-                updatedAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago (within 90 day window)
+                handle: `inactiveuser_${Date.now()}`,
+                updatedAt: new Date(now.getTime() - 60 * 60 * 1000), // 1 hour ago (well within 90 day window)
             },
         });
         testUserIds.push(user.id);
@@ -168,7 +168,8 @@ describe("logUserStats integration tests", () => {
         const createdResource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
                 hasCompleteVersion: false,
@@ -181,7 +182,8 @@ describe("logUserStats integration tests", () => {
         const completedResource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Project,
                 isDeleted: false,
                 hasCompleteVersion: true,
@@ -233,9 +235,8 @@ describe("logUserStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Started Run",
-                status: "Running",
-                createdById: user.id,
-                userId: user.id,
+                status: "InProgress",
+                user: { connect: { id: user.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -248,8 +249,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 name: "Completed Run",
                 status: "Completed",
-                createdById: user.id,
-                userId: user.id,
+                user: { connect: { id: user.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -303,8 +303,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 name: "Run 1",
                 status: "Completed",
-                createdById: user.id,
-                userId: user.id,
+                user: { connect: { id: user.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -319,8 +318,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 name: "Run 2",
                 status: "Completed",
-                createdById: user.id,
-                userId: user.id,
+                user: { connect: { id: user.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -372,7 +370,8 @@ describe("logUserStats integration tests", () => {
         const resource1 = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Routine,
                 isDeleted: false,
                 hasCompleteVersion: true,
@@ -385,7 +384,8 @@ describe("logUserStats integration tests", () => {
         const resource2 = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Project,
                 isDeleted: false,
                 hasCompleteVersion: true,
@@ -439,7 +439,8 @@ describe("logUserStats integration tests", () => {
         const deletedResource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Routine,
                 isDeleted: true, // Deleted
                 hasCompleteVersion: false,
@@ -452,7 +453,8 @@ describe("logUserStats integration tests", () => {
         const validResource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
-                createdById: user.id,
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: user.id } },
                 resourceType: ResourceType.Project,
                 isDeleted: false,
                 hasCompleteVersion: false,
@@ -587,8 +589,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 name: "No Time Run",
                 status: "Completed",
-                createdById: user.id,
-                userId: user.id,
+                user: { connect: { id: user.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,

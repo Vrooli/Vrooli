@@ -85,7 +85,7 @@ export function transfer() {
             const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
             const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
             const permissionData = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
-                where: { id: object.id },
+                where: { id: BigInt(object.id) },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
             });
             const owner = permissionData && validate().owner(permissionData, userData.id);
@@ -98,11 +98,11 @@ export function transfer() {
             // Create transfer request
             const request = await DbProvider.get().transfer.create({
                 data: {
-                    fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
-                    fromTeam: owner.Team ? { connect: { id: owner.Team.id } } : undefined,
-                    [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
-                    toUser: toType === "User" ? { connect: { id: toId } } : undefined,
-                    toTeam: toType === "Team" ? { connect: { id: toId } } : undefined,
+                    fromUser: owner.User ? { connect: { id: BigInt(owner.User.id) } } : undefined,
+                    fromTeam: owner.Team ? { connect: { id: BigInt(owner.Team.id) } } : undefined,
+                    [TransferableFieldMap[object.__typename]]: { connect: { id: BigInt(object.id) } },
+                    toUser: toType === "User" ? { connect: { id: BigInt(toId) } } : undefined,
+                    toTeam: toType === "Team" ? { connect: { id: BigInt(toId) } } : undefined,
                     status: "Pending",
                     message: input.message,
                 },
@@ -134,7 +134,7 @@ export function transfer() {
         cancel: async (transferId: string, userData: SessionUser) => {
             // Find the transfer request
             const transfer = await DbProvider.get().transfer.findUnique({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
                 select: {
                     id: true,
                     fromTeamId: true,
@@ -165,7 +165,7 @@ export function transfer() {
             }
             // Delete transfer request
             await DbProvider.get().transfer.delete({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
             });
         },
         /**
@@ -176,7 +176,7 @@ export function transfer() {
         accept: async (transferId: string, userData: SessionUser) => {
             // Find the transfer request
             const transfer = await DbProvider.get().transfer.findUnique({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
             });
             // Make sure transfer exists, and is not accepted or rejected
             if (!transfer)
@@ -211,7 +211,7 @@ export function transfer() {
                 throw new CustomError("0290", "TransferMissingData");
             const type = typeField.replace("Id", "");
             await DbProvider.get().transfer.update({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
                 data: {
                     status: "Accepted",
                     [type]: {
@@ -237,7 +237,7 @@ export function transfer() {
         deny: async (transferId: string, userData: SessionUser, reason?: string) => {
             // Find the transfer request
             const transfer = await DbProvider.get().transfer.findUnique({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
             });
             // Make sure transfer exists, and is not already accepted or rejected
             if (!transfer)
@@ -272,7 +272,7 @@ export function transfer() {
             const type = typeField.replace("Id", "");
             // Deny the transfer
             await DbProvider.get().transfer.update({
-                where: { id: transferId },
+                where: { id: BigInt(transferId) },
                 data: {
                     status: "Denied",
                     denyReason: reason,

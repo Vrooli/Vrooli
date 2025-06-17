@@ -1,5 +1,6 @@
 import { ApiKeyPermission, uuid } from "@vrooli/shared";
 import { randomBytes } from "crypto";
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from "vitest";
 import { apiKey } from "./apiKey.js";
 
 // Mock the necessary modules
@@ -36,6 +37,15 @@ vi.doMock("../../actions/creates.js", () => ({
 (RequestService.assertRequestFrom as any) = mockRequestService.assertRequestFrom;
 
 describe("API Key Endpoints", () => {
+    beforeAll(async () => {
+        // Test setup if needed
+    });
+
+    afterAll(async () => {
+        // Test cleanup if needed
+        vi.restoreAllMocks();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -294,6 +304,15 @@ describe("API Key Endpoints", () => {
 });
 
 describe("API Key Security", () => {
+    beforeAll(async () => {
+        // Test setup if needed
+    });
+
+    afterAll(async () => {
+        // Test cleanup if needed
+        vi.restoreAllMocks();
+    });
+
     describe("Key Generation", () => {
         it("should generate cryptographically secure keys", () => {
             const key1 = ApiKeyEncryptionService.generateSiteKey();

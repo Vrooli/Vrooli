@@ -32,8 +32,8 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
                 silent: noNull(data.silent),
-                subscriber: { connect: { id: rest.userData.id } },
-                [subscribableMapper[data.objectType]]: { connect: { id: data.objectConnect } },
+                subscriber: { connect: { id: BigInt(rest.userData.id) } },
+                [subscribableMapper[data.objectType]]: { connect: { id: BigInt(data.objectConnect) } },
             }),
             update: async ({ data }) => ({
                 silent: noNull(data.silent),
@@ -75,7 +75,7 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
         visibility: {
             own: function getOwn(data) {
                 return {
-                    subscriber: { id: data.userId },
+                    subscriber: { id: BigInt(data.userId) },
                 };
             },
             // Always private, so it's the same as "own"

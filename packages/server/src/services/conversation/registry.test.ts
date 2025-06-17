@@ -1,23 +1,22 @@
 import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
-import { expect, describe, it } from "vitest";
+import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
 
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry.js";
 
 describe("LlmServiceRegistry", () => {
     let registry: LlmServiceRegistry;
-    const sandbox = sinon.createSandbox();
-    let clock: sinon.SinonFakeTimers;
 
     beforeEach(async () => {
-        clock = sandbox.useFakeTimers();
+        vi.useFakeTimers();
         LlmServiceRegistry["instance"] = undefined;
         await LlmServiceRegistry.init();
         registry = LlmServiceRegistry.get();
     });
 
     afterEach(() => {
-        clock.runAll();
-        sandbox.restore();
+        vi.runAllTimers();
+        vi.restoreAllMocks();
+        vi.useRealTimers();
     });
 
     it("returns the preferred service when active", () => {
@@ -28,7 +27,7 @@ describe("LlmServiceRegistry", () => {
 
     it("returns the first active fallback service when preferred is on cooldown", () => {
         registry.updateServiceState("Anthropic", LlmServiceErrorType.Overloaded);
-        expect(registry.getBestService(AnthropicModel.Opus3)).to.not.equal(LlmServiceId.Anthropic);
+        expect(registry.getBestService(AnthropicModel.Opus3)).not.toBe(LlmServiceId.Anthropic);
     });
 
     it("returns the next active fallback service when preferred and first fallback are on cooldown", () => {
@@ -36,8 +35,8 @@ describe("LlmServiceRegistry", () => {
         registry.updateServiceState("Mistral", LlmServiceErrorType.Overloaded); // Set Mistral to cooldown
 
         const bestServiceId = registry.getBestService(AnthropicModel.Sonnet3_5);
-        expect(bestServiceId).to.not.equal(LlmServiceId.Anthropic);
-        expect(bestServiceId).to.not.equal(LlmServiceId.Mistral);
+        expect(bestServiceId).not.toBe(LlmServiceId.Anthropic);
+        expect(bestServiceId).not.toBe(LlmServiceId.Mistral);
     });
 
     it("returns null when all services are on cooldown or disabled", () => {
@@ -68,7 +67,7 @@ describe("LlmServiceRegistry", () => {
         expect(registry.getServiceState("fineService")).toBe(LlmServiceState.Active);
 
         // Fast-forward to make sure it stays disabled
-        clock.tick(1_000_000);
+        vi.advanceTimersByTime(1_000_000);
         expect(registry.getServiceState("criticalErrorService")).toBe(LlmServiceState.Disabled);
     });
 
@@ -83,11 +82,11 @@ describe("LlmServiceRegistry", () => {
         registry.updateServiceState("resetService", LlmServiceErrorType.Overloaded);
 
         // Fast-forward a few seconds to make sure it's still in cooldown
-        clock.tick(10_000);
+        vi.advanceTimersByTime(10_000);
         expect(registry.getServiceState("resetService")).toBe(LlmServiceState.Cooldown);
 
         // Fast-forward to the end of the cooldown period (15 minutes)
-        clock.tick(15 * 60 * 1000);
+        vi.advanceTimersByTime(15 * 60 * 1000);
         expect(registry.getServiceState("resetService")).toBe(LlmServiceState.Active);
     });
 });

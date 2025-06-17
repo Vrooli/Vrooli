@@ -1,10 +1,9 @@
-import { type FindByIdInput, type NotificationSearchInput, type NotificationSettingsUpdateInput } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type FindByIdInput, type NotificationSearchInput, type NotificationSettingsUpdateInput, generatePK } from "@vrooli/shared";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { defaultNotificationSettings } from "../../notify/notificationSettings.js";
-import { CacheService } from "../../redisConn.js";
 import { notification_findMany } from "../generated/notification_findMany.js";
 import { notification_findOne } from "../generated/notification_findOne.js";
 import { notification_getSettings } from "../generated/notification_getSettings.js";
@@ -18,55 +17,41 @@ import { seedNotifications } from "../../__test/fixtures/db/notificationFixtures
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 
 describe("EndpointsNotification", () => {
-    let testUsers: any[];
-    let notificationData: any;
-
-    beforeAll(() => {
+    beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
-        // Reset Redis and truncate relevant tables
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
-        // Seed test users using database fixtures
-        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-
-        // Seed notifications using database fixtures
-        notificationData = await seedNotifications(DbProvider.get(), {
-            userId: testUsers[0].id,
-            count: 3,
-            categories: ["Update", "Reminder", "Alert"],
-            withRead: true, // Mix of read and unread
-            withSubscriptions: true,
-        });
-
-        // Add notifications for second user
-        await seedNotifications(DbProvider.get(), {
-            userId: testUsers[1].id,
-            count: 2,
-            categories: ["Update", "Alert"],
-            withRead: false,
-        });
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.notification.deleteMany();
+        await prisma.user.deleteMany();
     });
 
     afterAll(async () => {
-        // Clean up
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
         // Restore all mocks
         vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         it("returns own notification for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
             const result = await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -76,9 +61,21 @@ describe("EndpointsNotification", () => {
         });
 
         it("does not return another user's notification", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id.toString()
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -88,6 +85,18 @@ describe("EndpointsNotification", () => {
         });
 
         it("throws error when not authenticated", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockLoggedOutSession();
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -99,9 +108,21 @@ describe("EndpointsNotification", () => {
 
     describe("findMany", () => {
         it("returns own notifications for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
             const input: NotificationSearchInput = { take: 10 };
             const result = await notification.findMany({ input }, { req, res }, notification_findMany);
@@ -116,9 +137,21 @@ describe("EndpointsNotification", () => {
         });
 
         it("filters by read status", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
             const input: NotificationSearchInput = {
                 isRead: false,
@@ -146,9 +179,21 @@ describe("EndpointsNotification", () => {
 
     describe("markAsRead", () => {
         it("marks notification as read for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             // Find an unread notification
@@ -161,9 +206,21 @@ describe("EndpointsNotification", () => {
         });
 
         it("does not mark another user's notification", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[1].id
+                id: testUsers[1].id.toString()
             });
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -173,6 +230,18 @@ describe("EndpointsNotification", () => {
         });
 
         it("throws error when not authenticated", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockLoggedOutSession();
             const input: FindByIdInput = { id: notificationData.notifications[0].id };
 
@@ -184,9 +253,21 @@ describe("EndpointsNotification", () => {
 
     describe("markAllAsRead", () => {
         it("marks all notifications as read for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             const result = await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
@@ -203,9 +284,29 @@ describe("EndpointsNotification", () => {
         });
 
         it("does not affect other users' notifications", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures for user 1
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
+            // Add notifications for second user
+            await seedNotifications(DbProvider.get(), {
+                userId: testUsers[1].id,
+                count: 2,
+                categories: ["Update", "Alert"],
+                withRead: false,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             await notification.markAllAsRead({}, { req, res }, notification_markAllAsRead);
@@ -230,9 +331,21 @@ describe("EndpointsNotification", () => {
 
     describe("getSettings", () => {
         it("returns notification settings for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             const result = await notification.getSettings({}, { req, res }, notification_getSettings);
@@ -244,12 +357,15 @@ describe("EndpointsNotification", () => {
         it("returns default settings if user has none", async () => {
             // Create a new user without settings
             const newUser = await DbProvider.get().user.create({
-                data: UserDbFactory.createMinimal({ name: "New User" }),
+                data: UserDbFactory.createMinimal({ 
+                    id: generatePK(),
+                    name: "New User" 
+                }),
             });
 
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: newUser.id
+                id: newUser.id.toString()
             });
 
             const result = await notification.getSettings({}, { req, res }, notification_getSettings);
@@ -268,9 +384,21 @@ describe("EndpointsNotification", () => {
 
     describe("updateSettings", () => {
         it("updates notification settings for authenticated user", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             const input: NotificationSettingsUpdateInput = {
@@ -292,9 +420,21 @@ describe("EndpointsNotification", () => {
         });
 
         it("partially updates settings", async () => {
+            // Seed test users using database fixtures
+            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
+            // Seed notifications using database fixtures
+            const notificationData = await seedNotifications(DbProvider.get(), {
+                userId: testUsers[0].id,
+                count: 3,
+                categories: ["Update", "Reminder", "Alert"],
+                withRead: true, // Mix of read and unread
+                withSubscriptions: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id.toString()
             });
 
             const input: NotificationSettingsUpdateInput = {

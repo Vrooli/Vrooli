@@ -59,7 +59,7 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
                 return { // If you created the chat or you are the participant
                     OR: [
                         { chat: useVisibility("Chat", "Own", data) },
-                        { user: { id: data.userId } },
+                        { user: { id: BigInt(data.userId) } },
                     ],
                 };
             },

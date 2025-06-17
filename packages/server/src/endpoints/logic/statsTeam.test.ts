@@ -1,173 +1,33 @@
-import { StatPeriodType, type StatsTeamSearchInput } from "@vrooli/shared";
-import { PeriodType, type team as TeamModelPrisma } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
-import { defaultPublicUserData, loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
+import { StatPeriodType, type StatsTeamSearchInput, generatePK, generatePublicId } from "@vrooli/shared";
+import { PeriodType } from "@prisma/client";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
-import { statsTeam_findMany } from "../generated/statsTeam_findMany.js"; // Assuming this generated type exists
+import { statsTeam_findMany } from "../generated/statsTeam_findMany.js";
 import { statsTeam } from "./statsTeam.js";
-
-// Test data
-const testTeamId1 = "team-1001"; // Public team
-const testTeamId2 = "team-1002"; // Private team for user1/team1
-const testTeamId3 = "team-1003"; // Private team for user2/team2
-
-// User IDs
-const user1Id = "user-2001"; // Member of team 1 & 2
-const user2Id = "user-2002"; // Member of team 1 & 3
-const user3Id = "user-2003"; // Not a member of any tested team
-
-// Sample Team data structure
-const teamData1: Partial<TeamModelPrisma> & { id: string } = {
-    id: testTeamId1,
-    isPrivate: false,
-    // Add other required Team fields (e.g., name, handle)
-};
-
-const teamData2: Partial<TeamModelPrisma> & { id: string } = {
-    id: testTeamId2,
-    isPrivate: true, // Team for user1
-    // Add other required Team fields
-};
-
-const teamData3: Partial<TeamModelPrisma> & { id: string } = {
-    id: testTeamId3,
-    isPrivate: true, // Team for user2
-    // Add other required Team fields
-};
-
-// Adjust fields based on actual StatsTeam model
-const statsTeamData1 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    teamId: testTeamId1,
-    periodStart: new Date("2023-01-01"),
-    periodEnd: new Date("2023-01-31"),
-    periodType: PeriodType.Monthly,
-    apis: 0,
-    codes: 0,
-    members: 0,
-    notes: 0,
-    projects: 0,
-    routines: 0,
-    standards: 0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-};
-
-const statsTeamData2 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    teamId: testTeamId2,
-    periodStart: new Date("2023-02-01"),
-    periodEnd: new Date("2023-02-28"),
-    periodType: PeriodType.Monthly,
-    apis: 0,
-    codes: 0,
-    members: 0,
-    notes: 0,
-    projects: 0,
-    routines: 0,
-    standards: 0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-};
-
-const statsTeamData3 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    teamId: testTeamId3,
-    periodStart: new Date("2023-03-01"),
-    periodEnd: new Date("2023-03-31"),
-    periodType: PeriodType.Monthly,
-    apis: 0,
-    codes: 0,
-    members: 0,
-    notes: 0,
-    projects: 0,
-    routines: 0,
-    standards: 0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-};
 
 describe("EndpointsStatsTeam", () => {
     let loggerErrorStub: any;
     let loggerInfoStub: any;
 
-    beforeAll(() => {
+    beforeAll(async () => {
         loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
         loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
     beforeEach(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
-        // Create test users
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user1Id,
-                name: "Test User 1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user2Id,
-                name: "Test User 2",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                ...defaultPublicUserData(),
-                id: user3Id,
-                name: "Test User 3",
-            },
-        });
-
-        // Create test teams (ensure all required fields are present)
-        // Placeholder: Add actual required fields for team creation (like permissions)
-        await DbProvider.get().team.createMany({
-            data: [
-                { ...teamData1, permissions: JSON.stringify({}) /* name: "Public Team 1", handle: "public-team-1" */ }, // Removed name/handle, added permissions
-                { ...teamData2, permissions: JSON.stringify({}) /* name: "Private Team 2", handle: "private-team-2" */ }, // Removed name/handle, added permissions
-                { ...teamData3, permissions: JSON.stringify({}) /* name: "Private Team 3", handle: "private-team-3" */ },  // Removed name/handle, added permissions
-            ],
-        });
-
-        // Create memberships (ensure all required fields are present)
-        await DbProvider.get().member.createMany({
-            data: [
-                // User 1 in Public Team 1 and Private Team 2
-                { id: "member-3001", teamId: testTeamId1, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: "member-3002", teamId: testTeamId2, userId: user1Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
-                // User 2 in Public Team 1 and Private Team 3
-                { id: "member-3003", teamId: testTeamId1, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Member */ }, // Added permissions
-                { id: "member-3004", teamId: testTeamId3, userId: user2Id, permissions: JSON.stringify({}) /*, role: Prisma.MemberRole.Owner */ }, // Added permissions
-            ],
-        });
-
-        // Create fresh test stats data
-        await DbProvider.get().stats_team.createMany({
-            data: [
-                statsTeamData1, // Public team
-                statsTeamData2, // Private team 2 (user1)
-                statsTeamData3,  // Private team 3 (user2)
-            ],
-        });
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.member.deleteMany();
+        await prisma.stats_team.deleteMany();
+        await prisma.team.deleteMany();
+        await prisma.user.deleteMany();
     });
 
     afterAll(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
         loggerErrorStub.mockRestore();
         loggerInfoStub.mockRestore();
     });
@@ -175,7 +35,149 @@ describe("EndpointsStatsTeam", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns stats for public teams and teams the user is a member of when logged in", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 is in team 1 and 2
+                // Create users
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const user2 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2",
+                        handle: "test-user-2",
+                    }),
+                });
+
+                // Create teams
+                const publicTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Public Team 1",
+                                bio: "A public team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam1 = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 2",
+                                bio: "User 1's private team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam2 = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 3",
+                                bio: "User 2's private team",
+                            },
+                        },
+                    },
+                });
+
+                // Create memberships
+                await DbProvider.get().member.createMany({
+                    data: [
+                        // User 1 in public team and private team 1
+                        { id: generatePK(), publicId: generatePublicId(), teamId: publicTeam.id, userId: user1.id, isAdmin: false },
+                        { id: generatePK(), publicId: generatePublicId(), teamId: privateTeam1.id, userId: user1.id, isAdmin: true },
+                        // User 2 in public team and private team 2
+                        { id: generatePK(), publicId: generatePublicId(), teamId: publicTeam.id, userId: user2.id, isAdmin: false },
+                        { id: generatePK(), publicId: generatePublicId(), teamId: privateTeam2.id, userId: user2.id, isAdmin: true },
+                    ],
+                });
+
+                // Create stats
+                const publicTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: publicTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 2,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeam1Stats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam1.id,
+                        periodStart: new Date("2023-02-01"),
+                        periodEnd: new Date("2023-02-28"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeam2Stats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam2.id,
+                        periodStart: new Date("2023-03-01"),
+                        periodEnd: new Date("2023-03-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -189,15 +191,157 @@ describe("EndpointsStatsTeam", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                // User 1 should see stats for public team 1 and their private team 2
-                expect(resultIds).toContain(statsTeamData1.id);
-                expect(resultIds).toContain(statsTeamData2.id);
-                // User 1 should NOT see stats for private team 3
-                expect(resultIds).not.toContain(statsTeamData3.id);
+                // User 1 should see stats for public team and their private team 1
+                expect(resultIds).toContain(publicTeamStats.id.toString());
+                expect(resultIds).toContain(privateTeam1Stats.id.toString());
+                // User 1 should NOT see stats for private team 2
+                expect(resultIds).not.toContain(privateTeam2Stats.id.toString());
             });
 
             it("returns correct stats for a different logged in user (user 2)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user2Id }; // User 2 is in team 1 and 3
+                // Create users
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const user2 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2",
+                        handle: "test-user-2",
+                    }),
+                });
+
+                // Create teams
+                const publicTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Public Team 1",
+                                bio: "A public team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam1 = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 2",
+                                bio: "User 1's private team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam2 = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 3",
+                                bio: "User 2's private team",
+                            },
+                        },
+                    },
+                });
+
+                // Create memberships
+                await DbProvider.get().member.createMany({
+                    data: [
+                        // User 1 in public team and private team 1
+                        { id: generatePK(), publicId: generatePublicId(), teamId: publicTeam.id, userId: user1.id, isAdmin: false },
+                        { id: generatePK(), publicId: generatePublicId(), teamId: privateTeam1.id, userId: user1.id, isAdmin: true },
+                        // User 2 in public team and private team 2
+                        { id: generatePK(), publicId: generatePublicId(), teamId: publicTeam.id, userId: user2.id, isAdmin: false },
+                        { id: generatePK(), publicId: generatePublicId(), teamId: privateTeam2.id, userId: user2.id, isAdmin: true },
+                    ],
+                });
+
+                // Create stats
+                const publicTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: publicTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 2,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeam1Stats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam1.id,
+                        periodStart: new Date("2023-02-01"),
+                        periodEnd: new Date("2023-02-28"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeam2Stats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam2.id,
+                        periodStart: new Date("2023-03-01"),
+                        periodEnd: new Date("2023-03-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user2.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -211,15 +355,99 @@ describe("EndpointsStatsTeam", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                // User 2 should see stats for public team 1 and their private team 3
-                expect(resultIds).toContain(statsTeamData1.id);
-                expect(resultIds).toContain(statsTeamData3.id);
-                // User 2 should NOT see stats for private team 2
-                expect(resultIds).not.toContain(statsTeamData2.id);
+                // User 2 should see stats for public team and their private team 2
+                expect(resultIds).toContain(publicTeamStats.id.toString());
+                expect(resultIds).toContain(privateTeam2Stats.id.toString());
+                // User 2 should NOT see stats for private team 1
+                expect(resultIds).not.toContain(privateTeam1Stats.id.toString());
             });
 
-            it("returns only public stats for a user not in any private teams (user 3)", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user3Id }; // User 3 is not in team 2 or 3
+            it("returns only public stats for a user not in any private teams", async () => {
+                const user3 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 3",
+                        handle: "test-user-3",
+                    }),
+                });
+
+                // Create teams
+                const publicTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Public Team 1",
+                                bio: "A public team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam1 = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 2",
+                                bio: "A private team",
+                            },
+                        },
+                    },
+                });
+
+                // Create stats
+                const publicTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: publicTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam1.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user3.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
@@ -230,14 +458,68 @@ describe("EndpointsStatsTeam", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                // User 3 should only see stats for public team 1
-                expect(resultIds).toContain(statsTeamData1.id);
-                expect(resultIds).not.toContain(statsTeamData2.id);
-                expect(resultIds).not.toContain(statsTeamData3.id);
+                // User 3 should only see stats for public team
+                expect(resultIds).toContain(publicTeamStats.id.toString());
+                expect(resultIds).not.toContain(privateTeamStats.id.toString());
             });
 
             it("filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const team = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Test Team",
+                                bio: "A test team",
+                            },
+                        },
+                    },
+                });
+
+                await DbProvider.get().member.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        teamId: team.id,
+                        userId: user1.id,
+                        isAdmin: true,
+                    },
+                });
+
+                const monthlyStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: team.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = { periodType: StatPeriodType.Monthly };
@@ -247,13 +529,87 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).toContain(statsTeamData1.id); // Jan
-                expect(resultIds).toContain(statsTeamData2.id); // Feb
-                // Mar stats (team 3) shouldn't be visible to user 1 anyway
+                expect(resultIds).toContain(monthlyStats.id.toString());
             });
 
             it("filters by time range", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const team = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Test Team",
+                                bio: "A test team",
+                            },
+                        },
+                    },
+                });
+
+                await DbProvider.get().member.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        teamId: team.id,
+                        userId: user1.id,
+                        isAdmin: true,
+                    },
+                });
+
+                const janStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: team.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const febStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: team.id,
+                        periodStart: new Date("2023-02-01"),
+                        periodEnd: new Date("2023-02-28"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 1,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -269,13 +625,94 @@ describe("EndpointsStatsTeam", () => {
                 expect(result).toHaveProperty("edges");
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
-                expect(resultIds).toContain(statsTeamData1.id); // Jan stats for public team 1
-                expect(resultIds).not.toContain(statsTeamData2.id); // Feb stats for private team 2
-                expect(resultIds).not.toContain(statsTeamData3.id); // Mar stats for private team 3
+                expect(resultIds).toContain(janStats.id.toString());
+                expect(resultIds).not.toContain(febStats.id.toString());
             });
 
             it("API key - public permissions returns only public team stats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User context might still be needed by readManyHelper
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const publicTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Public Team",
+                                bio: "A public team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team",
+                                bio: "A private team",
+                            },
+                        },
+                    },
+                });
+
+                const publicTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: publicTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -292,19 +729,91 @@ describe("EndpointsStatsTeam", () => {
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
                 // Only public team stats should be returned
-                expect(resultIds).toContain(statsTeamData1.id);
-                expect(resultIds).not.toContain(statsTeamData2.id);
-                expect(resultIds).not.toContain(statsTeamData3.id);
+                expect(resultIds).toContain(publicTeamStats.id.toString());
+                expect(resultIds).not.toContain(privateTeamStats.id.toString());
             });
 
             it("not logged in returns only public team stats", async () => {
+                const publicTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: false,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Public Team",
+                                bio: "A public team",
+                            },
+                        },
+                    },
+                });
+
+                const privateTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team",
+                                bio: "A private team",
+                            },
+                        },
+                    },
+                });
+
+                const publicTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: publicTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
+                const privateTeamStats = await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: StatsTeamSearchInput = {
                     take: 10,
                     periodType: StatPeriodType.Monthly,
                 };
-                // Assuming readManyHelper allows public access for teams
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
                 expect(result).not.toBeNull();
@@ -312,15 +821,22 @@ describe("EndpointsStatsTeam", () => {
                 expect(result.edges).toBeInstanceOf(Array);
                 const resultIds = result.edges!.map(edge => edge?.node?.id);
 
-                expect(resultIds).toContain(statsTeamData1.id);
-                expect(resultIds).not.toContain(statsTeamData2.id);
-                expect(resultIds).not.toContain(statsTeamData3.id);
+                expect(resultIds).toContain(publicTeamStats.id.toString());
+                expect(resultIds).not.toContain(privateTeamStats.id.toString());
             });
         });
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsTeamSearchInput = {
@@ -337,7 +853,15 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };
@@ -351,20 +875,64 @@ describe("EndpointsStatsTeam", () => {
             });
 
             it("cannot see stats of private team you are not a member of when searching by name", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id }; // User 1 is NOT in team 3
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1",
+                    }),
+                });
+
+                const privateTeam = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isPrivate: true,
+                        translations: {
+                            create: {
+                                id: generatePK(),
+                                language: "en",
+                                name: "Private Team 3",
+                                bio: "A team user is not in",
+                            },
+                        },
+                    },
+                });
+
+                await DbProvider.get().stats_team.create({
+                    data: {
+                        id: generatePK(),
+                        teamId: privateTeam.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apis: 0,
+                        codes: 0,
+                        members: 0,
+                        notes: 0,
+                        projects: 0,
+                        routines: 0,
+                        standards: 0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                    },
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                // Search for team 3 by name
+                // Search for team by name
                 const input: StatsTeamSearchInput = {
                     periodType: StatPeriodType.Monthly,
-                    searchString: "Private Team 3", // Name of team user1 is not in
+                    searchString: "Private Team 3",
                 };
                 const result = await statsTeam.findMany({ input }, { req, res }, statsTeam_findMany);
 
                 expect(result).not.toBeNull();
                 expect(result.edges!.length).toBe(0);
-                expect(result.edges!.every(edge => edge?.node?.id !== statsTeamData3.id)).toBe(true);
             });
         });
     });
-}); 
+});

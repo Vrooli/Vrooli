@@ -1,11 +1,10 @@
-import { type ChatCreateInput, type ChatSearchInput, type ChatUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type ChatCreateInput, type ChatSearchInput, type ChatUpdateInput, type FindByIdInput, generatePK } from "@vrooli/shared";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { chat_createOne } from "../generated/chat_createOne.js";
 import { chat_findMany } from "../generated/chat_findMany.js";
 import { chat_findOne } from "../generated/chat_findOne.js";
@@ -14,59 +13,64 @@ import { chat } from "./chat.js";
 
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { chatTestDataFactory } from "@vrooli/shared/validation/models";
+import { chatTestDataFactory } from "@vrooli/shared";
 
 describe("EndpointsChat", () => {
-    let testUsers: any[];
-    let privateChat: any;
-    let publicChat: any;
-
-    beforeAll(() => {
+    beforeAll(async () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
     beforeEach(async () => {
-        // Clear Redis and database tables
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
-        // Seed test users using database fixtures
-        testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
-
-        // Create a private chat using database fixtures
-        privateChat = await seedTestChat(DbProvider.get(), {
-            userIds: [testUsers[0].id, testUsers[1].id],
-            isPrivate: true,
-            withMessages: true,
-        });
-
-        // Create a public chat using database fixtures
-        publicChat = await seedTestChat(DbProvider.get(), {
-            userIds: [testUsers[1].id],
-            isPrivate: false,
-            withInvites: true,
-        });
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.user.deleteMany();
     });
 
     afterAll(async () => {
-        // Clean up
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
         // Restore all mocks
         vi.restoreAllMocks();
     });
 
     describe("findOne", () => {
         it("returns chat by id for any authenticated user", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser3 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 3",
+                    handle: "test-user-3-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create a private chat
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[2].id
+                id: testUser3.id.toString()
             });
             const input: FindByIdInput = { id: privateChat.id };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
@@ -75,6 +79,22 @@ describe("EndpointsChat", () => {
         });
 
         it("returns chat by id when not authenticated", async () => {
+            // Create test user
+            const testUser = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User",
+                    handle: "test-user-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create a public chat
+            const publicChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser.id],
+                isPrivate: false,
+                withInvites: true,
+            });
+
             const { req, res } = await mockLoggedOutSession();
             const input: FindByIdInput = { id: publicChat.id };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
@@ -83,11 +103,27 @@ describe("EndpointsChat", () => {
         });
 
         it("returns chat by id with API key public read", async () => {
+            // Create test user
+            const testUser = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User",
+                    handle: "test-user-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create a public chat
+            const publicChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser.id],
+                isPrivate: false,
+                withInvites: true,
+            });
+
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser.id.toString()
             });
             const input: FindByIdInput = { id: publicChat.id };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
@@ -98,9 +134,37 @@ describe("EndpointsChat", () => {
 
     describe("findMany", () => {
         it("returns chats without filters for any authenticated user", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create chats
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+            const publicChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser2.id],
+                isPrivate: false,
+                withInvites: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser1.id.toString()
             });
             const input: ChatSearchInput = { take: 10 };
             const expectedIds = [privateChat.id, publicChat.id];
@@ -111,6 +175,34 @@ describe("EndpointsChat", () => {
         });
 
         it("returns chats without filters for not authenticated user", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create chats
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+            const publicChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser2.id],
+                isPrivate: false,
+                withInvites: true,
+            });
+
             const { req, res } = await mockLoggedOutSession();
             const input: ChatSearchInput = { take: 10 };
             const expectedIds = [privateChat.id, publicChat.id];
@@ -120,11 +212,39 @@ describe("EndpointsChat", () => {
         });
 
         it("returns chats without filters for API key public read", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create chats
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+            const publicChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser2.id],
+                isPrivate: false,
+                withInvites: true,
+            });
+
             const permissions = mockReadPublicPermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser1.id.toString()
             });
             const input: ChatSearchInput = { take: 10 };
             const expectedIds = [privateChat.id, publicChat.id];
@@ -136,9 +256,18 @@ describe("EndpointsChat", () => {
 
     describe("createOne", () => {
         it("creates a chat for authenticated user", async () => {
+            // Create test user
+            const testUser = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User",
+                    handle: "test-user-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser.id.toString()
             });
 
             // Use validation fixtures for API input
@@ -153,11 +282,20 @@ describe("EndpointsChat", () => {
         });
 
         it("API key with write permissions can create chat", async () => {
+            // Create test user
+            const testUser = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User",
+                    handle: "test-user-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
             const permissions = mockWritePrivatePermissions();
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser.id.toString()
             });
 
             // Use complete validation fixture for more comprehensive test
@@ -186,9 +324,32 @@ describe("EndpointsChat", () => {
 
     describe("updateOne", () => {
         it("updates chat openToAnyoneWithInvite flag for authenticated user", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create a private chat
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUser1.id.toString()
             });
 
             // Use the actual chat ID from seeded data
@@ -203,6 +364,29 @@ describe("EndpointsChat", () => {
         });
 
         it("throws error for not logged in user", async () => {
+            // Create test users
+            const testUser1 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 1",
+                    handle: "test-user-1-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+            const testUser2 = await DbProvider.get().user.create({
+                data: UserDbFactory.createWithAuth({
+                    id: generatePK(),
+                    name: "Test User 2",
+                    handle: "test-user-2-" + Math.floor(Math.random() * 1000),
+                }),
+            });
+
+            // Create a private chat
+            const privateChat = await seedTestChat(DbProvider.get(), {
+                userIds: [testUser1.id, testUser2.id],
+                isPrivate: true,
+                withMessages: true,
+            });
+
             const { req, res } = await mockLoggedOutSession();
 
             const input: ChatUpdateInput = {

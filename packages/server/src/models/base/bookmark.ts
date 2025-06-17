@@ -45,7 +45,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
         shape: {
             create: async ({ data, ...rest }) => ({
                 id: BigInt(data.id),
-                [forMapper[data.bookmarkFor]]: { connect: { id: data.forConnect } },
+                [forMapper[data.bookmarkFor]]: { connect: { id: BigInt(data.forConnect) } },
                 list: await shapeHelper({ relation: "list", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "BookmarkList", parentRelationshipName: "bookmarks", data, ...rest }),
             }),
             update: async ({ data, ...rest }) => ({
@@ -107,14 +107,14 @@ export const BookmarkModel: BookmarkModelLogic = ({
                     const objectType: BookmarkFor = uppercaseFirstLetter(objectRel.slice(0, -"Id".length)) as BookmarkFor;
                     // Update "bookmarks" count for bookmarked object
                     const delegate = (DbProvider.get()[ModelMap.get(objectType, true, "bookmark onCreated").dbTable] as PrismaDelegate);
-                    await delegate.update({ where: { id: objectId }, data: { bookmarks: { increment: 1 } } });
+                    await delegate.update({ where: { id: BigInt(objectId) }, data: { bookmarks: { increment: 1 } } });
                     // Trigger bookmarkCreated event
                     Trigger(userData.languages).objectBookmark(true, objectType, objectId, userData.id);
                 }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
                     const delegate = (DbProvider.get()[ModelMap.get(objectType as ModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
-                    await (delegate as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
+                    await (delegate as any).updateMany({ where: { id: { in: objectIds.map(id => BigInt(id)) } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
                     for (const objectId of (objectIds as string[])) {
                         Trigger(userData.languages).objectBookmark(false, objectType as BookmarkFor, objectId, userData.id);

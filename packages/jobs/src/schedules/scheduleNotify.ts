@@ -1,11 +1,18 @@
 import { type Prisma } from "@prisma/client";
 import { CacheService, Notify, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, type ScheduleSubscriptionContext } from "@vrooli/server";
-import { calculateOccurrences, uppercaseFirstLetter, type ModelType, type Schedule } from "@vrooli/shared";
+import { calculateOccurrences, uppercaseFirstLetter, ModelType, type ModelType as ModelTypeType, type Schedule } from "@vrooli/shared";
 
 const MINUTES_IN_HOUR = 60;
 const SECONDS_IN_MINUTE = 60;
 const MILLISECONDS_IN_SECOND = 1000;
 const BUFFER_HOURS = 25;
+
+/**
+ * Type guard to check if a string is a valid ModelType
+ */
+function isValidModelType(value: string): value is ModelTypeType {
+    return (Object.values(ModelType) as string[]).includes(value);
+}
 
 // Define select shape and payload type for notification subscriptions
 const notificationSubscriptionSelect = {
@@ -82,7 +89,7 @@ async function scheduleNotifications(
                 if (batchResult.length === 0) return;
 
                 // Safely access the schedule from the first batch result
-                const firstSubscription = batchResult[0];
+                const firstSubscription = batchResult.length > 0 ? batchResult[0] : null;
                 if (!firstSubscription || !firstSubscription.schedule) {
                     // It's possible scheduleId is not defined if batchResult is empty, but we already checked that.
                     // However, firstSubscription.schedule could still be null/undefined if the query somehow allows it
@@ -101,8 +108,26 @@ async function scheduleNotifications(
                     logger.error(`Could not find object type for schedule ${scheduleId}`, { trace: "0433" });
                     return;
                 }
-                const scheduleForId: string = objectData[0].id.toString();
-                const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as ModelType;
+                // Safe array access with validation
+                const firstObject = objectData && Array.isArray(objectData) && objectData.length > 0 ? objectData[0] : null;
+                if (!firstObject || !firstObject.id) {
+                    logger.error(`No valid object found in ${objectField} for schedule ${scheduleId}`, { trace: "0433_no_object" });
+                    return;
+                }
+                const scheduleForId: string = firstObject.id.toString();
+                const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1));
+                
+                // Validate that scheduleForType is a valid ModelType
+                if (!isValidModelType(scheduleForType)) {
+                    logger.error(`Invalid ModelType derived from objectField: ${objectField}`, {
+                        objectField,
+                        derivedType: scheduleForType,
+                        validTypes: Object.values(ModelType),
+                        trace: "0433_invalid_type"
+                    });
+                    return;
+                }
+                // TypeScript now knows scheduleForType is ModelTypeType after the type guard
                 // Find notification preferences for each subscriber
                 const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                 for (const subscription of batchResult) {
@@ -124,12 +149,25 @@ async function scheduleNotifications(
                         { reminders: [] }, // Default to an object with an empty reminders array
                     );
 
-                    // Ensure context and context.reminders are valid before proceeding
-                    if (!context?.reminders) {
-                        logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has context without a 'reminders' array after parsing. Skipping reminder processing.`, {
+                    // Validate the parsed context matches expected structure
+                    if (!context || typeof context !== 'object') {
+                        logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has invalid context structure after parsing. Skipping reminder processing.`, {
                             subscriptionId: subscription.id,
                             subscriberId,
                             parsedContext: context,
+                            contextType: typeof context,
+                            trace: "SN_CTX_INVALID_TYPE",
+                        });
+                        continue;
+                    }
+
+                    // Ensure context and context.reminders are valid before proceeding
+                    if (!Array.isArray(context.reminders)) {
+                        logger.warn(`Subscription ${subscription.id} for subscriber ${subscriberId} has context without a valid 'reminders' array after parsing. Skipping reminder processing.`, {
+                            subscriptionId: subscription.id,
+                            subscriberId,
+                            parsedContext: context,
+                            remindersType: typeof context.reminders,
                             trace: "SN_CTX_NO_REMINDERS",
                         });
                         continue;
@@ -227,25 +265,31 @@ export async function scheduleNotify(): Promise<void> {
                 await Promise.all(batchResult.map(async (scheduleData) => {
                     const scheduleIdStr = scheduleData.id.toString();
 
-                    const exceptions = scheduleData.exceptions.map(ex => ({
-                        id: ex.id.toString(),
-                        __typename: "ScheduleException" as const,
-                        originalStartTime: new Date(ex.originalStartTime),
-                        newStartTime: ex.newStartTime ? new Date(ex.newStartTime) : null,
-                        newEndTime: ex.newEndTime ? new Date(ex.newEndTime) : null,
-                    })) as Schedule["exceptions"];
+                    // Validate and map exceptions with proper type safety
+                    const exceptions: Schedule["exceptions"] = scheduleData.exceptions
+                        .filter(ex => ex && typeof ex.id !== 'undefined' && ex.originalStartTime)
+                        .map(ex => ({
+                            id: ex.id.toString(),
+                            __typename: "ScheduleException" as const,
+                            originalStartTime: new Date(ex.originalStartTime),
+                            newStartTime: ex.newStartTime ? new Date(ex.newStartTime) : null,
+                            newEndTime: ex.newEndTime ? new Date(ex.newEndTime) : null,
+                        }));
 
-                    const recurrences = scheduleData.recurrences.map(rec => ({
-                        id: rec.id.toString(),
-                        __typename: "ScheduleRecurrence" as const,
-                        recurrenceType: rec.recurrenceType,
-                        interval: rec.interval,
-                        dayOfWeek: rec.dayOfWeek,
-                        dayOfMonth: rec.dayOfMonth,
-                        month: rec.month,
-                        endDate: rec.endDate ? new Date(rec.endDate) : null,
-                        // duration: rec.duration, // Only include if 'duration' is in ScheduleRecurrencePayload and ScheduleRecurrence type
-                    })) as Schedule["recurrences"];
+                    // Validate and map recurrences with proper type safety
+                    const recurrences: Schedule["recurrences"] = scheduleData.recurrences
+                        .filter(rec => rec && typeof rec.id !== 'undefined' && rec.recurrenceType)
+                        .map(rec => ({
+                            id: rec.id.toString(),
+                            __typename: "ScheduleRecurrence" as const,
+                            recurrenceType: rec.recurrenceType,
+                            interval: rec.interval,
+                            dayOfWeek: rec.dayOfWeek,
+                            dayOfMonth: rec.dayOfMonth,
+                            month: rec.month,
+                            endDate: rec.endDate ? new Date(rec.endDate) : null,
+                            // duration: rec.duration, // Only include if 'duration' is in ScheduleRecurrencePayload and ScheduleRecurrence type
+                        }));
 
                     // Find all occurrences of the schedule within the next 25 hours
                     const occurrences = await calculateOccurrences({

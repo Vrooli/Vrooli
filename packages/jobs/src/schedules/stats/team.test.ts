@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logTeamStats } from "./team.js";
 
 // Direct import to avoid problematic services
-const { DbProvider } = await import("../../../../server/src/db/provider.ts");
+const { DbProvider } = await import("@vrooli/server");
 
 describe("logTeamStats integration tests", () => {
     // Store test entity IDs for cleanup

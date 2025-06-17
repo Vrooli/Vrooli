@@ -78,14 +78,15 @@ beforeAll(async function setup() {
         }
         
         // Step 3: Setup LLM service mocks
-        console.log("Step 3: Setting up LLM mocks...");
-        try {
-            await setupLlmServiceMocks();
-            componentsInitialized.mocks = true;
-            console.log("✓ LLM mocks ready");
-        } catch (error) {
-            console.error("LLM mock setup failed:", error);
-        }
+        // TODO: Replace with new LLM mock implementation
+        // console.log("Step 3: Setting up LLM mocks...");
+        // try {
+        //     await setupLlmServiceMocks();
+        //     componentsInitialized.mocks = true;
+        //     console.log("✓ LLM mocks ready");
+        // } catch (error) {
+        //     console.error("LLM mock setup failed:", error);
+        // }
         
         console.log("=== Per-File Test Setup Complete ===");
         console.log("Initialized components:", Object.entries(componentsInitialized)
@@ -114,44 +115,45 @@ beforeAll(async function setup() {
     }
 }, 300000);
 
-async function setupLlmServiceMocks() {
-    try {
-        const [
-            { OpenAIService },
-            { AnthropicService }, 
-            { MistralService }
-        ] = await Promise.all([
-            import("../tasks/llm/services/openai.js"),
-            import("../tasks/llm/services/anthropic.js"),
-            import("../tasks/llm/services/mistral.js"),
-        ]);
-        
-        vi.spyOn(OpenAIService.prototype, "generateResponse" as any).mockResolvedValue({
-            attempts: 1,
-            message: "Mocked OpenAI response",
-            cost: 0.001,
-        });
-        
-        vi.spyOn(AnthropicService.prototype, "generateResponse" as any).mockResolvedValue({
-            attempts: 1,
-            message: "Mocked Anthropic response",
-            cost: 0.001,
-        });
-        
-        vi.spyOn(MistralService.prototype, "generateResponse" as any).mockResolvedValue({
-            attempts: 1,
-            message: "Mocked Mistral response",
-            cost: 0.001,
-        });
-        
-        const mockEstimateTokens = vi.fn().mockReturnValue({ model: "default", tokens: 10 });
-        vi.spyOn(OpenAIService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
-        vi.spyOn(AnthropicService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
-        vi.spyOn(MistralService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
-    } catch (error) {
-        console.warn("Could not setup LLM mocks:", error);
-    }
-}
+// TODO: Replace with new LLM mock implementation
+// async function setupLlmServiceMocks() {
+//     try {
+//         const [
+//             { OpenAIService },
+//             { AnthropicService }, 
+//             { MistralService }
+//         ] = await Promise.all([
+//             import("../tasks/llm/services/openai.js"),
+//             import("../tasks/llm/services/anthropic.js"),
+//             import("../tasks/llm/services/mistral.js"),
+//         ]);
+//         
+//         vi.spyOn(OpenAIService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked OpenAI response",
+//             cost: 0.001,
+//         });
+//         
+//         vi.spyOn(AnthropicService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked Anthropic response",
+//             cost: 0.001,
+//         });
+//         
+//         vi.spyOn(MistralService.prototype, "generateResponse" as any).mockResolvedValue({
+//             attempts: 1,
+//             message: "Mocked Mistral response",
+//             cost: 0.001,
+//         });
+//         
+//         const mockEstimateTokens = vi.fn().mockReturnValue({ model: "default", tokens: 10 });
+//         vi.spyOn(OpenAIService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//         vi.spyOn(AnthropicService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//         vi.spyOn(MistralService.prototype, "estimateTokens" as any).mockImplementation(mockEstimateTokens);
+//     } catch (error) {
+//         console.warn("Could not setup LLM mocks:", error);
+//     }
+// }
 
 async function cleanup() {
     console.log("\n=== Per-File Cleanup Starting ===");

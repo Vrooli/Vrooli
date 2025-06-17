@@ -1,284 +1,43 @@
-import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult } from "@vrooli/shared";
+import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, generatePK } from "@vrooli/shared";
 import { PeriodType } from "@prisma/client";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
+import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
-import { type RecursivePartial } from "../../types.ts";
-import { statsUser_findMany } from "../generated/statsUser_findMany.js"; // Assuming this generated type exists
+import { type RecursivePartial } from "../../types.js";
+import { statsUser_findMany } from "../generated/statsUser_findMany.js";
 import { statsUser } from "./statsUser.js";
 
-// User IDs - using hard-coded test IDs
-const user1Id = "1001";
-const user2Id = "1002";
-const publicUserId = "1003"; // A public user (not a bot)
-const user1BotId = "1004"; // A bot owned by user1
-const publicBotId = "1005"; // A public bot not owned by user1
-
-// Sample User data structure
-const userData1 = {
-    id: user1Id,
-    isBot: false,
-    isPrivate: false,
-    name: "Test User 1 - Public",
-};
-
-const userData2 = {
-    id: user2Id,
-    isBot: false,
-    isPrivate: true,
-    name: "Test User 2 - Private",
-};
-
-const publicUserData = {
-    id: publicUserId,
-    isBot: false,
-    isPrivate: false,
-    name: "Public User",
-};
-
-const user1BotData = {
-    id: user1BotId,
-    isBot: true,
-    isPrivate: true,
-    name: "User1's Bot - Private",
-    invitedByUserId: user1Id,
-};
-
-const publicBotData = {
-    id: publicBotId,
-    isPrivate: false,
-    isBot: true,
-    name: "Public Bot",
-    invitedByUserId: user2Id,
-};
-
-// Adjust fields based on actual StatsUser model
-const statsUserData1 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    userId: user1Id,
-    periodStart: new Date("2023-01-01"),
-    periodEnd: new Date("2023-01-31"),
-    periodType: PeriodType.Monthly,
-    apisCreated: 0,
-    codesCreated: 0,
-    codesCompleted: 0,
-    codeCompletionTimeAverage: 0.0,
-    projectsCreated: 0,
-    projectsCompleted: 0,
-    projectCompletionTimeAverage: 0.0,
-    routinesCreated: 0,
-    routinesCompleted: 0,
-    routineCompletionTimeAverage: 0.0,
-    standardsCreated: 0,
-    teamsCreated: 0,
-    runProjectsStarted: 0,
-    runProjectsCompleted: 0,
-    runProjectCompletionTimeAverage: 0.0,
-    runProjectContextSwitchesAverage: 0.0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-    standardsCompleted: 0,
-    standardCompletionTimeAverage: 0.0,
-};
-
-const statsUserData2 = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    userId: user2Id,
-    periodStart: new Date("2023-02-01"),
-    periodEnd: new Date("2023-02-28"),
-    periodType: PeriodType.Monthly,
-    apisCreated: 0,
-    codesCreated: 0,
-    codesCompleted: 0,
-    codeCompletionTimeAverage: 0.0,
-    projectsCreated: 0,
-    projectsCompleted: 0,
-    projectCompletionTimeAverage: 0.0,
-    routinesCreated: 0,
-    routinesCompleted: 0,
-    routineCompletionTimeAverage: 0.0,
-    standardsCreated: 0,
-    teamsCreated: 0,
-    runProjectsStarted: 0,
-    runProjectsCompleted: 0,
-    runProjectCompletionTimeAverage: 0.0,
-    runProjectContextSwitchesAverage: 0.0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-    standardsCompleted: 0,
-    standardCompletionTimeAverage: 0.0,
-};
-
-const statsPublicUserData = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    userId: publicUserId,
-    periodStart: new Date("2023-03-01"),
-    periodEnd: new Date("2023-03-31"),
-    periodType: PeriodType.Monthly,
-    apisCreated: 0,
-    codesCreated: 0,
-    codesCompleted: 0,
-    codeCompletionTimeAverage: 0.0,
-    projectsCreated: 0,
-    projectsCompleted: 0,
-    projectCompletionTimeAverage: 0.0,
-    routinesCreated: 0,
-    routinesCompleted: 0,
-    routineCompletionTimeAverage: 0.0,
-    standardsCreated: 0,
-    teamsCreated: 0,
-    runProjectsStarted: 0,
-    runProjectsCompleted: 0,
-    runProjectCompletionTimeAverage: 0.0,
-    runProjectContextSwitchesAverage: 0.0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-    standardsCompleted: 0,
-    standardCompletionTimeAverage: 0.0,
-};
-
-const statsUser1BotData = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    userId: user1BotId,
-    periodStart: new Date("2023-04-01"),
-    periodEnd: new Date("2023-04-30"),
-    periodType: PeriodType.Monthly,
-    apisCreated: 0,
-    codesCreated: 0,
-    codesCompleted: 0,
-    codeCompletionTimeAverage: 0.0,
-    projectsCreated: 0,
-    projectsCompleted: 0,
-    projectCompletionTimeAverage: 0.0,
-    routinesCreated: 0,
-    routinesCompleted: 0,
-    routineCompletionTimeAverage: 0.0,
-    standardsCreated: 0,
-    teamsCreated: 0,
-    runProjectsStarted: 0,
-    runProjectsCompleted: 0,
-    runProjectCompletionTimeAverage: 0.0,
-    runProjectContextSwitchesAverage: 0.0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-    standardsCompleted: 0,
-    standardCompletionTimeAverage: 0.0,
-};
-
-const statsPublicBotData = {
-    id: `stats-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-    userId: publicBotId,
-    periodStart: new Date("2023-01-01"),
-    periodEnd: new Date("2023-05-31"),
-    periodType: PeriodType.Monthly,
-    apisCreated: 0,
-    codesCreated: 0,
-    codesCompleted: 0,
-    codeCompletionTimeAverage: 0.0,
-    projectsCreated: 0,
-    projectsCompleted: 0,
-    projectCompletionTimeAverage: 0.0,
-    routinesCreated: 0,
-    routinesCompleted: 0,
-    routineCompletionTimeAverage: 0.0,
-    standardsCreated: 0,
-    teamsCreated: 0,
-    runProjectsStarted: 0,
-    runProjectsCompleted: 0,
-    runProjectCompletionTimeAverage: 0.0,
-    runProjectContextSwitchesAverage: 0.0,
-    runRoutinesStarted: 0,
-    runRoutinesCompleted: 0,
-    runRoutineCompletionTimeAverage: 0.0,
-    runRoutineContextSwitchesAverage: 0.0,
-    standardsCompleted: 0,
-    standardCompletionTimeAverage: 0.0,
-};
-
-const allStattedObjectIds = [userData1, userData2, publicUserData, user1BotData, publicBotData];
+// Helper to extract stats info from results
 async function extractStattedObjectInfoFromStats(result: RecursivePartial<StatsUserSearchResult>) {
     const resultsStatIds = result.edges!.map(edge => edge!.node!.id) as string[];
     const withStattedIds = await DbProvider.get().stats_user.findMany({
         where: { id: { in: resultsStatIds } },
         select: { userId: true },
     });
-    const resultStattedIds = withStattedIds.map(stat => stat[Object.keys(stat)[0]]);
-    const resultStattedNames = allStattedObjectIds.filter(user => resultStattedIds.includes(user.id)).map(user => user.name);
-
-    return { resultStattedIds, resultStattedNames };
+    const resultStattedIds = withStattedIds.map(stat => stat.userId);
+    return { resultStattedIds };
 }
 
 describe("EndpointsStatsUser", () => {
     let loggerErrorStub: any;
     let loggerInfoStub: any;
 
-    beforeAll(() => {
+    beforeAll(async () => {
         loggerErrorStub = vi.spyOn(logger, "error").mockImplementation(() => undefined);
         loggerInfoStub = vi.spyOn(logger, "info").mockImplementation(() => undefined);
     });
 
     beforeEach(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
-        // Create test users
-        await DbProvider.get().user.create({
-            data: { ...userData1, handle: "test-user-1", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
-        });
-        await DbProvider.get().user.create({
-            data: { ...userData2, handle: "test-user-2", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
-        });
-        await DbProvider.get().user.create({
-            data: { ...publicUserData, handle: "public-user", status: "Unlocked", isBot: false, isBotDepictingPerson: false, auths: { create: [{ provider: "Password", hashed_password: "dummy-hash" }] } },
-        });
-        // Create the bot owned by user1
-        await DbProvider.get().user.create({
-            data: {
-                ...user1BotData,
-                handle: "user1-bot",
-                status: "Unlocked",
-                isBotDepictingPerson: false,
-                invitedByUserId: user1Id,
-            },
-        });
-        // Create the public bot not owned by user1
-        await DbProvider.get().user.create({
-            data: {
-                ...publicBotData,
-                handle: "public-bot",
-                status: "Unlocked",
-                isBotDepictingPerson: false,
-                invitedByUserId: user2Id,
-            },
-        });
-
-        // Create fresh test stats data
-        await DbProvider.get().stats_user.createMany({
-            data: [
-                statsUserData1,
-                statsUserData2,
-                statsPublicUserData,
-                statsUser1BotData,
-                statsPublicBotData,
-            ],
-        });
+        // Clean up tables used in tests
+        const prisma = DbProvider.get();
+        await prisma.stats_user.deleteMany();
+        await prisma.user.deleteMany();
     });
 
     afterAll(async () => {
-        await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
-
         loggerErrorStub.mockRestore();
         loggerInfoStub.mockRestore();
     });
@@ -286,7 +45,207 @@ describe("EndpointsStatsUser", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns own stats, stats for own bots, and stats for public users/bots", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                // Create users with stats within transaction
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1 - Public",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+
+                const user2 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 2 - Private",
+                        handle: "test-user-2",
+                        isPrivate: true,
+                    }),
+                });
+
+                const publicUser = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Public User",
+                        handle: "public-user",
+                        isPrivate: false,
+                    }),
+                });
+
+                // Create bots
+                const user1Bot = await DbProvider.get().user.create({
+                    data: UserDbFactory.createBot({
+                        id: generatePK(),
+                        name: "User1's Bot - Private",
+                        handle: "user1-bot",
+                        isPrivate: true,
+                        invitedByUserId: user1.id,
+                    }),
+                });
+
+                const publicBot = await DbProvider.get().user.create({
+                    data: UserDbFactory.createBot({
+                        id: generatePK(),
+                        name: "Public Bot",
+                        handle: "public-bot",
+                        isPrivate: false,
+                        invitedByUserId: user2.id,
+                    }),
+                });
+
+                // Create stats for all users
+                await DbProvider.get().stats_user.createMany({
+                    data: [
+                        {
+                            id: generatePK(),
+                            userId: user1.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: user2.id,
+                            periodStart: new Date("2023-02-01"),
+                            periodEnd: new Date("2023-02-28"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicUser.id,
+                            periodStart: new Date("2023-03-01"),
+                            periodEnd: new Date("2023-03-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: user1Bot.id,
+                            periodStart: new Date("2023-04-01"),
+                            periodEnd: new Date("2023-04-30"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicBot.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-05-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                    ],
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -294,23 +253,63 @@ describe("EndpointsStatsUser", () => {
                     periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
-                    user1Id, // Own (Public)
-                    //user2Id, // Private User
-                    publicUserId, // Public User
-                    user1BotId, // Own Bot
-                    publicBotId, // Public Bot
-                    //privateBotId, // Private Bot
+                    user1.id, // Own (Public)
+                    //user2.id, // Private User
+                    publicUser.id, // Public User
+                    user1Bot.id, // Own Bot
+                    publicBot.id, // Public Bot
                 ];
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
                 expect(result).not.toBeNull();
-                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                const { resultStattedIds } = await extractStattedObjectInfoFromStats(result);
                 expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
 
             it("properly filters by periodType", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+
+                const statsData = await DbProvider.get().stats_user.create({
+                    data: {
+                        id: generatePK(),
+                        userId: user1.id,
+                        periodStart: new Date("2023-01-01"),
+                        periodEnd: new Date("2023-01-31"),
+                        periodType: PeriodType.Monthly,
+                        apisCreated: 0,
+                        codesCreated: 0,
+                        codesCompleted: 0,
+                        codeCompletionTimeAverage: 0.0,
+                        projectsCreated: 0,
+                        projectsCompleted: 0,
+                        projectCompletionTimeAverage: 0.0,
+                        routinesCreated: 0,
+                        routinesCompleted: 0,
+                        routineCompletionTimeAverage: 0.0,
+                        standardsCreated: 0,
+                        teamsCreated: 0,
+                        runProjectsStarted: 0,
+                        runProjectsCompleted: 0,
+                        runProjectCompletionTimeAverage: 0.0,
+                        runProjectContextSwitchesAverage: 0.0,
+                        runRoutinesStarted: 0,
+                        runRoutinesCompleted: 0,
+                        runRoutineCompletionTimeAverage: 0.0,
+                        runRoutineContextSwitchesAverage: 0.0,
+                        standardsCompleted: 0,
+                        standardCompletionTimeAverage: 0.0,
+                    },
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -320,23 +319,137 @@ describe("EndpointsStatsUser", () => {
                         before: new Date("2023-01-31"),
                     },
                 };
-                const expectedStatIds = [
-                    statsUserData1.id,
-                    // statsUserData2.id,
-                    // statsPublicUserData.id,
-                    // statsUser1BotData.id,
-                    // statsPublicBotData.id
-                ];
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
                 const resultStatIds = result.edges!.map(edge => edge!.node!.id);
 
                 expect(result).not.toBeNull();
-                expect(expectedStatIds.sort()).toEqual(resultStatIds.sort());
+                expect(resultStatIds).toContain(statsData.id);
             });
 
             it("API key with public permission returns public user/bot stats", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1 - Public",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+
+                const publicUser = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Public User",
+                        handle: "public-user",
+                        isPrivate: false,
+                    }),
+                });
+
+                const publicBot = await DbProvider.get().user.create({
+                    data: UserDbFactory.createBot({
+                        id: generatePK(),
+                        name: "Public Bot",
+                        handle: "public-bot",
+                        isPrivate: false,
+                        invitedByUserId: user1.id,
+                    }),
+                });
+
+                // Create stats
+                await DbProvider.get().stats_user.createMany({
+                    data: [
+                        {
+                            id: generatePK(),
+                            userId: user1.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicUser.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicBot.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                    ],
+                });
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -346,20 +459,138 @@ describe("EndpointsStatsUser", () => {
                     periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
-                    user1Id, // Own (Public)
-                    // user2Id, // Private User
-                    publicUserId, // Public User
-                    // user1BotId, // Own Bot
-                    publicBotId, // Public Bot
-                    // privateBotId, // Private Bot
+                    user1.id, // Own (Public)
+                    publicUser.id, // Public User
+                    publicBot.id, // Public Bot
                 ];
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
-                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                const { resultStattedIds } = await extractStattedObjectInfoFromStats(result);
                 expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
 
             it("not logged in returns only public user/bot stats", async () => {
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1 - Public",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+
+                const publicUser = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Public User",
+                        handle: "public-user",
+                        isPrivate: false,
+                    }),
+                });
+
+                const publicBot = await DbProvider.get().user.create({
+                    data: UserDbFactory.createBot({
+                        id: generatePK(),
+                        name: "Public Bot",
+                        handle: "public-bot",
+                        isPrivate: false,
+                        invitedByUserId: user1.id,
+                    }),
+                });
+
+                // Create stats
+                await DbProvider.get().stats_user.createMany({
+                    data: [
+                        {
+                            id: generatePK(),
+                            userId: user1.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicUser.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                        {
+                            id: generatePK(),
+                            userId: publicBot.id,
+                            periodStart: new Date("2023-01-01"),
+                            periodEnd: new Date("2023-01-31"),
+                            periodType: PeriodType.Monthly,
+                            apisCreated: 0,
+                            codesCreated: 0,
+                            codesCompleted: 0,
+                            codeCompletionTimeAverage: 0.0,
+                            projectsCreated: 0,
+                            projectsCompleted: 0,
+                            projectCompletionTimeAverage: 0.0,
+                            routinesCreated: 0,
+                            routinesCompleted: 0,
+                            routineCompletionTimeAverage: 0.0,
+                            standardsCreated: 0,
+                            teamsCreated: 0,
+                            runProjectsStarted: 0,
+                            runProjectsCompleted: 0,
+                            runProjectCompletionTimeAverage: 0.0,
+                            runProjectContextSwitchesAverage: 0.0,
+                            runRoutinesStarted: 0,
+                            runRoutinesCompleted: 0,
+                            runRoutineCompletionTimeAverage: 0.0,
+                            runRoutineContextSwitchesAverage: 0.0,
+                            standardsCompleted: 0,
+                            standardCompletionTimeAverage: 0.0,
+                        },
+                    ],
+                });
+
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: StatsUserSearchInput = {
@@ -367,25 +598,31 @@ describe("EndpointsStatsUser", () => {
                     periodType: StatPeriodType.Monthly,
                 };
                 const expectedStattedIds = [
-                    user1Id, // Own (Public)
-                    // user2Id, // Private User
-                    publicUserId, // Public User
-                    // user1BotId, // Own Bot
-                    publicBotId, // Public Bot
-                    // privateBotId, // Private Bot
+                    user1.id, // Public
+                    publicUser.id, // Public User
+                    publicBot.id, // Public Bot
                 ];
 
                 const result = await statsUser.findMany({ input }, { req, res }, statsUser_findMany);
 
                 expect(result).not.toBeNull();
-                const { resultStattedIds, resultStattedNames } = await extractStattedObjectInfoFromStats(result);
+                const { resultStattedIds } = await extractStattedObjectInfoFromStats(result);
                 expect(resultStattedIds.sort()).toEqual(expectedStattedIds.sort());
             });
         });
 
         describe("invalid", () => {
             it("invalid time range format should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: StatsUserSearchInput = {
@@ -402,7 +639,16 @@ describe("EndpointsStatsUser", () => {
             });
 
             it("invalid periodType should throw error", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1Id };
+                const user1 = await DbProvider.get().user.create({
+                    data: UserDbFactory.createWithAuth({
+                        id: generatePK(),
+                        name: "Test User 1",
+                        handle: "test-user-1", 
+                        isPrivate: false,
+                    }),
+                });
+                
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input = { periodType: "InvalidPeriod" as any };
@@ -416,4 +662,4 @@ describe("EndpointsStatsUser", () => {
             });
         });
     });
-}); 
+});

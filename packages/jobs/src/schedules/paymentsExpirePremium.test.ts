@@ -1,7 +1,7 @@
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paymentsExpirePlan } from "./paymentsExpirePremium.js";
-import { DbProvider } from "@vrooli/server/db/provider.js";
+import { DbProvider } from "@vrooli/server";
 
 // Mock QueueService
 vi.mock("@vrooli/server", async () => {
