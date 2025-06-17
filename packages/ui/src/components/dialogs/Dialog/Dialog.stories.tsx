@@ -1,57 +1,41 @@
-import { Box, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions } from "./Dialog.js";
+import React, { useState } from "react";
 import { Button } from "../../buttons/Button.js";
+import { Dialog, DialogActions, DialogContent } from "./Dialog.js";
 
 const meta: Meta<typeof Dialog> = {
     title: "Components/Dialogs/Dialog (Tailwind)",
     component: Dialog,
     parameters: {
-        layout: "centered",
-        backgrounds: {
-            default: 'transparent',
+        layout: "fullscreen",
+        backgrounds: { disable: true },
+        docs: {
+            story: {
+                inline: false,
+                iframeHeight: 600,
+            },
         },
     },
     tags: ["autodocs"],
+    decorators: [
+        (Story) => (
+            <div style={{
+                minHeight: "100vh",
+                backgroundColor: "transparent",
+                padding: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+            }}>
+                <Story />
+            </div>
+        ),
+    ],
 };
 
 export default meta;
 type Story = StoryObj<typeof meta>;
-
-// Default dialog
-export const Default: Story = {
-    render: () => {
-        const [isOpen, setIsOpen] = useState(false);
-
-        return (
-            <>
-                <Button onClick={() => setIsOpen(true)}>
-                    Open Default Dialog
-                </Button>
-                <Dialog
-                    isOpen={isOpen}
-                    onClose={() => setIsOpen(false)}
-                    title="Default Dialog"
-                >
-                    <DialogContent>
-                        <Typography>
-                            This is a Tailwind-based dialog component that mimics the MUI Dialog functionality.
-                        </Typography>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button variant="ghost" onClick={() => setIsOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" onClick={() => setIsOpen(false)}>
-                            Confirm
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            </>
-        );
-    },
-};
 
 // Sizes demonstration
 export const Sizes: Story = {
@@ -60,9 +44,9 @@ export const Sizes: Story = {
         const sizes = ["sm", "md", "lg", "xl", "full"] as const;
 
         return (
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", backgroundColor: "transparent" }}>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                 {sizes.map((size) => (
-                    <Button 
+                    <Button
                         key={size}
                         onClick={() => setOpenDialog(size)}
                         variant="outline"
@@ -96,7 +80,7 @@ export const Sizes: Story = {
                         </DialogActions>
                     </Dialog>
                 ))}
-            </Box>
+            </div>
         );
     },
 };
@@ -108,9 +92,9 @@ export const Variants: Story = {
         const variants = ["default", "danger", "success", "space", "neon"] as const;
 
         return (
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", backgroundColor: "transparent" }}>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                 {variants.map((variant) => (
-                    <Button 
+                    <Button
                         key={variant}
                         onClick={() => setOpenDialog(variant)}
                         variant={variant === "default" ? "primary" : variant === "space" || variant === "neon" ? variant : "outline"}
@@ -129,23 +113,23 @@ export const Variants: Story = {
                     >
                         <DialogContent>
                             <Typography>
-                                This dialog uses the theme colors for the dialog itself. The variant "{variant}" 
-                                affects how the action buttons are styled. Notice how the confirm button changes 
+                                This dialog uses the theme colors for the dialog itself. The variant "{variant}"
+                                affects how the action buttons are styled. Notice how the confirm button changes
                                 based on the variant.
                             </Typography>
                         </DialogContent>
                         <DialogActions variant={variant}>
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 onClick={() => setOpenDialog(null)}
                             >
                                 Cancel
                             </Button>
-                            <Button 
-                                variant={variant === "danger" ? "danger" : 
-                                        variant === "success" ? "primary" : 
-                                        variant === "space" ? "space" : 
-                                        variant === "neon" ? "neon" : "primary"} 
+                            <Button
+                                variant={variant === "danger" ? "danger" :
+                                    variant === "success" ? "primary" :
+                                        variant === "space" ? "space" :
+                                            variant === "neon" ? "neon" : "primary"}
                                 onClick={() => setOpenDialog(null)}
                             >
                                 {variant === "danger" ? "Delete" : "Confirm"}
@@ -153,7 +137,7 @@ export const Variants: Story = {
                         </DialogActions>
                     </Dialog>
                 ))}
-            </Box>
+            </div>
         );
     },
 };
@@ -165,9 +149,9 @@ export const Positions: Story = {
         const positions = ["center", "top", "bottom", "left", "right"] as const;
 
         return (
-            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", backgroundColor: "transparent" }}>
+            <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
                 {positions.map((position) => (
-                    <Button 
+                    <Button
                         key={position}
                         onClick={() => setOpenDialog(position)}
                         variant="secondary"
@@ -196,7 +180,7 @@ export const Positions: Story = {
                         </DialogActions>
                     </Dialog>
                 ))}
-            </Box>
+            </div>
         );
     },
 };
@@ -219,7 +203,7 @@ export const NoCloseButton: Story = {
                 >
                     <DialogContent>
                         <Typography>
-                            This dialog doesn't have a close button in the header. 
+                            This dialog doesn't have a close button in the header.
                             You can still close it by clicking outside or using the action buttons.
                         </Typography>
                     </DialogContent>
@@ -253,8 +237,8 @@ export const NoOverlayClose: Story = {
                 >
                     <DialogContent>
                         <Typography>
-                            This dialog cannot be closed by clicking outside. 
-                            You must use the buttons to close it. This demonstrates a 
+                            This dialog cannot be closed by clicking outside.
+                            You must use the buttons to close it. This demonstrates a
                             danger variant where the action buttons reflect the danger state.
                         </Typography>
                     </DialogContent>
@@ -291,9 +275,9 @@ export const ScrollableContent: Story = {
                     <DialogContent>
                         {Array.from({ length: 20 }, (_, i) => (
                             <Typography key={i} paragraph>
-                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
-                                tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim 
-                                veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+                                tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim
+                                veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
                                 commodo consequat. Section {i + 1}.
                             </Typography>
                         ))}
@@ -329,8 +313,8 @@ export const FormDialog: Story = {
                     size="md"
                 >
                     <DialogContent>
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                            <Box>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                            <div>
                                 <label htmlFor="project-name" style={{ display: "block", marginBottom: 4 }}>
                                     Project Name
                                 </label>
@@ -345,8 +329,8 @@ export const FormDialog: Story = {
                                         border: "1px solid #e0e0e0",
                                     }}
                                 />
-                            </Box>
-                            <Box>
+                            </div>
+                            <div>
                                 <label htmlFor="project-description" style={{ display: "block", marginBottom: 4 }}>
                                     Description
                                 </label>
@@ -362,8 +346,8 @@ export const FormDialog: Story = {
                                         resize: "vertical",
                                     }}
                                 />
-                            </Box>
-                        </Box>
+                            </div>
+                        </div>
                     </DialogContent>
                     <DialogActions>
                         <Button variant="ghost" onClick={() => setIsOpen(false)}>
@@ -390,7 +374,7 @@ export const NestedDialogs: Story = {
                 <Button onClick={() => setIsFirstOpen(true)}>
                     Open First Dialog
                 </Button>
-                
+
                 <Dialog
                     isOpen={isFirstOpen}
                     onClose={() => setIsFirstOpen(false)}
@@ -434,80 +418,32 @@ export const NestedDialogs: Story = {
     },
 };
 
-// Space themed dialog (special variant)
-export const SpaceThemed: Story = {
+// No background blur
+export const NoBackgroundBlur: Story = {
     render: () => {
         const [isOpen, setIsOpen] = useState(false);
 
         return (
             <>
-                <Button variant="space" onClick={() => setIsOpen(true)}>
-                    Open Space Dialog
+                <Button onClick={() => setIsOpen(true)}>
+                    Open Dialog (No Background Blur)
                 </Button>
                 <Dialog
                     isOpen={isOpen}
                     onClose={() => setIsOpen(false)}
-                    title="Welcome to Space"
-                    variant="space"
-                    size="lg"
+                    title="No Background Blur"
+                    enableBackgroundBlur={false}
                 >
                     <DialogContent>
-                        <Typography sx={{ color: "white", mb: 2 }}>
-                            Experience the cosmic theme with animated stars and nebula effects.
-                        </Typography>
-                        <Typography sx={{ color: "rgba(255, 255, 255, 0.8)" }}>
-                            The space variant is special - it applies both themed styling to the dialog 
-                            itself AND affects the action buttons. This is perfect for space-themed 
-                            applications or when you want to create a futuristic feel.
+                        <Typography>
+                            This dialog has background blur disabled. Notice how the background
+                            behind the dialog is completely transparent - no dimming and no blur.
+                            This creates a much lighter visual effect.
                         </Typography>
                     </DialogContent>
-                    <DialogActions variant="space">
-                        <Button variant="ghost" onClick={() => setIsOpen(false)}>
-                            Return to Earth
-                        </Button>
-                        <Button variant="space" onClick={() => setIsOpen(false)}>
-                            Launch Mission
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            </>
-        );
-    },
-};
-
-// Neon themed dialog (special variant)
-export const NeonThemed: Story = {
-    render: () => {
-        const [isOpen, setIsOpen] = useState(false);
-
-        return (
-            <>
-                <Button variant="neon" onClick={() => setIsOpen(true)}>
-                    Open Neon Dialog
-                </Button>
-                <Dialog
-                    isOpen={isOpen}
-                    onClose={() => setIsOpen(false)}
-                    title="Neon Glow"
-                    variant="neon"
-                    size="md"
-                >
-                    <DialogContent>
-                        <Typography sx={{ color: "#00ff7f", mb: 2 }}>
-                            Welcome to the neon-lit future!
-                        </Typography>
-                        <Typography sx={{ color: "rgba(255, 255, 255, 0.9)" }}>
-                            Like the space variant, neon is special - it applies both visual effects 
-                            to the dialog and themed styling to the action buttons. Perfect for 
-                            cyberpunk or retro-futuristic themes.
-                        </Typography>
-                    </DialogContent>
-                    <DialogActions variant="neon">
-                        <Button variant="ghost" onClick={() => setIsOpen(false)}>
-                            Power Off
-                        </Button>
-                        <Button variant="neon" onClick={() => setIsOpen(false)}>
-                            Activate
+                    <DialogActions>
+                        <Button variant="primary" onClick={() => setIsOpen(false)}>
+                            Close
                         </Button>
                     </DialogActions>
                 </Dialog>

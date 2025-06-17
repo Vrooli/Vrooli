@@ -1,19 +1,18 @@
-import type { ReactNode, MouseEvent, KeyboardEvent } from "react";
-import { forwardRef, useCallback, useEffect, useRef, useState, useId } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { IconCommon } from "../../../icons/Icons.js";
 import { cn } from "../../../utils/tailwind-theme.js";
 import { IconButton } from "../../buttons/IconButton.js";
-import { IconCommon } from "../../../icons/Icons.js";
+import "./Dialog.css";
 import {
-    DIALOG_STYLES,
+    buildActionsClasses,
+    buildContentClasses,
     buildDialogClasses,
     buildOverlayClasses,
-    buildContentClasses,
     buildTitleClasses,
-    buildActionsClasses,
     getDialogWrapperClasses,
 } from "./dialogStyles.js";
-import "./Dialog.css";
 
 // Export types for external use
 export type DialogVariant = "default" | "danger" | "success" | "space" | "neon";
@@ -41,6 +40,8 @@ export interface DialogProps {
     closeOnOverlayClick?: boolean;
     /** Whether pressing Escape closes the dialog */
     closeOnEscape?: boolean;
+    /** Whether to blur the background (default: true) */
+    enableBackgroundBlur?: boolean;
     /** Additional CSS classes for the dialog */
     className?: string;
     /** Additional CSS classes for the overlay */
@@ -78,7 +79,7 @@ export const DialogTitle = forwardRef<HTMLHeadingElement, DialogTitleProps>(
                 {children}
             </h2>
         );
-    }
+    },
 );
 
 DialogTitle.displayName = "DialogTitle";
@@ -87,24 +88,25 @@ DialogTitle.displayName = "DialogTitle";
 export interface DialogContentProps {
     children: ReactNode;
     className?: string;
+    variant?: DialogVariant;
 }
 
 export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
-    ({ children, className }, ref) => {
+    ({ children, className, variant = "default" }, ref) => {
         return (
             <div
                 ref={ref}
                 className={cn(
                     "tw-flex-1 tw-overflow-y-auto tw-overflow-x-hidden tw-px-6 tw-py-4",
-                    "tw-text-text-primary",
+                    variant === "space" || variant === "neon" ? "tw-text-white" : "tw-text-text-primary",
                     "tw-min-h-0", // Important for flex children to respect overflow
-                    className
+                    className,
                 )}
             >
                 {children}
             </div>
         );
-    }
+    },
 );
 
 DialogContent.displayName = "DialogContent";
@@ -127,45 +129,41 @@ export const DialogActions = forwardRef<HTMLDivElement, DialogActionsProps>(
                 {children}
             </div>
         );
-    }
+    },
 );
 
 DialogActions.displayName = "DialogActions";
 
 // Focus trap hook
-const useFocusTrap = (isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement>, disableFocusTrap?: boolean) => {
+function useFocusTrap(isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement>, disableFocusTrap?: boolean) {
     useEffect(() => {
         if (!isOpen || disableFocusTrap) return;
 
         const dialog = dialogRef.current;
         if (!dialog) return;
 
-        // Store the previously focused element
         const previouslyFocused = document.activeElement as HTMLElement;
 
-        // Get all focusable elements
-        const getFocusableElements = () => {
+        function getFocusableElements() {
             const focusableSelectors = [
-                'a[href]',
-                'button:not([disabled])',
-                'input:not([disabled])',
-                'textarea:not([disabled])',
-                'select:not([disabled])',
-                '[tabindex]:not([tabindex="-1"])',
-            ].join(', ');
+                "a[href]",
+                "button:not([disabled])",
+                "input:not([disabled])",
+                "textarea:not([disabled])",
+                "select:not([disabled])",
+                "[tabindex]:not([tabindex=\"-1\"])",
+            ].join(", ");
 
             return Array.from(dialog.querySelectorAll(focusableSelectors)) as HTMLElement[];
-        };
+        }
 
-        // Focus the first focusable element
         const focusableElements = getFocusableElements();
         if (focusableElements.length > 0) {
             focusableElements[0].focus();
         }
 
-        // Handle tab key for focus trap
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key !== 'Tab') return;
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key !== "Tab") return;
 
             const focusableElements = getFocusableElements();
             if (focusableElements.length === 0) return;
@@ -180,17 +178,16 @@ const useFocusTrap = (isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement
                 e.preventDefault();
                 firstElement.focus();
             }
-        };
+        }
 
-        dialog.addEventListener('keydown', handleKeyDown as any);
+        dialog.addEventListener("keydown", handleKeyDown as any);
 
         return () => {
-            dialog.removeEventListener('keydown', handleKeyDown as any);
-            // Restore focus to the previously focused element
+            dialog.removeEventListener("keydown", handleKeyDown as any);
             previouslyFocused?.focus();
         };
     }, [isOpen, dialogRef, disableFocusTrap]);
-};
+}
 
 /**
  * A performant, accessible Tailwind CSS dialog component with multiple variants and sizes.
@@ -236,6 +233,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             showCloseButton = true,
             closeOnOverlayClick = true,
             closeOnEscape = true,
+            enableBackgroundBlur = true,
             className,
             overlayClassName,
             contentClassName,
@@ -244,7 +242,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             "aria-labelledby": ariaLabelledBy,
             "aria-describedby": ariaDescribedBy,
         },
-        ref
+        ref,
     ) => {
         const dialogRef = useRef<HTMLDivElement>(null);
         const combinedRef = ref || dialogRef;
@@ -258,13 +256,13 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             if (!isOpen || !closeOnEscape) return;
 
             const handleEscape = (e: KeyboardEvent) => {
-                if (e.key === 'Escape') {
+                if (e.key === "Escape") {
                     onClose();
                 }
             };
 
-            document.addEventListener('keydown', handleEscape);
-            return () => document.removeEventListener('keydown', handleEscape);
+            document.addEventListener("keydown", handleEscape);
+            return () => document.removeEventListener("keydown", handleEscape);
         }, [isOpen, closeOnEscape, onClose]);
 
         // Handle overlay click
@@ -278,7 +276,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         useEffect(() => {
             if (isOpen) {
                 const originalOverflow = document.body.style.overflow;
-                document.body.style.overflow = 'hidden';
+                document.body.style.overflow = "hidden";
                 return () => {
                     document.body.style.overflow = originalOverflow;
                 };
@@ -289,7 +287,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         if (!isOpen) return null;
 
         // Build classes
-        const overlayClasses = buildOverlayClasses(overlayClassName);
+        const overlayClasses = buildOverlayClasses(enableBackgroundBlur, overlayClassName);
         const overlayPositionClasses = buildDialogClasses({
             variant,
             size,
@@ -313,7 +311,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     className={dialogWrapperClasses}
                     role="dialog"
                     aria-modal="true"
-                    aria-label={ariaLabel || (typeof title === 'string' ? title : undefined)}
+                    aria-label={ariaLabel || (typeof title === "string" ? title : undefined)}
                     aria-labelledby={title ? (ariaLabelledBy || titleId) : undefined}
                     aria-describedby={ariaDescribedBy}
                 >
@@ -321,11 +319,11 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                         {/* Header with title and close button */}
                         {(title || showCloseButton) && (
                             <div className={cn(
-                                "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-6 tw-pb-2",
-                                "tw-flex-shrink-0" // Prevent header from shrinking
+                                "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
+                                "tw-flex-shrink-0", // Prevent header from shrinking
                             )}>
                                 {title && (
-                                    <DialogTitle 
+                                    <DialogTitle
                                         id={titleId}
                                         className={variant === "space" || variant === "neon" ? "tw-text-white" : undefined}
                                     >
@@ -339,7 +337,8 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                                         onClick={onClose}
                                         className={cn(
                                             "tw-ml-auto",
-                                            !title && "tw-absolute tw-right-4 tw-top-4"
+                                            !title && "tw-absolute tw-right-4 tw-top-4",
+                                            (variant === "space" || variant === "neon") && "tw-text-white hover:tw-text-gray-300",
                                         )}
                                         aria-label="Close dialog"
                                     >
@@ -367,9 +366,9 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     </div>
                 </div>
             </div>,
-            document.body
+            document.body,
         );
-    }
+    },
 );
 
 Dialog.displayName = "Dialog";

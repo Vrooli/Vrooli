@@ -1,5 +1,5 @@
 import { cn } from "../../../utils/tailwind-theme.js";
-import type { DialogVariant, DialogSize, DialogPosition } from "./Dialog.js";
+import type { DialogPosition, DialogSize, DialogVariant } from "./Dialog.js";
 
 /**
  * Dialog component styling utilities and configuration
@@ -13,13 +13,13 @@ export const DIALOG_CONFIG = {
         OVERLAY_DURATION: "tw-duration-200",
         CONTENT_DURATION: "tw-duration-300",
     },
-    
+
     // Z-index values
     Z_INDEX: {
         OVERLAY: 50,
         CONTENT: 50,
     },
-    
+
     // Special effects configuration
     EFFECTS: {
         SPACE_STAR_COUNT: 100,
@@ -50,15 +50,14 @@ export const DIALOG_STYLES = {
     overlay: {
         base: cn(
             "tw-fixed tw-inset-0",
-            "tw-bg-black/50 tw-backdrop-blur-sm",
             "tw-flex",
             "tw-overflow-y-auto", // Allow scrolling if dialog is taller than viewport
             "tw-transition-opacity",
             DIALOG_CONFIG.ANIMATION.OVERLAY_DURATION,
-            "tw-z-50"
+            "tw-z-50",
         ),
     },
-    
+
     dialog: {
         base: cn(
             "tw-relative",
@@ -67,10 +66,10 @@ export const DIALOG_STYLES = {
             DIALOG_CONFIG.ANIMATION.CONTENT_DURATION,
             "tw-transform",
             "tw-scale-100 tw-opacity-100",
-            "data-[state=closed]:tw-scale-95 data-[state=closed]:tw-opacity-0"
+            "data-[state=closed]:tw-scale-95 data-[state=closed]:tw-opacity-0",
         ),
     },
-    
+
     content: {
         base: cn(
             "tw-relative",
@@ -79,9 +78,9 @@ export const DIALOG_STYLES = {
             "tw-shadow-xl",
             "tw-overflow-hidden",
             "tw-flex tw-flex-col",
-            "tw-border tw-border-gray-200 dark:tw-border-gray-700"
+            "tw-border tw-border-gray-200 dark:tw-border-gray-700",
         ),
-        
+
         variants: {
             default: "",
             danger: "",
@@ -90,39 +89,42 @@ export const DIALOG_STYLES = {
                 "tw-border tw-border-cyan-400/30",
                 "tw-bg-black", // Black background to see stars
                 "tw-text-white", // White text for space theme
+                "[&_*]:tw-text-white", // All child elements get white text
                 "tw-shadow-2xl tw-shadow-cyan-500/20",
                 "tw-relative tw-overflow-hidden",
-                "[&_.tw-dialog-space-stars]:tw-opacity-100" // Ensure stars are visible
+                "[&_.tw-dialog-space-stars]:tw-opacity-100", // Ensure stars are visible
             ),
-            
+
             neon: cn(
                 "tw-border-2 tw-border-green-400/50",
                 "tw-bg-black",
+                "tw-text-white", // White text for neon theme
+                "[&_*]:tw-text-white", // All child elements get white text
                 "tw-shadow-2xl",
                 "tw-relative tw-overflow-hidden",
-                "[box-shadow:0_0_30px_rgba(0,255,127,0.5),inset_0_0_20px_rgba(0,255,127,0.1)]"
+                "[box-shadow:0_0_30px_rgba(0,255,127,0.5),inset_0_0_20px_rgba(0,255,127,0.1)]",
             ),
         },
     },
-    
+
     title: {
         base: cn(
             "tw-text-lg tw-font-semibold",
-            "tw-text-text-primary"
+            "tw-text-text-primary",
         ),
     },
-    
+
     actions: {
         base: cn(
             "tw-flex tw-items-center tw-justify-end",
             "tw-gap-2",
             "tw-px-6 tw-py-4",
-            "tw-border-t tw-border-gray-200 dark:tw-border-gray-700"
+            "tw-border-t tw-border-gray-200 dark:tw-border-gray-700",
         ),
         variants: {
-            default: "tw-bg-background-default",
-            danger: "tw-bg-background-default",
-            success: "tw-bg-background-default",
+            default: "tw-bg-background-paper",
+            danger: "tw-bg-background-paper",
+            success: "tw-bg-background-paper",
             space: "tw-bg-transparent tw-border-t-cyan-400/30",
             neon: "tw-bg-transparent tw-border-t-green-400/30",
         },
@@ -130,9 +132,13 @@ export const DIALOG_STYLES = {
 } as const;
 
 // Build overlay classes
-export const buildOverlayClasses = (className?: string) => {
-    return cn(DIALOG_STYLES.overlay.base, className);
-};
+export function buildOverlayClasses(enableBackgroundBlur: boolean, className?: string) {
+    return cn(
+        DIALOG_STYLES.overlay.base,
+        enableBackgroundBlur ? "tw-bg-black/50 tw-backdrop-blur-sm" : "tw-bg-transparent",
+        className,
+    );
+}
 
 // Build dialog classes based on props
 interface BuildDialogClassesProps {
@@ -142,20 +148,17 @@ interface BuildDialogClassesProps {
     className?: string;
 }
 
-export const buildDialogClasses = ({
+export function buildDialogClasses({
     size,
     position,
     className,
-}: BuildDialogClassesProps) => {
-    // For overlay positioning
+}: BuildDialogClassesProps) {
     const positionClasses = DIALOG_POSITIONS[position];
-    
-    // Dialog wrapper classes
     return cn(
         positionClasses,
-        className
+        className,
     );
-};
+}
 
 // Build content classes based on props
 interface BuildContentClassesProps {
@@ -163,36 +166,36 @@ interface BuildContentClassesProps {
     className?: string;
 }
 
-export const buildContentClasses = ({
+export function buildContentClasses({
     variant,
     className,
-}: BuildContentClassesProps) => {
+}: BuildContentClassesProps) {
     return cn(
         DIALOG_STYLES.content.base,
         DIALOG_STYLES.content.variants[variant],
-        className
+        className,
     );
-};
+}
 
 // Build title classes
-export const buildTitleClasses = (className?: string) => {
+export function buildTitleClasses(className?: string) {
     return cn(DIALOG_STYLES.title.base, className);
-};
+}
 
 // Build actions classes
-export const buildActionsClasses = (variant: DialogVariant, className?: string) => {
+export function buildActionsClasses(variant: DialogVariant, className?: string) {
     return cn(
-        DIALOG_STYLES.actions.base, 
+        DIALOG_STYLES.actions.base,
         DIALOG_STYLES.actions.variants[variant],
-        className
+        className,
     );
-};
+}
 
 // Helper to get dialog wrapper classes (includes size)
-export const getDialogWrapperClasses = (size: DialogSize) => {
+export function getDialogWrapperClasses(size: DialogSize) {
     return cn(
         DIALOG_STYLES.dialog.base,
         DIALOG_SIZES[size],
-        size !== "full" && "tw-my-8 tw-max-h-[calc(100vh-4rem)]" // Ensure dialog fits in viewport with margin
+        size !== "full" && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
     );
-};
+}
