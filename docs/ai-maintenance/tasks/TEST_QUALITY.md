@@ -59,7 +59,22 @@ Work through list A first, then oldest in B.
 
 ---
 
-### 2 Evaluate each test
+### 2 Verify test is actually running before making changes
+
+**CRITICAL**: Before modifying any test, verify it passes in its current state:
+
+```bash
+# Run the specific test file first
+cd packages/[package] && pnpm test path/to/specific.test.ts
+
+# If that passes, make your changes
+```
+
+⚠️ **If the test doesn't pass initially, DO NOT PROCEED** - investigate why it's failing first.
+
+---
+
+### 3 Evaluate each test
 
 | Symptom                                                                   | Remedy                                                                          |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -72,18 +87,65 @@ Work through list A first, then oldest in B.
 
 ---
 
-### 3 Refactor tests (and source when necessary)
+### 4 Critical checks before refactoring
+
+**Before changing ANY test code, verify these common breakage patterns:**
+
+| Check | Why It Matters | How to Verify |
+|-------|----------------|---------------|
+| **Import extensions** | All TS imports MUST use `.js` extension | Ensure all relative imports end with `.js` |
+| **Database setup** | Tests need proper DB init/shutdown | Look for `beforeAll` with `DbProvider.init()` |
+| **Logger mocking** | Prevents noisy test output | Check for logger spy implementations |
+| **Mock restoration** | Prevents test pollution | Verify `vi.restoreAllMocks()` in `afterAll` |
+| **Transaction wrapper** | Ensures DB isolation | Use `withDbTransaction()` for DB tests |
+| **Async handling** | Prevents flaky tests | All async operations properly awaited |
+| **Test data cleanup** | Prevents constraint violations | Track and clean up created entities |
+
+**Example of proper test structure:**
+```typescript
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { DbProvider } from "../../db/provider.js"; // Note .js extension!
+import { withDbTransaction } from "../../__test/helpers/transactionTest.js";
+import { logger } from "../../utils/logger.js";
+
+describe("MyFeature", () => {
+    beforeAll(async () => {
+        await DbProvider.init();
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+    });
+    
+    afterAll(async () => {
+        vi.restoreAllMocks();
+        await DbProvider.shutdown();
+    });
+    
+    it("should behave correctly", async () => {
+        await withDbTransaction(async (sessionContext) => {
+            // Test implementation
+        });
+    });
+});
+```
+
+---
+
+### 5 Refactor tests (and source when necessary)
 
 1. **Red** – confirm a failing state (or write a failing test).
 2. **Green** – fix code or improve test until it passes.
 3. **Refactor** – clean up while tests stay green. ([v0.vitest.dev][8])
 
+⚠️ **After EVERY change**, run the test again to ensure it still passes!
+
 ---
 
-### 4 Run focused test loop
+### 6 Run focused test loop
 
 ```bash
-# Fast iteration – only uncommitted changes
+# Run the specific test file after EACH change
+cd packages/[package] && pnpm test path/to/specific.test.ts
+
+# Only after the individual test passes, run related tests
 pnpm run test -- --changed
 
 # To compare with main branch
@@ -92,9 +154,13 @@ pnpm run test -- --changed origin/main
 
 `--changed` tells Vitest to execute only suites related to changed files. ([vitest.dev][7])
 
-### 5 Run full suite
+### 7 Run full suite
 
 ```bash
+# Run package-specific tests first
+cd packages/[package] && pnpm test
+
+# Only if that passes, run full suite
 pnpm run test               # root
 pnpm --filter shared test   # package-scoped if preferred
 ```
@@ -113,6 +179,127 @@ Insert or update **after imports** in each changed test file:
 
 Increment only `TEST_QUALITY`; leave other task counts untouched.
 ⚠️ **Do not run Git commands** – leave the working tree dirty for manual commit.
+
+---
+
+## Common Test Breakage Scenarios
+
+These are the most frequent ways tests break during maintenance:
+
+### 1. **Import Extension Forgotten**
+```typescript
+// ❌ WRONG - Will break in Node ESM
+import { helper } from "./testHelper";
+
+// ✅ CORRECT
+import { helper } from "./testHelper.js";
+```
+
+### 2. **Database Tests Without Transaction Wrapper**
+```typescript
+// ❌ WRONG - No isolation, may affect other tests
+it("should create user", async () => {
+    const user = await DbProvider.get().user.create({...});
+    expect(user).toBeDefined();
+});
+
+// ✅ CORRECT - Wrapped in transaction that auto-rollbacks
+it("should create user", withDbTransaction(async () => {
+    const user = await DbProvider.get().user.create({...});
+    expect(user).toBeDefined();
+}));
+```
+
+### 3. **Circular Dependencies from Deep Imports**
+```typescript
+// ❌ WRONG - May cause circular dependency
+import { snowflake } from "@vrooli/shared/id/snowflake.js";
+
+// ✅ CORRECT - Import from package root
+import { snowflake } from "@vrooli/shared";
+```
+
+### 4. **Async Operations Not Awaited**
+```typescript
+// ❌ WRONG - Test may pass but operation incomplete
+it("should update user", () => {
+    updateUser(userId, data); // Missing await!
+    expect(user.name).toBe("New Name");
+});
+
+// ✅ CORRECT
+it("should update user", async () => {
+    await updateUser(userId, data);
+    expect(user.name).toBe("New Name");
+});
+```
+
+### 5. **Mocks Not Restored**
+```typescript
+// ❌ WRONG - Pollutes other tests
+beforeAll(() => {
+    vi.spyOn(logger, "error").mockImplementation(() => {});
+});
+// No cleanup!
+
+// ✅ CORRECT
+afterAll(() => {
+    vi.restoreAllMocks();
+});
+```
+
+---
+
+## Proper Test Structure Template
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { withDbTransaction } from "../../__test/helpers/transactionTest.js";
+import { logger } from "../../utils/logger.js";
+
+describe("MyFeature", () => {
+    beforeAll(async () => {
+        // Mock logger to reduce noise
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
+        vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    });
+    
+    afterAll(async () => {
+        vi.restoreAllMocks();
+    });
+    
+    // For database tests, always use withDbTransaction
+    it("should work with database", withDbTransaction(async () => {
+        // All DB operations here are automatically rolled back
+        const result = await DbProvider.get().user.create({...});
+        expect(result).toBeDefined();
+    }));
+    
+    // For non-database tests, no wrapper needed
+    it("should work without database", async () => {
+        const result = someNonDbFunction();
+        expect(result).toBe(expected);
+    });
+});
+```
+
+---
+
+## Pre-Flight Checklist
+
+**Before submitting ANY test changes, verify:**
+
+- [ ] Test passed BEFORE you made changes
+- [ ] All imports use `.js` extensions
+- [ ] Database tests wrapped with `withDbTransaction()`
+- [ ] Logger is mocked to reduce noise
+- [ ] All async operations are properly awaited
+- [ ] Mocks are restored in `afterAll`
+- [ ] No deep imports from `@vrooli/*` packages
+- [ ] Test still passes after EACH change
+- [ ] Package-specific tests pass (`cd packages/[pkg] && pnpm test`)
+- [ ] Related tests pass (`pnpm test -- --changed`)
 
 ---
 

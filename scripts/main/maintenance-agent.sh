@@ -15,6 +15,17 @@
 set -euo pipefail
 
 ###############################################################################
+# Global time-out defaults (override with env if desired)
+###############################################################################
+DEFAULT_TIMEOUT_MS=${DEFAULT_TIMEOUT_MS:-600000}   # 10 min
+MAX_TIMEOUT_MS=${MAX_TIMEOUT_MS:-600000}           # 10 min
+MCP_TIMEOUT_MS=${MCP_TIMEOUT_MS:-600000}           # 10 min
+
+export BASH_DEFAULT_TIMEOUT_MS="$DEFAULT_TIMEOUT_MS"
+export BASH_MAX_TIMEOUT_MS="$MAX_TIMEOUT_MS"
+export MCP_TOOL_TIMEOUT="$MCP_TIMEOUT_MS"
+
+###############################################################################
 # Privilege handling
 ###############################################################################
 # If run with sudo/root, drop privileges to FALLBACK_USER instead of exiting.
@@ -95,20 +106,22 @@ fi
 # Helper: patch one file in-place
 ###############################################################################
 patch_settings() {
-  local file=$1
-  local tmp; tmp=$(mktemp)
+  local file=$1 tmp; tmp=$(mktemp)
 
-  jq --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" \
-                      | jq -R . | jq -s '.')" '
+  jq  --argjson need "$(printf '%s\n' "${NEEDED_TOOLS[@]}" | jq -R . | jq -s '.')" \
+      --arg defTm "$BASH_DEFAULT_TIMEOUT_MS" \
+      --arg maxTm "$BASH_MAX_TIMEOUT_MS" \
+      --arg mcpTm "$MCP_TOOL_TIMEOUT" '
+    # ----- permissions block (existing logic) -----
     (.permissions //= {}) |
     (.permissions.allow //= []) |
-    # --------------------------------------------------
-    # keep the whole pipeline *inside* |= so only the
-    # array is sorted/uniqued, not the outer object
-    # --------------------------------------------------
-    (.permissions.allow |= ((. + $need) | sort | unique))
-  ' "$file" > "$tmp" &&
-  mv "$tmp" "$file"
+    (.permissions.allow |= ((. + $need) | sort | unique)) |
+    # ----- env block for timeout overrides --------
+    (.env //= {}) |
+    (.env.BASH_DEFAULT_TIMEOUT_MS = $defTm) |
+    (.env.BASH_MAX_TIMEOUT_MS     = $maxTm) |
+    (.env.MCP_TOOL_TIMEOUT        = $mcpTm)
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
 }
 
 for f in "${settings_files[@]}"; do

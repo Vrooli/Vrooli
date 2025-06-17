@@ -22,15 +22,14 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `TEST_QUALITY` | [TEST_QUALITY.md](./tasks/TEST_QUALITY.md) | User asks to identify/fix tests written to pass |
 | `TEST_COVERAGE` | [TEST_COVERAGE.md](./tasks/TEST_COVERAGE.md) | User asks to improve test coverage |
 | `REACT_PERF` | [REACT_PERF.md](./tasks/REACT_PERF.md) | User asks to improve React component performance |
-| `TYPE_SAFETY` | TypeScript usage improvements | User asks to improve type safety |
-| `UNSAFE_CASTS` | Unsafe type casting fixes | User asks to identify/fix unsafe type casts |
+| `TYPE_SAFETY` | [TYPE_SAFETY.md](./tasks/TYPE_SAFETY.md) | User asks to improve type safety |
 | `ERROR_HANDLING` | Proper error boundaries and error handling | User asks to improve error handling |
 | `ACCESSIBILITY` | A11y compliance improvements | User asks to improve accessibility |
-| `SECURITY` | Security vulnerability checks | User asks to review security |
-| `CODE_QUALITY` | General code quality improvements | User asks for code quality review |
+| `SECURITY` | [SECURITY.md](./tasks/SECURITY.md) | User asks to review security |
+| `CODE_QUALITY` | [CODE_QUALITY.md](./tasks/CODE_QUALITY.md) | User asks for code quality review |
 | `EASY_WINS` | [EASY_WINS.md](./tasks/EASY_WINS.md) | User asks to suggest "easy wins" |
 | `DEAD_CODE` | [DEAD_CODE.md](./tasks/DEAD_CODE.md) | User asks to identify unused code |
-| `TODO_CLEANUP` | TODOs/FIXMEs/BUGs/DEPRECATED cleanup | User asks to address TODOs/FIXMEs |
+| `TODO_CLEANUP` | [TODO_CLEANUP.md](./tasks/TODO_CLEANUP.md) | User asks to address TODOs/FIXMEs |
 | `DOCS_TO_CODE` | Update documentation to match actual code behavior | User asks to sync docs with current code |
 | `CODE_TO_DOCS` | Update code to match documented intended behavior | User asks to sync code with documented specs |
 | `PERF_GENERAL` | Non-React performance optimization | User asks to improve general performance |
@@ -44,7 +43,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `STATE_MGMT` | State management patterns and optimization | User asks to improve state management |
 | `ASYNC_SAFETY` | Race conditions, proper async/await usage, error handling | User asks to fix async/concurrency issues |
 | `MEMORY_LEAKS` | Event listeners, subscriptions, cleanup | User asks to identify/fix memory leaks |
-| `LOADING_STATES` | Loading indicators, skeleton screens, error states | User asks to improve loading UX |
+| `LOADING_STATES` | [LOADING_STATES.md](./tasks/LOADING_STATES.md) | User asks to improve loading UX |
 | `RESPONSIVE` | Mobile responsiveness and cross-device compatibility | User asks to improve responsive design |
 | `INTERNATIONALIZATION` | i18n completeness and consistency | User asks to improve internationalization |
 | `MONITORING` | Missing metrics, health checks, alerting | User asks to improve monitoring/observability |

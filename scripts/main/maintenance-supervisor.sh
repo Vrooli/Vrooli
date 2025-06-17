@@ -48,7 +48,7 @@ fi
 TASKS=(
   'TEST_QUALITY|tight|Do maintenance task TEST_QUALITY in the shared package. Make sure you `pnpm run test` modified files and address any failures|50'
   'TEST_COVERAGE|every:1800|Do maintenance task TEST_COVERAGE in the shared package|50'
-  'UNSAFE_CASTS|every:3600|Do maintenance task UNSAFE_CASTS in the shared package|100'
+  'TYPE_SAFETY|every:3600|Do maintenance task TYPE_SAFETY in the shared package|100'
   'CODE_QUALITY|every:3600|Do maintenance task CODE_QUALITY in the shared package|100'
   'TODO_CLEANUP|at:05:00|Do maintenance task TODO_CLEANUP in the shared package|300'
 )
