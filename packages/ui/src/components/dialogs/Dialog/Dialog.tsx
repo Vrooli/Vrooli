@@ -44,6 +44,12 @@ export interface DialogProps {
     enableBackgroundBlur?: boolean;
     /** Whether the dialog can be dragged (default: false) */
     draggable?: boolean;
+    /** Element to anchor/point to with an arrow (like a tooltip) */
+    anchorEl?: HTMLElement | null;
+    /** Placement of the dialog relative to anchor element */
+    anchorPlacement?: "top" | "bottom" | "left" | "right" | "auto";
+    /** Whether to highlight the anchor element */
+    highlightAnchor?: boolean;
     /** Additional CSS classes for the dialog */
     className?: string;
     /** Additional CSS classes for the overlay */
@@ -136,10 +142,177 @@ export const DialogActions = forwardRef<HTMLDivElement, DialogActionsProps>(
 
 DialogActions.displayName = "DialogActions";
 
+// Anchor positioning hook
+function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" | "bottom" | "left" | "right" | "auto" = "auto", isOpen: boolean) {
+    const [position, setPosition] = useState<{ x: number; y: number; placement: "top" | "bottom" | "left" | "right" } | null>(null);
+
+    useEffect(() => {
+        if (!anchorEl || !isOpen) {
+            setPosition(null);
+            return;
+        }
+
+        const calculatePosition = () => {
+            const anchorRect = anchorEl.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Estimated dialog size (will be adjusted after render)
+            const dialogWidth = 400;
+            const dialogHeight = 300;
+            const arrowSize = 12;
+            const margin = 8;
+
+            let placement = anchorPlacement;
+            let x = 0;
+            let y = 0;
+
+            // Auto placement logic
+            if (placement === "auto") {
+                const spaceTop = anchorRect.top;
+                const spaceBottom = viewportHeight - anchorRect.bottom;
+                const spaceLeft = anchorRect.left;
+                const spaceRight = viewportWidth - anchorRect.right;
+
+                if (spaceBottom >= dialogHeight + arrowSize + margin) {
+                    placement = "bottom";
+                } else if (spaceTop >= dialogHeight + arrowSize + margin) {
+                    placement = "top";
+                } else if (spaceRight >= dialogWidth + arrowSize + margin) {
+                    placement = "right";
+                } else if (spaceLeft >= dialogWidth + arrowSize + margin) {
+                    placement = "left";
+                } else {
+                    placement = "bottom"; // Default fallback
+                }
+            }
+
+            // Calculate position based on placement
+            switch (placement) {
+                case "top":
+                    x = anchorRect.left + anchorRect.width / 2 - dialogWidth / 2;
+                    y = anchorRect.top - dialogHeight - arrowSize - margin;
+                    break;
+                case "bottom":
+                    x = anchorRect.left + anchorRect.width / 2 - dialogWidth / 2;
+                    y = anchorRect.bottom + arrowSize + margin;
+                    break;
+                case "left":
+                    x = anchorRect.left - dialogWidth - arrowSize - margin;
+                    y = anchorRect.top + anchorRect.height / 2 - dialogHeight / 2;
+                    break;
+                case "right":
+                    x = anchorRect.right + arrowSize + margin;
+                    y = anchorRect.top + anchorRect.height / 2 - dialogHeight / 2;
+                    break;
+            }
+
+            // Constrain to viewport
+            x = Math.max(margin, Math.min(x, viewportWidth - dialogWidth - margin));
+            y = Math.max(margin, Math.min(y, viewportHeight - dialogHeight - margin));
+
+            setPosition({ x, y, placement });
+        };
+
+        // Initial calculation
+        calculatePosition();
+
+        // Recalculate on scroll/resize
+        const handleUpdate = () => calculatePosition();
+        window.addEventListener("scroll", handleUpdate, true);
+        window.addEventListener("resize", handleUpdate);
+
+        return () => {
+            window.removeEventListener("scroll", handleUpdate, true);
+            window.removeEventListener("resize", handleUpdate);
+        };
+    }, [anchorEl, anchorPlacement, isOpen]);
+
+    return position;
+}
+
+// Highlight hook
+function useHighlightElement(anchorEl: HTMLElement | null, highlightAnchor: boolean, isOpen: boolean) {
+    useEffect(() => {
+        if (!anchorEl || !highlightAnchor || !isOpen) return;
+
+        // Add highlight class
+        anchorEl.classList.add("tw-dialog-anchor-highlight");
+
+        return () => {
+            anchorEl.classList.remove("tw-dialog-anchor-highlight");
+        };
+    }, [anchorEl, highlightAnchor, isOpen]);
+}
+
+// Arrow helper functions
+function getArrowClasses(placement: "top" | "bottom" | "left" | "right", anchorEl: HTMLElement | null, variant: DialogVariant) {
+    const baseClasses = "tw-w-0 tw-h-0 tw-z-10";
+    
+    switch (placement) {
+        case "top":
+            // Arrow pointing up (dialog below anchor)
+            return cn(baseClasses, "tw-dialog-arrow-up", 
+                     variant === "space" && "tw-dialog-arrow-space",
+                     variant === "neon" && "tw-dialog-arrow-neon");
+        case "bottom":
+            // Arrow pointing down (dialog above anchor)
+            return cn(baseClasses, "tw-dialog-arrow-down",
+                     variant === "space" && "tw-dialog-arrow-space",
+                     variant === "neon" && "tw-dialog-arrow-neon");
+        case "left":
+            // Arrow pointing left (dialog to the right of anchor)
+            return cn(baseClasses, "tw-dialog-arrow-left",
+                     variant === "space" && "tw-dialog-arrow-space",
+                     variant === "neon" && "tw-dialog-arrow-neon");
+        case "right":
+            // Arrow pointing right (dialog to the left of anchor)
+            return cn(baseClasses, "tw-dialog-arrow-right",
+                     variant === "space" && "tw-dialog-arrow-space",
+                     variant === "neon" && "tw-dialog-arrow-neon");
+        default:
+            return baseClasses;
+    }
+}
+
+function getArrowPosition(placement: "top" | "bottom" | "left" | "right", anchorEl: HTMLElement | null): React.CSSProperties {
+    if (!anchorEl) return {};
+    
+    switch (placement) {
+        case "top":
+            return {
+                bottom: "-12px",
+                left: "50%",
+                transform: "translateX(-50%)",
+            };
+        case "bottom":
+            return {
+                top: "-12px",
+                left: "50%",
+                transform: "translateX(-50%)",
+            };
+        case "left":
+            return {
+                right: "-12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+            };
+        case "right":
+            return {
+                left: "-12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+            };
+        default:
+            return {};
+    }
+}
+
 // Drag hook with performance optimizations
 function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: React.RefObject<HTMLDivElement>, draggable: boolean, isOpen: boolean) {
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
     
     // Use refs for drag state to avoid re-renders during drag
     const dragStateRef = useRef({
@@ -153,17 +326,26 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
         if (!draggable || !isOpen || !dialogRef.current) return;
 
         const dialogElement = dialogRef.current;
-        const rect = dialogElement.getBoundingClientRect();
         
-        // Store dialog size for performance
-        dragStateRef.current.dialogSize = { width: rect.width, height: rect.height };
-        
-        // Center the dialog
-        const centerX = (window.innerWidth - rect.width) / 2;
-        const centerY = (window.innerHeight - rect.height) / 2;
-        
-        setPosition({ x: centerX, y: centerY });
-    }, [draggable, isOpen]);
+        // Use requestAnimationFrame to ensure the dialog is fully rendered
+        const initializePosition = () => {
+            const rect = dialogElement.getBoundingClientRect();
+            
+            // Store dialog size for performance
+            dragStateRef.current.dialogSize = { width: rect.width, height: rect.height };
+            
+            // Center the dialog
+            const centerX = (window.innerWidth - rect.width) / 2;
+            const centerY = (window.innerHeight - rect.height) / 2;
+            
+            setPosition({ x: centerX, y: centerY });
+            setIsInitialized(true);
+        };
+
+        if (!isInitialized) {
+            requestAnimationFrame(initializePosition);
+        }
+    }, [draggable, isOpen, isInitialized]);
 
     useEffect(() => {
         if (!draggable || !titleRef.current || !dialogRef.current || !isOpen) return;
@@ -256,6 +438,7 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
         if (!isOpen) {
             setPosition(null);
             setIsDragging(false);
+            setIsInitialized(false);
             dragStateRef.current.isDragging = false;
             
             // Cleanup styles
@@ -368,6 +551,9 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             closeOnEscape = true,
             enableBackgroundBlur = true,
             draggable = false,
+            anchorEl,
+            anchorPlacement = "auto",
+            highlightAnchor = false,
             className,
             overlayClassName,
             contentClassName,
@@ -383,8 +569,12 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         const combinedRef = ref || dialogRef;
         const titleId = useId();
 
-        // Handle dragging
-        const { position: dragPosition, isDragging } = useDragDialog(dialogRef, titleRef, draggable, isOpen);
+        // Handle anchoring
+        const anchorPosition = useAnchorPosition(anchorEl, anchorPlacement, isOpen);
+        useHighlightElement(anchorEl, highlightAnchor, isOpen);
+
+        // Handle dragging (disabled when anchored)
+        const { position: dragPosition, isDragging } = useDragDialog(dialogRef, titleRef, draggable && !anchorEl, isOpen);
 
         // Handle focus trap
         useFocusTrap(isOpen, dialogRef, disableFocusTrap);
@@ -425,20 +615,23 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         if (!isOpen) return null;
 
         // Build classes
-        const overlayClasses = buildOverlayClasses(enableBackgroundBlur, overlayClassName);
-        const overlayPositionClasses = draggable ? 
-            "tw-items-start tw-justify-start" : // Don't center when draggable
+        const overlayClasses = buildOverlayClasses(enableBackgroundBlur && !anchorEl, overlayClassName);
+        const overlayPositionClasses = (draggable && !anchorEl) || anchorEl ? 
+            "tw-items-start tw-justify-start" : // Don't center when draggable or anchored
             buildDialogClasses({
                 variant,
                 size,
                 position,
                 className,
             });
-        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable, isDragging);
+        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable && !anchorEl, isDragging);
         const contentClasses = buildContentClasses({
             variant,
             className: contentClassName,
         });
+
+        // Determine final position
+        const finalPosition = anchorPosition || dragPosition;
 
         return createPortal(
             <div
@@ -449,12 +642,20 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                 <div
                     ref={combinedRef as any}
                     className={dialogWrapperClasses}
-                    style={draggable && dragPosition ? {
+                    style={finalPosition ? {
                         position: "fixed",
-                        left: dragPosition.x,
-                        top: dragPosition.y,
+                        left: finalPosition.x,
+                        top: finalPosition.y,
                         margin: 0,
                         transform: "none", // Override any transform from base classes
+                    } : (draggable && !anchorEl) ? {
+                        // Hide until positioned when draggable
+                        opacity: 0,
+                        position: "fixed",
+                        left: 0,
+                        top: 0,
+                        margin: 0,
+                        transform: "none",
                     } : undefined}
                     role="dialog"
                     aria-modal="true"
@@ -463,6 +664,17 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     aria-describedby={ariaDescribedBy}
                 >
                     <div className={contentClasses}>
+                        {/* Arrow pointing to anchor element */}
+                        {anchorPosition && (
+                            <div 
+                                className={cn(
+                                    "tw-absolute tw-pointer-events-none",
+                                    getArrowClasses(anchorPosition.placement, anchorEl, variant)
+                                )}
+                                style={getArrowPosition(anchorPosition.placement, anchorEl)}
+                            />
+                        )}
+
                         {/* Header with title and close button */}
                         {(title || showCloseButton) && (
                             <div 
@@ -470,7 +682,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                                 className={cn(
                                     "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
                                     "tw-flex-shrink-0", // Prevent header from shrinking
-                                    draggable && "tw-cursor-move tw-select-none", // Add drag cursor when draggable
+                                    draggable && !anchorEl && "tw-cursor-move tw-select-none", // Add drag cursor when draggable and not anchored
                                 )}
                             >
                                 {title && (

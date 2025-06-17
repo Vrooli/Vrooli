@@ -104,6 +104,7 @@
 .tw-dialog-draggable {
     will-change: transform;
     transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+    transition: opacity 0.15s ease-out; /* Smooth fade-in when positioned */
 }
 
 .tw-dialog-dragging {
@@ -113,6 +114,103 @@
 
 .tw-dialog-dragging * {
     pointer-events: none; /* Prevent child elements from interfering */
+}
+
+/* Anchor highlighting */
+.tw-dialog-anchor-highlight {
+    outline: 2px solid rgba(59, 130, 246, 0.5) !important;
+    outline-offset: 2px !important;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
+    border-radius: 8px !important;
+    animation: tw-dialog-anchor-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tw-dialog-anchor-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3);
+    }
+}
+
+/* Arrow styles for anchored dialogs */
+.tw-dialog-arrow-up {
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-bottom: 12px solid rgb(255, 255, 255);
+}
+
+.tw-dialog-arrow-down {
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 12px solid rgb(255, 255, 255);
+}
+
+.tw-dialog-arrow-left {
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    border-right: 12px solid rgb(255, 255, 255);
+}
+
+.tw-dialog-arrow-right {
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    border-left: 12px solid rgb(255, 255, 255);
+}
+
+/* Dark mode arrow colors */
+@media (prefers-color-scheme: dark) {
+    .tw-dialog-arrow-up {
+        border-bottom-color: rgb(31, 41, 55);
+    }
+    
+    .tw-dialog-arrow-down {
+        border-top-color: rgb(31, 41, 55);
+    }
+    
+    .tw-dialog-arrow-left {
+        border-right-color: rgb(31, 41, 55);
+    }
+    
+    .tw-dialog-arrow-right {
+        border-left-color: rgb(31, 41, 55);
+    }
+}
+
+/* Space variant arrows (always black) */
+.tw-dialog-arrow-space.tw-dialog-arrow-up {
+    border-bottom-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-space.tw-dialog-arrow-down {
+    border-top-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-space.tw-dialog-arrow-left {
+    border-right-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-space.tw-dialog-arrow-right {
+    border-left-color: rgb(0, 0, 0);
+}
+
+/* Neon variant arrows (always black) */
+.tw-dialog-arrow-neon.tw-dialog-arrow-up {
+    border-bottom-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-neon.tw-dialog-arrow-down {
+    border-top-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-neon.tw-dialog-arrow-left {
+    border-right-color: rgb(0, 0, 0);
+}
+
+.tw-dialog-arrow-neon.tw-dialog-arrow-right {
+    border-left-color: rgb(0, 0, 0);
 }
 
 @keyframes tw-dialog-fade-in {

@@ -495,3 +495,131 @@ export const DraggableDialog: Story = {
         );
     },
 };
+
+// Anchored dialog with arrow pointing to element
+export const AnchoredDialog: Story = {
+    render: () => {
+        const [isOpen, setIsOpen] = useState(false);
+        const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+        const [placement, setPlacement] = useState<"top" | "bottom" | "left" | "right" | "auto">("auto");
+
+        const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
+            setAnchorEl(event.currentTarget);
+            setIsOpen(true);
+        };
+
+        const handleClose = () => {
+            setIsOpen(false);
+            setAnchorEl(null);
+        };
+
+        return (
+            <div style={{ padding: "40px", minHeight: "80vh", display: "flex", flexDirection: "column", gap: "20px" }}>
+                <Typography variant="h6">Click any button to anchor the dialog to it:</Typography>
+                
+                <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-start" }}>
+                    <Button 
+                        variant="primary" 
+                        onClick={handleOpen}
+                        style={{ alignSelf: "flex-start" }}
+                    >
+                        Top Area Button
+                    </Button>
+                    
+                    <Button 
+                        variant="secondary" 
+                        onClick={handleOpen}
+                        style={{ alignSelf: "flex-start" }}
+                    >
+                        Another Button
+                    </Button>
+
+                    <Button 
+                        variant="primary" 
+                        onClick={handleOpen}
+                        style={{ alignSelf: "flex-start" }}
+                    >
+                        Primary Button
+                    </Button>
+                </div>
+
+                <div style={{ margin: "60px 0", display: "flex", justifyContent: "center" }}>
+                    <Button 
+                        variant="danger" 
+                        onClick={handleOpen}
+                        size="lg"
+                    >
+                        Center Button (Large)
+                    </Button>
+                </div>
+
+                <div style={{ display: "flex", gap: "20px", justifyContent: "flex-end", marginTop: "40px" }}>
+                    <Button 
+                        variant="outline" 
+                        onClick={handleOpen}
+                    >
+                        Bottom Right
+                    </Button>
+                    
+                    <Button 
+                        variant="ghost" 
+                        onClick={handleOpen}
+                    >
+                        Far Right
+                    </Button>
+                </div>
+
+                <div style={{ marginTop: "20px" }}>
+                    <Typography variant="body2" style={{ marginBottom: "10px" }}>
+                        Force placement (for testing):
+                    </Typography>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                        {(["auto", "top", "bottom", "left", "right"] as const).map((p) => (
+                            <Button
+                                key={p}
+                                variant={placement === p ? "primary" : "outline"}
+                                size="sm"
+                                onClick={() => setPlacement(p)}
+                            >
+                                {p}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
+                <Dialog
+                    isOpen={isOpen}
+                    onClose={handleClose}
+                    title="Anchored Dialog"
+                    anchorEl={anchorEl}
+                    anchorPlacement={placement}
+                    highlightAnchor={true}
+                    size="sm"
+                >
+                    <DialogContent>
+                        <Typography paragraph>
+                            This dialog is anchored to the button you clicked! Notice:
+                        </Typography>
+                        <ul style={{ marginLeft: "20px", marginBottom: "16px" }}>
+                            <li>The arrow points to the button</li>
+                            <li>The button is highlighted with a pulsing outline</li>
+                            <li>The dialog automatically positions itself to avoid viewport edges</li>
+                            <li>Dragging is disabled when anchored</li>
+                        </ul>
+                        <Typography>
+                            Current placement: <strong>{placement === "auto" ? "auto (calculated)" : placement}</strong>
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button variant="ghost" onClick={handleClose}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" onClick={handleClose}>
+                            Got it!
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            </div>
+        );
+    },
+};
