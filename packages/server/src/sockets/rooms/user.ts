@@ -11,6 +11,12 @@ export function userSocketRoomHandlers(socket: Socket) {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_USER_ROOM_ERRORS.SessionExpired });
+                return;
+            }
+            const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
+            if (rateLimitError) {
+                callback({ success: false, error: rateLimitError });
+                return;
             }
             // Check if user is authenticated
             const { id } = RequestService.assertRequestFrom(socket, { isUser: true });
@@ -28,11 +34,6 @@ export function userSocketRoomHandlers(socket: Socket) {
             const message = JOIN_USER_ROOM_ERRORS.ErrorUnknown;
             logger.error(message, { trace: "0494", error, userId });
             callback({ success: false, error: message });
-        }
-        const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
-        if (rateLimitError) {
-            callback({ success: false, error: rateLimitError });
-            return;
         }
     });
 

@@ -152,9 +152,23 @@ export class ActiveRunRegistry extends BaseActiveTaskRegistry<ActiveRunRecord, N
 export const activeRunRegistry = new ActiveRunRegistry();
 
 // Initialize the new execution services
-const eventBus = new EventBus(logger);
-const tierThreeExecutor = new TierThreeExecutor(logger, eventBus);
-const tierTwoOrchestrator = new TierTwoOrchestrator(logger, eventBus, tierThreeExecutor);
+// Lazy initialize to avoid database/cache initialization issues
+let eventBus: EventBus | null = null;
+let tierThreeExecutor: TierThreeExecutor | null = null;
+let tierTwoOrchestrator: TierTwoOrchestrator | null = null;
+
+function getTierTwoOrchestrator(): TierTwoOrchestrator {
+    if (!eventBus) {
+        eventBus = new EventBus(logger);
+    }
+    if (!tierThreeExecutor) {
+        tierThreeExecutor = new TierThreeExecutor(logger, eventBus);
+    }
+    if (!tierTwoOrchestrator) {
+        tierTwoOrchestrator = new TierTwoOrchestrator(logger, eventBus, tierThreeExecutor);
+    }
+    return tierTwoOrchestrator;
+}
 
 /**
  * Process new three-tier run execution
@@ -179,7 +193,7 @@ async function processNewRunExecution(payload: RunTask) {
             const routineData = { workflow: {} }; // This should be loaded from DB
 
             // Start run through new three-tier architecture
-            await tierTwoOrchestrator.startRun({
+            await getTierTwoOrchestrator().startRun({
                 runId,
                 swarmId: generatePK(), // Generate swarm ID for the run context
                 routineVersionId: payload.resourceVersionId,
@@ -203,7 +217,7 @@ async function processNewRunExecution(payload: RunTask) {
         // Create adapter for registry management
         const adapter = new NewRunStateMachineAdapter(
             runId,
-            tierTwoOrchestrator,
+            getTierTwoOrchestrator(),
             payload.userData.id,
         );
 

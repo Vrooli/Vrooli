@@ -11,14 +11,72 @@ import { notificationCreateProcess } from "./notification/process.js";
 import { pushProcess } from "./push/process.js";
 import type { BaseTaskData } from "./queueFactory.js";
 import { buildRedis, ManagedQueue } from "./queueFactory.js";
-import { activeRunRegistry, runProcess } from "./run/process.js";
-import { RUN_QUEUE_LIMITS } from "./run/queue.js";
 import { sandboxProcess } from "./sandbox/process.js";
 import { smsProcess } from "./sms/process.js";
-import { activeSwarmRegistry, llmProcess } from "./swarm/process.js";
-import { SWARM_QUEUE_LIMITS } from "./swarm/queue.js";
+
+// Lazy load queue limits to avoid circular dependencies
+let _RUN_QUEUE_LIMITS: any = null;
+let _SWARM_QUEUE_LIMITS: any = null;
+
+// Default limits used before async load completes
+const DEFAULT_RUN_LIMITS = {
+    maxActive: 5,
+    highLoadCheckIntervalMs: 5000,
+    taskTimeoutMs: 600000,
+};
+
+const DEFAULT_SWARM_LIMITS = {
+    maxActive: 10,
+    highLoadCheckIntervalMs: 5000,
+    taskTimeoutMs: 600000,
+};
+
+async function getRunQueueLimits() {
+    if (!_RUN_QUEUE_LIMITS) {
+        const module = await import("./run/limits.js");
+        _RUN_QUEUE_LIMITS = module.RUN_QUEUE_LIMITS;
+    }
+    return _RUN_QUEUE_LIMITS;
+}
+
+async function getSwarmQueueLimits() {
+    if (!_SWARM_QUEUE_LIMITS) {
+        const module = await import("./swarm/limits.js");
+        _SWARM_QUEUE_LIMITS = module.SWARM_QUEUE_LIMITS;
+    }
+    return _SWARM_QUEUE_LIMITS;
+}
+
+// Synchronously try to get limits, returning defaults if not yet loaded
+function getRunQueueLimitsSync() {
+    return _RUN_QUEUE_LIMITS || DEFAULT_RUN_LIMITS;
+}
+
+function getSwarmQueueLimitsSync() {
+    return _SWARM_QUEUE_LIMITS || DEFAULT_SWARM_LIMITS;
+}
+
 import type { AnyTask, EmailTask, ExportUserDataTask, ImportUserDataTask, NotificationCreateTask, PushNotificationTask, RunTask, SandboxTask, SMSTask, SwarmTask } from "./taskTypes.js";
 import { QueueTaskType } from "./taskTypes.js";
+
+/**
+ * Lazy imports to break circular dependencies
+ */
+async function getSwarmDependencies() {
+    const swarmModule = await import("./swarm/process.js");
+    return {
+        activeSwarmRegistry: swarmModule.activeSwarmRegistry,
+        llmProcess: swarmModule.llmProcess,
+    };
+}
+
+async function getRunDependencies() {
+    const runModule = await import("./run/process.js");
+    return {
+        activeRunRegistry: runModule.activeRunRegistry,
+        runProcess: runModule.runProcess,
+    };
+}
 
 /**
  * Generic representation of an active task record from any registry.
@@ -583,28 +641,37 @@ export class QueueService {
     }
 
     get swarm(): ManagedQueue<SwarmTask> {
-        return this.getQueue(QueueTaskType.LLM_COMPLETION, llmProcess, {
+        // Use synchronous limits (defaults if not loaded yet)
+        const limits = getSwarmQueueLimitsSync();
+        return this.getQueue(QueueTaskType.LLM_COMPLETION, async (job) => {
+            const { llmProcess } = await getSwarmDependencies();
+            return llmProcess(job);
+        }, {
             workerOpts: {
-                concurrency: SWARM_QUEUE_LIMITS.maxActive,
+                concurrency: limits.maxActive,
             },
-            jobOpts: { priority: 50, timeout: SWARM_QUEUE_LIMITS.taskTimeoutMs } as Partial<JobsOptions>,
-            onReady: () => {
+            jobOpts: { priority: 50, timeout: limits.taskTimeoutMs } as Partial<JobsOptions>,
+            onReady: async () => {
+                // Load actual limits asynchronously
+                const actualLimits = await getSwarmQueueLimits();
+                
                 if (this.swarmMonitorInterval) {
                     clearInterval(this.swarmMonitorInterval);
                 }
                 this.swarmMonitorInterval = setInterval(
                     async () => {
                         try {
+                            const { activeSwarmRegistry } = await getSwarmDependencies();
                             await checkLongRunningTasksInRegistry(
                                 activeSwarmRegistry,
-                                SWARM_QUEUE_LIMITS,
+                                actualLimits,
                                 "Swarm",
                             );
                         } catch (error) {
                             logger.error("Error in swarm monitor interval", { error });
                         }
                     },
-                    SWARM_QUEUE_LIMITS.highLoadCheckIntervalMs,
+                    actualLimits.highLoadCheckIntervalMs,
                 );
                 logger.info("Swarm queue is ready, swarm monitor started.");
             },
@@ -618,28 +685,37 @@ export class QueueService {
     }
 
     get run(): ManagedQueue<RunTask> {
-        const runQueue = this.getQueue(QueueTaskType.RUN_START, runProcess, {
+        // Use synchronous limits (defaults if not loaded yet)
+        const limits = getRunQueueLimitsSync();
+        const runQueue = this.getQueue(QueueTaskType.RUN_START, async (job) => {
+            const { runProcess } = await getRunDependencies();
+            return runProcess(job);
+        }, {
             workerOpts: {
-                concurrency: RUN_QUEUE_LIMITS.maxActive,
+                concurrency: limits.maxActive,
             },
-            jobOpts: { priority: 40, timeout: RUN_QUEUE_LIMITS.taskTimeoutMs } as Partial<JobsOptions>,
-            onReady: () => {
+            jobOpts: { priority: 40, timeout: limits.taskTimeoutMs } as Partial<JobsOptions>,
+            onReady: async () => {
+                // Load actual limits asynchronously
+                const actualLimits = await getRunQueueLimits();
+                
                 if (this.runMonitorInterval) {
                     clearInterval(this.runMonitorInterval);
                 }
                 this.runMonitorInterval = setInterval(
                     async () => {
                         try {
+                            const { activeRunRegistry } = await getRunDependencies();
                             await checkLongRunningTasksInRegistry(
                                 activeRunRegistry,
-                                RUN_QUEUE_LIMITS,
+                                actualLimits,
                                 "Run",
                             );
                         } catch (error) {
                             logger.error("Error in run monitor interval", { error });
                         }
                     },
-                    RUN_QUEUE_LIMITS.highLoadCheckIntervalMs,
+                    actualLimits.highLoadCheckIntervalMs,
                 );
                 logger.info("Run queue is ready, run monitor started.");
             },

@@ -62,8 +62,15 @@ export class ActiveSwarmRegistry extends BaseActiveTaskRegistry<ActiveSwarmRecor
 }
 export const activeSwarmRegistry = new ActiveSwarmRegistry();
 
-// Initialize the new execution service
-const swarmExecutionService = new SwarmExecutionService(logger);
+// Lazy initialize the execution service to avoid database initialization issues
+let swarmExecutionService: SwarmExecutionService | null = null;
+
+function getSwarmExecutionService(): SwarmExecutionService {
+    if (!swarmExecutionService) {
+        swarmExecutionService = new SwarmExecutionService(logger);
+    }
+    return swarmExecutionService;
+}
 
 export async function llmProcessBotMessage(payload: LLMCompletionTask) {
     // TODO: Route through swarm execution service instead of conversation/responseEngine
@@ -85,7 +92,7 @@ async function processNewSwarmExecution(payload: SwarmExecutionTask) {
         const swarmId = payload.swarmId || generatePK();
 
         // Start swarm through new three-tier architecture
-        const result = await swarmExecutionService.startSwarm({
+        const result = await getSwarmExecutionService().startSwarm({
             swarmId,
             name: payload.config.name,
             description: payload.config.description,
@@ -100,7 +107,7 @@ async function processNewSwarmExecution(payload: SwarmExecutionTask) {
         // Create adapter for registry management
         const adapter = new NewSwarmStateMachineAdapter(
             swarmId,
-            swarmExecutionService,
+            getSwarmExecutionService(),
             payload.userData.id,
         );
 

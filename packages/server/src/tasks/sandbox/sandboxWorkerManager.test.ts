@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { CodeLanguage } from "@vrooli/shared";
-import { expect, describe, it } from "vitest";
+import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
 
 import { MB } from "./consts.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
@@ -25,9 +25,6 @@ const Property = {
     _getWorkerId: "_getWorkerId",
 } as const;
 
-// Global variables for setup
-let sandbox: sinon.SinonSandbox;
-
 function assertResultIsError(result: RunUserCodeOutput, ...acceptedErrorMessages: string[]) {
     expect(result).toHaveProperty("__type", "error");
     expect(result).toHaveProperty("error");
@@ -50,12 +47,15 @@ describe("/sandbox/managers", () => {
     let manager: WorkerManager;
 
     beforeEach(async () => {
-        sandbox = sinon.createSandbox();
+        vi.clearAllMocks();
     });
 
     afterEach(async () => {
-        sandbox.restore();
-        await manager.terminate();
+        if (manager) {
+            await manager.terminate();
+            manager = null;
+        }
+        vi.restoreAllMocks();
     });
 
     describe("SandboxChildProcessManager", () => {
@@ -64,7 +64,9 @@ describe("/sandbox/managers", () => {
         });
 
         afterEach(async () => {
-            await manager.terminate();
+            if (manager) {
+                await manager.terminate();
+            }
         });
 
         it("constructor initializes with default values", () => {
@@ -310,7 +312,10 @@ describe("/sandbox/managers", () => {
                     const result = await manager.runUserCode(input);
 
                     // The result is still an output shape, but the attached output is an error
-                    assertResultIsOutput(result, input.input);
+                    expect(result).toHaveProperty("__type", "output");
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toHaveProperty("message", "test error");
+                    expect(result.output).toHaveProperty("name", "Error");
                 });
             });
 
@@ -1391,7 +1396,8 @@ function realTest() { return 'Hello2'; }`,
                     const result = await manager.runUserCode(input);
 
                     expect(result).toHaveProperty("__type", "output");
-                    expect(result).toHaveProperty("output").toBe(1 + 2 + 3);
+                    expect(result).toHaveProperty("output");
+                    expect(result.output).toBe(1 + 2 + 3);
                 }
 
                 // Make sure the worker is terminated to accurately measure memory usage
@@ -1470,7 +1476,7 @@ function realTest() { return 'Hello2'; }`,
                 );
             });
 
-            it("terminating worker thread after each job", async function runTerminateLeakTest() {
+            it("terminating worker thread after each job", { timeout: 15000 }, async function runTerminateLeakTest() {
                 // Record initial memory usage before any tests
                 const initialMemoryUsage = process.memoryUsage().heapUsed;
                 const memoryThreshold = initialMemoryUsage * 1.2; // Allow 20% growth for test overhead

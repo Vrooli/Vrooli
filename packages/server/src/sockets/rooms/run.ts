@@ -13,6 +13,7 @@ export function runSocketRoomHandlers(socket: Socket) {
         try {
             if (AuthTokensService.isAccessTokenExpired(socket.session)) {
                 callback({ success: false, error: JOIN_RUN_ROOM_ERRORS.SessionExpired });
+                return;
             }
             const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
             if (rateLimitError) {

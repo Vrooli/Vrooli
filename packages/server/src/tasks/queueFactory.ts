@@ -80,67 +80,124 @@ export async function buildRedis(url: string): Promise<IORedis> {
     // Check 4: No ready client and no connection establishment in progress. Create a new one.
     const newConnectionPromise = (async (): Promise<IORedis> => {
         logger.info(`Creating new Redis client for ${url}.`);
+        
+        // In test mode, reduce timeout for faster failure
+        const connectTimeout = process.env.NODE_ENV === 'test' ? 5000 : 30000;
+        
         const client = new IORedis(url, {
-            maxRetriesPerRequest: null, // Keep retrying connection
+            maxRetriesPerRequest: null, // BullMQ requires this to be null
             // Enable lazy connect to allow event listeners to be attached before connection.
             // This is the default, but explicit for clarity.
             lazyConnect: true,
+            // In tests, set a shorter connection timeout for invalid URLs
+            connectTimeout: connectTimeout,
+            retryStrategy: (times) => {
+                // In tests, fail fast after a few retries
+                if (process.env.NODE_ENV === 'test') {
+                    if (times > 2) {
+                        return null; // Stop retrying after 2 attempts in tests
+                    }
+                    return times * 100; // Shorter retry delay in tests
+                }
+                // Otherwise use exponential backoff
+                return Math.min(times * 50, 2000);
+            },
         });
 
-        client.on("error", (error) =>
-            logger.error(`Redis client error for ${url}`, { error, clientStatus: client.status }),
-        );
-
-        client.on("end", () => {
-            logger.info(`Redis connection ended for ${url}. Removing from primary cache.`);
+        // Track if we're cleaning up to avoid duplicate cleanup
+        let isCleaningUp = false;
+        
+        const cleanup = () => {
+            if (isCleaningUp) return;
+            isCleaningUp = true;
+            
+            // Remove from caches
             if (redisClients[url] === client) {
                 delete redisClients[url];
             }
-            // Note: No need to touch connectionEstablishmentPromises here as it's handled by the finally block
-            // of the promise that creates the client.
+            
+            // Remove all listeners to prevent memory leaks
+            client.removeAllListeners();
+            
+            // Force disconnect if still connected
+            if (client.status !== "end") {
+                try {
+                    client.disconnect();
+                } catch (e) {
+                    // Ignore disconnect errors
+                }
+            }
+        };
+
+        // Use a single error handler that logs only non-test errors
+        const errorHandler = (error: any) => {
+            // In tests, only log non-connection errors
+            if (process.env.NODE_ENV === 'test') {
+                if (!error.message?.includes('ETIMEDOUT') && 
+                    !error.message?.includes('ENOTFOUND') &&
+                    !error.message?.includes('connect')) {
+                    logger.error(`Redis client error for ${url}`, { error, clientStatus: client.status });
+                }
+            } else {
+                logger.error(`Redis client error for ${url}`, { error, clientStatus: client.status });
+            }
+        };
+        
+        client.on("error", errorHandler);
+
+        client.on("end", () => {
+            logger.info(`Redis connection ended for ${url}. Removing from primary cache.`);
+            cleanup();
         });
 
         client.on("close", () => {
             logger.info(`Redis connection closed for ${url}. Removing from primary cache.`);
-            if (redisClients[url] === client) {
-                delete redisClients[url];
-            }
+            cleanup();
         });
 
         // Explicitly wait for the client to be 'ready'.
         // IORedis connects lazily, so we must wait for 'ready' before considering it usable.
-        await new Promise<void>((resolve, reject) => {
-            const READY_TIMEOUT_MS = 30000; // 30 seconds timeout for client readiness
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const READY_TIMEOUT_MS = connectTimeout;
 
-            const timeoutId = setTimeout(() => {
-                client.removeListener("ready", onReady); // Clean up listener
-                // No explicit 'error' listener for rejection here as 'maxRetriesPerRequest: null'
-                // means it will keep trying. The timeout is the main guard against indefinite hang.
-                // If IORedis emits a fatal connection error, it might reject the .connect() promise below.
-                reject(new Error(`Timeout (${READY_TIMEOUT_MS}ms) waiting for Redis client to be ready for ${url}`));
-            }, READY_TIMEOUT_MS);
+                const timeoutId = setTimeout(() => {
+                    client.removeListener("ready", onReady);
+                    const timeoutError = new Error(`Timeout (${READY_TIMEOUT_MS}ms) waiting for Redis client to be ready for ${url}`);
+                    cleanup();
+                    reject(timeoutError);
+                }, READY_TIMEOUT_MS);
 
-            function onReady() {
-                clearTimeout(timeoutId);
-                logger.info(`Redis client connected and ready for ${url}.`);
-                resolve();
-            }
+                function onReady() {
+                    clearTimeout(timeoutId);
+                    logger.info(`Redis client connected and ready for ${url}.`);
+                    resolve();
+                }
 
-            client.once("ready", onReady);
+                client.once("ready", onReady);
 
-            // Start the connection attempt if lazyConnect is true (which it is by default).
-            // If connect() throws an error (e.g. invalid URL), it will reject this outer promise.
-            client.connect().catch(connectError => {
-                clearTimeout(timeoutId);
-                client.removeListener("ready", onReady);
-                logger.error(`Redis client failed to connect for ${url}.`, { error: connectError });
-                reject(connectError);
+                // Start the connection attempt
+                client.connect().catch(connectError => {
+                    clearTimeout(timeoutId);
+                    client.removeListener("ready", onReady);
+                    if (process.env.NODE_ENV !== 'test' || 
+                        (!connectError.message?.includes('ETIMEDOUT') && 
+                         !connectError.message?.includes('ENOTFOUND'))) {
+                        logger.error(`Redis client failed to connect for ${url}.`, { error: connectError });
+                    }
+                    cleanup();
+                    reject(connectError);
+                });
             });
-        });
 
-        // Once ready, store in the primary cache.
-        redisClients[url] = client;
-        return client;
+            // Once ready, store in the primary cache.
+            redisClients[url] = client;
+            return client;
+        } catch (error) {
+            // Make sure we clean up on any error
+            cleanup();
+            throw error;
+        }
     })();
 
     // Store the promise in the map so other concurrent calls can await it.
@@ -152,7 +209,9 @@ export async function buildRedis(url: string): Promise<IORedis> {
         return establishedClient;
     } catch (error) {
         // If client creation/connection failed, the promise was rejected.
-        logger.error(`Failed to establish Redis connection for ${url} during buildRedis.`, { error });
+        if (process.env.NODE_ENV !== 'test') {
+            logger.error(`Failed to establish Redis connection for ${url} during buildRedis.`, { error });
+        }
         // The 'finally' block will clean up connectionEstablishmentPromises[url].
         throw error; // Re-throw to the caller of buildRedis.
     } finally {
@@ -589,5 +648,21 @@ export async function closeRedisConnections(): Promise<void> {
     // Clear the client cache
     for (const url in redisClients) {
         delete redisClients[url];
+    }
+}
+
+/**
+ * Clears the Redis connection cache without closing connections.
+ * This is primarily for testing purposes to prevent invalid URLs from polluting the cache.
+ * @internal
+ */
+export function clearRedisCache(): void {
+    // Clear all cached clients
+    for (const url in redisClients) {
+        delete redisClients[url];
+    }
+    // Clear any pending connection promises
+    for (const url in connectionEstablishmentPromises) {
+        delete connectionEstablishmentPromises[url];
     }
 }

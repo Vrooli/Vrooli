@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from "vitest";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import IORedis from "ioredis";
+import "../__test/setup.js";
 import { Job, Queue, Worker, QueueEvents } from "bullmq";
 import { 
     buildRedis, 
@@ -25,26 +25,8 @@ interface TestTaskData extends BaseTaskData {
 }
 
 describe("queueFactory", () => {
-    let redisContainer: StartedTestContainer;
-    let redisUrl: string;
+    const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
     let redisClient: IORedis;
-
-    beforeAll(async () => {
-        // Start Redis container
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisHost = redisContainer.getHost();
-        const redisPort = redisContainer.getMappedPort(6379);
-        redisUrl = `redis://${redisHost}:${redisPort}`;
-    }, 60000);
-
-    afterAll(async () => {
-        if (redisContainer) {
-            await redisContainer.stop();
-        }
-    });
 
     afterEach(async () => {
         // Clean up any remaining Redis connections

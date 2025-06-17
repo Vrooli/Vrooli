@@ -1,27 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from "vitest";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Job } from "bullmq";
 import { llmProcess, activeSwarmRegistry } from "./process.js";
 import { SwarmTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
+import "../../__test/setup.js";
 
 describe("llmProcess", () => {
-    let redisContainer: StartedTestContainer;
-
-    beforeAll(async () => {
-        // Start Redis container
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-
-        const redisHost = redisContainer.getHost();
-        const redisPort = redisContainer.getMappedPort(6379);
-        process.env.REDIS_URL = `redis://${redisHost}:${redisPort}`;
-    }, 60000);
-
-    afterAll(async () => {
-        if (redisContainer) await redisContainer.stop();
-    });
+    // Global setup handles containers
 
     beforeEach(() => {
         vi.clearAllMocks();

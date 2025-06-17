@@ -1,22 +1,12 @@
 // This is a comment to trigger a re-lint
 /* eslint-disable no-magic-numbers */
 import { type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
-import type { ActiveTaskRegistryLimits } from "../activeTaskRegistry.js";
-import { QueueService } from "../queues.js";
+// Import QueueService type only to avoid circular dependency
+type QueueServiceType = import("../queues.js").QueueService;
 import { type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
 
-export const SWARM_QUEUE_LIMITS: ActiveTaskRegistryLimits = {
-    maxActive: parseInt(process.env.WORKER_SWARM_MAX_ACTIVE || "10"),
-    highLoadCheckIntervalMs: parseInt(process.env.WORKER_SWARM_HIGH_LOAD_CHECK_INTERVAL_MS || "5000"),
-    highLoadThresholdPercentage: parseFloat(process.env.WORKER_SWARM_HIGH_LOAD_THRESHOLD_PERCENTAGE || "0.8"),
-    longRunningThresholdFreeMs: parseInt(process.env.WORKER_SWARM_LONG_RUNNING_THRESHOLD_FREE_MS || "60000"),
-    longRunningThresholdPremiumMs: parseInt(process.env.WORKER_SWARM_LONG_RUNNING_THRESHOLD_PREMIUM_MS || "300000"),
-    taskTimeoutMs: parseInt(process.env.WORKER_SWARM_TASK_TIMEOUT_MS || "600000"),
-    shutdownGracePeriodMs: parseInt(process.env.WORKER_SWARM_SHUTDOWN_GRACE_PERIOD_MS || "30000"),
-    onLongRunningFirstThreshold: (process.env.WORKER_SWARM_ON_LONG_RUNNING_FIRST_THRESHOLD || "pause") as "pause" | "stop",
-    longRunningPauseRetries: parseInt(process.env.WORKER_SWARM_LONG_RUNNING_PAUSE_RETRIES || "1"),
-    longRunningStopRetries: parseInt(process.env.WORKER_SWARM_LONG_RUNNING_STOP_RETRIES || "0"),
-};
+// Re-export the limits from the separate file to maintain backward compatibility
+export { SWARM_QUEUE_LIMITS } from "./limits.js";
 
 // Updated determinePriority function for swarm tasks
 const BASE_PRIORITY = 100; // Default priority for swarm tasks
@@ -38,11 +28,14 @@ function determinePriority(payload: Omit<SwarmTask, "type" | "status">): number 
 
 /**
  * Schedule or update a swarm task in the queue.
+ * @param data Omitted fields status will be set internally.
+ * @param queueService The QueueService instance to use
  */
 export function processSwarm(
     data: Omit<SwarmTask, "status">,
+    queueService: QueueServiceType,
 ): Promise<Success> {
-    return QueueService.get().swarm.addTask(
+    return queueService.swarm.addTask(
         { ...data, status: "Scheduled" },
         { priority: determinePriority(data) },
     );
@@ -50,9 +43,14 @@ export function processSwarm(
 
 /**
  * Fetch statuses for multiple swarm jobs.
+ * @param taskIds Array of swarm job IDs
+ * @param queueService The QueueService instance to use
  */
-export async function getSwarmTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    const statuses = await QueueService.get().getTaskStatuses(taskIds, "swarm");
+export async function getSwarmTaskStatuses(
+    taskIds: string[],
+    queueService: QueueServiceType,
+): Promise<TaskStatusInfo[]> {
+    const statuses = await queueService.getTaskStatuses(taskIds, "swarm");
     return statuses.map(s => ({
         __typename: "TaskStatusInfo" as const,
         id: s.id,
@@ -63,11 +61,14 @@ export async function getSwarmTaskStatuses(taskIds: string[]): Promise<TaskStatu
 
 /**
  * Schedule a new three-tier swarm execution
+ * @param data Omitted fields status will be set internally.
+ * @param queueService The QueueService instance to use
  */
 export function processNewSwarmExecution(
     data: Omit<SwarmExecutionTask, "status">,
+    queueService: QueueServiceType,
 ): Promise<Success> {
-    return QueueService.get().swarm.addTask(
+    return queueService.swarm.addTask(
         { ...data, status: "Scheduled" },
         { priority: determinePriority(data) },
     );
@@ -75,11 +76,16 @@ export function processNewSwarmExecution(
 
 /**
  * Change the status of an existing swarm job.
+ * @param taskId The task ID
+ * @param status The new status
+ * @param userId ID of the user requesting the status change
+ * @param queueService The QueueService instance to use
  */
 export async function changeSwarmTaskStatus(
     taskId: string,
     status: string,
     userId: string,
+    queueService: QueueServiceType,
 ): Promise<Success> {
-    return QueueService.get().swarm.changeTaskStatus<SwarmTask>(taskId, status, userId);
+    return queueService.swarm.changeTaskStatus<SwarmTask>(taskId, status, userId);
 }

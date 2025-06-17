@@ -1,31 +1,24 @@
 /* eslint-disable no-magic-numbers */
-import { HOURS_2_MS, MINUTES_1_MS, MINUTES_5_MS, RunTriggeredFrom, SECONDS_10_MS, type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
-import type { ActiveTaskRegistryLimits } from "../activeTaskRegistry.js";
-import { QueueService } from "../queues.js";
+import { RunTriggeredFrom, type Success, type TaskStatus, type TaskStatusInfo } from "@vrooli/shared";
+// Import QueueService type only to avoid circular dependency
+type QueueServiceType = import("../queues.js").QueueService;
 import { QueueTaskType, type RunTask } from "../taskTypes.js";
-import { activeRunsRegistry } from "./process.js";
 
-export const RUN_QUEUE_LIMITS: ActiveTaskRegistryLimits = {
-    maxActive: parseInt(process.env.WORKER_RUN_MAX_ACTIVE || "1000"),
-    highLoadCheckIntervalMs: parseInt(process.env.WORKER_RUN_HIGH_LOAD_CHECK_INTERVAL_MS || MINUTES_1_MS.toString()),
-    highLoadThresholdPercentage: parseFloat(process.env.WORKER_RUN_HIGH_LOAD_THRESHOLD_PERCENTAGE || "0.8"),
-    longRunningThresholdFreeMs: parseInt(process.env.WORKER_RUN_LONG_RUNNING_THRESHOLD_FREE_MS || MINUTES_1_MS.toString()),
-    longRunningThresholdPremiumMs: parseInt(process.env.WORKER_RUN_LONG_RUNNING_THRESHOLD_PREMIUM_MS || MINUTES_5_MS.toString()),
-    taskTimeoutMs: parseInt(process.env.WORKER_RUN_TASK_TIMEOUT_MS || HOURS_2_MS.toString()),
-    shutdownGracePeriodMs: parseInt(process.env.WORKER_RUN_SHUTDOWN_GRACE_PERIOD_MS || SECONDS_10_MS.toString()),
-    onLongRunningFirstThreshold: (process.env.WORKER_RUN_ON_LONG_RUNNING_FIRST_THRESHOLD || "pause") as "pause" | "stop",
-    longRunningPauseRetries: parseInt(process.env.WORKER_RUN_LONG_RUNNING_PAUSE_RETRIES || "1"),
-    longRunningStopRetries: parseInt(process.env.WORKER_RUN_LONG_RUNNING_STOP_RETRIES || "0"),
-};
+// Re-export the limits from the separate file to maintain backward compatibility
+export { RUN_QUEUE_LIMITS } from "./limits.js";
 
 /**
- * Compute dynamic priority for run tasks.
- * 
- * NOTE: You must enqueue using `processRun` for priority to be applied.
+ * Schedule or update a run job in the queue.
+ * @param data Omitted fields type and status will be set internally.
+ * @param queueService The QueueService instance to use
  */
-function determinePriority(payload: Omit<RunTask, "type" | "status">): number {
+export async function processRun(
+    data: Omit<RunTask, "type" | "status">,
+    queueService: QueueServiceType,
+): Promise<Success> {
+    // Compute dynamic priority for run tasks inline to support async operations
     let priority = 100;
-    switch (payload.runFrom) {
+    switch (data.runFrom) {
         case RunTriggeredFrom.RunView: priority -= 20; break;
         case RunTriggeredFrom.Api: priority -= 16; break;
         case RunTriggeredFrom.Chat: priority -= 14; break;
@@ -34,40 +27,47 @@ function determinePriority(payload: Omit<RunTask, "type" | "status">): number {
         case RunTriggeredFrom.Schedule: priority -= 3; break;
         case RunTriggeredFrom.Test: priority -= 1; break;
     }
-    if (payload.config?.isTimeSensitive) priority -= 15;
-    if (payload.userData.hasPremium) priority -= 5;
-    if (!payload.isNewRun && activeRunsRegistry.get(payload.runId)) priority -= 10;
-    return Math.max(0, priority);
-}
+    if (data.config?.isTimeSensitive) priority -= 15;
+    if (data.userData.hasPremium) priority -= 5;
+    if (!data.isNewRun) {
+        // Lazy import to avoid circular dependency
+        const { activeRunRegistry } = await import("./process.js");
+        if (activeRunRegistry.get(data.runId)) priority -= 10;
+    }
+    priority = Math.max(0, priority);
 
-/**
- * Schedule or update a run job in the queue.
- */
-export function processRun(
-    data: Omit<RunTask, "type" | "status">,
-): Promise<Success> {
-    return QueueService.get().run.addTask(
+    return queueService.run.addTask(
         { ...data, type: QueueTaskType.RUN_START, status: "Scheduled" },
-        { priority: determinePriority(data) },
+        { priority },
     );
 }
 
 /**
  * Change the status of an existing run job.
+ * @param jobId The job ID (task ID)
+ * @param status The new status
+ * @param userId ID of the user requesting the status change
+ * @param queueService The QueueService instance to use
  */
 export function changeRunTaskStatus(
     jobId: string,
     status: TaskStatus | `${TaskStatus}`,
     userId: string,
+    queueService: QueueServiceType,
 ): Promise<Success> {
-    return QueueService.get().changeTaskStatus(jobId, status, userId, "run");
+    return queueService.changeTaskStatus(jobId, status, userId, "run");
 }
 
 /**
  * Fetch statuses for multiple run jobs.
+ * @param taskIds Array of run job IDs
+ * @param queueService The QueueService instance to use
  */
-export async function getRunTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
-    const statuses = await QueueService.get().getTaskStatuses(taskIds, "run");
+export async function getRunTaskStatuses(
+    taskIds: string[],
+    queueService: QueueServiceType,
+): Promise<TaskStatusInfo[]> {
+    const statuses = await queueService.getTaskStatuses(taskIds, "run");
     return statuses.map(s => ({
         __typename: "TaskStatusInfo" as const,
         id: s.id,

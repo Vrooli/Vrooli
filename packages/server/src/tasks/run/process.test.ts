@@ -1,43 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, vi } from "vitest";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Job } from "bullmq";
 import { runProcess, activeRunRegistry } from "./process.js";
 import { RunTask, QueueTaskType } from "../taskTypes.js";
 import { logger } from "../../events/logger.js";
+import "../../__test/setup.js";
 
 describe("runProcess", () => {
-    let postgresContainer: StartedTestContainer;
-    let redisContainer: StartedTestContainer;
-
-    beforeAll(async () => {
-        // Start test containers
-        redisContainer = await new GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .start();
-        
-        postgresContainer = await new GenericContainer("postgres:15")
-            .withExposedPorts(5432)
-            .withEnvironment({
-                POSTGRES_USER: "testuser",
-                POSTGRES_PASSWORD: "testpassword",
-                POSTGRES_DB: "testdb",
-            })
-            .start();
-
-        // Set environment variables
-        const redisHost = redisContainer.getHost();
-        const redisPort = redisContainer.getMappedPort(6379);
-        process.env.REDIS_URL = `redis://${redisHost}:${redisPort}`;
-
-        const postgresHost = postgresContainer.getHost();
-        const postgresPort = postgresContainer.getMappedPort(5432);
-        process.env.DB_URL = `postgresql://testuser:testpassword@${postgresHost}:${postgresPort}/testdb`;
-    }, 60000);
-
-    afterAll(async () => {
-        if (redisContainer) await redisContainer.stop();
-        if (postgresContainer) await postgresContainer.stop();
-    });
+    // Global setup handles containers
 
     beforeEach(() => {
         vi.clearAllMocks();
