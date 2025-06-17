@@ -21,7 +21,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 |---------|-------------|-------------|
 | `TEST_QUALITY` | [TEST_QUALITY.md](./tasks/TEST_QUALITY.md) | User asks to identify/fix tests written to pass |
 | `TEST_COVERAGE` | [TEST_COVERAGE.md](./tasks/TEST_COVERAGE.md) | User asks to improve test coverage |
-| `REACT_PERF` | React component performance optimization | User asks to improve React component performance |
+| `REACT_PERF` | [REACT_PERF.md](./tasks/REACT_PERF.md) | User asks to improve React component performance |
 | `TYPE_SAFETY` | TypeScript usage improvements | User asks to improve type safety |
 | `UNSAFE_CASTS` | Unsafe type casting fixes | User asks to identify/fix unsafe type casts |
 | `ERROR_HANDLING` | Proper error boundaries and error handling | User asks to improve error handling |
@@ -29,7 +29,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `SECURITY` | Security vulnerability checks | User asks to review security |
 | `CODE_QUALITY` | General code quality improvements | User asks for code quality review |
 | `EASY_WINS` | [EASY_WINS.md](./tasks/EASY_WINS.md) | User asks to suggest "easy wins" |
-| `DEAD_CODE` | Unused files/functions identification | User asks to identify unused code |
+| `DEAD_CODE` | [DEAD_CODE.md](./tasks/DEAD_CODE.md) | User asks to identify unused code |
 | `TODO_CLEANUP` | TODOs/FIXMEs/BUGs/DEPRECATED cleanup | User asks to address TODOs/FIXMEs |
 | `DOCS_TO_CODE` | Update documentation to match actual code behavior | User asks to sync docs with current code |
 | `CODE_TO_DOCS` | Update code to match documented intended behavior | User asks to sync code with documented specs |
@@ -38,7 +38,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `API_DESIGN` | API endpoint design improvements | User asks to improve API design |
 | `DATABASE` | Database query optimization and design | User asks to optimize database usage |
 | `BUNDLE_SIZE` | Bundle size optimization | User asks to optimize bundle size |
-| `IMPORTS` | Import organization, unused imports, circular dependencies | User asks to clean up imports |
+| `IMPORTS` | [IMPORTS.md](./tasks/IMPORTS.md) | User asks to clean up imports |
 | `COMMENTS` | [COMMENTS.md](./tasks/COMMENTS.md) | User asks to improve/update comments |
 | `FORMS` | Form validation, error handling, UX consistency | User asks to improve form implementations |
 | `STATE_MGMT` | State management patterns and optimization | User asks to improve state management |
