@@ -23,8 +23,8 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `TEST_COVERAGE` | [TEST_COVERAGE.md](./tasks/TEST_COVERAGE.md) | User asks to improve test coverage |
 | `REACT_PERF` | [REACT_PERF.md](./tasks/REACT_PERF.md) | User asks to improve React component performance |
 | `TYPE_SAFETY` | [TYPE_SAFETY.md](./tasks/TYPE_SAFETY.md) | User asks to improve type safety |
-| `ERROR_HANDLING` | Proper error boundaries and error handling | User asks to improve error handling |
-| `ACCESSIBILITY` | A11y compliance improvements | User asks to improve accessibility |
+| `ERROR_HANDLING` | [ERROR_HANDLING.md](./tasks/ERROR_HANDLING.md) | User asks to improve error handling |
+| `ACCESSIBILITY` | [ACCESSIBILITY.md](./tasks/ACCESSIBILITY.md) | User asks to improve accessibility |
 | `SECURITY` | [SECURITY.md](./tasks/SECURITY.md) | User asks to review security |
 | `CODE_QUALITY` | [CODE_QUALITY.md](./tasks/CODE_QUALITY.md) | User asks for code quality review |
 | `EASY_WINS` | [EASY_WINS.md](./tasks/EASY_WINS.md) | User asks to suggest "easy wins" |
@@ -32,7 +32,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 | `TODO_CLEANUP` | [TODO_CLEANUP.md](./tasks/TODO_CLEANUP.md) | User asks to address TODOs/FIXMEs |
 | `DOCS_TO_CODE` | Update documentation to match actual code behavior | User asks to sync docs with current code |
 | `CODE_TO_DOCS` | Update code to match documented intended behavior | User asks to sync code with documented specs |
-| `PERF_GENERAL` | Non-React performance optimization | User asks to improve general performance |
+| `PERF_GENERAL` | [PERF_GENERAL.md](./tasks/PERF_GENERAL.md) | User asks to improve general performance |
 | `LOGGING` | Logging improvements and consistency | User asks to improve logging |
 | `API_DESIGN` | API endpoint design improvements | User asks to improve API design |
 | `DATABASE` | Database query optimization and design | User asks to optimize database usage |

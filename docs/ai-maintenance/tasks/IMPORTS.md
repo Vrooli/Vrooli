@@ -1,16 +1,21 @@
 ## 🚦 Quick Take
 
-Circular dependencies slip in slowly, then bite hard: they break tree-shaking, hide runtime bugs, and make mental models brittle. Tools like **Madge** and **dependency-cruiser** spot the cycles instantly, but only **module redesign**—not barrel-file band-aids—truly removes them. This doc shows your overnight agent how to detect cycles, choose the right refactor pattern (extraction, inversion, or layering), update `AI_CHECK`, and leave a clean diff for human review. ([github.com][1], [github.com][2], [stackoverflow.com][3], [stackoverflow.com][4])
+The IMPORTS maintenance task covers **three critical areas**:
+1. **Missing `.js` extensions** in TypeScript imports (required by ES modules)
+2. **Deep imports from monorepo packages** (e.g., `@vrooli/shared/dist/...` instead of `@vrooli/shared`)
+3. **Circular dependencies** that break tree-shaking and cause runtime bugs
+
+Circular dependencies slip in slowly, then bite hard: they break tree-shaking, hide runtime bugs, and make mental models brittle. Tools like **Madge** and **dependency-cruiser** spot the cycles instantly, but only **module redesign**—not barrel-file band-aids—truly removes them. This doc shows your overnight agent how to detect and fix all three import issues, update `AI_CHECK`, and leave a clean diff for human review. ([github.com][1], [github.com][2], [stackoverflow.com][3], [stackoverflow.com][4])
 
 ---
 
 ## 1 Purpose & Scope
 
-| Field         | Value                                                              |
-| ------------- | ------------------------------------------------------------------ |
-| **Task ID**   | `IMPORTS`                                                          |
-| **Target**    | Detect & **resolve** circular imports **only**.                    |
-| **Non-goals** | Unused imports, ordering, `import type` upgrades (done by ESLint). |
+| Field         | Value                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------- |
+| **Task ID**   | `IMPORTS`                                                                                                |
+| **Target**    | 1. Fix missing `.js` extensions<br>2. Fix deep monorepo imports<br>3. Detect & resolve circular imports |
+| **Non-goals** | Unused imports, ordering, `import type` upgrades (done by ESLint).                                      |
 
 ---
 
@@ -65,6 +70,44 @@ Prioritise **cycles touching `src/` public API** or **>2 modules deep**.
 
 ## 6 Step-by-Step Workflow
 
+### 6.1 Complete IMPORTS Task Workflow
+
+1. **Check for missing `.js` extensions**
+   ```bash
+   # Find TypeScript imports missing .js extensions
+   rg "from ['\"]\.\.?/[^'\"]*[^.js]['\"]" --type ts packages/server/src
+   ```
+   Fix by adding `.js` to all relative imports.
+
+2. **Check for deep monorepo imports**
+   ```bash
+   # Find deep imports like @vrooli/shared/dist/...
+   rg "from ['\"]@vrooli/[^'\"]+/[^'\"]+['\"]" --type ts packages/server/src
+   ```
+   Fix by importing from package root only (e.g., `@vrooli/shared`).
+
+3. **Detect circular dependencies**
+   ```bash
+   # Install madge if not available
+   pnpm add -D madge
+   # Run circular dependency detection
+   madge --circular packages/server/src/
+   ```
+
+4. **Fix circular dependencies** (see patterns in §5.1)
+
+5. **Verify all fixes**
+   ```bash
+   pnpm lint && pnpm test
+   ```
+
+6. **Update AI_CHECK comment**
+   ```ts
+   // AI_CHECK: IMPORTS=<incrementedCount> | LAST: 2025-06-16
+   ```
+
+### 6.2 Circular Dependency Resolution Steps
+
 1. **Detect cycles**
 
    ```bash
@@ -88,10 +131,12 @@ Prioritise **cycles touching `src/` public API** or **>2 modules deep**.
 
 ## 7 Checklist Before Leaving File
 
-* [ ] Cycle removed (`madge --circular` 0).
-* [ ] No new barrel files as patch.
-* [ ] Lint & tests green.
-* [ ] `AI_CHECK` updated.
+* [ ] All relative imports have `.js` extensions
+* [ ] No deep imports from monorepo packages (only root imports)
+* [ ] Cycle removed (`madge --circular` returns 0)
+* [ ] No new barrel files as patch
+* [ ] Lint & tests green
+* [ ] `AI_CHECK` updated
 
 ---
 
