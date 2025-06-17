@@ -66,8 +66,23 @@ export default defineConfig({
         mockReset: true,
         
         // Disable expensive features during testing
-        coverage: { enabled: false },
         typecheck: { enabled: false },
+        
+        // Coverage configuration (enabled only when explicitly requested)
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'text-summary', 'json'],
+            exclude: [
+                'node_modules/**',
+                'src/**/*.test.{ts,tsx}',
+                'src/**/*.stories.{ts,tsx}',
+                'src/**/__test.*/**/*',
+                'coverage/**',
+                'dist/**',
+                '**/*.d.ts',
+                'src/generated/**',
+            ],
+        },
         watch: false,
         
         setupFiles: ['./src/__test/setup.vitest.ts'],

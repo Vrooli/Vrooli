@@ -56,7 +56,7 @@ export default defineConfig({
         onConsoleLog: () => false,
         coverage: {
             provider: 'v8',
-            reporter: ['text', 'text-summary'],
+            reporter: ['text', 'text-summary', 'json'],
             exclude: [
                 'node_modules/**',
                 'src/**/*.test.ts',

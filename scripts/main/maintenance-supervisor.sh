@@ -285,7 +285,7 @@ while true; do
   run_task "$name" "$prompt" "$turns"
 
   # reschedule tight job relative to finish-time
-  local now=$("$DATE_BIN" +%s)
+  now=$("$DATE_BIN" +%s)
   for t in "${TIGHT_NAMES[@]}"; do
     [[ $t == "$name" ]] && NEXT_RUN["$t"]=$(( now + TIGHT_COOLDOWN_S ))
   done

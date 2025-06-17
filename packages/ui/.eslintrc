@@ -14,7 +14,8 @@
             "./tsconfig.json",
             "./tsconfig.node.json",
             "./tsconfig.test.json",
-            "./tsconfig.tools.json"
+            "./tsconfig.tools.json",
+            "./tsconfig.stories.json"
         ]
     },
     "plugins": [

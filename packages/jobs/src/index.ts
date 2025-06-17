@@ -6,6 +6,7 @@ import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
 import { countBookmarks } from "./schedules/countBookmarks.js";
 import { countReacts } from "./schedules/countReacts.js";
 import { countViews } from "./schedules/countViews.js";
+import { creditRollover } from "./schedules/creditRollover.js";
 import { generateEmbeddings } from "./schedules/embeddings.js";
 import { genSitemap, isSitemapMissing } from "./schedules/genSitemap.js";
 import { moderatePullRequests } from "./schedules/moderatePullRequests.js";
@@ -132,6 +133,11 @@ const cronJobs: CronJobDefinition[] = [
         description: "free credits for premium users",
         jobFunction: paymentsCreditsFreePremium,
         schedule: generateCronJob(0, 0, 1, "*", "*"), // Midnight on the 1st of every month
+    },
+    {
+        description: "credit rollover and donations",
+        jobFunction: creditRollover,
+        schedule: generateCronJob(0, 2, 2, "*", "*"), // 2 AM on the 2nd of every month (after free credits)
     },
     {
         description: "pull request moderation",

@@ -12,11 +12,9 @@ const typeImportPlugin = {
                 // Resolve to server's types.d.ts
                 return path.resolve(__dirname, '../server/src/types.d.ts');
             }
-            // Check if this is coming from the shared package  
-            if (importer && importer.includes('/shared/src/')) {
-                // Resolve to shared's types.d.ts
-                return path.resolve(__dirname, '../shared/src/types.d.ts');
-            }
+            // Default to current directory types
+            const srcDir = path.resolve(__dirname, 'src');
+            return path.join(srcDir, 'types.d.ts');
         }
         return null;
     }
@@ -26,9 +24,13 @@ export default defineConfig({
     plugins: [typeImportPlugin],
     resolve: {
         alias: {
-            '@vrooli/server': path.resolve(__dirname, '../server/src'),
-            '@vrooli/shared': path.resolve(__dirname, '../shared/src'),
+            '@vrooli/shared': path.resolve(__dirname, '../shared/dist'),
+            '@vrooli/server': path.resolve(__dirname, '../server/dist'),
         },
+    },
+    // Disable optimizeDeps for faster startup
+    optimizeDeps: {
+        disabled: true,
     },
     esbuild: {
         target: 'node18',
@@ -44,34 +46,34 @@ export default defineConfig({
         },
         globals: true,
         environment: 'node',
-        setupFiles: ['./src/__test/setup.ts'],
+        globalSetup: './vitest.global-setup.ts',
+        setupFiles: ['./vitest-sharp-mock-simple.ts', './src/__test/setup.ts'],
         include: [
             'src/**/*.test.ts',
             'src/**/__test.*/**/*.test.ts'
         ],
         exclude: ['node_modules', 'dist'],
-        // Use threads with more aggressive settings
-        pool: 'threads',
+        // Use single thread with longer timeout
+        pool: 'forks',
         poolOptions: {
-            threads: {
-                minThreads: 2,
-                maxThreads: 8,
-                isolate: false, // Share context for speed
+            forks: {
+                singleFork: true,
+                isolate: false, // Don't isolate to reduce overhead
             },
         },
         deps: {
-            // Allow circular dependencies
+            // Use optimizer instead of deprecated inline
             optimizer: {
                 ssr: {
                     include: ['bcrypt'],
                 },
             },
         },
-        // Suppress console output for speed
-        onConsoleLog: () => false,
+        // Allow console output to debug setup issues
+        onConsoleLog: () => {},
         coverage: {
             provider: 'v8',
-            reporter: ['text', 'text-summary'],
+            reporter: ['text', 'text-summary', 'json'],
             exclude: [
                 'node_modules/**',
                 'src/**/*.test.ts',
@@ -81,11 +83,10 @@ export default defineConfig({
                 '**/*.d.ts',
                 'src/db/migrations/**',
                 'src/db/seeds/**',
-                'src/endpoints/generated/**',
             ],
         },
         // Increase timeout for complex execution tests
-        testTimeout: 30000,
-        hookTimeout: 120000, // 2 minutes for testcontainer setup
+        testTimeout: 60000,
+        hookTimeout: 300000, // 5 minutes for setup/teardown
     },
 });
