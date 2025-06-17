@@ -159,21 +159,29 @@ run_task() {
     set -e
     # ──────────────────────────────────────────────────────────────────────────
 
-    # ◆ Error handling / max-turn detection
+    # ◆ Error handling / success & max-turn detection
     if (( rc != 0 )); then
       if [[ ! -s "$out_file" ]]; then
         echo "❌  Claude CLI failed (exit $rc) and no log was written" >&2
         exit $rc
       fi
 
-      last_subtype=$(tail -n 1 "$out_file" | jq -r '.subtype // empty' 2>/dev/null || true)
-      if [[ $last_subtype != "error_max_turns" ]]; then
+      # Pull both subtype and is_error for robustness
+      read -r last_subtype last_is_error < <(
+        tail -n 1 "$out_file" \
+          | jq -r '[.subtype // ""]; (.is_error // false)' 2>/dev/null
+      )
+
+      # Continue if the run ended cleanly
+      if [[ $last_subtype == "error_max_turns" \
+            || $last_subtype == "success" \
+            || $last_is_error == "false" ]]; then
+        echo "ℹ️  Claude finished cleanly (${last_subtype:-no-subtype}); continuing…" >&2
+      else
         echo "❌  Claude CLI failed (exit $rc); last subtype: '$last_subtype'" >&2
         exit $rc
       fi
-      echo "ℹ️  Claude reached max turns; continuing…" >&2
     fi
-    # -------------------------------------------------------------------------
 
     session=$(jq -r '(.sessionId // .session_id // empty)' "$out_file" | tail -1 || true)
     (( remain -= t ))
