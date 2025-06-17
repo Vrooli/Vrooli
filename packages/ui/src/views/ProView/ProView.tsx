@@ -1,5 +1,5 @@
+import { styled, useTheme } from "@mui/material";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import ButtonBase from "@mui/material/ButtonBase";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -8,12 +8,11 @@ import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
-import { alpha } from "@mui/material/styles";
-import { styled, useTheme } from "@mui/material";
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType, YEARS_1_MONTHS, type SubscriptionPricesResponse } from "@vrooli/shared";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
+import { Button } from "../../components/buttons/Button.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { Navbar } from "../../components/navigation/Navbar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
@@ -231,8 +230,10 @@ const PricingTiersOuter = styled(Box)(({ theme }) => ({
     gap: theme.spacing(4),
     paddingLeft: theme.spacing(2),
     paddingRight: theme.spacing(2),
+    paddingTop: theme.spacing(4), // Add padding to accommodate tooltip
     overflow: "auto",
     maxWidth: "100%",
+    position: "relative",
     [theme.breakpoints.down("sm")]: {
         flexDirection: "column",
     },
@@ -315,6 +316,20 @@ export function PricingTier({
                 )}
             </Typography>
             {priceDisplay}
+            {/* Add "Cancel anytime" for Pro subscription */}
+            {priceType === PricingTierType.Pro && (
+                <Typography
+                    variant="body2"
+                    sx={{
+                        color: palette.success.main,
+                        fontWeight: 500,
+                        mt: 1,
+                        mb: 2,
+                    }}
+                >
+                    ✓ Cancel anytime, no questions asked
+                </Typography>
+            )}
             <Box flexGrow={1}>
                 <ul
                     style={{
@@ -338,8 +353,8 @@ export function PricingTier({
                 </Typography>
             )}
             {buttonText && onClick && recommended && (
-                <FancyButton
-                    variant={!buttonColor ? "contained" : "outlined"}
+                <Button
+                    variant={!buttonColor ? "space" : "outline"}
                     color={buttonColor ?? "secondary"}
                     onClick={onClick}
                     style={{
@@ -348,17 +363,13 @@ export function PricingTier({
                     }}
                 >
                     {buttonText}
-                </FancyButton>
+                </Button>
             )}
             {buttonText && onClick && !recommended && (
                 <Button
-                    variant="outlined"
-                    color={buttonColor ?? "primary"}
+                    variant={buttonColor ? "danger" : "outline"}
                     onClick={onClick}
-                    style={{
-                        marginTop: "16px",
-                        ...(buttonColor ? { borderColor: palette.error.main, color: palette.error.main } : {}),
-                    }}
+                    className="tw-mt-4"
                 >
                     {buttonText}
                 </Button>
@@ -378,6 +389,7 @@ export function PricingTiers({
     onTierClick: (tier: PricingTierType) => unknown,
     prices: SubscriptionPricesResponse | undefined,
 }) {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const currentUser = useMemo(() => getCurrentUser(session), [session]);
@@ -458,7 +470,7 @@ export function PricingTiers({
                     title={pricingInfo[PricingTierType.Pro].title}
                 />
             </Box>
-            <Box>
+            <Box position="relative">
                 <PricingTier
                     aboveButtonText={creditsAsBigInt > 0 ? `Current credits: $${(Number(creditsAsBigInt / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}` : undefined}
                     buttonText={pricingInfo[PricingTierType.Credits].buttonText}
@@ -471,6 +483,41 @@ export function PricingTiers({
                     title={pricingInfo[PricingTierType.Credits].title}
                     titleHelp={onCreditsHelpClick}
                 />
+                {/* Phone verification callout for credits */}
+                {isLoggedIn && 
+                 currentUser.phoneNumberVerified !== true && 
+                 currentUser.hasReceivedPhoneVerificationReward !== true && (
+                    <Box
+                        sx={{
+                            position: "absolute",
+                            top: -30,
+                            right: 20,
+                            backgroundColor: palette.secondary.main,
+                            color: "white",
+                            borderRadius: 2,
+                            px: 2,
+                            py: 1,
+                            fontWeight: "bold",
+                            fontSize: "0.875rem",
+                            boxShadow: 3,
+                            display: { xs: "none", sm: "block" },
+                            zIndex: 10,
+                            "&::after": {
+                                content: '""',
+                                position: "absolute",
+                                bottom: -8,
+                                right: "40%",
+                                width: 0,
+                                height: 0,
+                                borderLeft: "8px solid transparent",
+                                borderRight: "8px solid transparent",
+                                borderTop: `8px solid ${palette.secondary.main}`,
+                            },
+                        }}
+                    >
+                        Get $5 FREE!
+                    </Box>
+                )}
             </Box>
         </PricingTiersOuter>
     );
@@ -489,23 +536,6 @@ const SupportOptionBox = styled(Box)(({ theme }) => ({
         boxShadow: `0 0 10px 5px ${theme.palette.secondary.light}44`,
     },
     transition: "box-shadow 0.3s ease-in-out",
-}));
-const FancyButton = styled(Button)(({ theme }) => ({
-    background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
-    fontSize: "1.1rem",
-    padding: "12px",
-    textTransform: "none",
-    fontWeight: 600,
-    transition: "all 0.3s ease",
-    "& .MuiTouchRipple-root": {
-        transition: "transform 0.3s ease",
-    },
-    "&:hover": {
-        background: `linear-gradient(45deg, ${theme.palette.secondary.dark}, ${theme.palette.primary.dark})`,
-        // eslint-disable-next-line no-magic-numbers
-        boxShadow: `0 8px 20px ${alpha(theme.palette.secondary.main, 0.4)}`,
-        transform: "scale(1.05)",
-    },
 }));
 
 function SupportOption({
@@ -532,6 +562,128 @@ function SupportOption({
             </Box>
             <Typography variant="body1">{text}</Typography>
         </SupportOptionBox>
+    );
+}
+
+// Phone verification offer banner
+function PhoneVerificationBanner() {
+    const { palette } = useTheme();
+    const [, setLocation] = useLocation();
+    const session = useContext(SessionContext);
+    const currentUser = useMemo(() => getCurrentUser(session), [session]);
+
+    // Don't show if user is not logged in, already has a verified phone, or already received the reward
+    // TODO: Backend needs to be updated to populate phoneNumberVerified and hasReceivedPhoneVerificationReward fields in SessionUser
+    if (!session?.isLoggedIn || 
+        currentUser.phoneNumberVerified === true || 
+        currentUser.hasReceivedPhoneVerificationReward === true) {
+        return null;
+    }
+
+    function handleVerifyPhone() {
+        if (!session?.isLoggedIn) {
+            // If not logged in, redirect to signup with a redirect back to settings
+            const redirectUrl = `${window.location.origin}${LINKS.SettingsAuthentication}`;
+            openLink(setLocation, LINKS.Signup, { searchParams: { redirect: redirectUrl } });
+        } else {
+            openLink(setLocation, LINKS.SettingsAuthentication);
+        }
+    }
+
+    // Show different message based on whether they can still get the reward
+    const isFirstTimeOffer = currentUser.hasReceivedPhoneVerificationReward !== true;
+
+    return (
+        <Box
+            sx={{
+                background: `linear-gradient(135deg, ${palette.secondary.light}22, ${palette.primary.light}22)`,
+                border: `2px solid ${palette.secondary.main}`,
+                borderRadius: 2,
+                p: 2,
+                mx: 2,
+                mb: 4,
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: "center",
+                gap: 2,
+                boxShadow: `0 4px 12px ${palette.secondary.main}33`,
+            }}
+        >
+            <Box display="flex" alignItems="center" gap={1} flex={1}>
+                <IconCommon
+                    name="Phone"
+                    fill={palette.secondary.main}
+                    size={32}
+                />
+                <Box>
+                    <Typography variant="h6" sx={{ fontWeight: "bold", color: palette.text.primary }}>
+                        {isFirstTimeOffer ? "First-time offer: Get $5 in FREE Credits!" : "Verify Your Phone Number"}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                        {isFirstTimeOffer 
+                            ? "Verify your phone number to claim your one-time bonus" 
+                            : "Add phone verification for enhanced account security"
+                        }
+                    </Typography>
+                </Box>
+            </Box>
+            <Button
+                variant={isFirstTimeOffer ? "space" : "primary"}
+                onClick={handleVerifyPhone}
+                startIcon={<IconCommon name="Phone" />}
+            >
+                Verify Now
+            </Button>
+        </Box>
+    );
+}
+
+// Payment security badges component
+function SecurityBadges() {
+    const { palette } = useTheme();
+
+    return (
+        <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            gap={2}
+            sx={{
+                opacity: 0.8,
+                mt: 2,
+            }}
+        >
+            <Box display="flex" alignItems="center" gap={0.5}>
+                <IconCommon
+                    name="Lock"
+                    size={20}
+                    fill={palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)"}
+                />
+                <Typography
+                    variant="caption"
+                    sx={{ color: palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)" }}
+                >
+                    SSL Secured
+                </Typography>
+            </Box>
+            <Typography
+                variant="caption"
+                sx={{ color: palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)" }}
+            >
+                •
+            </Typography>
+            <Box display="flex" alignItems="center" gap={0.5}>
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: palette.mode === "dark" ? "rgba(255, 255, 255, 0.5)" : "rgba(0, 0, 0, 0.5)",
+                        fontWeight: 600
+                    }}
+                >
+                    Powered by Stripe
+                </Typography>
+            </Box>
+        </Box>
     );
 }
 
@@ -592,96 +744,275 @@ export function CreditDialog({
     onClose,
     startCheckout,
 }) {
-    const [customCreditAmount, setCustomCreditAmount] = useState(25);
-    function onCustomCreditAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
-        const value = Number(event.target.value);
-        if (value < 1) {
-            setCustomCreditAmount(1);
+    const { palette } = useTheme();
+    const [selectedAmount, setSelectedAmount] = useState<number | null>(20);
+    const [customAmount, setCustomAmount] = useState("");
+    const [showCustom, setShowCustom] = useState(false);
+    
+    // Credit packages with psychological anchoring
+    const creditPackages = [
+        { 
+            value: 10, 
+            label: "$10", 
+            credits: "~1,000",
+            tasks: "~50 tasks",
+            emoji: "⚡"
+        },
+        { 
+            value: 20, 
+            label: "$20", 
+            credits: "~2,000",
+            tasks: "~100 tasks",
+            emoji: "🔥",
+            popular: true,
+            savings: null
+        },
+        { 
+            value: 50, 
+            label: "$50", 
+            credits: "~5,000",
+            tasks: "~250 tasks",
+            emoji: "🚀"
+        },
+        { 
+            value: 100, 
+            label: "$100", 
+            credits: "~10,000",
+            tasks: "~500 tasks",
+            emoji: "💎"
+        }
+    ];
+
+    function handleAmountSelect(amount: number) {
+        setSelectedAmount(amount);
+        setShowCustom(false);
+        setCustomAmount("");
+    }
+
+    function handleCustomClick() {
+        setShowCustom(true);
+        setSelectedAmount(null);
+    }
+
+    function onCustomAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        setCustomAmount(value);
+        const numValue = Number(value);
+        if (numValue > 0) {
+            setSelectedAmount(numValue);
         } else {
-            setCustomCreditAmount(value);
+            setSelectedAmount(null);
         }
     }
 
-    function handleCheckout10Dollars() {
-        const dollars = 10;
-        startCheckout("credits", dollars * 100);
-        onClose();
+    function handleCheckout() {
+        if (selectedAmount && selectedAmount > 0) {
+            startCheckout("credits", selectedAmount * 100);
+            onClose();
+        }
     }
-    function handleCheckout20Dollars() {
-        const dollars = 20;
-        startCheckout("credits", dollars * 100);
-        onClose();
-    }
-    function handleCheckout50Dollars() {
-        const dollars = 50;
-        startCheckout("credits", dollars * 100);
-        onClose();
-    }
-    function handleCheckoutCustomAmount() {
-        const dollars = customCreditAmount;
-        startCheckout("credits", dollars * 100);
-        onClose();
+
+    // Calculate approximate credits and tasks
+    function getCreditsInfo(amount: number | null) {
+        if (!amount) return null;
+        const credits = amount * 100; // Approximate
+        const tasks = Math.floor(credits / 20); // Approximate tasks
+        return { credits, tasks };
     }
 
     return (
         <Dialog
             open={open}
             onClose={onClose}
-            aria-labelledby="select-credit-amount-dialog"
-            PaperProps={dialogPaperProps}
+            aria-labelledby="credit-dialog"
+            PaperProps={{
+                sx: {
+                    bgcolor: "background.default",
+                    borderRadius: 3,
+                    maxWidth: 520,
+                    width: "100%",
+                }
+            }}
         >
-            <DialogTitle id="select-credit-amount-dialog">
-                Select Credit Amount
+            <DialogTitle id="credit-dialog" sx={{ textAlign: "center", pb: 1 }}>
+                <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
+                    Power Up Your AI Assistant 🚀
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                    Get credits to run AI-powered tasks and automations
+                </Typography>
             </DialogTitle>
-            <DialogContent>
-                <Box display="flex" flexDirection="column" gap={2}>
-                    <Typography variant="body1">
-                        Select the amount of credits to buy:
+            
+            <DialogContent sx={{ px: 3 }}>
+                {/* Value proposition banner */}
+                <Box sx={{ 
+                    mb: 3, 
+                    p: 2, 
+                    background: `linear-gradient(135deg, ${palette.primary.main}22, ${palette.secondary.main}22)`,
+                    borderRadius: 2,
+                    textAlign: "center"
+                }}>
+                    <Typography variant="body2" sx={{ fontWeight: "bold", color: palette.primary.main }}>
+                        💡 Pro Tip: Buy credits as you need them!
                     </Typography>
-                    <Box display="flex" gap={1}>
+                    <Typography variant="caption" color="textSecondary">
+                        Credits never expire • Use them anytime
+                    </Typography>
+                </Box>
+
+                {/* Credit packages grid */}
+                <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={2} mb={3}>
+                    {creditPackages.map((pkg) => (
                         <Button
-                            fullWidth
-                            onClick={handleCheckout10Dollars}
-                            variant="outlined"
+                            key={pkg.value}
+                            onClick={() => handleAmountSelect(pkg.value)}
+                            variant={selectedAmount === pkg.value ? "primary" : "outline"}
+                            className="tw-h-auto"
+                            borderRadius="minimal"
+                            sx={{
+                                position: "relative",
+                                py: 3,
+                                px: 2,
+                                minHeight: "120px",
+                                // Override the button's internal span to display content vertically
+                                "& > span:first-of-type": {
+                                    flexDirection: "column !important",
+                                    alignItems: "center !important",
+                                    gap: "4px !important",
+                                    height: "100%",
+                                    width: "100%"
+                                },
+                                ...(pkg.popular && {
+                                    border: `2px solid ${palette.secondary.main}`,
+                                    "&::before": {
+                                        content: '"Most Popular"',
+                                        position: "absolute",
+                                        top: -10,
+                                        left: "50%",
+                                        transform: "translateX(-50%)",
+                                        bgcolor: palette.secondary.main,
+                                        color: "white",
+                                        fontSize: "0.65rem",
+                                        px: 1,
+                                        py: 0.25,
+                                        borderRadius: 1,
+                                        fontWeight: "bold",
+                                        zIndex: 1
+                                    }
+                                })
+                            }}
                         >
-                            $10
+                            <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                {pkg.emoji} {pkg.label}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                                {pkg.credits} credits
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                                color: palette.primary.main,
+                                fontWeight: "bold" 
+                            }}>
+                                {pkg.tasks}
+                            </Typography>
                         </Button>
-                        <Button
-                            fullWidth
-                            onClick={handleCheckout20Dollars}
-                            variant="outlined"
-                        >
-                            $20
-                        </Button>
-                        <Button
-                            fullWidth
-                            onClick={handleCheckout50Dollars}
-                            variant="outlined"
-                        >
-                            $50
-                        </Button>
-                    </Box>
-                    <Typography variant="body1">Or enter a custom amount:</Typography>
-                    <input
-                        type="number"
-                        value={customCreditAmount}
-                        onChange={onCustomCreditAmountChange}
-                        min={1}
-                        style={{ width: "100%", padding: "8px" }}
-                        placeholder="Custom Amount ($)"
-                    />
+                    ))}
+                </Box>
+
+                {/* Custom amount option */}
+                <Box sx={{ mb: 3 }}>
                     <Button
                         fullWidth
-                        onClick={handleCheckoutCustomAmount}
-                        variant="contained"
-                        disabled={!customCreditAmount || customCreditAmount < 1}
+                        onClick={handleCustomClick}
+                        variant={showCustom ? "primary" : "ghost"}
+                        size="md"
                     >
-                        Buy Custom Amount
+                        Custom Amount
                     </Button>
                 </Box>
+
+                {showCustom && (
+                    <Box sx={{ mb: 2 }}>
+                        <input
+                            type="number"
+                            value={customAmount}
+                            onChange={onCustomAmountChange}
+                            min={1}
+                            style={{ 
+                                width: "100%", 
+                                padding: "12px",
+                                fontSize: "16px",
+                                borderRadius: "8px",
+                                border: `2px solid ${palette.primary.main}`,
+                                outline: "none"
+                            }}
+                            placeholder="Enter amount ($)"
+                            autoFocus
+                        />
+                        {selectedAmount && showCustom && (
+                            <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: "block" }}>
+                                You'll get approximately {getCreditsInfo(selectedAmount)?.credits.toLocaleString()} credits
+                            </Typography>
+                        )}
+                    </Box>
+                )}
+
+                {/* What you can do with credits */}
+                {selectedAmount && (
+                    <Box sx={{
+                        p: 2,
+                        bgcolor: palette.info.main + "11",
+                        borderRadius: 2,
+                        mb: 2
+                    }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
+                            With ${selectedAmount} you can:
+                        </Typography>
+                        <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                            {selectedAmount >= 50 && (
+                                <Typography component="li" variant="body2">
+                                    Run complex AI workflows for a month
+                                </Typography>
+                            )}
+                            {selectedAmount >= 20 && (
+                                <Typography component="li" variant="body2">
+                                    Generate 100+ AI responses
+                                </Typography>
+                            )}
+                            <Typography component="li" variant="body2">
+                                Automate {getCreditsInfo(selectedAmount)?.tasks}+ daily tasks
+                            </Typography>
+                            <Typography component="li" variant="body2">
+                                Access premium AI models
+                            </Typography>
+                        </Box>
+                    </Box>
+                )}
+
+                {/* Purchase button */}
+                <Button
+                    fullWidth
+                    onClick={handleCheckout}
+                    variant="space"
+                    size="lg"
+                    disabled={!selectedAmount || selectedAmount < 1}
+                    startIcon={<IconCommon name="ShoppingCart" />}
+                    sx={{ mb: 2 }}
+                >
+                    Buy {selectedAmount ? `$${selectedAmount} in Credits` : "Credits"}
+                </Button>
+
+                {/* Trust signals */}
+                <Box sx={{ textAlign: "center", opacity: 0.7 }}>
+                    <Typography variant="caption" color="textSecondary">
+                        🔒 Secure checkout • Credits never expire • Instant activation
+                    </Typography>
+                </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
+            
+            <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+                <Button onClick={onClose} variant="ghost" size="sm">
+                    Maybe later
+                </Button>
             </DialogActions>
         </Dialog>
     );
@@ -692,63 +1023,291 @@ function DonationDialog({
     onClose,
     startCheckout,
 }) {
-    const [customDonationAmount, setCustomDonationAmount] = useState(25);
-    function onCustomDonationAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
-        const value = Number(event.target.value);
-        if (value < 1) {
-            setCustomDonationAmount(1);
+    const { palette } = useTheme();
+    const [selectedAmount, setSelectedAmount] = useState<number | null>(15);
+    const [customAmount, setCustomAmount] = useState("");
+    const [showCustom, setShowCustom] = useState(false);
+    
+    // Suggested amounts with psychological anchoring
+    const donationOptions = [
+        { 
+            value: 5, 
+            label: "$5", 
+            impact: "Keeps us caffeinated",
+            emoji: "☕"
+        },
+        { 
+            value: 15, 
+            label: "$15", 
+            impact: "Fuels a day of coding",
+            emoji: "🔥",
+            popular: true
+        },
+        { 
+            value: 25, 
+            label: "$25", 
+            impact: "Supports server costs",
+            emoji: "🎯"
+        },
+        { 
+            value: 50, 
+            label: "$50", 
+            impact: "Funds new features",
+            emoji: "🚀"
+        }
+    ];
+
+    function handleAmountSelect(amount: number) {
+        setSelectedAmount(amount);
+        setShowCustom(false);
+        setCustomAmount("");
+    }
+
+    function handleCustomClick() {
+        setShowCustom(true);
+        setSelectedAmount(null);
+    }
+
+    function onCustomAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        setCustomAmount(value);
+        const numValue = Number(value);
+        if (numValue > 0) {
+            setSelectedAmount(numValue);
         } else {
-            setCustomDonationAmount(value);
+            setSelectedAmount(null);
         }
     }
 
-    function handleCheckoutCustomAmount() {
-        const dollars = customDonationAmount;
-        startCheckout("donation", dollars * 100);
-        onClose();
+    function handleDonate() {
+        if (selectedAmount && selectedAmount > 0) {
+            startCheckout("donation", selectedAmount * 100);
+            onClose();
+        }
+    }
+
+    // Calculate impact message based on amount
+    function getImpactMessage(amount: number | null) {
+        if (!amount) return "";
+        if (amount >= 100) return "You're a hero! This funds a week of development 🦸";
+        if (amount >= 50) return "Amazing! This helps us add new features 🎉";
+        if (amount >= 25) return "Wonderful! This keeps our servers running smoothly";
+        if (amount >= 15) return "Thank you! This fuels our development team";
+        if (amount >= 5) return "Every bit helps! This keeps us caffeinated";
+        return "Your support means the world to us";
     }
 
     return (
         <Dialog
             open={open}
             onClose={onClose}
-            aria-labelledby="custom-donation-dialog"
+            aria-labelledby="donation-dialog"
+            PaperProps={{
+                sx: {
+                    bgcolor: "background.default",
+                    borderRadius: 3,
+                    maxWidth: 480,
+                    width: "100%",
+                }
+            }}
         >
-            <DialogTitle id="custom-donation-dialog">
-                Enter Custom Donation Amount
+            <DialogTitle id="donation-dialog" sx={{ textAlign: "center", pb: 1 }}>
+                <Typography variant="h5" sx={{ fontWeight: "bold", mb: 1 }}>
+                    Support Vrooli's Mission 💙
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                    Help us democratize AI and keep building amazing features
+                </Typography>
             </DialogTitle>
-            <DialogContent>
-                <Box display="flex" flexDirection="column" gap={2}>
-                    <input
-                        type="number"
-                        value={customDonationAmount}
-                        onChange={onCustomDonationAmountChange}
-                        min={1}
-                        style={{ width: "100%", padding: "8px" }}
-                        placeholder="Custom Amount ($)"
-                    />
+            
+            <DialogContent sx={{ px: 3 }}>
+                {/* Community support progress */}
+                {/* TODO: Replace hardcoded values (78%, 234 supporters) with actual data from API */}
+                <Box sx={{ 
+                    mb: 3, 
+                    p: 2, 
+                    background: `linear-gradient(135deg, ${palette.secondary.main}15, ${palette.primary.main}15)`,
+                    borderRadius: 2 
+                }}>
+                    <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Typography variant="body2" color="textSecondary">
+                            Monthly Support Goal
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: "bold", color: palette.primary.main }}>
+                            78% reached
+                        </Typography>
+                    </Box>
+                    <Box sx={{ 
+                        height: 8, 
+                        bgcolor: palette.action.disabledBackground,
+                        borderRadius: 1,
+                        overflow: "hidden"
+                    }}>
+                        <Box sx={{
+                            width: "78%",
+                            height: "100%",
+                            background: `linear-gradient(90deg, ${palette.secondary.main}, ${palette.primary.main})`,
+                            transition: "width 0.5s ease"
+                        }} />
+                    </Box>
+                    <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: "block" }}>
+                        234 amazing supporters this month 🙏
+                    </Typography>
+                </Box>
+
+                {/* Quick donation amounts */}
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: "bold" }}>
+                    Choose an amount:
+                </Typography>
+                
+                <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={2} mb={3}>
+                    {donationOptions.map((option) => (
+                        <Button
+                            key={option.value}
+                            onClick={() => handleAmountSelect(option.value)}
+                            variant={selectedAmount === option.value ? "primary" : "outline"}
+                            className="tw-h-auto"
+                            borderRadius="minimal"
+                            sx={{
+                                position: "relative",
+                                py: 3,
+                                px: 2,
+                                minHeight: "100px",
+                                // Override the button's internal span to display content vertically
+                                "& > span:first-of-type": {
+                                    flexDirection: "column !important",
+                                    alignItems: "center !important",
+                                    gap: "4px !important",
+                                    height: "100%",
+                                    width: "100%"
+                                },
+                                ...(option.popular && {
+                                    border: `2px solid ${palette.secondary.main}`,
+                                    "&::before": {
+                                        content: '"Most Common"',
+                                        position: "absolute",
+                                        top: -10,
+                                        left: "50%",
+                                        transform: "translateX(-50%)",
+                                        bgcolor: palette.secondary.main,
+                                        color: "white",
+                                        fontSize: "0.65rem",
+                                        px: 1,
+                                        py: 0.25,
+                                        borderRadius: 1,
+                                        fontWeight: "bold",
+                                        zIndex: 1
+                                    }
+                                })
+                            }}
+                        >
+                            <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                {option.emoji} {option.label}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                                {option.impact}
+                            </Typography>
+                        </Button>
+                    ))}
+                </Box>
+
+                {/* Custom amount option */}
+                <Box sx={{ mb: 3 }}>
                     <Button
                         fullWidth
-                        onClick={handleCheckoutCustomAmount}
-                        variant="contained"
-                        disabled={!customDonationAmount || customDonationAmount < 1}
+                        onClick={handleCustomClick}
+                        variant={showCustom ? "primary" : "ghost"}
+                        size="md"
                     >
-                        Donate Custom Amount
+                        Other Amount
                     </Button>
                 </Box>
+
+                {showCustom && (
+                    <Box sx={{ mb: 2 }}>
+                        <input
+                            type="number"
+                            value={customAmount}
+                            onChange={onCustomAmountChange}
+                            min={1}
+                            style={{ 
+                                width: "100%", 
+                                padding: "12px",
+                                fontSize: "16px",
+                                borderRadius: "8px",
+                                border: `2px solid ${palette.primary.main}`,
+                                outline: "none"
+                            }}
+                            placeholder="Enter amount ($)"
+                            autoFocus
+                        />
+                    </Box>
+                )}
+
+                {/* Impact message */}
+                {selectedAmount && (
+                    <Box sx={{
+                        p: 2,
+                        bgcolor: palette.success.main + "15",
+                        borderRadius: 2,
+                        mb: 2,
+                        textAlign: "center"
+                    }}>
+                        <Typography variant="body2" sx={{ fontWeight: "bold", color: palette.success.dark }}>
+                            {getImpactMessage(selectedAmount)}
+                        </Typography>
+                    </Box>
+                )}
+
+                {/* Personal message from founder */}
+                <Box sx={{
+                    p: 2,
+                    bgcolor: palette.background.paper,
+                    borderRadius: 2,
+                    mb: 2,
+                    borderLeft: `4px solid ${palette.primary.main}`
+                }}>
+                    <Typography variant="caption" sx={{ fontStyle: "italic" }}>
+                        "Your support directly helps us build a platform where AI is accessible to everyone. 
+                        Thank you for believing in our mission!" 
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: "block", mt: 1, fontWeight: "bold" }}>
+                        - Matt, Founder
+                    </Typography>
+                </Box>
+
+                {/* Donate button */}
+                <Button
+                    fullWidth
+                    onClick={handleDonate}
+                    variant="space"
+                    size="lg"
+                    disabled={!selectedAmount || selectedAmount < 1}
+                    startIcon={<IconCommon name="HeartFilled" />}
+                    sx={{ mb: 2 }}
+                >
+                    Donate {selectedAmount ? `$${selectedAmount}` : ""}
+                </Button>
+
+                {/* Trust signals */}
+                <Box sx={{ textAlign: "center", opacity: 0.7 }}>
+                    <Typography variant="caption" color="textSecondary">
+                        🔒 Secure via Stripe • 100% goes to development
+                    </Typography>
+                </Box>
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
+            
+            <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+                <Button onClick={onClose} variant="ghost" size="sm">
+                    Maybe later
+                </Button>
             </DialogActions>
         </Dialog>
     );
 }
 
-const CheckStatusButton = styled(Button)(({ theme }) => ({
-    textDecoration: "underline",
-    textTransform: "none",
-    color: theme.palette.background.textSecondary,
-}));
+// Custom styling for status check buttons using our Button component
+const checkStatusButtonStyles = "tw-underline tw-normal-case tw-text-gray-600";
 
 export function ProView(_props: ViewProps) {
     const { t } = useTranslation();
@@ -822,6 +1381,8 @@ export function ProView(_props: ViewProps) {
                     <Navbar title={t("ProGet")} />
                     <Box display="flex" flexDirection="column" gap={8} margin="auto">
                         <WaysToSupportUs />
+                        {/* Phone verification banner */}
+                        <PhoneVerificationBanner />
                         <Box display="flex" flexDirection="column" pt={4} alignItems="center" minHeight="100vh" justifyContent="center">
                             <Typography variant="h4" m="auto" p={2}>Select the perfect plan for your needs.</Typography>
                             <Typography variant="body1" textAlign="center" p={2}>
@@ -830,6 +1391,8 @@ export function ProView(_props: ViewProps) {
                             <Box mt={2} mb={2}>
                                 <BillingCycleToggle value={billingCycle} onChange={setBillingCycle} />
                             </Box>
+                            {/* Security badges */}
+                            <SecurityBadges />
                             <PricingTiers
                                 billingCycle={billingCycle}
                                 currentTheme={palette.mode}
@@ -837,15 +1400,17 @@ export function ProView(_props: ViewProps) {
                                 prices={prices}
                             />
                             <Box display="flex" justifyContent="center" alignItems="center" gap={1} width="min(800px, 100%)" m="auto">
-                                {!currentUser.hasPremium && <CheckStatusButton
+                                {!currentUser.hasPremium && <Button
                                     onClick={checkFailedSubscription}
-                                    variant="text"
-                                >Didn&apos;t receive Pro?</CheckStatusButton>}
+                                    variant="ghost"
+                                    className={checkStatusButtonStyles}
+                                >Didn&apos;t receive Pro?</Button>}
                                 {!currentUser.hasPremium && session?.isLoggedIn && <p>•</p>}
-                                {session?.isLoggedIn && <CheckStatusButton
+                                {session?.isLoggedIn && <Button
                                     onClick={checkFailedCredits}
-                                    variant="text"
-                                >Didn&apos;t receive credits?</CheckStatusButton>}
+                                    variant="ghost"
+                                    className={checkStatusButtonStyles}
+                                >Didn&apos;t receive credits?</Button>}
                             </Box>
                         </Box>
                         <Box id={ELEMENT_IDS.ProViewDonateBox} p={2} m="auto" mt={4} mb={4} maxWidth="800px" width="100%">
@@ -856,9 +1421,10 @@ export function ProView(_props: ViewProps) {
                                 Vrooli is a labor of love. I&apos;ve spent countless hours and life savings to develop this product. Consider donating to support our efforts to democratize AI. Every dollar helps!💙
                             </Typography>
                             <Box width="min(300px, 100%)" margin="auto">
-                                <FancyButton
+                                <Button
                                     fullWidth
-                                    variant="contained"
+                                    variant="space"
+                                    borderRadius="pill"
                                     onClick={onDonateClick}
                                     startIcon={<IconCommon
                                         decorative
@@ -866,7 +1432,7 @@ export function ProView(_props: ViewProps) {
                                     />}
                                 >
                                     Donate
-                                </FancyButton>
+                                </Button>
                             </Box>
                         </Box>
                         {/* TODO add video to showcase pro features */}
