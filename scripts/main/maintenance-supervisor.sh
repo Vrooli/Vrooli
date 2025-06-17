@@ -120,42 +120,52 @@ task_running() {        # pid file → 0 if process alive
 run_task() {
   local name=$1 prompt=$2 turns=$3
   local logfile="${LOG_DIR}/${name}_$("$DATE_BIN" +%F_%H%M%S).log"
-  :> "$logfile"   # touch for watchdog
+  :> "$logfile"                                 # touch so watchdog has a file
   local pid_file="/tmp/${name}.running"
 
-  echo "[$("$DATE_BIN")] ▶️  Starting $name" | tee -a "$logfile"
+  echo "[$("$DATE_BIN")] ▶️  Starting $name"            | tee -a "$logfile"
 
+  # ---------- launch agent ---------------------------------------------------
   "${SUDO[@]}" "$AGENT_SCRIPT" "$prompt" "$turns" >>"$logfile" 2>&1 &
   local run_pid=$!
   echo "$run_pid" > "$pid_file"
 
-  # watchdog in background
+  # ---------- watchdog: kill if no output for LONG_ENOUGH_S ------------------
   (
-    local idle=$LONG_ENOUGH_S
+    local idle=$LONG_ENOUGH_S last now
     while kill -0 "$run_pid" 2>/dev/null; do
-      local last=$(get_mtime "$logfile")
-      local now=$("$DATE_BIN" +%s)
-      (( now - last > idle )) && {
-        echo "[$("$DATE_BIN")] ⏱  Idle >${idle}s – killing $name" | tee -a "$logfile"
-        pkill -TERM -P "$run_pid" 2>/dev/null || true
-        kill -TERM "$run_pid" 2>/dev/null || true
-        sleep 3; kill -KILL "$run_pid" 2>/dev/null || true
+      last=$(get_mtime "$logfile")
+      now=$("$DATE_BIN" +%s)
+      if (( now - last > idle )); then
+        echo "[$("$DATE_BIN")] ⏱  Idle >${idle}s – watchdog terminating $name" \
+          | tee -a "$logfile"
+        pkill -TERM -P "$run_pid" 2>/dev/null || true      # children first
+        kill  -TERM  "$run_pid" 2>/dev/null || true
+        sleep 3 && kill -KILL "$run_pid" 2>/dev/null || true
         break
-      }
+      fi
       sleep 2
     done
   ) &
   local watch_pid=$!
 
-  wait "$run_pid"; local ec=$?
+  # ---------- wait (DON’T let ‘set -e’ kill the supervisor) ------------------
+  set +e                              ### NEW: temporarily disable errexit
+  wait "$run_pid"
+  local ec=$?
+  set -e                              ### NEW: re-enable errexit
   kill "$watch_pid" 2>/dev/null || true
   rm -f "$pid_file"
 
-  if (( ec == 0 )); then
-    echo "[$("$DATE_BIN")] ✅  $name finished" | tee -a "$logfile"
-  else
-    echo "[$("$DATE_BIN")] ⚠️  $name exit code $ec" | tee -a "$logfile"
+  # ---------- work out exit reason ------------------------------------------
+  local reason
+  if grep -qiE 'Idle .*watchdog' "$logfile";        then reason="idle_timeout"
+  elif grep -qiE 'max.?turns|turn.?limit' "$logfile"; then reason="max_turns"
+  elif (( ec == 0 ));                               then reason="success"
+  else                                                   reason="exit_code_$ec"
   fi
+
+  echo "[$("$DATE_BIN")] ⏹️  $name finished – ${reason}" | tee -a "$logfile"
 }
 
 ###############################################################################
@@ -235,15 +245,19 @@ pick_next_task() {
       return
     fi
   done
+
+  echo "" # no task found
 }
 
 # remove stale pid files on startup
 cleanup_pidfiles() {
+  set +e            # CHG
   for entry in "${TASKS[@]}"; do
     IFS='|' read -r name _ <<<"$entry"
     local pf="/tmp/${name}.running"
     task_running "$pf" || rm -f "$pf"
   done
+  set -e            # CHG
 }
 
 ###############################################################################
