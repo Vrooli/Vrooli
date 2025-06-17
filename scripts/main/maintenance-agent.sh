@@ -127,56 +127,54 @@ else
 fi
 
 ###############################################################################
-# Wrapper: log and continue on non-zero exit (no unsafe retry)
-###############################################################################
-run_claude() {
-  if ! "$CLAUDE" "$@"; then
-    echo "⚠️  Claude exited non-zero (possibly max-turns, so we shouldn't quit) - continuing…" >&2
-  fi
-  return 0               # ← never let a CLI error abort the script
-}
-
-###############################################################################
 # Core batch runner
 ###############################################################################
 run_task() {
   local prompt_raw=$1 turns_total=$2
   [[ $turns_total =~ ^[0-9]+$ ]] || { echo "Turns must be numeric"; exit 1; }
 
-  # Inject current date into the prompt
-  local date_str
-  date_str=$(date +%F)
+  local date_str; date_str=$(date +%F)
   local prompt="[$date_str] $prompt_raw"
 
   echo -e "\n🛠️  \"$prompt_raw\" ($turns_total turns)"
   local remain=$turns_total session=""
+
   while (( remain > 0 )); do
     local t=$(( remain < BATCH_SIZE ? remain : BATCH_SIZE ))
     echo "➡️  Batch $t  (left $remain)"
 
-    # Sanitize prompt for filename and add sub-second timestamp
     local sanitized_prompt
-    sanitized_prompt=$(
-        printf '%s' "$prompt_raw" \
-            | LC_ALL=C tr -cd 'A-Za-z0-9_.\- ' \
-            | tr ' ' '_'
-    )
+    sanitized_prompt=$(printf '%s' "$prompt_raw" | LC_ALL=C tr -cd 'A-Za-z0-9_.\- ' | tr ' ' '_')
     local out_file="$log_dir/$(date +%H%M%S_%3N)_${sanitized_prompt}.json"
 
-    # ──────────────────────────────────────────────────────────────────────
-    # If Claude stops because of max-turns, we *expect* a non-zero exit.
-    # `|| true` swallows it so the loop keeps ticking.
-    # ──────────────────────────────────────────────────────────────────────
-    ( run_claude "$PROMPT_FLAG" "$prompt" \
-        --max-turns "$t" \
-        --output-format stream-json \
-        --verbose \
-        "${ALLOWED_TOOLS_ARGS[@]}" \
-        ${session:+--resume "$session"} ) \
-      | tee "$out_file" || true
-    # ──────────────────────────────────────────────────────────────────────
+    # ─────────────────────── call Claude & capture exit code ──────────────────
+    set +e
+    "$CLAUDE" "$PROMPT_FLAG" "$prompt" \
+      --max-turns "$t" \
+      --output-format stream-json \
+      --verbose \
+      "${ALLOWED_TOOLS_ARGS[@]}" \
+      ${session:+--resume "$session"} | tee "$out_file"
+    rc=${PIPESTATUS[0]}   # exit of Claude (not tee)
+    set -e
+    # ──────────────────────────────────────────────────────────────────────────
 
-    # Extract session-id for resume
+    # ◆ Error handling / max-turn detection
+    if (( rc != 0 )); then
+      if [[ ! -s "$out_file" ]]; then
+        echo "❌  Claude CLI failed (exit $rc) and no log was written" >&2
+        exit $rc
+      fi
+
+      last_subtype=$(tail -n 1 "$out_file" | jq -r '.subtype // empty' 2>/dev/null || true)
+      if [[ $last_subtype != "error_max_turns" ]]; then
+        echo "❌  Claude CLI failed (exit $rc); last subtype: '$last_subtype'" >&2
+        exit $rc
+      fi
+      echo "ℹ️  Claude reached max turns; continuing…" >&2
+    fi
+    # -------------------------------------------------------------------------
+
     session=$(jq -r '(.sessionId // .session_id // empty)' "$out_file" | tail -1 || true)
     (( remain -= t ))
     (( remain )) && sleep "$COOLDOWN_SECONDS"

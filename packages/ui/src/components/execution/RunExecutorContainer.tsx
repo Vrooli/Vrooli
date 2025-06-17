@@ -1,4 +1,4 @@
-import { Box, Collapse, IconButton, Typography } from "@mui/material";
+import { Box, Collapse, IconButton, Typography, Skeleton } from "@mui/material";
 import { ChatMessageRunConfig } from "@vrooli/shared";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,12 +10,14 @@ interface RunExecutorContainerProps {
     runs: ChatMessageRunConfig[];
     chatWidth: number;
     messageId: string;
+    isLoading?: boolean;
 }
 
 export function RunExecutorContainer({
     runs,
     chatWidth,
     messageId,
+    isLoading = false,
 }: RunExecutorContainerProps) {
     const { t } = useTranslation();
     const {
@@ -47,42 +49,104 @@ export function RunExecutorContainer({
     }, [removeRun]);
 
 
-    if (runs.length === 0) {
+    if (runs.length === 0 && !isLoading) {
         return null;
     }
 
     return (
         <Box sx={{ mt: 1.5, maxWidth: `${chatWidth}px` }}>
-            {/* Header with collapse all button */}
-            {runs.length > 1 && (
-                <Box
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "flex-end",
-                        mb: 1,
-                        px: 1,
-                    }}
-                >
-                    <IconButton 
-                        size="small" 
-                        onClick={toggleAllCollapsed}
-                        title={allCollapsed ? t("ExpandAll") : t("CollapseAll")}
+            {isLoading ? (
+                <>
+                    {/* Header skeleton */}
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-end",
+                            mb: 1,
+                            px: 1,
+                        }}
                     >
-                        <IconCommon name={allCollapsed ? "ChevronDown" : "ChevronUp"} />
-                    </IconButton>
-                </Box>
-            )}
+                        <Skeleton variant="circular" width={32} height={32} />
+                    </Box>
 
-            {/* Unified container for all runs */}
-            <Box 
-                sx={{ 
-                    bgcolor: "background.paper",
-                    borderRadius: 3,
-                    boxShadow: 1,
-                    overflow: "hidden",
-                }}
-            >
+                    {/* Loading executor skeleton */}
+                    <Box 
+                        sx={{ 
+                            bgcolor: "background.paper",
+                            borderRadius: 3,
+                            boxShadow: 1,
+                            overflow: "hidden",
+                            p: 2,
+                        }}
+                    >
+                        {/* Header area */}
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+                                <Skeleton variant="text" width={120} height={24} />
+                                <Skeleton variant="rectangular" width={80} height={8} sx={{ borderRadius: 1 }} />
+                            </Box>
+                            <Box sx={{ display: "flex", gap: 1 }}>
+                                <Skeleton variant="circular" width={32} height={32} />
+                                <Skeleton variant="circular" width={32} height={32} />
+                            </Box>
+                        </Box>
+
+                        {/* Content area */}
+                        <Box sx={{ display: "flex", gap: 2 }}>
+                            {/* Timeline skeleton */}
+                            <Box sx={{ width: 220, display: { xs: "none", sm: "block" } }}>
+                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                    {[1, 2, 3].map((i) => (
+                                        <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                            <Skeleton variant="circular" width={12} height={12} />
+                                            <Skeleton variant="text" width={140} height={16} />
+                                        </Box>
+                                    ))}
+                                </Box>
+                            </Box>
+
+                            {/* Details skeleton */}
+                            <Box sx={{ flex: 1 }}>
+                                <Skeleton variant="text" width="60%" height={20} sx={{ mb: 1 }} />
+                                <Skeleton variant="text" width="40%" height={16} sx={{ mb: 2 }} />
+                                <Skeleton variant="rectangular" width="100%" height={120} sx={{ borderRadius: 1 }} />
+                            </Box>
+                        </Box>
+                    </Box>
+                </>
+            ) : (
+                <>
+                    {/* Header with collapse all button */}
+                    {runs.length > 1 && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "flex-end",
+                                mb: 1,
+                                px: 1,
+                            }}
+                        >
+                            <IconButton 
+                                size="small" 
+                                onClick={toggleAllCollapsed}
+                                title={allCollapsed ? t("ExpandAll") : t("CollapseAll")}
+                            >
+                                <IconCommon name={allCollapsed ? "ChevronDown" : "ChevronUp"} />
+                            </IconButton>
+                        </Box>
+                    )}
+
+                    {/* Unified container for all runs */}
+                    <Box 
+                        sx={{ 
+                            bgcolor: "background.paper",
+                            borderRadius: 3,
+                            boxShadow: 1,
+                            overflow: "hidden",
+                        }}
+                    >
                 {visibleRuns.map((run, index) => {
                     // Create mock ResourceVersion for RoutineExecutor
                     // TODO: Fetch actual ResourceVersion data
@@ -133,20 +197,22 @@ export function RunExecutorContainer({
                 })}
             </Box>
 
-            {/* Show more button if there are hidden runs */}
-            {hiddenRunsCount > 0 && (
-                <Box sx={{ mt: 1, textAlign: "center" }}>
-                    <IconButton 
-                        onClick={() => setShowAllRuns(true)}
-                        size="small"
-                        sx={{ fontSize: "0.75rem" }}
-                    >
-                        <Typography variant="caption" sx={{ mr: 0.5 }}>
-                            {t("ShowMore", { count: hiddenRunsCount })}
-                        </Typography>
-                        <IconCommon name="ChevronDown" />
-                    </IconButton>
-                </Box>
+                    {/* Show more button if there are hidden runs */}
+                    {hiddenRunsCount > 0 && (
+                        <Box sx={{ mt: 1, textAlign: "center" }}>
+                            <IconButton 
+                                onClick={() => setShowAllRuns(true)}
+                                size="small"
+                                sx={{ fontSize: "0.75rem" }}
+                            >
+                                <Typography variant="caption" sx={{ mr: 0.5 }}>
+                                    {t("ShowMore", { count: hiddenRunsCount })}
+                                </Typography>
+                                <IconCommon name="ChevronDown" />
+                            </IconButton>
+                        </Box>
+                    )}
+                </>
             )}
         </Box>
     );

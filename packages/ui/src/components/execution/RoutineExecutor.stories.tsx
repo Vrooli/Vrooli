@@ -151,6 +151,7 @@ export function Showcase() {
     const [runStatus, setRunStatus] = useState<RunStatus>("InProgress");
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [chatMode, setChatMode] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [routineName, setRoutineName] = useState("Data Processing Routine");
     const [routineType, setRoutineType] = useState<ResourceSubType>(ResourceSubType.RoutineMultiStep);
     const [progressPercent, setProgressPercent] = useState(45);
@@ -257,12 +258,22 @@ export function Showcase() {
                         </Typography>
                         <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                             <Switch
+                                checked={isLoading}
+                                onChange={setIsLoading}
+                                size="sm"
+                                variant="default"
+                                label="Loading State"
+                                labelPosition="right"
+                            />
+
+                            <Switch
                                 checked={isCollapsed}
                                 onChange={setIsCollapsed}
                                 size="sm"
                                 variant="default"
                                 label="Collapsed State"
                                 labelPosition="right"
+                                disabled={isLoading}
                             />
 
                             <Switch
@@ -299,6 +310,7 @@ export function Showcase() {
                                 resourceVersion={resourceVersion}
                                 runStatus={runStatus}
                                 isCollapsed={isCollapsed}
+                                isLoading={isLoading}
                                 onToggleCollapse={handleToggleCollapse}
                                 onRemove={chatMode ? handleRemove : undefined}
                                 onClose={!chatMode ? handleClose : undefined}

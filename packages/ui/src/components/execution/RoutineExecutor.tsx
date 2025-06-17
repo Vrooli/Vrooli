@@ -1,6 +1,6 @@
 import { ResourceVersion, RunTaskInfo, Run, RunStatus, ResourceSubType, noop } from "@vrooli/shared";
 import { useCallback, useEffect, useReducer, useState } from "react";
-import { Box } from "@mui/material";
+import { Box, Skeleton } from "@mui/material";
 import { ExecutionTimeline } from "./ExecutionTimeline.js";
 import { ExecutionHeader } from "./ExecutionHeader.js";
 import { StepDetails } from "./StepDetails.js";
@@ -21,6 +21,7 @@ interface RoutineExecutorProps {
     isFirstInGroup?: boolean;
     isLastInGroup?: boolean;
     showInUnifiedContainer?: boolean;
+    isLoading?: boolean;
 }
 
 export interface ExecutionStep {
@@ -159,6 +160,7 @@ export function RoutineExecutor({
     isFirstInGroup = true,
     isLastInGroup = true,
     showInUnifiedContainer = false,
+    isLoading = false,
 }: RoutineExecutorProps) {
     // Generate steps based on routine type and execution state
     const generateSteps = (): ExecutionStep[] => {
@@ -326,6 +328,73 @@ export function RoutineExecutor({
 
     // Always return the full structure, but hide content when collapsed
     const shouldShowRoundedCorners = !showInUnifiedContainer || (isFirstInGroup && isLastInGroup);
+
+    if (isLoading) {
+        return (
+            <Box 
+                className={`routine-executor ${className} loading`}
+                sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    height: chatMode ? "auto" : "100%",
+                    minHeight: chatMode ? 200 : "auto",
+                    minWidth: { xs: 280, sm: chatMode ? 480 : 500, md: chatMode ? 600 : 700 },
+                    maxWidth: { xs: "100%", sm: chatMode ? 600 : 800, md: chatMode ? 700 : 900 },
+                    width: "auto",
+                    mx: "auto",
+                    bgcolor: showInUnifiedContainer ? "transparent" : "background.paper",
+                    borderRadius: showInUnifiedContainer 
+                        ? 0 
+                        : shouldShowRoundedCorners ? 3 : 0,
+                    borderTopLeftRadius: showInUnifiedContainer && isFirstInGroup ? 0 : undefined,
+                    borderTopRightRadius: showInUnifiedContainer && isFirstInGroup ? 0 : undefined,
+                    borderBottomLeftRadius: showInUnifiedContainer && !isLastInGroup ? 0 : undefined,
+                    borderBottomRightRadius: showInUnifiedContainer && !isLastInGroup ? 0 : undefined,
+                    boxShadow: showInUnifiedContainer ? "none" : chatMode ? 1 : 2,
+                    overflow: "hidden",
+                    p: 2,
+                }}
+            >
+                {/* Header skeleton */}
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}>
+                        <Skeleton variant="text" width={150} height={24} />
+                        <Skeleton variant="rectangular" width={100} height={8} sx={{ borderRadius: 1 }} />
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Skeleton variant="circular" width={32} height={32} />
+                    </Box>
+                </Box>
+
+                {!isCollapsed && (
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                        {/* Timeline skeleton */}
+                        <Box sx={{ 
+                            width: chatMode ? 220 : 280, 
+                            display: { xs: "none", sm: "block" }
+                        }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1 }}>
+                                {[1, 2, 3, 4].map((i) => (
+                                    <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                        <Skeleton variant="circular" width={12} height={12} />
+                                        <Skeleton variant="text" width={160} height={16} />
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                        
+                        {/* Details skeleton */}
+                        <Box sx={{ flex: 1 }}>
+                            <Skeleton variant="text" width="60%" height={20} sx={{ mb: 1 }} />
+                            <Skeleton variant="text" width="40%" height={16} sx={{ mb: 2 }} />
+                            <Skeleton variant="rectangular" width="100%" height={chatMode ? 120 : 200} sx={{ borderRadius: 1 }} />
+                        </Box>
+                    </Box>
+                )}
+            </Box>
+        );
+    }
 
     return (
         <Box 

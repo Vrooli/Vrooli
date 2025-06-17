@@ -1,13 +1,15 @@
-import { Alert, Box, Chip, Divider, IconButton, List, ListItem, ListItemIcon, ListItemText, Paper, Typography } from "@mui/material";
+import { Alert, Box, Chip, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Paper, Skeleton, Typography } from "@mui/material";
 import { styled, useTheme } from "@mui/material/styles";
-import { ChatConfigObject, ExecutionStates, PendingToolCallStatus } from "@vrooli/shared";
+import { ChatConfigObject, ExecutionStates, PendingToolCallStatus, getObjectUrl } from "@vrooli/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts/session.js";
-import { useSwarmData } from "../../hooks/useSwarmData.js";
 import { useSocketSwarm } from "../../hooks/useSocketSwarm.js";
+import { useSwarmData } from "../../hooks/useSwarmData.js";
 import { IconCommon } from "../../icons/Icons.js";
+import { Link } from "../../route/router.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
+import { getDisplay } from "../../utils/display/listTools.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { PageTabs } from "../PageTabs/PageTabs.js";
@@ -117,6 +119,7 @@ export interface SwarmDetailPanelProps {
     onApproveToolCall?: (pendingId: string) => void;
     onRejectToolCall?: (pendingId: string, reason?: string) => void;
     onConfigUpdate?: (config: Partial<ChatConfigObject>) => void;
+    isLoading?: boolean;
 }
 
 /**
@@ -130,28 +133,58 @@ export function SwarmDetailPanel({
     onApproveToolCall,
     onRejectToolCall,
     onConfigUpdate,
+    isLoading = false,
 }: SwarmDetailPanelProps) {
     const { t } = useTranslation();
     const theme = useTheme();
     const session = useContext(SessionContext);
     const languages = useMemo(() => getUserLanguages(session), [session]);
     
+    // Helper function to get display info for objects
+    const getDisplayInfo = useCallback((object: any) => {
+        if (!object) return { title: "", subtitle: "", adornments: [] };
+        return getDisplay(object, languages, theme.palette);
+    }, [languages, theme.palette]);
+    
+    // Helper function to get URL for objects
+    const getUrl = useCallback((object: any) => {
+        if (!object?.id || !object?.__typename) return "";
+        try {
+            return getObjectUrl(object);
+        } catch (e) {
+            console.warn("Could not get URL for object:", object, e);
+            return "";
+        }
+    }, []);
+
     // Local state for swarm config to handle real-time updates
     const [swarmConfig, setSwarmConfig] = useState<ChatConfigObject | null>(initialSwarmConfig);
     const [localSwarmStatus, setLocalSwarmStatus] = useState(swarmStatus);
-    
+
     // Update local state when props change
     useEffect(() => {
         setSwarmConfig(initialSwarmConfig);
     }, [initialSwarmConfig]);
-    
+
     useEffect(() => {
         setLocalSwarmStatus(swarmStatus);
     }, [swarmStatus]);
-    
+
     // Load referenced data (bots, resources, teams)
     const { bots, resources, team, loading, errors, getBotById, getResourceById } = useSwarmData(swarmConfig);
     
+    // Debug logging
+    useEffect(() => {
+        console.log('SwarmDetailPanel - swarmConfig:', swarmConfig);
+        console.log('SwarmDetailPanel - teamId from config:', swarmConfig?.teamId);
+        console.log('SwarmDetailPanel - team loaded:', team);
+        console.log('SwarmDetailPanel - loading states:', { 
+            isLoading: loading.team, 
+            team: loading.team,
+            errors: errors.team 
+        });
+    }, [team, swarmConfig, loading, errors]);
+
     // Handle socket events for real-time updates
     useSocketSwarm({
         chatId,
@@ -287,7 +320,7 @@ export function SwarmDetailPanel({
         }
     }, []);
 
-    if (!swarmConfig) {
+    if (!swarmConfig && !isLoading) {
         return (
             <PanelContainer>
                 <PanelHeader>
@@ -304,9 +337,71 @@ export function SwarmDetailPanel({
             </PanelContainer>
         );
     }
-    
-    // Show loading indicator while fetching referenced data
-    const isLoading = loading.bots || loading.resources || loading.team;
+
+    // Show full loading skeleton only when explicitly loading or when we don't have swarm config
+    // Individual sections will handle their own loading states for referenced data
+    if (isLoading) {
+        return (
+            <PanelContainer>
+                <PanelHeader>
+                    <Box>
+                        <Skeleton variant="text" width={140} height={28} />
+                        <Skeleton variant="text" width={200} height={20} sx={{ mt: 0.5 }} />
+                    </Box>
+                    <IconButton onClick={handleClose}>
+                        <IconCommon name="Close" />
+                    </IconButton>
+                </PanelHeader>
+
+                {/* Statistics Overview Skeleton */}
+                <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+                    <Box display="grid" gridTemplateColumns="repeat(3, 1fr)" gap={1}>
+                        {[1, 2, 3].map((i) => (
+                            <Box
+                                key={i}
+                                sx={{
+                                    p: 1,
+                                    textAlign: "center",
+                                    borderRadius: 1,
+                                    backgroundColor: "action.hover",
+                                    minWidth: "120px",
+                                }}
+                            >
+                                <Skeleton variant="text" width={80} height={16} sx={{ mx: "auto" }} />
+                                <Skeleton variant="text" width={60} height={24} sx={{ mx: "auto", mt: 0.5 }} />
+                            </Box>
+                        ))}
+                    </Box>
+                </Box>
+
+                {/* Tabs Skeleton */}
+                <Box sx={{ borderBottom: 1, borderColor: "divider", px: 2 }}>
+                    <Box sx={{ display: "flex", gap: 3, py: 1 }}>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <Skeleton key={i} variant="text" width={80} height={40} />
+                        ))}
+                    </Box>
+                </Box>
+
+                {/* Content Area Skeleton */}
+                <TabPanel>
+                    <List>
+                        {[1, 2, 3, 4].map((i) => (
+                            <ListItem key={i} sx={{ mb: 1 }}>
+                                <ListItemIcon>
+                                    <Skeleton variant="circular" width={24} height={24} />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={<Skeleton variant="text" width="60%" height={20} />}
+                                    secondary={<Skeleton variant="text" width="40%" height={16} />}
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+                </TabPanel>
+            </PanelContainer>
+        );
+    }
 
     return (
         <PanelContainer>
@@ -379,7 +474,7 @@ export function SwarmDetailPanel({
                     </StatBox>
                 </Box>
 
-                {stats?.pendingApprovals && stats.pendingApprovals > 0 && (
+                {stats && stats.pendingApprovals > 0 && (
                     <Alert severity="warning" sx={{ mt: 2 }}>
                         {t("PendingApprovals", { count: stats.pendingApprovals })}
                     </Alert>
@@ -404,9 +499,6 @@ export function SwarmDetailPanel({
                             <ListItemText
                                 primary={
                                     <Box display="flex" alignItems="center" gap={1}>
-                                        {task.priority && (
-                                            <IconCommon name={getTaskIcon(task.status)} />
-                                        )}
                                         <Typography variant="body1">
                                             {task.description}
                                         </Typography>
@@ -416,7 +508,13 @@ export function SwarmDetailPanel({
                                     <Box>
                                         {task.assignee_bot_id && (
                                             <Typography variant="caption" color="text.secondary">
-                                                {t("AssignedTo")}: {getBotById(task.assignee_bot_id)?.name || task.assignee_bot_id}
+                                                {t("AssignedTo")}: {
+                                                    loading.bots ? (
+                                                        <Skeleton component="span" variant="text" width={80} />
+                                                    ) : (
+                                                        getBotById(task.assignee_bot_id)?.name || task.assignee_bot_id
+                                                    )
+                                                }
                                             </Typography>
                                         )}
                                         {task.depends_on && task.depends_on.length > 0 && (
@@ -441,44 +539,200 @@ export function SwarmDetailPanel({
 
             {/* Agents Tab */}
             <CustomTabPanel value={currTab.index} index={1} sx={{ p: 0 }}>
+                {console.log('SwarmDetailPanel - Agents tab render:', { 
+                    currTabIndex: currTab.index, 
+                    teamId: swarmConfig?.teamId,
+                    team,
+                    teamConfig: team?.config 
+                })}
                 <List>
-                    {swarmConfig.swarmLeader && (
-                        <ListItem>
-                            <ListItemIcon>
-                                <IconCommon name="Award" fill="warning.main" />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={t("SwarmLeader")}
-                                secondary={swarmConfig.swarmLeader ? (getBotById(swarmConfig.swarmLeader)?.name || swarmConfig.swarmLeader) : "Unknown"}
-                            />
-                        </ListItem>
-                    )}
-                    {swarmConfig.teamId && (
-                        <ListItem>
-                            <ListItemIcon>
-                                <IconCommon name="Team" />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={t("Team")}
-                                secondary={team?.name || swarmConfig.teamId}
-                            />
-                        </ListItem>
-                    )}
+                    {swarmConfig.swarmLeader && (() => {
+                        const bot = getBotById(swarmConfig.swarmLeader);
+                        const display = bot ? getDisplayInfo(bot) : null;
+                        const url = bot ? getUrl(bot) : "";
+                        
+                        return (
+                            <ListItem disablePadding>
+                                <ListItemButton 
+                                    component={url ? Link : "div"}
+                                    to={url || undefined}
+                                    disabled={!url}
+                                >
+                                    <ListItemIcon>
+                                        <IconCommon name="Award" fill="warning.main" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={t("SwarmLeader")}
+                                        secondary={
+                                            loading.bots ? (
+                                                <Skeleton variant="text" width={120} />
+                                            ) : display ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    {display.title}
+                                                    {display.adornments.map(adornment => 
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                    )}
+                                                    {display.subtitle && (
+                                                        <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+                                                            {display.subtitle}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            ) : (
+                                                swarmConfig.swarmLeader
+                                            )
+                                        }
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        );
+                    })()}
+                    {swarmConfig.teamId && (() => {
+                        const display = team ? getDisplayInfo(team) : null;
+                        const url = team ? getUrl(team) : "";
+                        
+                        return (
+                            <ListItem disablePadding>
+                                <ListItemButton 
+                                    component={url ? Link : "div"}
+                                    to={url || undefined}
+                                    disabled={!url}
+                                >
+                                    <ListItemIcon>
+                                        <IconCommon name="Team" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={t("Team")}
+                                        secondary={
+                                            loading.team ? (
+                                                <Skeleton variant="text" width={100} />
+                                            ) : display ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    {display.title}
+                                                    {display.adornments.map(adornment => 
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                    )}
+                                                    {display.subtitle && (
+                                                        <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+                                                            {display.subtitle}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            ) : (
+                                                swarmConfig.teamId
+                                            )
+                                        }
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        );
+                    })()}
                     <Divider sx={{ my: 1 }} />
                     <Typography variant="subtitle2" sx={{ px: 2, py: 1 }}>
                         {t("SubtaskLeaders")}
                     </Typography>
-                    {swarmConfig.subtaskLeaders && Object.entries(swarmConfig.subtaskLeaders).map(([taskId, botId]) => (
-                        <ListItem key={taskId}>
-                            <ListItemIcon>
-                                <IconCommon name="Bot" />
-                            </ListItemIcon>
-                            <ListItemText
-                                primary={taskId}
-                                secondary={getBotById(botId)?.name || botId}
-                            />
-                        </ListItem>
-                    ))}
+                    {swarmConfig.subtaskLeaders && Object.entries(swarmConfig.subtaskLeaders).map(([taskId, botId]) => {
+                        const bot = getBotById(botId);
+                        const display = bot ? getDisplayInfo(bot) : null;
+                        const url = bot ? getUrl(bot) : "";
+                        
+                        return (
+                            <ListItem key={taskId} disablePadding>
+                                <ListItemButton 
+                                    component={url ? Link : "div"}
+                                    to={url || undefined}
+                                    disabled={!url}
+                                >
+                                    <ListItemIcon>
+                                        <IconCommon name="Bot" />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                        primary={taskId}
+                                        secondary={
+                                            loading.bots ? (
+                                                <Skeleton variant="text" width={100} />
+                                            ) : display ? (
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                    {display.title}
+                                                    {display.adornments.map(adornment => 
+                                                        <Box key={adornment.key}>{adornment.Adornment}</Box>
+                                                    )}
+                                                    {display.subtitle && (
+                                                        <Typography variant="caption" color="text.disabled" sx={{ ml: 1 }}>
+                                                            {display.subtitle}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            ) : (
+                                                botId
+                                            )
+                                        }
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        );
+                    })}
+                    
+                    {/* MOISE+ Organization Structure */}
+                    {console.log('SwarmDetailPanel - MOISE+ check:', { 
+                        hasTeam: !!team,
+                        hasConfig: !!team?.config,
+                        teamConfig: team?.config,
+                        configType: typeof team?.config,
+                        teamLoading: loading.team
+                    })}
+                    {loading.team && swarmConfig.teamId ? (
+                        <>
+                            <Divider sx={{ my: 1 }} />
+                            <Typography variant="subtitle2" sx={{ px: 2, py: 1 }}>
+                                <Skeleton variant="text" width={150} />
+                            </Typography>
+                            <ListItem>
+                                <Box sx={{ width: '100%', p: 2 }}>
+                                    <Skeleton variant="rectangular" width="100%" height={120} />
+                                </Box>
+                            </ListItem>
+                        </>
+                    ) : team?.config && (() => {
+                        try {
+                            const teamConfig = typeof team.config === 'string' ? JSON.parse(team.config) : team.config;
+                            console.log('SwarmDetailPanel - parsed teamConfig:', teamConfig);
+                            console.log('SwarmDetailPanel - has structure?:', !!teamConfig.structure);
+                            console.log('SwarmDetailPanel - has content?:', !!teamConfig.structure?.content);
+                            if (teamConfig.structure && teamConfig.structure.content) {
+                                console.log('SwarmDetailPanel - rendering MOISE+ structure');
+                                return (
+                                    <>
+                                        <Divider sx={{ my: 1 }} />
+                                        <Typography variant="subtitle2" sx={{ px: 2, py: 1 }}>
+                                            {t("OrganizationStructure")} ({teamConfig.structure.type || "MOISE+"})
+                                        </Typography>
+                                        <ListItem>
+                                            <Box sx={{ 
+                                                width: '100%',
+                                                p: 2,
+                                                bgcolor: 'background.default',
+                                                borderRadius: 1,
+                                                fontFamily: 'monospace',
+                                                fontSize: '0.875rem',
+                                                overflow: 'auto',
+                                                maxHeight: 200,
+                                                whiteSpace: 'pre-wrap',
+                                                wordBreak: 'break-word'
+                                            }}>
+                                                <pre style={{ margin: 0 }}>
+                                                    {teamConfig.structure.content}
+                                                </pre>
+                                            </Box>
+                                        </ListItem>
+                                    </>
+                                );
+                            }
+                        } catch (e) {
+                            console.error("SwarmDetailPanel - error parsing team config:", e);
+                        }
+                        return null;
+                    })()}
                 </List>
             </CustomTabPanel>
 
@@ -533,7 +787,13 @@ export function SwarmDetailPanel({
                                             {toolCall.toolName}
                                         </Typography>
                                         <Typography variant="caption" color="text.secondary">
-                                            {t("RequestedBy")}: {getBotById(toolCall.callerBotId)?.name || toolCall.callerBotId}
+                                            {t("RequestedBy")}: {
+                                                loading.bots ? (
+                                                    <Skeleton component="span" variant="text" width={80} />
+                                                ) : (
+                                                    getBotById(toolCall.callerBotId)?.name || toolCall.callerBotId
+                                                )
+                                            }
                                         </Typography>
                                     </Box>
                                     {timeRemaining && timeRemaining > 0 && (
@@ -600,7 +860,13 @@ export function SwarmDetailPanel({
                                 secondary={
                                     <Box>
                                         <Typography variant="caption" display="block">
-                                            {t("CalledBy")}: {record.caller_bot_id}
+                                            {t("CalledBy")}: {
+                                                loading.bots ? (
+                                                    <Skeleton component="span" variant="text" width={80} />
+                                                ) : (
+                                                    getBotById(record.caller_bot_id)?.name || record.caller_bot_id
+                                                )
+                                            }
                                         </Typography>
                                         <Typography variant="caption" display="block">
                                             {new Date(record.created_at).toLocaleString(languages[0])}
