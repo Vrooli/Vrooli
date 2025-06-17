@@ -46,7 +46,10 @@ export interface DialogProps {
     draggable?: boolean;
     /** Element to anchor/point to with an arrow (like a tooltip) */
     anchorEl?: HTMLElement | null;
-    /** Placement of the dialog relative to anchor element */
+    /** Preferred placement of the dialog relative to anchor element. 
+     * The dialog will use this placement if there's enough space, 
+     * otherwise it will find the best alternative position.
+     * Use "auto" to let the dialog choose the best position. */
     anchorPlacement?: "top" | "bottom" | "left" | "right" | "auto";
     /** Whether to highlight the anchor element */
     highlightAnchor?: boolean;
@@ -179,13 +182,55 @@ function useAnchorPosition(anchorEl: HTMLElement | null, anchorPlacement: "top" 
             let x = 0;
             let y = 0;
 
-            // Auto placement logic
-            if (placement === "auto") {
-                const spaceTop = anchorRect.top;
-                const spaceBottom = viewportHeight - anchorRect.bottom;
-                const spaceLeft = anchorRect.left;
-                const spaceRight = viewportWidth - anchorRect.right;
+            // Calculate available space in each direction
+            const spaceTop = anchorRect.top;
+            const spaceBottom = viewportHeight - anchorRect.bottom;
+            const spaceLeft = anchorRect.left;
+            const spaceRight = viewportWidth - anchorRect.right;
 
+            // Check if preferred placement has enough space
+            const hasSpaceForPlacement = (checkPlacement: string) => {
+                switch (checkPlacement) {
+                    case "top":
+                        return spaceTop >= dialogHeight + arrowSize + margin;
+                    case "bottom":
+                        return spaceBottom >= dialogHeight + arrowSize + margin;
+                    case "left":
+                        return spaceLeft >= dialogWidth + arrowSize + margin;
+                    case "right":
+                        return spaceRight >= dialogWidth + arrowSize + margin;
+                    default:
+                        return false;
+                }
+            };
+
+            // If not auto, check if preferred placement has space
+            if (placement !== "auto") {
+                if (!hasSpaceForPlacement(placement)) {
+                    // Preferred placement doesn't have space, find alternative
+                    // Order of fallback based on the preferred placement
+                    const fallbackOrder = {
+                        top: ["bottom", "right", "left"],
+                        bottom: ["top", "right", "left"],
+                        left: ["right", "top", "bottom"],
+                        right: ["left", "top", "bottom"],
+                    };
+
+                    const fallbacks = fallbackOrder[placement] || ["bottom", "top", "right", "left"];
+                    
+                    // Try fallback positions in order
+                    for (const fallbackPlacement of fallbacks) {
+                        if (hasSpaceForPlacement(fallbackPlacement)) {
+                            placement = fallbackPlacement as typeof placement;
+                            break;
+                        }
+                    }
+                    
+                    // If no good placement found, keep the preferred one anyway
+                    // (it will be constrained to viewport later)
+                }
+            } else {
+                // Auto placement logic - find best fit
                 if (spaceBottom >= dialogHeight + arrowSize + margin) {
                     placement = "bottom";
                 } else if (spaceTop >= dialogHeight + arrowSize + margin) {
@@ -618,11 +663,24 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             return () => document.removeEventListener("keydown", handleEscape);
         }, [isOpen, closeOnEscape, onClose]);
 
-        // Handle overlay click
+        // Handle overlay click - only close if click starts and ends on overlay
+        const overlayMouseDownRef = useRef(false);
+        
+        const handleOverlayMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
+            // Mark if the mousedown happened on the overlay (not the dialog)
+            overlayMouseDownRef.current = e.target === e.currentTarget;
+        }, []);
+        
         const handleOverlayClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
-            if (closeOnOverlayClick && e.target === e.currentTarget) {
+            // Only close if:
+            // 1. closeOnOverlayClick is enabled
+            // 2. The click ended on the overlay (target === currentTarget)
+            // 3. The mousedown also started on the overlay
+            if (closeOnOverlayClick && e.target === e.currentTarget && overlayMouseDownRef.current) {
                 onClose();
             }
+            // Reset the ref
+            overlayMouseDownRef.current = false;
         }, [closeOnOverlayClick, onClose]);
 
         // Prevent body scroll when dialog is open (only when background is blurred)
@@ -662,6 +720,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         return createPortal(
             <div
                 className={cn(overlayClasses, overlayPositionClasses)}
+                onMouseDown={handleOverlayMouseDown}
                 onClick={handleOverlayClick}
                 role="presentation"
             >
@@ -708,6 +767,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                                 className={cn(
                                     "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
                                     "tw-flex-shrink-0", // Prevent header from shrinking
+                                    "tw-relative tw-z-10", // Ensure header is above effects
                                     draggable && !anchorEl && "tw-cursor-move tw-select-none", // Add drag cursor when draggable and not anchored
                                 )}
                             >
@@ -737,20 +797,22 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                             </div>
                         )}
 
-                        {/* Dialog content */}
-                        {children}
+                        {/* Dialog content - ensure it's above effects */}
+                        <div className="tw-relative tw-z-10 tw-flex-1 tw-min-h-0">
+                            {children}
+                        </div>
 
-                        {/* Special effects for space variant */}
+                        {/* Special effects for space variant - moved before content to fix z-index */}
                         {variant === "space" && (
                             <>
-                                <div className="tw-dialog-space-stars" />
-                                <div className="tw-dialog-space-nebula" />
+                                <div className="tw-dialog-space-stars tw-z-0" />
+                                <div className="tw-dialog-space-nebula tw-z-0" />
                             </>
                         )}
 
                         {/* Special effects for neon variant */}
                         {variant === "neon" && (
-                            <div className="tw-dialog-neon-glow" />
+                            <div className="tw-dialog-neon-glow tw-z-0" />
                         )}
                     </div>
                 </div>

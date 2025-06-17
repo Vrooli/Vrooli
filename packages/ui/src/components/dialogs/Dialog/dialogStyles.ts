@@ -101,9 +101,10 @@ export const DIALOG_STYLES = {
                 "tw-bg-black", // Black background to see stars
                 "tw-text-white", // White text for space theme
                 "[&_*]:tw-text-white", // All child elements get white text
-                "tw-shadow-2xl tw-shadow-cyan-500/20",
+                "tw-shadow-2xl",
                 "tw-relative tw-overflow-hidden",
                 "[&_.tw-dialog-space-stars]:tw-opacity-100", // Ensure stars are visible
+                "[box-shadow:0_0_30px_rgba(0,191,255,0.5),inset_0_0_20px_rgba(0,191,255,0.1)]", // Blue glow like neon
             ),
 
             neon: cn(
@@ -131,6 +132,7 @@ export const DIALOG_STYLES = {
             "tw-gap-2",
             "tw-px-6 tw-py-4",
             "tw-border-t tw-border-gray-200 dark:tw-border-gray-700",
+            "tw-relative tw-z-10", // Ensure actions are above effects
         ),
         variants: {
             default: "tw-bg-background-paper",
