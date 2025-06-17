@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useId, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconCommon } from "../../../icons/Icons.js";
 import { cn } from "../../../utils/tailwind-theme.js";
@@ -42,6 +42,8 @@ export interface DialogProps {
     closeOnEscape?: boolean;
     /** Whether to blur the background (default: true) */
     enableBackgroundBlur?: boolean;
+    /** Whether the dialog can be dragged (default: false) */
+    draggable?: boolean;
     /** Additional CSS classes for the dialog */
     className?: string;
     /** Additional CSS classes for the overlay */
@@ -133,6 +135,137 @@ export const DialogActions = forwardRef<HTMLDivElement, DialogActionsProps>(
 );
 
 DialogActions.displayName = "DialogActions";
+
+// Drag hook with performance optimizations
+function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: React.RefObject<HTMLDivElement>, draggable: boolean, isOpen: boolean) {
+    const [isDragging, setIsDragging] = useState(false);
+    const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+    
+    // Use refs for drag state to avoid re-renders during drag
+    const dragStateRef = useRef({
+        isDragging: false,
+        dragOffset: { x: 0, y: 0 },
+        dialogSize: { width: 0, height: 0 },
+    });
+
+    // Initialize centered position when dialog opens
+    useEffect(() => {
+        if (!draggable || !isOpen || !dialogRef.current) return;
+
+        const dialogElement = dialogRef.current;
+        const rect = dialogElement.getBoundingClientRect();
+        
+        // Store dialog size for performance
+        dragStateRef.current.dialogSize = { width: rect.width, height: rect.height };
+        
+        // Center the dialog
+        const centerX = (window.innerWidth - rect.width) / 2;
+        const centerY = (window.innerHeight - rect.height) / 2;
+        
+        setPosition({ x: centerX, y: centerY });
+    }, [draggable, isOpen]);
+
+    useEffect(() => {
+        if (!draggable || !titleRef.current || !dialogRef.current || !isOpen) return;
+
+        const titleElement = titleRef.current;
+        const dialogElement = dialogRef.current;
+
+        function handleMouseDown(e: globalThis.MouseEvent) {
+            if (!position) return;
+            
+            dragStateRef.current.isDragging = true;
+            dragStateRef.current.dragOffset = {
+                x: e.clientX - position.x,
+                y: e.clientY - position.y,
+            };
+            
+            setIsDragging(true);
+            e.preventDefault();
+            
+            // Add cursor styles for better UX
+            document.body.style.cursor = 'move';
+            document.body.style.userSelect = 'none';
+        }
+
+        function handleMouseMove(e: globalThis.MouseEvent) {
+            if (!dragStateRef.current.isDragging) return;
+
+            // Use requestAnimationFrame for smooth updates
+            requestAnimationFrame(() => {
+                const newX = e.clientX - dragStateRef.current.dragOffset.x;
+                const newY = e.clientY - dragStateRef.current.dragOffset.y;
+
+                // Use cached dialog size instead of getBoundingClientRect
+                const { width, height } = dragStateRef.current.dialogSize;
+                const maxX = window.innerWidth - width;
+                const maxY = window.innerHeight - height;
+
+                const constrainedX = Math.max(0, Math.min(newX, maxX));
+                const constrainedY = Math.max(0, Math.min(newY, maxY));
+
+                // Direct DOM manipulation for better performance during drag
+                if (dialogElement) {
+                    dialogElement.style.left = `${constrainedX}px`;
+                    dialogElement.style.top = `${constrainedY}px`;
+                }
+            });
+        }
+
+        function handleMouseUp(e: globalThis.MouseEvent) {
+            if (!dragStateRef.current.isDragging) return;
+            
+            dragStateRef.current.isDragging = false;
+            setIsDragging(false);
+            
+            // Restore cursor
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            // Update React state with final position
+            const newX = e.clientX - dragStateRef.current.dragOffset.x;
+            const newY = e.clientY - dragStateRef.current.dragOffset.y;
+            
+            const { width, height } = dragStateRef.current.dialogSize;
+            const maxX = window.innerWidth - width;
+            const maxY = window.innerHeight - height;
+
+            const constrainedX = Math.max(0, Math.min(newX, maxX));
+            const constrainedY = Math.max(0, Math.min(newY, maxY));
+            
+            setPosition({ x: constrainedX, y: constrainedY });
+        }
+
+        titleElement.addEventListener("mousedown", handleMouseDown, { passive: false });
+        document.addEventListener("mousemove", handleMouseMove, { passive: true });
+        document.addEventListener("mouseup", handleMouseUp, { passive: true });
+
+        return () => {
+            titleElement.removeEventListener("mousedown", handleMouseDown);
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+            
+            // Cleanup cursor styles
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [draggable, titleRef, dialogRef, position, isOpen]);
+
+    // Reset position when dialog closes
+    useEffect(() => {
+        if (!isOpen) {
+            setPosition(null);
+            setIsDragging(false);
+            dragStateRef.current.isDragging = false;
+            
+            // Cleanup styles
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    }, [isOpen]);
+
+    return { position, isDragging };
+}
 
 // Focus trap hook
 function useFocusTrap(isOpen: boolean, dialogRef: React.RefObject<HTMLDivElement>, disableFocusTrap?: boolean) {
@@ -234,6 +367,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
             closeOnOverlayClick = true,
             closeOnEscape = true,
             enableBackgroundBlur = true,
+            draggable = false,
             className,
             overlayClassName,
             contentClassName,
@@ -245,8 +379,12 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         ref,
     ) => {
         const dialogRef = useRef<HTMLDivElement>(null);
+        const titleRef = useRef<HTMLDivElement>(null);
         const combinedRef = ref || dialogRef;
         const titleId = useId();
+
+        // Handle dragging
+        const { position: dragPosition, isDragging } = useDragDialog(dialogRef, titleRef, draggable, isOpen);
 
         // Handle focus trap
         useFocusTrap(isOpen, dialogRef, disableFocusTrap);
@@ -255,11 +393,11 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
         useEffect(() => {
             if (!isOpen || !closeOnEscape) return;
 
-            const handleEscape = (e: KeyboardEvent) => {
+            function handleEscape(e: globalThis.KeyboardEvent) {
                 if (e.key === "Escape") {
                     onClose();
                 }
-            };
+            }
 
             document.addEventListener("keydown", handleEscape);
             return () => document.removeEventListener("keydown", handleEscape);
@@ -288,13 +426,15 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
 
         // Build classes
         const overlayClasses = buildOverlayClasses(enableBackgroundBlur, overlayClassName);
-        const overlayPositionClasses = buildDialogClasses({
-            variant,
-            size,
-            position,
-            className,
-        });
-        const dialogWrapperClasses = getDialogWrapperClasses(size);
+        const overlayPositionClasses = draggable ? 
+            "tw-items-start tw-justify-start" : // Don't center when draggable
+            buildDialogClasses({
+                variant,
+                size,
+                position,
+                className,
+            });
+        const dialogWrapperClasses = getDialogWrapperClasses(size, draggable, isDragging);
         const contentClasses = buildContentClasses({
             variant,
             className: contentClassName,
@@ -309,6 +449,13 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                 <div
                     ref={combinedRef as any}
                     className={dialogWrapperClasses}
+                    style={draggable && dragPosition ? {
+                        position: "fixed",
+                        left: dragPosition.x,
+                        top: dragPosition.y,
+                        margin: 0,
+                        transform: "none", // Override any transform from base classes
+                    } : undefined}
                     role="dialog"
                     aria-modal="true"
                     aria-label={ariaLabel || (typeof title === "string" ? title : undefined)}
@@ -318,10 +465,14 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     <div className={contentClasses}>
                         {/* Header with title and close button */}
                         {(title || showCloseButton) && (
-                            <div className={cn(
-                                "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
-                                "tw-flex-shrink-0", // Prevent header from shrinking
-                            )}>
+                            <div 
+                                ref={titleRef}
+                                className={cn(
+                                    "tw-flex tw-items-center tw-justify-between tw-px-6 tw-pt-4 tw-pb-2",
+                                    "tw-flex-shrink-0", // Prevent header from shrinking
+                                    draggable && "tw-cursor-move tw-select-none", // Add drag cursor when draggable
+                                )}
+                            >
                                 {title && (
                                     <DialogTitle
                                         id={titleId}

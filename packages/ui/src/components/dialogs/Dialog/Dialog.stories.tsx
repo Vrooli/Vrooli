@@ -5,7 +5,7 @@ import { Button } from "../../buttons/Button.js";
 import { Dialog, DialogActions, DialogContent } from "./Dialog.js";
 
 const meta: Meta<typeof Dialog> = {
-    title: "Components/Dialogs/Dialog (Tailwind)",
+    title: "Components/Dialogs/Dialog",
     component: Dialog,
     parameters: {
         layout: "fullscreen",
@@ -444,6 +444,50 @@ export const NoBackgroundBlur: Story = {
                     <DialogActions>
                         <Button variant="primary" onClick={() => setIsOpen(false)}>
                             Close
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            </>
+        );
+    },
+};
+
+// Draggable dialog
+export const DraggableDialog: Story = {
+    render: () => {
+        const [isOpen, setIsOpen] = useState(false);
+
+        return (
+            <>
+                <Button onClick={() => setIsOpen(true)}>
+                    Open Draggable Dialog
+                </Button>
+                <Dialog
+                    isOpen={isOpen}
+                    onClose={() => setIsOpen(false)}
+                    title="Drag Me Around!"
+                    draggable={true}
+                    size="md"
+                >
+                    <DialogContent>
+                        <Typography paragraph>
+                            This dialog can be dragged around by clicking and holding the title bar.
+                            Try grabbing the title area and moving the dialog to different positions.
+                        </Typography>
+                        <Typography paragraph>
+                            The dialog is constrained to stay within the viewport bounds, so it won't
+                            disappear off-screen when you drag it.
+                        </Typography>
+                        <Typography>
+                            Notice how the cursor changes to a move cursor when hovering over the title bar.
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button variant="ghost" onClick={() => setIsOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="primary" onClick={() => setIsOpen(false)}>
+                            Save Position
                         </Button>
                     </DialogActions>
                 </Dialog>

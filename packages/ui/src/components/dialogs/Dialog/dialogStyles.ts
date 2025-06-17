@@ -192,10 +192,12 @@ export function buildActionsClasses(variant: DialogVariant, className?: string) 
 }
 
 // Helper to get dialog wrapper classes (includes size)
-export function getDialogWrapperClasses(size: DialogSize) {
+export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, isDragging?: boolean) {
     return cn(
         DIALOG_STYLES.dialog.base,
         DIALOG_SIZES[size],
-        size !== "full" && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
+        size !== "full" && !draggable && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
+        draggable && "tw-max-h-[calc(100vh-2rem)] tw-dialog-draggable", // Smaller margin for draggable dialogs + performance class
+        isDragging && "tw-dialog-dragging", // Performance class for dragging state
     );
 }

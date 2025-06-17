@@ -100,6 +100,21 @@
     animation: tw-dialog-fade-out 150ms ease-in;
 }
 
+/* Performance optimizations for draggable dialogs */
+.tw-dialog-draggable {
+    will-change: transform;
+    transform: translate3d(0, 0, 0); /* Force hardware acceleration */
+}
+
+.tw-dialog-dragging {
+    will-change: left, top;
+    pointer-events: none; /* Prevent hover effects during drag */
+}
+
+.tw-dialog-dragging * {
+    pointer-events: none; /* Prevent child elements from interfering */
+}
+
 @keyframes tw-dialog-fade-in {
     from {
         opacity: 0;
