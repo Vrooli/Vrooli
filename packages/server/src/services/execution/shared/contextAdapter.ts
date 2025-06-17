@@ -13,7 +13,7 @@ import {
     type ProcessContext, 
     type ExecutionContext,
     type BaseContext,
-} from "@vrooli/shared/dist/execution/types/context.js";
+} from "@vrooli/shared";
 import {
     UnifiedContextManager,
     type CoordinationContextView,

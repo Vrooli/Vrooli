@@ -42,6 +42,8 @@ export interface DatabaseService {
  */
 export class DbProvider {
     private static dbService: DatabaseService | null = null;
+    private static initPromise: Promise<void> | null = null;
+    private static isInitialized = false;
     private static seedingSuccessful = false;
     private static seedRetryCount = 0;
     private static seedAttemptCount = 0; // Track total attempts separately from retry count
@@ -53,49 +55,66 @@ export class DbProvider {
      * Asynchronously initializes the chosen database service.
      */
     public static async init() {
-        // If already initialized, just return
-        if (DbProvider.dbService) {
+        // If already initializing, wait for the existing promise
+        if (DbProvider.initPromise) {
+            return DbProvider.initPromise;
+        }
+
+        // If already initialized, return immediately
+        if (DbProvider.dbService && DbProvider.isInitialized) {
             return;
         }
 
-        try {
-            // Load the chosen database service
-            switch (DB_TYPE) {
-                case "postgres": {
-                    const { PostgresDriver } = await import("./postgres.js");
-                    DbProvider.dbService = new PostgresDriver();
-                    break;
-                }
-                case "sqlite": {
-                    const { SQLiteDriver } = await import("./sqlite.js");
-                    DbProvider.dbService = new SQLiteDriver();
-                    break;
-                }
-                // Add databases as needed
-                default: {
-                    throw new Error(`Unsupported database type: ${DB_TYPE}`);
-                }
-            }
-
-            if (!DbProvider.dbService) {
-                throw new Error("Database service failed to initialize");
-            }
-
-            // Make sure the database client is available
+        // Create the initialization promise
+        DbProvider.initPromise = (async () => {
             try {
-                await DbProvider.dbService.connect();
-                DbProvider.connected = true;
-                logger.info("Database connected successfully");
+                // Load the chosen database service
+                switch (DB_TYPE) {
+                    case "postgres": {
+                        const { PostgresDriver } = await import("./postgres.js");
+                        DbProvider.dbService = new PostgresDriver();
+                        break;
+                    }
+                    case "sqlite": {
+                        const { SQLiteDriver } = await import("./sqlite.js");
+                        DbProvider.dbService = new SQLiteDriver();
+                        break;
+                    }
+                    // Add databases as needed
+                    default: {
+                        throw new Error(`Unsupported database type: ${DB_TYPE}`);
+                    }
+                }
 
-                // Try to seed the database
-                await DbProvider.attemptSeeding();
-            } catch (connectionError) {
-                logger.error("Database connection failed", { trace: "0014", error: connectionError });
+                if (!DbProvider.dbService) {
+                    throw new Error("Database service failed to initialize");
+                }
+
+                // Make sure the database client is available
+                try {
+                    await DbProvider.dbService.connect();
+                    DbProvider.connected = true;
+                    logger.info("Database connected successfully");
+
+                    // Try to seed the database
+                    await DbProvider.attemptSeeding();
+                } catch (connectionError) {
+                    logger.error("Database connection failed", { trace: "0014", error: connectionError });
+                }
+
+                // Mark as initialized only after successful completion
+                DbProvider.isInitialized = true;
+
+            } catch (error) {
+                // Reset on error so it can be retried
+                DbProvider.initPromise = null;
+                DbProvider.isInitialized = false;
+                logger.error("Caught error in database provider initialization", { trace: "0011", error });
+                throw error;
             }
+        })();
 
-        } catch (error) {
-            logger.error("Caught error in database provider initialization", { trace: "0011", error });
-        }
+        return DbProvider.initPromise;
     }
 
     /**
@@ -333,5 +352,33 @@ export class DbProvider {
         }
         DbProvider.adminId = admin.id.toString();
         return DbProvider.adminId;
+    }
+
+    /**
+     * Reset singleton instance (for testing)
+     * This ensures each test gets a fresh connection
+     */
+    public static async reset(): Promise<void> {
+        if (DbProvider.dbService) {
+            try {
+                await DbProvider.dbService.disconnect();
+            } catch (error) {
+                // Ignore disconnect errors
+            }
+        }
+        
+        if (DbProvider.seedRetryTimeout) {
+            clearTimeout(DbProvider.seedRetryTimeout);
+        }
+        
+        DbProvider.dbService = null;
+        DbProvider.initPromise = null;
+        DbProvider.isInitialized = false;
+        DbProvider.seedingSuccessful = false;
+        DbProvider.seedRetryCount = 0;
+        DbProvider.seedAttemptCount = 0;
+        DbProvider.seedRetryTimeout = null;
+        DbProvider.connected = false;
+        DbProvider.adminId = null;
     }
 }

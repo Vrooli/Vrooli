@@ -1,88 +1,64 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, generatePK } from "@vrooli/shared";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
 import jwt from "jsonwebtoken";
 import { DbProvider } from "../db/provider.js";
+import { withDbTransaction } from "../__test/helpers/transactionTest.js";
 import { logger } from "../events/logger.js";
 import { type SessionData, type SessionToken } from "../types.js";
 import { AuthTokensService } from "./auth.js";
 import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt.js";
 
-// Define test user and auth variables for use in tests
-let testUser: { id: string };
-let testAuth: { id: string; user_id: string };
 
 describe("AuthTokensService", () => {
     let loggerErrorSpy: any;
     let loggerInfoSpy: any;
 
-    beforeAll(() => {
+    beforeAll(async () => {
+        await DbProvider.init();
         loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
         loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
     });
 
-    beforeEach(async function beforeEach() {
-        await DbProvider.deleteAll();
-        // Create test user and auth for all tests
-        testUser = await DbProvider.get().user.create({
-            data: {
-                id: "user-9001",
-                name: "Test User",
-                theme: "light",
-            },
-        });
-        testAuth = await DbProvider.get().user_auth.create({
-            data: {
-                id: "auth-9002",
-                user_id: testUser.id,
-                provider: "local",
-            },
-        });
-    });
-
-    afterAll(async function afterAll() {
-        await DbProvider.deleteAll();
-
+    afterAll(async () => {
         loggerErrorSpy.mockRestore();
         loggerInfoSpy.mockRestore();
+        await DbProvider.shutdown();
+    });
+
+    beforeEach(async () => {
+        // Setup JWT test environment for all tests
+        const keys = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            publicKeyEncoding: {
+                type: "spki",
+                format: "pem",
+            },
+            privateKeyEncoding: {
+                type: "pkcs8",
+                format: "pem",
+            },
+        });
+        JsonWebToken.get().setupTestEnvironment({ privateKey: keys.privateKey, publicKey: keys.publicKey });
     });
 
     describe("Singleton Behavior", () => {
-        it("get() should return the same instance", () => {
+        it("get() should return the same instance", withDbTransaction(async () => {
             const instance1 = AuthTokensService.get();
             const instance2 = AuthTokensService.get();
             expect(instance1).toBe(instance2);
-        });
+        }));
     });
 
     describe("canRefreshToken", () => {
         // Use different session IDs for each test to avoid unique constraint conflicts
         const expiresAt = new Date(Date.now() + DAYS_30_MS);
         const lastRefreshAt = new Date(Date.now() - DAYS_1_MS);
-        let privateKey: string;
-        let publicKey: string;
-
-        beforeEach(async function setupAuthTests() {
-            const keys = generateKeyPairSync("rsa", {
-                modulusLength: 2048,
-                publicKeyEncoding: {
-                    type: "spki",
-                    format: "pem",
-                },
-                privateKeyEncoding: {
-                    type: "pkcs8",
-                    format: "pem",
-                },
-            });
-            privateKey = keys.privateKey;
-            publicKey = keys.publicKey;
-            JsonWebToken.get().setupTestEnvironment({ privateKey, publicKey });
-        });
 
         describe("false", () => {
-            it("not an object", async () => {
+            it("not an object", withDbTransaction(async () => {
                 // @ts-ignore Testing runtime scenario
                 expect(await AuthTokensService.canRefreshToken(null)).toBe(false);
                 // @ts-ignore Testing runtime scenario
@@ -91,51 +67,51 @@ describe("AuthTokensService", () => {
                 expect(await AuthTokensService.canRefreshToken("string")).toBe(false);
                 // @ts-ignore Testing runtime scenario
                 expect(await AuthTokensService.canRefreshToken(123)).toBe(false);
-            });
+            }));
 
-            it("user data not present", async () => {
+            it("user data not present", withDbTransaction(async () => {
                 const payload: SessionData = {};
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("user array empty", async () => {
+            it("user array empty", withDbTransaction(async () => {
                 const payload: SessionData = { users: [] };
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("missing session data", async () => {
+            it("missing session data", withDbTransaction(async () => {
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9003",
+                            id: generatePK().toString(),
                         },
                     ] as SessionUser[],
                 };
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("missing lastRefreshAt", async () => {
+            it("missing lastRefreshAt", withDbTransaction(async () => {
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9005",
+                            id: generatePK().toString(),
                             session: {
-                                id: "session-9004",
+                                id: generatePK().toString(),
                             },
                         },
                     ] as SessionUser[],
                 };
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("session not in database", async () => {
-                const nonExistingSessionId = "session-9006"; // Generate a different session ID
+            it("session not in database", withDbTransaction(async () => {
+                const nonExistingSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9007",
+                            id: generatePK().toString(),
                             session: {
-                                id: nonExistingSessionId,
+                                id: nonExistingSessionId.toString(),
                                 lastRefreshAt,
                             },
                         },
@@ -143,16 +119,32 @@ describe("AuthTokensService", () => {
                 };
                 // We deliberately don't create a session for this test
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("session is revoked", async () => {
-                const revokedSessionId = "session-9008"; // Use hard-coded ID instead of baseSessionId + "-revoked"
+            it("session is revoked", withDbTransaction(async () => {
+                const testUser = await DbProvider.get().user.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePK().toString(),
+                        name: "Test User",
+                        theme: "light",
+                    },
+                });
+                const testAuth = await DbProvider.get().user_auth.create({
+                    data: {
+                        id: generatePK(),
+                        user_id: testUser.id,
+                        provider: "local",
+                    },
+                });
+                
+                const revokedSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9009",
+                            id: generatePK().toString(),
                             session: {
-                                id: revokedSessionId,
+                                id: revokedSessionId.toString(),
                                 lastRefreshAt,
                             },
                         },
@@ -163,22 +155,38 @@ describe("AuthTokensService", () => {
                         id: revokedSessionId,
                         expires_at: expiresAt,
                         last_refresh_at: lastRefreshAt,
-                        revoked: true,
+                        revokedAt: new Date(), // Session is revoked
                         user_id: testUser.id,
                         auth_id: testAuth.id,
                     },
                 });
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("session is expired", async () => {
-                const expiredSessionId = "session-9010"; // Use hard-coded ID instead of baseSessionId + "-expired"
+            it("session is expired", withDbTransaction(async () => {
+                const testUser = await DbProvider.get().user.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePK().toString(),
+                        name: "Test User",
+                        theme: "light",
+                    },
+                });
+                const testAuth = await DbProvider.get().user_auth.create({
+                    data: {
+                        id: generatePK(),
+                        user_id: testUser.id,
+                        provider: "local",
+                    },
+                });
+                
+                const expiredSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9011",
+                            id: generatePK().toString(),
                             session: {
-                                id: expiredSessionId,
+                                id: expiredSessionId.toString(),
                                 lastRefreshAt,
                             },
                         },
@@ -189,22 +197,38 @@ describe("AuthTokensService", () => {
                         id: expiredSessionId,
                         expires_at: new Date(Date.now() - 1_000),
                         last_refresh_at: lastRefreshAt,
-                        revoked: false,
+                        revokedAt: null, // Not revoked
                         user_id: testUser.id,
                         auth_id: testAuth.id,
                     },
                 });
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
 
-            it("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
-                const mismatchSessionId = "session-9012"; // Use hard-coded ID instead of baseSessionId + "-mismatch"
+            it("stored last_refresh_at does not match lastRefreshAt in payload", withDbTransaction(async () => {
+                const testUser = await DbProvider.get().user.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePK().toString(),
+                        name: "Test User",
+                        theme: "light",
+                    },
+                });
+                const testAuth = await DbProvider.get().user_auth.create({
+                    data: {
+                        id: generatePK(),
+                        user_id: testUser.id,
+                        provider: "local",
+                    },
+                });
+                
+                const mismatchSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9013",
+                            id: generatePK().toString(),
                             session: {
-                                id: mismatchSessionId,
+                                id: mismatchSessionId.toString(),
                                 lastRefreshAt,
                             },
                         },
@@ -215,24 +239,40 @@ describe("AuthTokensService", () => {
                         id: mismatchSessionId,
                         expires_at: expiresAt,
                         last_refresh_at: new Date(Date.now() - 1_000),
-                        revoked: false,
+                        revokedAt: null, // Not revoked
                         user_id: testUser.id,
                         auth_id: testAuth.id,
                     },
                 });
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-            });
+            }));
         });
 
         describe("true", () => {
-            it("all conditions are met", async () => {
-                const validSessionId = "session-9014"; // Use hard-coded ID instead of baseSessionId + "-valid"
+            it("all conditions are met", withDbTransaction(async () => {
+                const testUser = await DbProvider.get().user.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePK().toString(),
+                        name: "Test User",
+                        theme: "light",
+                    },
+                });
+                const testAuth = await DbProvider.get().user_auth.create({
+                    data: {
+                        id: generatePK(),
+                        user_id: testUser.id,
+                        provider: "local",
+                    },
+                });
+                
+                const validSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
                         {
-                            id: "user-9015",
+                            id: generatePK().toString(),
                             session: {
-                                id: validSessionId,
+                                id: validSessionId.toString(),
                                 lastRefreshAt,
                             },
                         },
@@ -243,19 +283,21 @@ describe("AuthTokensService", () => {
                         id: validSessionId,
                         expires_at: expiresAt,
                         last_refresh_at: lastRefreshAt,
-                        revoked: false,
+                        revokedAt: null, // Not revoked
                         user_id: testUser.id,
                         auth_id: testAuth.id,
                     },
                 });
                 expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(true);
-            });
+            }));
         });
 
-        it("token has expired completely (beyond refresh window)", async function testExpiredToken() {
+        it("token has expired completely (beyond refresh window)", withDbTransaction(async function testExpiredToken() {
+            // JWT setup is already done in beforeEach
+            
             // Create a token with a very old expiration
             const oldTime = Date.now() - DAYS_30_MS * 2;
-            const expStub = sinon.stub(JsonWebToken, "createExpirationTime").returns(Math.floor(oldTime / SECONDS_1_MS));
+            const createExpirationTimeStub = vi.spyOn(JsonWebToken, "createExpirationTime" as any).mockReturnValue(Math.floor(oldTime / SECONDS_1_MS));
 
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
@@ -265,113 +307,88 @@ describe("AuthTokensService", () => {
                 users: [],
             };
 
-            expStub.restore();
+            createExpirationTimeStub.mockRestore();
 
-            // Force an expired token by manipulating the exp claim
+            // Force an expired token
             const token = JsonWebToken.get().sign(payload);
-            const decoded = JsonWebToken.get().decode(token);
-            if (decoded) {
-                decoded.exp = Math.floor((Date.now() - DAYS_30_MS) / SECONDS_1_MS); // Expired 30 days ago
-
-                // Manually create a token with the expired claim
-                const tamperedToken = jwt.sign(decoded, privateKey, { algorithm: "RS256" });
-
-                await expect(AuthTokensService.authenticateToken(tamperedToken)).to.be.rejectedWith();
-            }
-        });
+            
+            // Move time forward to simulate token expiration beyond refresh window
+            const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(Date.now() + DAYS_30_MS * 2);
+            
+            await expect(AuthTokensService.authenticateToken(token)).rejects.toThrow();
+            
+            dateNowStub.mockRestore();
+        }));
     });
 
     describe("isTokenCorrectType", () => {
-        it("returns false if token is null, undefined, or not a string", () => {
+        it("returns false if token is null, undefined, or not a string", withDbTransaction(async () => {
             expect(AuthTokensService.isTokenCorrectType(null)).toBe(false);
             expect(AuthTokensService.isTokenCorrectType(undefined)).toBe(false);
             expect(AuthTokensService.isTokenCorrectType(123)).toBe(false);
-        });
+        }));
 
-        it("returns true if token is a string", () => {
+        it("returns true if token is a string", withDbTransaction(async () => {
             expect(AuthTokensService.isTokenCorrectType("string")).toBe(true);
-        });
+        }));
     });
 
     describe("isAccessTokenExpired", () => {
         describe("true", () => {
-            it("string", () => {
+            it("string", withDbTransaction(async () => {
                 const payload = { accessExpiresAt: "string" };
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
-            });
+            }));
 
-            it("undefined", () => {
+            it("undefined", withDbTransaction(async () => {
                 const payload = {};
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
-            });
+            }));
 
-            it("null", () => {
+            it("null", withDbTransaction(async () => {
                 const payload = { accessExpiresAt: null };
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
-            });
+            }));
 
-            it("in the past", () => {
+            it("in the past", withDbTransaction(async () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = payload.accessExpiresAt - SECONDS_1_MS;
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
-            });
+            }));
 
-            it("negative number", () => {
+            it("negative number", withDbTransaction(async () => {
                 // Picked a date that would be in the future if it was positive
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = -(payload.accessExpiresAt + SECONDS_1_MS);
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
-            });
+            }));
         });
 
         describe("false", () => {
-            it("in the future", () => {
+            it("in the future", withDbTransaction(async () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
                 expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(false);
-            });
+            }));
         });
     });
 
     describe("authenticateToken", () => {
-        let instance: JsonWebToken;
-        let privateKey: string;
-        let publicKey: string;
-
-        beforeEach(function setupAuthTests() {
-            instance = JsonWebToken.get();
-            const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
-                modulusLength: 2048,
-                publicKeyEncoding: {
-                    type: "spki",
-                    format: "pem",
-                },
-                privateKeyEncoding: {
-                    type: "pkcs8",
-                    format: "pem",
-                },
-            });
-            privateKey = privKey;
-            publicKey = pubKey;
-            instance.setupTestEnvironment({ privateKey, publicKey });
-        });
-
-        afterEach(async function cleanupAuthTests() {
-            sinon.restore();
-        });
-
         describe("throws", () => {
-            it("token is null, undefined, or not a string", async () => {
-                await expect(AuthTokensService.authenticateToken(null as any)).to.be.rejectedWith("NoSessionToken");
-                await expect(AuthTokensService.authenticateToken(undefined as any)).to.be.rejectedWith("NoSessionToken");
-                await expect(AuthTokensService.authenticateToken(123 as any)).to.be.rejectedWith("NoSessionToken");
-            });
+            it("token is null, undefined, or not a string", withDbTransaction(async () => {
+                
+                await expect(AuthTokensService.authenticateToken(null as any)).rejects.toThrow("NoSessionToken");
+                await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.toThrow("NoSessionToken");
+                await expect(AuthTokensService.authenticateToken(123 as any)).rejects.toThrow("NoSessionToken");
+            }));
 
-            it("token has invalid signature", async () => {
+            it("token has invalid signature", withDbTransaction(async () => {
+                
                 const invalidToken = "invalid.token.here";
-                await expect(AuthTokensService.authenticateToken(invalidToken)).to.be.rejectedWith();
-            });
+                await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.toThrow();
+            }));
 
-            it("token is tampered with", async () => {
+            it("token is tampered with", withDbTransaction(async () => {
+                
                 // Create a valid token
                 const payload: SessionToken = {
                     ...JsonWebToken.get().basicToken(),
@@ -387,13 +404,13 @@ describe("AuthTokensService", () => {
                 const tamperedPayload = Buffer.from("{\"malicious\":\"data\"}").toString("base64").replace(/=/g, "");
                 const tamperedToken = `${header}.${tamperedPayload}.${signature}`;
 
-                await expect(AuthTokensService.authenticateToken(tamperedToken)).to.be.rejectedWith();
-            });
+                await expect(AuthTokensService.authenticateToken(tamperedToken)).rejects.toThrow();
+            }));
 
-            it("token has expired completely (beyond refresh window)", async function testExpiredToken() {
+            it("token has expired completely (beyond refresh window) - second test", withDbTransaction(async function testExpiredToken() {
                 // Create a token with a very old expiration
                 const oldTime = Date.now() - DAYS_30_MS * 2;
-                const expStub = sinon.stub(JsonWebToken, "createExpirationTime").returns(Math.floor(oldTime / SECONDS_1_MS));
+                const expStub = vi.spyOn(JsonWebToken, "createExpirationTime" as any).mockReturnValue(Math.floor(oldTime / SECONDS_1_MS));
 
                 const payload: SessionToken = {
                     ...JsonWebToken.get().basicToken(),
@@ -403,23 +420,21 @@ describe("AuthTokensService", () => {
                     users: [],
                 };
 
-                expStub.restore();
-
-                // Force an expired token by manipulating the exp claim
                 const token = JsonWebToken.get().sign(payload);
-                const decoded = JsonWebToken.get().decode(token);
-                if (decoded) {
-                    decoded.exp = Math.floor((Date.now() - DAYS_30_MS) / SECONDS_1_MS); // Expired 30 days ago
+                
+                expStub.mockRestore();
 
-                    // Manually create a token with the expired claim
-                    const tamperedToken = jwt.sign(decoded, privateKey, { algorithm: "RS256" });
-
-                    await expect(AuthTokensService.authenticateToken(tamperedToken)).to.be.rejectedWith();
-                }
-            });
+                // Move time forward to simulate token expiration
+                const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(Date.now() + DAYS_30_MS * 2);
+                
+                await expect(AuthTokensService.authenticateToken(token)).rejects.toThrow();
+                
+                dateNowStub.mockRestore();
+            }));
         });
 
-        it("returns existing token and payload if token is valid and unexpired", async function testValidUnexpiredToken() {
+        it("returns existing token and payload if token is valid and unexpired", withDbTransaction(async function testValidUnexpiredToken() {
+            
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -432,14 +447,31 @@ describe("AuthTokensService", () => {
             const result = await AuthTokensService.authenticateToken(token);
 
             expect(result.token).toBe(token);
-            expect(result.payload).to.deep.include(payload);
-            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).to.be.at.most(SECONDS_1_MS);
-        });
+            expect(result.payload).toMatchObject(payload);
+            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).toBeLessThanOrEqual(SECONDS_1_MS);
+        }));
 
-        it("handles token with complex user data structure correctly", async function testComplexUserData() {
-            const sessionId = "session-9016";
+        it("handles token with complex user data structure correctly", withDbTransaction(async function testComplexUserData() {
+            
+            const testUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePK().toString(),
+                    name: "Test User",
+                    theme: "light",
+                },
+            });
+            const testAuth = await DbProvider.get().user_auth.create({
+                data: {
+                    id: generatePK(),
+                    user_id: testUser.id,
+                    provider: "local",
+                },
+            });
+            
+            const sessionId = generatePK().toString();
             const lastRefreshAt = new Date();
-            const userId = "user-9017";
+            const userId = generatePK().toString();
 
             // Create session for this test
             await DbProvider.get().session.create({
@@ -447,7 +479,7 @@ describe("AuthTokensService", () => {
                     id: sessionId,
                     expires_at: new Date(Date.now() + DAYS_30_MS),
                     last_refresh_at: lastRefreshAt,
-                    revoked: false,
+                    revokedAt: null, // Not revoked
                     user_id: testUser.id,
                     auth_id: testAuth.id,
                 },
@@ -476,12 +508,13 @@ describe("AuthTokensService", () => {
             const result = await AuthTokensService.authenticateToken(token);
 
             expect(result.token).toBe(token);
-            expect(result.payload).to.deep.include(payload);
+            expect(result.payload).toMatchObject(payload);
             expect(result.payload.users[0].id).toBe(userId);
             expect(result.payload.users[0].session?.id).toBe(sessionId);
-        });
+        }));
 
-        it("applies additionalData correctly when provided", async function testAdditionalData() {
+        it("applies additionalData correctly when provided", withDbTransaction(async function testAdditionalData() {
+            
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -502,16 +535,17 @@ describe("AuthTokensService", () => {
             const result = await AuthTokensService.authenticateToken(token, { additionalData });
 
             expect(result.token).not.toBe(token);
-            expect(result.payload).to.deep.include({
+            expect(result.payload).toMatchObject({
                 ...payload,
                 ...additionalData,
             } as any);
             expect((result.payload as any).extraField).toBe("extraValue");
             expect((result.payload as any).nestedData.key1).toBe("value1");
             expect((result.payload as any).nestedData.key2).toBe(123);
-        });
+        }));
 
-        it("uses modifyPayload callback correctly when provided", async function testModifyPayload() {
+        it("uses modifyPayload callback correctly when provided", withDbTransaction(async function testModifyPayload() {
+            
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -535,10 +569,27 @@ describe("AuthTokensService", () => {
             expect(result.token).not.toBe(token);
             expect((result.payload as any).modifiedField).toBe("modified");
             expect(result.payload.timeZone).toBe("Europe/London");
-        });
+        }));
 
-        it("refreshes the token if access token expired and can be refreshed", async function testTokenRefresh() {
-            const sessionId = "session-9021";
+        it("refreshes the token if access token expired and can be refreshed", withDbTransaction(async function testTokenRefresh() {
+            
+            const testUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePK().toString(),
+                    name: "Test User",
+                    theme: "light",
+                },
+            });
+            const testAuth = await DbProvider.get().user_auth.create({
+                data: {
+                    id: generatePK(),
+                    user_id: testUser.id,
+                    provider: "local",
+                },
+            });
+            
+            const sessionId = generatePK().toString();
             const lastRefreshAt = new Date();
 
             const payload: SessionToken = {
@@ -548,7 +599,7 @@ describe("AuthTokensService", () => {
                 timeZone: "UTC",
                 users: [
                     {
-                        id: "user-9018",
+                        id: generatePK().toString(),
                         session: {
                             id: sessionId,
                             lastRefreshAt: lastRefreshAt.toISOString(),
@@ -565,7 +616,7 @@ describe("AuthTokensService", () => {
                     id: sessionId,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Not expired
                     last_refresh_at: lastRefreshAt, // Matches payload
-                    revoked: false,
+                    revokedAt: null, // Not revoked
                     user_id: testUser.id,
                     auth_id: testAuth.id,
                 },
@@ -574,7 +625,7 @@ describe("AuthTokensService", () => {
             const result = await AuthTokensService.authenticateToken(token);
 
             expect(result.token).not.toBe(token);
-            expect(result.payload).to.deep.include({
+            expect(result.payload).toMatchObject({
                 ...payload,
                 accessExpiresAt: result.payload.accessExpiresAt, // Replace with actual value
             });
@@ -586,11 +637,11 @@ describe("AuthTokensService", () => {
             expect(result.maxAge).toBeGreaterThan(0);
 
             // Move time forward to simulate token expiration, and check if it can be refreshed again
-            sinon.stub(Date, "now").returns(new Date().getTime() + 2 * ACCESS_TOKEN_EXPIRATION_MS);
+            const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(new Date().getTime() + 2 * ACCESS_TOKEN_EXPIRATION_MS);
             const result2 = await AuthTokensService.authenticateToken(result.token);
 
             expect(result2.token).not.toBe(result.token);
-            expect(result2.payload).to.deep.include({
+            expect(result2.payload).toMatchObject({
                 ...result.payload,
                 accessExpiresAt: result2.payload.accessExpiresAt, // Replace with actual value
                 exp: result2.payload.exp, // Don't try to compare exact exp values
@@ -600,13 +651,32 @@ describe("AuthTokensService", () => {
             expect(result2.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
             expect(result2.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
             expect(result2.maxAge).toBeGreaterThan(0);
-        });
+            
+            dateNowStub.mockRestore();
+        }));
 
-        it("throws 'SessionExpired' error if token is expired and cannot be refreshed", async function testSessionExpired() {
+        it("throws 'SessionExpired' error if token is expired and cannot be refreshed", withDbTransaction(async function testSessionExpired() {
+            
+            const testUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePK().toString(),
+                    name: "Test User",
+                    theme: "light",
+                },
+            });
+            const testAuth = await DbProvider.get().user_auth.create({
+                data: {
+                    id: generatePK(),
+                    user_id: testUser.id,
+                    provider: "local",
+                },
+            });
+            
             const initialTime = 1000000000000;
-            const dateNowStub = sinon.stub(Date, "now").returns(initialTime);
+            const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(initialTime);
 
-            const sessionId = "session-9022";
+            const sessionId = generatePK().toString();
             const lastRefreshAt = new Date(initialTime - DAYS_30_MS).toISOString();
 
             const payload: SessionToken = {
@@ -616,7 +686,7 @@ describe("AuthTokensService", () => {
                 timeZone: "UTC",
                 users: [
                     {
-                        id: "user-9023",
+                        id: generatePK().toString(),
                         session: {
                             id: sessionId,
                             lastRefreshAt,
@@ -629,8 +699,8 @@ describe("AuthTokensService", () => {
 
             // Advance time to simulate token expiration
             const expiredTime = initialTime + (5 * ACCESS_TOKEN_EXPIRATION_MS);
-            dateNowStub.restore(); // Restore original Date.now to avoid conflicts
-            sinon.stub(Date, "now").returns(expiredTime);
+            dateNowStub.mockRestore(); // Restore original Date.now to avoid conflicts
+            vi.spyOn(Date, "now").mockReturnValue(expiredTime);
 
             // Inject session data
             await DbProvider.get().session.create({
@@ -638,51 +708,27 @@ describe("AuthTokensService", () => {
                     id: sessionId,
                     expires_at: new Date(Date.now() + DAYS_30_MS), // Add future expiration date
                     last_refresh_at: new Date(lastRefreshAt),
-                    revoked: true, // Can't refresh a revoked session
+                    revokedAt: new Date(), // Can't refresh a revoked session
                     user_id: testUser.id,
                     auth_id: testAuth.id,
                 },
             });
 
-            await expect(AuthTokensService.authenticateToken(token)).to.be.rejectedWith("SessionExpired");
-        });
+            await expect(AuthTokensService.authenticateToken(token)).rejects.toThrow("SessionExpired");
+        }));
     });
 
     describe("generateApiToken", () => {
-        let instance: JsonWebToken;
-        let privateKey: string;
-        let publicKey: string;
-        let res: Response;
 
-        beforeEach(function setupApiTokenTests() {
-            instance = JsonWebToken.get();
-            const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
-                modulusLength: 2048,
-                publicKeyEncoding: {
-                    type: "spki",
-                    format: "pem",
-                },
-                privateKeyEncoding: {
-                    type: "pkcs8",
-                    format: "pem",
-                },
-            });
-            privateKey = privKey;
-            publicKey = pubKey;
-            instance.setupTestEnvironment({ privateKey, publicKey });
+
+        it("should generate a JWT with API token data and add it to the response cookies", withDbTransaction(async () => {
 
             // Mock Response object
-            res = {
+            const res = {
                 headersSent: false,
-                cookie: sinon.stub(),
+                cookie: vi.fn(),
             } as unknown as Response;
-        });
-
-        afterEach(() => {
-            sinon.restore();
-        });
-
-        it("should generate a JWT with API token data and add it to the response cookies", async () => {
+            
             const apiToken = "test-api-token";
             const permissions = {
                 [ApiKeyPermission.ReadPublic]: true,
@@ -691,13 +737,13 @@ describe("AuthTokensService", () => {
                 [ApiKeyPermission.ReadAuth]: false,
                 [ApiKeyPermission.WriteAuth]: false,
             };
-            const userId = "user-9019";
+            const userId = generatePK().toString();
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
-            expect((res.cookie as sinon.SinonStub).called).toBe(true);
+            expect((res.cookie as any).mock.calls.length).toBe(1);
 
-            const [cookieName, token, options] = (res.cookie as sinon.SinonStub).args[0];
+            const [cookieName, token, options] = (res.cookie as any).mock.calls[0];
 
             expect(cookieName).toBe(COOKIE.Jwt);
             expect(typeof token).toBe("string");
@@ -706,16 +752,22 @@ describe("AuthTokensService", () => {
             expect(options.httpOnly).toBe(JsonWebToken.getJwtCookieOptions().httpOnly);
             expect(options.sameSite).toBe(JsonWebToken.getJwtCookieOptions().sameSite);
             expect(options.secure).toBe(JsonWebToken.getJwtCookieOptions().secure);
-            expect(options.maxAge).to.be.a("number");
+            expect(typeof options.maxAge).toBe("number");
 
             const payload = await JsonWebToken.get().verify(token);
             expect(payload.apiToken).toBe(apiToken);
             expect(payload.permissions).toEqual(permissions);
             expect(payload.userId).toBe(userId);
-        });
+        }));
 
-        it("should not set cookie if headers are already sent", async () => {
-            res.headersSent = true;
+        it("should not set cookie if headers are already sent", withDbTransaction(async () => {
+
+            // Mock Response object
+            const res = {
+                headersSent: true,
+                cookie: vi.fn(),
+            } as unknown as Response;
+            
             const apiToken = "test-api-token";
             const permissions = {
                 [ApiKeyPermission.ReadPublic]: true,
@@ -724,49 +776,25 @@ describe("AuthTokensService", () => {
                 [ApiKeyPermission.ReadAuth]: false,
                 [ApiKeyPermission.WriteAuth]: false,
             };
-            const userId = "user-9020";
+            const userId = generatePK().toString();
 
             await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
-            expect((res.cookie as sinon.SinonStub).called).toBe(false);
-        });
+            expect((res.cookie as any).mock.calls.length).toBe(0);
+        }));
     });
 
     describe("generateSessionToken", () => {
-        let instance: JsonWebToken;
-        let privateKey: string;
-        let publicKey: string;
-        let res: Response;
 
-        beforeEach(function setupSessionTokenTests() {
-            instance = JsonWebToken.get();
-            const { privateKey: privKey, publicKey: pubKey } = generateKeyPairSync("rsa", {
-                modulusLength: 2048,
-                publicKeyEncoding: {
-                    type: "spki",
-                    format: "pem",
-                },
-                privateKeyEncoding: {
-                    type: "pkcs8",
-                    format: "pem",
-                },
-            });
-            privateKey = privKey;
-            publicKey = pubKey;
-            instance.setupTestEnvironment({ privateKey, publicKey });
+
+        it("should generate a JWT with session data and add it to the response cookies", withDbTransaction(async () => {
 
             // Mock Response object
-            res = {
+            const res = {
                 headersSent: false,
-                cookie: sinon.stub(),
+                cookie: vi.fn(),
             } as unknown as Response;
-        });
-
-        afterEach(() => {
-            sinon.restore();
-        });
-
-        it("should generate a JWT with session data and add it to the response cookies", async () => {
+            
             const session = {
                 isLoggedIn: true,
                 timeZone: "UTC",
@@ -790,9 +818,9 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).toBe(true);
+            expect((res.cookie as any).mock.calls.length).toBe(1);
 
-            const [cookieName, token, options] = (res.cookie as sinon.SinonStub).args[0];
+            const [cookieName, token, options] = (res.cookie as any).mock.calls[0];
 
             expect(cookieName).toBe(COOKIE.Jwt);
             expect(typeof token).toBe("string");
@@ -801,25 +829,38 @@ describe("AuthTokensService", () => {
             expect(options.httpOnly).toBe(JsonWebToken.getJwtCookieOptions().httpOnly);
             expect(options.sameSite).toBe(JsonWebToken.getJwtCookieOptions().sameSite);
             expect(options.secure).toBe(JsonWebToken.getJwtCookieOptions().secure);
-            expect(options.maxAge).to.be.a("number");
+            expect(typeof options.maxAge).toBe("number");
 
             const payload = await JsonWebToken.get().verify(token);
 
             expect(payload.isLoggedIn).toBe(true);
             expect(payload.timeZone).toBe("UTC");
             expect(payload.users).toEqual(session.users);
-        });
+        }));
 
-        it("should not set cookie if headers are already sent", async () => {
-            res.headersSent = true;
+        it("should not set cookie if headers are already sent", withDbTransaction(async () => {
+
+            // Mock Response object
+            const res = {
+                headersSent: true,
+                cookie: vi.fn(),
+            } as unknown as Response;
+            
             const session = {};
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).toBe(false);
-        });
+            expect((res.cookie as any).mock.calls.length).toBe(0);
+        }));
 
-        it("should handle partial session data correctly", async () => {
+        it("should handle partial session data correctly", withDbTransaction(async () => {
+
+            // Mock Response object
+            const res = {
+                headersSent: false,
+                cookie: vi.fn(),
+            } as unknown as Response;
+            
             const session = {
                 isLoggedIn: false,
                 timeZone: "America/New_York",
@@ -827,14 +868,14 @@ describe("AuthTokensService", () => {
 
             await AuthTokensService.generateSessionToken(res, session);
 
-            expect((res.cookie as sinon.SinonStub).called).toBe(true);
+            expect((res.cookie as any).mock.calls.length).toBe(1);
 
-            const [, token] = (res.cookie as sinon.SinonStub).args[0];
+            const [, token] = (res.cookie as any).mock.calls[0];
             const payload = await JsonWebToken.get().verify(token);
 
             expect(payload.isLoggedIn).toBe(false);
             expect(payload.timeZone).toBe("America/New_York");
-            expect(payload.users).to.be.an("array").that.is.empty;
-        });
+            expect(payload.users).toEqual([]);
+        }));
     });
 });

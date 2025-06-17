@@ -2,27 +2,19 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import { logger } from "./events/logger.js";
 import { CacheService } from "./redisConn.js";
 
-// Skip these tests if Redis is not properly configured
-const skipIfNoRedis = !process.env.REDIS_URL || process.env.REDIS_URL === 'redis://localhost:6379';
-
-describe.skipIf(skipIfNoRedis)("CacheService Integration Tests", () => {
+describe("CacheService Integration Tests", () => {
     let cacheService: CacheService;
 
     beforeAll(() => {
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
-        
-        // Check if Redis URL is set from testcontainers
-        if (!process.env.REDIS_URL) {
-            console.warn('REDIS_URL not set, skipping CacheService tests');
-        }
     });
 
     beforeEach(async () => {
-        // Skip if no Redis URL
+        // Ensure Redis URL is available from global setup
         if (!process.env.REDIS_URL) {
-            return;
+            throw new Error('REDIS_URL not set - global setup may have failed');
         }
         
         // Reset singleton and get fresh instance
@@ -31,17 +23,14 @@ describe.skipIf(skipIfNoRedis)("CacheService Integration Tests", () => {
     });
 
     afterAll(async () => {
-        if (!process.env.REDIS_URL || !cacheService) {
-            return;
-        }
-        
-        // Clean up
-        try {
-            await cacheService.flushAll();
-            await cacheService.close();
-        } catch (error) {
-            // Ignore cleanup errors
-            console.log('Cleanup error (ignored):', error);
+        if (cacheService) {
+            try {
+                await cacheService.flushAll();
+                await cacheService.close();
+            } catch (error) {
+                // Ignore cleanup errors
+                console.log('Cleanup error (ignored):', error);
+            }
         }
         vi.restoreAllMocks();
     });

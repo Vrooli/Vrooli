@@ -4,6 +4,7 @@
  */
 
 import { execSync } from "child_process";
+import { generateKeyPairSync } from "crypto";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 
 let redisContainer: StartedTestContainer | null = null;
@@ -14,9 +15,22 @@ export async function setup() {
     console.log("This runs ONCE before all test files");
     
     try {
+        // Generate proper RSA keys for JWT testing
+        const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+            modulusLength: 2048,
+            publicKeyEncoding: {
+                type: "spki",
+                format: "pem",
+            },
+            privateKeyEncoding: {
+                type: "pkcs8",
+                format: "pem",
+            },
+        });
+        
         // Set required environment variables
-        process.env.JWT_PRIV = "dummy-key";
-        process.env.JWT_PUB = "dummy-key";
+        process.env.JWT_PRIV = privateKey;
+        process.env.JWT_PUB = publicKey;
         process.env.VITE_SERVER_LOCATION = "local";
         process.env.ANTHROPIC_API_KEY = "dummy";
         process.env.MISTRAL_API_KEY = "dummy";

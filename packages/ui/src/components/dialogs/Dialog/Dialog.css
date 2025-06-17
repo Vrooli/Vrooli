@@ -1,0 +1,123 @@
+/* Dialog special effects and animations */
+
+/* Space variant stars effect */
+.tw-dialog-space-stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.tw-dialog-space-stars::before,
+.tw-dialog-space-stars::after {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    background-image: 
+        radial-gradient(1px 1px at 20px 30px, white, transparent),
+        radial-gradient(1px 1px at 40px 70px, white, transparent),
+        radial-gradient(1px 1px at 50px 160px, white, transparent),
+        radial-gradient(1px 1px at 130px 40px, white, transparent),
+        radial-gradient(1px 1px at 80px 10px, white, transparent),
+        radial-gradient(1px 1px at 110px 90px, white, transparent),
+        radial-gradient(1px 1px at 190px 150px, white, transparent);
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    animation: tw-dialog-space-rotate 200s linear infinite;
+    opacity: 0.8;
+}
+
+.tw-dialog-space-stars::after {
+    background-position: 50px 50px;
+    animation-direction: reverse;
+    animation-duration: 300s;
+}
+
+/* Space variant nebula effect */
+.tw-dialog-space-nebula {
+    position: absolute;
+    inset: -50%;
+    pointer-events: none;
+    opacity: 0.1;
+    background: radial-gradient(circle at 20% 50%, rgba(120, 180, 255, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(255, 120, 180, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 50% 30%, rgba(180, 120, 255, 0.3) 0%, transparent 50%);
+    animation: tw-dialog-space-nebula-float 30s ease-in-out infinite;
+}
+
+/* Neon variant glow effect */
+.tw-dialog-neon-glow {
+    position: absolute;
+    inset: -20px;
+    pointer-events: none;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0, 255, 127, 0.1) 70%);
+    filter: blur(20px);
+    animation: tw-dialog-neon-pulse 2s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes tw-dialog-space-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes tw-dialog-space-nebula-float {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    33% {
+        transform: translate(-20px, -20px) scale(1.1);
+    }
+    66% {
+        transform: translate(20px, -10px) scale(0.9);
+    }
+}
+
+@keyframes tw-dialog-neon-pulse {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.05);
+    }
+}
+
+/* Dialog open/close animations */
+.tw-dialog-enter {
+    animation: tw-dialog-fade-in 200ms ease-out;
+}
+
+.tw-dialog-exit {
+    animation: tw-dialog-fade-out 150ms ease-in;
+}
+
+@keyframes tw-dialog-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes tw-dialog-fade-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}

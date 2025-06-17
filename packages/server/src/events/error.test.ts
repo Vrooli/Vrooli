@@ -41,9 +41,14 @@ describe("CustomError", () => {
         expect(error.message).toMatch(/CouldNotReadObject: TEST-/);
         expect(loggerErrorStub).toHaveBeenCalledOnce();
 
-        // Check that the logger was called with the additional data
+        // Check that the logger was called with the additional data spread into the log object
         const logArgs = loggerErrorStub.mock.calls[0][0];
-        expect(logArgs).toContain(additionalData);
+        expect(logArgs).toMatchObject({
+            userId: "123",
+            action: "upload",
+            msg: "CouldNotReadObject",
+            trace: expect.stringMatching(/TEST-/)
+        });
     });
 
     it("should provide a method to convert to ServerError", () => {

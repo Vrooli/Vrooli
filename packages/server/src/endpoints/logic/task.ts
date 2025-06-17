@@ -5,7 +5,8 @@ import { completionService } from "../../services/conversation/responseEngine.js
 import { SwarmExecutionService } from "../../services/execution/swarmExecutionService.js";
 import { changeRunTaskStatus, getRunTaskStatuses, processRun } from "../../tasks/run/queue.js";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
-import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
+import { QueueService } from "../../tasks/queues.js";
+import { activeSwarmRegistry } from "../../tasks/registries.js";
 import { changeSwarmTaskStatus, getSwarmTaskStatuses, processSwarm } from "../../tasks/swarm/queue.js";
 import { QueueTaskType } from "../../tasks/taskTypes.js";
 import type { ApiEndpoint } from "../../types.js";
@@ -67,15 +68,15 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
         // Fall back to old system for remaining tasks
         switch (input.taskType) {
             case TaskType.Llm:
-                const oldSwarmStatuses = await getSwarmTaskStatuses(input.taskIds);
+                const oldSwarmStatuses = await getSwarmTaskStatuses(input.taskIds, QueueService.get());
                 result.statuses.push(...oldSwarmStatuses.filter(s => !result.statuses.find(r => r.id === s.id)));
                 break;
             case TaskType.Run:
-                const oldRunStatuses = await getRunTaskStatuses(input.taskIds);
+                const oldRunStatuses = await getRunTaskStatuses(input.taskIds, QueueService.get());
                 result.statuses.push(...oldRunStatuses.filter(s => !result.statuses.find(r => r.id === s.id)));
                 break;
             case TaskType.Sandbox:
-                result.statuses.push(...await getSandboxTaskStatuses(input.taskIds));
+                result.statuses.push(...await getSandboxTaskStatuses(input.taskIds, QueueService.get()));
                 break;
         }
         return result;
@@ -125,7 +126,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 respondingBot: input.respondingBot,
                 taskContexts: input.taskContexts,
                 userData,
-            });
+            }, QueueService.get());
         } catch (error) {
             logger.error("[task.startSwarmTask] Failed to start swarm with new architecture", {
                 error: error instanceof Error ? error.message : String(error),
@@ -143,7 +144,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 respondingBot: input.respondingBot,
                 taskContexts: input.taskContexts,
                 userData,
-            });
+            }, QueueService.get());
         }
     },
     startRunTask: async ({ input }, { req }) => {
@@ -206,7 +207,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 startedById: userData.id,
                 id: taskId,
                 userData,
-            });
+            }, QueueService.get());
         } catch (error) {
             logger.error("[task.startRunTask] Failed to start run with new architecture", {
                 error: error instanceof Error ? error.message : String(error),
@@ -222,7 +223,7 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
                 startedById: userData.id,
                 id: taskId,
                 userData,
-            });
+            }, QueueService.get());
         }
     },
     cancelTask: async ({ input }, { req }) => {
@@ -232,11 +233,11 @@ export const task: EndpointsTask = createStandardCrudEndpoints({
 
         switch (input.taskType) {
             case TaskType.Llm:
-                return changeSwarmTaskStatus(input.taskId, "Suggested", userData.id);
+                return changeSwarmTaskStatus(input.taskId, "Suggested", userData.id, QueueService.get());
             case TaskType.Run:
-                return changeRunTaskStatus(input.taskId, "Suggested", userData.id);
+                return changeRunTaskStatus(input.taskId, "Suggested", userData.id, QueueService.get());
             case TaskType.Sandbox:
-                return changeSandboxTaskStatus(input.taskId, "Suggested", userData.id);
+                return changeSandboxTaskStatus(input.taskId, "Suggested", userData.id, QueueService.get());
             default:
                 return { __typename: "Success", success: false, error: "Unsupported task type for cancellation or task type not provided." };
         }

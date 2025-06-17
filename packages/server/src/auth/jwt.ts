@@ -88,13 +88,17 @@ export class JsonWebToken {
      * WARNING: For testing purposes only
      */
     setupTestEnvironment(keys: JwtKeys) {
-        if (!JsonWebToken.instance) {
-            JsonWebToken.instance = new JsonWebToken();
-        }
         // Store the keys
         this.keys = keys;
         // Calculate token sizes
         this.calculateTokenSizes();
+    }
+    
+    /**
+     * WARNING: For testing purposes only - resets the singleton instance
+     */
+    static resetInstance() {
+        JsonWebToken.instance = null as any;
     }
 
     static getJwtCookieOptions() {
