@@ -37,7 +37,7 @@ describe("logTeamStats integration tests", () => {
             await db.stats_team.deleteMany({ where: { id: { in: testStatsTeamIds } } });
         }
         if (testMembershipIds.length > 0) {
-            await db.team_member.deleteMany({ where: { id: { in: testMembershipIds } } });
+            await db.member.deleteMany({ where: { id: { in: testMembershipIds } } });
         }
         if (testRunIds.length > 0) {
             await db.run.deleteMany({ where: { id: { in: testRunIds } } });
@@ -104,6 +104,7 @@ describe("logTeamStats integration tests", () => {
         const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 ownedByTeamId: team.id,
                 resourceType: "Routine",
@@ -246,8 +247,7 @@ describe("logTeamStats integration tests", () => {
                 id: generatePK(),
                 name: "Run 1",
                 status: "Completed",
-                createdById: owner.id,
-                teamId: team.id,
+                team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -331,12 +331,12 @@ describe("logTeamStats integration tests", () => {
             testUserIds.push(member.id);
             members.push(member);
 
-            const membership = await DbProvider.get().team_member.create({
+            const membership = await DbProvider.get().member.create({
                 data: {
                     id: generatePK(),
-                    teamId: team.id,
-                    userId: member.id,
-                    role: "Member",
+                    publicId: generatePublicId(),
+                    team: { connect: { id: team.id } },
+                    user: { connect: { id: member.id } },
                 },
             });
             testMembershipIds.push(membership.id);
@@ -347,6 +347,7 @@ describe("logTeamStats integration tests", () => {
             const resource = await DbProvider.get().resource.create({
                 data: {
                     id: generatePK(),
+                    publicId: generatePublicId(),
                     createdById: owner.id,
                     ownedByTeamId: team.id,
                     resourceType: "Routine",
@@ -407,8 +408,7 @@ describe("logTeamStats integration tests", () => {
                 id: generatePK(),
                 name: "No Time Run",
                 status: "Completed",
-                createdById: owner.id,
-                teamId: team.id,
+                team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -519,9 +519,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Team 1 Run",
-                status: "Running",
-                createdById: owner.id,
-                teamId: team1.id,
+                status: "InProgress",
+                team: { connect: { id: team1.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -533,9 +532,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Team 2 Run",
-                status: "Running",
-                createdById: owner.id,
-                teamId: team2.id,
+                status: "InProgress",
+                team: { connect: { id: team2.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },

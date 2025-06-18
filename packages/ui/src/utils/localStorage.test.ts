@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { noop } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalStorageLruCache, cookies, getCookie, getLocalStorageKeys, getOrSetCookie, getStorageItem, ifAllowed, setCookie } from "./localStorage.js";
 
 describe("getLocalStorageKeys", () => {
@@ -79,8 +80,8 @@ describe("LocalStorageLruCache", () => {
     beforeEach(() => {
         global.localStorage.clear();
         // Create fresh spies for each test
-        consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
+        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -258,13 +259,13 @@ describe("LocalStorageLruCache", () => {
     it("should handle corrupted JSON data in cache and clean it up", () => {
         const cache = new LocalStorageLruCache<string>("cache1", 2);
         const namespacedKey = "cache1:key1";
-        
+
         // Manually set corrupted data
         localStorage.setItem(namespacedKey, "{ corrupted json");
-        
+
         // Try to get the value - should return undefined and clean up
         const result = cache.get("key1");
-        
+
         expect(result).toBeUndefined();
         // The corrupted data should be cleaned up
         expect(localStorage.getItem(namespacedKey)).toBeNull();
@@ -272,13 +273,13 @@ describe("LocalStorageLruCache", () => {
 
     it("should handle corrupted keys data and clean it up", () => {
         const namespacedKeysKey = "cache1:cacheKeys";
-        
+
         // Set corrupted keys data
         localStorage.setItem(namespacedKeysKey, "{ corrupted json");
-        
+
         // Create cache - should handle error and start fresh
         const cache = new LocalStorageLruCache<string>("cache1", 2);
-        
+
         // The corrupted keys data should be cleaned up and cache should start fresh
         expect(localStorage.getItem(namespacedKeysKey)).toBeNull();
         expect(cache.size()).toEqual(0);
@@ -286,20 +287,20 @@ describe("LocalStorageLruCache", () => {
 
     it("should handle localStorage quota exceeded error and try to free space", () => {
         const cache = new LocalStorageLruCache<string>("cache1", 3);
-        
+
         // Add some initial items
         cache.set("key1", "value1");
         cache.set("key2", "value2");
-        
+
         // Mock localStorage.setItem to throw quota exceeded error
         const originalSetItem = localStorage.setItem.bind(localStorage);
         let throwCount = 0;
-        vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+        vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
             // Throw error only for the actual value storage, not for cacheKeys
             if (throwCount === 0 && key.includes("key3") && !key.includes("cacheKeys")) {
                 throwCount++;
                 const error = new DOMException("QuotaExceededError");
-                Object.defineProperty(error, 'name', { value: 'QuotaExceededError', writable: true, configurable: true });
+                Object.defineProperty(error, "name", { value: "QuotaExceededError", writable: true, configurable: true });
                 throw error;
             }
             return originalSetItem(key, value);
@@ -307,27 +308,27 @@ describe("LocalStorageLruCache", () => {
 
         // Try to set a new item - should trigger quota handling
         cache.set("key3", "value3");
-        
+
         // Should have handled quota exceeded and removed oldest item
-        
+
         // key1 should have been removed (oldest), key2 and key3 should exist
         expect(cache.get("key1")).toBeUndefined();
         expect(cache.get("key2")).toEqual("value2");
         expect(cache.get("key3")).toEqual("value3");
-        
+
         // Restore only localStorage mock
         vi.mocked(localStorage.setItem).mockRestore();
     });
 
     it("should handle quota exceeded when saving keys", () => {
         const cache = new LocalStorageLruCache<string>("cache1", 2);
-        
+
         // Mock localStorage.setItem to throw quota exceeded error for cacheKeys
         const originalSetItem = localStorage.setItem.bind(localStorage);
-        vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+        vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
             if (key.includes("cacheKeys")) {
                 const error = new DOMException("QuotaExceededError");
-                Object.defineProperty(error, 'name', { value: 'QuotaExceededError', writable: true, configurable: true });
+                Object.defineProperty(error, "name", { value: "QuotaExceededError", writable: true, configurable: true });
                 throw error;
             }
             return originalSetItem(key, value);
@@ -335,19 +336,19 @@ describe("LocalStorageLruCache", () => {
 
         // Try to set an item - should handle error when saving keys
         cache.set("key1", "value1");
-        
+
         // Should handle quota exceeded when saving keys
-        
+
         // Restore only localStorage mock
         vi.mocked(localStorage.setItem).mockRestore();
     });
 
     it("should skip items that exceed maxSize", () => {
         const cache = new LocalStorageLruCache<string>("cache1", 2, 20); // maxSize of 20 bytes
-        
+
         cache.set("key1", "short"); // Should be stored
         cache.set("key2", "this is a very long string that exceeds maxSize"); // Should be skipped
-        
+
         expect(cache.get("key1")).toEqual("short");
         expect(cache.get("key2")).toBeUndefined();
         // Should have warned about skipping large item (see console output in stderr)
@@ -355,19 +356,19 @@ describe("LocalStorageLruCache", () => {
 
     it("removeKeysWithValue should not fail when iterating over keys being removed", () => {
         const cache = new LocalStorageLruCache<{ id: number }>("cache1", 5);
-        
+
         // Set up multiple items
         cache.set("key1", { id: 1 });
         cache.set("key2", { id: 2 });
         cache.set("key3", { id: 1 });
         cache.set("key4", { id: 3 });
         cache.set("key5", { id: 1 });
-        
+
         // Remove all items with id: 1
         expect(() => {
             cache.removeKeysWithValue((key, value) => value.id === 1);
         }).not.toThrow();
-        
+
         // Verify correct items were removed
         expect(cache.size()).toEqual(2);
         expect(cache.get("key1")).toBeUndefined();
@@ -423,7 +424,7 @@ describe("cookies (local storage)", () => {
         });
 
         it("should console.warn on JSON parse failure", () => {
-            const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
             const testKey = "malformedJson";
             global.localStorage.setItem(testKey, "this is not JSON");
             getStorageItem(testKey, (value): value is object => typeof value === "object");

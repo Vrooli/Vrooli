@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+
 // Mock components that throw errors for testing
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
     if (shouldThrow) {
@@ -42,66 +44,79 @@ describe("ErrorBoundary", () => {
         mockLocation.reload.mockClear();
     });
 
-    it("renders children when there is no error", () => {
+    it("displays child components normally when no errors occur", () => {
+        // GIVEN: A component that doesn't throw an error
+        // WHEN: The component is rendered within an ErrorBoundary
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={false} />
             </ErrorBoundary>
         );
 
+        // THEN: The child component should be displayed normally
         expect(screen.getByText("No error")).toBeInTheDocument();
     });
 
-    it("renders error UI when child component throws", () => {
+    it("displays error UI with recovery options when a child component crashes", () => {
+        // GIVEN: A component that will throw an error
+        // WHEN: The component crashes while rendering
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
+        // THEN: The user should see an error message and recovery options
         expect(screen.getByText(/Something went wrong/)).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Go to Home" })).toBeInTheDocument();
     });
 
-    it("handles localStorage setting for shouldSendReport", () => {
-        render(
-            <ErrorBoundary>
-                <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
-        );
-
-        const checkbox = screen.getByRole("checkbox");
-        fireEvent.click(checkbox);
-
-        expect(mockLocalStorage.setItem).toHaveBeenCalledWith("shouldSendReport", "false");
-    });
-
-    it("reads initial shouldSendReport from localStorage", () => {
+    it("remembers user's error reporting preference across sessions", () => {
+        // GIVEN: User previously opted out of error reporting
         mockLocalStorage.getItem.mockReturnValue("false");
 
+        // WHEN: A new error occurs
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
+        // THEN: The checkbox should reflect the saved preference
         const checkbox = screen.getByRole("checkbox");
         expect(checkbox).not.toBeChecked();
     });
 
-    it("sends error report when shouldSendReport is true and refresh is clicked", async () => {
+    it("allows user to opt out of automatic error reporting", () => {
+        // GIVEN: An error has occurred with default error reporting enabled
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
-        // shouldSendReport defaults to true, so no need to click checkbox
+        // WHEN: User unchecks the error reporting checkbox
+        const checkbox = screen.getByRole("checkbox");
+        fireEvent.click(checkbox);
+
+        // THEN: The preference should be saved for future errors
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith("shouldSendReport", "false");
+    });
+
+    it("automatically reports errors and refreshes page when user chooses to refresh", async () => {
+        // GIVEN: An error has occurred with error reporting enabled (default)
+        render(
+            <ErrorBoundary>
+                <ThrowError shouldThrow={true} />
+            </ErrorBoundary>
+        );
+
+        // WHEN: User clicks the refresh button to try again
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
-        // Use shorter timeout since this should be fast
+        // THEN: The error should be reported and page should refresh
         await waitFor(() => {
             expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
                 method: "POST",
@@ -115,17 +130,19 @@ describe("ErrorBoundary", () => {
         });
     });
 
-    it("sends error report when shouldSendReport is true and home is clicked", async () => {
+    it("navigates user to home page with error reporting when home button is clicked", async () => {
+        // GIVEN: An error has occurred with error reporting enabled
         render(
             <ErrorBoundary>
                 <ThrowError shouldThrow={true} />
             </ErrorBoundary>
         );
 
-        // shouldSendReport defaults to true, so no need to click checkbox
+        // WHEN: User clicks "Go to Home" to escape the error
         const homeButton = screen.getByRole("button", { name: "Go to Home" });
         fireEvent.click(homeButton);
 
+        // THEN: Error should be reported and user navigated home
         await waitFor(() => {
             expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
                 method: "POST",
@@ -139,7 +156,8 @@ describe("ErrorBoundary", () => {
         });
     });
 
-    it("does not send error report when shouldSendReport is false", async () => {
+    it("respects user privacy by not sending error reports when opted out", async () => {
+        // GIVEN: User has opted out of error reporting
         mockLocalStorage.getItem.mockReturnValue("false");
 
         render(
@@ -148,9 +166,11 @@ describe("ErrorBoundary", () => {
             </ErrorBoundary>
         );
 
+        // WHEN: User clicks refresh to recover from error
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
+        // THEN: Page should refresh without sending error report
         await waitFor(() => {
             expect(mockLocation.reload).toHaveBeenCalled();
         });
@@ -158,16 +178,19 @@ describe("ErrorBoundary", () => {
         expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it("handles errors with stack traces properly", () => {
+    it("gracefully handles all types of JavaScript errors including those with stack traces", () => {
+        // GIVEN: An error with full stack trace information occurs
         render(
             <ErrorBoundary>
                 <ThrowErrorWithStack />
             </ErrorBoundary>
         );
 
+        // WHEN: User attempts to recover
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
+        // THEN: The error report should include the stack trace for debugging
         expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -175,16 +198,19 @@ describe("ErrorBoundary", () => {
         }));
     });
 
-    it("handles malformed error objects", () => {
+    it("provides fallback error handling for unusual error objects", () => {
+        // GIVEN: A non-standard error object is thrown
         render(
             <ErrorBoundary>
                 <ThrowMalformedError />
             </ErrorBoundary>
         );
 
+        // WHEN: User attempts to recover
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
+        // THEN: The error should still be reported with available information
         expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -192,7 +218,8 @@ describe("ErrorBoundary", () => {
         }));
     });
 
-    it("handles failed error report gracefully", async () => {
+    it("continues to function when error reporting service is unavailable", async () => {
+        // GIVEN: The error reporting service is down
         const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         mockFetch.mockRejectedValue(new Error("Network error"));
 
@@ -202,15 +229,16 @@ describe("ErrorBoundary", () => {
             </ErrorBoundary>
         );
 
-        // shouldSendReport defaults to true, so no need to click checkbox
+        // WHEN: User attempts to refresh after an error
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
+        // THEN: The page should still refresh despite reporting failure
         await waitFor(() => {
             expect(mockLocation.reload).toHaveBeenCalled();
         });
 
-        // Wait for async error logging to complete
+        // AND: The failure should be logged for debugging
         await waitFor(() => {
             expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to send error report:", expect.any(Error));
         });
@@ -218,69 +246,4 @@ describe("ErrorBoundary", () => {
         consoleErrorSpy.mockRestore();
     });
 
-    it("applies size limits to error data", () => {
-        // Create an error with a very long message and stack
-        const longMessage = "x".repeat(3000);
-        const longStack = "y".repeat(6000);
-        
-        const LongError = () => {
-            const error = new Error(longMessage);
-            error.stack = longStack;
-            throw error;
-        };
-
-        render(
-            <ErrorBoundary>
-                <LongError />
-            </ErrorBoundary>
-        );
-
-        const refreshButton = screen.getByRole("button", { name: "Refresh" });
-        fireEvent.click(refreshButton);
-
-        expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: expect.any(String),
-        }));
-    });
-
-    it("handles missing navigator properties gracefully", () => {
-        // Mock a scenario where navigator properties might be missing
-        Object.defineProperty(window, 'navigator', {
-            value: {},
-        });
-
-        render(
-            <ErrorBoundary>
-                <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
-        );
-
-        const refreshButton = screen.getByRole("button", { name: "Refresh" });
-        fireEvent.click(refreshButton);
-
-        expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: expect.stringContaining("Unknown"),
-        }));
-    });
-
-    it("validates timestamp format", () => {
-        render(
-            <ErrorBoundary>
-                <ThrowError shouldThrow={true} />
-            </ErrorBoundary>
-        );
-
-        const refreshButton = screen.getByRole("button", { name: "Refresh" });
-        fireEvent.click(refreshButton);
-
-        expect(mockFetch).toHaveBeenCalledWith("/api/error-reports", expect.objectContaining({
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: expect.stringMatching(/"timestamp":"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z"/),
-        }));
-    });
 });

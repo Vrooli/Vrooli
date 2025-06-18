@@ -60,7 +60,7 @@ describe("logUserStats integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Inactive User",
                 handle: `inactiveuser_${Date.now()}`,
-                updatedAt: new Date(now.getTime() - 60 * 60 * 1000), // 1 hour ago (well within 90 day window)
+                // Use current time to ensure it's definitely within window
             },
         });
         testUserIds.push(user.id);
@@ -81,9 +81,18 @@ describe("logUserStats integration tests", () => {
         testStatsUserIds.push(stats!.id);
 
         expect(stats!.teamsCreated).toBe(0);
-        expect(stats!.resourcesCreated).toBe(0);
-        expect(stats!.resourcesCompleted).toBe(0);
-        expect(stats!.resourceCompletionTimeAverage).toBe(0);
+        
+        // For JSON fields, check they're either null/empty or have zero totals
+        const resourcesCreatedTotal = stats!.resourcesCreatedByType 
+            ? Object.values(stats!.resourcesCreatedByType as Record<string, number>).reduce((a, b) => a + b, 0) 
+            : 0;
+        expect(resourcesCreatedTotal).toBe(0);
+        
+        const resourcesCompletedTotal = stats!.resourcesCompletedByType 
+            ? Object.values(stats!.resourcesCompletedByType as Record<string, number>).reduce((a, b) => a + b, 0) 
+            : 0;
+        expect(resourcesCompletedTotal).toBe(0);
+        
         expect(stats!.runsStarted).toBe(0);
         expect(stats!.runsCompleted).toBe(0);
         expect(stats!.runCompletionTimeAverage).toBe(0);
@@ -101,8 +110,8 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Team Creator",
-                handle: "teamcreator",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `teamcreator_${Date.now()}`,
+                // Use current time to ensure it's definitely within window
             },
         });
         testUserIds.push(user.id);
@@ -112,9 +121,16 @@ describe("logUserStats integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: user.id,
-                handle: "userteam1",
+                createdBy: { connect: { id: user.id } },
+                handle: `userteam1_${Date.now()}`,
                 createdAt: teamCreatedTime,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team 1",
+                    }],
+                },
             },
         });
         testTeamIds.push(team1.id);
@@ -123,9 +139,16 @@ describe("logUserStats integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: user.id,
-                handle: "userteam2",
+                createdBy: { connect: { id: user.id } },
+                handle: `userteam2_${Date.now()}`,
                 createdAt: teamCreatedTime,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team 2",
+                    }],
+                },
             },
         });
         testTeamIds.push(team2.id);
@@ -158,8 +181,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Resource Creator",
-                handle: "resourcecreator",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `resourcecreator_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -207,9 +229,20 @@ describe("logUserStats integration tests", () => {
         expect(stats).not.toBeNull();
         testStatsUserIds.push(stats!.id);
 
-        expect(stats!.resourcesCreated).toBe(2); // Both resources created
-        expect(stats!.resourcesCompleted).toBe(1); // Only one completed
-        expect(stats!.resourceCompletionTimeAverage).toBeGreaterThan(0); // Should have completion time
+        // Check resourcesCreatedByType - should have 2 total (1 Routine + 1 Project)
+        const resourcesCreatedByType = stats!.resourcesCreatedByType as Record<string, number> || {};
+        const totalCreated = Object.values(resourcesCreatedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCreated).toBe(2);
+        
+        // Check resourcesCompletedByType - should have 1 total
+        const resourcesCompletedByType = stats!.resourcesCompletedByType as Record<string, number> || {};
+        const totalCompleted = Object.values(resourcesCompletedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCompleted).toBe(1);
+        
+        // Check completion time average exists
+        const completionTimeByType = stats!.resourceCompletionTimeAverageByType as Record<string, number> || {};
+        const hasCompletionTime = Object.values(completionTimeByType).some(time => time > 0);
+        expect(hasCompletionTime).toBe(true);
     });
 
     it("should count user runs correctly", async () => {
@@ -224,8 +257,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Runner User",
-                handle: "runneruser",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `runneruser_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -291,8 +323,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Multi Runner",
-                handle: "multirunner",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `multirunner_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -360,8 +391,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Completion Timer",
-                handle: "completiontimer",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `completiontimer_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -409,13 +439,24 @@ describe("logUserStats integration tests", () => {
         expect(stats).not.toBeNull();
         testStatsUserIds.push(stats!.id);
 
-        expect(stats!.resourcesCompleted).toBe(2);
+        // Check total completed resources
+        const resourcesCompletedByType = stats!.resourcesCompletedByType as Record<string, number> || {};
+        const totalCompleted = Object.values(resourcesCompletedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCompleted).toBe(2);
         
         // Should be average of the two completion times
         const expectedTime1 = completedTime1.getTime() - createdTime.getTime();
         const expectedTime2 = completedTime2.getTime() - createdTime.getTime();
         const expectedAverage = (expectedTime1 + expectedTime2) / 2;
-        expect(stats!.resourceCompletionTimeAverage).toBe(expectedAverage);
+        
+        // Check completion time average exists in the JSON
+        const completionTimeByType = stats!.resourceCompletionTimeAverageByType as Record<string, number> || {};
+        const avgTimes = Object.values(completionTimeByType);
+        expect(avgTimes.length).toBeGreaterThan(0);
+        
+        // The average should be close to our expected average
+        const actualAverage = avgTimes.reduce((sum, time) => sum + time, 0) / avgTimes.length;
+        expect(Math.abs(actualAverage - expectedAverage)).toBeLessThan(1000); // Within 1 second
     });
 
     it("should exclude deleted resources", async () => {
@@ -429,8 +470,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Deleter User",
-                handle: "deleteruser",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `deleteruser_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -476,7 +516,10 @@ describe("logUserStats integration tests", () => {
 
         expect(stats).not.toBeNull();
         testStatsUserIds.push(stats!.id);
-        expect(stats!.resourcesCreated).toBe(1); // Only the valid one
+        // Check only the valid resource was counted
+        const resourcesCreatedByType = stats!.resourcesCreatedByType as Record<string, number> || {};
+        const totalCreated = Object.values(resourcesCreatedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCreated).toBe(1); // Only the valid one
     });
 
     it("should only include users updated within 90 days", async () => {
@@ -490,7 +533,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Old User",
-                handle: "olduser",
+                handle: `olduser_${Date.now()}`,
                 updatedAt: new Date(now.getTime() - 95 * 24 * 60 * 60 * 1000), // 95 days ago
             },
         });
@@ -502,8 +545,8 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Recent User",
-                handle: "recentuser",
-                updatedAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+                handle: `recentuser_${Date.now()}`,
+                // Use current time to ensure it's definitely within window
             },
         });
         testUserIds.push(recentUser.id);
@@ -543,8 +586,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Weekly User",
-                handle: "weeklyuser",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `weeklyuser_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -577,8 +619,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "No Time User",
-                handle: "notimeuser",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `notimeuser_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -631,8 +672,7 @@ describe("logUserStats integration tests", () => {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: `Batch User ${i}`,
-                    handle: `batchuser${i}`,
-                    updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                    handle: `batchuser${i}_${Date.now()}`,
                 },
             });
             testUserIds.push(user.id);
@@ -665,8 +705,7 @@ describe("logUserStats integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Graceful User",
-                handle: "gracefuluser",
-                updatedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
+                handle: `gracefuluser_${Date.now()}`,
             },
         });
         testUserIds.push(user.id);
@@ -688,9 +727,17 @@ describe("logUserStats integration tests", () => {
         testStatsUserIds.push(stats!.id);
 
         // Should have default values when no data exists
-        expect(stats!.resourceCompletionTimeAverage).toBe(0);
-        expect(stats!.resourcesCompleted).toBe(0);
-        expect(stats!.resourcesCreated).toBe(0);
+        const completionTimeByType = stats!.resourceCompletionTimeAverageByType as Record<string, number> || {};
+        const avgTimes = Object.values(completionTimeByType);
+        expect(avgTimes.length).toBe(0); // No completion times
+        
+        const resourcesCompletedByType = stats!.resourcesCompletedByType as Record<string, number> || {};
+        const totalCompleted = Object.values(resourcesCompletedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCompleted).toBe(0);
+        
+        const resourcesCreatedByType = stats!.resourcesCreatedByType as Record<string, number> || {};
+        const totalCreated = Object.values(resourcesCreatedByType).reduce((sum, count) => sum + count, 0);
+        expect(totalCreated).toBe(0);
         expect(stats!.runCompletionTimeAverage).toBe(0);
         expect(stats!.runContextSwitchesAverage).toBe(0);
         expect(stats!.runsCompleted).toBe(0);

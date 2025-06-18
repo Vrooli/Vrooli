@@ -1,6 +1,6 @@
-import { renderHook } from "@testing-library/react";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act } from "@testing-library/react";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useInfiniteScroll } from "./gestures.js";
 
 describe("useInfiniteScroll", () => {

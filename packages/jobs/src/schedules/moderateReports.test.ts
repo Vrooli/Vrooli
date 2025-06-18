@@ -121,11 +121,36 @@ describe("moderateReports integration tests", () => {
         testUserIds.push(highRepUser.id);
 
         // Create a comment to report
+        // Create an issue first for the comment
+        const issue = await DbProvider.get().issue.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                createdById: objectOwner.id,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Issue",
+                        description: "Issue for comment",
+                    },
+                },
+            },
+        });
+        testIssueIds.push(issue.id);
+
         const comment = await DbProvider.get().comment.create({
             data: {
                 id: generatePK(),
-                ownedByUserId: objectOwner.id,
-                body: "Inappropriate comment",
+                ownedByUser: { connect: { id: objectOwner.id } },
+                issue: { connect: { id: issue.id } },
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Inappropriate comment",
+                    },
+                },
             },
         });
         testCommentIds.push(comment.id);
@@ -134,6 +159,7 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 commentId: comment.id,
                 reason: "Spam",

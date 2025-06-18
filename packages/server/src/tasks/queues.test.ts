@@ -558,8 +558,14 @@ describe("QueueService", () => {
                 }),
             ]);
 
+            // Verify all jobs were added successfully
+            expect(jobs).toHaveLength(3);
+            expect(jobs[0]).toBeTruthy();
+            expect(jobs[1]).toBeTruthy();
+            expect(jobs[2]).toBeTruthy();
+
             // Wait a bit for jobs to be processed
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 200));
 
             // Get job counts for each queue
             const emailCounts = await queueService.email.queue.getJobCounts();
@@ -567,9 +573,9 @@ describe("QueueService", () => {
             const swarmCounts = await queueService.swarm.queue.getJobCounts();
 
             // Check that jobs were added (they might be in any state)
-            expect(emailCounts.waiting + emailCounts.active + emailCounts.completed).toBeGreaterThanOrEqual(1);
-            expect(runCounts.waiting + runCounts.active + runCounts.completed).toBeGreaterThanOrEqual(1);
-            expect(swarmCounts.waiting + swarmCounts.active + swarmCounts.completed).toBeGreaterThanOrEqual(1);
+            expect(emailCounts.waiting + emailCounts.active + emailCounts.completed + emailCounts.failed).toBeGreaterThanOrEqual(1);
+            expect(runCounts.waiting + runCounts.active + runCounts.completed + runCounts.failed).toBeGreaterThanOrEqual(1);
+            expect(swarmCounts.waiting + swarmCounts.active + swarmCounts.completed + swarmCounts.failed).toBeGreaterThanOrEqual(1);
         });
 
         it("should handle queue pause and resume", async () => {

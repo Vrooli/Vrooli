@@ -1,5 +1,6 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { displayDate, firstString, fontSizeToPixels, generateContext } from "./stringTools.js";
 
 describe("firstString", () => {

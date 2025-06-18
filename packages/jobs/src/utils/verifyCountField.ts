@@ -1,7 +1,15 @@
 import type { Prisma } from "@prisma/client";
 import pkg from "@prisma/client";
 import { DbProvider, batch, logger } from "@vrooli/server";
-import { camelCase, uppercaseFirstLetter, type ModelType } from "@vrooli/shared";
+import { camelCase, uppercaseFirstLetter, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
+
+/**
+ * Type guard to check if a value is a valid ModelType
+ */
+function isValidModelType(value: string): value is ModelType {
+    const modelTypeValues: readonly string[] = Object.values(ModelTypeEnum);
+    return modelTypeValues.includes(value);
+}
 
 const { PrismaClient } = pkg;
 
@@ -16,7 +24,7 @@ interface CountPayload {
 /**
  * Configuration for count verification
  */
-interface CountVerificationConfig<TSelect extends Prisma.SelectSubset<any, any>> {
+interface CountVerificationConfig<TSelect> {
     /** Array of table names to process */
     tableNames: readonly string[];
     /** Field name containing the cached count */
@@ -34,30 +42,90 @@ interface CountVerificationConfig<TSelect extends Prisma.SelectSubset<any, any>>
  * Compares cached count fields with actual relation counts and updates mismatches
  */
 export async function verifyCountField<
-    TFindManyArgs extends Record<string, any>,
+    TFindManyArgs extends Record<string, unknown>,
     TPayload extends CountPayload,
-    TSelect extends Prisma.SelectSubset<any, any>
+    TSelect
 >(config: CountVerificationConfig<TSelect>): Promise<void> {
     const { tableNames, countField, relationName, select, traceId } = config;
 
     async function processTableInBatches(
-        tableName: keyof InstanceType<typeof PrismaClient>
+        tableName: string
     ): Promise<void> {
         try {
+            const modelTypeCandidate = uppercaseFirstLetter(camelCase(tableName));
+            
+            // Validate that the constructed string is a valid ModelType
+            if (!isValidModelType(modelTypeCandidate)) {
+                logger.error("Invalid ModelType constructed from table name", {
+                    tableName,
+                    modelTypeCandidate,
+                    trace: traceId
+                });
+                return;
+            }
+            
             await batch<TFindManyArgs, TPayload>({
-                objectType: uppercaseFirstLetter(camelCase(tableName as string)) as ModelType,
+                objectType: modelTypeCandidate,
                 processBatch: async (batchItems) => {
                     for (const item of batchItems) {
                         const actualCount = item._count[relationName];
-                        const cachedCount = (item as any)[countField];
+                        // Safely access the count field using type guards
+                        const hasCountField = (obj: unknown, field: string): obj is Record<string, unknown> => {
+                            return obj !== null && typeof obj === "object" && field in obj;
+                        };
                         
-                        if (cachedCount !== actualCount) {
+                        const isValidNumber = (value: unknown): value is number => {
+                            return typeof value === "number";
+                        };
+                        
+                        let cachedCount: number | undefined = undefined;
+                        if (hasCountField(item, countField)) {
+                            const fieldValue = item[countField];
+                            if (isValidNumber(fieldValue)) {
+                                cachedCount = fieldValue;
+                            }
+                        }
+                        
+                        if (cachedCount !== undefined && cachedCount !== actualCount) {
                             logger.warning(
-                                `Updating ${tableName as string} ${item.id} ${countField} from ${cachedCount} to ${actualCount}.`,
+                                `Updating ${tableName} ${item.id} ${countField} from ${cachedCount} to ${actualCount}.`,
                                 { trace: traceId }
                             );
                             
-                            await (DbProvider.get()[tableName] as { update: any }).update({
+                            const dbProvider = DbProvider.get();
+                            // Type guard to check if dbProvider has the table property
+                            const hasTable = (provider: unknown, table: string): provider is Record<string, unknown> => {
+                                return provider !== null && 
+                                       typeof provider === 'object' && 
+                                       table in provider;
+                            };
+                            
+                            if (!hasTable(dbProvider, tableName)) {
+                                logger.error(`Database provider does not have table: ${tableName}`, { trace: traceId });
+                                continue;
+                            }
+                            
+                            const dbModel = dbProvider[tableName];
+                            
+                            // Type guard to check if dbModel has update method
+                            const hasUpdateMethod = (model: unknown): model is { update: Function } => {
+                                return model !== null &&
+                                       typeof model === 'object' &&
+                                       'update' in model &&
+                                       typeof model.update === 'function';
+                            };
+                            
+                            if (!hasUpdateMethod(dbModel)) {
+                                logger.error(`Database model for ${tableName} does not have update method`, { trace: traceId });
+                                continue;
+                            }
+                            // Validate that countField is a valid property name
+                            if (!countField || typeof countField !== "string" || countField.includes("__proto__") || countField.includes("constructor") || countField.includes("prototype")) {
+                                logger.error(`Invalid countField: ${countField}`, { trace: traceId, tableName });
+                                continue;
+                            }
+                            
+                            await dbModel.update({
                                 where: { id: item.id },
                                 data: { [countField]: actualCount },
                             });
@@ -67,10 +135,10 @@ export async function verifyCountField<
                 select,
             });
         } catch (error) {
-            logger.error(`verifyCountField processTableInBatches caught error for ${tableName as string}`, { 
+            logger.error(`verifyCountField processTableInBatches caught error for ${tableName}`, { 
                 error, 
                 trace: `${traceId}_batch_error`,
-                tableName: tableName as string 
+                tableName,
             });
         }
     }

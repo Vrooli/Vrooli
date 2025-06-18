@@ -10,6 +10,10 @@ interface DrawerData {
     swarmStatus?: string;
     onApproveToolCall?: (pendingId: string) => void;
     onRejectToolCall?: (pendingId: string, reason?: string) => void;
+    onStart?: () => void;
+    onPause?: () => void;
+    onResume?: () => void;
+    onStop?: () => void;
 }
 
 interface DrawerState {
