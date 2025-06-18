@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { ApiKeyPermission, COOKIE, DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, type SessionUser, generatePK } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { generateKeyPairSync } from "crypto";
 import { type Response } from "express";
-import jwt from "jsonwebtoken";
-import { DbProvider } from "../db/provider.js";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { withDbTransaction } from "../__test/helpers/transactionTest.js";
+import { DbProvider } from "../db/provider.js";
 import { logger } from "../events/logger.js";
 import { type SessionData, type SessionToken } from "../types.js";
 import { AuthTokensService } from "./auth.js";
@@ -17,15 +16,13 @@ describe("AuthTokensService", () => {
     let loggerInfoSpy: any;
 
     beforeAll(async () => {
-        await DbProvider.init();
-        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
-        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+        loggerErrorSpy = vi.spyOn(logger, "error").mockImplementation(() => { });
+        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => { });
     });
 
     afterAll(async () => {
         loggerErrorSpy.mockRestore();
         loggerInfoSpy.mockRestore();
-        await DbProvider.shutdown();
     });
 
     beforeEach(async () => {
@@ -137,7 +134,7 @@ describe("AuthTokensService", () => {
                         provider: "local",
                     },
                 });
-                
+
                 const revokedSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
@@ -179,7 +176,7 @@ describe("AuthTokensService", () => {
                         provider: "local",
                     },
                 });
-                
+
                 const expiredSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
@@ -221,7 +218,7 @@ describe("AuthTokensService", () => {
                         provider: "local",
                     },
                 });
-                
+
                 const mismatchSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
@@ -265,7 +262,7 @@ describe("AuthTokensService", () => {
                         provider: "local",
                     },
                 });
-                
+
                 const validSessionId = generatePK();
                 const payload: SessionData = {
                     users: [
@@ -294,7 +291,7 @@ describe("AuthTokensService", () => {
 
         it("token has expired completely (beyond refresh window)", withDbTransaction(async function testExpiredToken() {
             // JWT setup is already done in beforeEach
-            
+
             // Create a token with a very old expiration
             const oldTime = Date.now() - DAYS_30_MS * 2;
             const createExpirationTimeStub = vi.spyOn(JsonWebToken, "createExpirationTime" as any).mockReturnValue(Math.floor(oldTime / SECONDS_1_MS));
@@ -311,12 +308,12 @@ describe("AuthTokensService", () => {
 
             // Force an expired token
             const token = JsonWebToken.get().sign(payload);
-            
+
             // Move time forward to simulate token expiration beyond refresh window
             const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(Date.now() + DAYS_30_MS * 2);
-            
+
             await expect(AuthTokensService.authenticateToken(token)).rejects.toThrow();
-            
+
             dateNowStub.mockRestore();
         }));
     });
@@ -375,20 +372,20 @@ describe("AuthTokensService", () => {
     describe("authenticateToken", () => {
         describe("throws", () => {
             it("token is null, undefined, or not a string", withDbTransaction(async () => {
-                
+
                 await expect(AuthTokensService.authenticateToken(null as any)).rejects.toThrow("NoSessionToken");
                 await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.toThrow("NoSessionToken");
                 await expect(AuthTokensService.authenticateToken(123 as any)).rejects.toThrow("NoSessionToken");
             }));
 
             it("token has invalid signature", withDbTransaction(async () => {
-                
+
                 const invalidToken = "invalid.token.here";
                 await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.toThrow();
             }));
 
             it("token is tampered with", withDbTransaction(async () => {
-                
+
                 // Create a valid token
                 const payload: SessionToken = {
                     ...JsonWebToken.get().basicToken(),
@@ -421,20 +418,20 @@ describe("AuthTokensService", () => {
                 };
 
                 const token = JsonWebToken.get().sign(payload);
-                
+
                 expStub.mockRestore();
 
                 // Move time forward to simulate token expiration
                 const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(Date.now() + DAYS_30_MS * 2);
-                
+
                 await expect(AuthTokensService.authenticateToken(token)).rejects.toThrow();
-                
+
                 dateNowStub.mockRestore();
             }));
         });
 
         it("returns existing token and payload if token is valid and unexpired", withDbTransaction(async function testValidUnexpiredToken() {
-            
+
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -452,7 +449,7 @@ describe("AuthTokensService", () => {
         }));
 
         it("handles token with complex user data structure correctly", withDbTransaction(async function testComplexUserData() {
-            
+
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
@@ -468,7 +465,7 @@ describe("AuthTokensService", () => {
                     provider: "local",
                 },
             });
-            
+
             const sessionId = generatePK().toString();
             const lastRefreshAt = new Date();
             const userId = generatePK().toString();
@@ -514,7 +511,7 @@ describe("AuthTokensService", () => {
         }));
 
         it("applies additionalData correctly when provided", withDbTransaction(async function testAdditionalData() {
-            
+
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -545,7 +542,7 @@ describe("AuthTokensService", () => {
         }));
 
         it("uses modifyPayload callback correctly when provided", withDbTransaction(async function testModifyPayload() {
-            
+
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -572,7 +569,7 @@ describe("AuthTokensService", () => {
         }));
 
         it("refreshes the token if access token expired and can be refreshed", withDbTransaction(async function testTokenRefresh() {
-            
+
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
@@ -588,7 +585,7 @@ describe("AuthTokensService", () => {
                     provider: "local",
                 },
             });
-            
+
             const sessionId = generatePK().toString();
             const lastRefreshAt = new Date();
 
@@ -651,12 +648,12 @@ describe("AuthTokensService", () => {
             expect(result2.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
             expect(result2.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS); // Check new access expiration time is in the future
             expect(result2.maxAge).toBeGreaterThan(0);
-            
+
             dateNowStub.mockRestore();
         }));
 
         it("throws 'SessionExpired' error if token is expired and cannot be refreshed", withDbTransaction(async function testSessionExpired() {
-            
+
             const testUser = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
@@ -672,7 +669,7 @@ describe("AuthTokensService", () => {
                     provider: "local",
                 },
             });
-            
+
             const initialTime = 1000000000000;
             const dateNowStub = vi.spyOn(Date, "now").mockReturnValue(initialTime);
 
@@ -728,7 +725,7 @@ describe("AuthTokensService", () => {
                 headersSent: false,
                 cookie: vi.fn(),
             } as unknown as Response;
-            
+
             const apiToken = "test-api-token";
             const permissions = {
                 [ApiKeyPermission.ReadPublic]: true,
@@ -767,7 +764,7 @@ describe("AuthTokensService", () => {
                 headersSent: true,
                 cookie: vi.fn(),
             } as unknown as Response;
-            
+
             const apiToken = "test-api-token";
             const permissions = {
                 [ApiKeyPermission.ReadPublic]: true,
@@ -794,7 +791,7 @@ describe("AuthTokensService", () => {
                 headersSent: false,
                 cookie: vi.fn(),
             } as unknown as Response;
-            
+
             const session = {
                 isLoggedIn: true,
                 timeZone: "UTC",
@@ -845,7 +842,7 @@ describe("AuthTokensService", () => {
                 headersSent: true,
                 cookie: vi.fn(),
             } as unknown as Response;
-            
+
             const session = {};
 
             await AuthTokensService.generateSessionToken(res, session);
@@ -860,7 +857,7 @@ describe("AuthTokensService", () => {
                 headersSent: false,
                 cookie: vi.fn(),
             } as unknown as Response;
-            
+
             const session = {
                 isLoggedIn: false,
                 timeZone: "America/New_York",

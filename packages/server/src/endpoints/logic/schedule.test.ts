@@ -57,13 +57,12 @@ describe("EndpointsSchedule", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
-
+        
         // Create teams and meetings for schedule testing
         teamUser1 = await DbProvider.get().team.create({
             data: {

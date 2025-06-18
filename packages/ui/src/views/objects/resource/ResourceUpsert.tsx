@@ -1,4 +1,5 @@
 import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import { DUMMY_ID, ResourceUsedFor, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation, type Resource, type ResourceCreateInput, type ResourceShape, type ResourceUpdateInput, type Session, type TranslationKeyCommon } from "@vrooli/shared";
@@ -7,7 +8,6 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
-import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { LinkInput } from "../../../components/inputs/LinkInput/LinkInput.js";
 import { Selector, SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
@@ -15,6 +15,7 @@ import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts/session.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
+import { useIsMobile } from "../../../hooks/useIsMobile.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
@@ -82,6 +83,7 @@ function ResourceForm({
 }: ResourceFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const isMobile = useIsMobile();
 
     // Handle translations
     const {
@@ -175,11 +177,11 @@ function ResourceForm({
     }, [field, meta, helpers, props, t, language]);
 
     return (
-        <MaybeLargeDialog
-            display={display}
+        <Dialog
             id="resource-upsert-dialog"
-            isOpen={isOpen}
+            open={isOpen}
             onClose={onClose}
+            size="full"
         >
             <TopBar
                 display={display}
@@ -282,7 +284,7 @@ function ResourceForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />
-        </MaybeLargeDialog >
+        </Dialog>
     );
 }
 

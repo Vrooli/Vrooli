@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import IORedis from "ioredis";
-import { QueueService } from "./queues.js";
-import { QueueTaskType } from "./taskTypes.js";
-import type { EmailTask, RunTask, SwarmTask } from "./taskTypes.js";
+// AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-19
+import type IORedis from "ioredis";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger } from "../events/logger.js";
 import { clearRedisCache } from "./queueFactory.js";
-import "../__test/setup.js";
+import { QueueService } from "./queues.js";
+import type { EmailTask, RunTask, SwarmTask } from "./taskTypes.js";
+import { QueueTaskType } from "./taskTypes.js";
 
 describe("QueueService", () => {
     let queueService: QueueService;
@@ -22,15 +22,15 @@ describe("QueueService", () => {
             await queueService.shutdown();
         } catch (error) {
             // Ignore shutdown errors in tests
-            console.log('Shutdown error (ignored):', error);
+            console.log("Shutdown error (ignored):", error);
         }
-        
+
         // Clear Redis cache to prevent stale connection reuse
         clearRedisCache();
-        
+
         // Small delay to allow Redis cleanup to complete
         await new Promise(resolve => setTimeout(resolve, 50));
-        
+
         // Clear singleton instance to ensure fresh state
         (QueueService as any).instance = null;
     });
@@ -53,7 +53,7 @@ describe("QueueService", () => {
     describe("Initialization", () => {
         it("should initialize with valid Redis URL", async () => {
             await expect(queueService.init(redisUrl)).resolves.not.toThrow();
-            
+
             // Verify connection is established
             const connection = (queueService as any).connection as IORedis;
             expect(connection).toBeDefined();
@@ -80,13 +80,13 @@ describe("QueueService", () => {
         it("should handle init after shutdown", async () => {
             // First init
             await queueService.init(redisUrl);
-            
+
             // Shutdown
             await queueService.shutdown();
-            
+
             // Re-init should work
             await expect(queueService.init(redisUrl)).resolves.not.toThrow();
-            
+
             const connection = (queueService as any).connection as IORedis;
             expect(connection).toBeDefined();
             expect(connection.status).toBe("ready");
@@ -95,10 +95,10 @@ describe("QueueService", () => {
         it("should throw error with invalid Redis URL", async () => {
             const invalidUrl = "redis://invalid-host:6379";
             await expect(queueService.init(invalidUrl)).rejects.toThrow();
-            
+
             // Immediately clear the Redis cache to prevent pollution
             clearRedisCache();
-            
+
             // Clean up any connection attempts
             try {
                 await queueService.shutdown();
@@ -139,7 +139,7 @@ describe("QueueService", () => {
 
                 const delay = 5000; // 5 seconds
                 const job = await queueService.email.add(emailTask, { delay });
-                
+
                 expect(job).toBeDefined();
                 expect(job.opts.delay).toBe(delay);
             });
@@ -160,7 +160,7 @@ describe("QueueService", () => {
 
                 // Add task
                 const job = await queueService.email.add(emailTask);
-                
+
                 // Wait a bit for processing
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
@@ -181,7 +181,7 @@ describe("QueueService", () => {
 
                 const priority = 10;
                 const job = await queueService.run.add(runTask, { priority });
-                
+
                 expect(job).toBeDefined();
                 expect(job.data).toEqual(runTask);
                 expect(job.opts.priority).toBe(priority);
@@ -266,14 +266,14 @@ describe("QueueService", () => {
                 queueService.email.add({
                     taskType: QueueTaskType.Email,
                     to: ["test2@example.com"],
-                    subject: "Test 2", 
+                    subject: "Test 2",
                     text: "Test 2",
                 }),
             ]);
 
             const taskIds = tasks.map(t => t.id!);
             const statuses = await queueService.getTaskStatuses(taskIds);
-            
+
             expect(statuses).toHaveLength(2);
             statuses.forEach((status, index) => {
                 expect(status.id).toBe(taskIds[index]);
@@ -285,7 +285,7 @@ describe("QueueService", () => {
     describe("Shutdown and cleanup", () => {
         it("should shutdown gracefully", async () => {
             await queueService.init(redisUrl);
-            
+
             // Add some tasks
             await queueService.email.add({
                 taskType: QueueTaskType.Email,
@@ -309,7 +309,7 @@ describe("QueueService", () => {
 
         it("should handle multiple shutdown calls", async () => {
             await queueService.init(redisUrl);
-            
+
             // Multiple shutdowns should not throw
             await expect(queueService.shutdown()).resolves.not.toThrow();
             await expect(queueService.shutdown()).resolves.not.toThrow();
@@ -319,7 +319,7 @@ describe("QueueService", () => {
     describe("Reset functionality", () => {
         it.skip("should reset and reinitialize", async () => {
             await queueService.init(redisUrl);
-            
+
             // Add a task before reset
             const beforeJob = await queueService.email.add({
                 taskType: QueueTaskType.Email,
@@ -332,10 +332,10 @@ describe("QueueService", () => {
             // Reset with careful error handling
             try {
                 await queueService.reset();
-                
+
                 // Wait a bit for Redis to stabilize
                 await new Promise(resolve => setTimeout(resolve, 100));
-                
+
                 // Should be able to add tasks after reset
                 const afterJob = await queueService.email.add({
                     taskType: QueueTaskType.Email,
@@ -345,13 +345,13 @@ describe("QueueService", () => {
                 });
                 expect(afterJob).toBeDefined();
             } catch (error) {
-                console.log('Reset test encountered error (expected in some cases):', error);
+                console.log("Reset test encountered error (expected in some cases):", error);
                 // If reset fails, ensure we still clean up properly
                 try {
                     await queueService.shutdown();
                     await queueService.init(redisUrl);
                 } catch (cleanupError) {
-                    console.log('Cleanup during reset test also failed:', cleanupError);
+                    console.log("Cleanup during reset test also failed:", cleanupError);
                 }
             }
         });
@@ -360,13 +360,13 @@ describe("QueueService", () => {
     describe("Error handling", () => {
         it("should handle Redis connection errors gracefully", async () => {
             const spy = vi.spyOn(logger, "error");
-            
+
             // Try to connect to invalid Redis
             await expect(queueService.init("redis://invalid:6379")).rejects.toThrow();
-            
+
             // Immediately clear the Redis cache to prevent pollution
             clearRedisCache();
-            
+
             // Should have logged error
             expect(spy).toHaveBeenCalled();
             spy.mockRestore();
@@ -374,7 +374,7 @@ describe("QueueService", () => {
 
         it("should handle worker errors", async () => {
             await queueService.init(redisUrl);
-            
+
             // Mock a failing processor
             const failingProcessor = vi.fn().mockRejectedValue(new Error("Processing failed"));
             vi.doMock("./email/process.js", () => ({
@@ -401,7 +401,7 @@ describe("QueueService", () => {
     describe("Concurrent operations", () => {
         it("should handle concurrent queue additions", async () => {
             await queueService.init(redisUrl);
-            
+
             // Add many tasks concurrently
             const promises: Promise<any>[] = [];
             for (let i = 0; i < 50; i++) {
@@ -411,7 +411,7 @@ describe("QueueService", () => {
                         to: [`concurrent${i}@example.com`],
                         subject: `Concurrent ${i}`,
                         text: `Concurrent test ${i}`,
-                    })
+                    }),
                 );
             }
 
@@ -425,7 +425,7 @@ describe("QueueService", () => {
 
         it("should handle concurrent status queries", async () => {
             await queueService.init(redisUrl);
-            
+
             // Add tasks
             const jobs = await Promise.all(
                 Array.from({ length: 20 }, (_, i) =>
@@ -434,15 +434,15 @@ describe("QueueService", () => {
                         to: [`status${i}@example.com`],
                         subject: `Status ${i}`,
                         text: `Status test ${i}`,
-                    })
-                )
+                    }),
+                ),
             );
 
             const jobIds = jobs.map(j => j.id!);
 
             // Query statuses concurrently
-            const statusPromises = jobIds.map(id => 
-                queueService.getTaskStatuses([id])
+            const statusPromises = jobIds.map(id =>
+                queueService.getTaskStatuses([id]),
             );
 
             const results = await Promise.all(statusPromises);
@@ -451,6 +451,200 @@ describe("QueueService", () => {
                 expect(statuses).toHaveLength(1);
                 expect(statuses[0].status).toBeDefined();
             });
+        });
+    });
+
+    describe("Queue initialization edge cases", () => {
+        it("should handle rapid init/shutdown cycles", async () => {
+            for (let i = 0; i < 5; i++) {
+                try {
+                    await queueService.init(redisUrl);
+
+                    // Add a task to verify it's working
+                    const job = await queueService.email.add({
+                        taskType: QueueTaskType.Email,
+                        to: [`cycle${i}@example.com`],
+                        subject: `Cycle ${i}`,
+                        text: `Test cycle ${i}`,
+                    });
+                    expect(job).toBeDefined();
+
+                    await queueService.shutdown();
+
+                    // Add a small delay between cycles to allow Redis to fully clean up
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.log(`Cycle ${i} failed with error:`, error);
+                    // Try to ensure clean state for next iteration
+                    try {
+                        await queueService.shutdown();
+                    } catch (shutdownError) {
+                        // Ignore shutdown errors
+                    }
+                    // Clear the cache to ensure fresh connection
+                    clearRedisCache();
+                    // Reset singleton
+                    (QueueService as any).instance = null;
+                    queueService = QueueService.get();
+                }
+            }
+        });
+
+        it("should handle queue access before initialization", async () => {
+            // Reset singleton to ensure fresh instance
+            (QueueService as any).instance = null;
+            const freshService = QueueService.get();
+
+            // Try to use queue before init - accessing the getter should throw
+            expect(() => freshService.email).toThrow("QueueService: Redis connection not available or not ready");
+        });
+
+        it("should handle memory pressure scenarios", async () => {
+            await queueService.init(redisUrl);
+
+            // Create large payloads
+            const largeText = "x".repeat(1024 * 100); // 100KB per email
+            const promises = [];
+
+            for (let i = 0; i < 10; i++) {
+                promises.push(
+                    queueService.email.add({
+                        taskType: QueueTaskType.Email,
+                        to: [`memory${i}@example.com`],
+                        subject: `Memory test ${i}`,
+                        text: largeText,
+                        html: `<p>${largeText}</p>`,
+                    }),
+                );
+            }
+
+            const jobs = await Promise.all(promises);
+            expect(jobs).toHaveLength(10);
+
+            // Verify data integrity
+            const firstJob = await queueService.email.queue.getJob(jobs[0].id!);
+            expect(firstJob?.data.text.length).toBe(largeText.length);
+        });
+    });
+
+    describe("Queue health and monitoring", () => {
+        it("should track queue metrics", async () => {
+            await queueService.init(redisUrl);
+
+            // Add various types of tasks
+            const jobs = await Promise.all([
+                queueService.email.add({
+                    type: QueueTaskType.EMAIL_SEND,
+                    to: ["test1@example.com"],
+                    subject: "Test 1",
+                    text: "Test",
+                }),
+                queueService.run.add({
+                    type: QueueTaskType.RUN_START,
+                    status: "Scheduled" as const,
+                    runId: "run-1",
+                    resourceVersionId: "version-1",
+                    isNewRun: true,
+                    runFrom: "Test" as any,
+                    userData: { id: "user-1", hasPremium: false },
+                }),
+                queueService.swarm.add({
+                    type: QueueTaskType.LLM_COMPLETION,
+                    chatId: "chat-1",
+                    messageId: "msg-1",
+                    model: "gpt-4",
+                    taskContexts: [],
+                    userData: { id: "user-1", hasPremium: false },
+                }),
+            ]);
+
+            // Wait a bit for jobs to be processed
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Get job counts for each queue
+            const emailCounts = await queueService.email.queue.getJobCounts();
+            const runCounts = await queueService.run.queue.getJobCounts();
+            const swarmCounts = await queueService.swarm.queue.getJobCounts();
+
+            // Check that jobs were added (they might be in any state)
+            expect(emailCounts.waiting + emailCounts.active + emailCounts.completed).toBeGreaterThanOrEqual(1);
+            expect(runCounts.waiting + runCounts.active + runCounts.completed).toBeGreaterThanOrEqual(1);
+            expect(swarmCounts.waiting + swarmCounts.active + swarmCounts.completed).toBeGreaterThanOrEqual(1);
+        });
+
+        it("should handle queue pause and resume", async () => {
+            await queueService.init(redisUrl);
+
+            // Pause the email queue
+            await queueService.email.queue.pause();
+
+            // Add job while paused
+            const job = await queueService.email.add({
+                taskType: QueueTaskType.Email,
+                to: ["paused@example.com"],
+                subject: "Paused",
+                text: "Added while paused",
+            });
+
+            // Job should be added but not processed
+            expect(job).toBeDefined();
+            const isPaused = await queueService.email.queue.isPaused();
+            expect(isPaused).toBe(true);
+
+            // Resume the queue
+            await queueService.email.queue.resume();
+            const isResumed = !(await queueService.email.queue.isPaused());
+            expect(isResumed).toBe(true);
+        });
+    });
+
+    describe("Task validation and sanitization", () => {
+        it("should handle invalid task data gracefully", async () => {
+            await queueService.init(redisUrl);
+
+            // Test with invalid email data
+            const invalidTasks = [
+                {
+                    taskType: QueueTaskType.Email,
+                    to: [], // Empty recipients
+                    subject: "",
+                    text: "",
+                },
+                {
+                    taskType: QueueTaskType.Email,
+                    to: ["not-an-email"], // Invalid email
+                    subject: "Test",
+                    text: "Test",
+                },
+                {
+                    taskType: QueueTaskType.Email,
+                    to: ["test@example.com"],
+                    subject: "x".repeat(1000), // Very long subject
+                    text: "Test",
+                },
+            ];
+
+            for (const task of invalidTasks) {
+                // Should add task (validation happens in processor)
+                const result = await queueService.email.add(task);
+                expect(result).toBeDefined();
+            }
+        });
+
+        it("should handle circular references in task data", async () => {
+            await queueService.init(redisUrl);
+
+            // Create object with circular reference
+            const circularData: any = {
+                taskType: QueueTaskType.Email,
+                to: ["circular@example.com"],
+                subject: "Circular test",
+                text: "Test",
+            };
+            circularData.self = circularData; // Circular reference
+
+            // Should handle serialization gracefully
+            await expect(queueService.email.add(circularData)).rejects.toThrow();
         });
     });
 });

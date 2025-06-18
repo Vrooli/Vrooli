@@ -1,27 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
-// Custom matchers for this test file
-expect.extend({
-    toBeInTheDocument(received) {
-        const pass = received != null;
-        return {
-            pass,
-            message: () => pass 
-                ? `expected element not to be in the document`
-                : `expected element to be in the document`,
-        };
-    },
-    toBeChecked(received) {
-        const pass = received?.checked === true;
-        return {
-            pass,
-            message: () => pass
-                ? `expected element not to be checked`
-                : `expected element to be checked`,
-        };
-    },
-});
 import { ErrorBoundary } from "./ErrorBoundary.js";
 
 // Mock components that throw errors for testing
@@ -119,10 +97,7 @@ describe("ErrorBoundary", () => {
             </ErrorBoundary>
         );
 
-        // Enable error reporting first
-        const checkbox = screen.getByRole("checkbox");
-        fireEvent.click(checkbox);
-
+        // shouldSendReport defaults to true, so no need to click checkbox
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
@@ -147,10 +122,7 @@ describe("ErrorBoundary", () => {
             </ErrorBoundary>
         );
 
-        // Enable error reporting first
-        const checkbox = screen.getByRole("checkbox");
-        fireEvent.click(checkbox);
-
+        // shouldSendReport defaults to true, so no need to click checkbox
         const homeButton = screen.getByRole("button", { name: "Go to Home" });
         fireEvent.click(homeButton);
 
@@ -230,10 +202,7 @@ describe("ErrorBoundary", () => {
             </ErrorBoundary>
         );
 
-        // Enable error reporting first
-        const checkbox = screen.getByRole("checkbox");
-        fireEvent.click(checkbox);
-
+        // shouldSendReport defaults to true, so no need to click checkbox
         const refreshButton = screen.getByRole("button", { name: "Refresh" });
         fireEvent.click(refreshButton);
 
@@ -241,7 +210,10 @@ describe("ErrorBoundary", () => {
             expect(mockLocation.reload).toHaveBeenCalled();
         });
 
-        expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to send error report:", expect.any(Error));
+        // Wait for async error logging to complete
+        await waitFor(() => {
+            expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to send error report:", expect.any(Error));
+        });
         
         consoleErrorSpy.mockRestore();
     });

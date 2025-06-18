@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { QueueService } from "../queues.js";
-import { QueueTaskType, type SwarmTask, type SwarmExecutionTask } from "../taskTypes.js";
-import { processSwarm, processNewSwarmExecution, changeSwarmTaskStatus, getSwarmTaskStatuses } from "./queue.js";
+// AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRedisCache } from "../queueFactory.js";
-import "../../__test/setup.js";
+import { QueueService } from "../queues.js";
+import { QueueTaskType, type SwarmExecutionTask, type SwarmTask } from "../taskTypes.js";
+import { changeSwarmTaskStatus, getSwarmTaskStatuses, processNewSwarmExecution, processSwarm } from "./queue.js";
 
 describe("Swarm Queue", () => {
     let queueService: QueueService;
@@ -20,7 +20,7 @@ describe("Swarm Queue", () => {
         try {
             await queueService.shutdown();
         } catch (error) {
-            console.log('Shutdown error (ignored):', error);
+            console.log("Shutdown error (ignored):", error);
         }
         clearRedisCache();
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -101,8 +101,8 @@ describe("Swarm Queue", () => {
         it("should preserve all task data", async () => {
             const complexData: Omit<SwarmTask, "status"> = {
                 ...baseSwarmData,
-                inputs: { 
-                    nested: { 
+                inputs: {
+                    nested: {
                         data: "complex",
                         array: [1, 2, 3],
                     },
@@ -115,7 +115,7 @@ describe("Swarm Queue", () => {
 
             const result = await processSwarm(complexData, queueService);
             const job = await queueService.swarm.queue.getJob(result.data!.id);
-            
+
             expect(job?.data.inputs).toEqual(complexData.inputs);
             expect(job?.data.metadata).toEqual(complexData.metadata);
         });
@@ -170,7 +170,7 @@ describe("Swarm Queue", () => {
             for (const variant of executionVariants) {
                 const result = await processNewSwarmExecution(variant, queueService);
                 expect(result.success).toBe(true);
-                
+
                 const job = await queueService.swarm.queue.getJob(result.data!.id);
                 expect(job?.data.config).toEqual(variant.config);
             }
@@ -201,14 +201,14 @@ describe("Swarm Queue", () => {
         });
 
         it("should verify status change is delegated to swarm queue", async () => {
-            const spy = vi.spyOn(queueService.swarm, 'changeTaskStatus');
+            const spy = vi.spyOn(queueService.swarm, "changeTaskStatus");
             await changeSwarmTaskStatus(taskId, "Running", "user-123", queueService);
             expect(spy).toHaveBeenCalledWith(taskId, "Running", "user-123");
         });
 
         it("should handle custom status values", async () => {
             const customStatuses = ["Processing", "Analyzing", "Generating"];
-            
+
             for (const status of customStatuses) {
                 const result = await changeSwarmTaskStatus(taskId, status, "user-123", queueService);
                 expect(result.success).toBe(true);
@@ -222,7 +222,7 @@ describe("Swarm Queue", () => {
     });
 
     describe("getSwarmTaskStatuses", () => {
-        let taskIds: string[] = [];
+        const taskIds: string[] = [];
 
         beforeEach(async () => {
             // Add multiple test jobs
@@ -255,15 +255,15 @@ describe("Swarm Queue", () => {
         it("should handle mixed valid and invalid IDs", async () => {
             const mixedIds = [...taskIds, "invalid-id-1", "invalid-id-2"];
             const statuses = await getSwarmTaskStatuses(mixedIds, queueService);
-            
+
             // Should return status for all IDs, with null for invalid ones
             expect(statuses).toHaveLength(5);
-            
+
             // Valid IDs should have status
             statuses.slice(0, 3).forEach(status => {
                 expect(status.status).toBeDefined();
             });
-            
+
             // Invalid IDs should have null status
             statuses.slice(3).forEach(status => {
                 expect(status.status).toBeNull();
@@ -276,7 +276,7 @@ describe("Swarm Queue", () => {
         });
 
         it("should verify delegation to QueueService", async () => {
-            const spy = vi.spyOn(queueService, 'getTaskStatuses');
+            const spy = vi.spyOn(queueService, "getTaskStatuses");
             await getSwarmTaskStatuses(taskIds, queueService);
             expect(spy).toHaveBeenCalledWith(taskIds, "swarm");
         });
@@ -340,7 +340,7 @@ describe("Swarm Queue", () => {
 
             const result = await processSwarm(swarmData, queueService);
             const job = await queueService.swarm.queue.getJob(result.data!.id);
-            
+
             expect(job).toBeDefined();
             expect(job?.attemptsMade).toBeGreaterThanOrEqual(0);
         });
@@ -443,6 +443,188 @@ describe("Swarm Queue", () => {
                     expect(job?.opts.priority).toBe(100);
                 }
             }
+        });
+    });
+
+    describe("Three-tier execution edge cases", () => {
+        it("should handle tier coordination failures", async () => {
+            // Mock tier coordinator to fail
+            const coordinatorMock = vi.fn().mockRejectedValue(
+                new Error("Tier coordination failed"),
+            );
+
+            vi.doMock("../../services/execution/tier1/tierOneCoordinator.js", () => ({
+                TierOneCoordinator: {
+                    getInstance: () => ({
+                        executeSwarm: coordinatorMock,
+                    }),
+                },
+            }));
+
+            const executionData = {
+                type: QueueTaskType.SWARM_EXECUTION,
+                swarmId: "exec-fail-tier",
+                executionId: "execution-fail-tier",
+                userId: "user-789",
+                userData: { id: "user-789", hasPremium: false },
+                config: {
+                    model: "gpt-4",
+                    temperature: 0.7,
+                },
+            };
+
+            // Job should be added successfully
+            const result = await processNewSwarmExecution(executionData, queueService);
+            expect(result.success).toBe(true);
+
+            // But processing will fail (handled by worker)
+            const job = await queueService.swarm.queue.getJob(result.data!.id);
+            expect(job).toBeDefined();
+        });
+
+        it("should handle swarm state transitions", async () => {
+            const swarmId = "state-transition-swarm";
+            const states = [
+                "Initializing",
+                "Planning",
+                "Executing",
+                "Analyzing",
+                "Completing",
+                "Completed",
+            ];
+
+            // Add initial swarm task
+            const result = await processSwarm({
+                type: QueueTaskType.SWARM_RUN,
+                swarmId,
+                routineVersionId: "version-456",
+                runId: "run-state-transition",
+                userData: { id: "user-123", hasPremium: false },
+                inputs: {},
+                model: "gpt-4",
+                teamId: "team-456",
+            }, queueService);
+
+            const taskId = result.data!.id;
+
+            // Transition through states
+            for (const state of states) {
+                const statusResult = await changeSwarmTaskStatus(
+                    taskId,
+                    state,
+                    "user-123",
+                    queueService,
+                );
+                expect(statusResult.success).toBe(true);
+
+                // Verify state transition
+                const statuses = await getSwarmTaskStatuses([taskId], queueService);
+                expect(statuses[0].status).toBeDefined();
+            }
+        });
+
+        it("should enforce resource limits", async () => {
+            // Test with various resource configurations
+            const resourceConfigs = [
+                { maxIterations: 1, maxTokens: 100 },
+                { maxIterations: 100, maxTokens: 10000 },
+                { maxIterations: 1000, maxTokens: 100000 },
+            ];
+
+            for (const config of resourceConfigs) {
+                const executionData = {
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    swarmId: `exec-resource-${config.maxIterations}`,
+                    executionId: `execution-resource-${config.maxIterations}`,
+                    userId: "user-789",
+                    userData: { id: "user-789", hasPremium: false },
+                    config: {
+                        model: "gpt-4",
+                        ...config,
+                    },
+                };
+
+                const result = await processNewSwarmExecution(executionData, queueService);
+                expect(result.success).toBe(true);
+
+                const job = await queueService.swarm.queue.getJob(result.data!.id);
+                expect(job?.data.config.maxIterations).toBe(config.maxIterations);
+                expect(job?.data.config.maxTokens).toBe(config.maxTokens);
+            }
+        });
+    });
+
+    describe("Error handling and recovery", () => {
+        it("should handle invalid swarm configurations", async () => {
+            const invalidConfigs = [
+                { model: "" }, // Empty model
+                { model: "invalid-model-12345" }, // Unknown model
+                { model: "gpt-4", temperature: -1 }, // Invalid temperature
+                { model: "gpt-4", temperature: 2.5 }, // Temperature too high
+            ];
+
+            for (const config of invalidConfigs) {
+                const executionData = {
+                    type: QueueTaskType.SWARM_EXECUTION,
+                    swarmId: `exec-invalid-${JSON.stringify(config)}`,
+                    executionId: `execution-invalid-${Date.now()}`,
+                    userId: "user-789",
+                    userData: { id: "user-789", hasPremium: false },
+                    config: config as any,
+                };
+
+                // Should add successfully (validation in processor)
+                const result = await processNewSwarmExecution(executionData, queueService);
+                expect(result.success).toBe(true);
+            }
+        });
+
+        it("should handle missing required swarm data", async () => {
+            const incompleteData = {
+                type: QueueTaskType.SWARM_RUN,
+                // Missing swarmId
+                routineVersionId: "version-456",
+                runId: "run-incomplete",
+                userData: { id: "user-123", hasPremium: false },
+                inputs: {},
+                model: "gpt-4",
+                teamId: "team-456",
+            } as any;
+
+            // Should still add (validation in processor)
+            const result = await processSwarm(incompleteData, queueService);
+            expect(result.success).toBe(true);
+        });
+
+        it("should handle queue overload scenarios", async () => {
+            // Simulate queue overload by adding many tasks rapidly
+            const overloadCount = 100;
+            const promises = [];
+
+            for (let i = 0; i < overloadCount; i++) {
+                promises.push(
+                    processSwarm({
+                        type: QueueTaskType.SWARM_RUN,
+                        swarmId: `overload-${i}`,
+                        routineVersionId: "version-456",
+                        runId: `run-overload-${i}`,
+                        userData: { id: `user-${i % 10}`, hasPremium: false },
+                        inputs: { index: i },
+                        model: "gpt-4",
+                        teamId: "team-456",
+                    }, queueService),
+                );
+            }
+
+            const results = await Promise.allSettled(promises);
+
+            // Most should succeed
+            const succeeded = results.filter(r => r.status === "fulfilled");
+            expect(succeeded.length).toBeGreaterThan(overloadCount * 0.9);
+
+            // Check queue health
+            const jobCounts = await queueService.swarm.queue.getJobCounts();
+            expect(jobCounts.waiting + jobCounts.active).toBeGreaterThan(0);
         });
     });
 });

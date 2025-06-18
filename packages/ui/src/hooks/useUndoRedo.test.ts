@@ -28,9 +28,9 @@ describe("useUndoRedo", () => {
             }),
         );
 
-        expect(result.current.internalValue).to.equal(initialValue);
-        expect(result.current.canUndo).to.equal(false);
-        expect(result.current.canRedo).to.equal(false);
+        expect(result.current.internalValue).toBe(initialValue);
+        expect(result.current.canUndo).toBe(false);
+        expect(result.current.canRedo).toBe(false);
     });
 
     it("should update value and add to stack after debounce", async () => {
@@ -47,8 +47,8 @@ describe("useUndoRedo", () => {
         });
 
         // Value should update immediately
-        expect(result.current.internalValue).to.equal("new value");
-        expect(result.current.canUndo).to.equal(false); // Not yet added to stack
+        expect(result.current.internalValue).toBe("new value");
+        expect(result.current.canUndo).toBe(false); // Not yet added to stack
 
         // Fast forward past debounce time
         act(() => {
@@ -56,8 +56,8 @@ describe("useUndoRedo", () => {
         });
 
         // Now should be in stack
-        expect(result.current.canUndo).to.equal(true);
-        expect(result.current.canRedo).to.equal(false);
+        expect(result.current.canUndo).toBe(true);
+        expect(result.current.canRedo).toBe(false);
     });
 
     it("should handle undo/redo operations", async () => {
@@ -82,17 +82,17 @@ describe("useUndoRedo", () => {
         act(() => {
             result.current.undo();
         });
-        expect(result.current.internalValue).to.equal("first change");
-        expect(result.current.canUndo).to.equal(true);
-        expect(result.current.canRedo).to.equal(true);
+        expect(result.current.internalValue).toBe("first change");
+        expect(result.current.canUndo).toBe(true);
+        expect(result.current.canRedo).toBe(true);
 
         // Test redo
         act(() => {
             result.current.redo();
         });
-        expect(result.current.internalValue).to.equal("second change");
-        expect(result.current.canUndo).to.equal(true);
-        expect(result.current.canRedo).to.equal(false);
+        expect(result.current.internalValue).toBe("second change");
+        expect(result.current.canUndo).toBe(true);
+        expect(result.current.canRedo).toBe(false);
     });
 
     it("should handle immediate stack addition with delimiters", () => {
@@ -108,19 +108,19 @@ describe("useUndoRedo", () => {
         act(() => {
             result.current.changeInternalValue("typing");
         });
-        expect(result.current.canUndo).to.equal(false); // Not yet in stack
+        expect(result.current.canUndo).toBe(false); // Not yet in stack
 
         // Type with space delimiter
         act(() => {
             result.current.changeInternalValue("typing ");
         });
-        expect(result.current.canUndo).to.equal(true); // Immediately added to stack
+        expect(result.current.canUndo).toBe(true); // Immediately added to stack
 
         // Type with newline delimiter
         act(() => {
             result.current.changeInternalValue("typing \nmore");
         });
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
     });
 
     it("should disable debouncing with empty delimiters array", () => {
@@ -136,12 +136,12 @@ describe("useUndoRedo", () => {
         act(() => {
             result.current.changeInternalValue("change 1");
         });
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
 
         act(() => {
             result.current.changeInternalValue("change 2");
         });
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
     });
 
     it("should handle resetInternalValue without adding to stack", () => {
@@ -157,15 +157,15 @@ describe("useUndoRedo", () => {
             result.current.changeInternalValue("change");
             vi.advanceTimersByTime(200);
         });
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
 
         // Reset value
         act(() => {
             result.current.resetInternalValue("reset value");
         });
-        expect(result.current.internalValue).to.equal("reset value");
+        expect(result.current.internalValue).toBe("reset value");
         // Stack state should not change
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
     });
 
     it("should handle resetStack", () => {
@@ -183,15 +183,15 @@ describe("useUndoRedo", () => {
             result.current.changeInternalValue("change 2");
             vi.advanceTimersByTime(200);
         });
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
 
         // Reset stack
         act(() => {
             result.current.resetStack();
         });
-        expect(result.current.canUndo).to.equal(false);
-        expect(result.current.canRedo).to.equal(false);
-        expect(result.current.internalValue).to.equal("change 2");
+        expect(result.current.canUndo).toBe(false);
+        expect(result.current.canRedo).toBe(false);
+        expect(result.current.internalValue).toBe("change 2");
     });
 
     it("should respect disabled flag", () => {
@@ -213,12 +213,12 @@ describe("useUndoRedo", () => {
         act(() => {
             result.current.undo();
         });
-        expect(result.current.internalValue).to.equal("change"); // Should not change
+        expect(result.current.internalValue).toBe("change"); // Should not change
 
         act(() => {
             result.current.redo();
         });
-        expect(result.current.internalValue).to.equal("change"); // Should not change
+        expect(result.current.internalValue).toBe("change"); // Should not change
     });
 
     it("should handle stack size limit", () => {
@@ -236,16 +236,16 @@ describe("useUndoRedo", () => {
         });
 
         // Should still be able to undo
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.canUndo).toBe(true);
 
         act(() => {
             result.current.undo();
         });
 
         // Should still have the initial value
-        expect(result.current.internalValue).to.equal("x".repeat(500000));
-        expect(result.current.canUndo).to.equal(false);
-        expect(result.current.canRedo).to.equal(true);
+        expect(result.current.internalValue).toBe("x".repeat(500000));
+        expect(result.current.canUndo).toBe(false);
+        expect(result.current.canRedo).toBe(true);
     });
 
     it("should handle function updater pattern", () => {
@@ -262,8 +262,8 @@ describe("useUndoRedo", () => {
             vi.advanceTimersByTime(200);
         });
 
-        expect(result.current.internalValue).to.equal("initial updated");
-        expect(result.current.canUndo).to.equal(true);
+        expect(result.current.internalValue).toBe("initial updated");
+        expect(result.current.canUndo).toBe(true);
     });
 
     it("should call onChange with debounce", () => {

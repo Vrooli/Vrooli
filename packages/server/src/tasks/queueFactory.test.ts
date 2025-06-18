@@ -1,18 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+// AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
+import { Queue, QueueEvents, Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
-import "../__test/setup.js";
-import { Job, Queue, Worker, QueueEvents } from "bullmq";
-import { 
-    buildRedis, 
-    ManagedQueue, 
-    DEFAULT_JOB_OPTIONS, 
-    BASE_WORKER_OPTS,
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../events/logger.js";
+import {
+    buildRedis,
+    DEFAULT_JOB_OPTIONS,
     getQueueHealth,
+    ManagedQueue,
     QueueStatus,
     type BaseQueueConfig,
-    type BaseTaskData
+    type BaseTaskData,
 } from "./queueFactory.js";
-import { logger } from "../events/logger.js";
 
 // Test task data type
 interface TestTaskData extends BaseTaskData {
@@ -32,14 +31,14 @@ describe("queueFactory", () => {
         // Clean up any remaining Redis connections
         const clients = (buildRedis as any).redisClients;
         const promises = (buildRedis as any).connectionEstablishmentPromises;
-        
+
         if (clients) {
             // First wait for any pending connections to complete or fail
             if (promises) {
                 await Promise.allSettled(Object.values(promises));
                 Object.keys(promises).forEach(key => delete promises[key]);
             }
-            
+
             // Then close existing connections
             for (const [url, client] of Object.entries(clients)) {
                 if (client && typeof client === "object" && "quit" in client) {
@@ -53,7 +52,7 @@ describe("queueFactory", () => {
             // Clear the cache
             Object.keys(clients).forEach(key => delete clients[key]);
         }
-        
+
         // Clear any module-level mocks
         vi.restoreAllMocks();
     });
@@ -69,7 +68,7 @@ describe("queueFactory", () => {
         it("should reuse existing connection for same URL", async () => {
             const client1 = await buildRedis(redisUrl);
             const client2 = await buildRedis(redisUrl);
-            
+
             expect(client1).toBe(client2);
             // Don't quit the client here as it will break other tests that might use it
             // The afterEach cleanup will handle it
@@ -78,7 +77,7 @@ describe("queueFactory", () => {
         it("should handle concurrent connection requests", async () => {
             // Use a unique URL for this test to avoid conflicts
             const testUrl = `${redisUrl}/1`; // Use database 1
-            
+
             // Clear any existing connections
             const clients = (buildRedis as any).redisClients || {};
             const promises = (buildRedis as any).connectionEstablishmentPromises || {};
@@ -102,18 +101,18 @@ describe("queueFactory", () => {
 
         it("should replace stale connection", async () => {
             const client1 = await buildRedis(redisUrl);
-            
+
             // Force disconnect to make it stale
             client1.disconnect();
-            
+
             // Wait a bit for status to update
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             // Getting connection again should create new one
             const client2 = await buildRedis(redisUrl);
             expect(client2).not.toBe(client1);
             expect(client2.status).toBe("ready");
-            
+
             await client2.quit();
         });
 
@@ -136,25 +135,25 @@ describe("queueFactory", () => {
         beforeEach(async () => {
             redisClient = await buildRedis(redisUrl);
             processedJobs = [];
-            
+
             // Create processor mock - reset for each test
             processorMock = vi.fn().mockImplementation(async (job: Job<TestTaskData>) => {
                 processedJobs.push(job.data);
-                
+
                 if (job.data.shouldFail) {
                     throw new Error("Test error: Job configured to fail");
                 }
-                
+
                 if (job.data.processingTime) {
                     await new Promise(resolve => setTimeout(resolve, job.data.processingTime));
                 }
-                
+
                 return { processed: true, message: job.data.message };
             });
 
             // Use a unique queue name for each test to avoid conflicts
             const uniqueQueueName = `test-queue-${Date.now()}-${Math.random()}`;
-            
+
             const config: BaseQueueConfig<TestTaskData> = {
                 name: uniqueQueueName,
                 processor: processorMock,
@@ -162,7 +161,7 @@ describe("queueFactory", () => {
 
             testQueue = new ManagedQueue(config, redisClient);
             await testQueue.ready;
-            
+
             // Wait for worker to be ready
             await new Promise(resolve => setTimeout(resolve, 100));
         });
@@ -172,23 +171,23 @@ describe("queueFactory", () => {
             if (testQueue) {
                 // Wait for any pending operations to complete
                 await new Promise(resolve => setTimeout(resolve, 100));
-                
+
                 // Close in proper order with error handling
                 try {
                     await testQueue.worker.close();
-                } catch (e) { 
+                } catch (e) {
                     // Ignore worker close errors during cleanup
                 }
-                
+
                 try {
                     await testQueue.events.close();
-                } catch (e) { 
+                } catch (e) {
                     // Ignore events close errors during cleanup
                 }
-                
+
                 try {
                     await testQueue.queue.close();
-                } catch (e) { 
+                } catch (e) {
                     // Ignore queue close errors during cleanup
                 }
             }
@@ -226,15 +225,15 @@ describe("queueFactory", () => {
                 // Reset processed jobs for this test
                 processedJobs = [];
                 processorMock.mockClear();
-                
+
                 const jobs = await Promise.all(
-                    Array.from({ length: 10 }, (_, i) => 
+                    Array.from({ length: 10 }, (_, i) =>
                         testQueue.add({
                             type: "test",
                             id: `test-${i}`,
                             message: `Message ${i}`,
-                        })
-                    )
+                        }),
+                    ),
                 );
 
                 expect(jobs).toHaveLength(10);
@@ -282,7 +281,7 @@ describe("queueFactory", () => {
             it("should handle delayed jobs", async () => {
                 // Use local array to avoid interference
                 const localProcessedJobs: TestTaskData[] = [];
-                
+
                 // Create a fresh queue for this test to avoid interference
                 const delayedQueue = new ManagedQueue({
                     name: "delayed-test-queue",
@@ -291,7 +290,7 @@ describe("queueFactory", () => {
                         return { processed: true };
                     },
                 }, redisClient);
-                
+
                 try {
                     const delay = 1000; // 1 second
                     const startTime = Date.now();
@@ -323,7 +322,7 @@ describe("queueFactory", () => {
         describe("Error handling", () => {
             it("should handle job failures", async () => {
                 const errorSpy = vi.spyOn(logger, "error");
-                
+
                 // Clear any previous error calls
                 errorSpy.mockClear();
 
@@ -363,7 +362,7 @@ describe("queueFactory", () => {
                         expect.objectContaining({
                             jobId: "failing-job",
                             failedReason: expect.stringContaining("Test error"),
-                        })
+                        }),
                     );
                 } finally {
                     errorSpy.mockRestore();
@@ -410,7 +409,7 @@ describe("queueFactory", () => {
         describe("Task operations", () => {
             it("should add task with validation", async () => {
                 const validatorMock = vi.fn().mockReturnValue({ valid: true });
-                
+
                 const validatedQueue = new ManagedQueue({
                     name: "validated-queue",
                     processor: processorMock,
@@ -437,11 +436,11 @@ describe("queueFactory", () => {
 
             it("should reject invalid tasks", async () => {
                 const errorSpy = vi.spyOn(logger, "error");
-                const validatorMock = vi.fn().mockReturnValue({ 
-                    valid: false, 
-                    errors: ["Missing required field", "Invalid format"] 
+                const validatorMock = vi.fn().mockReturnValue({
+                    valid: false,
+                    errors: ["Missing required field", "Invalid format"],
                 });
-                
+
                 const validatedQueue = new ManagedQueue({
                     name: "validated-queue-reject",
                     processor: processorMock,
@@ -459,7 +458,7 @@ describe("queueFactory", () => {
                     expect.stringContaining("Task validation failed"),
                     expect.objectContaining({
                         errors: ["Missing required field", "Invalid format"],
-                    })
+                    }),
                 );
 
                 errorSpy.mockRestore();
@@ -472,18 +471,18 @@ describe("queueFactory", () => {
                 // Add some tasks
                 const taskIds = ["status-1", "status-2", "status-3"];
                 await Promise.all(
-                    taskIds.map(id => 
+                    taskIds.map(id =>
                         testQueue.add({
                             type: "test",
                             id,
                             message: `Status test ${id}`,
-                        })
-                    )
+                        }),
+                    ),
                 );
 
                 // Get statuses
                 const statuses = await testQueue.getTaskStatuses(taskIds);
-                
+
                 expect(statuses).toHaveLength(3);
                 statuses.forEach((status, index) => {
                     expect(status.id).toBe(taskIds[index]);
@@ -516,7 +515,7 @@ describe("queueFactory", () => {
             it("should handle concurrent processing", async () => {
                 // Reset processed jobs for this test
                 processedJobs = [];
-                
+
                 const concurrentQueue = new ManagedQueue({
                     name: "concurrent-queue",
                     processor: async (job) => {
@@ -537,8 +536,8 @@ describe("queueFactory", () => {
                             type: "test",
                             id: `concurrent-${i}`,
                             message: `Concurrent ${i}`,
-                        })
-                    )
+                        }),
+                    ),
                 );
 
                 // Wait for all jobs to complete
@@ -555,7 +554,7 @@ describe("queueFactory", () => {
         describe("Lifecycle hooks", () => {
             it("should execute onReady hook", async () => {
                 const onReadyMock = vi.fn().mockResolvedValue(undefined);
-                
+
                 const hookQueue = new ManagedQueue({
                     name: "hook-queue",
                     processor: processorMock,
@@ -582,7 +581,7 @@ describe("queueFactory", () => {
             it("should handle onReady hook errors", async () => {
                 const errorSpy = vi.spyOn(logger, "error");
                 const onReadyError = new Error("onReady failed");
-                
+
                 const failingHookQueue = new ManagedQueue({
                     name: "failing-hook-queue",
                     processor: processorMock,
@@ -593,7 +592,7 @@ describe("queueFactory", () => {
                     await expect(failingHookQueue.ready).rejects.toThrow("onReady failed");
                     expect(errorSpy).toHaveBeenCalledWith(
                         expect.stringContaining("onReady hook error"),
-                        expect.any(Object)
+                        expect.any(Object),
                     );
                 } finally {
                     errorSpy.mockRestore();
@@ -609,6 +608,66 @@ describe("queueFactory", () => {
                     } catch (e) { /* ignore cleanup errors */ }
                 }
             });
+        });
+    });
+
+    describe("Connection pool management", () => {
+        it("should handle connection pool exhaustion", async () => {
+            const connections: IORedis[] = [];
+            const maxConnections = 20;
+
+            try {
+                // Create many connections rapidly
+                for (let i = 0; i < maxConnections; i++) {
+                    const conn = await buildRedis(`${redisUrl}/${i % 16}`);
+                    connections.push(conn);
+                }
+
+                // All connections should be established
+                connections.forEach(conn => {
+                    expect(conn.status).toBe("ready");
+                });
+            } finally {
+                // Clean up connections
+                await Promise.all(connections.map(conn => conn.quit()));
+            }
+        });
+
+        it("should handle Redis disconnection and reconnection", async () => {
+            const client = await buildRedis(redisUrl);
+            let disconnectCount = 0;
+            let connectCount = 0;
+
+            client.on("disconnect", () => disconnectCount++);
+            client.on("connect", () => connectCount++);
+
+            // Simulate disconnection
+            client.disconnect();
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            expect(disconnectCount).toBeGreaterThan(0);
+
+            // Try to use the connection (should trigger reconnect)
+            const newClient = await buildRedis(redisUrl);
+            expect(newClient.status).toBe("ready");
+
+            await newClient.quit();
+        });
+
+        it("should handle connection timeout gracefully", async () => {
+            // Mock slow connection
+            const originalConnect = IORedis.prototype.connect;
+            IORedis.prototype.connect = vi.fn().mockImplementation(() => {
+                return new Promise((resolve) => {
+                    setTimeout(resolve, 30000); // 30 second delay
+                });
+            });
+
+            try {
+                await expect(buildRedis(redisUrl)).rejects.toThrow();
+            } finally {
+                IORedis.prototype.connect = originalConnect;
+            }
         });
     });
 
@@ -632,7 +691,7 @@ describe("queueFactory", () => {
             ]);
 
             const health = await getQueueHealth(healthQueue);
-            
+
             expect(health.status).toBe(QueueStatus.Healthy);
             expect(health.jobCounts).toBeDefined();
             expect(health.jobCounts.waiting).toBeGreaterThanOrEqual(0);
@@ -643,12 +702,12 @@ describe("queueFactory", () => {
             // Add many jobs to exceed threshold
             await Promise.all(
                 Array.from({ length: 600 }, (_, i) =>
-                    healthQueue.add("test", { data: `job${i}` })
-                )
+                    healthQueue.add("test", { data: `job${i}` }),
+                ),
             );
 
             const health = await getQueueHealth(healthQueue, { backlog: 500, failed: 25 });
-            
+
             expect(health.status).toBe(QueueStatus.Degraded);
             expect(health.jobCounts.waiting + health.jobCounts.delayed).toBeGreaterThan(500);
         });
@@ -663,8 +722,8 @@ describe("queueFactory", () => {
                 // Add jobs that will fail
                 const jobs = await Promise.all(
                     Array.from({ length: 30 }, (_, i) =>
-                        healthQueue.add("test", { data: `fail${i}` }, { attempts: 1 })
-                    )
+                        healthQueue.add("test", { data: `fail${i}` }, { attempts: 1 }),
+                    ),
                 );
 
                 // Wait for all jobs to fail
@@ -686,7 +745,7 @@ describe("queueFactory", () => {
                 });
 
                 const health = await getQueueHealth(healthQueue, { backlog: 500, failed: 25 });
-                
+
                 expect(health.status).toBe(QueueStatus.Down);
                 expect(health.jobCounts.failed).toBeGreaterThan(25);
             } finally {
@@ -728,7 +787,7 @@ describe("queueFactory", () => {
                 });
 
                 const health = await getQueueHealth(healthQueue);
-                
+
                 expect(health.activeJobs).toBeDefined();
                 expect(health.activeJobs.length).toBeGreaterThan(0);
                 health.activeJobs.forEach(job => {
@@ -740,6 +799,142 @@ describe("queueFactory", () => {
                 try {
                     await slowWorker.close();
                 } catch (e) { /* ignore worker close errors */ }
+            }
+        });
+
+        it("should handle queue with mixed job states", async () => {
+            // Create worker that processes some jobs and fails others
+            const worker = new Worker("health-test", async (job) => {
+                if (job.data.shouldFail) {
+                    throw new Error("Intentional failure");
+                }
+                if (job.data.shouldDelay) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }, { connection: redisClient, concurrency: 3 });
+
+            try {
+                // Add various types of jobs
+                await Promise.all([
+                    healthQueue.add("success-1", { data: "ok" }),
+                    healthQueue.add("fail-1", { shouldFail: true }, { attempts: 1 }),
+                    healthQueue.add("delayed-1", { data: "delayed" }, { delay: 5000 }),
+                    healthQueue.add("active-1", { shouldDelay: true }),
+                ]);
+
+                // Wait a bit for processing
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const health = await getQueueHealth(healthQueue);
+
+                // Should have jobs in various states
+                expect(health.jobCounts.waiting + health.jobCounts.active +
+                    health.jobCounts.failed + health.jobCounts.delayed).toBeGreaterThan(0);
+                expect(health.status).toBeDefined();
+            } finally {
+                await worker.close();
+            }
+        });
+
+        it("should calculate health status based on custom thresholds", async () => {
+            const customThresholds = {
+                backlog: 10,  // Very low threshold
+                failed: 5,    // Very low threshold
+            };
+
+            // Add just enough jobs to trigger degraded status
+            await Promise.all(
+                Array.from({ length: 12 }, (_, i) =>
+                    healthQueue.add("test", { data: `job${i}` }),
+                ),
+            );
+
+            const health = await getQueueHealth(healthQueue, customThresholds);
+            expect(health.status).toBe(QueueStatus.Degraded);
+        });
+    });
+
+    describe("Performance and load testing", () => {
+        it("should handle high job throughput", async () => {
+            const perfQueue = new ManagedQueue({
+                name: "perf-test-queue",
+                processor: async (job) => {
+                    // Minimal processing
+                    return { processed: job.data.id };
+                },
+                workerOpts: { concurrency: 10 },
+            }, redisClient);
+
+            try {
+                const startTime = Date.now();
+                const jobCount = 100;
+
+                // Add many jobs quickly
+                const promises = Array.from({ length: jobCount }, (_, i) =>
+                    perfQueue.add({
+                        type: "test",
+                        id: `perf-${i}`,
+                        message: `Performance test ${i}`,
+                    }),
+                );
+
+                const jobs = await Promise.all(promises);
+
+                // Wait for all to complete
+                await Promise.all(jobs.map(job =>
+                    job.waitUntilFinished(perfQueue.events),
+                ));
+
+                const duration = Date.now() - startTime;
+                const throughput = jobCount / (duration / 1000);
+
+                // Should process at least 10 jobs per second
+                expect(throughput).toBeGreaterThan(10);
+            } finally {
+                await perfQueue.worker.close();
+                await perfQueue.events.close();
+                await perfQueue.queue.close();
+            }
+        }, 30000);
+
+        it("should maintain job data integrity under concurrent load", async () => {
+            const integrityQueue = new ManagedQueue({
+                name: "integrity-test-queue",
+                processor: async (job) => {
+                    // Verify data integrity
+                    expect(job.data.id).toBeDefined();
+                    expect(job.data.checksum).toBe(job.data.id.length);
+                    return { verified: true };
+                },
+                workerOpts: { concurrency: 5 },
+            }, redisClient);
+
+            try {
+                // Add jobs with checksums
+                const jobs = await Promise.all(
+                    Array.from({ length: 50 }, (_, i) => {
+                        const id = `integrity-${i}-${Date.now()}`;
+                        return integrityQueue.add({
+                            type: "test",
+                            id,
+                            checksum: id.length,
+                            data: { nested: { value: i } },
+                        });
+                    }),
+                );
+
+                // Wait for all to complete
+                await Promise.all(jobs.map(job =>
+                    job.waitUntilFinished(integrityQueue.events),
+                ));
+
+                // All jobs should have completed successfully
+                const jobCounts = await integrityQueue.queue.getJobCounts();
+                expect(jobCounts.failed).toBe(0);
+            } finally {
+                await integrityQueue.worker.close();
+                await integrityQueue.events.close();
+                await integrityQueue.queue.close();
             }
         });
     });

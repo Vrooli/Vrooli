@@ -11,7 +11,8 @@ const NegativeReactions = ["👎", "😕", "😡", "😠", "🤬", "😞", "😟
  * @string reaction The emoji reaction to remove modifiers from
  */
 export function removeModifiers(reaction: string): string {
-    return typeof reaction === "string" ? reaction.replace(/[\u{1F3FB}-\u{1F3FF}\u{200D}\u{FE0F}\u{20E3}]/gu, "") : "";
+    // Only remove skin tone modifiers (1F3FB-1F3FF), not variation selectors (FE0F) or ZWJ (200D)
+    return typeof reaction === "string" ? reaction.replace(/[\u{1F3FB}-\u{1F3FF}]/gu, "") : "";
 }
 
 /**

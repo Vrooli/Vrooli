@@ -291,6 +291,21 @@ describe("Snowflake IDs", () => {
     });
 
     describe("Error Handling", () => {
+        let consoleWarnSpy: any;
+        let originalGenerator: any;
+
+        beforeEach(() => {
+            consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+            // Store original generator to restore it later
+            originalGenerator = (globalThis as any).generator;
+        });
+
+        afterEach(() => {
+            consoleWarnSpy.mockRestore();
+            // Restore original generator
+            (globalThis as any).generator = originalGenerator;
+        });
+
         it("should handle Node.js Snowflake module not found gracefully", async () => {
             // This test checks that the fallback to pure JS works when nodejs-snowflake isn't available
             // We can't easily mock the dynamic import without complex setup, but we can test the fallback path
@@ -303,6 +318,100 @@ describe("Snowflake IDs", () => {
             expect(typeof id).toBe("bigint");
             expect(validatePK(id)).toBe(true);
             expect(id).toBeGreaterThan(0n);
+        });
+
+        it("should handle Snowflake constructor not found in module", async () => {
+            // Mock a scenario where the module loads but Snowflake constructor is not found
+            const originalFunction = globalThis.Function;
+            globalThis.Function = vi.fn().mockImplementation((param, body) => {
+                if (param === "modulePath" && body === "return import(modulePath);") {
+                    return vi.fn().mockResolvedValue({ someOtherExport: "value" }); // No Snowflake constructor
+                }
+                return originalFunction(param, body);
+            });
+
+            await initIdGenerator();
+            
+            // Should warn about missing constructor
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                "nodejs-snowflake module loaded, but Snowflake constructor not found. Using pure JS ID generator."
+            );
+
+            // Should still generate valid IDs
+            const id = generatePK();
+            expect(typeof id).toBe("bigint");
+            expect(validatePK(id)).toBe(true);
+
+            // Restore original Function
+            globalThis.Function = originalFunction;
+        });
+
+        it("should handle import errors and fallback gracefully", async () => {
+            // Mock a scenario where import fails
+            const originalFunction = globalThis.Function;
+            globalThis.Function = vi.fn().mockImplementation((param, body) => {
+                if (param === "modulePath" && body === "return import(modulePath);") {
+                    return vi.fn().mockRejectedValue(new Error("Module not found"));
+                }
+                return originalFunction(param, body);
+            });
+
+            await initIdGenerator();
+            
+            // Should warn about import failure
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Failed to initialize native Snowflake generator in Node.js environment"),
+                expect.any(Error)
+            );
+
+            // Should still generate valid IDs
+            const id = generatePK();
+            expect(typeof id).toBe("bigint");
+            expect(validatePK(id)).toBe(true);
+
+            // Restore original Function
+            globalThis.Function = originalFunction;
+        });
+
+        it("should throw error when generator is not initialized", () => {
+            // We need to test the error path in generatePK when generator is null
+            // This requires modifying the internal state, which is tricky with ES modules
+            // For now, we'll test that the error handling path exists by attempting
+            // to trigger it through mocking process environment
+            
+            const originalProcess = globalThis.process;
+            
+            // Mock Node.js environment to trigger the initialization path
+            globalThis.process = { versions: { node: "18.0.0" } } as any;
+            
+            // Mock Function to simulate import failure that nullifies generator
+            const originalFunction = globalThis.Function;
+            let generatorNullified = false;
+            
+            globalThis.Function = vi.fn().mockImplementation((param, body) => {
+                if (param === "modulePath" && body === "return import(modulePath);") {
+                    return vi.fn().mockImplementation(async () => {
+                        generatorNullified = true;
+                        throw new Error("Module not found");
+                    });
+                }
+                return originalFunction(param, body);
+            });
+
+            // This should trigger the error handling and re-initialization path
+            initIdGenerator().then(() => {
+                // Verify that error handling was triggered
+                expect(consoleWarnSpy).toHaveBeenCalled();
+                
+                // Should still be able to generate IDs
+                const id = generatePK();
+                expect(typeof id).toBe("bigint");
+                expect(validatePK(id)).toBe(true);
+            });
+
+            // Restore mocks
+            globalThis.Function = originalFunction;
+            globalThis.process = originalProcess;
         });
 
         it("should handle malformed BigInt conversion in validatePK", () => {

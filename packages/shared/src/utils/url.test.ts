@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
 import { setupDOM, teardownDOM } from "../__test/setup.js";
-import { LINKS } from "../consts/ui.js";
 import { ResourceSubType } from "../api/types.js";
-import { 
-    decodeValue, 
-    encodeValue, 
-    parseSearchParams, 
-    stringifySearchParams, 
-    getObjectUrlBase, 
-    getObjectSlug, 
-    getObjectSearchParams, 
-    getObjectUrl, 
-    UrlTools, 
+import { LINKS } from "../consts/ui.js";
+import {
+    decodeValue,
+    encodeValue,
+    getObjectSearchParams,
+    getObjectSlug,
+    getObjectUrl,
+    getObjectUrlBase,
+    parseSearchParams,
+    stringifySearchParams,
+    UrlTools,
 } from "./url.js";
 
 // Pre-computed test data for expensive operations
@@ -133,7 +133,7 @@ describe("parseSearchParams", () => {
 
     it("returns an empty object for invalid format", () => {
         // Mock console.error
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
 
         setWindowSearch("?invalid");
         expect(parseSearchParams()).toEqual({});
@@ -323,7 +323,7 @@ describe.concurrent("getObjectUrlBase", () => {
             __typename: "Resource",
             versions: [{ isLatest: true, resourceSubType: ResourceSubType.RoutineMultiStep }],
         };
-        
+
         expect(getObjectUrlBase(dataConverter)).toBe(LINKS.DataConverter);
         expect(getObjectUrlBase(smartContract)).toBe(LINKS.SmartContract);
         expect(getObjectUrlBase(dataStructure)).toBe(LINKS.DataStructure);
@@ -351,7 +351,7 @@ describe.concurrent("getObjectUrlBase", () => {
             __typename: "View",
             to: { __typename: "Routine" },
         };
-        
+
         expect(getObjectUrlBase(bookmark)).toBe(LINKS.Profile);
         expect(getObjectUrlBase(reaction)).toBe(LINKS.Project);
         expect(getObjectUrlBase(view)).toBe(LINKS.Routine);
@@ -366,7 +366,7 @@ describe.concurrent("getObjectUrlBase", () => {
             __typename: "ChatParticipant",
             user: { __typename: "User" },
         };
-        
+
         expect(getObjectUrlBase(member)).toBe(LINKS.Profile);
         expect(getObjectUrlBase(participant)).toBe(LINKS.Profile);
     });
@@ -380,7 +380,7 @@ describe.concurrent("getObjectUrlBase", () => {
             __typename: "Notification",
             link: null,
         };
-        
+
         expect(getObjectUrlBase(notificationWithLink)).toBe("/custom-link");
         expect(getObjectUrlBase(notificationWithoutLink)).toBe("");
     });
@@ -393,7 +393,7 @@ describe.concurrent("getObjectUrlBase", () => {
     it("should handle generic objects by removing 'Version' from typename", () => {
         const project = { __typename: "Project" };
         const projectVersion = { __typename: "ProjectVersion" };
-        
+
         expect(getObjectUrlBase(project)).toBe(LINKS.Project);
         expect(getObjectUrlBase(projectVersion)).toBe(LINKS.Project);
     });
@@ -429,7 +429,7 @@ describe.concurrent("getObjectSlug", () => {
             id: "id123",
         };
         expect(getObjectSlug(resourceVersion)).toBe("/test-resource/v/v1.0");
-        
+
         // Test with only publicId
         const resourceVersionWithPublicId = {
             __typename: "ResourceVersion",
@@ -438,7 +438,7 @@ describe.concurrent("getObjectSlug", () => {
             id: "id123",
         };
         expect(getObjectSlug(resourceVersionWithPublicId)).toBe("/test-resource/v/pub123");
-        
+
         // Test with only id
         const resourceVersionWithId = {
             __typename: "ResourceVersion",
@@ -457,7 +457,7 @@ describe.concurrent("getObjectSlug", () => {
             __typename: "ChatParticipant",
             user: { __typename: "User", publicId: "pub456" },
         };
-        
+
         expect(getObjectSlug(member)).toBe("/member-user");
         expect(getObjectSlug(participant)).toBe("/pub456");
     });
@@ -483,7 +483,7 @@ describe.concurrent("getObjectSlug", () => {
             __typename: "User",
             id: "id123",
         };
-        
+
         expect(getObjectSlug(withHandle)).toBe("/testuser");
         expect(getObjectSlug(withoutHandle)).toBe("/pub123");
         expect(getObjectSlug(withOnlyId)).toBe("/id123");
@@ -496,7 +496,7 @@ describe.concurrent("getObjectSlug", () => {
             publicId: "pub123",
             id: "id123",
         };
-        
+
         expect(getObjectSlug(obj, false)).toBe("/testuser");
         expect(getObjectSlug(obj, true)).toBe("/pub123");
     });
@@ -508,14 +508,14 @@ describe.concurrent("getObjectSearchParams", () => {
             __typename: "CalendarEvent",
             start: new Date("2023-01-01T10:00:00Z"),
         };
-        
+
         // Mock UrlTools.stringifySearchParams
         const spy = vi.spyOn(UrlTools, "stringifySearchParams").mockReturnValue("?start=2023-01-01T10%3A00%3A00.000Z");
-        
+
         const result = getObjectSearchParams(calendarEvent as any);
         expect(result).toBe("?start=2023-01-01T10%3A00%3A00.000Z");
         expect(spy).toHaveBeenCalledWith(LINKS.Calendar, { start: calendarEvent.start });
-        
+
         spy.mockRestore();
     });
 
@@ -524,14 +524,14 @@ describe.concurrent("getObjectSearchParams", () => {
             __typename: "Run",
             lastStep: [1, 2, 3],
         };
-        
+
         // Mock UrlTools.stringifySearchParams
         const spy = vi.spyOn(UrlTools, "stringifySearchParams").mockReturnValue("?step=%5B1%2C2%2C3%5D");
-        
+
         const result = getObjectSearchParams(run as any);
         expect(result).toBe("?step=%5B1%2C2%2C3%5D");
         expect(spy).toHaveBeenCalledWith(LINKS.Run, { step: [1, 2, 3] });
-        
+
         spy.mockRestore();
     });
 
@@ -553,7 +553,7 @@ describe.concurrent("getObjectUrl", () => {
             id: "https://example.com",
         };
         expect(getObjectUrl(shortcut as any)).toBe("https://example.com");
-        
+
         const shortcutWithoutId = { __typename: "Shortcut" };
         expect(getObjectUrl(shortcutWithoutId as any)).toBe("");
     });
@@ -566,12 +566,12 @@ describe.concurrent("getObjectUrl", () => {
                 handle: "my-schedule",
             },
         };
-        
+
         // Mock the helper functions
         const spy1 = vi.spyOn({ getObjectUrl }, "getObjectUrl").mockReturnValue("/schedule/my-schedule");
-        
+
         getObjectUrl(calendarEvent as any);
-        
+
         spy1.mockRestore();
     });
 
@@ -580,7 +580,7 @@ describe.concurrent("getObjectUrl", () => {
             __typename: "User",
             handle: "testuser",
         };
-        
+
         const result = getObjectUrl(user as any);
         expect(result).toContain("/testuser");
         expect(result).toContain(LINKS.Profile);
@@ -642,24 +642,52 @@ describe("error handling", () => {
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
             // Mock implementation
         });
-        
+
         const result = stringifySearchParams({ circular: CIRCULAR_OBJ });
         expect(result).toBe("");
         expect(consoleErrorSpy).toHaveBeenCalled();
-        
+
         consoleErrorSpy.mockRestore();
     });
 
     it("should handle parseSearchParams JSON parsing errors", () => {
         setupDOM();
-        
+
         // Set invalid JSON in search params
         window.history.replaceState({}, "", "?invalid=notjson");
-        
+
         const result = parseSearchParams();
         // When JSON parsing fails, the parameter is ignored
         expect(result).toEqual({});
-        
+
+        teardownDOM();
+    });
+
+    it("should log errors in parseSearchParams when not in test environment", () => {
+        setupDOM();
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+        const originalNodeEnv = process.env.NODE_ENV;
+
+        // Temporarily change NODE_ENV to trigger console.error
+        process.env.NODE_ENV = "production";
+
+        // Set invalid JSON in search params
+        window.history.replaceState({}, "", "?invalid=notjson");
+
+        const result = parseSearchParams();
+
+        // Should log error when not in test environment
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            expect.stringContaining("Error decoding parameter \"invalid\""),
+        );
+
+        // When JSON parsing fails, the parameter is ignored
+        expect(result).toEqual({});
+
+        // Restore environment and mocks
+        process.env.NODE_ENV = originalNodeEnv;
+        consoleErrorSpy.mockRestore();
         teardownDOM();
     });
 
@@ -667,10 +695,10 @@ describe("error handling", () => {
         const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
             // Mock implementation
         });
-        
+
         getObjectUrlBase({ invalidProp: "value" } as any);
         expect(consoleWarnSpy).toHaveBeenCalled();
-        
+
         consoleWarnSpy.mockRestore();
     });
 });

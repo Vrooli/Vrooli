@@ -1,5 +1,6 @@
-import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
+// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-06-17
 import { type CreditEntryType, type CreditSourceSystem } from "@prisma/client";
+import { MINUTES_1_MS, nanoid, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
 import IORedis, { type Redis } from "ioredis";
 import { EventEmitter } from "node:events";
 import { logger } from "../events/logger.js";
@@ -56,7 +57,7 @@ export interface ConversationBaseEvent extends BaseEvent {
 export interface ToolResultEvent extends ConversationBaseEvent {
     type: "tool.result";
     toolCallId: string;
-    result: any;
+    result: unknown;
 }
 
 export interface ScheduledTickEvent extends ConversationBaseEvent {
@@ -768,6 +769,17 @@ export class BusService {
     }
 
     /**
+     * Reset singleton instance (for testing)
+     * This ensures each test gets a fresh connection
+     */
+    public static async reset(): Promise<void> {
+        if (BusService.instance) {
+            await BusService.instance.shutdown();
+            BusService.instance = null;
+        }
+    }
+
+    /**
      * Start the EventBus if not already started
      */
     public async startEventBus(): Promise<void> {
@@ -798,13 +810,13 @@ export class BusService {
     }
 }
 
-type WorkerState = { started: boolean; res: any };
+type WorkerState = { started: boolean; res: unknown };
 
 const STATE = new WeakMap<typeof BusWorker, WorkerState>();
 
 export abstract class BusWorker {
     /** idempotent */
-    static async start() {
+    static async start(): Promise<void> {
         const st = STATE.get(this);
         if (st?.started) return;
 
@@ -831,6 +843,6 @@ export abstract class BusWorker {
     }
 
     /* ---------- to implement ---------- */
-    protected static init(_bus: EventBus): Promise<any> | any { throw 0; }
+    protected static init(_bus: EventBus): Promise<unknown> | unknown { throw 0; }
     protected static shutdown?(): Promise<void> | void;
 }
