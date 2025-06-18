@@ -71,6 +71,11 @@ export function findSelection(
         throw new Error(`Could not determine actual selection type for '${obj}' '${selection}'`);
     }
 
+    // If the result is different from the requested selection, log a warning
+    if (result !== selection) {
+        console.warn(`Specified selection type '${selection}' for 'TestType' does not exist. Try using '${result}' instead.`);
+    }
+
     return result;
 }
 

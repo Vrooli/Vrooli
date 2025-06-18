@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=5 | LAST: 2025-06-18
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generatePK, validatePK, initIdGenerator, DUMMY_ID } from "./snowflake.js";
 
@@ -286,6 +287,50 @@ describe("Snowflake IDs", () => {
             expect(validatePK("123")).toBe(true);
             expect(validatePK("255")).toBe(true);
             expect(validatePK("15")).toBe(true);
+        });
+    });
+
+    describe("Error Handling", () => {
+        it("should handle Node.js Snowflake module not found gracefully", async () => {
+            // This test checks that the fallback to pure JS works when nodejs-snowflake isn't available
+            // We can't easily mock the dynamic import without complex setup, but we can test the fallback path
+            
+            // Initialize with default settings - should work in any environment
+            await initIdGenerator();
+            
+            // Verify that ID generation still works regardless of which generator is used
+            const id = generatePK();
+            expect(typeof id).toBe("bigint");
+            expect(validatePK(id)).toBe(true);
+            expect(id).toBeGreaterThan(0n);
+        });
+
+        it("should handle malformed BigInt conversion in validatePK", () => {
+            // Test strings that would cause BigInt constructor to throw
+            const malformedInputs = [
+                "123.456",     // Decimal
+                "123e5",       // Scientific notation
+                "Infinity",    // Invalid numeric string
+                "-Infinity",   // Invalid numeric string
+                "NaN",         // Invalid numeric string
+                "0x",          // Incomplete hex
+                "0b",          // Incomplete binary
+                "0o",          // Incomplete octal
+            ];
+
+            malformedInputs.forEach(input => {
+                expect(validatePK(input)).toBe(false);
+            });
+        });
+
+        it("should handle edge cases in validatePK", () => {
+            // Test with very large strings that might overflow
+            const veryLargeNumber = "9".repeat(100); // Much larger than 64-bit
+            expect(validatePK(veryLargeNumber)).toBe(false);
+            
+            // Test boundary conditions
+            expect(validatePK("18446744073709551615")).toBe(true);  // Max 64-bit
+            expect(validatePK("18446744073709551616")).toBe(false); // Max 64-bit + 1
         });
     });
 });

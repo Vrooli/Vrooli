@@ -1,10 +1,13 @@
+// AI_CHECK: TEST_COVERAGE=3 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
+import { ResourceSubType } from "../../api/types.js";
 import { McpToolName } from "../../consts/mcp.js";
+import { BotStyle } from "../../run/enums.js";
 import { validatePublicId } from "../../id/publicId.js";
 import { type SubroutineIOMapping } from "../../run/types.js";
 import { type CodeVersionInputDefinition } from "./code.js";
-import { CallDataActionConfig, CallDataCodeConfig } from "./routine.js";
+import { CallDataActionConfig, CallDataCodeConfig, CallDataGenerateConfig, CallDataWebConfig, GraphBpmnConfig, RoutineVersionConfig } from "./routine.js";
 
 const LATEST_VERSION = "1.0.0";
 
@@ -980,6 +983,597 @@ describe("CallDataCodeConfig", () => {
             expect(() =>
                 config.parseSandboxOutput(runOutput, ioMapping, []),
             ).toThrow();
+        });
+    });
+});
+
+describe("RoutineVersionConfig", () => {
+    const mockLogger = {
+        log: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    };
+
+    describe("constructor", () => {
+        it("should create config with provided values", () => {
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                    callDataAction: {
+                        __version: "1.0",
+                        schema: {
+                            toolName: McpToolName.SendMessage,
+                            inputTemplate: "",
+                            outputMapping: {},
+                        },
+                    },
+                    formInput: {
+                        __version: "1.0",
+                        schema: {
+                            fields: [],
+                            steps: [],
+                        },
+                    },
+                },
+                resourceSubType: ResourceSubType.RoutineVersion,
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.callDataAction).toBeDefined();
+            expect(config.formInput).toBeDefined();
+            expect(config.resourceSubType).toBe(ResourceSubType.RoutineVersion);
+        });
+
+        it("should handle minimal config", () => {
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.RoutineVersion,
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.callDataAction).toBeUndefined();
+            expect(config.callDataApi).toBeUndefined();
+            expect(config.callDataCode).toBeUndefined();
+            expect(config.formInput).toBeUndefined();
+            expect(config.formOutput).toBeUndefined();
+        });
+    });
+
+    describe("parse", () => {
+        it("should parse valid config", () => {
+            const version = {
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                    callDataGenerate: {
+                        __version: "1.0",
+                        schema: {
+                            botStyle: BotStyle.Casual,
+                            maxTokens: 100,
+                        },
+                    },
+                },
+                resourceSubType: ResourceSubType.RoutineVersion,
+            };
+
+            const config = RoutineVersionConfig.parse(version, mockLogger);
+
+            expect(config.callDataGenerate).toBeDefined();
+            expect(config.callDataGenerate?.schema.botStyle).toBe(BotStyle.Casual);
+            expect(config.callDataGenerate?.schema.maxTokens).toBe(100);
+        });
+
+        it("should handle missing config with fallbacks enabled", () => {
+            const version = {
+                config: null,
+                resourceSubType: ResourceSubType.RoutineVersion,
+            };
+
+            const config = RoutineVersionConfig.parse(version, mockLogger, { useFallbacks: true });
+
+            expect(config.__version).toBeDefined();
+            expect(config.callDataAction).toBeDefined();
+            expect(config.callDataApi).toBeDefined();
+            expect(config.callDataCode).toBeDefined();
+            expect(config.callDataGenerate).toBeDefined();
+            expect(config.callDataSmartContract).toBeDefined();
+            expect(config.callDataWeb).toBeDefined();
+            expect(config.formInput).toBeDefined();
+            expect(config.formOutput).toBeDefined();
+        });
+
+        it("should handle missing config with fallbacks disabled", () => {
+            const version = {
+                config: null,
+                resourceSubType: ResourceSubType.RoutineVersion,
+            };
+
+            const config = RoutineVersionConfig.parse(version, mockLogger, { useFallbacks: false });
+
+            expect(config.__version).toBeDefined();
+            expect(config.resources).toEqual([]);
+            expect(config.callDataAction).toBeUndefined();
+            expect(config.callDataApi).toBeUndefined();
+            expect(config.callDataCode).toBeUndefined();
+            expect(config.formInput).toBeUndefined();
+            expect(config.formOutput).toBeUndefined();
+        });
+    });
+
+    describe("export", () => {
+        it("should export all config properties", () => {
+            const config = new RoutineVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                    callDataAction: {
+                        __version: "1.0",
+                        schema: {
+                            toolName: McpToolName.SendMessage,
+                            inputTemplate: "{}",
+                            outputMapping: {},
+                        },
+                    },
+                    callDataWeb: {
+                        __version: "1.0",
+                        schema: {
+                            queryTemplate: "search for {{input.query}}",
+                            outputMapping: { results: "results[*]" },
+                        },
+                    },
+                    graph: {
+                        __version: "1.0",
+                        __type: "BPMN-2.0",
+                        graph: '{"nodes": []}',
+                    },
+                },
+                resourceSubType: ResourceSubType.RoutineVersion,
+            });
+
+            const exported = config.export();
+
+            expect(exported.__version).toBe("1.0");
+            expect(exported.callDataAction).toBeDefined();
+            expect(exported.callDataWeb).toBeDefined();
+            expect(exported.graph).toBeDefined();
+            expect(exported.callDataApi).toBeUndefined();
+            expect(exported.callDataCode).toBeUndefined();
+        });
+    });
+});
+
+describe("CallDataGenerateConfig", () => {
+    describe("constructor", () => {
+        it("should create config with provided values", () => {
+            const config = new CallDataGenerateConfig({
+                __version: "1.0",
+                schema: {
+                    botStyle: BotStyle.Funny,
+                    maxTokens: 500,
+                    model: "gpt-4",
+                    prompt: "Generate a joke",
+                    respondingBot: { id: "bot123" },
+                },
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.schema.botStyle).toBe(BotStyle.Funny);
+            expect(config.schema.maxTokens).toBe(500);
+            expect(config.schema.model).toBe("gpt-4");
+            expect(config.schema.prompt).toBe("Generate a joke");
+            expect(config.schema.respondingBot).toEqual({ id: "bot123" });
+        });
+
+        it("should handle minimal config", () => {
+            const config = new CallDataGenerateConfig({
+                __version: "1.0",
+                schema: {},
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.schema.botStyle).toBeUndefined();
+            expect(config.schema.maxTokens).toBeUndefined();
+            expect(config.schema.model).toBeUndefined();
+            expect(config.schema.prompt).toBeUndefined();
+            expect(config.schema.respondingBot).toBeUndefined();
+        });
+    });
+
+    describe("export", () => {
+        it("should export config correctly", () => {
+            const config = new CallDataGenerateConfig({
+                __version: "1.0",
+                schema: {
+                    botStyle: BotStyle.Professional,
+                    maxTokens: 1000,
+                },
+            });
+
+            const exported = config.export();
+
+            expect(exported.__version).toBe("1.0");
+            expect(exported.schema.botStyle).toBe(BotStyle.Professional);
+            expect(exported.schema.maxTokens).toBe(1000);
+        });
+    });
+});
+
+describe("CallDataWebConfig", () => {
+    describe("constructor", () => {
+        it("should create config with provided values", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "latest news about {{input.topic}}",
+                    searchEngine: "google",
+                    maxResults: 10,
+                    timeRange: "past_week",
+                    region: "US",
+                    outputMapping: {
+                        titles: "results[*].title",
+                        links: "results[*].link",
+                    },
+                },
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.schema.queryTemplate).toBe("latest news about {{input.topic}}");
+            expect(config.schema.searchEngine).toBe("google");
+            expect(config.schema.maxResults).toBe(10);
+            expect(config.schema.timeRange).toBe("past_week");
+            expect(config.schema.region).toBe("US");
+            expect(config.schema.outputMapping).toEqual({
+                titles: "results[*].title",
+                links: "results[*].link",
+            });
+        });
+
+        it("should handle minimal config", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "{{input.query}}",
+                    outputMapping: {},
+                },
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.schema.queryTemplate).toBe("{{input.query}}");
+            expect(config.schema.outputMapping).toEqual({});
+            expect(config.schema.searchEngine).toBeUndefined();
+            expect(config.schema.maxResults).toBeUndefined();
+        });
+    });
+
+    describe("buildSearchQuery", () => {
+        it("should replace placeholders in query template", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "AI news {{input.year}}",
+                    outputMapping: {},
+                },
+            });
+
+            const ioMapping = {
+                inputs: {
+                    year: { value: "2024" },
+                },
+                outputs: {},
+            } as unknown as SubroutineIOMapping;
+
+            const query = config.buildSearchQuery(ioMapping);
+            expect(query).toBe("AI news 2024");
+        });
+
+        it("should handle multiple placeholders", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "{{input.topic}} in {{input.location}} {{input.year}}",
+                    outputMapping: {},
+                },
+            });
+
+            const ioMapping = {
+                inputs: {
+                    topic: { value: "technology trends" },
+                    location: { value: "Silicon Valley" },
+                    year: { value: "2024" },
+                },
+                outputs: {},
+            } as unknown as SubroutineIOMapping;
+
+            const query = config.buildSearchQuery(ioMapping);
+            expect(query).toBe("technology trends in Silicon Valley 2024");
+        });
+    });
+
+    describe("parseSearchResult", () => {
+        it("should map search results to outputs", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "test",
+                    outputMapping: {
+                        titles: "results[*].title",
+                        firstLink: "results[0].link",
+                    },
+                },
+            });
+
+            const searchResult = {
+                results: [
+                    { title: "Result 1", link: "http://example1.com" },
+                    { title: "Result 2", link: "http://example2.com" },
+                ],
+            };
+
+            const ioMapping = {
+                inputs: {},
+                outputs: {
+                    titles: { value: null },
+                    firstLink: { value: null },
+                },
+            } as unknown as SubroutineIOMapping;
+
+            config.parseSearchResult(ioMapping, searchResult);
+
+            // The parseSearchResult should set the values correctly
+            expect(ioMapping.outputs.titles.value).toEqual(["Result 1", "Result 2"]);
+            expect(ioMapping.outputs.firstLink.value).toBe("http://example1.com");
+        });
+
+        it("should handle missing paths gracefully", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "test",
+                    outputMapping: {
+                        missing: "results[10].title",
+                    },
+                },
+            });
+
+            const searchResult = {
+                results: [{ title: "Result 1", link: "http://example1.com" }],
+            };
+
+            const ioMapping = {
+                inputs: {},
+                outputs: {
+                    missing: { value: null },
+                },
+            } as unknown as SubroutineIOMapping;
+
+            expect(() => config.parseSearchResult(ioMapping, searchResult)).not.toThrow();
+            // When the path doesn't exist, it should be set to null (not undefined)
+            expect(ioMapping.outputs.missing.value).toBeNull();
+        });
+    });
+
+    describe("export", () => {
+        it("should export config correctly", () => {
+            const config = new CallDataWebConfig({
+                __version: "1.0",
+                schema: {
+                    queryTemplate: "search query",
+                    searchEngine: "bing",
+                    outputMapping: { result: "data" },
+                },
+            });
+
+            const exported = config.export();
+
+            expect(exported.__version).toBe("1.0");
+            expect(exported.schema.queryTemplate).toBe("search query");
+            expect(exported.schema.searchEngine).toBe("bing");
+            expect(exported.schema.outputMapping).toEqual({ result: "data" });
+        });
+    });
+});
+
+describe("GraphBpmnConfig", () => {
+    describe("constructor", () => {
+        it("should create BPMN config with provided values", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: '<bpmn:definitions></bpmn:definitions>',
+                    activityMap: {
+                        activityA: {
+                            subroutineId: "sub123",
+                            inputMap: { input1: "subInput1" },
+                            outputMap: { output1: "subOutput1" },
+                        },
+                    },
+                    rootContext: {
+                        inputMap: { mainInput: "routineInput" },
+                        outputMap: { mainOutput: "routineOutput" },
+                    },
+                },
+            });
+
+            expect(config.__version).toBe("1.0");
+            expect(config.__type).toBe("BPMN-2.0");
+            expect(config.schema.__format).toBe("xml");
+            expect(config.schema.data).toBe('<bpmn:definitions></bpmn:definitions>');
+            expect(config.schema.activityMap.activityA.subroutineId).toBe("sub123");
+        });
+    });
+
+    describe("create static method", () => {
+        it("should create appropriate graph config based on type", () => {
+            const configData = {
+                __version: "1.0",
+                __type: "BPMN-2.0" as const,
+                schema: {
+                    __format: "xml" as const,
+                    data: '<bpmn:process id="Process_1"></bpmn:process>',
+                    activityMap: {},
+                    rootContext: {
+                        inputMap: {},
+                        outputMap: {},
+                    },
+                },
+            };
+
+            const config = GraphBpmnConfig.create(configData);
+
+            expect(config).toBeInstanceOf(GraphBpmnConfig);
+            expect(config.__type).toBe("BPMN-2.0");
+            expect(config.schema.data).toBe('<bpmn:process id="Process_1"></bpmn:process>');
+        });
+    });
+
+    describe("export", () => {
+        it("should export BPMN config correctly", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: '<bpmn:definitions id="definitions"></bpmn:definitions>',
+                    activityMap: {
+                        taskA: {
+                            subroutineId: "routine123",
+                            inputMap: { a: "x" },
+                            outputMap: { y: "b" },
+                        },
+                    },
+                    rootContext: {
+                        inputMap: { start: "init" },
+                        outputMap: { end: "result" },
+                    },
+                },
+            });
+
+            const exported = config.export();
+
+            expect(exported.__version).toBe("1.0");
+            expect(exported.__type).toBe("BPMN-2.0");
+            expect(exported.schema.__format).toBe("xml");
+            expect(exported.schema.data).toBe('<bpmn:definitions id="definitions"></bpmn:definitions>');
+            expect(exported.schema.activityMap.taskA.subroutineId).toBe("routine123");
+        });
+    });
+
+    describe("getIONamesToSubroutineInputNames", () => {
+        it("should return input mappings for existing node", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: "",
+                    activityMap: {
+                        nodeA: {
+                            subroutineId: "sub1",
+                            inputMap: { input1: "subInput1", input2: "subInput2" },
+                            outputMap: {},
+                        },
+                    },
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
+            });
+
+            const result = config.getIONamesToSubroutineInputNames("nodeA");
+            expect(result).toEqual({ input1: "subInput1", input2: "subInput2" });
+        });
+
+        it("should return empty object for non-existent node", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: "",
+                    activityMap: {},
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
+            });
+
+            const result = config.getIONamesToSubroutineInputNames("nonExistent");
+            expect(result).toEqual({});
+        });
+    });
+
+    describe("getIONamesToSubroutineOutputNames", () => {
+        it("should return output mappings for existing node", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: "",
+                    activityMap: {
+                        nodeB: {
+                            subroutineId: "sub2",
+                            inputMap: {},
+                            outputMap: { output1: "subOutput1", output2: "subOutput2" },
+                        },
+                    },
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
+            });
+
+            const result = config.getIONamesToSubroutineOutputNames("nodeB");
+            expect(result).toEqual({ output1: "subOutput1", output2: "subOutput2" });
+        });
+    });
+
+    describe("getRootIONamesToRoutineInputNames", () => {
+        it("should return prefixed root input mappings", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: "",
+                    activityMap: {},
+                    rootContext: {
+                        inputMap: { start: "routineStart", data: "routineData" },
+                        outputMap: {},
+                    },
+                },
+            });
+
+            const result = config.getRootIONamesToRoutineInputNames();
+            expect(result).toEqual({
+                "root.start": "routineStart",
+                "root.data": "routineData",
+            });
+        });
+    });
+
+    describe("getRootIONamesToRoutineOutputNames", () => {
+        it("should return prefixed root output mappings", () => {
+            const config = new GraphBpmnConfig({
+                __version: "1.0",
+                __type: "BPMN-2.0",
+                schema: {
+                    __format: "xml",
+                    data: "",
+                    activityMap: {},
+                    rootContext: {
+                        inputMap: {},
+                        outputMap: { result: "routineResult", status: "routineStatus" },
+                    },
+                },
+            });
+
+            const result = config.getRootIONamesToRoutineOutputNames();
+            expect(result).toEqual({
+                "root.result": "routineResult",
+                "root.status": "routineStatus",
+            });
         });
     });
 });

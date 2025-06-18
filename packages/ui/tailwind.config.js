@@ -43,6 +43,26 @@ export default {
         text: {
           primary: 'var(--text-primary)',
           secondary: 'var(--text-secondary)',
+        },
+        danger: {
+          main: 'var(--danger-main)',
+          dark: 'var(--danger-dark)',
+          light: 'var(--danger-light)',
+        },
+        success: {
+          main: 'var(--success-main)',
+          dark: 'var(--success-dark)',
+          light: 'var(--success-light)',
+        },
+        warning: {
+          main: 'var(--warning-main)',
+          dark: 'var(--warning-dark)',
+          light: 'var(--warning-light)',
+        },
+        info: {
+          main: 'var(--info-main)',
+          dark: 'var(--info-dark)',
+          light: 'var(--info-light)',
         }
       },
       fontSize: {
@@ -59,8 +79,11 @@ export default {
         '1': '0.25rem',    // theme.spacing(1)
         '2': '0.5rem',     // theme.spacing(2)
         '3': '0.75rem',    // theme.spacing(3)
+        '3.5': '0.875rem',
         '4': '1rem',       // theme.spacing(4)
+        '4.5': '1.125rem',
         '5': '1.25rem',    // theme.spacing(5)
+        '5.5': '1.375rem',
         '6': '1.5rem',     // theme.spacing(6)
         '7': '1.75rem',    // theme.spacing(7)
         '8': '2rem',       // theme.spacing(8)
@@ -69,7 +92,12 @@ export default {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    // Add support for indeterminate pseudo-class modifier
+    function({ addVariant }) {
+      addVariant('peer-indeterminate', ':merge(.peer):indeterminate ~ &')
+    }
+  ],
   // Important: Add prefix to avoid conflicts during transition
   prefix: 'tw-',
   corePlugins: {

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-06-18
 import { describe, expect, it, vi } from "vitest";
 import { ResourceSubType } from "../../api/types.js";
 import { StandardVersionConfig, type StandardVersionConfigObject } from "./standard.js";
@@ -394,6 +395,173 @@ describe("StandardVersionConfig", () => {
                 purpose: "Data validation",
             });
             expect(config.props?.flags).toEqual(["experimental", "beta"]);
+        });
+    });
+
+    describe("setter methods", () => {
+        it("should set validation", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardDataStructure,
+            });
+
+            const validation = {
+                strictMode: true,
+                rules: { maxLength: 100 },
+                errorMessages: { maxLength: "Too long" },
+            };
+
+            config.setValidation(validation);
+            expect(config.validation).toEqual(validation);
+
+            const exported = config.export();
+            expect(exported.validation).toEqual(validation);
+        });
+
+        it("should set format", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardPrompt,
+            });
+
+            const format = {
+                defaultFormat: "csv",
+                options: { delimiter: "," },
+            };
+
+            config.setFormat(format);
+            expect(config.format).toEqual(format);
+
+            const exported = config.export();
+            expect(exported.format).toEqual(format);
+        });
+
+        it("should set compatibility", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardDataStructure,
+            });
+
+            const compatibility = {
+                minimumRequirements: { ram: "8GB" },
+                knownIssues: ["Memory leak"],
+                compatibleWith: ["v1.0", "v2.0"],
+            };
+
+            config.setCompatibility(compatibility);
+            expect(config.compatibility).toEqual(compatibility);
+
+            const exported = config.export();
+            expect(exported.compatibility).toEqual(compatibility);
+        });
+
+        it("should set compliance", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardPrompt,
+            });
+
+            const compliance = {
+                compliesWith: ["GDPR"],
+                certifications: [{
+                    name: "Privacy Shield",
+                    issuer: "US Dept of Commerce",
+                    date: "2024-01-01",
+                }],
+            };
+
+            config.setCompliance(compliance);
+            expect(config.compliance).toEqual(compliance);
+
+            const exported = config.export();
+            expect(exported.compliance).toEqual(compliance);
+        });
+
+        it("should set schema", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardDataStructure,
+            });
+
+            const schema = '{"type": "array", "items": {"type": "string"}}';
+
+            config.setSchema(schema);
+            expect(config.schema).toBe(schema);
+
+            const exported = config.export();
+            expect(exported.schema).toBe(schema);
+        });
+
+        it("should set schemaLanguage", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardPrompt,
+            });
+
+            const schemaLanguage = "avro-schema";
+
+            config.setSchemaLanguage(schemaLanguage);
+            expect(config.schemaLanguage).toBe(schemaLanguage);
+
+            const exported = config.export();
+            expect(exported.schemaLanguage).toBe(schemaLanguage);
+        });
+
+        it("should handle setting undefined values", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                    validation: { strictMode: true },
+                    format: { defaultFormat: "json" },
+                },
+                resourceSubType: ResourceSubType.StandardDataStructure,
+            });
+
+            config.setValidation(undefined);
+            config.setFormat(undefined);
+
+            expect(config.validation).toBeUndefined();
+            expect(config.format).toBeUndefined();
+        });
+
+        it("should handle chaining setters", () => {
+            const config = new StandardVersionConfig({
+                config: {
+                    __version: "1.0",
+                    resources: [],
+                },
+                resourceSubType: ResourceSubType.StandardPrompt,
+            });
+
+            config.setValidation({ strictMode: false });
+            config.setFormat({ defaultFormat: "yaml" });
+            config.setSchema('{"type": "number"}');
+            config.setSchemaLanguage("json-schema");
+
+            const exported = config.export();
+            expect(exported.validation?.strictMode).toBe(false);
+            expect(exported.format?.defaultFormat).toBe("yaml");
+            expect(exported.schema).toBe('{"type": "number"}');
+            expect(exported.schemaLanguage).toBe("json-schema");
         });
     });
 

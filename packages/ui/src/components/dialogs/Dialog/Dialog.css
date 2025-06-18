@@ -140,24 +140,28 @@
     border-left: 12px solid transparent;
     border-right: 12px solid transparent;
     border-bottom: 12px solid rgb(255, 255, 255);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .tw-dialog-arrow-down {
     border-left: 12px solid transparent;
     border-right: 12px solid transparent;
     border-top: 12px solid rgb(255, 255, 255);
+    filter: drop-shadow(0 -1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .tw-dialog-arrow-left {
     border-top: 12px solid transparent;
     border-bottom: 12px solid transparent;
     border-right: 12px solid rgb(255, 255, 255);
+    filter: drop-shadow(-1px 0 2px rgba(0, 0, 0, 0.1));
 }
 
 .tw-dialog-arrow-right {
     border-top: 12px solid transparent;
     border-bottom: 12px solid transparent;
     border-left: 12px solid rgb(255, 255, 255);
+    filter: drop-shadow(1px 0 2px rgba(0, 0, 0, 0.1));
 }
 
 /* Force dialog content to respect max-height */
@@ -184,6 +188,23 @@
     .tw-dialog-arrow-right {
         border-left-color: rgb(31, 41, 55);
     }
+}
+
+/* Class-based dark mode support */
+.dark .tw-dialog-arrow-up {
+    border-bottom-color: rgb(31, 41, 55);
+}
+
+.dark .tw-dialog-arrow-down {
+    border-top-color: rgb(31, 41, 55);
+}
+
+.dark .tw-dialog-arrow-left {
+    border-right-color: rgb(31, 41, 55);
+}
+
+.dark .tw-dialog-arrow-right {
+    border-left-color: rgb(31, 41, 55);
 }
 
 /* Space variant arrows (always black) */

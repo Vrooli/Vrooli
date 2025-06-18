@@ -313,32 +313,63 @@ function useHighlightElement(anchorEl: HTMLElement | null, highlightAnchor: bool
 }
 
 // Arrow helper functions
-function getArrowClasses(placement: "top" | "bottom" | "left" | "right", anchorEl: HTMLElement | null, variant: DialogVariant) {
-    const baseClasses = "tw-w-0 tw-h-0 tw-z-10";
+function getArrowStyles(placement: "top" | "bottom" | "left" | "right", variant: DialogVariant): React.CSSProperties {
+    const isDarkMode = document.documentElement.classList.contains('dark') || 
+                      window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    let arrowColor = '#ffffff'; // white for light mode
+    if (isDarkMode) {
+        arrowColor = '#1f2937'; // dark gray for dark mode
+    }
+    if (variant === "space" || variant === "neon") {
+        arrowColor = '#000000'; // black for special variants
+    }
+    
+    const baseStyle: React.CSSProperties = {
+        width: 0,
+        height: 0,
+        position: 'absolute',
+    };
     
     switch (placement) {
         case "bottom":
             // Dialog is below anchor, arrow points up toward anchor
-            return cn(baseClasses, "tw-dialog-arrow-up", 
-                     variant === "space" && "tw-dialog-arrow-space",
-                     variant === "neon" && "tw-dialog-arrow-neon");
+            return {
+                ...baseStyle,
+                borderLeft: '12px solid transparent',
+                borderRight: '12px solid transparent',
+                borderBottom: `12px solid ${arrowColor}`,
+                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))',
+            };
         case "top":
             // Dialog is above anchor, arrow points down toward anchor
-            return cn(baseClasses, "tw-dialog-arrow-down",
-                     variant === "space" && "tw-dialog-arrow-space",
-                     variant === "neon" && "tw-dialog-arrow-neon");
+            return {
+                ...baseStyle,
+                borderLeft: '12px solid transparent',
+                borderRight: '12px solid transparent',
+                borderTop: `12px solid ${arrowColor}`,
+                filter: 'drop-shadow(0 -1px 2px rgba(0, 0, 0, 0.1))',
+            };
         case "right":
             // Dialog is to the right of anchor, arrow points left toward anchor
-            return cn(baseClasses, "tw-dialog-arrow-left",
-                     variant === "space" && "tw-dialog-arrow-space",
-                     variant === "neon" && "tw-dialog-arrow-neon");
+            return {
+                ...baseStyle,
+                borderTop: '12px solid transparent',
+                borderBottom: '12px solid transparent',
+                borderRight: `12px solid ${arrowColor}`,
+                filter: 'drop-shadow(-1px 0 2px rgba(0, 0, 0, 0.1))',
+            };
         case "left":
             // Dialog is to the left of anchor, arrow points right toward anchor
-            return cn(baseClasses, "tw-dialog-arrow-right",
-                     variant === "space" && "tw-dialog-arrow-space",
-                     variant === "neon" && "tw-dialog-arrow-neon");
+            return {
+                ...baseStyle,
+                borderTop: '12px solid transparent',
+                borderBottom: '12px solid transparent',
+                borderLeft: `12px solid ${arrowColor}`,
+                filter: 'drop-shadow(1px 0 2px rgba(0, 0, 0, 0.1))',
+            };
         default:
-            return baseClasses;
+            return baseStyle;
     }
 }
 
@@ -347,30 +378,30 @@ function getArrowPosition(placement: "top" | "bottom" | "left" | "right", anchor
     
     switch (placement) {
         case "bottom":
-            // Dialog is below anchor, arrow at top of dialog
+            // Dialog is below anchor, arrow points up from top edge of dialog
             return {
-                top: "-12px",
+                top: "-24px", // Move arrow completely outside dialog
                 left: "50%",
                 transform: "translateX(-50%)",
             };
         case "top":
-            // Dialog is above anchor, arrow at bottom of dialog
+            // Dialog is above anchor, arrow points down from bottom edge of dialog
             return {
-                bottom: "-12px",
+                bottom: "-24px", // Move arrow completely outside dialog
                 left: "50%",
                 transform: "translateX(-50%)",
             };
         case "right":
-            // Dialog is to right of anchor, arrow at left of dialog
+            // Dialog is to right of anchor, arrow points left from left edge of dialog
             return {
-                left: "-12px",
+                left: "-24px", // Move arrow completely outside dialog
                 top: "50%",
                 transform: "translateY(-50%)",
             };
         case "left":
-            // Dialog is to left of anchor, arrow at right of dialog
+            // Dialog is to left of anchor, arrow points right from right edge of dialog
             return {
-                right: "-12px",
+                right: "-24px", // Move arrow completely outside dialog
                 top: "50%",
                 transform: "translateY(-50%)",
             };
@@ -820,6 +851,28 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                 onClick={handleOverlayClick}
                 role="presentation"
             >
+                {/* Arrow pointing to anchor element - positioned absolutely on the overlay */}
+                {anchorPosition && anchorEl && finalPosition && (
+                    <div 
+                        className="tw-pointer-events-none"
+                        style={{
+                            position: 'fixed',
+                            // Calculate arrow position based on dialog position and placement
+                            // Remember: placement describes where dialog is relative to anchor
+                            left: anchorPosition.placement === 'right' ? finalPosition.x - 12 :  // Dialog is right of anchor, arrow on left edge
+                                  anchorPosition.placement === 'left' ? finalPosition.x + (dialogRef.current?.offsetWidth || 400) :  // Dialog is left of anchor, arrow on right edge
+                                  finalPosition.x + (dialogRef.current?.offsetWidth || 400) / 2 - 6,  // Top/bottom: center horizontally
+                            top: anchorPosition.placement === 'bottom' ? finalPosition.y - 12 :  // Dialog is below anchor, arrow on top edge
+                                 anchorPosition.placement === 'top' ? finalPosition.y + (dialogRef.current?.offsetHeight || 300) :  // Dialog is above anchor, arrow on bottom edge
+                                 finalPosition.y + (dialogRef.current?.offsetHeight || 300) / 2 - 6,  // Left/right: center vertically
+                            zIndex: 9999,
+                            ...getArrowStyles(anchorPosition.placement, variant),
+                        }}
+                        data-testid="dialog-arrow"
+                        data-placement={anchorPosition.placement}
+                    />
+                )}
+                
                 <div
                     ref={combinedRef as any}
                     className={dialogWrapperClasses}
@@ -844,21 +897,12 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     aria-labelledby={title ? (ariaLabelledBy || titleId) : undefined}
                     aria-describedby={ariaDescribedBy}
                 >
+                    
                     <div className={cn(
                         contentClasses, 
-                        anchorEl && "tw-max-h-full tw-overflow-hidden tw-flex tw-flex-col",
+                        anchorEl && "tw-max-h-[min(80vh,600px)] tw-overflow-hidden tw-flex tw-flex-col",
                         size === "full" && isMobile && "tw-flex tw-flex-col"
                     )}>
-                        {/* Arrow pointing to anchor element */}
-                        {anchorPosition && (
-                            <div 
-                                className={cn(
-                                    "tw-absolute tw-pointer-events-none",
-                                    getArrowClasses(anchorPosition.placement, anchorEl, variant)
-                                )}
-                                style={getArrowPosition(anchorPosition.placement, anchorEl)}
-                            />
-                        )}
 
                         {/* Header with title and close button */}
                         {(title || showCloseButton) && (
@@ -903,7 +947,10 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                         )}
 
                         {/* Dialog content - ensure it's above effects */}
-                        <div className="tw-relative tw-z-10 tw-flex-1 tw-min-h-0">
+                        <div className={cn(
+                            "tw-relative tw-z-10 tw-flex-1 tw-min-h-0",
+                            anchorEl && "tw-overflow-y-auto"
+                        )}>
                             {children}
                         </div>
 

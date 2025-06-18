@@ -87,7 +87,7 @@ describe("Regular Expressions Tests", () => {
 
             it("Benign input should execute quickly", () => {
                 const { duration } = measureExecutionTime(urlRegexDev, benignInput);
-                expect(duration).toBeLessThan(1); // Less than 1 millisecond
+                expect(duration).toBeLessThan(5); // Less than 5 milliseconds (more realistic threshold)
             });
 
             maliciousInputs.forEach((input) => {

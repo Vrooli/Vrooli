@@ -1190,7 +1190,23 @@ export class CallDataWebConfig {
         for (const [outputName, path] of Object.entries(this.schema.outputMapping)) {
             // The path is expected to be relative to the `searchResult` object,
             // often starting with `results[...]` or `results[*].fieldName`.
-            const value = getDotNotationValue({ results: searchResult.results }, path);
+            let value: unknown;
+            
+            // Handle special [*] notation for getting all elements
+            if (path.includes("[*]")) {
+                // Extract the property name after [*]
+                const match = path.match(/results\[\*\]\.(\w+)/);
+                if (match && match[1]) {
+                    const propertyName = match[1];
+                    value = searchResult.results.map(item => item[propertyName]);
+                } else if (path === "results[*]") {
+                    value = searchResult.results;
+                } else {
+                    value = undefined;
+                }
+            } else {
+                value = getDotNotationValue({ results: searchResult.results }, path);
+            }
 
             const output = ioMappings.outputs[outputName];
             if (output) {

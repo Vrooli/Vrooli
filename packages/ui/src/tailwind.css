@@ -16,7 +16,7 @@
 
 /* Icon Button Components */
 @layer components {
-  /* Solid variant - physical button with 3D appearance */
+  /* Solid variant - physical button with 3D appearance that sinks in on interaction */
   .tw-icon-button-solid {
     @apply tw-cursor-pointer;
     background: radial-gradient(circle at 30% 30%, var(--icon-button-gradient-light), var(--icon-button-gradient-dark));
@@ -27,19 +27,26 @@
   }
   
   .tw-icon-button-solid:hover:not(:disabled) {
-    transform: translateY(-2px);
+    /* Slightly enhanced shadow without movement for better visual feedback */
     box-shadow: 
-      0 8px 16px rgba(0, 0, 0, 0.4),
-      0 4px 6px rgba(0, 0, 0, 0.3),
-      inset 0 1px 2px rgba(255, 255, 255, 0.3);
+      0 8px 16px rgba(0, 0, 0, 0.35),
+      0 3px 6px rgba(0, 0, 0, 0.25),
+      inset 0 1px 3px rgba(255, 255, 255, 0.25);
+    /* Subtle brightness increase */
+    filter: brightness(1.05);
   }
   
   .tw-icon-button-solid:active:not(:disabled) {
-    transform: translateY(2px);
+    /* Pressed/sunken appearance - no translation, just shadow and inset changes */
     box-shadow: 
-      0 2px 4px rgba(0, 0, 0, 0.3),
-      0 1px 2px rgba(0, 0, 0, 0.2),
-      inset 0 2px 4px rgba(0, 0, 0, 0.3);
+      0 2px 4px rgba(0, 0, 0, 0.4),
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      inset 0 3px 6px rgba(0, 0, 0, 0.2),
+      inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    /* Slightly dimmed when pressed */
+    filter: brightness(0.95);
+    /* Very subtle scale for tactile feedback without movement */
+    transform: scale(0.98);
   }
   
   /* Transparent variant */
@@ -56,19 +63,63 @@
     background: var(--icon-button-transparent-active);
   }
   
-  /* Space variant - handled via components in IconButton.tsx */
+  /* Space variant - signup button style with visible gradient */
   .tw-icon-button-space {
-    @apply tw-cursor-pointer;
+    @apply tw-cursor-pointer tw-relative tw-overflow-hidden;
+    background: linear-gradient(45deg, #16a361 0%, #0faaaa 100%);
+    transition: all 0.3s ease;
+  }
+  
+  .tw-icon-button-space:hover:not(:disabled) {
+    background: linear-gradient(45deg, #138a54 0%, #0c9999 100%);
+    box-shadow: 0 8px 20px rgba(22, 163, 97, 0.4);
+    transform: scale(1.05);
+  }
+  
+  /* Space variant inner content area - not needed for simple gradient */
+  .tw-icon-button-space-inner {
+    @apply tw-relative tw-w-full tw-h-full tw-overflow-hidden;
+    background: transparent;
+    border-radius: inherit;
+  }
+  
+  /* Space variant glow effect - simpler glow */
+  .tw-icon-button-space-glow {
+    @apply tw-absolute tw-inset-0 tw-opacity-0;
+    background: transparent;
+    border-radius: inherit;
+  }
+  
+  /* Space variant animated sweep - white shine effect on hover */
+  .tw-icon-button-space-sweep {
+    @apply tw-absolute tw-inset-0 tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none tw-rounded-full;
+    background: linear-gradient(110deg, 
+      transparent 25%, 
+      rgba(255, 255, 255, 0.2) 45%, 
+      rgba(255, 255, 255, 0.1) 55%, 
+      transparent 75%
+    );
+    background-size: 200% 100%;
+    animation: iconButtonGradientSweep 3s ease-in-out infinite;
   }
   
   /* Microphone-specific listening state */
   .tw-microphone-listening {
     background: radial-gradient(circle at 30% 30%, var(--microphone-listening-light), var(--microphone-listening-dark)) !important;
-    animation: microphonePulse 2s ease-in-out infinite;
+    /* Ensure listening state maintains the sinking interaction */
   }
   
-  .tw-microphone-listening:hover:not(:disabled) {
-    animation: microphonePulse 1.5s ease-in-out infinite;
+  .tw-microphone-listening:active:not(:disabled) {
+    transform: scale(0.98);
+    filter: brightness(0.9);
+  }
+  
+  /* Pulse animation for active microphone */
+  .tw-animate-microphone-pulse {
+    animation: microphonePulse 2s ease-in-out infinite;
+    /* Ensure glow effect is visible */
+    overflow: visible !important;
+    position: relative;
   }
   
   /* Wave animation bars for listening dialog */
@@ -93,45 +144,51 @@
     contain: layout style paint;
   }
 
-  /* Space variant container - provides gradient border effect */
+  /* Space variant container - signup button style with visible gradient */
   .tw-button-space-container {
-    @apply tw-relative tw-overflow-hidden tw-rounded-md tw-p-0.5;
-    background: linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%);
+    @apply tw-relative tw-overflow-hidden tw-rounded-md;
+    background: linear-gradient(45deg, #16a361 0%, #0faaaa 100%);
     transition: all 0.3s ease;
   }
 
   .tw-button-space-container:hover {
-    box-shadow: 0 8px 25px rgba(15, 170, 170, 0.25);
+    background: linear-gradient(45deg, #138a54 0%, #0c9999 100%);
+    box-shadow: 0 8px 20px rgba(22, 163, 97, 0.4);
+    transform: scale(1.05);
   }
 
-  /* Space variant inner content area */
+  /* Space variant inner content area - not needed for simple gradient */
   .tw-button-space-inner {
-    @apply tw-relative tw-w-full tw-h-full tw-rounded tw-overflow-hidden;
-    background: linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%);
+    @apply tw-relative tw-w-full tw-h-full tw-overflow-hidden;
+    background: transparent;
+    border-radius: inherit;
   }
 
   /* Space variant background layers - kept for compatibility */
   .tw-button-space-border {
-    @apply tw-absolute tw-inset-0 tw-rounded;
-    background: linear-gradient(135deg, #1a3a4a 0%, #2a4a6a 50%, #1a3a4a 100%);
+    @apply tw-absolute tw-inset-0;
+    background: linear-gradient(45deg, #16a361 0%, #0faaaa 100%);
+    border-radius: inherit;
   }
 
   .tw-button-space-background {
-    @apply tw-absolute tw-inset-0.5 tw-rounded;
-    background: linear-gradient(135deg, #0a1a2a 0%, #16213a 50%, #0a1a2a 100%);
+    @apply tw-absolute tw-inset-0.5;
+    background: transparent;
+    border-radius: inherit;
   }
 
   .tw-button-space-glow {
-    @apply tw-absolute tw-inset-0.5 tw-rounded tw-opacity-60;
-    background: radial-gradient(ellipse at center, rgba(22, 163, 97, 0.15) 0%, transparent 70%);
+    @apply tw-absolute tw-inset-0.5 tw-opacity-0;
+    background: transparent;
+    border-radius: inherit;
   }
 
   .tw-button-space-sweep {
-    @apply tw-absolute tw-inset-0.5 tw-rounded tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none;
+    @apply tw-absolute tw-inset-0 tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-500 tw-pointer-events-none tw-rounded;
     background: linear-gradient(110deg, 
       transparent 25%, 
-      rgba(15, 170, 170, 0.4) 45%, 
-      rgba(22, 163, 97, 0.4) 55%, 
+      rgba(255, 255, 255, 0.2) 45%, 
+      rgba(255, 255, 255, 0.1) 55%, 
       transparent 75%
     );
     background-size: 200% 100%;
@@ -159,11 +216,125 @@
     @apply tw-absolute tw-w-px tw-h-px tw-p-0 -tw-m-px tw-overflow-hidden tw-whitespace-nowrap tw-border-0;
     clip: rect(0, 0, 0, 0);
   }
+
+  /* Neon variant for IconButton - use box-shadow instead of border to avoid dimension issues */
+  .tw-icon-button-neon {
+    @apply tw-cursor-pointer tw-relative tw-rounded-full;
+    background: rgba(0, 255, 127, 0.3) !important;
+    color: #ffffff;
+    box-shadow: 
+      0 0 12px rgba(0, 255, 127, 0.7),
+      0 0 24px rgba(0, 255, 127, 0.4),
+      0 0 36px rgba(0, 255, 127, 0.2),
+      inset 0 0 10px rgba(0, 255, 127, 0.25),
+      inset 0 0 0 3px rgba(0, 255, 127, 0.7);
+    transition: all 0.3s ease;
+    overflow: visible !important;
+  }
+  
+  /* Radar ping animation */
+  .tw-icon-button-neon:not(:disabled)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(100% + 6px);
+    height: calc(100% + 6px);
+    border: 2px solid rgba(0, 255, 127, 0.8);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: iconButtonNeonPing 2s ease-out infinite;
+    pointer-events: none;
+  }
+  
+  .tw-icon-button-neon:hover:not(:disabled) {
+    background: rgba(0, 255, 127, 0.4) !important;
+    color: #ffffff;
+    box-shadow: 
+      0 0 16px rgba(0, 255, 127, 0.8),
+      0 0 32px rgba(0, 255, 127, 0.5),
+      0 0 48px rgba(0, 255, 127, 0.3),
+      inset 0 0 12px rgba(0, 255, 127, 0.35),
+      inset 0 0 0 3px rgba(0, 255, 127, 0.9);
+  }
+  
+  .tw-icon-button-neon:active:not(:disabled) {
+    transform: scale(0.98);
+    background: rgba(0, 255, 127, 0.45) !important;
+    box-shadow: 
+      0 0 10px rgba(0, 255, 127, 0.6),
+      0 0 20px rgba(0, 255, 127, 0.3),
+      inset 0 0 8px rgba(0, 255, 127, 0.25);
+  }
+
+  /* Neon variant for Button - solid border with transparent green background */
+  .tw-button-neon-container {
+    @apply tw-relative tw-rounded;
+    background: rgba(0, 255, 127, 0.3) !important;
+    border: 3px solid rgba(0, 255, 127, 0.7) !important;
+    color: #ffffff;
+    box-shadow: 
+      0 0 12px rgba(0, 255, 127, 0.7),
+      0 0 24px rgba(0, 255, 127, 0.4),
+      0 0 36px rgba(0, 255, 127, 0.2),
+      inset 0 0 10px rgba(0, 255, 127, 0.25);
+    transition: all 0.3s ease;
+    overflow: visible !important;
+  }
+
+  /* Radar ping animation */
+  .tw-button-neon-container:not(.tw-button-disabled)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(100% + 6px);
+    height: calc(100% + 6px);
+    border: 2px solid rgba(0, 255, 127, 0.8);
+    border-radius: inherit;
+    transform: translate(-50%, -50%);
+    animation: buttonNeonPing 2s ease-out infinite;
+    pointer-events: none;
+  }
+
+  .tw-button-neon-container:hover {
+    background: rgba(0, 255, 127, 0.4) !important;
+    border-color: rgba(0, 255, 127, 0.9) !important;
+    color: #ffffff;
+    box-shadow: 
+      0 0 16px rgba(0, 255, 127, 0.8),
+      0 0 32px rgba(0, 255, 127, 0.5),
+      0 0 48px rgba(0, 255, 127, 0.3),
+      inset 0 0 12px rgba(0, 255, 127, 0.35);
+  }
+
+  .tw-button-neon-container:active {
+    transform: scale(0.98);
+    background: rgba(0, 255, 127, 0.45) !important;
+    box-shadow: 
+      0 0 10px rgba(0, 255, 127, 0.6),
+      0 0 20px rgba(0, 255, 127, 0.3),
+      inset 0 0 8px rgba(0, 255, 127, 0.25);
+  }
+}
+
+/* Utility classes for animation control */
+@layer utilities {
+  /* Pause animation when element is active (pressed) */
+  .tw-animation-pause {
+    animation-play-state: paused !important;
+  }
+  
+  /* Apply animation pause on active state for group elements */
+  .group:active .group-active\:tw-animation-pause {
+    animation-play-state: paused !important;
+  }
 }
 
 /* Custom animations */
 @keyframes microphonePulse {
   0%, 100% { 
+    transform: scale(1);
     box-shadow: 
       0 6px 12px rgba(0, 0, 0, 0.3),
       0 2px 4px rgba(0, 0, 0, 0.2),
@@ -171,11 +342,12 @@
       0 0 0 0 var(--microphone-glow-color);
   }
   50% { 
+    transform: scale(1.05);
     box-shadow: 
       0 8px 16px rgba(0, 0, 0, 0.4),
       0 4px 6px rgba(0, 0, 0, 0.3),
       inset 0 1px 2px rgba(255, 255, 255, 0.3),
-      0 0 0 8px var(--microphone-glow-color);
+      0 0 0 12px var(--microphone-glow-color);
   }
 }
 
@@ -210,6 +382,18 @@
   }
 }
 
+/* Radio/Checkbox animations */
+@keyframes radioRipple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
 /* Button component animations */
 @keyframes buttonRippleExpand {
   0% {
@@ -236,3 +420,29 @@
     transform: skewX(-12deg);
   }
 }
+
+/* Neon radar ping animations - expanding ring that fades */
+/* IconButton ping - equal expansion in all directions for circular buttons */
+@keyframes iconButtonNeonPing {
+  0% { 
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Button ping - slightly more vertical expansion for rectangular buttons */
+@keyframes buttonNeonPing {
+  0% { 
+    transform: translate(-50%, -50%) scale(1, 1);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(-50%, -50%) scale(1.3, 1.5);
+    opacity: 0;
+  }
+}
+

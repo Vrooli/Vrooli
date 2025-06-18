@@ -60,7 +60,7 @@ export async function fetchAndMapPlaceholder(
     if (parts.length === 1 && validatePK(rootId)) {
         logger.warning("Unnecessary placeholder was generated. This may be a bug", { trace: "0163", placeholder });
         // Directly map the rootId as the ID without querying the database
-        placeholderToIdMap[placeholder] = rootId;
+        placeholderToIdMap[placeholder] = BigInt(rootId);
         return;
     }
 
@@ -81,7 +81,7 @@ export async function fetchAndMapPlaceholder(
     });
 
     const queryResult = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
-        where: { id: rootId },
+        where: { id: BigInt(rootId) },
         select,
     });
 
@@ -96,7 +96,7 @@ export async function fetchAndMapPlaceholder(
 
     const resultId = currentObject && currentObject.id ? currentObject.id : null;
     if (resultId) {
-        placeholderToIdMap[placeholder] = resultId;
+        placeholderToIdMap[placeholder] = typeof resultId === "string" ? BigInt(resultId) : resultId;
     }
 }
 
@@ -106,11 +106,11 @@ export async function fetchAndMapPlaceholder(
  * into their corresponding actual IDs. It mutates the input `idsMap` by updating the placeholder IDs in-place.
  */
 export async function replacePlaceholdersInMap(
-    idsMap: Record<string, (string | null)[]>,
+    idsMap: Record<string, (string | bigint | null)[]>,
     placeholderToIdMap: IdsByPlaceholder,
 ): Promise<void> {
     for (const [key, ids] of Object.entries(idsMap)) {
-        const updatedIds: (string | null)[] = [];
+        const updatedIds: (string | bigint | null)[] = [];
         for (const id of ids) {
             if (typeof id === "string" && id.includes("|")) {
                 if (placeholderToIdMap[id]) {
@@ -152,10 +152,11 @@ export async function replacePlaceholdersInInputsById(
             continue;
         }
 
-        inputsById[id] = {
+        const idStr = id.toString();
+        inputsById[idStr] = {
             node: {
                 ...value.node,
-                id,
+                id: idStr,
             },
             input: typeof value.input === "string" ?
                 id : isRelationshipObject(value.input) ? {
@@ -205,7 +206,7 @@ export async function replacePlaceholdersInInputsByType(
                     logger.warning("Placeholder ID could not be resolved. This may be a bug, or the object may not exist", { trace: "0169", maybePlaceholder });
                 }
 
-                inputWrapper.node.id = id;
+                inputWrapper.node.id = id !== null && id !== undefined ? id.toString() : "";
                 inputWrapper.input = typeof inputWrapper.input === "string" ?
                     id : isRelationshipObject(inputWrapper.input) ? {
                         ...inputWrapper.input,

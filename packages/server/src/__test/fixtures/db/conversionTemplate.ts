@@ -137,7 +137,7 @@ import { ModelDbFactory, seedModels } from "../../__test/fixtures/modelFixtures.
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/userFixtures.js";
 
 // Import validation fixtures for API input testing
-import { modelTestDataFactory } from "@vrooli/shared/validation/models";
+import { modelTestDataFactory } from "@vrooli/shared";
 
 describe("EndpointsModel", () => {
     let testUsers: any[];

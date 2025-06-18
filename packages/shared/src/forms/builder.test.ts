@@ -1,9 +1,10 @@
+// AI_CHECK: TEST_COVERAGE=4 | LAST: 2025-06-18
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { describe, it, expect } from "vitest";
 import { ResourceSubType, ResourceSubTypeRoutine, type Run } from "../api/types.js";
 import { InputType } from "../consts/model.js";
 import { RoutineVersionConfig, type FormInputConfigObject, type FormOutputConfigObject, type RoutineVersionConfigObject } from "../shape/index.js";
-import { FormBuilder, createFormInput, getFormikFieldName } from "./builder.js";
+import { FormBuilder, createFormInput, getFormikFieldName, healFormInputPropsMap } from "./builder.js";
 import { FormStructureType, type FormElement, type FormSchema } from "./types.js";
 
 describe("FormBuilder", () => {
@@ -1302,6 +1303,164 @@ describe("FormBuilder", () => {
         it("should handle special characters in fieldName and prefix", () => {
             const result = getFormikFieldName("field_name", "form.input");
             expect(result).toBe("form.input-field_name");
+        });
+    });
+
+    describe("healFormInputPropsMap", () => {
+
+        describe("healCheckboxProps", () => {
+            it("should provide defaults for checkbox props", () => {
+                const healed = healFormInputPropsMap[InputType.Checkbox]({});
+                expect(healed.color).toBe("secondary");
+                expect(healed.defaultValue).toEqual([false]);
+                expect(healed.options).toEqual([{ label: "Option 1", value: "option-1" }]);
+                expect(healed.maxSelection).toBe(0);
+                expect(healed.minSelection).toBe(0);
+                expect(healed.row).toBe(false);
+            });
+
+            it("should preserve existing checkbox props", () => {
+                const props = {
+                    color: "primary",
+                    defaultValue: [true, false],
+                    options: [
+                        { label: "Option A", value: "a" },
+                        { label: "Option B", value: "b" },
+                    ],
+                    maxSelection: 2,
+                    minSelection: 1,
+                    row: true,
+                };
+                const healed = healFormInputPropsMap[InputType.Checkbox](props);
+                expect(healed).toEqual(props);
+            });
+        });
+
+        describe("healDropzoneProps", () => {
+            it("should provide defaults for dropzone props", () => {
+                const healed = healFormInputPropsMap[InputType.Dropzone]({});
+                expect(healed.defaultValue).toEqual([]);
+            });
+
+            it("should preserve existing dropzone props", () => {
+                const props = {
+                    defaultValue: ["file1.txt", "file2.txt"],
+                    accept: ".txt,.pdf",
+                };
+                const healed = healFormInputPropsMap[InputType.Dropzone](props);
+                expect(healed).toEqual(props);
+            });
+        });
+
+        describe("healJsonProps", () => {
+            it("should provide defaults for JSON props", () => {
+                const healed = healFormInputPropsMap[InputType.JSON]({});
+                expect(healed.defaultValue).toBe("");
+            });
+
+            it("should preserve existing JSON props", () => {
+                const props = {
+                    defaultValue: '{"key": "value"}',
+                };
+                const healed = healFormInputPropsMap[InputType.JSON](props);
+                expect(healed).toEqual(props);
+            });
+        });
+
+        describe("healRadioProps", () => {
+            it("should provide default value from first option", () => {
+                const props = {
+                    options: [
+                        { label: "Yes", value: "yes" },
+                        { label: "No", value: "no" },
+                    ],
+                };
+                const healed = healFormInputPropsMap[InputType.Radio](props);
+                expect(healed.defaultValue).toBe("yes");
+                expect(healed.options).toEqual(props.options);
+            });
+
+            it("should handle empty options", () => {
+                const healed = healFormInputPropsMap[InputType.Radio]({});
+                expect(healed.defaultValue).toBe("");
+                expect(healed.options).toEqual([]);
+            });
+        });
+
+        describe("healSliderProps", () => {
+            it("should provide defaults for slider props", () => {
+                const healed = healFormInputPropsMap[InputType.Slider]({});
+                expect(healed.min).toBe(0);
+                expect(healed.max).toBe(100);
+                expect(healed.step).toBe(5); // (100-0)/20 = 5
+                expect(healed.defaultValue).toBe(60); // nearest((0+100)/2, 0, 100, step) with step calculation
+            });
+
+            it("should calculate defaultValue based on min/max", () => {
+                const props = {
+                    min: 10,
+                    max: 50,
+                };
+                const healed = healFormInputPropsMap[InputType.Slider](props);
+                expect(healed.defaultValue).toBe(30); // nearest((10+50)/2, 10, 50, (50-10)/20)
+            });
+
+            it("should preserve existing slider props", () => {
+                const props = {
+                    min: 5,
+                    max: 95,
+                    step: 5,
+                    defaultValue: 50,
+                };
+                const healed = healFormInputPropsMap[InputType.Slider](props);
+                expect(healed).toEqual(props);
+            });
+        });
+
+        describe("healSwitchProps", () => {
+            it("should provide defaults for switch props", () => {
+                const healed = healFormInputPropsMap[InputType.Switch]({});
+                expect(healed.defaultValue).toBe(false);
+                expect(healed.color).toBe("secondary");
+            });
+
+            it("should preserve existing switch props", () => {
+                const props = {
+                    defaultValue: true,
+                    color: "primary",
+                };
+                const healed = healFormInputPropsMap[InputType.Switch](props);
+                expect(healed).toEqual({
+                    ...props,
+                    label: "",
+                    size: "medium",
+                });
+            });
+        });
+
+        describe("healTextProps", () => {
+            it("should provide defaults for text props", () => {
+                const healed = healFormInputPropsMap[InputType.Text]({});
+                expect(healed.autoComplete).toBe("off");
+                expect(healed.defaultValue).toBe("");
+                expect(healed.isMarkdown).toBe(true);
+                expect(healed.maxChars).toBe(1000);
+                expect(healed.maxRows).toBe(2);
+                expect(healed.minRows).toBe(4);
+            });
+
+            it("should preserve existing text props", () => {
+                const props = {
+                    autoComplete: "email",
+                    defaultValue: "test@example.com",
+                    isMarkdown: true,
+                    maxChars: 500,
+                    maxRows: 5,
+                    minRows: 2,
+                };
+                const healed = healFormInputPropsMap[InputType.Text](props);
+                expect(healed).toEqual(props);
+            });
         });
     });
 });

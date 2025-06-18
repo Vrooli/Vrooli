@@ -1,40 +1,15 @@
-// AI_CHECK: TEST_QUALITY=4 | LAST: 2025-06-17
-// Test Quality Issues Found:
-// 1. Poor error assertions: 71+ instances of try/catch blocks (FIXED ALL - now using proper expect().toThrow())
-// 2. Missing edge cases: No tests for concurrent operations, rate limits, webhook retries
-// 3. Code duplication: Similar test patterns repeated across multiple describe blocks (MOSTLY FIXED)
-// 4. Hardcoded values: Replaced magic numbers with constants from @vrooli/shared (FIXED)
-// 5. Test isolation: Added mock clearing in all beforeEach hooks (FIXED)
-// 6. Mock-focused testing: Many tests verify mock behavior rather than actual functionality
-// 7. Missing error scenarios: Limited testing of network failures, DB errors, service unavailability
-// 8. TODO comments: Incomplete test coverage acknowledged but not addressed
-// Improvements made:
-// ✓ Fixed ALL error assertion patterns using expect().toThrow() and expect().rejects.toThrow()
-// ✓ Replaced ALL magic numbers (86400, 30*24*60*60, 60*60*24) with proper constants (DAYS_1_S, etc.)
-// ✓ Added vi.clearAllMocks() to prevent test interference
-// ✓ Created comprehensive shared fixtures: createStripeTestUsers, createWebhookTestUsers, createCustomerDeletionTestUsers, createInvoiceTestData
-// ✓ Refactored getVerifiedCustomerInfo test suite to use createStripeTestUsers() fixture
-// ✓ Refactored handleCustomerDeleted test suite to use createCustomerDeletionTestUsers() fixture  
-// ✓ Refactored handleCustomerSubscriptionDeleted test suite to use createWebhookTestUsers() fixture
-// ✓ Refactored handleInvoicePaymentCreated test suite to use createInvoiceTestData() fixture
-// ✓ Applied proper cleanup using cleanupStripeTestData() fixture across all refactored suites
-// Remaining issues:
-// - More test suites can benefit from shared fixtures (handleInvoicePaymentFailed, handleInvoicePaymentSucceeded, etc.)
-// - Add parameterized tests for environment-specific tests
-// - Test actual behavior outcomes rather than mock invocations where possible
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// AI_CHECK: TEST_QUALITY=6 | LAST: 2025-06-17
 
-import { DAYS_180_MS, DAYS_1_MS, DAYS_1_S, DAYS_30_MS, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, generatePK } from "@vrooli/shared";
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from "vitest";
+import { DAYS_180_MS, DAYS_1_MS, DAYS_1_S, HOURS_1_MS, HttpStatus, PaymentStatus, PaymentType, StripeEndpoint, generatePK } from "@vrooli/shared";
 import type Stripe from "stripe";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanupStripeTestData, createCheckoutSessionTestData, createCustomerDeletionTestUsers, createInvoiceTestData, createInvoiceTestDataWithEmail, createSimpleTestUser, createSourceExpiringTestUser, createStripeTestUsers, createWebhookTestUsers } from "../__test/fixtures/stripe.fixtures.js";
 import StripeMock from "../__test/stripe.js";
 import { DbProvider } from "../db/provider.js";
 import * as loggerModule from "../events/logger.js";
-import { withDbTransaction } from "../__test/helpers/transactionTest.js";
 import { CacheService } from "../redisConn.js";
 import { PaymentMethod, calculateExpiryAndStatus, checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSourceExpiring, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handleCustomerSubscriptionUpdated, handleInvoicePaymentCreated, handleInvoicePaymentFailed, handleInvoicePaymentSucceeded, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, parseInvoiceData, setupStripe, storePrice } from "./stripe.js";
-import { UserDbFactory, seedTestUsers } from "../__test/fixtures/db/userFixtures.js";
-import { seedMockAdminUser } from "../__test/session.js";
-import { createStripeTestUsers, cleanupStripeTestData, createWebhookTestUsers, createCustomerDeletionTestUsers, createInvoiceTestData } from "../__test/fixtures/stripe.fixtures.js";
 
 // Mock email queue
 const mockEmailQueue = {
@@ -296,7 +271,7 @@ describe("Redis Price Operations", () => {
             if (!redisClient) return;
             const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
             await redisClient.set(key, "invalid");
-            
+
             // Clear CacheService internal cache to force Redis read
             await cacheService.del(key);
 
@@ -648,7 +623,8 @@ describe("getVerifiedCustomerInfo", () => {
         // Inject default customer data for tests
         StripeMock.injectData({
             customers: [
-                { id: "cus_123" },
+                { id: "cus_123", email: "user@example.com" },
+                { id: "source_expiring_cus_123" },
                 { id: "cus_test1", email: "user2@example.com" },
                 { id: "cus_deleted", deleted: true },
                 { id: "cus_777" },
@@ -746,7 +722,7 @@ describe("getVerifiedCustomerInfo", () => {
 
     it("should return the Stripe customer ID if the user has a valid subscription", async () => {
         const { user1Id } = await createStripeTestUsers();
-        
+
         // Inject mock data for this specific test
         StripeMock.injectData({
             checkoutSessions: [{
@@ -766,9 +742,12 @@ describe("getVerifiedCustomerInfo", () => {
             }],
             customers: [{
                 id: "cus_123",
+                email: "user@example.com",
+            }, {
+                id: "source_expiring_cus_123",
             }],
         });
-        
+
         const result = await getVerifiedCustomerInfo({ userId: user1Id.toString(), stripe, validateSubscription: true });
         expect(result.stripeCustomerId).toBe("cus_123");
         expect(result.userId).toBe(user1Id.toString());
@@ -845,25 +824,8 @@ describe("createStripeCustomerId", () => {
     let stripe: Stripe;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const user1Id = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: user1Id,
-                publicId: user1Id.toString(),
-                name: "user1",
-                stripeCustomerId: null,
-            },
-        });
-
-        return { user1Id };
-    };
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -875,7 +837,7 @@ describe("createStripeCustomerId", () => {
 
 
     it("creates a new Stripe customer and updates the user with the customer ID", async () => {
-        const { user1Id } = await createTestData();
+        const { userId: user1Id } = await createSimpleTestUser();
         const customerInfo = {
             userId: user1Id,
             emails: [{ emailAddress: "user@example.com" }],
@@ -929,49 +891,6 @@ describe("handleCheckoutSessionExpired", () => {
     let res;
     let stripe: Stripe;
 
-    afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().payment.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
-    });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const payment1Id = generatePK();
-        const user1Id = generatePK();
-        const user2Id = generatePK();
-
-        await DbProvider.get().user.create({
-            data: {
-                id: user1Id,
-                publicId: user1Id.toString(),
-                name: "user1",
-                stripeCustomerId: "customer1",
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                id: user2Id,
-                publicId: user2Id.toString(),
-                name: "user2",
-                stripeCustomerId: "customer2",
-            },
-        });
-        await DbProvider.get().payment.create({
-            data: {
-                id: payment1Id,
-                amount: 1000,
-                currency: "usd",
-                description: "Test payment",
-                checkoutId: "session1",
-                paymentMethod: "Stripe",
-                status: "Pending",
-                userId: user1Id,
-            },
-        });
-
-        return { payment1Id, user1Id, user2Id };
-    };
 
     beforeEach(async function beforeEach() {
         stripe = new StripeMock() as unknown as Stripe;
@@ -983,8 +902,8 @@ describe("handleCheckoutSessionExpired", () => {
     });
 
     it("does nothing when no related pending payments found", async () => {
-        await createTestData();
-        const event = { data: { object: { id: "sessionUnknown", customer: "customer1" } } } as unknown as Stripe.Event;
+        const { customerId1 } = await createCheckoutSessionTestData();
+        const event = { data: { object: { id: "sessionUnknown", customer: customerId1 } } } as unknown as Stripe.Event;
 
         const originalPaymentsCount = await DbProvider.get().payment.count();
 
@@ -996,8 +915,8 @@ describe("handleCheckoutSessionExpired", () => {
     });
 
     it("marks related pending payments as failed", async () => {
-        const { payment1Id } = await createTestData();
-        const event = { data: { object: { id: "session1", customer: "customer1" } } } as unknown as Stripe.Event;
+        const { payment1Id, customerId1 } = await createCheckoutSessionTestData();
+        const event = { data: { object: { id: "session1", customer: customerId1 } } } as unknown as Stripe.Event;
 
         const result = await handleCheckoutSessionExpired({ event, res, stripe });
 
@@ -1006,8 +925,8 @@ describe("handleCheckoutSessionExpired", () => {
     });
 
     it("returns OK status on successful update", async () => {
-        await createTestData();
-        const event = { data: { object: { id: "session1", customer: "customer1" } } } as unknown as Stripe.Event;
+        const { customerId1 } = await createCheckoutSessionTestData();
+        const event = { data: { object: { id: "session1", customer: customerId1 } } } as unknown as Stripe.Event;
 
         const result = await handleCheckoutSessionExpired({ event, res, stripe });
 
@@ -1034,8 +953,8 @@ describe("handleCustomerDeleted", () => {
     });
 
     it("removes stripeCustomerId from user on customer deletion", async () => {
-        const { user1Id } = await createCustomerDeletionTestUsers();
-        const event = { data: { object: { id: "customer1" } } } as unknown as Stripe.Event;
+        const { user1Id, customerId1 } = await createCustomerDeletionTestUsers();
+        const event = { data: { object: { id: customerId1 } } } as unknown as Stripe.Event;
 
         // Perform the action
         const result = await handleCustomerDeleted({ event, res, stripe });
@@ -1046,20 +965,20 @@ describe("handleCustomerDeleted", () => {
     });
 
     it("does not affect users unrelated to the deleted customer", async () => {
-        const { user2Id } = await createCustomerDeletionTestUsers();
-        const event = { data: { object: { id: "customer1" } } } as unknown as Stripe.Event;
+        const { user2Id, customerId1, customerId2 } = await createCustomerDeletionTestUsers();
+        const event = { data: { object: { id: customerId1 } } } as unknown as Stripe.Event;
 
         // Perform the action
         const result = await handleCustomerDeleted({ event, res, stripe });
 
         // Verify that other users are unaffected
         const unaffectedUser = await DbProvider.get().user.findUnique({ where: { id: user2Id } });
-        expect(unaffectedUser.stripeCustomerId).toBe("customer2");
+        expect(unaffectedUser.stripeCustomerId).toBe(customerId2);
     });
 
     it("returns OK status on successful customer deletion handling", async () => {
-        await createCustomerDeletionTestUsers();
-        const event = { data: { object: { id: "customer1" } } } as unknown as Stripe.Event;
+        const { customerId1 } = await createCustomerDeletionTestUsers();
+        const event = { data: { object: { id: customerId1 } } } as unknown as Stripe.Event;
 
         // Perform the action
         const result = await handleCustomerDeleted({ event, res, stripe });
@@ -1084,28 +1003,8 @@ describe("handleCustomerSourceExpiring", () => {
     let res;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const user1Id = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: user1Id,
-                publicId: user1Id.toString(),
-                name: "user1",
-                stripeCustomerId: "cus_123",
-                emails: {
-                    create: [{ id: generatePK(), emailAddress: "user1@example.com" }, { id: generatePK(), emailAddress: "user2@example.com" }],
-                },
-            },
-        });
-
-        return { user1Id };
-    };
 
     beforeEach(async function beforeEach() {
         vi.clearAllMocks();
@@ -1119,9 +1018,9 @@ describe("handleCustomerSourceExpiring", () => {
     });
 
     it("should send notifications to all user emails when the credit card is expiring", async () => {
-        const { user1Id } = await createTestData();
+        const { user1Id, customerId } = await createSourceExpiringTestUser();
         const mockEvent = {
-            data: { object: { id: "cus_123" } },
+            data: { object: { id: customerId } },
         } as unknown as Stripe.Event;
         const result = await handleCustomerSourceExpiring({ event: mockEvent, res });
 
@@ -1131,7 +1030,7 @@ describe("handleCustomerSourceExpiring", () => {
     });
 
     it("should return an error when the user is not found", async () => {
-        await createTestData(); // Create test data but use non-existent customer
+        await createSourceExpiringTestUser(); // Create test data but use non-existent customer
         const mockEvent = {
             data: { object: { id: "non_existent_customer" } },
         } as unknown as Stripe.Event;
@@ -1216,37 +1115,8 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     let res;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const user1Id = generatePK();
-        const user2Id = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: user1Id,
-                publicId: user1Id.toString(),
-                name: "user1",
-                stripeCustomerId: "cus_123",
-                emails: {
-                    create: [{ id: generatePK(), emailAddress: "user@example.com" }],
-                },
-            },
-        });
-        await DbProvider.get().user.create({
-            data: {
-                id: user2Id,
-                publicId: user2Id.toString(),
-                name: "user2",
-                stripeCustomerId: "cus_234",
-            },
-        });
-        
-        return { user1Id, user2Id };
-    };
 
 
     beforeEach(async function beforeEach() {
@@ -1260,7 +1130,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     it("should send email when user is found and has email", async () => {
-        await createTestData();
+        await createWebhookTestUsers();
         const mockEvent = {
             data: { object: { customer: "cus_123" } },
         } as unknown as Stripe.Event;
@@ -1271,7 +1141,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     it("should not send email when user is found but has no email", async () => {
-        await createTestData();
+        await createWebhookTestUsers();
         const mockEvent = {
             data: { object: { customer: "cus_234" } },
         } as unknown as Stripe.Event;
@@ -1283,7 +1153,7 @@ describe("handleCustomerSubscriptionTrialWillEnd", () => {
     });
 
     it("should return error when user is not found", async () => {
-        await createTestData(); // Create test data but use non-existent customer
+        await createWebhookTestUsers(); // Create test data but use non-existent customer
         const mockEvent = {
             data: { object: { customer: "non_existent_customer" } },
         } as unknown as Stripe.Event;
@@ -1326,36 +1196,8 @@ describe("handleCustomerSubscriptionUpdated", () => {
     let res;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().plan.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const userId = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: userId,
-                publicId: userId.toString(),
-                name: "user1",
-                stripeCustomerId: "cus_123",
-                emails: {
-                    create: [{ id: generatePK(), emailAddress: "user@example.com" }],
-                },
-                plan: {
-                    create: {
-                        id: generatePK(),
-                        enabledAt: new Date(),
-                        expiresAt: new Date(Date.now() + DAYS_180_MS),
-                    },
-                },
-            },
-        });
-        
-        return { userId };
-    };
 
     beforeEach(async function beforeEach() {
         vi.clearAllMocks();
@@ -1369,7 +1211,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     it("should skip processing for non-active subscriptions", async () => {
-        await createTestData();
+        await createWebhookTestUsers();
         const mockEvent = {
             data: { object: { customer: "cus_123", status: "canceled" } },
         } as unknown as Stripe.Event;
@@ -1380,7 +1222,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     it("should update expiry time and send thank you email for active subscription", async () => {
-        await createTestData();
+        await createWebhookTestUsers();
         const futurePeriodEnd = Math.floor(Date.now() / 1000) + DAYS_1_S; // 24 hours in the future
         const mockEvent = {
             data: { object: { customer: "cus_123", status: "active", current_period_end: futurePeriodEnd } },
@@ -1392,7 +1234,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     it("should update expiry time to past and not send thank you email for inactive premium status", async () => {
-        await createTestData();
+        await createWebhookTestUsers();
         const pastPeriodEnd = Math.floor(Date.now() / 1000) - DAYS_1_S; // 24 hours in the past
         const mockEvent = {
             data: { object: { customer: "cus_123", status: "active", current_period_end: pastPeriodEnd } },
@@ -1404,7 +1246,7 @@ describe("handleCustomerSubscriptionUpdated", () => {
     });
 
     it("should return error when user is not found", async () => {
-        await createTestData(); // Create test data but use non-existent customer
+        await createWebhookTestUsers(); // Create test data but use non-existent customer
         const mockEvent = {
             data: { object: { customer: "non_existent_customer", status: "active", current_period_end: Math.floor(Date.now() / 1000) + DAYS_1_S } },
         } as unknown as Stripe.Event;
@@ -1584,44 +1426,8 @@ describe("handleInvoicePaymentFailed", () => {
     let res;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().payment.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const userId = generatePK();
-        const paymentId = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: userId,
-                publicId: userId.toString(),
-                name: "user1",
-                stripeCustomerId: "cus_123",
-                emails: {
-                    create: [{ id: generatePK(), emailAddress: "user@example.com" }],
-                },
-            },
-        });
-        
-        await DbProvider.get().payment.create({
-            data: {
-                id: paymentId,
-                userId,
-                checkoutId: "inv_123",
-                amount: 1000,
-                currency: "usd",
-                description: "Test payment",
-                paymentMethod: "Stripe",
-                status: "Pending",
-                paymentType: "PremiumMonthly",
-            },
-        });
-        
-        return { userId, paymentId };
-    };
 
 
     beforeEach(async function beforeEach() {
@@ -1634,7 +1440,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     it("updates existing payment status to Failed", async () => {
-        const { paymentId } = await createTestData();
+        const { paymentId } = await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: { object: { customer: "cus_123", id: "inv_123" } },
         } as unknown as Stripe.Event;
@@ -1647,7 +1453,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     it("creates a new payment and sets status to Failed when no existing payment is found", async () => {
-        const { userId } = await createTestData();
+        const { userId } = await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1670,7 +1476,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     it("returns an error when parseInvoiceData returns an error", async () => {
-        await createTestData();
+        await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1687,7 +1493,7 @@ describe("handleInvoicePaymentFailed", () => {
     });
 
     it("notifies user when payment fails", async () => {
-        await createTestData();
+        await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: { object: { customer: "cus_123", id: "inv_123" } },
         } as unknown as Stripe.Event;
@@ -1703,52 +1509,8 @@ describe("handleInvoicePaymentSucceeded", () => {
     let stripeMock;
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await DbProvider.get().payment.deleteMany({});
-        await DbProvider.get().plan.deleteMany({});
-        await DbProvider.get().user.deleteMany({});
+        await cleanupStripeTestData();
     });
-
-    // Helper function to create test data
-    const createTestData = async () => {
-        const userId = generatePK();
-        const paymentId = generatePK();
-        
-        await DbProvider.get().user.create({
-            data: {
-                id: userId,
-                publicId: userId.toString(),
-                name: "user1",
-                stripeCustomerId: "cus_123",
-                emails: {
-                    create: [{ id: generatePK(), emailAddress: "user@example.com" }],
-                },
-                plan: {
-                    create: {
-                        id: generatePK(),
-                        enabledAt: new Date(),
-                        expiresAt: new Date(Date.now() + DAYS_180_MS),
-                    },
-                },
-            },
-        });
-        
-        await DbProvider.get().payment.create({
-            data: {
-                id: paymentId,
-                userId,
-                checkoutId: "inv_123",
-                amount: 1000,
-                currency: "usd",
-                description: "Test payment",
-                paymentMethod: "Stripe",
-                status: "Pending",
-                paymentType: "PremiumMonthly",
-            },
-        });
-        
-        return { userId, paymentId };
-    };
 
     beforeEach(async function beforeEach() {
         vi.clearAllMocks();
@@ -1768,7 +1530,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     it("updates existing payment status to Paid", async () => {
-        const { paymentId } = await createTestData();
+        const { paymentId } = await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1788,7 +1550,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     it("creates a new payment and sets status to Paid when no existing payment is found", async () => {
-        const { userId } = await createTestData();
+        const { userId } = await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1811,7 +1573,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     it("returns an error when parseInvoiceData returns an error", async () => {
-        await createTestData();
+        await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1829,7 +1591,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     it("updates user premium status for subscription payments", async () => {
-        const { userId } = await createTestData();
+        const { userId } = await createInvoiceTestDataWithEmail();
         const mockEvent = {
             data: {
                 object: {
@@ -1849,7 +1611,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 
     it("returns an error if subscription details could not be retrieved", async () => {
-        await createTestData();
+        await createInvoiceTestDataWithEmail();
         StripeMock.simulateFailure(true);
 
         const mockEvent = {
@@ -2063,14 +1825,14 @@ describe("checkSubscriptionPrices", () => {
         await checkSubscriptionPrices(stripeMock, res);
 
         expect(res.status).toHaveBeenCalledWith(HttpStatus.InternalServerError);
-        expect(res.json).toHaveBeenCalledWith({ 
+        expect(res.json).toHaveBeenCalledWith({
             errors: expect.arrayContaining([
                 expect.objectContaining({
                     message: expect.any(String),
-                    trace: expect.any(String)
-                })
+                    trace: expect.any(String),
+                }),
             ]),
-            version: "v2"
+            version: "v2",
         });
     });
 });

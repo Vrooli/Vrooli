@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanupRevokedSessions } from "./cleanupRevokedSessions.js";
 
 // Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+const { DbProvider } = await import("@vrooli/server");
 
 describe("cleanupRevokedSessions integration tests", () => {
     // Store test entity IDs for cleanup
@@ -39,6 +39,15 @@ describe("cleanupRevokedSessions integration tests", () => {
         });
         testUserIds.push(user.id);
 
+        // Create auth record for the user
+        const userAuth = await DbProvider.get().user_auth.create({
+            data: {
+                id: generatePK(),
+                user_id: user.id,
+                provider: "local",
+            },
+        });
+
         // Create sessions with different revoked dates
         const now = new Date();
         const oldDate = new Date(now.getTime() - DAYS_90_MS - 1000); // 90+ days ago
@@ -51,7 +60,7 @@ describe("cleanupRevokedSessions integration tests", () => {
             data: {
                 id: oldSessionId,
                 user_id: user.id,
-                auth_id: generatePK(), // Required auth_id
+                auth_id: userAuth.id,
                 revokedAt: oldDate,
                 expires_at: new Date(now.getTime() + 1000 * 60 * 60 * 24), // 24 hours from now
             },
@@ -64,7 +73,7 @@ describe("cleanupRevokedSessions integration tests", () => {
             data: {
                 id: recentSessionId,
                 user_id: user.id,
-                auth_id: generatePK(), // Required auth_id
+                auth_id: userAuth.id,
                 revokedAt: recentDate,
                 expires_at: new Date(now.getTime() + 1000 * 60 * 60 * 24), // 24 hours from now
             },
@@ -77,7 +86,7 @@ describe("cleanupRevokedSessions integration tests", () => {
             data: {
                 id: activeSessionId,
                 user_id: user.id,
-                auth_id: generatePK(), // Required auth_id
+                auth_id: userAuth.id,
                 revokedAt: null,
                 expires_at: new Date(now.getTime() + 1000 * 60 * 60 * 24), // 24 hours from now
             },
@@ -118,6 +127,15 @@ describe("cleanupRevokedSessions integration tests", () => {
         });
         testUserIds.push(user.id);
 
+        // Create auth record for the user
+        const userAuth = await DbProvider.get().user_auth.create({
+            data: {
+                id: generatePK(),
+                user_id: user.id,
+                provider: "local",
+            },
+        });
+
         const oldDate = new Date(Date.now() - DAYS_90_MS - 1000);
 
         // Create multiple old sessions
@@ -130,7 +148,7 @@ describe("cleanupRevokedSessions integration tests", () => {
                     data: {
                         id: sessionId,
                         user_id: user.id,
-                        auth_id: generatePK(), // Required auth_id
+                        auth_id: userAuth.id,
                         revokedAt: oldDate,
                         expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24),
                     },

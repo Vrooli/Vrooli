@@ -12,9 +12,9 @@ type BatchTeamsResult = Record<string, {
 }>
 
 type BatchResourcesResult = Record<string, {
-    resourcesCreated: number;
-    resourcesCompleted: number;
-    resourceCompletionTimeAverage: number;
+    resourcesCreatedByType?: Record<string, number>;
+    resourcesCompletedByType?: Record<string, number>;
+    resourceCompletionTimeAverageByType?: Record<string, number>;
 }>
 
 type BatchRunsResult = Record<string, {
@@ -82,34 +82,57 @@ async function batchResources(
     periodEnd: string,
 ): Promise<BatchResourcesResult> {
     const initialResult = Object.fromEntries(userIds.map(id => [id, {
-        resourcesCreated: 0,
-        resourcesCompleted: 0,
-        resourceCompletionTimeAverage: 0,
+        resourcesCreatedByType: {},
+        resourcesCompletedByType: {},
+        resourceCompletionTimeAverageByType: {},
     }]));
     try {
         return await batchGroup<Prisma.resourceFindManyArgs, BatchResourcesResult>({
             initialResult,
             processBatch: async (batch, result) => {
-                // For each, add stats to the user
+                // For each, add stats to the user by resource type
                 batch.forEach(resource => {
                     const userId = resource.createdById;
                     if (!userId) return;
                     const currResult = result[userId.toString()];
                     if (!currResult) return;
-                    currResult.resourcesCreated += 1;
+                    
+                    const resourceType = resource.resourceType;
+                    
+                    // Count created resources by type
+                    if (!currResult.resourcesCreatedByType![resourceType]) {
+                        currResult.resourcesCreatedByType![resourceType] = 0;
+                    }
+                    currResult.resourcesCreatedByType![resourceType] += 1;
+                    
+                    // Count completed resources by type
                     if (resource.hasCompleteVersion) {
-                        currResult.resourcesCompleted += 1;
-                        if (resource.completedAt) currResult.resourceCompletionTimeAverage += (new Date(resource.completedAt).getTime() - new Date(resource.createdAt).getTime());
+                        if (!currResult.resourcesCompletedByType![resourceType]) {
+                            currResult.resourcesCompletedByType![resourceType] = 0;
+                        }
+                        currResult.resourcesCompletedByType![resourceType] += 1;
+                        
+                        // Track completion time for averaging
+                        if (resource.completedAt) {
+                            if (!currResult.resourceCompletionTimeAverageByType![resourceType]) {
+                                currResult.resourceCompletionTimeAverageByType![resourceType] = 0;
+                            }
+                            currResult.resourceCompletionTimeAverageByType![resourceType] += (new Date(resource.completedAt).getTime() - new Date(resource.createdAt).getTime());
+                        }
                     }
                 });
             },
             finalizeResult: (result) => {
-                // Calculate averages
+                // Calculate averages by type
                 Object.entries(result).forEach(([userId, currResult]) => {
                     if (!currResult || typeof userId !== 'string') return;
-                    if (currResult.resourcesCompleted > 0) {
-                        currResult.resourceCompletionTimeAverage /= currResult.resourcesCompleted;
-                    }
+                    
+                    Object.entries(currResult.resourceCompletionTimeAverageByType!).forEach(([resourceType, totalTime]) => {
+                        const completedCount = currResult.resourcesCompletedByType![resourceType];
+                        if (completedCount && completedCount > 0) {
+                            currResult.resourceCompletionTimeAverageByType![resourceType] = totalTime / completedCount;
+                        }
+                    });
                 });
                 return result;
             },
@@ -120,6 +143,7 @@ async function batchResources(
                 createdAt: true,
                 createdById: true,
                 hasCompleteVersion: true,
+                resourceType: true,
             },
             where: {
                 createdById: { in: userIds.map(id => BigInt(id)) },
@@ -239,10 +263,10 @@ export async function logUserStats(
                     data: batch.map(user => ({
                         id: generatePK(),
                         userId: user.id,
-                        periodStart,
-                        periodEnd,
+                        periodStart: new Date(periodStart),
+                        periodEnd: new Date(periodEnd),
                         periodType,
-                        ...(resourceStats[user.id.toString()] || { resourceCompletionTimeAverage: 0, resourcesCompleted: 0, resourcesCreated: 0 }),
+                        ...(resourceStats[user.id.toString()] || {}),
                         ...(runStats[user.id.toString()] || { runCompletionTimeAverage: 0, runContextSwitchesAverage: 0, runsCompleted: 0, runsStarted: 0 }),
                         ...(teamStats[user.id.toString()] || { teamsCreated: 0 }),
                     })),

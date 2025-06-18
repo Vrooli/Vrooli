@@ -37,10 +37,12 @@ vi.mock('@vrooli/shared', async (importOriginal) => {
             // Essential constants
             DUMMY_ID: 'dummy-id',
             SERVER_VERSION: 'v2',
+            DAYS_1_MS: 86400000, // 24 hours in milliseconds
             
             // Essential enums
             InputType: { Text: 'Text', JSON: 'JSON' },
             TaskStatus: { Running: 'Running', Completed: 'Completed' },
+            FormStructureType: { Tip: 'Tip' },
             
             // Essential functions
             nanoid: () => Math.random().toString(36).substring(2, 9),
@@ -48,6 +50,13 @@ vi.mock('@vrooli/shared', async (importOriginal) => {
             parseSearchParams: () => ({}),
             stringifySearchParams: () => '',
             generatePK: () => Math.random().toString(36).substring(2, 15),
+            
+            // Regex exports needed by tests
+            urlRegex: /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i,
+            urlRegexDev: /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?:localhost|127\.0\.0\.1)(?::\d{2,5})?|(?:[a-z\u00a1-\uffff0-9]+(?:-[a-z\u00a1-\uffff0-9]+)*)(?:\.(?:[a-z\u00a1-\uffff0-9]+(?:-[a-z\u00a1-\uffff0-9]+)*))*\.(?:[a-z\u00a1-\uffff]{2,})\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i,
+            walletAddressRegex: /^addr1[a-zA-Z0-9]{98}$/,
+            handleRegex: /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9_]{3,16}$/,
+            hexColorRegex: /^#([0-9A-F]{3}([0-9A-F]{3})?)$/i,
         };
     }
 });
@@ -55,7 +64,14 @@ vi.mock('@vrooli/shared', async (importOriginal) => {
 // Essential mocks only - no fancy stuff
 vi.mock('../utils/display/device.js', () => ({
     keyComboToString: () => 'Ctrl+S',
-    getDeviceInfo: () => ({ isMobile: false }),
+    getDeviceInfo: () => ({ isMobile: false, deviceOS: 'Windows' }),
+    DeviceOS: {
+        IOS: 'iOS',
+        MacOS: 'MacOS',
+        Windows: 'Windows',
+        Android: 'Android',
+        Linux: 'Linux',
+    },
 }));
 vi.mock('../utils/display/chatTools.js', () => ({
     taskToTaskInfo: () => ({ name: 'Test Task', description: 'Test Description' }),
@@ -64,23 +80,26 @@ vi.mock('../utils/display/chatTools.js', () => ({
 }));
 vi.mock('@uiw/react-codemirror', () => ({ default: () => null }));
 
-// Mock the problematic lexical components to prevent circular dependency errors
+// Mock only the most problematic lexical components with realistic implementations
 vi.mock('../components/inputs/AdvancedInput/lexical/AdvancedInputLexical.js', () => ({
-    AdvancedInputLexical: () => null,
-    default: () => null,
+    AdvancedInputLexical: () => {
+        const React = require('react');
+        return React.createElement('div', { 'data-testid': 'lexical-editor' });
+    },
+    default: () => {
+        const React = require('react');
+        return React.createElement('div', { 'data-testid': 'lexical-editor' });
+    },
 }));
 vi.mock('../components/inputs/RichInput/RichInput.js', () => ({
     RichInput: () => null,
-    default: () => null,
-}));
-vi.mock('../components/inputs/AdvancedInput/AdvancedInput.js', () => ({
-    AdvancedInput: () => null,
     default: () => null,
 }));
 vi.mock('../components/inputs/TagSelector/TagSelector.js', () => ({
     TagSelector: () => null,
     default: () => null,
 }));
+// NOTE: Removed AdvancedInput mock to allow proper testing
 vi.mock('../utils/pubsub.js', () => ({
     PubSub: {
         get: () => ({
@@ -90,6 +109,14 @@ vi.mock('../utils/pubsub.js', () => ({
         }),
     },
 }));
+
+// Mock API environment variables to prevent actual connections
+process.env.VITE_PORT_API = '0'; // Use port 0 to prevent actual connections
+process.env.VITE_API_URL = 'http://localhost:0/api'; // Mock API URL
+process.env.VITE_SITE_IP = 'localhost';
+
+// Mock fetch to prevent any actual HTTP requests
+global.fetch = vi.fn(() => Promise.reject(new Error('Network requests are not allowed in tests')));
 
 // Minimal browser mocks
 Object.defineProperty(window, 'matchMedia', {

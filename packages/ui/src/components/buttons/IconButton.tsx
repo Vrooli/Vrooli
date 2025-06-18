@@ -337,7 +337,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
 
                 {/* Icon content with proper z-index for space and neon variants */}
                 <span className={cn(
-                    "tw-relative",
+                    "tw-relative tw-flex tw-items-center tw-justify-center",
                     (variant === "space" || variant === "neon") && "tw-z-10"
                 )}>
                     <ButtonIcon size={numericSize} variant={variant}>{children}</ButtonIcon>
