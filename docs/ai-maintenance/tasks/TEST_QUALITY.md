@@ -37,7 +37,15 @@ Behaviour-driven tests written with **Vitest** act as executable specifications:
 * Workspace must start **green**: `pnpm run test` passes.
 * `ripgrep (rg)` installed for comment queries.
 * Docker running (Testcontainers).
-* The project’s root `pnpm test` script invokes Vitest; all CLI examples below extend that.
+* The project’s root `pnpm run test` script invokes Vitest; all CLI examples below extend that.
+
+### ⏱️ Timeout Reminder for Long-Running Commands
+
+Many test and build commands take longer than the default 2-minute timeout. Always remember to set appropriate extended timeouts when running:
+- Single test files: Usually need 3+ minutes
+- Package test suites: Usually need 5+ minutes  
+- Full test suite: Can take up to 10 minutes
+- Type checking: Usually needs 3-4 minutes
 
 ---
 
@@ -65,7 +73,8 @@ Work through list A first, then oldest in B.
 
 ```bash
 # Run the specific test file first
-cd packages/[package] && pnpm test path/to/specific.test.ts
+# ⚠️ Use extended timeout for test runs
+cd packages/[package] && pnpm test path/to/specific.test.ts  # needs 3+ min timeout
 
 # If that passes, make your changes
 ```
@@ -143,26 +152,23 @@ describe("MyFeature", () => {
 
 ```bash
 # Run the specific test file after EACH change
-cd packages/[package] && pnpm test path/to/specific.test.ts
+# ⚠️ IMPORTANT: Tests can take 3-5+ minutes. Set extended timeout
+cd packages/[package] && pnpm test path/to/specific.test.ts  # needs 3-5 min timeout
 
-# Only after the individual test passes, run related tests
-pnpm run test -- --changed
-
-# To compare with main branch
-pnpm run test -- --changed origin/main
+# Only after the individual test passes, run full package tests
+cd packages/[package] && pnpm run test  # needs 5+ min timeout
 ```
-
-`--changed` tells Vitest to execute only suites related to changed files. ([vitest.dev][7])
 
 ### 7 Run full suite
 
 ```bash
 # Run package-specific tests first
-cd packages/[package] && pnpm test
+# ⚠️ IMPORTANT: Full test suites require extended timeouts
+cd packages/[package] && pnpm run test  # needs 5+ min timeout
 
 # Only if that passes, run full suite
-pnpm run test               # root
-pnpm --filter shared test   # package-scoped if preferred
+pnpm run test               # root - needs 10+ min timeout
+pnpm --filter shared test   # package-scoped - needs 3+ min timeout
 ```
 
 All tests must be green before updating comments.
@@ -298,8 +304,7 @@ describe("MyFeature", () => {
 - [ ] Mocks are restored in `afterAll`
 - [ ] No deep imports from `@vrooli/*` packages
 - [ ] Test still passes after EACH change
-- [ ] Package-specific tests pass (`cd packages/[pkg] && pnpm test`)
-- [ ] Related tests pass (`pnpm test -- --changed`)
+- [ ] Package-specific tests pass (`cd packages/[pkg] && pnpm run test`)
 
 ---
 

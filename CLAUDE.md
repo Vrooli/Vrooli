@@ -47,17 +47,19 @@ Key Files:
 ./scripts/main/develop.sh --target docker --detached yes
 
 # Run tests
-pnpm test                                            # Run all tests (shell, unit, run)
+# ⚠️ IMPORTANT: Tests can take 3-5+ minutes. Always use extended timeouts for test commands
+pnpm test                                            # Run all tests (shell, unit, run) - needs 5+ min timeout
 pnpm test:shell                                      # Test shell scripts only
-pnpm test:unit                                       # Unit tests in all packages
-cd packages/server && pnpm test                      # Server tests
+pnpm test:unit                                       # Unit tests in all packages - needs 5+ min timeout
+cd packages/server && pnpm test                      # Server tests - needs 5+ min timeout
 cd packages/server && pnpm test-watch                # Watch mode
-cd packages/server && pnpm test-coverage             # With coverage
-cd packages/jobs && pnpm test                        # Jobs tests
+cd packages/server && pnpm test-coverage             # With coverage - needs 5+ min timeout
+cd packages/jobs && pnpm test                        # Jobs tests - needs 3+ min timeout
 
 # Type checking (recommended: check smallest number of files possible due to large project size)
-cd packages/server && pnpm run type-check            # Server package only  
-cd packages/ui && pnpm run type-check                # UI package only
+# ⚠️ IMPORTANT: Full package type-check can take 2-4+ minutes. Use extended timeouts
+cd packages/server && pnpm run type-check            # Server package only - needs 4+ min timeout
+cd packages/ui && pnpm run type-check                # UI package only - needs 3+ min timeout
 cd packages/shared && pnpm run type-check            # Shared package only
 cd packages/server && tsc --noEmit src/file.ts       # Single file
 cd packages/server && tsc --noEmit src/file1.ts src/file2.ts  # Multiple files
@@ -77,7 +79,7 @@ cd packages/server && pnpm prisma migrate deploy     # Deploy migrations
 
 # Alternative development commands
 pnpm run develop                                     # Alternative to develop script
-docker compose up --build                            # Direct Docker alternative
+docker compose up --build                            # Direct Docker alternative - needs 5+ min timeout
 ```
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
@@ -133,6 +135,17 @@ These commands can be invoked by using the keywords listed for each:
 |-------|----------|
 | `Missing script: type-check` | No root-level type-check - use package-specific commands |
 | `cd: packages/ui: No such file or directory` | Ensure you're in project root `/root/Vrooli` first |
+| `Command timed out after 2m 0.0s` | Increase timeout for long-running commands |
+
+## ⏱️ Timeout Guidelines for Long-Running Commands
+**Remember to set appropriate timeouts when running:**
+- Test suites: Usually need 3-5 minutes
+- Type checking full packages: Usually need 3-4 minutes
+- Building/compiling: Usually need 5+ minutes
+- Database migrations: Usually need 3+ minutes
+- Docker builds: Can take 5-10 minutes
+
+The default timeout is 2 minutes, which is often insufficient for these operations.
 
 
 ---

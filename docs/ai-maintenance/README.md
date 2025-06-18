@@ -17,7 +17,7 @@ This document defines a systematic approach for tracking repetitive AI maintenan
 
 ## Standard Task IDs
 
-| Task ID | Instructions | When to Use |
+| Task ID | Instructions (MUST READ) | When to Use |
 |---------|-------------|-------------|
 | `TEST_QUALITY` | [TEST_QUALITY.md](./tasks/TEST_QUALITY.md) | User asks to identify/fix tests written to pass |
 | `TEST_COVERAGE` | [TEST_COVERAGE.md](./tasks/TEST_COVERAGE.md) | User asks to improve test coverage |
