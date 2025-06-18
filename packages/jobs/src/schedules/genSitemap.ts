@@ -1,5 +1,13 @@
 import { DbProvider, ModelMap, UI_URL_REMOTE, logger, type PrismaDelegate } from "@vrooli/server";
-import { LINKS, ResourceSubType, ResourceType, generateSitemap, generateSitemapIndex, type SitemapEntryContent } from "@vrooli/shared";
+import { LINKS, ResourceSubType, ResourceType, generateSitemap, generateSitemapIndex, type SitemapEntryContent, ModelType } from "@vrooli/shared";
+import { 
+    MAX_ENTRIES_PER_SITEMAP, 
+    BYTES_PER_KILOBYTE, 
+    SITEMAP_SIZE_LIMIT_MB, 
+    MAX_SITEMAP_FILE_SIZE_BYTES, 
+    ESTIMATED_ENTRY_OVERHEAD_BYTES, 
+    BATCH_SIZE_SMALL 
+} from "../constants.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -11,12 +19,51 @@ const sitemapObjectTypes = [
     "User",
 ] as const;
 
-const MAX_ENTRIES_PER_SITEMAP = 50000;
-const BYTES_PER_KILOBYTE = 1024;
-const SITEMAP_SIZE_LIMIT_MB = 50;
-const MAX_SITEMAP_FILE_SIZE_BYTES = SITEMAP_SIZE_LIMIT_MB * BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE; // 50MB in bytes
-const ESTIMATED_ENTRY_OVERHEAD_BYTES = 100; // Estimated XML overhead per entry
-const BATCH_SIZE = 100; // How many objects to fetch at a time
+/**
+ * Type guard to check if a value is a PrismaDelegate
+ */
+function isPrismaDelegate(value: unknown): value is PrismaDelegate {
+    return value !== null && 
+           typeof value === "object" && 
+           "findMany" in value &&
+           typeof value.findMany === "function";
+}
+
+/**
+ * Type guard to check if a string is a valid LINKS key
+ */
+function isValidLinkKey(key: string): key is keyof typeof LINKS {
+    return key in LINKS;
+}
+
+/**
+ * Type guard to safely check if an object has a specific property
+ */
+function hasProperty<T extends string>(obj: unknown, prop: T): obj is Record<T, unknown> {
+    return obj !== null && typeof obj === 'object' && prop in obj;
+}
+
+/**
+ * Type guard to check if a string is a valid ResourceSubType
+ */
+function isValidResourceSubType(value: string): value is ResourceSubType {
+    return (Object.values(ResourceSubType) as string[]).includes(value);
+}
+
+/**
+ * Type guard to check if an object is a valid SitemapProperties root object
+ */
+function isValidRootObject(obj: unknown): obj is SitemapProperties['root'] {
+    if (!obj || typeof obj !== 'object') return false;
+    
+    const root = obj as { [key: string]: unknown };
+    return typeof root.id === 'string' && 
+           typeof root.publicId === 'string' &&
+           (root.handle === undefined || typeof root.handle === 'string') &&
+           (root.isDeleted === undefined || typeof root.isDeleted === 'boolean') &&
+           (root.isPrivate === undefined || typeof root.isPrivate === 'boolean') &&
+           (root.resourceType === undefined || (Object.values(ResourceType) as string[]).includes(root.resourceType as string));
+}
 
 /**
  * Defines the structure of properties relevant for sitemap generation, 
@@ -29,6 +76,8 @@ type SitemapProperties = {
     publicId: string;
     /** Optional user-defined handle for the object (e.g., for Teams, Users). */
     handle?: string;
+    /** Flag indicating if the object is deleted. */
+    isDeleted?: boolean;
     /** Specific subtype if the object is a ResourceVersion (e.g., CodeDataConverter, StandardPrompt). */
     resourceSubType?: ResourceSubType;
     /** Optional version label if the object is a ResourceVersion. */
@@ -60,9 +109,16 @@ type SitemapProperties = {
  * This function determines the initial segment of the URL for an object in the sitemap.
  * For `ResourceVersion` objects, it further disambiguates the URL based on `resourceSubType` or `root.resourceType`.
  * 
+ * IMPORTANT: The URL structure must align with the og-worker's expectations for generating 
+ * Open Graph meta tags. The og-worker relies on these specific URL patterns to reliably 
+ * fetch metadata without requiring additional dependencies. URLs include:
+ * - /u/@handle for users (the @ indicates we're using handle instead of publicId)
+ * - /team/@handle for teams
+ * - Various paths for resource types based on their specific type
+ * 
  * @param objectType The type of the sitemap object (e.g., "ResourceVersion", "Team", "User").
  * @param properties The fetched properties of the object, used for URL disambiguation.
- * @returns The base URL path string for the given object type, or an empty string if no match is found.
+ * @returns The base URL path string for the given object type, or null if no match is found.
  */
 function getLink(objectType: typeof sitemapObjectTypes[number], properties: SitemapProperties): string | null {
     switch (objectType) {
@@ -141,10 +197,50 @@ async function genSitemapForObject(
         do {
             // Find all public objects
             const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], objectType);
-            const batch = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
-                where: {
-                    ...validate().visibility.public,
-                },
+            const dbModel = DbProvider.get()[dbTable];
+            
+            if (!isPrismaDelegate(dbModel)) {
+                logger.error(`Database model for ${objectType} is not a valid PrismaDelegate`, {
+                    objectType,
+                    dbTable,
+                });
+                throw new Error(`Invalid database model for ${objectType}`);
+            }
+            
+            // Build where condition - manually add visibility filters since validate().visibility.public may not work in jobs context
+            let visibilityFilter = {};
+            
+            // Apply type-specific visibility filters
+            switch (objectType) {
+                case "User":
+                    visibilityFilter = { isPrivate: false, isBot: false };
+                    break;
+                case "Team":
+                    visibilityFilter = { isPrivate: false };
+                    break;
+                case "ResourceVersion":
+                    visibilityFilter = { 
+                        isPrivate: false, 
+                        isDeleted: false,
+                        isComplete: true,
+                        root: {
+                            isPrivate: false,
+                            isDeleted: false
+                        }
+                    };
+                    break;
+                default:
+                    // Fallback to validate function if available
+                    const validateVisibility = validate().visibility?.public;
+                    if (validateVisibility) {
+                        visibilityFilter = validateVisibility;
+                    }
+            }
+            
+            const whereCondition = visibilityFilter;
+            
+            const batchResult = await dbModel.findMany({
+                where: whereCondition,
                 // Grab id, handle, root data, and translations
                 select: {
                     id: true,
@@ -167,19 +263,80 @@ async function genSitemapForObject(
                                 isDeleted: true,
                                 isPrivate: true,
                                 resourceType: true,
-                                handle: true,
                             },
                         },
                     }),
                 },
                 skip,
-                take: BATCH_SIZE,
-            }) as SitemapProperties[];
+                take: BATCH_SIZE_SMALL,
+            });
+            
+            // Type validation and transformation with safer handling
+            const batch: SitemapProperties[] = [];
+            
+            for (const item of batchResult) {
+                try {
+                    // Validate required fields exist
+                    if (!item || typeof item !== 'object') {
+                        logger.warn(`Invalid item in batch result for ${objectType}`, { item });
+                        continue;
+                    }
+                    
+                    // Safe bigint to string conversion
+                    const idStr = item.id ? item.id.toString() : '';
+                    if (!idStr) {
+                        logger.warn(`Item missing id in batch result for ${objectType}`, { item });
+                        continue;
+                    }
+                    
+                    // Create base object with required fields
+                    const result: SitemapProperties = {
+                        id: idStr,
+                        publicId: typeof item.publicId === 'string' ? item.publicId : '',
+                        handle: undefined,
+                        translations: Array.isArray(item.translations) ? item.translations : [],
+                    };
+                    
+                    // Add optional fields with proper type validation
+                    if (supportsHandles && hasProperty(item, 'handle') && typeof item.handle === 'string') {
+                        result.handle = item.handle;
+                    }
+                    
+                    if (hasProperty(item, 'isDeleted') && typeof item.isDeleted === 'boolean') {
+                        result.isDeleted = item.isDeleted;
+                    }
+                    
+                    if (hasProperty(item, 'resourceSubType') && typeof item.resourceSubType === 'string' && isValidResourceSubType(item.resourceSubType)) {
+                        result.resourceSubType = item.resourceSubType;
+                    }
+                    
+                    if (hasProperty(item, 'versionLabel') && typeof item.versionLabel === 'string') {
+                        result.versionLabel = item.versionLabel;
+                    }
+                    
+                    if (hasProperty(item, 'root') && isValidRootObject(item.root)) {
+                        result.root = item.root;
+                    }
+                    
+                    batch.push(result);
+                } catch (error) {
+                    logger.error(`Error processing batch item for ${objectType}`, { error, item });
+                }
+            }
             // Increment skip
-            skip += BATCH_SIZE;
+            skip += BATCH_SIZE_SMALL;
             // Update current batch size
             currentBatchSize = batch.length;
-            const baseUrlSize = UI_URL_REMOTE.length + LINKS[objectType.replace("Version", "")].length;
+            // Safe calculation of base URL size - handle the case where objectType might not have a direct LINKS mapping
+            const linkKey = objectType.replace("Version", "");
+            let linkValue = "";
+            if (isValidLinkKey(linkKey)) {
+                linkValue = LINKS[linkKey];
+            } else {
+                // For types that don't have direct LINKS mapping, estimate with empty string
+                logger.debug(`No LINKS mapping found for linkKey: ${linkKey} (from objectType: ${objectType})`);
+            }
+            const baseUrlSize = UI_URL_REMOTE.length + linkValue.length;
             for (const entry of batch) {
                 // Convert batch to SiteMapEntryContent
                 const objectLink = getLink(objectType, entry);
@@ -206,7 +363,7 @@ async function genSitemapForObject(
         } while (
             collectedEntries.length < MAX_ENTRIES_PER_SITEMAP &&
             estimatedFileSize < MAX_SITEMAP_FILE_SIZE_BYTES &&
-            currentBatchSize === BATCH_SIZE
+            currentBatchSize === BATCH_SIZE_SMALL
         );
         // If no entries were collected, return an empty array. 
         // This is to prevent an empty sitemap file from being generated, which gives an error in Google Search Console
@@ -215,19 +372,17 @@ async function genSitemapForObject(
         }
         // Convert collected entries to sitemap file
         const sitemap = generateSitemap(UI_URL_REMOTE, { content: collectedEntries });
-        // Zip and save sitemap file
+        // Zip and save sitemap file synchronously
         const sitemapFileName = `${objectType}-${sitemapFileNames.length}.xml.gz`;
-        zlib.gzip(sitemap, (err, buffer) => {
-            if (err) {
-                logger.error(err);
-            } else {
-                fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, new Uint8Array(buffer));
-            }
-        });
-        //fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, sitemap);
-        // Add sitemap file name to array
-        sitemapFileNames.push(sitemapFileName);
-    } while (currentBatchSize === BATCH_SIZE);
+        try {
+            const buffer = zlib.gzipSync(sitemap);
+            fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, buffer);
+            // Add sitemap file name to array only after successful write
+            sitemapFileNames.push(sitemapFileName);
+        } catch (error) {
+            logger.error("Failed to create or write sitemap file", { sitemapFileName, error });
+        }
+    } while (currentBatchSize === BATCH_SIZE_SMALL);
     // Return sitemap file names
     return sitemapFileNames;
 }
@@ -248,9 +403,12 @@ async function genSitemapForObject(
  * reflecting the latest publicly available dynamic content.
  */
 export async function genSitemap(): Promise<void> {
-    // Check if sitemap directory exists
+    // Ensure all directories exist
+    if (!fs.existsSync(sitemapIndexDir)) {
+        fs.mkdirSync(sitemapIndexDir, { recursive: true });
+    }
     if (!fs.existsSync(sitemapDir)) {
-        fs.mkdirSync(sitemapDir);
+        fs.mkdirSync(sitemapDir, { recursive: true });
     }
     // Check if sitemap file for main route exists
     const routeSitemapFileName = "sitemap-routes.xml";
@@ -279,7 +437,7 @@ export async function genSitemap(): Promise<void> {
         fs.writeFileSync(`${sitemapIndexDir}/sitemap.xml`, sitemapIndex);
         logger.info("✅ Sitemap generated successfully");
     } catch (error) {
-        logger.error("genSitemap caught error", { error, trace: "0463", routeSitemapFileName, sitemapDir });
+        logger.error("genSitemap caught error", { error: error instanceof Error ? { message: error.message, name: error.name, stack: error.stack } : error, trace: "0463", routeSitemapFileName, sitemapDir });
     }
 }
 

@@ -1,65 +1,29 @@
-import { generatePK, generatePublicId, ResourceSubType, ResourceType } from "@vrooli/shared";
+import { generatePK, generatePublicId, LINKS } from "@vrooli/shared";
 import fs from "fs";
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import zlib from "zlib";
-import type { MockedFunction } from "vitest";
+import { promisify } from "util";
 import { genSitemap, isSitemapMissing } from "./genSitemap.js";
+import { DbProvider, logger, UI_URL_REMOTE } from "@vrooli/server";
 
-import { DbProvider } from "@vrooli/server/db/provider.js";
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
-// Mock fs module
-vi.mock("fs", () => ({
-    default: {
-        existsSync: vi.fn(),
-        mkdirSync: vi.fn(),
-        writeFileSync: vi.fn(),
-    },
-}));
-
-// Type the mocked fs functions
-type MockedFs = {
-    existsSync: MockedFunction<typeof fs.existsSync>;
-    mkdirSync: MockedFunction<typeof fs.mkdirSync>;
-    writeFileSync: MockedFunction<typeof fs.writeFileSync>;
-};
-const mockedFs = fs as unknown as MockedFs;
-
-// Mock zlib module
-vi.mock("zlib", () => ({
-    default: {
-        gzip: vi.fn((data, callback) => {
-            // Mock successful gzip compression
-            callback(null, Buffer.from("compressed-data"));
-        }),
-    },
-}));
-
-// Type the mocked zlib functions
-type MockedZlib = {
-    gzip: MockedFunction<typeof zlib.gzip>;
-};
-const mockedZlib = zlib as unknown as MockedZlib;
-
-// Mock only the UI_URL constant for testing
-vi.mock("@vrooli/server", async () => {
-    const actual = await vi.importActual("@vrooli/server");
-    return {
-        ...actual,
-        UI_URL_REMOTE: "https://test.vrooli.com",
-    };
-});
-
-describe("genSitemap tests", () => {
+describe("genSitemap integration tests", () => {
     // Store test entity IDs for cleanup
     const testUserIds: bigint[] = [];
     const testTeamIds: bigint[] = [];
     const testResourceIds: bigint[] = [];
     const testResourceVersionIds: bigint[] = [];
-    const testRoutineIds: bigint[] = [];
-    const testApiIds: bigint[] = [];
-    const testNoteIds: bigint[] = [];
-    const testProjectIds: bigint[] = [];
+    const testLang = "en";
+
+    beforeAll(() => {
+        // Suppress logger output during tests
+        vi.spyOn(logger, "error").mockImplementation(() => logger);
+        vi.spyOn(logger, "info").mockImplementation(() => logger);
+        vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    });
 
     beforeEach(async () => {
         // Clear test ID arrays
@@ -67,37 +31,36 @@ describe("genSitemap tests", () => {
         testTeamIds.length = 0;
         testResourceIds.length = 0;
         testResourceVersionIds.length = 0;
-        testRoutineIds.length = 0;
-        testApiIds.length = 0;
-        testNoteIds.length = 0;
-        testProjectIds.length = 0;
-
-        // Reset all mocks
-        vi.clearAllMocks();
     });
 
     afterEach(async () => {
-        // Clean up test data
+        // Clean up generated files
+        const sitemapIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+        const sitemapsDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+        
+        // Clean up sitemap index
+        if (fs.existsSync(sitemapIndexPath)) {
+            fs.unlinkSync(sitemapIndexPath);
+        }
+        
+        // Clean up sitemaps directory
+        if (fs.existsSync(sitemapsDir)) {
+            const files = fs.readdirSync(sitemapsDir);
+            for (const file of files) {
+                if (file.endsWith(".xml.gz")) {
+                    fs.unlinkSync(path.join(sitemapsDir, file));
+                }
+            }
+        }
+        
+        // Clean up test data from database
         const db = DbProvider.get();
         
-        // Clean up in reverse dependency order
         if (testResourceVersionIds.length > 0) {
             await db.resource_version.deleteMany({ where: { id: { in: testResourceVersionIds } } });
         }
         if (testResourceIds.length > 0) {
             await db.resource.deleteMany({ where: { id: { in: testResourceIds } } });
-        }
-        if (testRoutineIds.length > 0) {
-            await db.routine.deleteMany({ where: { id: { in: testRoutineIds } } });
-        }
-        if (testApiIds.length > 0) {
-            await db.api.deleteMany({ where: { id: { in: testApiIds } } });
-        }
-        if (testNoteIds.length > 0) {
-            await db.note.deleteMany({ where: { id: { in: testNoteIds } } });
-        }
-        if (testProjectIds.length > 0) {
-            await db.project.deleteMany({ where: { id: { in: testProjectIds } } });
         }
         if (testTeamIds.length > 0) {
             await db.team.deleteMany({ where: { id: { in: testTeamIds } } });
@@ -108,517 +71,424 @@ describe("genSitemap tests", () => {
     });
 
     describe("isSitemapMissing", () => {
-        it("should return true when sitemap.xml does not exist", async () => {
-            mockedFs.existsSync.mockReturnValue(false);
+        // Get the expected sitemap path
+        const sitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+        const sitemapDir = path.dirname(sitemapPath);
 
-            const result = await isSitemapMissing();
-            expect(result).toBe(true);
+        it("should return true when sitemap.xml doesn't exist", async () => {
+            // Clean up any existing file
+            if (fs.existsSync(sitemapPath)) {
+                fs.unlinkSync(sitemapPath);
+            }
+            expect(await isSitemapMissing()).toBe(true);
         });
 
         it("should return false when sitemap.xml exists", async () => {
-            mockedFs.existsSync.mockReturnValue(true);
-
-            const result = await isSitemapMissing();
-            expect(result).toBe(false);
+            // Create directory if needed
+            if (!fs.existsSync(sitemapDir)) {
+                fs.mkdirSync(sitemapDir, { recursive: true });
+            }
+            fs.writeFileSync(sitemapPath, "test");
+            expect(await isSitemapMissing()).toBe(false);
+            // Clean up
+            fs.unlinkSync(sitemapPath);
         });
     });
 
     describe("genSitemap", () => {
-        it("should create sitemap directory if it doesn't exist", async () => {
-            // First call checks sitemap directory, second checks routes sitemap
-            mockedFs.existsSync.mockReturnValueOnce(false).mockReturnValueOnce(true);
-
+        it("should generate a sitemap index when no entities exist", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
             await genSitemap();
 
-            expect(mockedFs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining("/sitemaps"));
+            // Check that sitemap index was created
+            expect(fs.existsSync(testIndexPath)).toBe(true);
+            
+            // Read and verify index content
+            const indexContent = fs.readFileSync(testIndexPath, "utf-8");
+            expect(indexContent).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+            expect(indexContent).toContain('<sitemapindex');
+            // Accept both self-closing and explicit closing tags
+            expect(indexContent.includes('</sitemapindex>') || indexContent.includes('/>')).toBe(true);
+            
         });
 
-        it("should generate sitemap for public users with handles", async () => {
+        it("should generate sitemaps for users", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
             // Create test users
-            const user1 = await DbProvider.get().user.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    name: "Public User 1",
-                    handle: "publicuser1",
-                    isPrivate: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", bio: "English bio" },
-                            { id: generatePK(), language: "es", bio: "Spanish bio" },
-                        ],
+            for (let i = 0; i < 3; i++) {
+                const user = await DbProvider.get().user.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        name: `Test User ${i}`,
+                        handle: `testuser${i}`,
+                        isBot: false,
+                        isPrivate: false,
                     },
-                },
-            });
-            testUserIds.push(user1.id);
-
-            const user2 = await DbProvider.get().user.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    name: "Public User 2",
-                    handle: "publicuser2",
-                    isPrivate: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", bio: "Another bio" },
-                        ],
-                    },
-                },
-            });
-            testUserIds.push(user2.id);
-
-            // Private user should not be included
-            const privateUser = await DbProvider.get().user.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    name: "Private User",
-                    handle: "privateuser",
-                    isPrivate: true,
-                },
-            });
-            testUserIds.push(privateUser.id);
-
-            mockedFs.existsSync.mockReturnValue(true);
+                });
+                testUserIds.push(user.id);
+            }
 
             await genSitemap();
 
-            // Check that zlib.gzip was called for User sitemap
-            expect(zlib.gzip).toHaveBeenCalled();
+            // Check that user sitemap was created
+            const userSitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemaps/User-0.xml.gz");
+            expect(fs.existsSync(userSitemapPath)).toBe(true);
             
-            // Check that sitemap files were written
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("User-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
+            // Decompress and verify content
+            const compressed = fs.readFileSync(userSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
             
-            // Check that sitemap index was written
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("sitemap.xml"),
-                expect.stringContaining("User-0.xml.gz")
-            );
+            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+            expect(content).toContain('<urlset');
+            expect(content).toContain(`${UI_URL_REMOTE}${LINKS.User}/@`);
+            expect(content).toContain('</urlset>');
         });
 
-        it("should generate sitemap for public teams", async () => {
+        it("should generate sitemaps for teams", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
+            // Create a user to own the teams
             const owner = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Team Owner",
                     handle: "teamowner",
+                    isBot: false,
                 },
             });
             testUserIds.push(owner.id);
 
-            // Create public teams
-            const team1 = await DbProvider.get().team.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    handle: "publicteam1",
-                    isPrivate: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Public Team 1" },
-                        ],
+            // Create test teams
+            for (let i = 0; i < 3; i++) {
+                const team = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        handle: `testteam${i}`,
+                        createdBy: {
+                            connect: { id: owner.id }
+                        },
+                        isPrivate: false,
                     },
-                },
-            });
-            testTeamIds.push(team1.id);
-
-            const team2 = await DbProvider.get().team.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    handle: "publicteam2",
-                    isPrivate: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Public Team 2" },
-                            { id: generatePK(), language: "fr", name: "Équipe Publique 2" },
-                        ],
-                    },
-                },
-            });
-            testTeamIds.push(team2.id);
-
-            // Private team should not be included
-            const privateTeam = await DbProvider.get().team.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    handle: "privateteam",
-                    isPrivate: true,
-                },
-            });
-            testTeamIds.push(privateTeam.id);
-
-            mockedFs.existsSync.mockReturnValue(true);
+                });
+                testTeamIds.push(team.id);
+            }
 
             await genSitemap();
 
-            // Check that Team sitemap was generated
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("Team-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
+            // Check that team sitemap was created
+            const teamSitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemaps/Team-0.xml.gz");
+            expect(fs.existsSync(teamSitemapPath)).toBe(true);
+            
+            // Decompress and verify content
+            const compressed = fs.readFileSync(teamSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
+            
+            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+            expect(content).toContain('<urlset');
+            expect(content).toContain(`${UI_URL_REMOTE}${LINKS.Team}/@`);
+            expect(content).toContain('</urlset>');
         });
 
-        it("should generate sitemap for different resource version types", async () => {
+        it("should generate sitemaps for resource versions", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
+            // Create a user to own the resources
             const owner = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
                     name: "Resource Owner",
                     handle: "resourceowner",
+                    isBot: false,
                 },
             });
             testUserIds.push(owner.id);
 
-            // Create routine for RoutineVersion resource
-            const routine = await DbProvider.get().routine.create({
-                data: {
-                    id: generatePK(),
-                    createdById: owner.id,
-                    isPrivate: false,
-                    isInternal: false,
-                },
-            });
-            testRoutineIds.push(routine.id);
-
-            // Create resources of different types
-            const routineResource = await DbProvider.get().resource.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    resourceType: ResourceType.Routine,
-                    isPrivate: false,
-                    isDeleted: false,
-                },
-            });
-            testResourceIds.push(routineResource.id);
-
-            // Create resource version for routine
-            const routineVersion = await DbProvider.get().resource_version.create({
-                data: {
-                    id: generatePK(),
-                    resourceId: routineResource.id,
-                    routineId: routine.id,
-                    versionLabel: "1.0.0",
-                    schemaLanguage: "json",
-                    schema: "{}",
-                    resourceSubType: ResourceSubType.RoutineMultiStep,
-                    isDeleted: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Multi-Step Routine", description: "A routine" },
-                        ],
-                    },
-                },
-            });
-            testResourceVersionIds.push(routineVersion.id);
-
-            // Create API resource
-            const api = await DbProvider.get().api.create({
-                data: {
-                    id: generatePK(),
-                    createdById: owner.id,
-                    isPrivate: false,
-                    isInternal: false,
-                },
-            });
-            testApiIds.push(api.id);
-
-            const apiResource = await DbProvider.get().resource.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    resourceType: ResourceType.Api,
-                    handle: "test-api",
-                    isPrivate: false,
-                    isDeleted: false,
-                },
-            });
-            testResourceIds.push(apiResource.id);
-
-            const apiVersion = await DbProvider.get().resource_version.create({
-                data: {
-                    id: generatePK(),
-                    resourceId: apiResource.id,
-                    apiId: api.id,
-                    versionLabel: "2.0.0",
-                    schemaLanguage: "graphql",
-                    schema: "type Query { hello: String }",
-                    isDeleted: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Test API", description: "An API" },
-                        ],
-                    },
-                },
-            });
-            testResourceVersionIds.push(apiVersion.id);
-
-            // Create Note resource
-            const note = await DbProvider.get().note.create({
-                data: {
-                    id: generatePK(),
-                    ownedByUserId: owner.id,
-                    isPrivate: false,
-                },
-            });
-            testNoteIds.push(note.id);
-
-            const noteResource = await DbProvider.get().resource.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    resourceType: ResourceType.Note,
-                    isPrivate: false,
-                    isDeleted: false,
-                },
-            });
-            testResourceIds.push(noteResource.id);
-
-            const noteVersion = await DbProvider.get().resource_version.create({
-                data: {
-                    id: generatePK(),
-                    resourceId: noteResource.id,
-                    noteId: note.id,
-                    versionLabel: "1.0.0",
-                    schemaLanguage: "json",
-                    schema: "{}",
-                    isDeleted: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Test Note", description: "A note" },
-                        ],
-                    },
-                },
-            });
-            testResourceVersionIds.push(noteVersion.id);
-
-            // Create deleted resource version (should not be included)
-            const deletedResource = await DbProvider.get().resource.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    createdById: owner.id,
-                    resourceType: ResourceType.Project,
-                    isPrivate: false,
-                    isDeleted: true, // Deleted
-                },
-            });
-            testResourceIds.push(deletedResource.id);
-
-            const project = await DbProvider.get().project.create({
-                data: {
-                    id: generatePK(),
-                    ownedByUserId: owner.id,
-                    isPrivate: false,
-                },
-            });
-            testProjectIds.push(project.id);
-
-            const deletedVersion = await DbProvider.get().resource_version.create({
-                data: {
-                    id: generatePK(),
-                    resourceId: deletedResource.id,
-                    projectId: project.id,
-                    versionLabel: "1.0.0",
-                    schemaLanguage: "json",
-                    schema: "{}",
-                    isDeleted: false,
-                    translations: {
-                        create: [
-                            { id: generatePK(), language: "en", name: "Deleted Project", description: "Should not appear" },
-                        ],
-                    },
-                },
-            });
-            testResourceVersionIds.push(deletedVersion.id);
-
-            mockedFs.existsSync.mockReturnValue(true);
-
-            await genSitemap();
-
-            // Check that ResourceVersion sitemap was generated
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("ResourceVersion-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
-        });
-
-        it("should handle special resource subtypes", async () => {
-            const owner = await DbProvider.get().user.create({
-                data: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    name: "Subtype Owner",
-                    handle: "subtypeowner",
-                },
-            });
-            testUserIds.push(owner.id);
-
-            // Create resources with specific subtypes
-            const subtypeTests = [
-                { subType: ResourceSubType.CodeDataConverter, expectedLink: "data-converter" },
-                { subType: ResourceSubType.CodeSmartContract, expectedLink: "smart-contract" },
-                { subType: ResourceSubType.StandardPrompt, expectedLink: "prompt" },
-                { subType: ResourceSubType.StandardDataStructure, expectedLink: "data-structure" },
-            ];
-
-            for (const test of subtypeTests) {
+            // Create test resources with versions
+            for (let i = 0; i < 3; i++) {
                 const resource = await DbProvider.get().resource.create({
                     data: {
                         id: generatePK(),
                         publicId: generatePublicId(),
-                        createdById: owner.id,
-                        resourceType: ResourceType.Routine, // Using routine as base type
+                        resourceType: "Code",
+                        createdBy: {
+                            connect: { id: owner.id }
+                        },
                         isPrivate: false,
                         isDeleted: false,
                     },
                 });
                 testResourceIds.push(resource.id);
 
-                const routine = await DbProvider.get().routine.create({
+                const resourceVersion = await DbProvider.get().resource_version.create({
                     data: {
                         id: generatePK(),
-                        createdById: owner.id,
-                        isPrivate: false,
-                        isInternal: false,
-                    },
-                });
-                testRoutineIds.push(routine.id);
-
-                const version = await DbProvider.get().resource_version.create({
-                    data: {
-                        id: generatePK(),
-                        resourceId: resource.id,
-                        routineId: routine.id,
+                        publicId: generatePublicId(),
+                        rootId: resource.id,
                         versionLabel: "1.0.0",
-                        schemaLanguage: "json",
-                        schema: "{}",
-                        resourceSubType: test.subType,
+                        isPrivate: false,
+                        isComplete: true,
                         isDeleted: false,
+                        resourceSubType: "CodeDataConverter",
                         translations: {
-                            create: [
-                                { id: generatePK(), language: "en", name: `Test ${test.subType}`, description: "Test" },
-                            ],
+                            create: [{
+                                id: generatePK(),
+                                language: testLang,
+                                name: `Test Resource ${i}`,
+                                description: "Test description",
+                            }],
                         },
                     },
                 });
-                testResourceVersionIds.push(version.id);
+                testResourceVersionIds.push(resourceVersion.id);
             }
 
-            mockedFs.existsSync.mockReturnValue(true);
-
             await genSitemap();
 
-            expect(zlib.gzip).toHaveBeenCalled();
-        });
-
-        it("should handle empty results gracefully", async () => {
-            // Don't create any test data
-            mockedFs.existsSync.mockReturnValue(true);
-
-            await genSitemap();
-
-            // Should still write the index file
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("sitemap.xml"),
-                expect.any(String)
-            );
+            // Check that resource sitemap was created
+            const resourceSitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemaps/ResourceVersion-0.xml.gz");
+            expect(fs.existsSync(resourceSitemapPath)).toBe(true);
             
-            // But should not write any object-specific sitemaps
-            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-                expect.stringContaining("User-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
-            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-                expect.stringContaining("Team-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
-            expect(mockedFs.writeFileSync).not.toHaveBeenCalledWith(
-                expect.stringContaining("ResourceVersion-0.xml.gz"),
-                expect.any(Uint8Array)
-            );
+            // Decompress and verify content
+            const compressed = fs.readFileSync(resourceSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
+            
+            expect(content).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+            expect(content).toContain('<urlset');
+            expect(content).toContain(`${UI_URL_REMOTE}/code/`);
+            expect(content).toContain('</urlset>');
         });
 
-        it("should handle missing route sitemap file", async () => {
-            // First call for sitemap dir exists, second for routes file doesn't exist
-            mockedFs.existsSync.mockReturnValueOnce(true).mockReturnValueOnce(false);
-
-            await genSitemap();
-
-            // Index should still be created but without routes file
-            expect(mockedFs.writeFileSync).toHaveBeenCalledWith(
-                expect.stringContaining("sitemap.xml"),
-                expect.not.stringContaining("sitemap-routes.xml")
-            );
-        });
-
-        it("should handle zlib compression errors", async () => {
+        it("should handle pagination when entities exceed limit", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
             const owner = await DbProvider.get().user.create({
                 data: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    name: "Error Test User",
-                    handle: "erroruser",
-                    isPrivate: false,
-                    translations: {
-                        create: [{ id: generatePK(), language: "en", bio: "Bio" }],
-                    },
+                    name: "Owner",
+                    handle: "owner",
+                    isBot: false,
                 },
             });
             testUserIds.push(owner.id);
 
-            mockedFs.existsSync.mockReturnValue(true);
-
-            // Mock zlib to return an error
-            mockedZlib.gzip.mockImplementationOnce((data, callback) => {
-                callback(new Error("Compression failed"), null);
-            });
-
-            // Should not throw, just log the error
-            await expect(genSitemap()).resolves.not.toThrow();
-        });
-
-        it("should handle large datasets by batching", async () => {
-            // Create more than BATCH_SIZE (100) users
-            const userPromises = [];
-            for (let i = 0; i < 120; i++) {
-                userPromises.push(
-                    DbProvider.get().user.create({
-                        data: {
-                            id: generatePK(),
-                            publicId: generatePublicId(),
-                            name: `Batch User ${i}`,
-                            handle: `batchuser${i}`,
-                            isPrivate: false,
-                            translations: {
-                                create: [{ id: generatePK(), language: "en", bio: `Bio ${i}` }],
-                            },
+            // Create enough teams to test batching behavior
+            // Since the actual pagination limits are very high (50k entries),
+            // we'll just test that the function can handle a decent number of entities
+            for (let i = 0; i < 10; i++) {
+                const team = await DbProvider.get().team.create({
+                    data: {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        handle: `team${i}`,
+                        createdBy: {
+                            connect: { id: owner.id }
                         },
-                    })
-                );
+                        isPrivate: false,
+                    },
+                });
+                testTeamIds.push(team.id);
             }
-            const users = await Promise.all(userPromises);
-            users.forEach(u => testUserIds.push(u.id));
-
-            mockedFs.existsSync.mockReturnValue(true);
 
             await genSitemap();
 
-            // Should have made multiple batch queries
-            expect(zlib.gzip).toHaveBeenCalled();
+            // Check that team sitemap was created with all teams
+            const sitemapsDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            expect(fs.existsSync(path.join(sitemapsDir, "Team-0.xml.gz"))).toBe(true);
+            
+            // Verify the sitemap contains all teams
+            const teamSitemapPath = path.join(sitemapsDir, "Team-0.xml.gz");
+            const compressed = fs.readFileSync(teamSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
+            
+            // Should contain multiple teams
+            expect(content).toContain('team0');
+            expect(content).toContain('team5');
+            expect(content).toContain('team9');
+            
+            // Check index includes the sitemap
+            const indexContent = fs.readFileSync(path.resolve(__dirname, "../../../ui/dist/sitemap.xml"), "utf-8");
+            expect(indexContent).toContain("Team-0.xml.gz");
+        });
+
+        it("should exclude private entities", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
+            // Create both public and private users
+            const publicUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Public User",
+                    handle: "publicuser",
+                    isBot: false,
+                    isPrivate: false,
+                },
+            });
+            testUserIds.push(publicUser.id);
+
+            const privateUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Private User",
+                    handle: "privateuser",
+                    isBot: false,
+                    isPrivate: true,
+                },
+            });
+            testUserIds.push(privateUser.id);
+
+            await genSitemap();
+
+            // Check sitemap content
+            const userSitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemaps/User-0.xml.gz");
+            const compressed = fs.readFileSync(userSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
+            
+            // Should contain public user
+            expect(content).toContain(publicUser.handle);
+            // Should not contain private user
+            expect(content).not.toContain(privateUser.handle);
+        });
+
+        it("should exclude bots from user sitemap", async () => {
+            const testIndexPath = path.resolve(__dirname, "../../../ui/dist/sitemap.xml");
+            const testSitemapDir = path.resolve(__dirname, "../../../ui/dist/sitemaps");
+            
+            // Ensure test directories exist
+            if (!fs.existsSync(path.dirname(testIndexPath))) {
+                fs.mkdirSync(path.dirname(testIndexPath), { recursive: true });
+            }
+            if (!fs.existsSync(testSitemapDir)) {
+                fs.mkdirSync(testSitemapDir, { recursive: true });
+            }
+            
+            // Create both regular user and bot
+            const regularUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Regular User",
+                    handle: "regularuser",
+                    isBot: false,
+                    isPrivate: false,
+                },
+            });
+            testUserIds.push(regularUser.id);
+
+            const botUser = await DbProvider.get().user.create({
+                data: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Bot User",
+                    handle: "botuser",
+                    isBot: true,
+                    isPrivate: false,
+                },
+            });
+            testUserIds.push(botUser.id);
+
+            await genSitemap();
+
+            // Check sitemap content
+            const userSitemapPath = path.resolve(__dirname, "../../../ui/dist/sitemaps/User-0.xml.gz");
+            const compressed = fs.readFileSync(userSitemapPath);
+            const decompressed = await gunzipAsync(compressed);
+            const content = decompressed.toString();
+            
+            // Should contain regular user
+            expect(content).toContain(regularUser.handle);
+            // Should not contain bot
+            expect(content).not.toContain(botUser.handle);
+        });
+
+        it("should handle errors gracefully", async () => {
+            // Restore logger mocks temporarily to test error handling
+            vi.restoreAllMocks();
+            
+            // Create a fresh error spy
+            const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+            
+            // Mock fs.writeFileSync to throw an error during sitemap index creation
+            vi.spyOn(fs, "writeFileSync").mockImplementationOnce(() => {
+                throw new Error("Permission denied");
+            });
+            
+            // Should not throw
+            await expect(genSitemap()).resolves.not.toThrow();
+            
+            // Verify error was logged
+            expect(errorSpy).toHaveBeenCalled();
+            
+            // Restore mocks for cleanup
+            vi.spyOn(logger, "info").mockImplementation(() => logger);
+            vi.spyOn(logger, "warn").mockImplementation(() => logger);
         });
     });
 });

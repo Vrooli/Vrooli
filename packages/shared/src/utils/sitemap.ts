@@ -69,7 +69,7 @@ export function generateSitemap(siteName: string, entries: {
     if (entries.content) {
         // Loop through entries
         entries.content.forEach(function (entry: SitemapEntryContent) {
-            const rootPart = (entry.rootHandle ? `@${entry.rootHandle}` : entry.rootPublicId) ?? "";
+            const rootPart = entry.rootHandle ? `@${entry.rootHandle}` : (entry.rootPublicId ?? "");
             const versionPart = entry.versionLabel ?? (entry.handle ? `@${entry.handle}` : entry.publicId) ?? "";
             const separator = rootPart ? "/" : "";
             const link = `${siteName}${entry.objectLink}/${rootPart}${separator}${versionPart}`;

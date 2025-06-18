@@ -5,7 +5,7 @@ import { logger } from "../../events/logger.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ApiEndpoint } from "../../types.js";
 import { isOwnerAdminCheck } from "../../utils/defaultPermissions.js";
-import { CacheService } from "../../services/cache.js";
+import { CacheService } from "../../redisConn.js";
 
 // Admin-specific input types
 export interface AdminUserListInput {

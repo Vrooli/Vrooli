@@ -59,16 +59,16 @@ describe("moderateReports integration tests", () => {
             await db.report.deleteMany({ where: { id: { in: testReportIds } } });
         }
         if (testApiVersionIds.length > 0) {
-            await db.api_version.deleteMany({ where: { id: { in: testApiVersionIds } } });
+            await db.resource_version.deleteMany({ where: { id: { in: testApiVersionIds } } });
         }
         if (testApiIds.length > 0) {
-            await db.api.deleteMany({ where: { id: { in: testApiIds } } });
+            await db.resource.deleteMany({ where: { id: { in: testApiIds } } });
         }
         if (testRoutineVersionIds.length > 0) {
-            await db.routine_version.deleteMany({ where: { id: { in: testRoutineVersionIds } } });
+            await db.resource_version.deleteMany({ where: { id: { in: testRoutineVersionIds } } });
         }
         if (testRoutineIds.length > 0) {
-            await db.routine.deleteMany({ where: { id: { in: testRoutineIds } } });
+            await db.resource.deleteMany({ where: { id: { in: testRoutineIds } } });
         }
         if (testTagIds.length > 0) {
             await db.tag.deleteMany({ where: { id: { in: testTagIds } } });
@@ -165,6 +165,7 @@ describe("moderateReports integration tests", () => {
                 reason: "Spam",
                 details: "This is spam content",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -244,39 +245,42 @@ describe("moderateReports integration tests", () => {
         });
         testUserIds.push(moderator2.id);
 
-        // Create a routine and version to report
-        const routine = await DbProvider.get().routine.create({
+        // Create a resource and version to report
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 ownedByUserId: owner.id,
                 isPrivate: false,
                 isInternal: false,
+                resourceType: "Routine",
             },
         });
-        testRoutineIds.push(routine.id);
+        testRoutineIds.push(resource.id);
 
-        const routineVersion = await DbProvider.get().routine_version.create({
+        const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
-                rootId: routine.id,
+                publicId: generatePublicId(),
+                rootId: resource.id,
                 versionLabel: "1.0.0",
-                complexity: 1,
-                simplicity: 1,
                 isPrivate: false,
             },
         });
-        testRoutineVersionIds.push(routineVersion.id);
+        testRoutineVersionIds.push(resourceVersion.id);
 
         // Create report
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
-                routineVersionId: routineVersion.id,
+                resourceVersionId: resourceVersion.id,
                 reason: "Bug",
                 details: "Has a critical bug",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -310,9 +314,9 @@ describe("moderateReports integration tests", () => {
         });
         expect(updatedReport?.status).toBe(ReportStatus.ClosedHidden);
 
-        // Check that routine version was hidden
-        const updatedVersion = await DbProvider.get().routine_version.findUnique({
-            where: { id: routineVersion.id },
+        // Check that resource version was hidden
+        const updatedVersion = await DbProvider.get().resource_version.findUnique({
+            where: { id: resourceVersion.id },
         });
         expect(updatedVersion?.isPrivate).toBe(true);
     });
@@ -372,11 +376,13 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: badReporter.id,
                 issueId: issue.id,
                 reason: "Spam",
                 details: "False accusation",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -467,10 +473,12 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 tagId: tag.id,
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -558,10 +566,12 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 teamId: team.id,
                 reason: "Spam",
                 status: ReportStatus.Open,
+                language: "en",
                 createdAt: new Date(), // Recent
             },
         });
@@ -623,8 +633,14 @@ describe("moderateReports integration tests", () => {
         const comment = await DbProvider.get().comment.create({
             data: {
                 id: generatePK(),
-                ownedByUserId: owner.id,
-                body: "Old comment",
+                ownedByUser: { connect: { id: owner.id } },
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Old comment",
+                    },
+                },
             },
         });
         testCommentIds.push(comment.id);
@@ -634,10 +650,12 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 commentId: comment.id,
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
+                language: "en",
                 createdAt: oldDate,
             },
         });
@@ -695,38 +713,41 @@ describe("moderateReports integration tests", () => {
         });
         testUserIds.push(moderator.id);
 
-        // Create API and version
-        const api = await DbProvider.get().api.create({
+        // Create resource and version (API type)
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
                 ownedByUserId: owner.id,
                 isPrivate: false,
                 isInternal: false,
+                resourceType: "Api",
             },
         });
-        testApiIds.push(api.id);
+        testApiIds.push(resource.id);
 
-        const apiVersion = await DbProvider.get().api_version.create({
+        const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
-                rootId: api.id,
+                publicId: generatePublicId(),
+                rootId: resource.id,
                 versionLabel: "1.0.0",
-                callLink: "https://api.example.com",
-                documentationLink: "https://docs.example.com",
                 isDeleted: false,
             },
         });
-        testApiVersionIds.push(apiVersion.id);
+        testApiVersionIds.push(resourceVersion.id);
 
         // Create report on API version
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
-                apiVersionId: apiVersion.id,
+                resourceVersionId: resourceVersion.id,
                 reason: "Malicious",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -750,17 +771,17 @@ describe("moderateReports integration tests", () => {
         });
         expect(updatedReport?.status).toBe(ReportStatus.ClosedDeleted);
 
-        // Check that API version was soft-deleted
-        const updatedVersion = await DbProvider.get().api_version.findUnique({
-            where: { id: apiVersion.id },
+        // Check that resource version was soft-deleted
+        const updatedVersion = await DbProvider.get().resource_version.findUnique({
+            where: { id: resourceVersion.id },
         });
         expect(updatedVersion?.isDeleted).toBe(true);
 
-        // Check that root API was NOT deleted
-        const rootApi = await DbProvider.get().api.findUnique({
-            where: { id: api.id },
+        // Check that root resource was NOT deleted
+        const rootResource = await DbProvider.get().resource.findUnique({
+            where: { id: resource.id },
         });
-        expect(rootApi).not.toBeNull();
+        expect(rootResource).not.toBeNull();
     });
 
     it("should handle multiple report responses with different actions", async () => {
@@ -847,10 +868,12 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 issueId: issue.id,
                 reason: "Inappropriate",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -944,10 +967,12 @@ describe("moderateReports integration tests", () => {
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
                 tagId: tag.id,
                 reason: "Spam",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -1003,39 +1028,42 @@ describe("moderateReports integration tests", () => {
         });
         testUserIds.push(moderator.id);
 
-        // Create routine owned by team
-        const routine = await DbProvider.get().routine.create({
+        // Create resource owned by team
+        const resource = await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: teamOwner.id,
                 ownedByTeamId: team.id,
                 isPrivate: false,
                 isInternal: false,
+                resourceType: "Routine",
             },
         });
-        testRoutineIds.push(routine.id);
+        testRoutineIds.push(resource.id);
 
-        const routineVersion = await DbProvider.get().routine_version.create({
+        const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
-                rootId: routine.id,
+                publicId: generatePublicId(),
+                rootId: resource.id,
                 versionLabel: "1.0.0",
-                complexity: 1,
-                simplicity: 1,
                 isPrivate: false,
                 isDeleted: false,
             },
         });
-        testRoutineVersionIds.push(routineVersion.id);
+        testRoutineVersionIds.push(resourceVersion.id);
 
         // Create report
         const report = await DbProvider.get().report.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: reporter.id,
-                routineVersionId: routineVersion.id,
+                resourceVersionId: resourceVersion.id,
                 reason: "Malicious",
                 status: ReportStatus.Open,
+                language: "en",
             },
         });
         testReportIds.push(report.id);
@@ -1059,9 +1087,9 @@ describe("moderateReports integration tests", () => {
         });
         expect(updatedReport?.status).toBe(ReportStatus.ClosedDeleted);
 
-        // Check that routine version was soft-deleted
-        const updatedVersion = await DbProvider.get().routine_version.findUnique({
-            where: { id: routineVersion.id },
+        // Check that resource version was soft-deleted
+        const updatedVersion = await DbProvider.get().resource_version.findUnique({
+            where: { id: resourceVersion.id },
         });
         expect(updatedVersion?.isDeleted).toBe(true);
 

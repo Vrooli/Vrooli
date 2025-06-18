@@ -107,7 +107,7 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
 
     // Create findOne endpoint if configured
     if (endpoints.findOne) {
-        const { rateLimit, permissions } = endpoints.findOne;
+        const { rateLimit, permissions, customImplementation } = endpoints.findOne;
         result.findOne = async ({ input }: any, { req }: any, info: any) => {
             if (rateLimit) {
                 await RequestService.get().rateLimit({ ...rateLimit, req });
@@ -115,6 +115,11 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
+            
+            if (customImplementation) {
+                return customImplementation({ input, req, info });
+            }
+            
             return readOneHelper({ info, input, objectType, req });
         };
     }
@@ -141,7 +146,7 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
 
     // Create createOne endpoint if configured
     if (endpoints.createOne) {
-        const { rateLimit, permissions } = endpoints.createOne;
+        const { rateLimit, permissions, customImplementation } = endpoints.createOne;
         result.createOne = async ({ input }: any, { req }: any, info: any) => {
             if (rateLimit) {
                 await RequestService.get().rateLimit({ ...rateLimit, req });
@@ -149,13 +154,18 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
+            
+            if (customImplementation) {
+                return customImplementation({ input, req, info });
+            }
+            
             return createOneHelper({ info, input, objectType, req });
         };
     }
 
     // Create updateOne endpoint if configured
     if (endpoints.updateOne) {
-        const { rateLimit, permissions } = endpoints.updateOne;
+        const { rateLimit, permissions, customImplementation } = endpoints.updateOne;
         result.updateOne = async ({ input }: any, { req }: any, info: any) => {
             if (rateLimit) {
                 await RequestService.get().rateLimit({ ...rateLimit, req });
@@ -163,6 +173,11 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
             if (permissions) {
                 RequestService.assertRequestFrom(req, permissions);
             }
+            
+            if (customImplementation) {
+                return customImplementation({ input, req, info });
+            }
+            
             return updateOneHelper({ info, input, objectType, req });
         };
     }

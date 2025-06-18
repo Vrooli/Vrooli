@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 
 /**
@@ -13,7 +13,6 @@ export class AwardDbFactory {
     ): Prisma.AwardCreateInput {
         return {
             id: generatePK(),
-            publicId: generatePublicId(),
             user: { connect: { id: userId } },
             category,
             progress: 0,

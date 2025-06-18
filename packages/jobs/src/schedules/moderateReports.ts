@@ -111,15 +111,10 @@ const nonVersionedObjectQuery3 = {
 const reportSelect = {
     id: true,
     createdAt: true,
-    apiVersion: { select: versionedObjectQuery },
+    resourceVersion: { select: versionedObjectQuery },
+    chatMessage: { select: nonVersionedObjectQuery3 },
     comment: { select: nonVersionedObjectQuery },
-    codeVersion: { select: versionedObjectQuery },
     issue: { select: nonVersionedObjectQuery3 },
-    noteVersion: { select: versionedObjectQuery },
-    post: { select: nonVersionedObjectQuery2 },
-    projectVersion: { select: versionedObjectQuery },
-    routineVersion: { select: versionedObjectQuery },
-    standardVersion: { select: versionedObjectQuery },
     tag: { select: nonVersionedObjectQuery3 },
     team: { select: { id: true } },
     user: { select: { id: true } },
@@ -204,19 +199,14 @@ function actionToStatus(action: ReportSuggestedAction): ReportStatus {
  * Types that can be soft-deleted
  */
 const softDeletableTypes = [
-    "ApiVersion",
-    "CodeVersion",
-    "NoteVersion",
-    "Post",
-    "ProjectVersion",
-    "RoutineVersion",
-    "StandardVersion",
+    "ResourceVersion",
 ];
 
 /**
  * Types that don't support being hidden (i.e. don't have "isPrivate" field)
  */
 const nonHideableTypes = [
+    "ChatMessage",
     "Comment",
     "Issue",
     "Tag",
@@ -293,6 +283,7 @@ async function moderateReport(report: ReportPayload): Promise<void> {
         // Find the object that was reported.
         // Must capitalize the first letter of the object type to match the __typename
         const relResult = findFirstRel(report, [
+            "chatMessage",
             "comment",
             "issue",
             "resourceVersion",
@@ -325,15 +316,15 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                 objectOwner = { __typename: "User", id: objectData.root.ownedByUser.id };
             }
         }
-        else if (["Post"].includes(objectType)) {
-            if (objectData.team) {
-                objectOwner = { __typename: "Team", id: objectData.team.id };
+        else if (["Comment"].includes(objectType)) {
+            if (objectData.ownedByTeam) {
+                objectOwner = { __typename: "Team", id: objectData.ownedByTeam.id };
             }
-            else if (objectData.user) {
-                objectOwner = { __typename: "User", id: objectData.user.id };
+            else if (objectData.ownedByUser) {
+                objectOwner = { __typename: "User", id: objectData.ownedByUser.id };
             }
         }
-        else if (["Issue", "Tag"].includes(objectType)) {
+        else if (["ChatMessage", "Issue", "Tag"].includes(objectType)) {
             if (objectData.createdBy && objectData.createdBy.id) {
                 objectOwner = { __typename: "User", id: objectData.createdBy.id };
             }
@@ -467,7 +458,7 @@ export async function moderateReports(): Promise<void> {
         await batch<Prisma.reportFindManyArgs, ReportPayload>({
             objectType: "Report",
             processBatch: async (batch) => {
-                Promise.all(batch.map(async (report) => {
+                await Promise.all(batch.map(async (report) => {
                     await moderateReport(report);
                 }));
             },

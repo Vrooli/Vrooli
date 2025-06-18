@@ -21,7 +21,7 @@ import {
     type ProcessContext,
     type ExecutionContext,
     type ContextMetadata,
-} from "@vrooli/shared/dist/execution/types/context.js";
+} from "@vrooli/shared";
 
 /**
  * Core context data structure that contains all context information

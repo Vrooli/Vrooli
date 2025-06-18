@@ -31,9 +31,7 @@ export default defineConfig({
             'src/**/*.stories.{ts,tsx}',
             // Exclude large test files that should be split
             '**/tasks.test.ts',
-            '**/messages.test.ts',
-            // Temporarily exclude problematic test file
-            '**/useFetch.test.ts'
+            '**/messages.test.ts'
         ],
         
         // Optimized for speed and reliability

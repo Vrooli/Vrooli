@@ -417,7 +417,7 @@ describe.concurrent("getObjectSlug", () => {
             __typename: "Bookmark",
             to: { __typename: "User", handle: "testuser" },
         };
-        expect(getObjectSlug(bookmark)).toBe("/testuser");
+        expect(getObjectSlug(bookmark)).toBe("/@testuser");
     });
 
     it("should handle versioned objects with root", () => {
@@ -428,7 +428,7 @@ describe.concurrent("getObjectSlug", () => {
             publicId: "pub123",
             id: "id123",
         };
-        expect(getObjectSlug(resourceVersion)).toBe("/test-resource/v/v1.0");
+        expect(getObjectSlug(resourceVersion)).toBe("/@test-resource/v/v1.0");
 
         // Test with only publicId
         const resourceVersionWithPublicId = {
@@ -437,7 +437,7 @@ describe.concurrent("getObjectSlug", () => {
             publicId: "pub123",
             id: "id123",
         };
-        expect(getObjectSlug(resourceVersionWithPublicId)).toBe("/test-resource/v/pub123");
+        expect(getObjectSlug(resourceVersionWithPublicId)).toBe("/@test-resource/v/pub123");
 
         // Test with only id
         const resourceVersionWithId = {
@@ -445,7 +445,7 @@ describe.concurrent("getObjectSlug", () => {
             root: { __typename: "Resource", handle: "test-resource" },
             id: "id123",
         };
-        expect(getObjectSlug(resourceVersionWithId)).toBe("/test-resource/v/id123");
+        expect(getObjectSlug(resourceVersionWithId)).toBe("/@test-resource/v/id123");
     });
 
     it("should handle Member and ChatParticipant", () => {
@@ -458,7 +458,7 @@ describe.concurrent("getObjectSlug", () => {
             user: { __typename: "User", publicId: "pub456" },
         };
 
-        expect(getObjectSlug(member)).toBe("/member-user");
+        expect(getObjectSlug(member)).toBe("/@member-user");
         expect(getObjectSlug(participant)).toBe("/pub456");
     });
 
@@ -484,7 +484,7 @@ describe.concurrent("getObjectSlug", () => {
             id: "id123",
         };
 
-        expect(getObjectSlug(withHandle)).toBe("/testuser");
+        expect(getObjectSlug(withHandle)).toBe("/@testuser");
         expect(getObjectSlug(withoutHandle)).toBe("/pub123");
         expect(getObjectSlug(withOnlyId)).toBe("/id123");
     });
@@ -497,7 +497,7 @@ describe.concurrent("getObjectSlug", () => {
             id: "id123",
         };
 
-        expect(getObjectSlug(obj, false)).toBe("/testuser");
+        expect(getObjectSlug(obj, false)).toBe("/@testuser");
         expect(getObjectSlug(obj, true)).toBe("/pub123");
     });
 });
@@ -582,7 +582,7 @@ describe.concurrent("getObjectUrl", () => {
         };
 
         const result = getObjectUrl(user as any);
-        expect(result).toContain("/testuser");
+        expect(result).toContain("/@testuser");
         expect(result).toContain(LINKS.Profile);
     });
 });

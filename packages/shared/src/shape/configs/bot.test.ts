@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest";
 import { OpenAIModel } from "../../ai/services.js";
 import { type User } from "../../api/types.js";
-import { BotConfig, DEFAULT_CREATIVITY, DEFAULT_PERSONA, DEFAULT_VERBOSITY, type BotConfigObject } from "./bot.js";
+import { BotConfig, DEFAULT_CREATIVITY, DEFAULT_PERSONA, DEFAULT_VERBOSITY, type BotConfigObject, getModelName, getModelDescription, type LlmModel } from "./bot.js";
 
 const LATEST_VERSION_STRING = "1.0"; // Consistent version string
 
@@ -235,6 +235,68 @@ describe("BotConfig", () => {
         expect(exportedDefault.persona).toEqual(DEFAULT_PERSONA);
         expect(exportedDefault.resources).toEqual([]);
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe("getModelName", () => {
+    const mockTranslation = vi.fn();
+
+    beforeEach(() => {
+        mockTranslation.mockClear();
+    });
+
+    it("should return translated name when option is provided", () => {
+        const model: LlmModel = {
+            name: "model.gpt4",
+            value: "gpt-4",
+        };
+        mockTranslation.mockReturnValue("GPT-4");
+
+        const result = getModelName(model, mockTranslation);
+
+        expect(result).toBe("GPT-4");
+        expect(mockTranslation).toHaveBeenCalledWith("model.gpt4", { ns: "service" });
+    });
+
+    it("should return empty string when option is null", () => {
+        const result = getModelName(null, mockTranslation);
+
+        expect(result).toBe("");
+        expect(mockTranslation).not.toHaveBeenCalled();
+    });
+});
+
+describe("getModelDescription", () => {
+    const mockTranslation = vi.fn();
+
+    beforeEach(() => {
+        mockTranslation.mockClear();
+    });
+
+    it("should return translated description when option has description", () => {
+        const model: LlmModel = {
+            name: "model.gpt4",
+            description: "model.gpt4.description",
+            value: "gpt-4",
+        };
+        mockTranslation.mockReturnValue("Advanced GPT-4 model");
+
+        const result = getModelDescription(model, mockTranslation);
+
+        expect(result).toBe("Advanced GPT-4 model");
+        expect(mockTranslation).toHaveBeenCalledWith("model.gpt4.description", { ns: "service" });
+    });
+
+    it("should return empty string when option has no description", () => {
+        const model: LlmModel = {
+            name: "model.gpt4",
+            value: "gpt-4",
+        };
+
+        const result = getModelDescription(model, mockTranslation);
+
+        expect(result).toBe("");
+        expect(mockTranslation).not.toHaveBeenCalled();
     });
 });
 

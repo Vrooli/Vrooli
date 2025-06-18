@@ -194,7 +194,7 @@ export function getElementId(id: string, namespace: Pick<Namespace, "prefix">, u
         : withoutPrefix(namespace.prefix, id, ID_DELIMITER);
 }
 
-class GatewayManager {
+export class GatewayManager {
     private namespace = NAMESPACE_PROCESS;
 
     constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
@@ -224,7 +224,7 @@ class GatewayManager {
     }
 }
 
-class SequenceFlowManager {
+export class SequenceFlowManager {
     private namespace = NAMESPACE_PROCESS;
 
     constructor(private bpmnModdle: BpmnModdle.BPMNModdle) { }
