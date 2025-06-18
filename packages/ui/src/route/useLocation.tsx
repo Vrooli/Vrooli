@@ -62,11 +62,12 @@ function getCurrentLocation(): Location {
     if (typeof window !== "undefined" && process.env.DEV) {
         const mockedPath = localStorage.getItem(STORYBOOK_MOCK_PATH_KEY);
         if (mockedPath) {
-            // Only override the pathname, keep the other location properties
+            // Parse the mocked path to extract pathname and search
+            const url = new URL(mockedPath, window.location.origin);
             return {
                 href: location.href,
-                pathname: mockedPath,
-                search: location.search,
+                pathname: url.pathname,
+                search: url.search,
             };
         }
     }

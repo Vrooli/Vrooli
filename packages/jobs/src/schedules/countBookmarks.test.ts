@@ -91,10 +91,16 @@ describe("countBookmarks integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdBy: { connect: { id: owner.id } },
-                name: "Test Issue",
-                description: "Test Description",
+                createdById: owner.id,
                 bookmarks: 10, // Incorrect count
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Issue",
+                        description: "Test Description",
+                    },
+                },
             },
         });
         testIssueIds.push(issue.id);
@@ -128,7 +134,7 @@ describe("countBookmarks integration tests", () => {
         expect(updatedIssue?.bookmarks).toBe(2); // Should match actual bookmark count
     });
 
-    it("should handle null bookmark counts", async () => {
+    it("should handle zero bookmark counts", async () => {
         const uniqueId = Date.now();
         const owner = await DbProvider.get().user.create({
             data: {
@@ -154,9 +160,8 @@ describe("countBookmarks integration tests", () => {
         const tag = await DbProvider.get().tag.create({
             data: {
                 id: generatePK(),
-                createdBy: { connect: { id: owner.id } },
                 tag: "test-tag",
-                bookmarks: null, // Null count
+                bookmarks: 0, // Will be updated by countBookmarks
             },
         });
         testTagIds.push(tag.id);
@@ -174,7 +179,7 @@ describe("countBookmarks integration tests", () => {
         // Run the count bookmarks function
         await countBookmarks();
 
-        // Check that the bookmark count was updated from null to actual count
+        // Check that the bookmark count was updated from 0 to actual count
         const updatedTag = await DbProvider.get().tag.findUnique({
             where: { id: tag.id },
             select: { bookmarks: true },
@@ -228,9 +233,9 @@ describe("countBookmarks integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                ownedByUser: { connect: { id: owner.id } },
                 resourceType: "RoutineVersion",
-                bookmarks: null, // Null count
+                bookmarks: 0, // Will be updated by countBookmarks
             },
         });
         testResourceIds.push(resource.id);
@@ -293,7 +298,7 @@ describe("countBookmarks integration tests", () => {
 
         expect(updatedUser?.bookmarks).toBe(1); // 1 bookmark
         expect(updatedTeam?.bookmarks).toBe(2); // 2 bookmarks
-        expect(updatedResource?.bookmarks).toBe(1); // 1 bookmark (was null)
+        expect(updatedResource?.bookmarks).toBe(1); // 1 bookmark (was 0)
     });
 
     it("should handle entities with no bookmarks", async () => {
@@ -314,9 +319,15 @@ describe("countBookmarks integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Issue with no bookmarks",
-                description: "Should be reset to 0",
                 bookmarks: 15, // Should be corrected to 0
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Issue with no bookmarks",
+                        description: "Should be reset to 0",
+                    },
+                },
             },
         });
         testIssueIds.push(issue.id);
@@ -324,9 +335,15 @@ describe("countBookmarks integration tests", () => {
         const comment = await DbProvider.get().comment.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                ownedByUserId: owner.id,
                 issueId: issue.id,
-                body: "Test comment",
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Test comment",
+                    },
+                },
                 bookmarks: 7, // Should be corrected to 0
             },
         });
@@ -365,10 +382,17 @@ describe("countBookmarks integration tests", () => {
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test",
-                description: "Test",
                 bookmarks: 5,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test",
+                        description: "Test",
+                    },
+                },
             },
         });
         testIssueIds.push(issue.id);
@@ -376,9 +400,15 @@ describe("countBookmarks integration tests", () => {
         const comment = await DbProvider.get().comment.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
+                ownedByUserId: owner.id,
                 issueId: issue.id,
-                body: "Test",
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Test",
+                    },
+                },
                 bookmarks: 5,
             },
         });

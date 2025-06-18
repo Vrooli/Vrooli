@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+// AI_CHECK: TEST_COVERAGE=7 | LAST: 2025-06-18
 import { describe, it, expect } from "vitest";
 import { deepClone, getDotNotationValue, isObject, isOfType, mergeDeep, setDotNotationValue, splitDotNotation } from "./objects.js";
 

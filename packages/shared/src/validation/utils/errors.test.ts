@@ -20,9 +20,12 @@ describe("Yup-related functions", () => {
     describe("maxStrErr", () => {
         const cases = [
             { max: 5, value: 123, error: "Value must be a string" },
+            { max: 5, value: null, error: "Value must be a string" },
+            { max: 5, value: undefined, error: "Value must be a string" },
             { max: 3, value: "test", expected: "1 character over the limit" },
             { max: 1, value: "hello", expected: "4 characters over the limit" },
-            // Add more cases as needed
+            { max: 0, value: "abc", expected: "3 characters over the limit" },
+            { max: 10, value: "verylongstring", expected: "4 characters over the limit" },
         ];
 
         cases.forEach(({ max, value, expected, error }) => {
@@ -43,7 +46,9 @@ describe("Yup-related functions", () => {
     describe("minNumErr", () => {
         const cases = [
             { min: 5, expected: "Minimum value is 5" },
-            // Add more cases as needed
+            { min: 0, expected: "Minimum value is 0" },
+            { min: -10, expected: "Minimum value is -10" },
+            { min: 100, expected: "Minimum value is 100" },
         ];
 
         cases.forEach(({ min, expected }) => {
@@ -56,9 +61,12 @@ describe("Yup-related functions", () => {
     describe("minStrErr", () => {
         const cases = [
             { min: 5, value: 123, error: "Value must be a string" },
+            { min: 5, value: null, error: "Value must be a string" },
+            { min: 5, value: undefined, error: "Value must be a string" },
             { min: 5, value: "test", expected: "1 character under the limit" },
             { min: 10, value: "hello", expected: "5 characters under the limit" },
-            // Add more cases as needed
+            { min: 1, value: "", expected: "1 character under the limit" },
+            { min: 8, value: "ab", expected: "6 characters under the limit" },
         ];
 
         cases.forEach(({ min, value, expected, error }) => {

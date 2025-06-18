@@ -1,7 +1,6 @@
-/* c8 ignore start */
 import { LINKS } from "../consts/ui.js";
 
-function findOne(one: string) {
+export function findOne(one: string) {
     return {
         findOne: {
             endpoint: `/${one}/:publicId`,
@@ -10,7 +9,7 @@ function findOne(one: string) {
     };
 }
 
-function findMany(many: string) {
+export function findMany(many: string) {
     return {
         findMany: {
             endpoint: `/${many}`,
@@ -19,7 +18,7 @@ function findMany(many: string) {
     };
 }
 
-function createOne(one: string) {
+export function createOne(one: string) {
     return {
         createOne: {
             endpoint: `/${one}`,
@@ -28,7 +27,7 @@ function createOne(one: string) {
     };
 }
 
-function createMany(many: string) {
+export function createMany(many: string) {
     return {
         createMany: {
             endpoint: `/${many}`,
@@ -37,7 +36,7 @@ function createMany(many: string) {
     };
 }
 
-function updateOne(one: string) {
+export function updateOne(one: string) {
     return {
         updateOne: {
             endpoint: `/${one}/:id`,
@@ -46,7 +45,7 @@ function updateOne(one: string) {
     };
 }
 
-function updateMany(many: string) {
+export function updateMany(many: string) {
     return {
         updateMany: {
             endpoint: `/${many}`,
@@ -55,7 +54,7 @@ function updateMany(many: string) {
     };
 }
 
-function standardCRUD(one: string, many: string) {
+export function standardCRUD(one: string, many: string) {
     return {
         ...findOne(one),
         ...findMany(many),
@@ -331,7 +330,7 @@ export const endpointsReputationHistory = {
     ...findMany("reputationHistories"),
 } as const;
 
-function resourceVersion(one: string) {
+export function resourceVersion(one: string) {
     return {
         endpoint: `/${one}/:publicId/v/:versionLabel`,
         method: "GET" as const,

@@ -15,22 +15,16 @@ export async function creditRollover(): Promise<void> {
     // Check if this month has already been processed (idempotency protection)
     const { DbProvider } = await import("@vrooli/server");
     const prisma = DbProvider.get();
-    const redis = CacheService.get().redis;
+    const redis = await CacheService.get().raw();
     
     let processedUsers = 0;
     let errorCount = 0;
     
-    const existingRollover = await prisma.billing_event.findFirst({
-        where: {
-            type: "CREDIT_ROLLOVER_MONTHLY",
-            meta: {
-                path: ["month"],
-                equals: currentMonth,
-            },
-        },
-    });
+    // Use Redis to track monthly processing instead of looking for specific ledger entries
+    const rolloverKey = `creditRollover:processed:${currentMonth}`;
+    const alreadyProcessed = await redis?.get(rolloverKey);
     
-    if (existingRollover) {
+    if (alreadyProcessed) {
         logger.info(`Credit rollover for month ${currentMonth} already processed`, {
             trace: "creditRollover_alreadyProcessed",
             month: currentMonth,
@@ -74,13 +68,9 @@ export async function creditRollover(): Promise<void> {
         });
         
         // Mark this month as processed (idempotency protection)
-        await BusService.get().pub("billing", {
-            id: generatePK(),
-            type: "CREDIT_ROLLOVER_MONTHLY",
-            amount: "0", // No amount for rollover marker
-            meta: { month: currentMonth },
-            timestamp: new Date().toISOString(),
-        } as BillingEvent);
+        if (redis) {
+            await redis.set(rolloverKey, "1", "EX", 60 * 60 * 24 * 45); // Expire after 45 days
+        }
         
         // Update Redis with job completion status
         if (redis) {
@@ -112,7 +102,7 @@ export async function creditRollover(): Promise<void> {
         errorCount++;
         
         // Update Redis with failure status
-        const redis = CacheService.get().redis;
+        const redis = await CacheService.get().raw();
         if (redis) {
             try {
                 const jobStatus = {
@@ -251,7 +241,7 @@ async function processCreditDonation(
     }
     
     if (donationAmountBigInt > BigInt(0)) {
-        const billingEventId = `creditDonation-${user.id.toString()}-${currentMonth}`;
+        const billingEventId = generatePK().toString(); // Use proper UUID
         const billingEvent: BillingEvent = {
             type: "billing:event",
             id: billingEventId,
@@ -309,7 +299,7 @@ async function processCreditRolloverExpiration(
     if (currentBalance > maxAllowedCredits) {
         const excessCredits = currentBalance - maxAllowedCredits;
         
-        const billingEventId = `creditExpire-${user.id.toString()}-${currentMonth}`;
+        const billingEventId = generatePK().toString(); // Use proper UUID
         const billingEvent: BillingEvent = {
             type: "billing:event",
             id: billingEventId,

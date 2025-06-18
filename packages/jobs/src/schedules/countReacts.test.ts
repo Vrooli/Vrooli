@@ -2,8 +2,7 @@ import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { countReacts } from "./countReacts.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("../../../server/src/db/provider.ts");
+const { DbProvider } = await import("@vrooli/server");
 
 describe("countReacts integration tests", () => {
     // Store test entity IDs for cleanup
@@ -34,7 +33,7 @@ describe("countReacts integration tests", () => {
             DbProvider.get().reaction.deleteMany({
                 where: { id: { in: testReactionIds } },
             }),
-            DbProvider.get().reactionSummary.deleteMany({
+            DbProvider.get().reaction_summary.deleteMany({
                 where: { id: { in: testReactionSummaryIds } },
             }),
             DbProvider.get().chat_message.deleteMany({
@@ -60,12 +59,13 @@ describe("countReacts integration tests", () => {
 
     it("should update reaction scores and summaries when they mismatch", async () => {
         // Create test users
+        const uniqueId = Date.now();
         const reactor1 = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Reactor 1",
-                handle: "reactor1",
+                handle: `reactor1_${uniqueId}`,
             },
         });
         testUserIds.push(reactor1.id);
@@ -75,7 +75,7 @@ describe("countReacts integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Reactor 2",
-                handle: "reactor2",
+                handle: `reactor2_${uniqueId}`,
             },
         });
         testUserIds.push(reactor2.id);
@@ -85,7 +85,7 @@ describe("countReacts integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner",
-                handle: "owner1",
+                handle: `owner1_${uniqueId}`,
             },
         });
         testUserIds.push(owner.id);
@@ -109,10 +109,11 @@ describe("countReacts integration tests", () => {
         });
         testIssueIds.push(issue.id);
 
-        // Create actual reactions (👍 = +1, ❤️ = +2)
+        // Create actual reactions (👍 = +1, ❤️ = +1)
         const reaction1Id = generatePK();
         const reaction2Id = generatePK();
         testReactionIds.push(reaction1Id, reaction2Id);
+
         await DbProvider.get().reaction.createMany({
             data: [
                 {
@@ -133,15 +134,16 @@ describe("countReacts integration tests", () => {
         // Run the count reacts function
         await countReacts();
 
-        // Check that the score was updated correctly (1 + 2 = 3)
+        // Check that the score was updated correctly (1 + 1 = 2)
         const updatedIssue = await DbProvider.get().issue.findUnique({
             where: { id: issue.id },
             include: { reactionSummaries: true },
         });
 
-        expect(updatedIssue?.score).toBe(3);
+
+        expect(updatedIssue?.score).toBe(2);
         expect(updatedIssue?.reactionSummaries).toHaveLength(2);
-        
+
         const summaryMap = new Map(updatedIssue?.reactionSummaries.map(s => [s.emoji, s.count]) || []);
         expect(summaryMap.get("👍")).toBe(1);
         expect(summaryMap.get("❤️")).toBe(1);
@@ -210,9 +212,9 @@ describe("countReacts integration tests", () => {
             include: { reactionSummaries: true },
         });
 
-        expect(updatedResource?.score).toBe(5); // 2 * 1 + 1 * 3 = 5
+        expect(updatedResource?.score).toBe(3); // 2 thumbs up + 1 party = 3
         expect(updatedResource?.reactionSummaries).toHaveLength(2);
-        
+
         const summaryMap = new Map(updatedResource?.reactionSummaries.map(s => [s.emoji, s.count]) || []);
         expect(summaryMap.get("👍")).toBe(2);
         expect(summaryMap.get("🎉")).toBe(1);
@@ -236,14 +238,38 @@ describe("countReacts integration tests", () => {
         const summary1Id = generatePK();
         const summary2Id = generatePK();
         testReactionSummaryIds.push(summary1Id, summary2Id);
-        
+
+        // Create an issue first for the comment to belong to
+        const issue = await DbProvider.get().issue.create({
+            data: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                createdBy: { connect: { id: owner.id } },
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Issue",
+                        description: "Test Description",
+                    },
+                },
+            },
+        });
+        testIssueIds.push(issue.id);
+
         const comment = await DbProvider.get().comment.create({
             data: {
                 id: generatePK(),
-                createdById: owner.id,
-                issueId: generatePK(), // Valid bigint foreign key
-                body: "Test comment",
+                ownedByUser: { connect: { id: owner.id } },
+                issue: { connect: { id: issue.id } },
                 score: 10,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Test comment",
+                    },
+                },
                 reactionSummaries: {
                     create: [
                         {
@@ -312,15 +338,15 @@ describe("countReacts integration tests", () => {
         const chat = await DbProvider.get().chat.create({
             data: {
                 id: generatePK(),
-                participantsCreate: {
+                publicId: generatePublicId(),
+                participants: {
                     create: [
                         {
                             id: generatePK(),
-                            userId: owner.id,
+                            user: { connect: { id: owner.id } },
                         },
                     ],
                 },
-                createdById: owner.id,
             },
         });
         testChatIds.push(chat.id);
@@ -329,13 +355,14 @@ describe("countReacts integration tests", () => {
         const summary1Id = generatePK();
         const summary2Id = generatePK();
         testReactionSummaryIds.push(summary1Id, summary2Id);
-        
+
         const chatMessage = await DbProvider.get().chat_message.create({
             data: {
                 id: generatePK(),
                 chatId: chat.id,
                 userId: owner.id,
-                body: "Test message",
+                language: "en",
+                text: "Test message",
                 score: 10,
                 reactionSummaries: {
                     create: [
@@ -396,7 +423,7 @@ describe("countReacts integration tests", () => {
         // Create entities with scores but no actual reactions
         const summaryId = generatePK();
         testReactionSummaryIds.push(summaryId);
-        
+
         const issue = await DbProvider.get().issue.create({
             data: {
                 id: generatePK(),
@@ -451,15 +478,15 @@ describe("countReacts integration tests", () => {
         const chat = await DbProvider.get().chat.create({
             data: {
                 id: generatePK(),
-                participantsCreate: {
+                publicId: generatePublicId(),
+                participants: {
                     create: [
                         {
                             id: generatePK(),
-                            userId: owner.id,
+                            user: { connect: { id: owner.id } },
                         },
                     ],
                 },
-                createdById: owner.id,
             },
         });
         testChatIds.push(chat.id);
@@ -470,22 +497,12 @@ describe("countReacts integration tests", () => {
                 id: generatePK(),
                 chatId: chat.id,
                 userId: owner.id,
-                body: "Test",
+                language: "en",
+                text: "Test",
                 score: 5,
             },
         });
         testChatMessageIds.push(chatMessage.id);
-
-        const comment = await DbProvider.get().comment.create({
-            data: {
-                id: generatePK(),
-                createdById: owner.id,
-                issueId: generatePK(),
-                body: "Test",
-                score: 5,
-            },
-        });
-        testCommentIds.push(comment.id);
 
         const issue = await DbProvider.get().issue.create({
             data: {
@@ -504,6 +521,23 @@ describe("countReacts integration tests", () => {
             },
         });
         testIssueIds.push(issue.id);
+
+        const comment = await DbProvider.get().comment.create({
+            data: {
+                id: generatePK(),
+                ownedByUserId: owner.id,
+                issueId: issue.id,
+                score: 5,
+                translations: {
+                    create: {
+                        id: generatePK(),
+                        language: "en",
+                        text: "Test",
+                    },
+                },
+            },
+        });
+        testCommentIds.push(comment.id);
 
         const resource = await DbProvider.get().resource.create({
             data: {

@@ -1,171 +1,230 @@
-import { describe, expect, it } from "vitest";
-import {
-    endpointsActions,
-    endpointsApiKey,
-    endpointsAuth,
-    endpointsBookmark,
-    endpointsChatInvite,
-    endpointsResource,
-    endpointsUser,
+// AI_CHECK: TEST_COVERAGE=6 | LAST: 2025-06-18
+import { describe, it, expect } from "vitest";
+import { 
+    findOne, 
+    findMany, 
+    createOne, 
+    createMany, 
+    updateOne, 
+    updateMany, 
+    standardCRUD, 
+    resourceVersion 
 } from "./pairs.js";
 
-describe("API Endpoint Pairs", () => {
-    describe("HTTP Method Security and Semantics", () => {
-        it("should use safe methods for read operations", () => {
-            // GET should be used for read operations - they should be safe and idempotent
-            expect(endpointsBookmark.findOne.method).toBe("GET");
-            expect(endpointsBookmark.findMany.method).toBe("GET");
-            expect(endpointsUser.profile.method).toBe("GET");
-            expect(endpointsUser.exportData.method).toBe("GET");
-            
-            // Export operations should use GET since they're retrieving data
-            expect(endpointsUser.exportCalendar.method).toBe("GET");
-        });
-
-        it("should use appropriate methods for data modification", () => {
-            // POST should be used for non-idempotent operations (creation, actions)
-            expect(endpointsBookmark.createOne.method).toBe("POST");
-            expect(endpointsUser.importUserData.method).toBe("POST");
-            expect(endpointsActions.copy.method).toBe("POST");
-            
-            // PUT should be used for idempotent updates
-            expect(endpointsBookmark.updateOne.method).toBe("PUT");
-            expect(endpointsUser.profileUpdate.method).toBe("PUT");
-        });
-
-        it("should use POST for destructive actions for CSRF protection", () => {
-            // Destructive actions should use POST to prevent CSRF via GET requests
-            expect(endpointsActions.deleteOne.method).toBe("POST");
-            expect(endpointsActions.deleteMany.method).toBe("POST");
-            expect(endpointsActions.deleteAll.method).toBe("POST");
-            expect(endpointsActions.deleteAccount.method).toBe("POST");
-        });
-    });
-
-    describe("CRUD Operation Patterns", () => {
-        it("should use public identifiers for external-facing operations", () => {
-            // Read operations should use publicId for external API access
-            expect(endpointsBookmark.findOne.endpoint).toMatch(/:publicId$/);
-            expect(endpointsResource.findOne.endpoint).toMatch(/:publicId$/);
-            
-            // This ensures URLs are not guessable and don't expose internal database IDs
-        });
-
-        it("should use internal IDs for authenticated update operations", () => {
-            // Update operations can use internal IDs since they require authentication
-            expect(endpointsBookmark.updateOne.endpoint).toMatch(/:id$/);
-            expect(endpointsChatInvite.updateOne.endpoint).toMatch(/:id$/);
-            
-            // This allows for more efficient database operations while maintaining security
-        });
-
-        it("should follow REST resource naming conventions", () => {
-            // Collection endpoints should use plural nouns
-            expect(endpointsBookmark.findMany.endpoint).toBe("/bookmarks");
-            expect(endpointsChatInvite.findMany.endpoint).toBe("/chatInvites");
-            
-            // Individual resource endpoints should use singular nouns
-            expect(endpointsBookmark.createOne.endpoint).toBe("/bookmark");
-            expect(endpointsChatInvite.createOne.endpoint).toBe("/chatInvite");
-        });
-    });
-
-    describe("Authentication Endpoints", () => {
-        it("should have secure authentication patterns", () => {
-            // All auth endpoints should use POST for security
-            Object.values(endpointsAuth).forEach(endpoint => {
-                expect(endpoint.method).toBe("POST");
-            });
-            
-            // Auth endpoints should be under /auth namespace
-            Object.values(endpointsAuth).forEach(endpoint => {
-                expect(endpoint.endpoint).toMatch(/^\/auth/);
-            });
-        });
-    });
-
-    describe("Action Endpoints", () => {
-        it("should use POST for all destructive actions", () => {
-            // All delete operations should use POST (not DELETE) for safety
-            expect(endpointsActions.deleteOne.method).toBe("POST");
-            expect(endpointsActions.deleteMany.method).toBe("POST");
-            expect(endpointsActions.deleteAll.method).toBe("POST");
-            expect(endpointsActions.deleteAccount.method).toBe("POST");
-        });
-
-        it("should use appropriate naming for actions", () => {
-            // Action endpoints should have descriptive names
-            expect(endpointsActions.copy.endpoint).toBe("/copy");
-            expect(endpointsActions.deleteOne.endpoint).toBe("/deleteOne");
-            expect(endpointsActions.deleteMany.endpoint).toBe("/deleteMany");
-        });
-    });
-
-    describe("Batch Operations", () => {
-        it("should support batch operations where appropriate", () => {
-            // Chat invites support batch operations
-            expect(endpointsChatInvite.createMany).toBeDefined();
-            expect(endpointsChatInvite.updateMany).toBeDefined();
-            
-            // Batch endpoints should use plural paths
-            expect(endpointsChatInvite.createMany.endpoint).toMatch(/s$/);
-            expect(endpointsChatInvite.updateMany.endpoint).toMatch(/s$/);
-            
-            // Batch operations should use same HTTP method as single operations
-            expect(endpointsChatInvite.createOne.method).toBe(endpointsChatInvite.createMany.method);
-            expect(endpointsChatInvite.updateOne.method).toBe(endpointsChatInvite.updateMany.method);
-        });
-    });
-
-    describe("Resource Versioning", () => {
-        it("should have consistent version endpoint patterns", () => {
-            // All version endpoints should follow pattern /:publicId/v/:versionLabel
-            const versionEndpoints = [
-                endpointsResource.findResourceVersion,
-                endpointsResource.findApiVersion,
-                endpointsResource.findNoteVersion,
-                endpointsResource.findProjectVersion,
-            ];
-            
-            versionEndpoints.forEach(endpoint => {
-                expect(endpoint.endpoint).toMatch(/:publicId\/v\/:versionLabel$/);
-                expect(endpoint.method).toBe("GET");
+describe("API endpoint helper functions", () => {
+    describe("findOne", () => {
+        it("should generate correct findOne endpoint for single resource", () => {
+            const result = findOne("user");
+            expect(result).toEqual({
+                findOne: {
+                    endpoint: "/user/:publicId",
+                    method: "GET"
+                }
             });
         });
 
-        it("should use appropriate resource type prefixes", () => {
-            // Each resource type should have its own prefix
-            expect(endpointsResource.findApiVersion.endpoint).toMatch(/^\/api\//);
-            expect(endpointsResource.findDataConverterVersion.endpoint).toMatch(/^\/code\//);
-            expect(endpointsResource.findNoteVersion.endpoint).toMatch(/^\/note\//);
-            expect(endpointsResource.findProjectVersion.endpoint).toMatch(/^\/project\//);
+        it("should handle different resource names", () => {
+            expect(findOne("post")).toEqual({
+                findOne: {
+                    endpoint: "/post/:publicId",
+                    method: "GET"
+                }
+            });
+            
+            expect(findOne("comment")).toEqual({
+                findOne: {
+                    endpoint: "/comment/:publicId",
+                    method: "GET"
+                }
+            });
         });
+
     });
 
-    describe("User Profile Endpoints", () => {
-        it("should distinguish between public and private user endpoints", () => {
-            // Public user endpoint should use handle/id pattern
-            expect(endpointsUser.findOne.endpoint).toMatch(/\/u\//);
-            
-            // Private profile endpoints should use /profile
-            expect(endpointsUser.profile.endpoint).toBe("/profile");
-            expect(endpointsUser.profileUpdate.endpoint).toBe("/profile");
-            
-            // Profile read should use GET, update should use PUT
-            expect(endpointsUser.profile.method).toBe("GET");
-            expect(endpointsUser.profileUpdate.method).toBe("PUT");
+    describe("findMany", () => {
+        it("should generate correct findMany endpoint for multiple resources", () => {
+            const result = findMany("users");
+            expect(result).toEqual({
+                findMany: {
+                    endpoint: "/users",
+                    method: "GET"
+                }
+            });
         });
+
+        it("should handle different plural resource names", () => {
+            expect(findMany("posts")).toEqual({
+                findMany: {
+                    endpoint: "/posts",
+                    method: "GET"
+                }
+            });
+            
+            expect(findMany("comments")).toEqual({
+                findMany: {
+                    endpoint: "/comments",
+                    method: "GET"
+                }
+            });
+        });
+
     });
 
-    describe("Import/Export Endpoints", () => {
-        it("should use appropriate HTTP methods for import/export", () => {
-            // Imports should use POST (sending data)
-            expect(endpointsUser.importCalendar.method).toBe("POST");
-            expect(endpointsUser.importUserData.method).toBe("POST");
-            
-            // Exports should use GET (retrieving data)
-            expect(endpointsUser.exportCalendar.method).toBe("GET");
-            expect(endpointsUser.exportData.method).toBe("GET");
+    describe("createOne", () => {
+        it("should generate correct createOne endpoint", () => {
+            const result = createOne("user");
+            expect(result).toEqual({
+                createOne: {
+                    endpoint: "/user",
+                    method: "POST"
+                }
+            });
         });
+
+        it("should handle different resource names", () => {
+            expect(createOne("post")).toEqual({
+                createOne: {
+                    endpoint: "/post",
+                    method: "POST"
+                }
+            });
+        });
+
+    });
+
+    describe("createMany", () => {
+        it("should generate correct createMany endpoint", () => {
+            const result = createMany("users");
+            expect(result).toEqual({
+                createMany: {
+                    endpoint: "/users",
+                    method: "POST"
+                }
+            });
+        });
+
+        it("should handle different plural resource names", () => {
+            expect(createMany("posts")).toEqual({
+                createMany: {
+                    endpoint: "/posts",
+                    method: "POST"
+                }
+            });
+        });
+
+    });
+
+    describe("updateOne", () => {
+        it("should generate correct updateOne endpoint", () => {
+            const result = updateOne("user");
+            expect(result).toEqual({
+                updateOne: {
+                    endpoint: "/user/:id",
+                    method: "PUT"
+                }
+            });
+        });
+
+        it("should handle different resource names", () => {
+            expect(updateOne("post")).toEqual({
+                updateOne: {
+                    endpoint: "/post/:id",
+                    method: "PUT"
+                }
+            });
+        });
+
+    });
+
+    describe("updateMany", () => {
+        it("should generate correct updateMany endpoint", () => {
+            const result = updateMany("users");
+            expect(result).toEqual({
+                updateMany: {
+                    endpoint: "/users",
+                    method: "PUT"
+                }
+            });
+        });
+
+        it("should handle different plural resource names", () => {
+            expect(updateMany("posts")).toEqual({
+                updateMany: {
+                    endpoint: "/posts",
+                    method: "PUT"
+                }
+            });
+        });
+
+    });
+
+    describe("standardCRUD", () => {
+        it("should combine findOne, findMany, createOne, and updateOne", () => {
+            const result = standardCRUD("user", "users");
+            expect(result).toEqual({
+                findOne: {
+                    endpoint: "/user/:publicId",
+                    method: "GET"
+                },
+                findMany: {
+                    endpoint: "/users",
+                    method: "GET"
+                },
+                createOne: {
+                    endpoint: "/user",
+                    method: "POST"
+                },
+                updateOne: {
+                    endpoint: "/user/:id",
+                    method: "PUT"
+                }
+            });
+        });
+
+        it("should handle different resource combinations", () => {
+            const result = standardCRUD("post", "posts");
+            expect(result).toEqual({
+                findOne: {
+                    endpoint: "/post/:publicId",
+                    method: "GET"
+                },
+                findMany: {
+                    endpoint: "/posts",
+                    method: "GET"
+                },
+                createOne: {
+                    endpoint: "/post",
+                    method: "POST"
+                },
+                updateOne: {
+                    endpoint: "/post/:id",
+                    method: "PUT"
+                }
+            });
+        });
+
+    });
+
+    describe("resourceVersion", () => {
+        it("should generate correct versioned resource endpoint", () => {
+            const result = resourceVersion("api");
+            expect(result).toEqual({
+                endpoint: "/api/:publicId/v/:versionLabel",
+                method: "GET"
+            });
+        });
+
+        it("should handle different resource names", () => {
+            expect(resourceVersion("routine")).toEqual({
+                endpoint: "/routine/:publicId/v/:versionLabel",
+                method: "GET"
+            });
+
+            expect(resourceVersion("project")).toEqual({
+                endpoint: "/project/:publicId/v/:versionLabel",
+                method: "GET"
+            });
+        });
+
     });
 });

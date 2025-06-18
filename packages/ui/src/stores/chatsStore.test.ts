@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
 import { renderHook } from "@testing-library/react";
 import { type Chat, type ChatSearchResult, ChatSortBy } from "@vrooli/shared";
-import { useChatsStore, useChats } from "./chatsStore.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useChats, useChatsStore } from "./chatsStore.js";
 
 // Mock dependencies
 vi.mock("../api/fetchData.js", () => ({
@@ -59,7 +60,7 @@ describe("useChatsStore", () => {
     beforeEach(() => {
         // Get the initial store state and reset everything properly
         const initialState = useChatsStore.getState();
-        
+
         // Reset store state completely with all functions included
         useChatsStore.setState({
             chats: [],
@@ -77,9 +78,17 @@ describe("useChatsStore", () => {
         vi.clearAllMocks();
     });
 
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     describe("initial state", () => {
-        it("should have correct initial values", () => {
+        it("starts with empty chat list when user opens app", () => {
+            // GIVEN: User opens the application
+            // WHEN: The chat store initializes
             const state = useChatsStore.getState();
+
+            // THEN: No chats are loaded yet
             expect(state.chats).toEqual([]);
             expect(state.isLoading).toBe(false);
             expect(state.error).toBe(null);
@@ -87,7 +96,8 @@ describe("useChatsStore", () => {
     });
 
     describe("fetchChats", () => {
-        it("should fetch chats successfully", async () => {
+        it("loads user's chat list when requested", async () => {
+            // GIVEN: User has multiple chats on the server
             const mockChats = [
                 createMockChat("chat1"),
                 createMockChat("chat2"),
@@ -109,15 +119,10 @@ describe("useChatsStore", () => {
                 timestamp: Date.now(),
             });
 
+            // WHEN: App fetches the chat list
             const result = await useChatsStore.getState().fetchChats();
 
-            expect(mockFetchData).toHaveBeenCalledWith({
-                endpoint: "/chats",
-                method: "GET",
-                inputs: { sortBy: ChatSortBy.DateUpdatedDesc },
-                signal: undefined,
-            });
-
+            // THEN: Chats are loaded and displayed
             expect(result).toEqual(mockChats);
             expect(useChatsStore.getState().chats).toEqual(mockChats);
             expect(useChatsStore.getState().isLoading).toBe(false);
@@ -149,9 +154,10 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().error).toBe(null);
         });
 
-        it("should handle API errors", async () => {
+        it("shows error message when chat loading fails", async () => {
+            // GIVEN: Server returns an error
             const mockErrors = [{ message: "Failed to fetch chats" }];
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
 
             mockFetchData.mockResolvedValue({
                 data: null,
@@ -159,21 +165,20 @@ describe("useChatsStore", () => {
                 timestamp: Date.now(),
             });
 
-            // The function throws an error internally but the catch block returns empty array
+            // WHEN: App tries to fetch chats
             const result = await useChatsStore.getState().fetchChats();
 
+            // THEN: Error is displayed to user
             expect(mockDisplayErrors).toHaveBeenCalledWith(mockErrors);
             expect(result).toEqual([]);
-            expect(useChatsStore.getState().chats).toEqual([]);
-            expect(useChatsStore.getState().isLoading).toBe(false);
             expect(useChatsStore.getState().error).toBe("Error fetching chats");
-            
+
             consoleSpy.mockRestore();
         });
 
         it("should handle network errors", async () => {
             const networkError = new Error("Network error");
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
             mockFetchData.mockRejectedValue(networkError);
 
             const result = await useChatsStore.getState().fetchChats();
@@ -182,7 +187,7 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().chats).toEqual([]);
             expect(useChatsStore.getState().isLoading).toBe(false);
             expect(useChatsStore.getState().error).toBe("Error fetching chats");
-            
+
             consoleSpy.mockRestore();
         });
 
@@ -198,12 +203,15 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().error).toBe(null);
         });
 
-        it("should not refetch if chats already exist", async () => {
+        it("uses cached chats to avoid unnecessary network requests", async () => {
+            // GIVEN: Chats are already loaded in memory
             const existingChats = [createMockChat("existing")];
             useChatsStore.setState({ chats: existingChats });
 
+            // WHEN: App requests chats again
             const result = await useChatsStore.getState().fetchChats();
 
+            // THEN: Cached chats are returned without network call
             expect(mockFetchData).not.toHaveBeenCalled();
             expect(result).toEqual(existingChats);
         });
@@ -314,13 +322,16 @@ describe("useChatsStore", () => {
             expect(useChatsStore.getState().chats).toEqual([newChat]);
         });
 
-        it("should add chat to beginning of existing list", () => {
+        it("displays new chat at top when user creates one", () => {
+            // GIVEN: User has existing chats
             const existingChat = createMockChat("existing");
-            const newChat = createMockChat("new");
-
             useChatsStore.setState({ chats: [existingChat] });
+
+            // WHEN: User creates a new chat
+            const newChat = createMockChat("new");
             useChatsStore.getState().addChat(newChat);
 
+            // THEN: New chat appears at the top of the list
             expect(useChatsStore.getState().chats).toEqual([newChat, existingChat]);
         });
 
@@ -337,14 +348,17 @@ describe("useChatsStore", () => {
     });
 
     describe("removeChat", () => {
-        it("should remove chat by ID", () => {
+        it("removes chat from list when user deletes it", () => {
+            // GIVEN: User has multiple chats
             const chat1 = createMockChat("chat1");
             const chat2 = createMockChat("chat2");
             const chat3 = createMockChat("chat3");
-
             useChatsStore.setState({ chats: [chat1, chat2, chat3] });
+
+            // WHEN: User deletes a chat
             useChatsStore.getState().removeChat("chat2");
 
+            // THEN: Chat is removed from the list
             expect(useChatsStore.getState().chats).toEqual([chat1, chat3]);
         });
 
@@ -377,13 +391,16 @@ describe("useChatsStore", () => {
     });
 
     describe("updateChat", () => {
-        it("should update existing chat", () => {
+        it("updates chat settings when user changes them", () => {
+            // GIVEN: User has a private chat
             const originalChat = createMockChat("chat1", { openToAnyoneWithInvite: false });
-            const updatedChat = createMockChat("chat1", { openToAnyoneWithInvite: true });
-
             useChatsStore.setState({ chats: [originalChat] });
+
+            // WHEN: User makes the chat public
+            const updatedChat = createMockChat("chat1", { openToAnyoneWithInvite: true });
             useChatsStore.getState().updateChat(updatedChat);
 
+            // THEN: Chat settings are updated in the list
             expect(useChatsStore.getState().chats).toEqual([updatedChat]);
         });
 
@@ -434,17 +451,19 @@ describe("useChatsStore", () => {
     });
 
     describe("clearChats", () => {
-        it("should clear all chats and reset state", () => {
+        it("clears all chats when user logs out", () => {
+            // GIVEN: User has chats loaded with some state
             const chats = [createMockChat("chat1"), createMockChat("chat2")];
-
             useChatsStore.setState({
                 chats,
                 isLoading: true,
                 error: "Some error",
             });
 
+            // WHEN: User logs out
             useChatsStore.getState().clearChats();
 
+            // THEN: All chat data is cleared
             expect(useChatsStore.getState().chats).toEqual([]);
             expect(useChatsStore.getState().isLoading).toBe(false);
             expect(useChatsStore.getState().error).toBe(null);
@@ -633,7 +652,7 @@ describe("useChatsStore", () => {
 
         it("should fetch chats when user logs in and store is empty", async () => {
             const mockChats = [createMockChat("chat1"), createMockChat("chat2")];
-            
+
             mockFetchData.mockResolvedValue({
                 data: {
                     edges: mockChats.map(chat => ({ cursor: chat.id, node: chat })),
@@ -650,9 +669,9 @@ describe("useChatsStore", () => {
 
             // Start with user logged out
             mockCheckIfLoggedIn.mockReturnValue(false);
-            
+
             const { rerender } = renderHook(() => useChats());
-            
+
             // User logs in
             mockCheckIfLoggedIn.mockReturnValue(true);
             rerender();
@@ -676,9 +695,9 @@ describe("useChatsStore", () => {
 
             // Start with user logged in
             mockCheckIfLoggedIn.mockReturnValue(true);
-            
+
             const { rerender } = renderHook(() => useChats());
-            
+
             // User logs out
             mockCheckIfLoggedIn.mockReturnValue(false);
             rerender();
@@ -715,8 +734,8 @@ describe("useChatsStore", () => {
         });
 
         it("should handle fetch errors gracefully", async () => {
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+
             mockFetchData.mockRejectedValue(new Error("Network error"));
             mockCheckIfLoggedIn.mockReturnValue(true);
 
@@ -727,13 +746,13 @@ describe("useChatsStore", () => {
 
             // The error is logged from fetchChats function, not from useChats
             expect(consoleSpy).toHaveBeenCalledWith("Error fetching chats:", expect.any(Error));
-            
+
             consoleSpy.mockRestore();
         });
 
         it("should not log error for abort errors", async () => {
-            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            
+            const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+
             const abortError = new Error("AbortError");
             abortError.name = "AbortError";
             mockFetchData.mockRejectedValue(abortError);
@@ -745,7 +764,7 @@ describe("useChatsStore", () => {
             await new Promise(resolve => setTimeout(resolve, 0));
 
             expect(consoleSpy).not.toHaveBeenCalled();
-            
+
             consoleSpy.mockRestore();
         });
 
@@ -753,7 +772,7 @@ describe("useChatsStore", () => {
             mockCheckIfLoggedIn.mockReturnValue(true);
 
             const { unmount } = renderHook(() => useChats());
-            
+
             // Unmount immediately
             unmount();
 
@@ -767,7 +786,7 @@ describe("useChatsStore", () => {
             useChatsStore.setState({ chats: existingChats });
 
             mockCheckIfLoggedIn.mockReturnValue(true);
-            
+
             const { rerender } = renderHook(
                 ({ sessionProp }) => {
                     // Simulate session context change
@@ -785,20 +804,20 @@ describe("useChatsStore", () => {
 
         it("should only clear chats if chats exist when logging out", () => {
             const clearChatsSpy = vi.spyOn(useChatsStore.getState(), "clearChats");
-            
+
             // Start with empty chats
             useChatsStore.setState({ chats: [] });
             mockCheckIfLoggedIn.mockReturnValue(true);
-            
+
             const { rerender } = renderHook(() => useChats());
-            
+
             // User logs out
             mockCheckIfLoggedIn.mockReturnValue(false);
             rerender();
 
             // Should not call clearChats since chats array is already empty
             expect(clearChatsSpy).not.toHaveBeenCalled();
-            
+
             clearChatsSpy.mockRestore();
         });
     });

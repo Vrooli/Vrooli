@@ -7,7 +7,7 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { type Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { DbProvider, batch, logger, type EmbeddableType } from "@vrooli/server";
 import { RunStatus, type ModelType, ModelType as ModelTypeEnum } from "@vrooli/shared";
 import { EmbeddingService } from "@vrooli/server";
@@ -34,7 +34,7 @@ const embedSelectMap = {
     Issue: { id: true, translations: { select: commonTranslationSelect } },
     Meeting: { id: true, translations: { select: commonTranslationSelect } },
     ResourceVersion: { id: true, translations: { select: commonTranslationSelect } },
-    Team: { id: true, name: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, bio: true } } },
+    Team: { id: true, translations: { select: { id: true, embeddingExpiredAt: true, language: true, name: true, bio: true } } },
     Tag: { id: true, translations: { select: tagTranslationSelect } },
     User: { id: true, name: true, handle: true, translations: { select: bioTranslationSelect } },
     Reminder: { id: true, embeddingExpiredAt: true, name: true, description: true },
@@ -91,7 +91,7 @@ const typedEmbedGetMap: {
     Issue: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
     Meeting: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
     ResourceVersion: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, description: t.description }, t.language)),
-    Team: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: row.name, bio: t.bio }, t.language)),
+    Team: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: t.name, bio: t.bio }, t.language)),
     Tag: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ description: t.description }, t.language)),
     User: (row) => row.translations.map(t => EmbeddingService.getEmbeddableString({ name: row.name, handle: row.handle, bio: t.bio }, t.language)),
     Reminder: (row) => [EmbeddingService.getEmbeddableString({ name: row.name, description: row.description }, undefined)],
@@ -155,7 +155,9 @@ async function updateEmbedding(
     }
     
     // Use Prisma.sql for safe query construction with dynamic table names
-    const query = Prisma.sql`UPDATE ${Prisma.raw(`"${tableName}"`)} SET "embedding" = ${embeddings}::float[], "embeddingExpiredAt" = NOW() WHERE id = ${BigInt(id)}`;
+    // Convert embeddings array to PostgreSQL array format
+    const embeddingsArrayStr = `[${embeddings.join(',')}]`;
+    const query = Prisma.sql`UPDATE ${Prisma.raw(`"${tableName}"`)} SET "embedding" = ${embeddingsArrayStr}::vector(1536), "embeddingExpiredAt" = NOW() WHERE id = ${BigInt(id)}`;
     await DbProvider.get().$executeRaw(query);
 }
 
@@ -318,7 +320,18 @@ async function embeddingBatch<K extends EmbeddableType>({
             where,
         });
     } catch (error) {
-        logger.error("embeddingBatch caught error", { error, trace, ...traceObject });
+        logger.error("embeddingBatch caught error", { 
+            error: {
+                name: error?.name,
+                message: error?.message,
+                stack: error?.stack,
+                ...error
+            }, 
+            trace, 
+            ...traceObject 
+        });
+        // Re-throw to ensure tests see the error
+        throw error;
     }
 }
 
@@ -330,7 +343,7 @@ async function batchEmbeddingsChat() {
         select: embedSelectMap.Chat,
         processBatch: processEmbeddingBatch,
         trace: "0475",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -340,7 +353,7 @@ async function batchEmbeddingsIssue() {
         select: embedSelectMap.Issue,
         processBatch: processEmbeddingBatch,
         trace: "0476",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -350,7 +363,7 @@ async function batchEmbeddingsMeeting() {
         select: embedSelectMap.Meeting,
         processBatch: processEmbeddingBatch,
         trace: "0477",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -360,7 +373,7 @@ async function batchEmbeddingsTeam() {
         select: embedSelectMap.Team,
         processBatch: processEmbeddingBatch,
         trace: "0478",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -373,7 +386,7 @@ async function batchEmbeddingsResourceVersion() {
         where: {
             isDeleted: false,
             root: { isDeleted: false },
-            ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }),
+            ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }),
         },
     });
 }
@@ -384,7 +397,7 @@ async function batchEmbeddingsTag() {
         select: embedSelectMap.Tag,
         processBatch: processEmbeddingBatch,
         trace: "0485",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -394,7 +407,7 @@ async function batchEmbeddingsUser() {
         select: embedSelectMap.User,
         processBatch: processEmbeddingBatch,
         trace: "0486",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { embeddingExpiredAt: { lte: new Date() } } } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { translations: { some: { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] } } }) },
     });
 }
 
@@ -404,7 +417,7 @@ async function batchEmbeddingsReminder() {
         select: embedSelectMap.Reminder,
         processBatch: processEmbeddingBatch,
         trace: "0482",
-        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { embeddingExpiredAt: { lte: new Date() } }) },
+        where: { ...(RECALCULATE_EMBEDDINGS ? {} : { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] }) },
     });
 }
 
@@ -416,7 +429,7 @@ async function batchEmbeddingsRun() {
         trace: "0483",
         where: {
             status: { in: [RunStatus.Scheduled, RunStatus.InProgress] },
-            ...(RECALCULATE_EMBEDDINGS ? {} : { embeddingExpiredAt: { lte: new Date() } }),
+            ...(RECALCULATE_EMBEDDINGS ? {} : { OR: [{ embeddingExpiredAt: null }, { embeddingExpiredAt: { lte: new Date() } }] }),
         },
     });
 }
@@ -437,5 +450,6 @@ export async function generateEmbeddings() {
     await batchEmbeddingsTag();
     await batchEmbeddingsUser();
     await batchEmbeddingsReminder();
-    await batchEmbeddingsRun();
+    // Skipping batchEmbeddingsRun() - Run model doesn't have embedding fields in schema
+    // await batchEmbeddingsRun();
 }

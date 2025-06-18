@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { addSearchParams, keepSearchParams, removeSearchParams, setSearchParams } from "./searchParams.js";
 
 // Mock setLocation function

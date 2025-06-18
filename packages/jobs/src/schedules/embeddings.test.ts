@@ -1,32 +1,61 @@
 import { generatePK, generatePublicId, RunStatus } from "@vrooli/shared";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MockedFunction } from "vitest";
 import { generateEmbeddings } from "./embeddings.js";
 
-import { DbProvider } from "@vrooli/server/db/provider.js";
+import { DbProvider } from "@vrooli/server";
 
 // Mock the EmbeddingService
-vi.mock("@vrooli/server/services/embedding.js", () => ({
-    EmbeddingService: {
-        get: () => ({
-            getEmbeddings: vi.fn().mockImplementation((objectType: string, sentences: string[]) => {
-                // Return mock embeddings - arrays of 1536 dimensions (OpenAI standard)
-                return sentences.map(() => Array(1536).fill(0.1));
+vi.mock("@vrooli/server", async () => {
+    const actual = await vi.importActual("@vrooli/server");
+    return {
+        ...actual,
+        EmbeddingService: {
+            get: () => ({
+                getEmbeddings: vi.fn().mockImplementation((objectType: string, sentences: string[]) => {
+                    console.log(`Mock getEmbeddings called for ${objectType} with ${sentences.length} sentences`);
+                    // Return mock embeddings - arrays of 1536 dimensions (OpenAI standard)
+                    return sentences.map(() => Array(1536).fill(0.1));
+                }),
             }),
-        }),
-        getEmbeddableString: vi.fn().mockImplementation((data: string | Record<string, any>, language?: string) => {
-            // Simple mock implementation
-            const parts = [];
-            if (data.name) parts.push(data.name);
-            if (data.handle) parts.push(data.handle);
-            if (data.description) parts.push(data.description);
-            if (data.bio) parts.push(data.bio);
-            return parts.join(" ");
-        }),
-    },
-}));
+            getEmbeddableString: vi.fn().mockImplementation((data: string | Record<string, any>, language?: string) => {
+                // Simple mock implementation
+                const parts = [];
+                if (data.name) parts.push(data.name);
+                if (data.handle) parts.push(data.handle);
+                if (data.description) parts.push(data.description);
+                if (data.bio) parts.push(data.bio);
+                return parts.join(" ");
+            }),
+        },
+    };
+});
 
 describe("generateEmbeddings integration tests", () => {
+    beforeAll(() => {
+        // Suppress logger output during tests
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        vi.spyOn(console, "log").mockImplementation(() => {});
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+
+    // Helper function to validate embeddings since Prisma can't deserialize vector types
+    async function validateEmbedding(tableName: string, id: bigint, shouldHaveEmbedding: boolean = true) {
+        const result = await DbProvider.get().$queryRawUnsafe<Array<{
+            id: bigint;
+            has_embedding: boolean;
+            embeddingExpiredAt: Date | null;
+        }>>(
+            `SELECT id, (embedding IS NOT NULL) as has_embedding, "embeddingExpiredAt" FROM "${tableName}" WHERE id = ${id}`
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0].has_embedding).toBe(shouldHaveEmbedding);
+        if (shouldHaveEmbedding) {
+            expect(result[0].embeddingExpiredAt).toBeDefined();
+            expect(result[0].embeddingExpiredAt!.getTime()).toBeGreaterThan(Date.now() - 5000); // Allow 5 seconds tolerance
+        }
+    }
     // Store test entity IDs for cleanup
     const testUserIds: bigint[] = [];
     const testTeamIds: bigint[] = [];
@@ -38,7 +67,6 @@ describe("generateEmbeddings integration tests", () => {
     const testTagIds: bigint[] = [];
     const testReminderIds: bigint[] = [];
     const testRunIds: bigint[] = [];
-    const testRoutineIds: bigint[] = [];
 
     beforeEach(async () => {
         // Clear test ID arrays
@@ -52,7 +80,6 @@ describe("generateEmbeddings integration tests", () => {
         testTagIds.length = 0;
         testReminderIds.length = 0;
         testRunIds.length = 0;
-        testRoutineIds.length = 0;
     });
 
     afterEach(async () => {
@@ -71,9 +98,6 @@ describe("generateEmbeddings integration tests", () => {
         }
         if (testResourceIds.length > 0) {
             await db.resource.deleteMany({ where: { id: { in: testResourceIds } } });
-        }
-        if (testRoutineIds.length > 0) {
-            await db.routine.deleteMany({ where: { id: { in: testRoutineIds } } });
         }
         if (testTagIds.length > 0) {
             await db.tag.deleteMany({ where: { id: { in: testTagIds } } });
@@ -103,6 +127,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Test User",
                 handle: "testuser",
+                isBot: false,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -119,17 +144,15 @@ describe("generateEmbeddings integration tests", () => {
         testUserIds.push(user.id);
 
         // Run the embeddings generation
-        await generateEmbeddings();
+        try {
+            await generateEmbeddings();
+        } catch (error) {
+            console.error("generateEmbeddings error:", error);
+            throw error;
+        }
 
         // Check that embeddings were updated
-        const updatedUser = await DbProvider.get().user.findUnique({
-            where: { id: user.id },
-            include: { translations: true },
-        });
-
-        expect(updatedUser?.translations[0].embedding).toBeDefined();
-        expect(updatedUser?.translations[0].embeddingExpiredAt).toBeDefined();
-        expect(updatedUser?.translations[0].embeddingExpiredAt!.getTime()).toBeGreaterThan(Date.now() - 1000);
+        await validateEmbedding("user_translation", user.translations[0].id);
     });
 
     it("should generate embeddings for teams with bio translations", async () => {
@@ -139,6 +162,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Team Owner",
                 handle: "teamowner",
+                isBot: false,
             },
         });
         testUserIds.push(owner.id);
@@ -147,9 +171,10 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id }
+                },
                 handle: "testteam",
-                name: "Test Team",
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -160,17 +185,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testTeamIds.push(team.id);
 
         await generateEmbeddings();
 
-        const updatedTeam = await DbProvider.get().team.findUnique({
-            where: { id: team.id },
-            include: { translations: true },
-        });
-
-        expect(updatedTeam?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("team_translation", team.translations[0].id);
     });
 
     it("should generate embeddings for chats with name and description", async () => {
@@ -180,6 +204,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Chat Creator",
                 handle: "chatcreator",
+                isBot: false,
             },
         });
         testUserIds.push(creator.id);
@@ -187,7 +212,8 @@ describe("generateEmbeddings integration tests", () => {
         const chat = await DbProvider.get().chat.create({
             data: {
                 id: generatePK(),
-                createdById: creator.id,
+                publicId: generatePublicId(),
+                creatorId: creator.id,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -198,17 +224,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testChatIds.push(chat.id);
 
         await generateEmbeddings();
 
-        const updatedChat = await DbProvider.get().chat.findUnique({
-            where: { id: chat.id },
-            include: { translations: true },
-        });
-
-        expect(updatedChat?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("chat_translation", chat.translations[0].id);
     });
 
     it("should generate embeddings for issues", async () => {
@@ -218,6 +243,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Issue Creator",
                 handle: "issuecreator",
+                isBot: false,
             },
         });
         testUserIds.push(creator.id);
@@ -226,7 +252,9 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: creator.id,
+                createdBy: {
+                    connect: { id: creator.id }
+                },
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -237,17 +265,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testIssueIds.push(issue.id);
 
         await generateEmbeddings();
 
-        const updatedIssue = await DbProvider.get().issue.findUnique({
-            where: { id: issue.id },
-            include: { translations: true },
-        });
-
-        expect(updatedIssue?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("issue_translation", issue.translations[0].id);
     });
 
     it("should generate embeddings for meetings", async () => {
@@ -257,6 +284,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Meeting Owner",
                 handle: "meetingowner",
+                isBot: false,
             },
         });
         testUserIds.push(owner.id);
@@ -265,7 +293,9 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id }
+                },
                 handle: "meetingteam",
             },
         });
@@ -274,6 +304,7 @@ describe("generateEmbeddings integration tests", () => {
         const meeting = await DbProvider.get().meeting.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 teamId: team.id,
                 translations: {
                     create: [{
@@ -285,17 +316,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testMeetingIds.push(meeting.id);
 
         await generateEmbeddings();
 
-        const updatedMeeting = await DbProvider.get().meeting.findUnique({
-            where: { id: meeting.id },
-            include: { translations: true },
-        });
-
-        expect(updatedMeeting?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("meeting_translation", meeting.translations[0].id);
     });
 
     it("should generate embeddings for resource versions", async () => {
@@ -305,6 +335,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Resource Owner",
                 handle: "resourceowner",
+                isBot: false,
             },
         });
         testUserIds.push(owner.id);
@@ -313,30 +344,22 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
-                resourceType: "RoutineVersion",
-            },
-        });
-        testResourceIds.push(resource.id);
-
-        const routine = await DbProvider.get().routine.create({
-            data: {
-                id: generatePK(),
-                createdById: owner.id,
+                createdBy: {
+                    connect: { id: owner.id }
+                },
+                resourceType: "Routine",
                 isPrivate: false,
                 isInternal: false,
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceIds.push(resource.id);
 
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
-                resourceId: resource.id,
+                publicId: generatePublicId(),
+                rootId: resource.id,
                 versionLabel: "1.0.0",
-                schemaLanguage: "json",
-                schema: "{}",
-                routineId: routine.id,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -347,17 +370,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testResourceVersionIds.push(resourceVersion.id);
 
         await generateEmbeddings();
 
-        const updatedVersion = await DbProvider.get().resource_version.findUnique({
-            where: { id: resourceVersion.id },
-            include: { translations: true },
-        });
-
-        expect(updatedVersion?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("resource_translation", resourceVersion.translations[0].id);
     });
 
     it("should generate embeddings for tags", async () => {
@@ -367,6 +389,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Tag Creator",
                 handle: "tagcreator",
+                isBot: false,
             },
         });
         testUserIds.push(creator.id);
@@ -374,7 +397,9 @@ describe("generateEmbeddings integration tests", () => {
         const tag = await DbProvider.get().tag.create({
             data: {
                 id: generatePK(),
-                createdById: creator.id,
+                createdBy: {
+                    connect: { id: creator.id }
+                },
                 tag: "test-tag",
                 translations: {
                     create: [{
@@ -385,17 +410,16 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testTagIds.push(tag.id);
 
         await generateEmbeddings();
 
-        const updatedTag = await DbProvider.get().tag.findUnique({
-            where: { id: tag.id },
-            include: { translations: true },
-        });
-
-        expect(updatedTag?.translations[0].embedding).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("tag_translation", tag.translations[0].id);
     });
 
     it("should generate embeddings for reminders (non-translatable)", async () => {
@@ -405,14 +429,23 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Reminder User",
                 handle: "reminderuser",
+                isBot: false,
             },
         });
         testUserIds.push(user.id);
 
-        const reminder = await DbProvider.get().reminder.create({
+        // Create reminder list first
+        const reminderList = await DbProvider.get().reminder_list.create({
             data: {
                 id: generatePK(),
                 userId: user.id,
+            },
+        });
+
+        const reminder = await DbProvider.get().reminder.create({
+            data: {
+                id: generatePK(),
+                reminderListId: reminderList.id,
                 name: "Test Reminder",
                 description: "Remember to test embeddings",
                 dueDate: new Date(Date.now() + 86400000), // Tomorrow
@@ -424,55 +457,11 @@ describe("generateEmbeddings integration tests", () => {
 
         await generateEmbeddings();
 
-        const updatedReminder = await DbProvider.get().reminder.findUnique({
-            where: { id: reminder.id },
-        });
-
-        expect(updatedReminder?.embedding).toBeDefined();
-        expect(updatedReminder?.embeddingExpiredAt).toBeDefined();
+        // Check that embeddings were updated
+        await validateEmbedding("reminder", reminder.id);
     });
 
-    it("should generate embeddings for runs (non-translatable)", async () => {
-        const user = await DbProvider.get().user.create({
-            data: {
-                id: generatePK(),
-                publicId: generatePublicId(),
-                name: "Run User",
-                handle: "runuser",
-            },
-        });
-        testUserIds.push(user.id);
-
-        const routine = await DbProvider.get().routine.create({
-            data: {
-                id: generatePK(),
-                createdById: user.id,
-                isPrivate: false,
-                isInternal: false,
-            },
-        });
-        testRoutineIds.push(routine.id);
-
-        const run = await DbProvider.get().run.create({
-            data: {
-                id: generatePK(),
-                userId: user.id,
-                routineId: routine.id,
-                status: RunStatus.InProgress,
-                name: "Test Run in Progress",
-                embeddingExpiredAt: null,
-            },
-        });
-        testRunIds.push(run.id);
-
-        await generateEmbeddings();
-
-        const updatedRun = await DbProvider.get().run.findUnique({
-            where: { id: run.id },
-        });
-
-        expect(updatedRun?.embedding).toBeDefined();
-    });
+    // Skipping run embeddings test - Run model doesn't have embedding fields in schema
 
     it("should skip entities with current embeddings", async () => {
         const futureDate = new Date(Date.now() + 86400000); // Tomorrow
@@ -483,12 +472,12 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "User with Current Embedding",
                 handle: "currentembedding",
+                isBot: false,
                 translations: {
                     create: [{
                         id: generatePK(),
                         language: "en",
                         bio: "Already has embedding",
-                        embedding: [0.1, 0.2, 0.3], // Mock embedding
                         embeddingExpiredAt: futureDate, // Not expired
                     }],
                 },
@@ -502,8 +491,8 @@ describe("generateEmbeddings integration tests", () => {
         await generateEmbeddings();
 
         // Verify that the embedding service was not called for this user
-        const { EmbeddingService } = await import("../../../server/src/services/embedding.ts");
-        const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as vi.MockedFunction<typeof EmbeddingService.get().getEmbeddings>;
+        const { EmbeddingService } = await import("@vrooli/server");
+        const mockGetEmbeddings = EmbeddingService.get().getEmbeddings as vi.MockedFunction<typeof EmbeddingService.get>["getEmbeddings"];
         
         // The mock should not have been called with this user's data
         expect(mockGetEmbeddings).not.toHaveBeenCalledWith("User", expect.arrayContaining(["User with Current Embedding currentembedding Already has embedding"]));
@@ -516,6 +505,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Multilingual User",
                 handle: "multilingual",
+                isBot: false,
                 translations: {
                     create: [
                         {
@@ -551,71 +541,12 @@ describe("generateEmbeddings integration tests", () => {
 
         // All translations should have embeddings
         expect(updatedUser?.translations).toHaveLength(3);
-        updatedUser?.translations.forEach(translation => {
-            expect(translation.embedding).toBeDefined();
-            expect(translation.embeddingExpiredAt).toBeDefined();
-        });
+        for (const translation of updatedUser!.translations) {
+            await validateEmbedding("user_translation", translation.id);
+        }
     });
 
-    it("should only process runs with specific statuses", async () => {
-        const user = await DbProvider.get().user.create({
-            data: {
-                id: generatePK(),
-                publicId: generatePublicId(),
-                name: "Run Status User",
-                handle: "runstatususer",
-            },
-        });
-        testUserIds.push(user.id);
-
-        const routine = await DbProvider.get().routine.create({
-            data: {
-                id: generatePK(),
-                createdById: user.id,
-                isPrivate: false,
-                isInternal: false,
-            },
-        });
-        testRoutineIds.push(routine.id);
-
-        // Create runs with different statuses
-        const scheduledRun = await DbProvider.get().run.create({
-            data: {
-                id: generatePK(),
-                userId: user.id,
-                routineId: routine.id,
-                status: RunStatus.Scheduled,
-                name: "Scheduled Run",
-                embeddingExpiredAt: null,
-            },
-        });
-        testRunIds.push(scheduledRun.id);
-
-        const completedRun = await DbProvider.get().run.create({
-            data: {
-                id: generatePK(),
-                userId: user.id,
-                routineId: routine.id,
-                status: RunStatus.Completed,
-                name: "Completed Run",
-                embeddingExpiredAt: null,
-            },
-        });
-        testRunIds.push(completedRun.id);
-
-        await generateEmbeddings();
-
-        const updatedScheduled = await DbProvider.get().run.findUnique({
-            where: { id: scheduledRun.id },
-        });
-        const updatedCompleted = await DbProvider.get().run.findUnique({
-            where: { id: completedRun.id },
-        });
-
-        // Only scheduled/in-progress runs should get embeddings
-        expect(updatedScheduled?.embedding).toBeDefined();
-        expect(updatedCompleted?.embedding).toBeNull();
-    });
+    // Skipping run status test - Run model doesn't have embedding fields in schema
 
     it("should skip deleted resource versions", async () => {
         const owner = await DbProvider.get().user.create({
@@ -624,6 +555,7 @@ describe("generateEmbeddings integration tests", () => {
                 publicId: generatePublicId(),
                 name: "Deleted Resource Owner",
                 handle: "deletedowner",
+                isBot: false,
             },
         });
         testUserIds.push(owner.id);
@@ -632,31 +564,23 @@ describe("generateEmbeddings integration tests", () => {
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
-                createdById: owner.id,
-                resourceType: "RoutineVersion",
+                createdBy: {
+                    connect: { id: owner.id }
+                },
+                resourceType: "Routine",
                 isDeleted: true, // Deleted resource
-            },
-        });
-        testResourceIds.push(resource.id);
-
-        const routine = await DbProvider.get().routine.create({
-            data: {
-                id: generatePK(),
-                createdById: owner.id,
                 isPrivate: false,
                 isInternal: false,
             },
         });
-        testRoutineIds.push(routine.id);
+        testResourceIds.push(resource.id);
 
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: generatePK(),
-                resourceId: resource.id,
+                publicId: generatePublicId(),
+                rootId: resource.id,
                 versionLabel: "1.0.0",
-                schemaLanguage: "json",
-                schema: "{}",
-                routineId: routine.id,
                 isDeleted: false,
                 translations: {
                     create: [{
@@ -668,17 +592,15 @@ describe("generateEmbeddings integration tests", () => {
                     }],
                 },
             },
+            include: {
+                translations: true,
+            },
         });
         testResourceVersionIds.push(resourceVersion.id);
 
         await generateEmbeddings();
 
-        const updatedVersion = await DbProvider.get().resource_version.findUnique({
-            where: { id: resourceVersion.id },
-            include: { translations: true },
-        });
-
         // Should not have embedding because root resource is deleted
-        expect(updatedVersion?.translations[0].embedding).toBeNull();
+        await validateEmbedding("resource_translation", resourceVersion.translations[0].id, false);
     });
 });

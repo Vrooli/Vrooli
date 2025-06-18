@@ -1,15 +1,15 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import ButtonGroup from "@mui/material/ButtonGroup";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../components/buttons/IconButton.js";
 import InputAdornment from "@mui/material/InputAdornment";
-import Slider from "@mui/material/Slider";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import type { Meta } from "@storybook/react";
 import React, { useEffect, useRef, useState } from "react";
 import { IconCommon, IconFavicon, type IconInfo, IconRoutine, IconService, IconText } from "./Icons.js";
+import { Slider } from "../components/inputs/Slider.js";
 import { iconNames as commonIconNames } from "./types/commonIcons.js";
 import { iconNames as routineIconNames } from "./types/routineIcons.js";
 import { iconNames as serviceIconNames } from "./types/serviceIcons.js";
@@ -604,8 +604,8 @@ export function AllIcons() {
     );
 
     // Handler functions
-    const handleSizeChange = React.useCallback((_event: Event, newValue: number | number[]) => {
-        setIconSize(newValue as number);
+    const handleSizeChange = React.useCallback((newValue: number) => {
+        setIconSize(newValue);
     }, []);
 
     const handleSearchChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -639,7 +639,6 @@ export function AllIcons() {
         <Stack spacing={4}>
             <Box sx={controlPanelStyle}>
                 <Box sx={controlRowStyle}>
-                    <Box>Icon Size:</Box>
                     <Box sx={flexGrowStyle}>
                         <Slider
                             value={iconSize}
@@ -648,7 +647,8 @@ export function AllIcons() {
                             max={MAX_ICON_SIZE}
                             step={ICON_SIZE_STEP}
                             marks={ICON_SIZE_MARKS}
-                            valueLabelDisplay="auto"
+                            label={`Icon Size: ${iconSize}px`}
+                            showValue={false}
                         />
                     </Box>
                 </Box>

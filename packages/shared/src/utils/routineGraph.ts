@@ -156,7 +156,7 @@ type CreateCallActivity = CreateTask;
  * @param delimiter The delimiter to use between the prefix and the string
  * @returns The prefixed string
  */
-function withPrefix(prefix: string, str: string, delimiter: string): string {
+export function withPrefix(prefix: string, str: string, delimiter: string): string {
     return str.startsWith(prefix + delimiter)
         ? str
         : prefix + delimiter + str;
@@ -170,7 +170,7 @@ function withPrefix(prefix: string, str: string, delimiter: string): string {
  * @param delimiter The delimiter to use between the prefix and the string
  * @returns The string without the prefix
  */
-function withoutPrefix(prefix: string, str: string, delimiter: string): string {
+export function withoutPrefix(prefix: string, str: string, delimiter: string): string {
     return str.startsWith(prefix + delimiter)
         ? str.slice(prefix.length + 1)
         : str;
@@ -179,7 +179,7 @@ function withoutPrefix(prefix: string, str: string, delimiter: string): string {
 /**
  * @returns The correct tag for an element
  */
-function getElementTag(tag: keyof BpmnElement, namespace: Pick<Namespace, "prefix">, useNamespace: boolean): string {
+export function getElementTag(tag: keyof BpmnElement, namespace: Pick<Namespace, "prefix">, useNamespace: boolean): string {
     return useNamespace
         ? withPrefix(namespace.prefix, tag, TAG_DELIMITER)
         : withoutPrefix(namespace.prefix, tag, TAG_DELIMITER);
@@ -188,7 +188,7 @@ function getElementTag(tag: keyof BpmnElement, namespace: Pick<Namespace, "prefi
 /**
  * @returns The correct Id for an element
  */
-function getElementId(id: string, namespace: Pick<Namespace, "prefix">, useNamespace: boolean): string {
+export function getElementId(id: string, namespace: Pick<Namespace, "prefix">, useNamespace: boolean): string {
     return useNamespace
         ? withPrefix(namespace.prefix, id, ID_DELIMITER)
         : withoutPrefix(namespace.prefix, id, ID_DELIMITER);

@@ -199,7 +199,9 @@ export async function maxObjectsCheck(
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
             // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
-            const maxObjects = validator.maxObjects ?? 0;
+            const maxObjects = validator.maxObjects;
+            // If maxObjects is undefined, skip the check (no limit)
+            if (maxObjects === undefined) continue;
             const ownerType = userData.id === ownerId ? "User" : "Team";
             const hasPremium = userData.hasPremium ?? false;
             checkObjectLimit({

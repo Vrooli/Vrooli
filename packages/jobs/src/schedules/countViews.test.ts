@@ -1,17 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generatePK, generatePublicId } from "@vrooli/shared";
-import { DbProvider } from "@vrooli/server/db/provider.js";
+import { DbProvider } from "@vrooli/server";
 import { countViews } from "./countViews.js";
 
 // Remove the batch mock - use the real implementation from testcontainers
 
-vi.mock("@vrooli/server/events/logger.js", () => ({
-    logger: {
-        info: vi.fn(),
-        warning: vi.fn(),
-        error: vi.fn(),
-    }
-}));
+vi.mock("@vrooli/server", async () => {
+    const actual = await vi.importActual("@vrooli/server");
+    return {
+        ...actual,
+        logger: {
+            info: vi.fn(),
+            warning: vi.fn(),
+            error: vi.fn(),
+        }
+    };
+});
 
 describe("countViews integration tests", () => {
     // Store test entity IDs for cleanup
@@ -53,12 +57,13 @@ describe("countViews integration tests", () => {
 
     it("should update view counts when they mismatch", async () => {
         // Create test users
+        const uniqueId = Date.now();
         const viewer1 = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Viewer 1",
-                handle: "viewer1",
+                handle: `viewer1_${uniqueId}`,
             },
         });
         testUserIds.push(viewer1.id);
@@ -68,7 +73,7 @@ describe("countViews integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Viewer 2",
-                handle: "viewer2",
+                handle: `viewer2_${uniqueId}`,
             },
         });
         testUserIds.push(viewer2.id);
@@ -78,7 +83,7 @@ describe("countViews integration tests", () => {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 name: "Owner",
-                handle: "owner1",
+                handle: `owner1_${uniqueId}`,
             },
         });
         testUserIds.push(owner.id);
@@ -202,10 +207,17 @@ describe("countViews integration tests", () => {
         const team = await DbProvider.get().team.create({
             data: {
                 id: generatePK(),
+                publicId: generatePublicId(),
                 createdById: owner.id,
-                name: "Test Team",
                 handle: "testteam1",
                 views: 3, // Incorrect count
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team",
+                    }],
+                },
             },
         });
         testTeamIds.push(team.id);
@@ -330,6 +342,12 @@ describe("countViews integration tests", () => {
             );
         }
         const resources = await Promise.all(resourcePromises);
+        // Sort resources by id to ensure consistent ordering
+        resources.sort((a, b) => {
+            if (a.id < b.id) return -1;
+            if (a.id > b.id) return 1;
+            return 0;
+        });
         resources.forEach(r => testResourceIds.push(r.id));
 
         // Create some views
@@ -360,14 +378,43 @@ describe("countViews integration tests", () => {
             ],
         });
 
+        // Check the counts before running countViews
+        const beforeResources = await DbProvider.get().resource.findMany({
+            where: { id: { in: resources.map(r => r.id) } },
+            select: { 
+                id: true, 
+                views: true,
+                _count: {
+                    select: { viewedBy: true }
+                }
+            },
+            orderBy: { id: "asc" },
+        });
+        
+        console.log("=== Before countViews ===");
+        beforeResources.forEach((r, i) => {
+            console.log(`Resource[${i}] id=${r.id}: views=${r.views}, actual viewedBy count=${r._count.viewedBy}`);
+        });
+
         // Run the count views function
         await countViews();
 
         // Check that all counts were updated correctly
         const updatedResources = await DbProvider.get().resource.findMany({
             where: { id: { in: resources.map(r => r.id) } },
-            select: { id: true, views: true },
+            select: { 
+                id: true, 
+                views: true,
+                _count: {
+                    select: { viewedBy: true }
+                }
+            },
             orderBy: { id: "asc" },
+        });
+        
+        console.log("\n=== After countViews ===");
+        updatedResources.forEach((r, i) => {
+            console.log(`Resource[${i}] id=${r.id}: views=${r.views}, actual viewedBy count=${r._count.viewedBy}`);
         });
 
         expect(updatedResources[0].views).toBe(2); // Has 2 views

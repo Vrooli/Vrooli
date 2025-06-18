@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useActiveChatStore } from "./activeChatStore.js";
 
 // Mock all the complex dependencies
@@ -71,14 +72,14 @@ describe("ActiveChatStore", () => {
             team: null,
             translations: [],
         };
-        
+
         // Test direct state updates using setState
         useActiveChatStore.setState({
             activeChatId: "chat1",
             chats: { "chat1": dummyChat as any },
             participants: dummyChat.participants as any,
         });
-        
+
         const state = useActiveChatStore.getState();
         expect(state.activeChatId).toBe("chat1");
         expect(state.chats["chat1"]).toEqual(dummyChat);
@@ -88,9 +89,9 @@ describe("ActiveChatStore", () => {
     it("should update latestMessageId with setState", () => {
         const stateBefore = useActiveChatStore.getState();
         expect(stateBefore.latestMessageId).toBeNull();
-        
+
         useActiveChatStore.setState({ latestMessageId: "msg123" });
-        
+
         const stateAfter = useActiveChatStore.getState();
         expect(stateAfter.latestMessageId).toBe("msg123");
     });
