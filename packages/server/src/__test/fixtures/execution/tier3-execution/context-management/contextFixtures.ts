@@ -19,7 +19,7 @@ import {
     type ContextSnapshot,
     type ContextConstraints,
 } from "@vrooli/shared";
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Database fixtures for Context management - used for seeding test data

@@ -8,7 +8,7 @@
  * entirely through configuration, enabling true emergent intelligence.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Config-Driven Workflow Interface

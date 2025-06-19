@@ -204,25 +204,31 @@ export async function seedTestChat(
         teamId?: string;
     }
 ) {
-    const chatData = ChatDbFactory.createWithParticipants(options.userIds, {
+    const baseChat = ChatDbFactory.createMinimal({
         isPrivate: options.isPrivate ?? false,
         ...(options.teamId && { team: { connect: { id: options.teamId } } }),
     });
+    
+    // Add participants
+    const chatData = {
+        ...baseChat,
+        participants: {
+            create: options.userIds.map((userId) => ({
+                id: generatePK(),
+                userId: BigInt(userId),
+            })),
+        },
+    };
 
     // Add messages if requested
     if (options.withMessages && options.userIds.length > 0) {
         chatData.messages = {
             create: [{
                 id: generatePK(),
+                language: "en",
                 config: { __version: "1.0.0", resources: [] },
-                user: { connect: { id: options.userIds[0] } },
-                translations: {
-                    create: [{
-                        id: generatePK(),
-                        language: "en",
-                        text: "Welcome to the chat!",
-                    }],
-                },
+                text: "Welcome to the chat!",
+                userId: BigInt(options.userIds[0]),
             }],
         };
     }
@@ -233,7 +239,7 @@ export async function seedTestChat(
             create: [{
                 id: generatePK(),
                 message: "You're invited to join our discussion",
-                user: { connect: { id: options.userIds[0] } },
+                userId: BigInt(options.userIds[0]),
             }],
         };
     }

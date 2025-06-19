@@ -6,7 +6,7 @@
  * intelligence, distributed problem-solving, and swarm coordination patterns.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Swarm Intelligence Interfaces

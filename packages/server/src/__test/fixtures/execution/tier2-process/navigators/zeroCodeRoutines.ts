@@ -6,7 +6,7 @@
  * Vrooli's config-driven architecture and emergent capabilities.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Zero-Code Routine Interfaces

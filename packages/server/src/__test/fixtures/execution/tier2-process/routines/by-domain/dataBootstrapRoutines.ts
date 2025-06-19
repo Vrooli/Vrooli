@@ -6,7 +6,7 @@
  */
 
 import { ResourceSubType } from "@vrooli/shared";
-import type { RoutineFixture } from "../types";
+import type { RoutineFixture } from "../types.js";
 
 /**
  * Document creation and data management routines created by agents

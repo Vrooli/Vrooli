@@ -6,7 +6,7 @@
  * complex problems that require coordination, orchestration, and execution.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Cross-Tier Integration Interfaces

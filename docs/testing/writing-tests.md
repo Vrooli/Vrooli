@@ -7,70 +7,88 @@ This document provides guidelines and best practices for writing unit and integr
 -   **Readable:** Tests should be easy to understand. Use clear descriptions and structure your tests logically.
 -   **Reliable:** Tests should produce consistent results. Avoid flaky tests that pass or fail intermittently.
 -   **Maintainable:** Tests should be easy to update as the codebase evolves. Avoid overly complex or brittle tests.
--   **Fast:** Tests should run quickly to provide fast feedback to developers.
+-   **Fast:** Tests should run quickly to provide fast feedback to developers (though full test suites may take 15+ minutes in worst case scenarios, so always use extended timeouts).
 -   **Focused:** Each test case should typically verify a single behavior or aspect of the code.
 -   **Independent:** Tests should not depend on each other or the order of execution.
+-   **Use Real Infrastructure:** Use testcontainers for PostgreSQL and Redis - never mock core infrastructure services.
 
-## 2. Test Structure (Arrange-Act-Assert)
+## 2. Import Guidelines
+
+Always follow these import conventions:
+
+```typescript
+// ✅ CORRECT: Use .js extensions in TypeScript imports
+import { functionToTest } from './myModule.js';
+import { userFixtures } from '../../fixtures/userFixtures.js';
+
+// ✅ CORRECT: Import from package roots for monorepo packages
+import { Shape, Validation } from '@vrooli/shared';
+
+// ❌ WRONG: Deep imports into packages
+import { snowflake } from '@vrooli/shared/id/snowflake.js';
+
+// ❌ WRONG: Missing .js extension
+import { functionToTest } from './myModule';
+```
+
+## 3. Test Structure (Arrange-Act-Assert)
 
 A common pattern for structuring test cases is Arrange-Act-Assert (AAA):
 
--   **Arrange:** Set up the necessary preconditions and inputs. This might involve initializing objects, mocking dependencies, or preparing test data.
+-   **Arrange:** Set up the necessary preconditions and inputs. This might involve creating test data, setting up fixtures, or preparing database state.
 -   **Act:** Execute the code under test with the arranged parameters.
 -   **Assert:** Verify that the outcome of the action is as expected. Use Vitest assertions to check conditions.
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
-// import your module to test
-// import { functionToTest, classToTest } from '../your-module';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { DbProvider } from '@vrooli/server';
+import { User } from '@vrooli/shared';
+import { createUser } from '../logic/user.js';
 
-describe('MyModule', () => {
-    describe('functionToTest', () => {
-        it('should return true when condition is met', () => {
-            // Arrange
-            const input = /* some input */;
-            const expectedOutput = true;
+describe('User Creation', () => {
+    let testUser: User;
 
-            // Act
-            // const actualOutput = functionToTest(input);
+    beforeEach(() => {
+        // Arrange: Set up test data
+        testUser = {
+            email: 'test@example.com',
+            name: 'Test User',
+            isVerified: false
+        };
+    });
 
-            // Assert
-            // expect(actualOutput).to.equal(expectedOutput);
-            expect(true).to.equal(true); // Placeholder
+    afterEach(async () => {
+        // Clean up: Remove test data to maintain test isolation
+        await DbProvider.get().user.deleteMany({
+            where: { email: 'test@example.com' }
         });
+    });
 
-        it('should call a dependency correctly', () => {
-            // Arrange
-            const mockDependency = {
-                doSomething: sinon.stub().returns(42)
-            };
-            // const myInstance = new classToTest(mockDependency);
+    it('should create a new user with correct defaults', async () => {
+        // Act
+        const result = await createUser(testUser);
 
-            // Act
-            // myInstance.callDependencyMethod();
-
-            // Assert
-            // expect(mockDependency.doSomething.calledOnce).to.be.true;
-            // expect(mockDependency.doSomething.calledWith(/* expected args */)).to.be.true;
-            expect(true).to.equal(true); // Placeholder
-        });
+        // Assert
+        expect(result).toBeDefined();
+        expect(result.email).toBe(testUser.email);
+        expect(result.isVerified).toBe(false);
+        expect(result.id).toBeDefined();
     });
 });
 ```
 
-## 3. Using Mocha
+## 4. Using Vitest Hooks
 
--   **`describe(title, callback)`:** Groups related test cases. Can be nested for further organization.
--   **`it(title, callback)`:** Defines an individual test case.
--   **Hooks:** Mocha provides hooks to set up preconditions or clean up after tests:
-    -   `before()`: Runs once before all tests in a `describe` block.
-    -   `after()`: Runs once after all tests in a `describe` block.
-    -   `beforeEach()`: Runs before each `it` test case in a `describe` block.
-    -   `afterEach()`: Runs after each `it` test case in a `describe` block.
+Vitest provides hooks to set up preconditions or clean up after tests:
 
-    Use `beforeEach` and `afterEach` to ensure tests are independent by resetting state or mocks.
+-   **`beforeAll()`**: Runs once before all tests in a `describe` block.
+-   **`afterAll()`**: Runs once after all tests in a `describe` block.
+-   **`beforeEach()`**: Runs before each `it` test case in a `describe` block.
+-   **`afterEach()`**: Runs after each `it` test case in a `describe` block.
 
-## 4. Using Vitest Assertions
+Use `beforeEach` and `afterEach` to ensure tests are independent by resetting state or cleaning up test data.
+
+## 5. Using Vitest Assertions
 
 Vitest provides a comprehensive set of assertions through its `expect` API.
 
@@ -84,59 +102,71 @@ Vitest provides a comprehensive set of assertions through its `expect` API.
 -   `expect(array).toHaveLength(expectedLength);`
 -   `expect(fn).toThrow(ErrorType);` / `expect(fn).toThrow(/message pattern/);`
 
-## 5. Using Vitest for Mocks, Spies, and Stubs
+## 6. Using Vitest for Mocks, Spies, and Stubs
 
-Vitest provides built-in mocking capabilities through its `vi` utility to isolate the code under test.
+Vitest provides built-in mocking capabilities through its `vi` utility. However, **DO NOT mock core infrastructure services** like DbProvider, CacheService, or any services that use testcontainers - these are automatically set up with real PostgreSQL and Redis instances.
 
--   **Spies (`vi.spyOn()`):** Record information about function calls (how many times called, with what arguments, etc.) without affecting their behavior.
+### What to Mock vs What Not to Mock
+
+**✅ DO Mock:**
+- External API calls (Stripe, email services, etc.)
+- File system operations
+- Time-dependent functions
+- Browser APIs in UI tests
+
+**❌ DO NOT Mock:**
+- DbProvider (uses real PostgreSQL via testcontainers)
+- CacheService (uses real Redis via testcontainers)
+- Any infrastructure services set up in global test configuration
+
+### Mocking Examples
+
+-   **Spies (`vi.spyOn()`):** Record information about function calls without affecting their behavior.
     ```typescript
-    const myObject = { log: () => console.log('logged') };
-    const logSpy = vi.spyOn(myObject, 'log');
-    myObject.log();
-    expect(logSpy).toHaveBeenCalledOnce();
-    logSpy.mockRestore(); // Important to restore original method
+    const emailService = { send: () => Promise.resolve({ success: true }) };
+    const sendSpy = vi.spyOn(emailService, 'send');
+    
+    await emailService.send();
+    
+    expect(sendSpy).toHaveBeenCalledOnce();
+    sendSpy.mockRestore(); // Important to restore original method
     ```
 
--   **Stubs/Mocks (`vi.fn()`, `vi.spyOn()`):** Replace functions and control their behavior.
+-   **External API Mocks:**
     ```typescript
-    import * as fs from 'fs';
-    const readFileStub = vi.spyOn(fs, 'readFile').mockResolvedValue('file content'); // For Promise-based
-    // const readFileStub = vi.fn().mockImplementation((path, cb) => cb(null, 'file content')); // For callback
-
-    // Act: call function that uses fs.readFile
-
-    expect(readFileStub).toHaveBeenCalledWith('/path/to/file');
-    readFileStub.mockRestore();
-    ```
-    -   **Controlling Mock Behavior:**
-        -   `mock.mockReturnValue(value)`: Makes the mock return a specific value.
-        -   `mock.mockImplementation(() => { throw new Error('Oops'); })`: Makes the mock throw an error.
-        -   `mock.mockResolvedValue(value)`: Makes the mock return a resolved promise.
-        -   `mock.mockRejectedValue(new Error('Failed'))`: Makes the mock return a rejected promise.
-
--   **Module Mocks (`vi.mock()`):** Mock entire modules.
-    ```typescript
-    vi.mock('./myApi', () => ({
-        fetchData: vi.fn().mockResolvedValue({ data: 'success' })
+    import { stripe } from '../services/stripe.js';
+    
+    // Mock external service calls
+    vi.mock('../services/stripe.js', () => ({
+        stripe: {
+            customers: {
+                create: vi.fn().mockResolvedValue({ id: 'cus_123' })
+            }
+        }
     }));
-
-    // Act: Code that calls imported fetchData('endpoint')
-
-    expect(fetchData).toHaveBeenCalledWith('endpoint');
+    
+    // Test code that uses stripe
+    const customer = await stripe.customers.create({ email: 'test@example.com' });
+    expect(customer.id).toBe('cus_123');
     ```
 
--   **Cleanup:** Vitest automatically clears all mocks between tests when `restoreMocks: true` is set in config.
+-   **Time Mocking:**
     ```typescript
-    describe('MyService', () => {
-        afterEach(() => {
-            vi.clearAllMocks(); // Clear mock history
-            // or vi.restoreAllMocks(); // Restore original implementations
-        });
-
-        it('should do something with a mock', () => {
-            const mockedMethod = vi.spyOn(someObject, 'methodToStub').mockReturnValue('mocked value');
-            // ... test logic ...
-        });
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+    
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+    
+    it('should handle scheduled tasks', () => {
+        const callback = vi.fn();
+        setTimeout(callback, 1000);
+        
+        vi.advanceTimersByTime(1000);
+        
+        expect(callback).toHaveBeenCalledOnce();
     });
     ```
 
@@ -146,60 +176,213 @@ Vitest provides built-in mocking capabilities through its `vi` utility to isolat
     -   `expect(spy).toHaveBeenCalledTimes(n);`
     -   `expect(spy).toHaveReturnedWith(value);`
 
-## 6. Test Data Management
+## 7. Test Data Management
 
--   Use realistic and varied test data.
--   For complex objects, consider creating helper functions or factories to generate test data.
--   Keep test data close to the tests that use it, or in clearly named fixture files if shared across many tests.
--   Avoid hardcoding large, complex data directly within test cases if it impacts readability.
+### Using Centralized Fixtures
 
-## 7. Asynchronous Tests
+The project provides comprehensive fixtures in `packages/shared/src/__test/fixtures/` for all 41 object types:
 
-Vitest handles asynchronous tests seamlessly.
+```typescript
+import { userFixtures, projectFixtures } from '@vrooli/shared';
 
--   **Callbacks:** If your test function takes a `done` callback, Mocha will wait until `done()` is called.
-    ```typescript
-    it('should complete an async operation (callback)', (done) => {
-        asyncOperation((error, result) => {
-            if (error) return done(error);
-            expect(result).to.equal('expected');
-            done();
+describe('Project Access', () => {
+    it('should allow owner to update project', async () => {
+        // Use pre-built fixtures
+        const owner = userFixtures.createOwner();
+        const project = projectFixtures.createProject({ owner });
+        
+        // Test your logic
+        const canUpdate = await checkProjectAccess(owner, project, 'update');
+        expect(canUpdate).toBe(true);
+    });
+});
+```
+
+### Database Cleanup Patterns
+
+Since we use real databases via testcontainers, proper cleanup is essential:
+
+```typescript
+import { withDbTransaction } from '../utils/testHelpers.js';
+
+describe('User Service', () => {
+    // Option 1: Use transaction wrapper for automatic rollback
+    it('should create user with profile', async () => {
+        await withDbTransaction(async () => {
+            const user = await createUserWithProfile(userData);
+            expect(user.profile).toBeDefined();
+            // Transaction automatically rolls back after test
         });
     });
-    ```
-
--   **Promises:** If your test function returns a Promise, Mocha will wait for the promise to resolve or reject.
-    ```typescript
-    it('should complete an async operation (promise)', () => {
-        return asyncPromiseOperation().then(result => {
-            expect(result).to.equal('expected');
+    
+    // Option 2: Manual cleanup when transactions aren't suitable
+    afterEach(async () => {
+        // Clean up in reverse order of foreign key dependencies
+        await DbProvider.get().profile.deleteMany({
+            where: { user: { email: 'test@example.com' } }
+        });
+        await DbProvider.get().user.deleteMany({
+            where: { email: 'test@example.com' }
         });
     });
+});
+```
 
-    // Or using async/await (preferred)
-    it('should complete an async operation (async/await)', async () => {
-        const result = await asyncPromiseOperation();
-        expect(result).to.equal('expected');
+### Test Data Best Practices
+
+-   Use Shape types from `@vrooli/shared` instead of creating custom interfaces
+-   Leverage existing fixture functions for consistent test data
+-   Create unique identifiers for test data to avoid conflicts
+-   Clean up test data immediately after each test
+
+## 8. Asynchronous Tests
+
+Vitest handles asynchronous tests seamlessly. The preferred approach is using async/await:
+
+```typescript
+// ✅ PREFERRED: Using async/await
+it('should complete an async operation', async () => {
+    const result = await asyncOperation();
+    expect(result).toBe('expected');
+});
+
+// Also supported: Returning promises
+it('should complete an async operation (promise)', () => {
+    return asyncOperation().then(result => {
+        expect(result).toBe('expected');
     });
-    ```
+});
 
-## 8. What to Test (and What Not To)
+// Testing async errors
+it('should handle async errors', async () => {
+    await expect(asyncOperationThatFails()).rejects.toThrow('Expected error');
+});
+```
+
+## 9. What to Test (and What Not To)
 
 -   **Do Test:**
-    -   Public API of your modules/classes.
-    -   Business logic and algorithms.
-    -   Boundary conditions and edge cases.
-    -   Error handling paths.
-    -   Interactions with dependencies (use mocks/stubs).
+    -   Public API of your modules/classes
+    -   Business logic and algorithms
+    -   Boundary conditions and edge cases
+    -   Error handling paths
+    -   Permission and access control logic
+    -   Data validation and transformation
+    -   AI tier interactions and state transitions
 -   **Don't Test (Generally):**
-    -   Private methods directly (test them via public methods).
-    -   Third-party libraries (assume they are tested; test your integration with them, not their internal logic).
-    -   Trivial code (e.g., simple getters/setters that just return a value without logic), unless they contain critical logic.
-    -   Overly complex scenarios in a single unit test; break them down.
+    -   Private methods directly (test them via public methods)
+    -   Third-party libraries (test your integration, not their internals)
+    -   Database/ORM internals (Prisma is already tested)
+    -   Simple getters/setters without logic
 
-## 9. Test File Organization
+## 10. Project-Specific Testing Patterns
 
--   Test files should typically reside alongside the code they are testing (e.g., `myModule.ts` and `myModule.test.ts` in the same directory) or in a dedicated `__tests__` or `test` subdirectory.
--   Current project convention appears to be `*.test.ts` in the same directory or related subdirectories within `src`.
+### Testing AI Tiers
+
+```typescript
+describe('Tier 1 Coordination', () => {
+    it('should coordinate task distribution', async () => {
+        const swarm = await createTestSwarm();
+        const task = createTestTask();
+        
+        const result = await tier1Coordinator.assignTask(swarm, task);
+        
+        expect(result.assignment).toBeDefined();
+        expect(result.assignment.agentId).toBeDefined();
+    });
+});
+```
+
+### Testing API Endpoints
+
+```typescript
+import { endpointsUser } from '../endpoints/logic/user.js';
+
+describe('User Endpoints', () => {
+    it('should create user with valid data', async () => {
+        const userData = userFixtures.createUserInput();
+        
+        const result = await endpointsUser.create({
+            input: userData,
+            context: createTestContext()
+        });
+        
+        expect(result.success).toBe(true);
+        expect(result.data.email).toBe(userData.email);
+    });
+});
+```
+
+### Testing with Authentication
+
+```typescript
+import { createTestUser, createAuthenticatedContext } from '../testUtils.js';
+
+describe('Protected Operations', () => {
+    let authContext;
+    
+    beforeEach(async () => {
+        const user = await createTestUser();
+        authContext = createAuthenticatedContext(user);
+    });
+    
+    it('should allow authenticated user to access resource', async () => {
+        const result = await protectedOperation(authContext);
+        expect(result.success).toBe(true);
+    });
+});
+```
+
+## 11. Test File Organization
+
+-   Test files use the `*.test.ts` naming convention
+-   Place tests in the same directory as the code being tested
+-   Use `__test` directory (NOT `__tests`) for:
+    -   Fixtures (`__test/fixtures/`)
+    -   Mocks (`__test/mocks/`)
+    -   Test utilities (`__test/helpers/`)
+
+```
+src/
+├── services/
+│   ├── userService.ts
+│   ├── userService.test.ts      # Unit tests
+│   └── __test/
+│       ├── fixtures/
+│       │   └── userFixtures.ts
+│       └── helpers/
+│           └── userTestHelpers.ts
+```
+
+## 12. Common Pitfalls and Solutions
+
+| Issue | Solution |
+|-------|----------|
+| Import errors | Always use `.js` extensions in TypeScript imports |
+| Test pollution | Clean up database after each test |
+| Timeout errors | Increase timeout for integration tests (15+ minutes) |
+| Mock leakage | Use `vi.clearAllMocks()` in `afterEach` |
+| Transaction conflicts | Use manual cleanup instead of `withDbTransaction` when code uses transactions |
+
+## 13. Running Tests
+
+```bash
+# Run all tests (needs 5+ min timeout)
+pnpm test
+
+# Run tests for a specific package
+cd packages/server && pnpm test
+
+# Run tests in watch mode
+cd packages/server && pnpm test-watch
+
+# Run tests with coverage
+cd packages/server && pnpm test-coverage
+
+# Run a specific test file
+cd packages/server && pnpm test src/services/userService.test.ts
+```
+
+Remember: Tests can take 15+ minutes to run. Always use extended timeouts for test commands.
 
 By following these guidelines, we can build a robust and effective test suite that supports the development and maintenance of Vrooli. 

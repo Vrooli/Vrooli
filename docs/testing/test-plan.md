@@ -71,13 +71,20 @@ Testing will cover all major functional and non-functional aspects of the Vrooli
 
 ### 2.3. Current Test Coverage Baseline
 
-As of the latest assessment:
-- **Server Package**: ~151 test files
-- **UI Package**: ~66 test files  
-- **Jobs Package**: ~17 test files
-- **Shared Package**: Multiple utility tests
+**Last Updated: 2025-06-19**
 
-Target: **80%+ coverage by Phase 2 (T+12-24 weeks)**
+Current test coverage status:
+- **Shared Package**: **92.73%** coverage (16,400/17,684 statements)
+  - Branches: 91.97% (2,293/2,493)
+  - Functions: 86.22% (651/755)
+  - Lines: 92.73% (16,400/17,684)
+- **Server Package**: ~151 test files (coverage report needed)
+- **UI Package**: ~66 test files (coverage report needed)
+- **Jobs Package**: ~17 test files (coverage report needed)
+
+Target: **80%+ coverage across all packages by Phase 2 (T+12-24 weeks)**
+
+*Note: Run `pnpm test-coverage` in each package directory for up-to-date metrics*
 
 ## 3. Testing Objectives
 
@@ -88,6 +95,43 @@ Target: **80%+ coverage by Phase 2 (T+12-24 weeks)**
 -   **Ensure Stability:** Verify the stability and reliability of the application under normal operating conditions
 -   **Maintain Coverage:** Achieve and maintain 80%+ test coverage across all packages
 -   **Support AI Development:** Ensure emergent capabilities have proper test infrastructure
+
+### 3.1. Future Test Categories
+
+These testing categories are not currently implemented but should be considered for future phases:
+
+#### Snapshot Testing
+- **Purpose**: Detect unexpected UI changes by comparing component output
+- **Tools**: Vitest snapshot support, React Testing Library
+- **Implementation**: Phase 3+ when UI stabilizes
+- **Example**:
+  ```typescript
+  test('Button renders correctly', () => {
+      const { container } = render(<Button>Click me</Button>);
+      expect(container).toMatchSnapshot();
+  });
+  ```
+
+#### Visual Regression Testing
+- **Purpose**: Catch visual bugs by comparing screenshots
+- **Tools**: Storybook with Chromatic, Percy, or similar
+- **Implementation**: After Storybook coverage expands
+- **Use Cases**: Design system components, critical UI flows
+
+#### Accessibility Testing
+- **Purpose**: Ensure platform is usable by everyone
+- **Tools**: jest-axe, @testing-library/jest-dom, Pa11y
+- **Implementation**: Should be integrated into component tests
+- **Example**:
+  ```typescript
+  import { axe } from 'jest-axe';
+  
+  test('form is accessible', async () => {
+      const { container } = render(<LoginForm />);
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
+  });
+  ```
 
 ## 4. Test Resources
 
@@ -113,16 +157,74 @@ Target: **80%+ coverage by Phase 2 (T+12-24 weeks)**
 -   **Mock Services:** `/packages/jobs/src/__test/mocks/services.ts`
 -   **UI Test Setup:** `/packages/ui/src/__test/setup.vitest.ts`
 
+### 4.4. Detailed Test Infrastructure
+
+#### Database Test Helpers
+```typescript
+// packages/server/src/__test/helpers/db.ts
+export async function withDbTransaction<T>(
+    fn: (tx: PrismaTransaction) => Promise<T>
+): Promise<T> {
+    // Automatically rolls back after test
+}
+
+// packages/server/src/__test/helpers/testingServer.ts
+export function testingServer() {
+    // Returns Express app configured for testing
+}
+```
+
+#### Mock Services
+```typescript
+// packages/jobs/src/__test/mocks/services.ts
+export const mockLlmService = {
+    generateResponse: vi.fn(),
+    // Other LLM methods
+};
+
+export const mockEmailService = {
+    sendEmail: vi.fn(),
+    // Other email methods
+};
+```
+
+#### Logger Mocking
+```typescript
+// packages/server/src/__test/logger.mock.ts
+vi.mock('../logger', () => ({
+    logger: {
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+    }
+}));
+```
+
+#### Session/Auth Testing Utilities
+```typescript
+// packages/ui/src/__test/fixtures/sessionFixtures.ts
+export const testUser = {
+    id: "123456789012345678",
+    roles: ["User"],
+    permissions: ["Read", "Write"],
+    // Complete session data
+};
+
+export function createMockSession(overrides?: Partial<Session>) {
+    return { ...testUser, ...overrides };
+}
+
 ## 5. Test Writing Guidelines
 
 ### 5.1. Import Requirements
 
 ```typescript
-// ✅ CORRECT - Always use .js extension
+// ✅ CORRECT - Always use .js extension for relative imports
 import { UserModel } from "../models/User.js";
-import { uuid } from "@vrooli/shared";  // Package imports don't need extension
+import { uuid } from "@vrooli/shared";  // Package imports (@vrooli/*) don't need extension
 
-// ❌ WRONG - Missing .js extension
+// ❌ WRONG - Missing .js extension on relative import
 import { UserModel } from "../models/User";
 import { uuid } from "@vrooli/shared/id/uuid.js";  // Never use deep imports
 ```
@@ -152,9 +254,365 @@ describe("UserModel", () => {
 
 See [fixtures-and-data-flow.md](./fixtures-and-data-flow.md) for comprehensive patterns.
 
-## 6. Package-Specific Testing Guidance
+### 5.4. MSW (Mock Service Worker) Integration
 
-### 6.1. Server Package (`/packages/server`)
+MSW is used in the UI package to intercept and mock API calls during testing:
+
+#### Basic Setup
+```typescript
+// packages/ui/src/__test/setup.vitest.ts
+import { setupServer } from 'msw/node';
+import { handlers } from './handlers';
+
+export const server = setupServer(...handlers);
+
+// Start server before all tests
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+
+// Reset handlers after each test
+afterEach(() => server.resetHandlers());
+
+// Clean up after all tests
+afterAll(() => server.close());
+```
+
+#### Creating Handlers
+```typescript
+// packages/ui/src/__test/handlers/bookmark.ts
+import { http, HttpResponse } from 'msw';
+import { endpointsBookmark } from "@vrooli/shared";
+
+export const bookmarkHandlers = [
+    // Create bookmark
+    http.post(`/api/v2${endpointsBookmark.createOne.endpoint}`, async ({ request }) => {
+        const body = await request.json();
+        return HttpResponse.json({
+            data: {
+                __typename: "Bookmark",
+                id: "123456789012345678",
+                ...body
+            }
+        });
+    }),
+    
+    // Get bookmarks
+    http.get(`/api/v2${endpointsBookmark.findMany.endpoint}`, () => {
+        return HttpResponse.json({
+            data: {
+                edges: [{ node: bookmarkFixture }],
+                pageInfo: { hasNextPage: false }
+            }
+        });
+    })
+];
+```
+
+#### Using in Tests
+```typescript
+// Override handlers for specific tests
+import { server } from '../__test/setup.vitest.ts';
+import { http, HttpResponse } from 'msw';
+
+test('handles API error', async () => {
+    // Override handler for this test only
+    server.use(
+        http.post('/api/v2/bookmark', () => {
+            return HttpResponse.json(
+                { error: 'Server error' },
+                { status: 500 }
+            );
+        })
+    );
+    
+    // Test error handling
+    render(<BookmarkButton />);
+    // ... test implementation
+});
+```
+
+#### Best Practices
+- Use real endpoint paths from `@vrooli/shared`
+- Return realistic response structures matching API types
+- Test both success and error scenarios
+- Use `server.use()` for test-specific overrides
+
+### 5.5. Test Naming Conventions
+
+#### File Naming
+- **Test files**: Use `.test.ts` suffix (NOT `.spec.ts`)
+- **Test directories**: Use `__test` (NOT `__tests`)
+- **Location**: Place tests close to the code they test
+  ```
+  src/
+    models/
+      User.ts
+      User.test.ts
+    services/
+      auth.ts
+      auth.test.ts
+  ```
+
+#### Test Description Naming
+```typescript
+// ✅ GOOD - Clear, specific descriptions
+describe('UserModel', () => {
+    describe('create', () => {
+        test('should create user with valid data', async () => {});
+        test('should throw error when email is invalid', async () => {});
+        test('should hash password before saving', async () => {});
+    });
+});
+
+// ❌ BAD - Vague or redundant descriptions
+describe('User', () => {
+    test('works', async () => {});
+    test('test create', async () => {});
+    test('it should work correctly', async () => {});
+});
+```
+
+#### Naming Patterns
+- **Unit tests**: `should [expected behavior] when [condition]`
+- **Integration tests**: `[feature] should [behavior] when [scenario]`
+- **E2E tests**: `user can [action] in [context]`
+
+Examples:
+```typescript
+// Unit test
+test('should return formatted date when valid timestamp provided', () => {});
+
+// Integration test
+test('bookmark creation should update user stats when successful', async () => {});
+
+// E2E test
+test('user can complete registration flow with email verification', async () => {});
+```
+
+#### Test Data Naming
+```typescript
+// Use descriptive names for test data
+const validUserData = { /* ... */ };
+const userWithoutEmail = { /* ... */ };
+const adminUser = { /* ... */ };
+
+// Avoid generic names
+const data = { /* ... */ };  // ❌
+const obj = { /* ... */ };    // ❌
+const test1 = { /* ... */ };  // ❌
+```
+
+## 6. AI Tier Testing Guidance
+
+### 6.1. Three-Tier Architecture Overview
+
+The AI system consists of three distinct tiers that communicate via Redis event bus:
+- **Tier 1**: Coordination Intelligence (strategic planning, resource allocation)
+- **Tier 2**: Process Intelligence (task orchestration, routine navigation)
+- **Tier 3**: Execution Intelligence (direct task execution, tool integration)
+
+### 6.2. Testing Each Tier in Isolation
+
+#### Tier 1 Testing (Coordination)
+```typescript
+import { describe, test, expect, beforeEach } from 'vitest';
+import { TierOneCoordinator } from '../services/execution/tier1/tierOneCoordinator.js';
+import { createTestEventBus } from '../__test/helpers/eventBus.js';
+
+describe('Tier 1 - Coordination Intelligence', () => {
+    let coordinator: TierOneCoordinator;
+    let eventBus: TestEventBus;
+    
+    beforeEach(() => {
+        eventBus = createTestEventBus();
+        coordinator = new TierOneCoordinator({ eventBus });
+    });
+    
+    test('should allocate resources based on task priority', async () => {
+        const task = { id: '123456789012345678', priority: 'high', type: 'routine' };
+        await coordinator.allocateResources(task);
+        
+        expect(eventBus.published).toContainEqual({
+            channel: 'tier2:task:assign',
+            data: expect.objectContaining({ taskId: task.id })
+        });
+    });
+});
+```
+
+#### Tier 2 Testing (Process)
+```typescript
+describe('Tier 2 - Process Intelligence', () => {
+    test('should orchestrate routine execution steps', async () => {
+        const routine = { id: '123456789012345678', steps: ['input', 'process', 'output'] };
+        const orchestrator = new TierTwoOrchestrator({ eventBus });
+        
+        await orchestrator.executeRoutine(routine);
+        
+        // Verify each step is delegated to Tier 3
+        expect(eventBus.published).toHaveLength(3);
+        expect(eventBus.published[0].channel).toBe('tier3:execute:step');
+    });
+});
+```
+
+#### Tier 3 Testing (Execution)
+```typescript
+describe('Tier 3 - Execution Intelligence', () => {
+    test('should execute tool with proper context', async () => {
+        const executor = new TierThreeExecutor({ eventBus });
+        const task = { tool: 'llm:prompt', input: 'Test prompt' };
+        
+        const result = await executor.executeTool(task);
+        
+        expect(result).toMatchObject({
+            success: true,
+            output: expect.any(String)
+        });
+    });
+});
+```
+
+### 6.3. Event Bus Testing Patterns
+
+#### Testing Event Communication
+```typescript
+import { withRedisContainer } from '../__test/helpers/redis.js';
+
+test('tiers should communicate via event bus', async () => {
+    await withRedisContainer(async (redisClient) => {
+        const eventBus = new EventBus(redisClient);
+        const received = [];
+        
+        // Subscribe to events
+        await eventBus.subscribe('tier2:*', (event) => {
+            received.push(event);
+        });
+        
+        // Publish from Tier 1
+        await eventBus.publish('tier2:task:assign', { taskId: '123' });
+        
+        // Verify receipt
+        await waitFor(() => {
+            expect(received).toHaveLength(1);
+            expect(received[0].data.taskId).toBe('123');
+        });
+    });
+});
+```
+
+#### Testing Event Bus Isolation
+```typescript
+test('event bus channels should be isolated', async () => {
+    const tier1Events = [];
+    const tier2Events = [];
+    
+    await eventBus.subscribe('tier1:*', (e) => tier1Events.push(e));
+    await eventBus.subscribe('tier2:*', (e) => tier2Events.push(e));
+    
+    await eventBus.publish('tier1:status', { status: 'ready' });
+    await eventBus.publish('tier2:task', { id: '123' });
+    
+    expect(tier1Events).toHaveLength(1);
+    expect(tier2Events).toHaveLength(1);
+    expect(tier1Events[0].channel).not.toBe(tier2Events[0].channel);
+});
+```
+
+### 6.4. Integration Testing Between Tiers
+
+```typescript
+describe('Multi-Tier Integration', () => {
+    test('complete task flow through all tiers', async () => {
+        const swarm = await createTestSwarm();
+        
+        // Submit task to Tier 1
+        const task = await swarm.submitTask({
+            type: 'routine',
+            routineId: '123456789012345678',
+            input: { data: 'test' }
+        });
+        
+        // Wait for completion
+        await waitFor(() => {
+            expect(task.status).toBe('completed');
+        }, { timeout: 30000 });
+        
+        // Verify each tier participated
+        const events = await swarm.getEventHistory(task.id);
+        expect(events).toContainEqual(
+            expect.objectContaining({ tier: 1, action: 'allocated' })
+        );
+        expect(events).toContainEqual(
+            expect.objectContaining({ tier: 2, action: 'orchestrated' })
+        );
+        expect(events).toContainEqual(
+            expect.objectContaining({ tier: 3, action: 'executed' })
+        );
+    });
+});
+```
+
+### 6.5. Mocking Tier Dependencies
+
+When testing individual tiers, mock other tier interactions:
+
+```typescript
+// Mock Tier 3 responses for Tier 2 tests
+const mockTier3 = {
+    execute: vi.fn().mockResolvedValue({ success: true, output: 'mocked' })
+};
+
+// Inject mock into Tier 2
+const tier2 = new TierTwoOrchestrator({
+    eventBus,
+    tier3Client: mockTier3
+});
+```
+
+### 6.6. Performance Testing for AI Tiers
+
+```typescript
+test('tier should handle concurrent requests', async () => {
+    const requests = Array.from({ length: 100 }, (_, i) => ({
+        id: `task_${i}`,
+        type: 'prompt'
+    }));
+    
+    const start = Date.now();
+    const results = await Promise.all(
+        requests.map(req => tier3.execute(req))
+    );
+    const duration = Date.now() - start;
+    
+    expect(results).toHaveLength(100);
+    expect(results.every(r => r.success)).toBe(true);
+    expect(duration).toBeLessThan(5000); // 5 seconds for 100 requests
+});
+```
+
+### 6.7. Error Handling and Resilience
+
+```typescript
+test('tier should handle downstream failures gracefully', async () => {
+    // Simulate Tier 3 failure
+    eventBus.on('tier3:execute:step', () => {
+        throw new Error('Tier 3 unavailable');
+    });
+    
+    const result = await tier2.executeRoutine({
+        id: '123456789012345678',
+        steps: ['failing-step']
+    });
+    
+    expect(result.status).toBe('partial_failure');
+    expect(result.completedSteps).toHaveLength(0);
+    expect(result.error).toContain('Tier 3 unavailable');
+});
+```
+
+## 7. Package-Specific Testing Guidance
+
+### 7.1. Server Package (`/packages/server`)
 
 -   **Endpoint Tests:** Located in `/src/endpoints/logic/*.test.ts`
 -   **Model Tests:** Test database operations with transactions
@@ -176,7 +634,7 @@ describe("UserEndpoints", () => {
 });
 ```
 
-### 6.2. UI Package (`/packages/ui`)
+### 7.2. UI Package (`/packages/ui`)
 
 -   **Component Tests:** Use React Testing Library
 -   **Hook Tests:** Test custom hooks in isolation
@@ -198,13 +656,13 @@ test("renders user profile", () => {
 });
 ```
 
-### 6.3. Jobs Package (`/packages/jobs`)
+### 7.3. Jobs Package (`/packages/jobs`)
 
 -   **Schedule Tests:** Test cron job execution
 -   **Queue Tests:** Test job processing with Bull
 -   **Service Mocks:** Use provided mock services
 
-### 6.4. Shared Package (`/packages/shared`)
+### 7.4. Shared Package (`/packages/shared`)
 
 -   **Utility Tests:** Pure function testing
 -   **Type Tests:** TypeScript compilation tests
@@ -277,9 +735,10 @@ Testing activities are integrated into the development sprints:
 ## 10. E2E Testing Roadmap
 
 ### 10.1. Current State
-- Cypress installed in UI package
-- No E2E tests implemented yet
-- MSW provides foundation for mocking
+- Cypress installed in UI package (v14.4.1)
+- Scripts available: `cy:open` and `cy:run`
+- No cypress config or test files created yet
+- MSW provides foundation for API mocking
 
 ### 10.2. Implementation Plan (Phase 2)
 1. **User Journey Tests**: Authentication, profile management
@@ -326,17 +785,27 @@ describe("User Registration Journey", () => {
 
 ### 12.1. Test Execution Pipeline
 
-```yaml
-# GitHub Actions workflow
-test:
-  strategy:
-    matrix:
-      package: [server, ui, jobs, shared]
-  steps:
-    - name: Run tests
-      run: cd packages/${{ matrix.package }} && pnpm test
-      timeout-minutes: 10
-```
+The project uses GitHub Actions with separate workflows:
+
+#### Test Workflow (`.github/workflows/test.yml`)
+- **Triggers**: Push and PR to `main` and `dev` branches
+- **Execution**: 
+  - Runs tests for all packages: `pnpm run test`
+  - Runs bash script tests: `pnpm run test:shell`
+- **Timeout**: 15 minutes for entire workflow
+
+#### Dev/Master Workflows
+- **Test execution**: Optional via `run_test` workflow input
+- **Integration**: Part of build and deployment pipeline
+- **Example dispatch**:
+  ```yaml
+  workflow_dispatch:
+    inputs:
+      run_test:
+        description: 'Run tests'
+        type: boolean
+        default: false
+  ```
 
 ### 12.2. Parallelization Strategy
 - Split tests by package
@@ -394,7 +863,75 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 ```
 
-## 14. Risk Analysis (Testing Specific)
+### 13.5. Timeout Considerations
+
+**Problem**: Long-running operations (tests, type checking, builds) may exceed default timeouts
+
+**Solution**: Set conservative timeouts (e.g., 15 minutes) when running these commands to avoid premature termination
+
+## 14. When to Mock (and When Not To)
+
+### 14.1. Never Mock These (Use Test Containers)
+- **Redis**: Use testcontainers for real Redis instance
+- **PostgreSQL**: Use testcontainers with transactions
+- **Core Infrastructure**: Any foundational service
+
+### 14.2. Appropriate Mocking Scenarios
+
+#### External API Calls
+```typescript
+// Mock external services that are not under our control
+vi.mock('../services/stripe', () => ({
+    createPaymentIntent: vi.fn().mockResolvedValue({ id: 'pi_test' })
+}));
+```
+
+#### Error Scenarios
+```typescript
+// Mock to test specific error conditions
+test('handles database connection failure', async () => {
+    vi.spyOn(prisma, '$connect').mockRejectedValueOnce(
+        new Error('Connection refused')
+    );
+    // Test error handling
+});
+```
+
+#### Time-Sensitive Operations
+```typescript
+// Mock timers for testing time-based features
+beforeEach(() => {
+    vi.useFakeTimers();
+});
+
+test('session expires after timeout', async () => {
+    createSession();
+    vi.advanceTimersByTime(SESSION_TIMEOUT);
+    expect(session.isExpired).toBe(true);
+});
+```
+
+#### UI Component Testing
+```typescript
+// Use MSW for API mocking in UI tests
+import { server } from '../__test/setup';
+
+test('shows loading state', async () => {
+    server.use(
+        http.get('/api/data', () => delay('infinite'))
+    );
+    render(<DataComponent />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+});
+```
+
+### 14.3. Mocking Best Practices
+- **Mock at boundaries**: External services, not internal modules
+- **Use real implementations first**: Only mock when necessary
+- **Keep mocks simple**: Return minimal realistic data
+- **Document why**: Explain the reason for mocking in comments
+
+## 15. Risk Analysis (Testing Specific)
 
 | Risk ID | Risk Description                                      | Likelihood | Impact | Mitigation Strategy                                                                 |
 | :------ | :---------------------------------------------------- | :--------- | :----- | :---------------------------------------------------------------------------------- |

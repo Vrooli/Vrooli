@@ -2,15 +2,132 @@
 
 This document explains our comprehensive approach to testing data integrity across the entire Vrooli platform. Based on architectural analysis of **41 object types** with excellent organizational consistency, this guide shows how to leverage existing patterns for robust testing.
 
+## Quick Reference - Key Imports
+
+```typescript
+// Shape Functions (for transformations)
+import { shapeBookmark, shapeComment, shapeTeam } from "@vrooli/shared";
+
+// Validation Schemas
+import { bookmarkValidation, commentValidation, teamValidation } from "@vrooli/shared";
+
+// API Endpoints
+import { endpointsBookmark, endpointsComment, endpointsTeam } from "@vrooli/shared";
+
+// Test Fixtures
+import { userFixtures, teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { botConfigFixtures, chatConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+// Or with namespace imports
+import { apiFixtures, configFixtures } from "@vrooli/shared/__test/fixtures";
+
+// Action Hooks
+import { useBookmarker, useVoter, useCopier, useDeleter } from "../hooks/objectActions.js";
+
+// API Fetching
+import { useLazyFetch } from "../hooks/useFetch.js";
+
+// ID Generation
+import { generatePK, DUMMY_ID } from "@vrooli/shared";
+```
+
+## Using Centralized Fixtures
+
+The shared package now has centralized fixtures in `@vrooli/shared/__test/fixtures/`:
+
+### API Fixtures
+```typescript
+// Import specific fixtures
+import { userFixtures, teamFixtures } from "@vrooli/shared/__test/fixtures/api";
+
+// Use in tests
+const testUser = userFixtures.complete.create;
+const minimalTeam = teamFixtures.minimal.create;
+
+// Or import all API fixtures
+import { apiFixtures } from "@vrooli/shared/__test/fixtures";
+const user = apiFixtures.userFixtures.complete.create;
+```
+
+### Config Fixtures
+```typescript
+// Import specific config fixtures
+import { botConfigFixtures, chatConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+
+// Use in tests
+const botSettings = botConfigFixtures.complete;
+const chatConfig = chatConfigFixtures.variants.privateTeamChat;
+
+// Or import all config fixtures
+import { configFixtures } from "@vrooli/shared/__test/fixtures";
+const routineConfig = configFixtures.routineConfigFixtures.action.simple;
+```
+
+### Using Fixtures in Different Packages
+
+**In Server Tests:**
+```typescript
+import { userFixtures } from "@vrooli/shared/__test/fixtures/api";
+import { botConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+
+const testBot = {
+    id: "bot_123",
+    name: "Test Bot",
+    botSettings: botConfigFixtures.complete, // Use config fixture
+};
+```
+
+**In UI Tests:**
+```typescript
+import { apiFixtures, configFixtures } from "@vrooli/shared/__test/fixtures";
+
+const mockApiResponse = {
+    ...apiFixtures.chatFixtures.complete.create,
+    chatSettings: configFixtures.chatConfigFixtures.variants.supportChat,
+};
+```
+
 ## Table of Contents
 
+- [Quick Reference - Key Imports](#quick-reference---key-imports)
+- [Using Centralized Fixtures](#using-centralized-fixtures)
+- [Common Pitfalls to Avoid](#common-pitfalls-to-avoid)
+- [Implementation Status](#implementation-status)
 - [Current Architecture Analysis](#current-architecture-analysis)
 - [What Are Fixtures and Why Do We Need Them?](#what-are-fixtures-and-why-do-we-need-them)
 - [Leveraging Existing Architecture](#leveraging-existing-architecture)
 - [Recommended Fixture Strategy](#recommended-fixture-strategy)
 - [Round-Trip Testing with Real Functions](#round-trip-testing-with-real-functions)
+- [Complete Example: Adding Comment Fixtures](#complete-example-adding-comment-fixtures)
+- [Code Templates](#code-templates)
+- [Testing Checklist](#testing-checklist)
 - [Implementation Roadmap](#implementation-roadmap)
 - [Getting Started](#getting-started)
+
+## Common Pitfalls to Avoid
+
+1. **DON'T create custom form interfaces** - Use `*Shape` types from `@vrooli/shared`
+2. **DON'T create transformation functions** - Use `shape*.create()` and `shape*.update()`
+3. **DON'T mock validation** - Use `*Validation.create.validate()`
+4. **DON'T use string IDs like "123"** - Use 18-digit snowflake IDs: "123456789012345678"
+5. **DO check if Shape type exists first** - Even objects without forms have Shape types
+
+## Implementation Status
+
+### ✅ Complete
+- Bookmark (example implementation with round-trip test)
+
+### 🚧 In Progress
+- [ ] Refactor bookmark to use real functions (remove mock implementations)
+
+### 📋 High Priority (Most Used Features)
+- [ ] Comment - Create fixtures and round-trip test
+- [ ] Project - Create fixtures and round-trip test
+- [ ] Team - Create fixtures and round-trip test
+- [ ] User - Create fixtures and round-trip test
+
+### 🔧 Missing Infrastructure
+- **Action Hooks Needed**: `useCommenter`, `useReporter`, `useSharer`
+- **Form Components Needed**: bookmark, issue, pullRequest, tag
 
 ## Current Architecture Analysis
 
@@ -289,17 +406,31 @@ Each fixture type serves a specific purpose in our testing strategy:
 
 ```
 packages/
-├── server/src/__test/fixtures/          # 🗄️  DATABASE FIXTURES (existing)
-│   └── db/                              # Already well-organized
-│       ├── userFixtures.ts              # ✅ Already exists
-│       ├── projectFixtures.ts           # ✅ Already exists  
-│       └── [39 more object types]       # ✅ Comprehensive coverage
+├── server/src/__test/fixtures/          # 🗄️  DATABASE FIXTURES
+│   ├── db/                              # Already well-organized
+│   │   ├── userFixtures.ts              # ✅ Already exists
+│   │   ├── projectFixtures.ts           # ✅ Already exists  
+│   │   └── [39 more object types]       # ✅ Comprehensive coverage
+│   │
+│   └── execution/                       # 🤖 AI EXECUTION FIXTURES
+│       ├── tier1-coordination/          # Swarms, MOISE+ orgs, coordination
+│       ├── tier2-process/               # Routines, navigators, run states
+│       ├── tier3-execution/             # Strategies, executors, contexts
+│       ├── emergent-capabilities/       # Agent types, evolution, self-improvement
+│       └── integration-scenarios/       # Complete three-tier examples
 │
-├── shared/src/validation/models/        # 🔗 API FIXTURES (existing)
-│   └── __test/fixtures/                 # ✅ Already exported properly
-│       ├── userFixtures.ts              # ✅ Already exists
-│       ├── projectFixtures.ts           # ✅ Already exists
-│       └── [38 more object types]       # ✅ Near-complete coverage
+├── shared/src/__test/fixtures/          # 🔗 SHARED FIXTURES (centralized)
+│   ├── api/                             # API request/response fixtures
+│   │   ├── userFixtures.ts              # ✅ Already exists
+│   │   ├── projectFixtures.ts           # ✅ Already exists
+│   │   └── [38 more object types]       # ✅ Near-complete coverage
+│   │
+│   └── config/                          # Configuration object fixtures
+│       ├── baseConfigFixtures.ts        # ✅ Base fixtures and utilities
+│       ├── botConfigFixtures.ts         # ✅ Bot personality/settings
+│       ├── chatConfigFixtures.ts        # ✅ Chat behavior settings
+│       ├── routineConfigFixtures.ts     # ✅ Complex routine configs
+│       └── [9 more config types]        # ⚠️ TODO: Add remaining configs
 │
 └── ui/src/__test/fixtures/              # 🎨 UI FIXTURES (needs organization)
     ├── form-data/                       # What users input in forms
@@ -437,7 +568,7 @@ export const baseProjectDb: Prisma.ProjectCreateInput = {
 #### 2. API Fixtures (Shared)
 
 ```typescript
-// packages/shared/src/validation/models/__test/fixtures/projectApiFixtures.ts
+// packages/shared/src/__test/fixtures/api/projectFixtures.ts
 import { type Project } from "@vrooli/shared";
 
 export const projectApiResponse: Project = {
@@ -806,6 +937,282 @@ test('real validation catches invalid data', async () => {
 });
 ```
 
+## Complete Example: Adding Comment Fixtures
+
+Here's exactly how to add fixtures for a new object type:
+
+### Step 1: Check What Exists
+```bash
+# Check for shape object
+grep "shapeComment" packages/shared/src/shape/models/models.ts
+
+# Check for validation
+ls packages/shared/src/validation/models/comment.ts
+
+# Check for endpoints
+grep "endpointsComment" packages/shared/src/api/pairs.ts
+
+# Check for action hook
+grep "useCommenter" packages/ui/src/hooks/objectActions.tsx
+```
+
+### Step 2: Create Form Data Fixture
+```typescript
+// packages/ui/src/__test/fixtures/form-data/commentFormData.ts
+import { type CommentShape, DUMMY_ID } from "@vrooli/shared";
+
+// Use CommentShape directly - it exists!
+export const minimalCommentFormInput: CommentShape = {
+    __typename: "Comment",
+    id: DUMMY_ID,
+    text: "Great work on this project!",
+    to: {
+        __typename: "Project",
+        id: "123456789012345678"
+    },
+    translations: []
+};
+
+export const completeCommentFormInput: CommentShape = {
+    __typename: "Comment",
+    id: DUMMY_ID,
+    text: "This is a detailed comment with translations",
+    to: {
+        __typename: "Routine",
+        id: "987654321098765432"
+    },
+    translations: [{
+        __typename: "CommentTranslation",
+        id: DUMMY_ID,
+        language: "es",
+        text: "Este es un comentario detallado con traducciones"
+    }]
+};
+```
+
+### Step 3: Create API Response Fixtures
+```typescript
+// packages/ui/src/__test/fixtures/api-responses/commentResponses.ts
+import { type Comment } from "@vrooli/shared";
+
+export const minimalCommentResponse: Comment = {
+    __typename: "Comment",
+    id: "123456789012345678",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    score: 0,
+    isUpvoted: false,
+    isDownvoted: false,
+    owner: {
+        __typename: "User",
+        id: "111222333444555666",
+        handle: "testuser",
+        name: "Test User"
+    },
+    to: {
+        __typename: "Project",
+        id: "123456789012345678"
+    },
+    translations: [{
+        __typename: "CommentTranslation",
+        id: "999888777666555444",
+        language: "en",
+        text: "Great work on this project!"
+    }],
+    you: {
+        __typename: "CommentYou",
+        canDelete: false,
+        canUpdate: false,
+        canReply: true,
+        canReport: true,
+        isOwn: false,
+        reaction: null
+    }
+};
+```
+
+### Step 4: Create Round-Trip Test
+```typescript
+// packages/ui/src/__test/fixtures/round-trip-tests/commentRoundTrip.test.ts
+import { describe, test, expect } from 'vitest';
+import { shapeComment, commentValidation, endpointsComment } from "@vrooli/shared";
+import { useLazyFetch } from "../../../hooks/useFetch.js";
+import { minimalCommentFormInput } from '../form-data/commentFormData.js';
+
+describe('Comment Round-Trip Data Flow', () => {
+    test('comment creation using real functions', async () => {
+        // 1. Start with form data (Shape type)
+        const formData = minimalCommentFormInput;
+        
+        // 2. Validate using real validation
+        const validationResult = await commentValidation.create.validate(formData);
+        expect(validationResult).toBeDefined();
+        
+        // 3. Transform using real shape function
+        const apiRequest = shapeComment.create(formData);
+        expect(apiRequest).toMatchObject({
+            commentFor: "Project",
+            forConnect: "123456789012345678",
+            translationsCreate: []
+        });
+        
+        // 4. Would use real API call in integration test
+        // const [createComment] = useLazyFetch(endpointsComment.createOne);
+        // const created = await createComment(apiRequest);
+        
+        // 5. Verify the complete flow
+        expect(apiRequest.commentFor).toBe("Project");
+        expect(apiRequest.forConnect).toBe(formData.to.id);
+    });
+});
+```
+
+### Step 5: Create Missing Action Hook (if needed)
+```typescript
+// packages/ui/src/hooks/objectActions.tsx (add to file)
+export function useCommenter({
+    objectId,
+    objectType,
+    onActionComplete,
+}: UseCommenterProps) {
+    const [addComment] = useLazyFetch<CommentCreateInput, Comment>(endpointsComment.createOne);
+    
+    const handleComment = useCallback(async (text: string) => {
+        if (!objectType || !objectId) {
+            PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
+            return;
+        }
+        
+        fetchLazyWrapper<CommentCreateInput, Comment>({
+            fetch: addComment,
+            inputs: shapeComment.create({
+                __typename: "Comment",
+                id: DUMMY_ID,
+                text,
+                to: {
+                    __typename: CommentFor[objectType],
+                    id: objectId,
+                },
+            }),
+            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Comment, data); },
+        });
+    }, [objectType, objectId, addComment, onActionComplete]);
+    
+    return { handleComment };
+}
+```
+
+## Code Templates
+
+### Round-Trip Test Template
+```typescript
+describe('[ObjectName] Round-Trip Data Flow', () => {
+    test('[objectName] creation using real functions', async () => {
+        // 1. Form data using Shape type
+        const formData: [ObjectName]Shape = {
+            __typename: "[ObjectName]",
+            id: DUMMY_ID,
+            // ... required fields
+        };
+        
+        // 2. Real validation
+        await [objectName]Validation.create.validate(formData);
+        
+        // 3. Real transformation
+        const apiRequest = shape[ObjectName].create(formData);
+        
+        // 4. Real API call (mocked in test)
+        const [create[ObjectName]] = useLazyFetch(endpoints[ObjectName].createOne);
+        
+        // 5. Assertions
+        expect(apiRequest).toMatchObject({
+            // ... expected structure
+        });
+    });
+});
+```
+
+### Form Data Fixture Template
+```typescript
+import { type [ObjectName]Shape, DUMMY_ID } from "@vrooli/shared";
+
+export const minimal[ObjectName]FormInput: [ObjectName]Shape = {
+    __typename: "[ObjectName]",
+    id: DUMMY_ID,
+    // ... minimal required fields
+};
+
+export const complete[ObjectName]FormInput: [ObjectName]Shape = {
+    __typename: "[ObjectName]",
+    id: DUMMY_ID,
+    // ... all fields including optional ones
+};
+```
+
+### API Response Fixture Template
+```typescript
+import { type [ObjectName] } from "@vrooli/shared";
+
+export const [objectName]ApiResponse: [ObjectName] = {
+    __typename: "[ObjectName]",
+    id: "123456789012345678",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    // ... all API response fields
+    you: {
+        __typename: "[ObjectName]You",
+        canUpdate: true,
+        canDelete: false,
+        // ... permission fields
+    }
+};
+```
+
+## Testing Checklist
+
+For each object type, complete this checklist:
+
+- [ ] **Verify Shape type exists** in `@vrooli/shared`
+  ```bash
+  grep "type [ObjectName]Shape" packages/shared/src/shape/models/models.ts
+  ```
+
+- [ ] **Check for existing validation schema**
+  ```bash
+  ls packages/shared/src/validation/models/[objectName].ts
+  ```
+
+- [ ] **Check for existing endpoints**
+  ```bash
+  grep "endpoints[ObjectName]" packages/shared/src/api/pairs.ts
+  ```
+
+- [ ] **Create form data fixtures** using Shape type
+  - [ ] Minimal fixture (required fields only)
+  - [ ] Complete fixture (all fields)
+  - [ ] Invalid fixtures (for error testing)
+
+- [ ] **Create API response fixtures**
+  - [ ] Success response
+  - [ ] Error responses
+  - [ ] Different permission states
+
+- [ ] **Write round-trip test** using real functions:
+  - [ ] Use `shape*.create()` for transformation
+  - [ ] Use `*Validation.create.validate()` for validation
+  - [ ] Use action hook if exists (or note if missing)
+  - [ ] Use `useLazyFetch()` with real endpoints
+
+- [ ] **Run test and fix issues**
+  ```bash
+  cd packages/ui && pnpm test [objectName]RoundTrip.test.ts
+  ```
+
+- [ ] **Document missing pieces**
+  - [ ] Missing action hooks
+  - [ ] Missing form components
+  - [ ] Any architectural gaps
+
 ## Implementation Guidelines
 
 ### 1. Fixture Naming Conventions
@@ -978,7 +1385,7 @@ beforeEach(() => {
 
 ```typescript
 // Use existing database fixtures (already well-organized)
-import { baseProjectDb, completeUserDb } from '@vrooli/server/fixtures'; // In server tests
+import { baseProjectDb, completeUserDb } from '../__test/fixtures/db'; // In server tests
 
 // In UI tests, use test containers or mock servers:
 export async function setupTestEnvironment() {

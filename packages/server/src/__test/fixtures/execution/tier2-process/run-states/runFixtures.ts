@@ -14,7 +14,7 @@ import {
     type StepInfo,
     RunState as RunStateEnum,
 } from "@vrooli/shared";
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Database fixtures for Run/Routine execution - used for seeding test data

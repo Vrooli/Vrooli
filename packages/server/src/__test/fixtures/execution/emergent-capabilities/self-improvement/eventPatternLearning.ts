@@ -6,7 +6,7 @@
  * of emergent intelligence - pattern recognition and adaptive behavior.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Pattern Learning Interfaces

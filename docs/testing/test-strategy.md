@@ -29,11 +29,14 @@ We employ a variety of testing types to cover different aspects of the applicati
 
 Our primary testing stack includes:
 
-- **Test Runner:** [Mocha](https://mochajs.org/)
-- **Assertion Library:** [Chai](https://www.chaijs.com/)
-- **Mocks, Spies, and Stubs:** [Sinon.JS](https://sinonjs.org/)
-- **Chai-Sinon Integration:** `sinon-chai` for expressive assertions with Sinon.
-- **Code Coverage:** [c8](https://github.com/bcoe/c8) (used in `packages/shared`)
+- **Test Framework:** [Vitest](https://vitest.dev/) - A blazing fast unit test framework powered by Vite
+- **Assertion Library:** Built-in Vitest assertions (chai-compatible)
+- **Mocking:** Built-in Vitest mocking capabilities with `vi`
+- **Test Containers:** For Redis and PostgreSQL testing (never mock core infrastructure)
+- **Code Coverage:** v8 coverage provider integrated with Vitest
+- **UI Testing:** Vitest + React Testing Library + MSW (Mock Service Worker)
+- **Component Testing:** [Storybook](https://storybook.js.org/) for visual testing
+- **E2E Testing:** [Cypress](https://www.cypress.io/) (pending implementation)
 - **Linting:** [ESLint](https://eslint.org/) with project-specific configurations.
 
 ## 4. Test Environments
@@ -52,20 +55,20 @@ Our primary testing stack includes:
 
 ```mermaid
 graph TD
-    A[New Feature/Bug Fix] --> B{Code Implementation};
-    B -- Developer Writes Tests --> C[Unit & Integration Tests];
-    C -- Run Locally --> D{Tests Pass?};
-    D -- Yes --> E[Code Review Including Tests];
-    E --> F[Merge to Main Branch];
-    F --> G[Automated CI Pipeline Runs Tests];
-    G --> H{All Tests Pass?};
-    H -- Yes --> I[Deploy to Staging/Testing Env];
-    I --> J[Further Testing (E2E, UAT)];
-    J --> K{Issues Found?};
-    K -- Yes --> A;
-    K -- No --> L[Deploy to Production];
-    D -- No --> B;
-    H -- No --> B;
+    A[New Feature/Bug Fix] --> B{Code Implementation}
+    B -- Developer Writes Tests --> C[Unit & Integration Tests]
+    C -- Run Locally --> D{Tests Pass?}
+    D -- Yes --> E[Code Review Including Tests]
+    E --> F[Merge to Main Branch]
+    F --> G[Automated CI Pipeline Runs Tests]
+    G --> H{All Tests Pass?}
+    H -- Yes --> I[Deploy to Staging/Testing Env]
+    I --> J["Further Testing (E2E, UAT)"]
+    J --> K{Issues Found?}
+    K -- Yes --> A
+    K -- No --> L[Deploy to Production]
+    D -- No --> B
+    H -- No --> B
 ```
 
 This diagram illustrates the general flow of testing within our development lifecycle. Continuous feedback and iteration are key components of this process.

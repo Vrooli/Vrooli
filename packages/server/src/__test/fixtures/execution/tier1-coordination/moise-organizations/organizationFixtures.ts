@@ -17,7 +17,7 @@ import type {
     MissionSpecification,
     NormSpecification
 } from "./moiseTypes.js";
-import { TEST_IDS } from "./testIdGenerator.js";
+import { TEST_IDS } from "../../testIdGenerator.js";
 
 /**
  * Healthcare Compliance Organization

@@ -7,7 +7,7 @@ import {
     type StepEventType,
     type SystemEventType,
 } from "@vrooli/shared";
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Database fixtures for Event Bus - used for seeding test data

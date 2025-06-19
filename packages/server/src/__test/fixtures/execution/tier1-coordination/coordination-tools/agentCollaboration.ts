@@ -7,7 +7,7 @@
  */
 
 import type { ExecutionEvent } from "@vrooli/shared";
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Collaboration Interfaces

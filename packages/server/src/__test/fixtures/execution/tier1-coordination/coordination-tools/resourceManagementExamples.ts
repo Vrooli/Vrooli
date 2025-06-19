@@ -6,7 +6,7 @@
  * Shows emergent resource optimization and intelligent trade-offs.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Resource Management Interfaces

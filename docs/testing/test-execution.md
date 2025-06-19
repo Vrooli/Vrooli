@@ -256,7 +256,8 @@ graph TD
         A --> |Find Host IP| F(Host IP: e.g., 192.168.1.X)
         F --> E
         E -->|Browser Navigates To| G[http://HOST_IP:<UI_PORT>]
-        A -.-> E; # Must be on same Wi-Fi
+        %% Must be on same Wi-Fi
+        A -.-> E
 
         H[Remote Dev Server] -->|Browser Navigates To| I[http://SERVER_IP_OR_DOMAIN:<UI_PORT>]
         C --> I

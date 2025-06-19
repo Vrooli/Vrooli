@@ -6,7 +6,7 @@
  * Shows the power of Vrooli's minimal architecture approach.
  */
 
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Emergent Behavior Interfaces

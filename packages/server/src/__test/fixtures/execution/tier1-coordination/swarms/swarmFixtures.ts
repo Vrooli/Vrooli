@@ -12,7 +12,7 @@ import {
     type BlackboardItem,
     ExecutionStates,
 } from "@vrooli/shared";
-import { TEST_IDS, TestIdFactory } from "./testIdGenerator.js";
+import { TEST_IDS, TestIdFactory } from "../../testIdGenerator.js";
 
 /**
  * Database fixtures for Swarm model - used for seeding test data
