@@ -1,4 +1,4 @@
-import { PeriodType } from "@prisma/client";
+import { PeriodType, RunStatus } from "@prisma/client";
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logTeamStats } from "./team.js";
@@ -90,12 +90,12 @@ describe("logTeamStats integration tests", () => {
         testTeamIds.push(team.id);
 
         // Add team member
-        const membership = await DbProvider.get().team_member.create({
+        const membership = await DbProvider.get().member.create({
             data: {
                 id: generatePK(),
-                teamId: team.id,
-                userId: member.id,
-                role: "Member",
+                publicId: generatePublicId(),
+                team: { connect: { id: team.id } },
+                user: { connect: { id: member.id } },
             },
         });
         testMembershipIds.push(membership.id);
@@ -168,9 +168,9 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Started Run",
-                status: "Running",
-                createdById: owner.id,
-                teamId: team.id,
+                status: RunStatus.InProgress,
+                user: { connect: { id: owner.id } },
+                team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
             },
@@ -182,9 +182,9 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Completed Run",
-                status: "Completed",
-                createdById: owner.id,
-                teamId: team.id,
+                status: RunStatus.Completed,
+                user: { connect: { id: owner.id } },
+                team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -246,7 +246,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Run 1",
-                status: "Completed",
+                status: RunStatus.Completed,
+                user: { connect: { id: owner.id } },
                 team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
@@ -261,9 +262,9 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Run 2",
-                status: "Completed",
-                createdById: owner.id,
-                teamId: team.id,
+                status: RunStatus.Completed,
+                user: { connect: { id: owner.id } },
+                team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
                 completedAt: runCompletedTime,
@@ -407,7 +408,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "No Time Run",
-                status: "Completed",
+                status: RunStatus.Completed,
+                user: { connect: { id: owner.id } },
                 team: { connect: { id: team.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
@@ -519,7 +521,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Team 1 Run",
-                status: "InProgress",
+                status: RunStatus.InProgress,
+                user: { connect: { id: owner.id } },
                 team: { connect: { id: team1.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,
@@ -532,7 +535,8 @@ describe("logTeamStats integration tests", () => {
             data: {
                 id: generatePK(),
                 name: "Team 2 Run",
-                status: "InProgress",
+                status: RunStatus.InProgress,
+                user: { connect: { id: owner.id } },
                 team: { connect: { id: team2.id } },
                 isPrivate: false,
                 startedAt: runStartedTime,

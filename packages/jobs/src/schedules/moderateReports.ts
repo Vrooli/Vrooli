@@ -112,7 +112,14 @@ const reportSelect = {
     id: true,
     createdAt: true,
     resourceVersion: { select: versionedObjectQuery },
-    chatMessage: { select: nonVersionedObjectQuery3 },
+    chatMessage: { 
+        select: {
+            id: true,
+            user: {
+                select: { id: true },
+            },
+        },
+    },
     comment: { select: nonVersionedObjectQuery },
     issue: { select: nonVersionedObjectQuery3 },
     tag: { select: nonVersionedObjectQuery3 },
@@ -160,7 +167,7 @@ function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAct
     const highest = sorted.length > 0 && sorted[0] && sorted[0].length > 1 ? sorted.filter(([_, rep]) => rep === sorted[0][1]) : [];
     // If there is only one action with the highest reputation, return it
     if (highest.length === 1 && highest[0] && highest[0].length > 0) return highest[0][0];
-    // Sort the actions by severity
+    // Find the least severe action from the highest reputation actions
     const severities = [
         ReportSuggestedAction.NonIssue,
         ReportSuggestedAction.HideUntilFixed,
@@ -168,13 +175,14 @@ function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAct
         ReportSuggestedAction.Delete,
         ReportSuggestedAction.SuspendUser,
     ];
-    const sortedSeverities = severities.sort((a, b) => {
-        const aIndex = highest.findIndex(([action]) => action === a);
-        const bIndex = highest.findIndex(([action]) => action === b);
-        return aIndex - bIndex;
-    });
-    // Return the least severe action
-    return sortedSeverities[0];
+    // Find the first action in severities that exists in highest
+    for (const severity of severities) {
+        if (highest.some(([action]) => action === severity)) {
+            return severity;
+        }
+    }
+    // This should never happen, but return null as a fallback
+    return null;
 }
 
 /**
@@ -324,7 +332,12 @@ async function moderateReport(report: ReportPayload): Promise<void> {
                 objectOwner = { __typename: "User", id: objectData.ownedByUser.id };
             }
         }
-        else if (["ChatMessage", "Issue", "Tag"].includes(objectType)) {
+        else if (["ChatMessage"].includes(objectType)) {
+            if (objectData.user && objectData.user.id) {
+                objectOwner = { __typename: "User", id: objectData.user.id };
+            }
+        }
+        else if (["Issue", "Tag"].includes(objectType)) {
             if (objectData.createdBy && objectData.createdBy.id) {
                 objectOwner = { __typename: "User", id: objectData.createdBy.id };
             }
@@ -468,6 +481,13 @@ export async function moderateReports(): Promise<void> {
             },
         });
     } catch (error) {
-        logger.error("moderateReports caught error", { error, trace: "0464" });
+        logger.error("moderateReports caught error", { 
+            error: error instanceof Error ? {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+            } : error,
+            trace: "0464" 
+        });
     }
 }

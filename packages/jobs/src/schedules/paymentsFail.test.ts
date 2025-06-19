@@ -1,22 +1,13 @@
 import { PaymentStatus, PaymentType, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { paymentsFail } from "./paymentsFail.js";
+import { mockQueueService, mockEmailAddTask, resetAllMocks } from "../__test/mocks/services.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("@vrooli/server");
-
-// Mock QueueService
+// Mock services before imports
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
         ...actual,
-        QueueService: {
-            get: () => ({
-                email: {
-                    addTask: vi.fn().mockResolvedValue(undefined),
-                },
-            }),
-        },
+        QueueService: mockQueueService,
         AUTH_EMAIL_TEMPLATES: {
             PaymentFailed: vi.fn().mockReturnValue({
                 subject: "Payment Failed",
@@ -25,6 +16,9 @@ vi.mock("@vrooli/server", async () => {
         },
     };
 });
+
+import { paymentsFail } from "./paymentsFail.js";
+import { DbProvider } from "@vrooli/server";
 
 describe("paymentsFail integration tests", () => {
     // Store test entity IDs for cleanup
@@ -41,7 +35,7 @@ describe("paymentsFail integration tests", () => {
         testEmailIds.length = 0;
 
         // Reset mocks
-        vi.clearAllMocks();
+        resetAllMocks();
     });
 
     afterEach(async () => {
@@ -83,7 +77,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 emailAddress: "failed@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(email.id);
@@ -93,9 +87,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Premium Monthly Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -113,11 +109,10 @@ describe("paymentsFail integration tests", () => {
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
 
         // Check that email was sent (non-donation)
-        const { QueueService, AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
+        const { AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
         const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
         
-        expect(mockAddTask).toHaveBeenCalledWith(
+        expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["failed@example.com"],
             })
@@ -144,7 +139,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 emailAddress: "donor@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(email.id);
@@ -155,8 +150,10 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 paymentType: PaymentType.Donation,
-                amount: "50.00",
+                amount: 5000,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Donation",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -174,11 +171,10 @@ describe("paymentsFail integration tests", () => {
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
 
         // Check that email was sent (donation)
-        const { QueueService, AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
+        const { AUTH_EMAIL_TEMPLATES } = await import("@vrooli/server");
         const mockTemplate = AUTH_EMAIL_TEMPLATES.PaymentFailed as any;
         
-        expect(mockAddTask).toHaveBeenCalledWith(
+        expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: ["donor@example.com"],
             })
@@ -215,7 +211,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 teamId: team.id,
                 emailAddress: "team1@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(teamEmail1.id);
@@ -225,7 +221,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 teamId: team.id,
                 emailAddress: "team2@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(teamEmail2.id);
@@ -235,9 +231,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 teamId: team.id,
-                paymentType: PaymentType.Premium,
-                amount: "199.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 19999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Team Premium Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -255,9 +253,7 @@ describe("paymentsFail integration tests", () => {
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
 
         // Check that emails were sent to all team emails
-        const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
-        expect(mockAddTask).toHaveBeenCalledWith(
+        expect(mockEmailAddTask).toHaveBeenCalledWith(
             expect.objectContaining({
                 to: expect.arrayContaining(["team1@example.com", "team2@example.com"]),
             })
@@ -283,9 +279,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Premium Monthly Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: recentDate,
@@ -303,9 +301,7 @@ describe("paymentsFail integration tests", () => {
         expect(unchangedPayment?.status).toBe(PaymentStatus.Pending);
 
         // Check that no email was sent
-        const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
-        expect(mockAddTask).not.toHaveBeenCalled();
+        expect(mockEmailAddTask).not.toHaveBeenCalled();
     });
 
     it("should not affect non-pending payments", async () => {
@@ -327,10 +323,12 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
                 currency: "USD",
-                status: PaymentStatus.Success,
+                checkoutId: `cs_test_${generatePK()}`,
+                description: "Successful Premium Payment",
+                status: PaymentStatus.Paid,
                 paymentMethod: "card",
                 createdAt: oldDate,
                 updatedAt: oldDate,
@@ -342,9 +340,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
                 currency: "USD",
+                checkoutId: `cs_test_${generatePK()}`,
+                description: "Failed Premium Payment",
                 status: PaymentStatus.Failed,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -359,7 +359,7 @@ describe("paymentsFail integration tests", () => {
         const unchangedSuccess = await DbProvider.get().payment.findUnique({
             where: { id: successPayment.id },
         });
-        expect(unchangedSuccess?.status).toBe(PaymentStatus.Success);
+        expect(unchangedSuccess?.status).toBe(PaymentStatus.Paid);
 
         const unchangedFailed = await DbProvider.get().payment.findUnique({
             where: { id: failedPayment.id },
@@ -385,9 +385,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: userNoEmail.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Premium Monthly Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -405,9 +407,7 @@ describe("paymentsFail integration tests", () => {
         expect(updatedPayment?.status).toBe(PaymentStatus.Failed);
 
         // No email should be sent
-        const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
-        expect(mockAddTask).not.toHaveBeenCalled();
+        expect(mockEmailAddTask).not.toHaveBeenCalled();
     });
 
     it("should handle multiple payments in batch with unique email addresses", async () => {
@@ -430,7 +430,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 emailAddress: "multi@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(email.id);
@@ -443,9 +443,11 @@ describe("paymentsFail integration tests", () => {
                     data: {
                         id: generatePK(),
                         userId: user.id,
-                        paymentType: i === 0 ? PaymentType.Donation : PaymentType.Premium,
-                        amount: `${50 + i * 10}.00`,
+                        paymentType: i === 0 ? PaymentType.Donation : PaymentType.PremiumMonthly,
+                        amount: (50 + i * 10) * 100,
+                        checkoutId: `cs_test_${generatePK()}`,
                         currency: "USD",
+                        description: i === 0 ? "Donation" : "Premium Monthly Subscription",
                         status: PaymentStatus.Pending,
                         paymentMethod: "card",
                         createdAt: oldDate,
@@ -468,14 +470,12 @@ describe("paymentsFail integration tests", () => {
         });
 
         // Check that emails were sent with unique addresses
-        const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         
         // Should have two calls - one for donation, one for other
-        expect(mockAddTask).toHaveBeenCalledTimes(2);
+        expect(mockEmailAddTask).toHaveBeenCalledTimes(2);
         
         // Each call should have unique email addresses
-        mockAddTask.mock.calls.forEach((call) => {
+        mockEmailAddTask.mock.calls.forEach((call) => {
             const to = call[0].to;
             expect(new Set(to).size).toBe(to.length); // No duplicates
         });
@@ -501,7 +501,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 userId: user.id,
                 emailAddress: "user@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(userEmail.id);
@@ -532,7 +532,7 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 teamId: team.id,
                 emailAddress: "team@example.com",
-                verified: true,
+                verifiedAt: new Date(),
             },
         });
         testEmailIds.push(teamEmail.id);
@@ -542,9 +542,11 @@ describe("paymentsFail integration tests", () => {
             data: {
                 id: generatePK(),
                 userId: user.id,
-                paymentType: PaymentType.Premium,
-                amount: "99.99",
+                paymentType: PaymentType.PremiumMonthly,
+                amount: 9999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Premium Monthly Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -558,8 +560,10 @@ describe("paymentsFail integration tests", () => {
                 id: generatePK(),
                 teamId: team.id,
                 paymentType: PaymentType.Donation,
-                amount: "199.99",
+                amount: 19999,
+                checkoutId: `cs_test_${generatePK()}`,
                 currency: "USD",
+                description: "Team Premium Subscription",
                 status: PaymentStatus.Pending,
                 paymentMethod: "card",
                 createdAt: oldDate,
@@ -582,14 +586,12 @@ describe("paymentsFail integration tests", () => {
         expect(updatedTeamPayment?.status).toBe(PaymentStatus.Failed);
 
         // Check that emails were sent
-        const { QueueService } = await import("@vrooli/server");
-        const mockAddTask = vi.mocked(QueueService.get().email.addTask);
         
         // Should have two calls - one for donation, one for premium
-        expect(mockAddTask).toHaveBeenCalledTimes(2);
+        expect(mockEmailAddTask).toHaveBeenCalledTimes(2);
         
         // Verify both emails are included
-        const allEmails = mockAddTask.mock.calls.flatMap((call: any) => call[0].to);
+        const allEmails = mockEmailAddTask.mock.calls.flatMap((call: any) => call[0].to);
         expect(allEmails).toContain("user@example.com");
         expect(allEmails).toContain("team@example.com");
     });

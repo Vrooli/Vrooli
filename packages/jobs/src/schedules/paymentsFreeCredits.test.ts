@@ -1,35 +1,21 @@
 import { CreditEntryType, CreditSourceSystem } from "@prisma/client";
 import { API_CREDITS_PREMIUM, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { paymentsCreditsFreePremium } from "./paymentsFreeCredits.js";
+import { mockBusService, mockBusPublish, mockSocketService, mockSocketEmit, mockNotify, resetAllMocks } from "../__test/mocks/services.js";
 
-// Direct import to avoid problematic services
-const { DbProvider } = await import("@vrooli/server");
-
-// Mock services
+// Mock services before imports
 vi.mock("@vrooli/server", async () => {
     const actual = await vi.importActual("@vrooli/server");
     return {
         ...actual,
-        BusService: {
-            get: () => ({
-                getBus: () => ({
-                    publish: vi.fn().mockResolvedValue(undefined),
-                }),
-            }),
-        },
-        SocketService: {
-            get: () => ({
-                emitSocketEvent: vi.fn(),
-            }),
-        },
-        Notify: vi.fn(() => ({
-            pushFreeCreditsReceived: vi.fn().mockReturnValue({
-                toUser: vi.fn(),
-            }),
-        })),
+        BusService: mockBusService,
+        SocketService: mockSocketService,
+        Notify: mockNotify,
     };
 });
+
+import { paymentsCreditsFreePremium } from "./paymentsFreeCredits.js";
+import { DbProvider } from "@vrooli/server";
 
 describe("paymentsCreditsFreePremium integration tests", () => {
     // Store test entity IDs for cleanup
@@ -44,7 +30,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         testPlanIds.length = 0;
 
         // Reset mocks
-        vi.clearAllMocks();
+        resetAllMocks();
     });
 
     afterEach(async () => {
@@ -77,6 +63,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "premiumuser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_premium",
             },
         });
         testUserIds.push(user.id);
@@ -96,9 +83,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_premium",
-                stripePriceId: "price_premium",
-                stripeSubscriptionId: "sub_premium",
             },
         });
         testPlanIds.push(plan.id);
@@ -106,9 +90,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).toHaveBeenCalledWith(
+        expect(mockBusPublish).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "billing:event",
                 accountId: creditAccount.id.toString(),
@@ -124,13 +106,10 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         );
 
         // Check that notification was sent
-        const { Notify } = await import("@vrooli/server");
-        expect(Notify).toHaveBeenCalledWith(["en"]);
+        expect(mockNotify).toHaveBeenCalledWith(["en"]);
 
         // Check that socket event was emitted
-        const { SocketService } = await import("@vrooli/server");
-        const mockEmit = SocketService.get().emitSocketEvent as any;
-        expect(mockEmit).toHaveBeenCalledWith(
+        expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
             { credits: (BigInt(100) + API_CREDITS_PREMIUM).toString() }
@@ -153,6 +132,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "almostmaxuser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_almostmax",
             },
         });
         testUserIds.push(user.id);
@@ -172,9 +152,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_almostmax",
-                stripePriceId: "price_almostmax",
-                stripeSubscriptionId: "sub_almostmax",
             },
         });
         testPlanIds.push(plan.id);
@@ -182,18 +159,14 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that only the difference to max was added
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).toHaveBeenCalledWith(
+        expect(mockBusPublish).toHaveBeenCalledWith(
             expect.objectContaining({
                 delta: BigInt(100).toString(), // Only add enough to reach max
             })
         );
 
         // Check socket event shows max balance
-        const { SocketService } = await import("@vrooli/server");
-        const mockEmit = SocketService.get().emitSocketEvent as any;
-        expect(mockEmit).toHaveBeenCalledWith(
+        expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
             { credits: MAX_FREE_CREDITS.toString() }
@@ -215,6 +188,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "maxcreditsuser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_max",
             },
         });
         testUserIds.push(user.id);
@@ -234,9 +208,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_max",
-                stripePriceId: "price_max",
-                stripeSubscriptionId: "sub_max",
             },
         });
         testPlanIds.push(plan.id);
@@ -244,18 +215,13 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
 
         // Check that no notification was sent
-        const { Notify } = await import("@vrooli/server");
-        expect(Notify).not.toHaveBeenCalled();
+        expect(mockNotify).not.toHaveBeenCalled();
 
         // Check that socket event still emitted with current balance
-        const { SocketService } = await import("@vrooli/server");
-        const mockEmit = SocketService.get().emitSocketEvent as any;
-        expect(mockEmit).toHaveBeenCalledWith(
+        expect(mockSocketEmit).toHaveBeenCalledWith(
             "apiCredits",
             user.id.toString(),
             { credits: MAX_FREE_CREDITS.toString() }
@@ -275,6 +241,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "expiredplanuser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_expired",
             },
         });
         testUserIds.push(user.id);
@@ -294,9 +261,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: yesterdayDate, // Expired
-                stripeCustomerId: "cus_expired",
-                stripePriceId: "price_expired",
-                stripeSubscriptionId: "sub_expired",
             },
         });
         testPlanIds.push(plan.id);
@@ -304,9 +268,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
     });
 
     it("should not award credits to users without enabled plans", async () => {
@@ -321,6 +283,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "disabledplanuser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_disabled",
             },
         });
         testUserIds.push(user.id);
@@ -340,9 +303,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: null, // Not enabled
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_disabled",
-                stripePriceId: "price_disabled",
-                stripeSubscriptionId: "sub_disabled",
             },
         });
         testPlanIds.push(plan.id);
@@ -350,9 +310,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
     });
 
     it("should skip bots", async () => {
@@ -368,6 +326,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "botuser",
                 isBot: true, // Bot flag
                 languages: ["en"],
+                stripeCustomerId: "cus_bot",
             },
         });
         testUserIds.push(bot.id);
@@ -387,9 +346,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: bot.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_bot",
-                stripePriceId: "price_bot",
-                stripeSubscriptionId: "sub_bot",
             },
         });
         testPlanIds.push(plan.id);
@@ -397,9 +353,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
     });
 
     it("should handle users without credit accounts", async () => {
@@ -415,6 +369,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "nocredituser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_nocredit",
             },
         });
         testUserIds.push(user.id);
@@ -425,9 +380,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_nocredit",
-                stripePriceId: "price_nocredit",
-                stripeSubscriptionId: "sub_nocredit",
             },
         });
         testPlanIds.push(plan.id);
@@ -436,9 +388,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await expect(paymentsCreditsFreePremium()).resolves.not.toThrow();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
     });
 
     it("should handle users without plans", async () => {
@@ -467,9 +417,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await expect(paymentsCreditsFreePremium()).resolves.not.toThrow();
 
         // Check that no billing event was published
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        expect(mockPublish).not.toHaveBeenCalled();
+        expect(mockBusPublish).not.toHaveBeenCalled();
     });
 
     it("should handle batch processing with multiple users", async () => {
@@ -489,6 +437,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                         handle: `batchuser${i}`,
                         isBot: false,
                         languages: ["en"],
+                        stripeCustomerId: `cus_batch${i}`,
                     },
                 })
             );
@@ -519,9 +468,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                             userId: users[i].id,
                             enabledAt: pastDate,
                             expiresAt: futureDate,
-                            stripeCustomerId: `cus_batch${i}`,
-                            stripePriceId: `price_batch${i}`,
-                            stripeSubscriptionId: `sub_batch${i}`,
                         },
                     })
                 );
@@ -535,14 +481,12 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await paymentsCreditsFreePremium();
 
         // Check that billing events were published for eligible users
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
         
         // Should have events for users with active plans and low enough balance
-        expect(mockPublish).toHaveBeenCalled();
+        expect(mockBusPublish).toHaveBeenCalled();
         
         // Verify each call has proper structure
-        mockPublish.mock.calls.forEach((call: any) => {
+        mockBusPublish.mock.calls.forEach((call: any) => {
             expect(call[0]).toMatchObject({
                 type: "billing:event",
                 entryType: CreditEntryType.Bonus,
@@ -557,9 +501,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         const futureDate = new Date(now.getTime() + 86400000);
         
         // Mock publish to throw error
-        const { BusService } = await import("@vrooli/server");
-        const mockPublish = BusService.get().getBus().publish as any;
-        mockPublish.mockRejectedValueOnce(new Error("Publish failed"));
+        mockBusPublish.mockRejectedValueOnce(new Error("Publish failed"));
         
         const user = await DbProvider.get().user.create({
             data: {
@@ -569,6 +511,7 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 handle: "erroruser",
                 isBot: false,
                 languages: ["en"],
+                stripeCustomerId: "cus_error",
             },
         });
         testUserIds.push(user.id);
@@ -588,9 +531,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
                 userId: user.id,
                 enabledAt: pastDate,
                 expiresAt: futureDate,
-                stripeCustomerId: "cus_error",
-                stripePriceId: "price_error",
-                stripeSubscriptionId: "sub_error",
             },
         });
         testPlanIds.push(plan.id);
@@ -599,7 +539,6 @@ describe("paymentsCreditsFreePremium integration tests", () => {
         await expect(paymentsCreditsFreePremium()).resolves.not.toThrow();
 
         // Check that notification was NOT sent due to publish failure
-        const { Notify } = await import("@vrooli/server");
-        expect(Notify).not.toHaveBeenCalled();
+        expect(mockNotify).not.toHaveBeenCalled();
     });
 });

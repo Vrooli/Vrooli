@@ -4,7 +4,7 @@ import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
 import { ModelMap } from "../../models/base/index.js";
 import { type ApiEndpoint } from "../../types.js";
-import { isOwnerAdminCheck } from "../../utils/defaultPermissions.js";
+import { isOwnerAdminCheck } from "../../utils/adminCheck.js";
 import { CacheService } from "../../redisConn.js";
 
 // Admin-specific input types
@@ -81,6 +81,21 @@ export type EndpointsAdmin = {
 }
 
 /**
+ * Helper to extract userId from session (handles both API key and user sessions)
+ */
+function getUserIdFromSession(session: any): string | null {
+    // API key sessions have userId directly
+    if (session?.userId) {
+        return session.userId.toString();
+    }
+    // User sessions have users array
+    if (session?.users?.[0]?.id) {
+        return session.users[0].id.toString();
+    }
+    return null;
+}
+
+/**
  * Admin-only endpoints for site management
  */
 export const admin: EndpointsAdmin = {
@@ -90,11 +105,12 @@ export const admin: EndpointsAdmin = {
     siteStats: async ({ input }, { req }) => {
         // Check admin permissions
         const userData = req.session;
-        if (!userData?.userId) {
+        const currentUserId = getUserIdFromSession(userData);
+        if (!currentUserId) {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(userData.userId.toString());
+        const isAdmin = await isOwnerAdminCheck(currentUserId);
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -126,8 +142,8 @@ export const admin: EndpointsAdmin = {
             }>>`
                 SELECT 
                     COUNT(*)::text as total_users,
-                    COUNT(CASE WHEN last_active >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)} THEN 1 END)::text as active_users,
-                    COUNT(CASE WHEN created_at >= ${new Date(new Date().setHours(0, 0, 0, 0))} THEN 1 END)::text as new_users_today
+                    COUNT(CASE WHEN "lastLoginAttempt" >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)} THEN 1 END)::text as active_users,
+                    COUNT(CASE WHEN "createdAt" >= ${new Date(new Date().setHours(0, 0, 0, 0))} THEN 1 END)::text as new_users_today
                 FROM "user"
             `,
             
@@ -138,12 +154,12 @@ export const admin: EndpointsAdmin = {
             }>>`
                 SELECT 
                     COUNT(*)::text as total_routines,
-                    COUNT(CASE WHEN is_deleted = false THEN 1 END)::text as active_routines
-                FROM routine
+                    COUNT(*)::text as active_routines
+                FROM run
             `,
             
             // Total API keys
-            prisma.apiKey.count({
+            prisma.api_key.count({
                 where: { disabledAt: null },
             }),
             
@@ -159,32 +175,32 @@ export const admin: EndpointsAdmin = {
                 donors_this_month: string
             }>>`
                 SELECT 
-                    ABS(SUM(CASE WHEN created_at >= ${new Date(currentMonth + '-01')} THEN amount ELSE 0 END))::text as donated_this_month,
+                    ABS(SUM(CASE WHEN "createdAt" >= ${new Date(currentMonth + '-01')} THEN amount ELSE 0 END))::text as donated_this_month,
                     ABS(SUM(amount))::text as donated_all_time,
-                    COUNT(DISTINCT CASE WHEN created_at >= ${new Date(currentMonth + '-01')} THEN credit_account_id END)::text as donors_this_month
+                    COUNT(DISTINCT CASE WHEN "createdAt" >= ${new Date(currentMonth + '-01')} THEN "accountId" END)::text as donors_this_month
                 FROM credit_ledger_entry
-                WHERE type = ${CreditEntryType.DonationGiven}
+                WHERE type = 'DonationGiven'
             `,
             
             // Average donation percentage from user settings
             prisma.$queryRaw<Array<{ avg: number }>>`
-                SELECT AVG(((creditSettings->'donation')::jsonb->>'percentage')::numeric) as avg
+                SELECT AVG((("creditSettings"->'donation')::jsonb->>'percentage')::numeric) as avg
                 FROM "user"
-                WHERE creditSettings IS NOT NULL
-                AND creditSettings::jsonb->'donation' IS NOT NULL
-                AND (creditSettings::jsonb->'donation'->>'enabled')::boolean = true
+                WHERE "creditSettings" IS NOT NULL
+                AND "creditSettings"::jsonb->'donation' IS NOT NULL
+                AND ("creditSettings"::jsonb->'donation'->>'enabled')::boolean = true
             `,
             
             // Get donation history by month
             prisma.$queryRaw<Array<{ month: Date, total: string, donors: string }>>`
                 SELECT 
-                    DATE_TRUNC('month', created_at) as month,
+                    DATE_TRUNC('month', "createdAt") as month,
                     ABS(SUM(amount))::text as total,
-                    COUNT(DISTINCT credit_account_id)::text as donors
+                    COUNT(DISTINCT "accountId")::text as donors
                 FROM credit_ledger_entry
-                WHERE type = ${CreditEntryType.DonationGiven}
-                    AND created_at >= ${sixMonthsAgo}
-                GROUP BY DATE_TRUNC('month', created_at)
+                WHERE type = 'DonationGiven'
+                    AND "createdAt" >= ${sixMonthsAgo}
+                GROUP BY DATE_TRUNC('month', "createdAt")
                 ORDER BY month DESC
             `,
             
@@ -270,11 +286,12 @@ export const admin: EndpointsAdmin = {
     userList: async ({ input }, { req }) => {
         // Check admin permissions
         const userData = req.session;
-        if (!userData?.userId) {
+        const currentUserId = getUserIdFromSession(userData);
+        if (!currentUserId) {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(userData.userId.toString());
+        const isAdmin = await isOwnerAdminCheck(currentUserId);
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -295,7 +312,7 @@ export const admin: EndpointsAdmin = {
         if (searchTerm) {
             where.OR = [
                 { name: { contains: searchTerm, mode: "insensitive" } },
-                { email: { contains: searchTerm, mode: "insensitive" } },
+                { emails: { some: { emailAddress: { contains: searchTerm, mode: "insensitive" } } } },
             ];
         }
         
@@ -317,8 +334,8 @@ export const admin: EndpointsAdmin = {
                 include: {
                     _count: {
                         select: {
-                            apiKeys: true,
-                            routines: true,
+                            apiKeysExternal: true,
+                            runs: true,
                             memberships: true,
                         },
                     },
@@ -349,11 +366,12 @@ export const admin: EndpointsAdmin = {
     userUpdateStatus: async ({ input }, { req }) => {
         // Check admin permissions
         const userData = req.session;
-        if (!userData?.userId) {
+        const currentUserId = getUserIdFromSession(userData);
+        if (!currentUserId) {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(userData.userId.toString());
+        const isAdmin = await isOwnerAdminCheck(currentUserId);
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -371,7 +389,7 @@ export const admin: EndpointsAdmin = {
         }
 
         // Prevent admin from disabling themselves
-        if (BigInt(userId) === userData.userId) {
+        if (userId === currentUserId) {
             throw new CustomError("0194", "Forbidden", { message: "Cannot modify your own account status" });
         }
 
@@ -380,14 +398,13 @@ export const admin: EndpointsAdmin = {
             where: { id: BigInt(userId) },
             data: {
                 status,
-                statusReason: reason,
                 updatedAt: new Date(),
             },
         });
 
         // Log admin action
         logger.info("Admin user status change", {
-            adminId: userData.userId.toString(),
+            adminId: currentUserId,
             action: "USER_STATUS_CHANGE",
             targetUserId: userId,
             oldStatus: targetUser.status,
@@ -396,9 +413,8 @@ export const admin: EndpointsAdmin = {
             timestamp: new Date().toISOString(),
         });
 
-        // Return updated user (using existing User format)
-        const userFormat = ModelMap.get("User").format;
-        return userFormat.dbToApi(updatedUser);
+        // Return updated user
+        return updatedUser;
     },
 
     /**
@@ -407,11 +423,12 @@ export const admin: EndpointsAdmin = {
     userResetPassword: async ({ input }, { req }) => {
         // Check admin permissions
         const userData = req.session;
-        if (!userData?.userId) {
+        const currentUserId = getUserIdFromSession(userData);
+        if (!currentUserId) {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(userData.userId.toString());
+        const isAdmin = await isOwnerAdminCheck(currentUserId);
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -435,11 +452,11 @@ export const admin: EndpointsAdmin = {
 
         // Invalidate all existing sessions for the user
         await prisma.session.deleteMany({
-            where: { userId: BigInt(userId) },
+            where: { user_id: BigInt(userId) },
         });
 
         // Invalidate all API keys for the user
-        await prisma.apiKey.updateMany({
+        await prisma.api_key.updateMany({
             where: { userId: BigInt(userId) },
             data: { disabledAt: new Date() },
         });
@@ -449,7 +466,7 @@ export const admin: EndpointsAdmin = {
         
         // Log admin action
         logger.info("Admin password reset", {
-            adminId: userData.userId.toString(),
+            adminId: currentUserId,
             action: "USER_PASSWORD_RESET",
             targetUserId: userId,
             reason,
