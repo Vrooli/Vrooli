@@ -13,6 +13,7 @@ Our testing strategy emphasizes a comprehensive approach, incorporating various 
 - **[Test Execution](./test-execution.md):** Provides practical instructions on how to run tests, set up testing environments (including mobile testing), and utilize linting for code quality.
 - **[Writing Tests](./writing-tests.md):** Offers guidelines and best practices for writing effective unit, integration, and other types of tests using our standard testing stack (Vitest).
 - **[Defect Reporting](./defect-reporting.md):** Explains the process for reporting, tracking, and managing defects discovered during testing.
+- **[Fixtures and Data Flow](./fixtures-and-data-flow.md):** Comprehensive guide to fixture management and data flow testing across UI, API, and database layers for ensuring end-to-end data integrity.
 
 ## Contribution
 
