@@ -1,5 +1,7 @@
 import { AccountStatus, generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for User model - used for seeding test data
@@ -135,26 +137,282 @@ export const botUserDb: Prisma.UserCreateInput = {
 };
 
 /**
- * Factory for creating user database fixtures with overrides
+ * Enhanced test fixtures for User model following standard structure
  */
-export class UserDbFactory {
-    static createMinimal(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        return {
-            ...minimalUserDb,
+export const userDbFixtures: DbTestFixtures<Prisma.UserCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        name: "Test User",
+        handle: `testuser_${nanoid(6)}`,
+        status: AccountStatus.Unlocked,
+        isBot: false,
+        isBotDepictingPerson: false,
+        isPrivate: false,
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        name: "Complete User",
+        handle: `complete_${nanoid(6)}`,
+        status: AccountStatus.Unlocked,
+        isBot: false,
+        isBotDepictingPerson: false,
+        isPrivate: false,
+        theme: "light",
+        bannerImage: "https://example.com/banner.jpg",
+        profileImage: "https://example.com/profile.jpg",
+        auths: {
+            create: [{
+                id: generatePK(),
+                provider: "Password",
+                hashed_password: "$2b$10$dummy.hashed.password.for.testing",
+            }],
+        },
+        emails: {
+            create: [
+                {
+                    id: generatePK(),
+                    emailAddress: "complete@example.com",
+                    verifiedAt: new Date(),
+                },
+                {
+                    id: generatePK(),
+                    emailAddress: "complete.secondary@example.com",
+                    verifiedAt: null,
+                },
+            ],
+        },
+        translations: {
+            create: [
+                {
+                    id: generatePK(),
+                    language: "en",
+                    bio: "I'm a test user with a complete profile",
+                },
+                {
+                    id: generatePK(),
+                    language: "es",
+                    bio: "Soy un usuario de prueba con un perfil completo",
+                },
+            ],
+        },
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required id, name, handle
+            status: AccountStatus.Unlocked,
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            name: 123, // Should be string
+            handle: true, // Should be string
+            status: "InvalidStatus", // Not a valid AccountStatus
+            isBot: "yes", // Should be boolean
+        },
+        duplicateHandle: {
             id: generatePK(),
             publicId: generatePublicId(),
-            handle: `testuser_${nanoid(6)}`,
-            ...overrides,
+            name: "Duplicate User",
+            handle: "duplicate_handle", // Same handle as another user
+            status: AccountStatus.Unlocked,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+        },
+        invalidEmail: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Invalid Email User",
+            handle: `invalid_${nanoid(6)}`,
+            status: AccountStatus.Unlocked,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+            emails: {
+                create: [{
+                    id: generatePK(),
+                    emailAddress: "not-an-email", // Invalid email format
+                    verifiedAt: new Date(),
+                }],
+            },
+        },
+    },
+    edgeCases: {
+        maxLengthHandle: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Max Length User",
+            handle: "a".repeat(64), // Maximum handle length
+            status: AccountStatus.Unlocked,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+        },
+        botWithComplexSettings: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Complex Bot",
+            handle: `complexbot_${nanoid(6)}`,
+            status: AccountStatus.Unlocked,
+            isBot: true,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+            botSettings: {
+                assistantId: "asst_complex123",
+                model: "gpt-4-turbo",
+                temperature: 0.95,
+                maxTokens: 4096,
+                topP: 0.9,
+                frequencyPenalty: 0.1,
+                presencePenalty: 0.2,
+                systemPrompt: "You are a complex testing bot with advanced settings",
+            },
+        },
+        multiLanguageTranslations: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Multilingual User",
+            handle: `multilingual_${nanoid(6)}`,
+            status: AccountStatus.Unlocked,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: false,
+            translations: {
+                create: [
+                    { id: generatePK(), language: "en", bio: "English bio" },
+                    { id: generatePK(), language: "es", bio: "Spanish bio" },
+                    { id: generatePK(), language: "fr", bio: "French bio" },
+                    { id: generatePK(), language: "de", bio: "German bio" },
+                    { id: generatePK(), language: "ja", bio: "Japanese bio" },
+                ],
+            },
+        },
+        lockedAccount: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Locked User",
+            handle: `locked_${nanoid(6)}`,
+            status: AccountStatus.HardLocked,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: true,
+        },
+        deletedAccount: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            name: "Deleted User",
+            handle: `deleted_${nanoid(6)}`,
+            status: AccountStatus.Deleted,
+            isBot: false,
+            isBotDepictingPerson: false,
+            isPrivate: true,
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating user database fixtures
+ */
+export class UserDbFactory extends EnhancedDbFactory<Prisma.UserCreateInput> {
+    
+    /**
+     * Get the test fixtures for User model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.UserCreateInput> {
+        return userDbFixtures;
+    }
+
+    /**
+     * Get User-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: userDbIds.user1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    name: "Duplicate ID User",
+                    handle: `duplicate_${nanoid(6)}`,
+                    status: AccountStatus.Unlocked,
+                    isBot: false,
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Foreign Key User",
+                    handle: `fk_${nanoid(6)}`,
+                    status: AccountStatus.Unlocked,
+                    isBot: false,
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                    memberOf: {
+                        create: [{
+                            id: generatePK(),
+                            team: { connect: { id: "non-existent-team-id" } },
+                            role: "Member",
+                        }],
+                    },
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Check Constraint User",
+                    handle: "", // Empty handle violates check constraint
+                    status: AccountStatus.Unlocked,
+                    isBot: false,
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                },
+            },
+            validation: {
+                requiredFieldMissing: userDbFixtures.invalid.missingRequired,
+                invalidDataType: userDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "a".repeat(500), // Name too long
+                    handle: `toolong_${nanoid(100)}`, // Handle too long
+                    status: AccountStatus.Unlocked,
+                    isBot: false,
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                },
+            },
+            businessLogic: {
+                botWithoutSettings: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Bot Without Settings",
+                    handle: `botnone_${nanoid(6)}`,
+                    status: AccountStatus.Unlocked,
+                    isBot: true, // Bot without botSettings
+                    isBotDepictingPerson: false,
+                    isPrivate: false,
+                },
+                depictingPersonBot: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    name: "Depicting Person Bot",
+                    handle: `depictbot_${nanoid(6)}`,
+                    status: AccountStatus.Unlocked,
+                    isBot: false, // Not a bot but depicting person
+                    isBotDepictingPerson: true,  
+                    isPrivate: false,
+                },
+            },
         };
     }
 
-    static createWithAuth(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        const email = overrides?.emails?.create?.[0]?.emailAddress || `user_${nanoid(6)}@example.com`;
+    /**
+     * Add authentication to a user fixture
+     */
+    protected addAuthentication(data: Prisma.UserCreateInput): Prisma.UserCreateInput {
+        const email = `user_${nanoid(8)}@example.com`;
         return {
-            ...userWithAuthDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `authuser_${nanoid(6)}`,
+            ...data,
             auths: {
                 create: [{
                     id: generatePK(),
@@ -169,54 +427,15 @@ export class UserDbFactory {
                     verifiedAt: new Date(),
                 }],
             },
-            ...overrides,
-        };
-    }
-
-    static createComplete(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        return {
-            ...completeUserDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `complete_${nanoid(6)}`,
-            ...overrides,
-        };
-    }
-
-    static createBot(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
-        return {
-            ...botUserDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `bot_${nanoid(6)}`,
-            ...overrides,
         };
     }
 
     /**
-     * Create user with specific permissions/roles
+     * Add team memberships to a user fixture
      */
-    static createWithRoles(
-        roles: Array<{ id: string; name: string }>,
-        overrides?: Partial<Prisma.UserCreateInput>
-    ): Prisma.UserCreateInput {
+    protected addTeamMemberships(data: Prisma.UserCreateInput, teams: Array<{ teamId: string; role: string }>): Prisma.UserCreateInput {
         return {
-            ...this.createWithAuth(overrides),
-            roles: {
-                connect: roles.map(role => ({ id: role.id })),
-            },
-        };
-    }
-
-    /**
-     * Create user with teams
-     */
-    static createWithTeams(
-        teams: Array<{ teamId: string; role: string }>,
-        overrides?: Partial<Prisma.UserCreateInput>
-    ): Prisma.UserCreateInput {
-        return {
-            ...this.createWithAuth(overrides),
+            ...data,
             memberOf: {
                 create: teams.map(team => ({
                     id: generatePK(),
@@ -225,6 +444,88 @@ export class UserDbFactory {
                 })),
             },
         };
+    }
+
+    /**
+     * Add roles to a user fixture
+     */
+    protected addRoles(data: Prisma.UserCreateInput, roles: Array<{ id: string; name: string }>): Prisma.UserCreateInput {
+        return {
+            ...data,
+            roles: {
+                connect: roles.map(role => ({ id: role.id })),
+            },
+        };
+    }
+
+    /**
+     * User-specific validation
+     */
+    protected validateSpecific(data: Prisma.UserCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to User
+        if (!data.name) errors.push("User name is required");
+        if (!data.handle) errors.push("User handle is required");
+        if (data.status === undefined) errors.push("User status is required");
+
+        // Check business logic
+        if (data.isBot && !data.botSettings) {
+            warnings.push("Bot user should have botSettings");
+        }
+
+        if (!data.isBot && data.botSettings) {
+            warnings.push("Non-bot user should not have botSettings");
+        }
+
+        if (data.isBotDepictingPerson && data.isBot) {
+            warnings.push("Bot depicting person should not be marked as bot");
+        }
+
+        // Check handle format
+        if (data.handle && (data.handle.length < 3 || data.handle.length > 64)) {
+            errors.push("Handle must be between 3 and 64 characters");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
+    static createMinimal(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createMinimal(overrides);
+    }
+
+    static createWithAuth(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createWithRelationships({ withAuth: true, overrides }).data;
+    }
+
+    static createComplete(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createComplete(overrides);
+    }
+
+    static createBot(overrides?: Partial<Prisma.UserCreateInput>): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createEdgeCase("botWithComplexSettings");
+    }
+
+    static createWithRoles(
+        roles: Array<{ id: string; name: string }>,
+        overrides?: Partial<Prisma.UserCreateInput>
+    ): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createWithRelationships({ withAuth: true, withRoles: roles, overrides }).data;
+    }
+
+    static createWithTeams(
+        teams: Array<{ teamId: string; role: string }>,
+        overrides?: Partial<Prisma.UserCreateInput>
+    ): Prisma.UserCreateInput {
+        const factory = new UserDbFactory();
+        return factory.createWithRelationships({ withAuth: true, withTeams: teams, overrides }).data;
     }
 }
 
@@ -245,24 +546,35 @@ export function createSessionUser(overrides?: Partial<Prisma.UserCreateInput>) {
 }
 
 /**
- * Helper to seed multiple test users
+ * Enhanced helper to seed multiple test users with comprehensive options
  */
 export async function seedTestUsers(
     prisma: any,
     count: number = 3,
-    options?: {
-        withAuth?: boolean;
-        withBots?: boolean;
-        teamId?: string;
-    }
-) {
+    options?: BulkSeedOptions
+): Promise<BulkSeedResult<any>> {
+    const factory = new UserDbFactory();
     const users = [];
+    let authCount = 0;
+    let botCount = 0;
+    let teamCount = 0;
 
     for (let i = 0; i < count; i++) {
-        const userData = options?.withAuth 
-            ? UserDbFactory.createWithAuth({ name: `Test User ${i + 1}` })
-            : UserDbFactory.createMinimal({ name: `Test User ${i + 1}` });
+        const overrides = options?.overrides?.[i] || { name: `Test User ${i + 1}` };
+        
+        let userData: Prisma.UserCreateInput;
+        
+        if (options?.withAuth) {
+            userData = factory.createWithRelationships({ 
+                withAuth: true, 
+                overrides 
+            }).data;
+            authCount++;
+        } else {
+            userData = factory.createMinimal(overrides);
+        }
 
+        // Add team membership if requested
         if (options?.teamId) {
             userData.memberOf = {
                 create: [{
@@ -271,6 +583,7 @@ export async function seedTestUsers(
                     role: i === 0 ? "Owner" : "Member",
                 }],
             };
+            teamCount++;
         }
 
         users.push(await prisma.user.create({ data: userData }));
@@ -279,10 +592,19 @@ export async function seedTestUsers(
     // Add bots if requested
     if (options?.withBots) {
         const bot = await prisma.user.create({
-            data: UserDbFactory.createBot({ name: "Test Bot" }),
+            data: factory.createEdgeCase("botWithComplexSettings"),
         });
         users.push(bot);
+        botCount++;
     }
 
-    return users;
+    return {
+        records: users,
+        summary: {
+            total: users.length,
+            withAuth: authCount,
+            bots: botCount,
+            teams: teamCount,
+        },
+    };
 }
