@@ -4,17 +4,39 @@ This document provides guidelines on how to execute various types of tests for t
 
 ## 1. Running Automated Tests (Unit & Integration)
 
-Automated tests are crucial for verifying the functionality of individual components and their integrations. We use Vitest as our test runner, which includes built-in assertion capabilities and mocking functionality.
+Automated tests are crucial for verifying the functionality of individual components and their integrations. We use Vitest as our test runner, which includes built-in assertion capabilities and mocking functionality. All packages use standard `vitest.config.ts` configurations with package-specific customizations for testcontainers and environment setup.
 
 ### 1.1. Prerequisites
 
 -   Ensure your development environment is set up correctly.
 -   Ensure all dependencies are installed (`pnpm install` in the root and relevant package directories).
 -   Ensure environment variables are configured (e.g., `.env-test`).
+-   **⚠️ CRITICAL: Docker must be running** (typically already running) for server and jobs package tests. These packages use testcontainers for Redis and PostgreSQL integration testing and will fail without Docker.
+-   **Use extended timeouts** - test commands can take 15+ minutes in worst case scenarios due to container setup, test complexity, and limited resources.
 
 ### 1.2. Test Commands
 
-Test commands are typically run from within the specific package directory (e.g., `packages/server` or `packages/shared`). Refer to `docs/tools.md` for a more comprehensive list of project commands.
+#### Root-Level Test Commands
+
+From the project root, you can run tests across all packages:
+
+```bash
+# Run all tests (shell scripts, unit tests, and run tests)
+pnpm test
+
+# Run only unit tests across all packages
+pnpm test:unit
+
+# Run only shell script tests
+pnpm test:shell
+
+```
+
+**⚠️ Important:** Root-level test commands can take 15+ minutes in worst case scenarios. Use appropriate timeouts when running via scripts or CI. See [CLAUDE.md timeout guidelines](/CLAUDE.md#️-timeout-guidelines-for-long-running-commands) for complete timeout information.
+
+#### Package-Level Test Commands
+
+Test commands are typically run from within the specific package directory (e.g., `packages/server`, `packages/shared`, `packages/ui`, or `packages/jobs`).
 
 **Common Test Scripts (from `package.json`):**
 
@@ -23,56 +45,143 @@ Test commands are typically run from within the specific package directory (e.g.
     # Example for packages/server
     cd packages/server
     pnpm test
+    
+    # Example for packages/jobs
+    cd packages/jobs
+    pnpm test
     ```
-    This command usually builds the test files first and then runs all `*.test.js` files (transpiled from `.ts`) within the `dist` directory.
+    This runs Vitest directly on TypeScript source files in the `src/` directory matching patterns like `*.test.ts`.
 
 -   **Run tests in watch mode:**
     ```bash
     # Example for packages/server
     cd packages/server
-    pnpm test-watch
+    pnpm run test-watch
     ```
     This will re-run tests automatically when source files change.
 
--   **Run tests with coverage (example from `packages/shared`):**
+-   **Run tests with coverage:**
     ```bash
+    # Example for packages/shared
     cd packages/shared
-    pnpm test-coverage
-    # View report (HTML and summary)
-    pnpm coverage-report
+    pnpm run test-coverage
+    
+    # Example for packages/server (requires Docker)
+    cd packages/server
+    pnpm run test-coverage
     ```
-    Coverage reports help identify areas of the code not covered by tests. `c8` is used for generating these reports.
+    Coverage reports help identify areas of the code not covered by tests. Vitest uses the v8 coverage provider to generate these reports.
+    
+    **Coverage Support by Package:**
+    - ✅ server, shared, ui, jobs: Full coverage support with v8 provider
+    - ❌ og-worker: No coverage (uses Cloudflare workers testing)
+    - ❌ extension: No test setup
+    - ⚠️ server & jobs: Require Docker
 
 -   **Running individual test files:**
-    The `docs/tools.md` file provides an example for running a specific test file:
     ```bash
-    # Example for /packages/server/src/services/stripe.test.ts
-    # (Ensure you are in the packages/server directory)
-    clear && pnpm build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
+    # Run a specific test file (from within package directory)
+    npx vitest run src/services/stripe.test.ts
+    
+    # For server package (consistent with other packages)
+    npx vitest run -c vitest.config.ts src/services/stripe.test.ts
+    
+    # Run tests matching a pattern
+    npx vitest run src/models/**/*.test.ts
+    
+    # Run with coverage for specific files
+    npx vitest run --coverage src/services/stripe.test.ts
     ```
-    Adapt the path `dist/services/stripe.test.js` to target the specific compiled test file you want to run.
+
+#### Package-Specific Considerations
+
+**Performance Note:** All packages can potentially take 15+ minutes to run tests in worst-case scenarios. Factors affecting test duration include:
+- Container setup time (for packages using testcontainers)
+- Test complexity and coverage
+- System resources and load
+- Number of tests being run
+
+**packages/server:**
+- Uses testcontainers for Redis and PostgreSQL (Docker required)
+- Uses standard `vitest.config.ts` with testcontainer setup
+- Memory allocation:
+  - `pnpm test`: 8192MB
+  - `pnpm test-coverage`: 8192MB
+  - `pnpm run type-check`: 6144MB
+  - `start-development`: 4096MB
+
+**packages/jobs:**
+- Uses testcontainers for Redis and PostgreSQL (Docker required)  
+- Has pretest step that builds both shared AND server packages
+- Memory allocation:
+  - `pnpm test`: 8192MB
+  - `pnpm test-coverage`: 8192MB
+  - `start-development`: 4096MB
+  - No specific allocation for type-check
+
+**packages/ui:**
+- Has pretest step that builds shared package only
+- Uses jsdom environment for React component testing
+- Memory allocation:
+  - `pnpm test-coverage`: 8192MB
+  - `pnpm run type-check`: 4096MB
+  - No specific allocation for regular tests
+
+**packages/shared:**
+- No external dependencies or Docker required
+- Has dedicated build step for other packages to consume
+- Memory allocation:
+  - `pnpm test`: 8192MB
+  - `pnpm test-coverage`: 8192MB
+  - No specific allocation for type-check
 
 ### 1.3. Interpreting Test Results
 
 -   **Pass:** The test executed successfully and all assertions passed.
 -   **Fail:** The test executed, but one or more assertions failed, or an error occurred during test execution.
--   Mocha provides detailed output on failures, including stack traces and assertion differences.
+-   Vitest provides detailed output on failures, including stack traces, assertion differences, and helpful error messages with code context.
 
 ## 2. Linting
 
 Linting is a static analysis process that checks code for programmatic and stylistic errors. It helps maintain code quality and consistency.
 
 -   **Tool:** We use [ESLint](https://eslint.org/) integrated with the [ESLINT VSCode extension](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint).
--   **Configuration:** ESLint is configured via `.eslintrc` files. A main configuration exists at the project root, with package-specific overrides or additions in their respective `.eslintrc` files.
+-   **Configuration:** ESLint is configured per package extending root `.eslintrc`:
+    - `packages/server/.eslintrc` - Extends root config
+    - `packages/shared/.eslintrc` - Extends root config  
+    - `packages/jobs/.eslintrc` - Extends root config with import handling
+    - `packages/ui/.eslintrc` - Extends root config with React-specific rules
+    - `packages/extension` - No ESLint configuration
+    - `packages/og-worker` - No ESLint configuration
 -   **Automatic Linting:** The VSCode extension provides real-time linting for open files.
 
-### 2.1. Manual Linting (Entire Project)
+### 2.1. Manual Linting Commands
 
-To lint the entire project (or a specific folder) manually:
+To lint the project manually:
 
-1.  Open the Command Palette in VSCode (`Ctrl+Shift+P` or `Cmd+Shift+P`).
-2.  Type and select `Tasks: Run Task`.
-3.  Choose `eslint: lint whole folder` (or a similarly named task if configured).
+**Root-level linting:**
+```bash
+# Lint all JavaScript/TypeScript files
+pnpm run lint:js
+
+# Lint all shell scripts
+pnpm run lint:shell
+
+# Lint both JS/TS and shell scripts
+pnpm run lint
+```
+
+**Package-level linting:**
+```bash
+# Example for packages/server
+cd packages/server
+pnpm run lint
+
+# Example for packages/ui
+cd packages/ui
+pnpm run lint
+```
+
 
 ### 2.2. Disabling/Re-enabling the Linter in VSCode
 

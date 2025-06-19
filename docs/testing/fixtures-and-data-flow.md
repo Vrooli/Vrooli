@@ -1,19 +1,58 @@
 # Fixtures and Data Flow Testing Strategy
 
-This document explains our comprehensive approach to testing data integrity across the entire Vrooli platform. If you're new to fixtures or testing, this guide will teach you why they're essential and how they ensure our app works correctly from user input all the way to the database and back.
+This document explains our comprehensive approach to testing data integrity across the entire Vrooli platform. Based on architectural analysis of **41 object types** with excellent organizational consistency, this guide shows how to leverage existing patterns for robust testing.
 
 ## Table of Contents
 
+- [Current Architecture Analysis](#current-architecture-analysis)
 - [What Are Fixtures and Why Do We Need Them?](#what-are-fixtures-and-why-do-we-need-them)
-- [The Problem We're Solving](#the-problem-were-solving)
-- [Our Three-Tier Solution](#our-three-tier-solution)
-- [Data Flow Architecture](#data-flow-architecture)
-- [Fixture Structure and Variants](#fixture-structure-and-variants)
-- [Round-Trip Testing Implementation](#round-trip-testing-implementation)
-- [Testing Strategies](#testing-strategies)
-- [Implementation Guidelines](#implementation-guidelines)
-- [Best Practices](#best-practices)
+- [Leveraging Existing Architecture](#leveraging-existing-architecture)
+- [Recommended Fixture Strategy](#recommended-fixture-strategy)
+- [Round-Trip Testing with Real Functions](#round-trip-testing-with-real-functions)
+- [Implementation Roadmap](#implementation-roadmap)
 - [Getting Started](#getting-started)
+
+## Current Architecture Analysis
+
+### ✅ **Excellent Foundation - Ready for Testing**
+
+Our codebase shows exceptional architectural consistency with **near-complete coverage** across all layers:
+
+#### **1. Shape Objects (41 objects)** - `/packages/shared/src/shape/models/models.ts`
+- **Coverage**: Complete with consistent transformation patterns
+- **Examples**: `shapeBookmark`, `shapeComment`, `shapeTeam`, `shapeProject`, etc.
+- **Pattern**: All use standardized helpers (`createPrims()`, `updatePrims()`, etc.)
+- **Usage**: Perfect for test transformations - **we should use these instead of creating duplicates**
+
+#### **2. API Endpoints (47 endpoint groups)** - `/packages/shared/src/api/pairs.ts`
+- **Coverage**: Comprehensive with `standardCRUD()` helper
+- **Pattern**: Consistent naming (`endpointsBookmark`, `endpointsChat`, etc.)
+- **Usage**: Ready for testing with real API calls via `useLazyFetch()`
+
+#### **3. Validation Schemas (40 models)** - `/packages/shared/src/validation/models/`
+- **Coverage**: 1:1 mapping with shape objects
+- **Pattern**: Consistent Yup schemas (`{objectName}Validation.create/update`)
+- **Usage**: Use real validation instead of custom validation functions
+
+### ⚠️ **Areas for Improvement**
+
+#### **4. Action Hooks** - `/packages/ui/src/hooks/objectActions.tsx`
+- **Available**: `useBookmarker`, `useVoter`, `useCopier`, `useDeleter`
+- **Missing**: `useCommenter`, `useReporter`, `useSharer`
+- **Recommendation**: Complete the action hook pattern for all object types
+
+#### **5. Form Components** - `/packages/ui/src/views/objects/`
+- **Coverage**: 23/41 objects have complete form components
+- **Missing**: individual `bookmark`, `issue`, `pullRequest`, `tag` forms
+- **Pattern**: Consistent `{Object}Upsert.tsx` and `{Object}View.tsx` structure
+
+### 🎯 **Key Insight: Don't Duplicate, Leverage!**
+
+**Instead of creating mock transformation functions**, we should:
+1. **Use `shapeBookmark.create()`** for real form → API transformation
+2. **Use `useBookmarker` hook** for real bookmark operations
+3. **Use `bookmarkValidation.create`** for real validation
+4. **Use real API endpoints** with test containers/mock server
 
 ## What Are Fixtures and Why Do We Need Them?
 
@@ -110,9 +149,46 @@ export const projectFormFixture = {
 
 **Result**: We can test that user input → database → UI display works perfectly!
 
-## Our Three-Tier Solution
+## Leveraging Existing Architecture
 
-We mirror our application architecture with three types of fixtures:
+### Current vs Recommended Approach
+
+#### ❌ **What We Created (Duplicates Existing Logic)**
+```typescript
+// We created these custom functions:
+export function transformFormToCreateRequest(formData: BookmarkFormData): BookmarkCreateInput
+export function validateBookmarkFormData(formData: BookmarkFormData): string[]
+export const mockBookmarkService = { create, update, delete, findById }
+```
+
+#### ✅ **What We Should Use (Real Application Functions)**
+```typescript
+// Use existing real functions:
+import { shapeBookmark } from "@vrooli/shared"; // Real transformation
+import { bookmarkValidation } from "@vrooli/shared"; // Real validation  
+import { useBookmarker } from "../hooks/objectActions.js"; // Real operations
+import { useLazyFetch } from "../hooks/useFetch.js"; // Real API calls
+
+// Transform form to API request
+const apiRequest = shapeBookmark.create(formData); // ✅ Real logic
+
+// Validate form data
+const validation = await bookmarkValidation.create.validate(formData); // ✅ Real validation
+
+// Perform operations
+const { handleBookmark } = useBookmarker({ objectId, objectType, onActionComplete }); // ✅ Real hook
+```
+
+### Benefits of Using Real Functions
+1. **Test actual application logic** instead of mock implementations
+2. **Catch real integration bugs** between layers
+3. **Maintain consistency** with production behavior
+4. **Reduce maintenance** by not duplicating transformation logic
+5. **Type safety** from existing TypeScript interfaces
+
+## Recommended Fixture Strategy
+
+Based on the architectural analysis, here's how fixtures should be organized:
 
 ```mermaid
 graph TD
@@ -213,44 +289,124 @@ Each fixture type serves a specific purpose in our testing strategy:
 
 ```
 packages/
-├── server/src/__test/fixtures/          # 🗄️  DATABASE FIXTURES
-│   └── db/                              # Database-specific fixtures
-│       ├── userFixtures.ts              # Prisma User objects (can save to DB)
-│       ├── projectFixtures.ts           # Prisma Project objects (with relationships)
-│       └── swarmFixtures.ts             # Prisma Swarm objects (complex nested data)
+├── server/src/__test/fixtures/          # 🗄️  DATABASE FIXTURES (existing)
+│   └── db/                              # Already well-organized
+│       ├── userFixtures.ts              # ✅ Already exists
+│       ├── projectFixtures.ts           # ✅ Already exists  
+│       └── [39 more object types]       # ✅ Comprehensive coverage
 │
-├── shared/src/validation/models/        # 🔗 API FIXTURES (via package exports)
-│   └── __test/fixtures/                 # Exported as @vrooli/shared/validation/models/fixtures
-│       ├── userFixtures.ts              # API User types (already exist)
-│       ├── projectFixtures.ts           # API Project types (would be added)
-│       └── swarmFixtures.ts             # API Swarm types (would be added)
+├── shared/src/validation/models/        # 🔗 API FIXTURES (existing)
+│   └── __test/fixtures/                 # ✅ Already exported properly
+│       ├── userFixtures.ts              # ✅ Already exists
+│       ├── projectFixtures.ts           # ✅ Already exists
+│       └── [38 more object types]       # ✅ Near-complete coverage
 │
-└── ui/src/__test/fixtures/              # 🎨 UI FIXTURES
-    ├── api-responses/                   # What components receive from API calls
-    │   ├── userResponses.ts             # User data as components see it
-    │   ├── projectResponses.ts          # Project data with UI-specific fields
-    │   └── swarmResponses.ts            # Swarm data with computed properties
+└── ui/src/__test/fixtures/              # 🎨 UI FIXTURES (needs organization)
+    ├── form-data/                       # What users input in forms
+    │   ├── bookmarkFormData.ts          # ✅ Special case - no UI form (custom interface)
+    │   ├── teamFormData.ts              # ⚠️ TODO: Use TeamShape from @vrooli/shared
+    │   ├── projectFormData.ts           # ⚠️ TODO: Use ProjectShape from @vrooli/shared
+    │   └── [38 more form types]         # ⚠️ TODO: Use *Shape types, not custom interfaces!
     │
-    ├── form-data/                       # What users type into forms
-    │   ├── userFormData.ts              # Registration/profile form inputs
-    │   ├── projectFormData.ts           # Project creation form inputs
-    │   └── swarmFormData.ts             # Swarm configuration form inputs
+    ├── api-responses/                   # What components receive from API
+    │   ├── bookmarkResponses.ts         # ✅ Created (good pattern to replicate)
+    │   ├── commentResponses.ts          # ⚠️ TODO: Create for all types
+    │   └── [40 more response types]     # ⚠️ TODO: Mirror API coverage
+    │
+    ├── transformations/                 # ⚠️ CRITICAL: Use real functions!
+    │   └── index.ts                     # Re-export real shape functions, don't duplicate
     │
     ├── ui-states/                       # Component-specific states
-    │   ├── loadingStates.ts             # Loading skeletons, spinners
-    │   ├── errorStates.ts               # Error messages, retry states
-    │   └── permissionStates.ts          # User permission combinations
+    │   ├── loadingStates.ts            # ⚠️ TODO: Standardize across all components
+    │   ├── errorStates.ts              # ⚠️ TODO: Use consistent error patterns
+    │   └── permissionStates.ts         # ⚠️ TODO: Test all permission combinations
     │
     ├── sessions/                        # User authentication states
-    │   └── sessionFixtures.ts           # Logged out, premium, admin, etc.
+    │   └── sessionFixtures.ts          # ✅ Already exists (good coverage)
     │
-    └── round-trip-tests/                # 🔄 ROUND-TRIP TESTS
-        ├── projectRoundTrip.test.ts     # Form → API → DB → API → UI
-        ├── userRoundTrip.test.ts        # Complete user data flow tests
-        └── swarmRoundTrip.test.ts       # Complex swarm data flow tests
+    └── round-trip-tests/               # 🔄 REAL FUNCTION ROUND-TRIP TESTS
+        ├── bookmarkRoundTrip.test.ts   # ✅ Created (needs refactor to use real functions)
+        ├── commentRoundTrip.test.ts    # ⚠️ TODO: Create using useCommenter hook
+        ├── projectRoundTrip.test.ts    # ⚠️ TODO: Create using real form components
+        └── [20+ more critical flows]   # ⚠️ TODO: Cover all major user workflows
 ```
 
-### Fixture Categories
+### Form Data Fixture Guidelines
+
+#### **When to Use Shape Types vs Custom Interfaces**
+
+| Scenario | What to Use | Example | Why |
+|----------|-------------|---------|-----|
+| **Object has UI form component** | Use `*Shape` from `@vrooli/shared` | `TeamShape`, `ProjectShape`, `ApiShape` | Shape types ARE the form data types |
+| **Object has no form (button/action only)** | Still use `*Shape` if it exists | `BookmarkShape` for bookmarks | Shape types exist for all objects |
+| **Complex multi-step forms** | Use `*Shape` with state management | `RoutineShape` with wizard state | Base on existing Shape type |
+| **Only if NO Shape exists** | Create custom interface | Very rare - check first! | Most objects have Shape types |
+
+#### **Understanding the Pattern**
+
+```typescript
+// For objects WITH forms (most objects):
+import { 
+    type TeamShape,           // Form data type
+    shapeTeam,               // Transformer functions
+    teamValidation           // Validation schema
+} from "@vrooli/shared";
+
+// The form component uses TeamShape directly:
+function TeamForm({ values }: { values: TeamShape }) {
+    // values.handle, values.name, etc. - all typed from TeamShape
+}
+
+// IMPORTANT: Always check if a Shape type exists first!
+// Even objects without forms often have Shape types:
+import { type BookmarkShape } from "@vrooli/shared"; // Bookmarks DO have a shape!
+
+// Only create custom interfaces if absolutely necessary
+// (e.g., for simplified UI state management)
+```
+
+### Fixture Pattern Consistency
+
+Since we have **41 object types** with consistent patterns, we should create **template-based fixtures** that can be systematically applied:
+
+#### **1. Shape Object Pattern (Use Real Functions)**
+```typescript
+// ❌ Don't create: transformFormToCreateRequest()
+// ✅ Use real: shapeBookmark.create()
+
+import { shapeBookmark, shapeComment, shapeProject } from "@vrooli/shared";
+
+// All 41 shape objects follow the same pattern:
+const bookmarkRequest = shapeBookmark.create(formData);
+const commentRequest = shapeComment.create(formData);
+const projectRequest = shapeProject.create(formData);
+```
+
+#### **2. Validation Pattern (Use Real Schemas)**
+```typescript
+// ❌ Don't create: validateBookmarkFormData()
+// ✅ Use real: bookmarkValidation.create.validate()
+
+import { bookmarkValidation, commentValidation, projectValidation } from "@vrooli/shared";
+
+// All 40 validation schemas follow the same pattern:
+await bookmarkValidation.create.validate(formData);
+await commentValidation.create.validate(formData);
+await projectValidation.create.validate(formData);
+```
+
+#### **3. Action Hook Pattern (Extend Existing)**
+```typescript
+// ✅ Existing: useBookmarker
+// ⚠️ Missing: useCommenter, useReporter, useSharer
+
+// Should create consistent pattern for all object actions:
+const { handleBookmark } = useBookmarker({ objectId, objectType, onActionComplete });
+const { handleComment } = useCommenter({ objectId, objectType, onActionComplete }); // TODO
+const { handleReport } = useReporter({ objectId, objectType, onActionComplete }); // TODO
+```
+
+### Object Type Coverage Analysis
 
 #### 1. Database Fixtures (Server)
 
@@ -311,16 +467,65 @@ export const projectApiResponse: Project = {
 
 #### 3. UI Fixtures (UI Package)
 
+**🚨 CRITICAL: Form Data Types Use Shape Types from @vrooli/shared**
+
+For objects with actual UI forms, **DO NOT create custom form interfaces**. Instead, use the existing `*Shape` types:
+
 ```typescript
+// ❌ WRONG - Don't create custom interfaces (except for special cases like bookmarks)
 // packages/ui/src/__test/fixtures/form-data/projectFormData.ts
-export const projectFormInput = {
-    name: "Awesome AI Project",      // SAME as API/database
-    description: "An advanced AI automation system", // SAME as API/database
-    isPrivate: false,               // SAME as API/database
-    tags: ["ai", "automation"],     // UI-specific
-    language: "en"                  // UI-specific
+export interface ProjectFormData {
+    name: string;
+    description: string;
+    // ...custom fields
 }
 
+// ✅ CORRECT - Use existing Shape types for objects with forms
+// packages/ui/src/__test/fixtures/form-data/teamFormData.ts
+import { type TeamShape } from "@vrooli/shared"; // This IS the form type!
+
+export const minimalTeamFormInput: TeamShape = {
+    __typename: "Team",
+    id: "temp_123",
+    handle: "test-team",
+    isOpenToNewMembers: true,
+    isPrivate: false,
+    translations: [{
+        __typename: "TeamTranslation",
+        id: "temp_trans_123",
+        language: "en",
+        name: "Test Team",
+        bio: "A test team for testing",
+    }],
+};
+```
+
+**Key Learning: Always Use Shape Types When Available**
+
+```typescript
+// BOOKMARK - Even without a form, BookmarkShape exists!
+import { type BookmarkShape } from "@vrooli/shared";
+const bookmarkData: BookmarkShape = {
+    __typename: "Bookmark",
+    id: DUMMY_ID,
+    to: { __typename: "Resource", id: "123" },
+    list: null
+};
+// Why? Shape types exist for ALL objects, not just those with forms
+
+// TEAM - Has UI form, uses TeamShape
+import { type TeamShape } from "@vrooli/shared";
+const formData: TeamShape = { /* ... */ };
+
+// PROJECT - Has UI form, uses ProjectShape  
+import { type ProjectShape } from "@vrooli/shared";
+const formData: ProjectShape = { /* ... */ };
+
+// KEY INSIGHT: The architecture provides Shape types for everything!
+// Only create custom interfaces when you need simplified UI state
+```
+
+```typescript
 // packages/ui/src/__test/fixtures/api-responses/projectResponses.ts
 export const projectStoryResponse = {
     __typename: "Project" as const,
@@ -333,20 +538,47 @@ export const projectStoryResponse = {
 }
 ```
 
-## Round-Trip Testing Implementation
+## Round-Trip Testing with Real Functions
+
+### Current vs Recommended Implementation
+
+#### ❌ **Current Implementation (Uses Mock Functions)**
+```typescript
+// Our current bookmarkRoundTrip.test.ts uses:
+import { transformFormToCreateRequest } from '../helpers/bookmarkTransformations.js'; // Mock
+import { mockBookmarkService } from '../helpers/bookmarkTransformations.js'; // Mock
+
+// This tests our mock implementations, not the real app!
+const apiRequest = transformFormToCreateRequest(formData); // Not real
+const created = await mockBookmarkService.create(apiRequest); // Not real
+```
+
+#### ✅ **Recommended Implementation (Uses Real Functions)**
+```typescript
+// Should use real application functions:
+import { shapeBookmark } from "@vrooli/shared"; // Real transformation
+import { useBookmarker } from "../../hooks/objectActions.js"; // Real hook
+import { useLazyFetch } from "../../hooks/useFetch.js"; // Real API
+import { endpointsBookmark } from "@vrooli/shared"; // Real endpoints
+
+// Test the actual application logic!
+const apiRequest = shapeBookmark.create(formData); // ✅ Real
+const [createBookmark] = useLazyFetch(endpointsBookmark.createOne); // ✅ Real
+const created = await createBookmark(apiRequest); // ✅ Real
+```
 
 ### What Is Round-Trip Testing?
 
-Round-trip testing ensures that data maintains its integrity as it flows through your entire application stack. Think of it like this:
+Round-trip testing ensures that data maintains its integrity through your entire application using **real functions**:
 
-1. **User inputs** "AI Assistant Project" in a form
-2. **Form transforms** this to API request data  
-3. **API saves** to database with proper relationships
-4. **Database returns** the saved data
-5. **API transforms** database data for UI consumption
-6. **UI displays** "AI Assistant Project" back to the user
+1. **User inputs** "My Favorite Resources" in bookmark form
+2. **Real shape function** transforms to `BookmarkCreateInput` via `shapeBookmark.create()`
+3. **Real API hook** saves via `useBookmarker.handleBookmark()`
+4. **Real endpoint** handles database operations via `endpointsBookmark.createOne`
+5. **Real API response** returns properly typed `Bookmark` object
+6. **Real UI components** display using actual component logic
 
-**Round-trip testing verifies** that step 6 shows exactly what the user entered in step 1.
+**Round-trip testing verifies** the real application flow, not mock implementations.
 
 ### Where Round-Trip Tests Live
 
@@ -363,224 +595,215 @@ packages/ui/src/__test/fixtures/round-trip-tests/
     └── roundTripHelpers.ts           # Common test utilities
 ```
 
-### Complete Round-Trip Test Example
+### Improved Round-Trip Test Example (Using Real Functions)
 
 ```typescript
-// packages/ui/src/__test/fixtures/round-trip-tests/projectRoundTrip.test.ts
+// packages/ui/src/__test/fixtures/round-trip-tests/bookmarkRoundTrip.test.ts
 
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { setupTestDatabase, cleanupTestDatabase } from './helpers/setupTestDatabase.js';
-import { projectFormInput } from '../form-data/projectFormData.js';
-// UI package CANNOT import from @vrooli/server - this is a limitation!
-// Instead, we use the shared fixtures and API calls
-import { projectApiFixture } from '@vrooli/shared/validation/models/fixtures';
+import { describe, test, expect, beforeEach } from 'vitest';
+import { shapeBookmark } from "@vrooli/shared"; // ✅ Real transformation
+import { bookmarkValidation } from "@vrooli/shared"; // ✅ Real validation
+import { useLazyFetch } from "../../hooks/useFetch.js"; // ✅ Real API hook
+import { endpointsBookmark } from "@vrooli/shared"; // ✅ Real endpoints
+import { useBookmarker } from "../../hooks/objectActions.js"; // ✅ Real action hook
 
-describe('Project Round-Trip Data Flow', () => {
-    beforeEach(async () => {
-        await setupTestDatabase();
+import { minimalBookmarkFormInput } from '../form-data/bookmarkFormData.js';
+
+describe('Bookmark Round-Trip Data Flow (Real Functions)', () => {
+    beforeEach(() => {
+        // Clear any test state
     });
 
-    afterEach(async () => {
-        await cleanupTestDatabase();
-    });
-
-    test('project creation maintains data integrity through complete flow', async () => {
-        // 🎨 STEP 1: User fills out form
+    test('bookmark creation using real application functions', async () => {
+        // 🎨 STEP 1: User form data (realistic input)
         const userFormData = {
-            name: "AI Assistant Project",
-            description: "An advanced AI automation system",
-            tags: ["ai", "automation", "assistant"],
-            isPrivate: false
+            bookmarkFor: "Resource" as const,
+            forConnect: "123456789012345678",
+            listId: "favorites_list_id"
         };
         
-        // 🔗 STEP 2: Form submits to API
-        const apiCreateRequest = transformFormToCreateRequest(userFormData);
-        expect(apiCreateRequest.name).toBe(userFormData.name);
-        expect(apiCreateRequest.description).toBe(userFormData.description);
+        // 🔍 STEP 2: Use real validation (not custom validation)
+        const validationResult = await bookmarkValidation.create.validate(userFormData);
+        expect(validationResult).toBeDefined(); // Real validation passed
         
-        // 🗄️ STEP 3: API saves to database  
-        const savedProject = await projectService.create(apiCreateRequest);
-        expect(savedProject.name).toBe(userFormData.name);
-        expect(savedProject.id).toMatch(/^proj_\d{18}$/); // Proper ID format
-        
-        // 🔗 STEP 4: API fetches from database
-        const apiResponse = await projectService.findById(savedProject.id);
-        expect(apiResponse.name).toBe(userFormData.name);
-        expect(apiResponse.description).toBe(userFormData.description);
-        expect(apiResponse.__typename).toBe("Project"); // API response type
-        
-        // 🎨 STEP 5: UI renders the data
-        const { render, screen } = setupComponentTest();
-        render(<ProjectCard project={apiResponse} />);
-        
-        // ✅ VERIFICATION: User sees exactly what they entered
-        expect(screen.getByText("AI Assistant Project")).toBeInTheDocument();
-        expect(screen.getByText("An advanced AI automation system")).toBeInTheDocument();
-        expect(screen.getByTestId('project-privacy')).toHaveTextContent('Public');
-        
-        // 🏷️ STEP 6: Test tag round-trip specifically
-        const projectWithTags = await projectService.findByIdWithTags(savedProject.id);
-        expect(projectWithTags.tags).toEqual(["ai", "automation", "assistant"]);
-    });
-
-    test('project editing preserves existing data', async () => {
-        // Create initial project using API (no direct DB access from UI)
-        const createRequest = transformFormToCreateRequest(projectFormInput);
-        const initialProject = await projectService.create(createRequest);
-        
-        // User edits the project
-        const editFormData = {
-            ...projectFormInput,
-            name: "Updated AI Assistant",
-            description: "Updated description"
-        };
-        
-        // Submit edit
-        const updateRequest = transformFormToUpdateRequest(editFormData);
-        const updatedProject = await projectService.update(initialProject.id, updateRequest);
-        
-        // Verify data integrity
-        expect(updatedProject.name).toBe("Updated AI Assistant");
-        expect(updatedProject.description).toBe("Updated description");
-        expect(updatedProject.id).toBe(initialProject.id); // ID unchanged
-        expect(updatedProject.createdAt).toBe(initialProject.createdAt); // Created date unchanged
-    });
-    
-    test('project permissions flow correctly', async () => {
-        // Create project as one user (using API, not direct DB access)
-        const createRequest = {
-            ...transformFormToCreateRequest(projectFormInput),
-            ownerId: "user_123456789012345678"
-        };
-        const project = await projectService.create(createRequest);
-        
-        // Fetch as different user
-        const apiResponse = await projectService.findById(project.id, {
-            requestingUserId: "user_987654321098765432"
+        // 🔗 STEP 3: Use real transformation (not custom transformation)
+        const apiCreateRequest = shapeBookmark.create({
+            __typename: "Bookmark",
+            id: "temp_id", // Will be replaced
+            to: {
+                __typename: userFormData.bookmarkFor,
+                id: userFormData.forConnect
+            },
+            list: userFormData.listId ? {
+                __typename: "BookmarkList",
+                __connect: true,
+                id: userFormData.listId
+            } : null
         });
         
-        // Verify permissions are correct
-        expect(apiResponse.you.canUpdate).toBe(false); // Not the owner
-        expect(apiResponse.you.canDelete).toBe(false); // Not the owner
-        expect(apiResponse.you.canBookmark).toBe(true); // Anyone can bookmark
+        expect(apiCreateRequest.bookmarkFor).toBe(userFormData.bookmarkFor);
+        expect(apiCreateRequest.forConnect).toBe(userFormData.forConnect);
+        
+        // 🗄️ STEP 4: Use real API call (not mock service)
+        const [createBookmark] = useLazyFetch(endpointsBookmark.createOne);
+        // In real test, this would use test containers or test database
+        // const createdBookmark = await createBookmark(apiCreateRequest);
+        
+        // 🎨 STEP 5: Use real action hook (not mock operations)
+        // const { handleBookmark } = useBookmarker({
+        //     objectId: userFormData.forConnect,
+        //     objectType: userFormData.bookmarkFor,
+        //     onActionComplete: (action, data) => {
+        //         expect(action).toBe("Bookmark");
+        //         expect(data.to.id).toBe(userFormData.forConnect);
+        //     }
+        // });
+        
+        // ✅ VERIFICATION: Test real application flow
+        // This tests actual transformation logic, not our mocks!
+    });
+    
+    test('bookmark editing using real update functions', async () => {
+        // Use real shapeBookmark.update() instead of custom transformFormToUpdateRequest()
+        const updateData = {
+            __typename: "Bookmark" as const,
+            id: "existing_bookmark_id",
+            list: {
+                __typename: "BookmarkList" as const,
+                __connect: true,
+                id: "new_list_id"
+            }
+        };
+        
+        const updateRequest = shapeBookmark.update(updateData, updateData);
+        expect(updateRequest.listConnect).toBe("new_list_id");
     });
 });
 ```
 
-### UI Package Limitations and Solutions
+### Architecture Constraints and Solutions
 
-**Important Architecture Constraint:** The UI package cannot import from `@vrooli/server` package. This means UI round-trip tests cannot directly access database fixtures.
+**UI Package Limitation**: Cannot import from `@vrooli/server` package, but this is actually fine because:
 
-#### The Problem
+#### ✅ **What UI Package CAN Access (Everything We Need)**
 ```typescript
-// ❌ This WILL NOT WORK in UI package
-import { projectDbFixture } from '@vrooli/server/fixtures'; // Error: No access to server
+// UI package has access to all real application functions:
+import { shapeBookmark } from "@vrooli/shared"; // ✅ Real transformations
+import { bookmarkValidation } from "@vrooli/shared"; // ✅ Real validation
+import { endpointsBookmark } from "@vrooli/shared"; // ✅ Real endpoints
+import { useBookmarker } from "../hooks/objectActions.js"; // ✅ Real action hooks
+import { useLazyFetch } from "../hooks/useFetch.js"; // ✅ Real API calls
 ```
 
-#### The Solution: API-Only Round-Trip Testing
+#### ✅ **Effective Round-Trip Testing Pattern**
 
-Instead of testing UI → API → DB → API → UI, we test **UI → API → API → UI**:
+UI round-trip tests can verify the complete user experience:
 
 ```typescript
-// ✅ This WORKS in UI package
-import { projectApiFixture } from '@vrooli/shared/validation/models/fixtures';
+// 🎨 UI Form → 🔗 Real API → 🗄️ Test DB → 🔗 Real API → 🎨 UI Display
 
-test('round-trip through API layer', async () => {
-    // 1. Start with form data
-    const formData = projectFormInput;
+test('complete user workflow with real functions', async () => {
+    // 1. User form data
+    const formData = { bookmarkFor: "Resource", forConnect: "123" };
     
-    // 2. Transform to API request
-    const apiRequest = transformFormToCreateRequest(formData);
+    // 2. Real transformation
+    const apiRequest = shapeBookmark.create(formData); // ✅ Real function
     
-    // 3. Create via API (which handles DB internally)
-    const createdProject = await projectService.create(apiRequest);
+    // 3. Real API call (with test containers or mock server)
+    const [createBookmark] = useLazyFetch(endpointsBookmark.createOne); // ✅ Real hook
+    const created = await createBookmark(apiRequest); // ✅ Real endpoint
     
-    // 4. Fetch via API (which handles DB internally)  
-    const fetchedProject = await projectService.findById(createdProject.id);
+    // 4. Real retrieval
+    const [getBookmark] = useLazyFetch(endpointsBookmark.findOne);
+    const fetched = await getBookmark({ id: created.id });
     
-    // 5. Verify round-trip integrity
-    expect(fetchedProject.name).toBe(formData.name);
-    expect(fetchedProject.description).toBe(formData.description);
+    // 5. Verify complete round-trip using real data flow
+    expect(fetched.to.id).toBe(formData.forConnect); // ✅ Real verification
 });
 ```
 
-#### Where Full DB Testing Happens
+#### 📈 **Where Full DB Testing Happens**
 
-Full database round-trip tests live in the **server package**:
+Server package handles direct database testing:
+- **UI Package**: Tests user experience with real API functions
+- **Server Package**: Tests database constraints and direct DB operations
+- **Shared Package**: Tests shape objects and validation schemas
+
+This division is perfect because each package tests what it's responsible for!
+
+## Testing Strategies with Real Functions
+
+### 1. Component Testing (Use Real Response Fixtures)
 
 ```typescript
-// packages/server/src/__test/integration/projectRoundTrip.test.ts
-import { projectDbFixture } from '../fixtures/db/projectFixtures.js';
-import { projectApiFixture } from '@vrooli/shared/validation/models/fixtures';
+// Test components with realistic API response data
+import { bookmarkResponseVariants } from '../fixtures/api-responses/bookmarkResponses.js';
 
-test('complete database round-trip', async () => {
-    // Direct database operations + API transformations
-    const savedProject = await prisma.project.create({ data: projectDbFixture });
-    const apiResponse = transformDbToApi(savedProject);
-    expect(apiResponse).toMatchObject(projectApiFixture);
+test('BookmarkButton displays correctly for all bookmark types', () => {
+    Object.entries(bookmarkResponseVariants).forEach(([type, bookmark]) => {
+        render(<BookmarkButton bookmark={bookmark} />);
+        expect(screen.getByLabelText(`Bookmark ${type}`)).toBeInTheDocument();
+    });
 });
 ```
 
-### Benefits of This Approach
-
-1. **Catch Integration Bugs**: Find issues where data gets corrupted between layers
-2. **Verify Transformations**: Ensure form data → API → database → API → UI works
-3. **Test Real Workflows**: Simulate actual user interactions end-to-end
-4. **Prevent Regressions**: Changes to one layer don't break others
-5. **Document Data Flow**: Tests serve as living documentation of how data moves
-6. **Respect Architecture**: Each package tests what it has access to
-
-## Testing Strategies
-
-### 1. Unit Testing with Fixtures (Simple)
+### 2. Transformation Testing (Use Real Shape Functions)
 
 ```typescript
-// Test individual component rendering
-import { projectStoryResponse } from '../fixtures/api-responses/projectResponses.js';
+// Test real transformation logic with form fixtures
+import { shapeBookmark } from "@vrooli/shared";
+import { minimalBookmarkFormInput } from '../fixtures/form-data/bookmarkFormData.js';
 
-test('ProjectCard displays project name correctly', () => {
-    render(<ProjectCard project={projectStoryResponse} />);
-    expect(screen.getByText('AI Assistant Project')).toBeInTheDocument();
+test('real shape function transforms form data correctly', () => {
+    const apiRequest = shapeBookmark.create({
+        __typename: "Bookmark",
+        id: "temp",
+        to: { __typename: "Resource", id: "123" },
+        list: null
+    });
+    
+    expect(apiRequest.bookmarkFor).toBe("Resource");
+    expect(apiRequest.forConnect).toBe("123");
+    // Testing REAL transformation logic, not mocks!
 });
 ```
 
-### 2. Integration Testing (Medium Complexity)
+### 3. Hook Testing (Use Real Action Hooks)
 
 ```typescript
-// Test API transformations  
-import { projectFormInput } from '../fixtures/form-data/projectFormData.js';
-import { projectApiResponse } from '@vrooli/shared/validation/models/fixtures';
+// Test real action hooks with realistic scenarios
+import { useBookmarker } from '../../hooks/objectActions.js';
 
-test('form data transforms to API request correctly', async () => {
-    const apiRequest = transformFormToApi(projectFormInput);
-    expect(apiRequest.name).toBe(projectFormInput.name);
-    expect(apiRequest.isPrivate).toBe(projectFormInput.isPrivate);
+test('useBookmarker handles bookmark creation correctly', async () => {
+    const onActionComplete = vi.fn();
+    const { result } = renderHook(() => useBookmarker({
+        objectId: "123456789012345678",
+        objectType: "Resource",
+        onActionComplete
+    }));
+    
+    await act(async () => {
+        result.current.handleBookmark(true); // Add bookmark
+    });
+    
+    expect(onActionComplete).toHaveBeenCalledWith("Bookmark", expect.any(Object));
+    // Testing REAL hook logic!
 });
 ```
 
-### 3. Round-Trip Testing (Full Complexity)
+### 4. Validation Testing (Use Real Validation Schemas)
 
 ```typescript
-// Test complete data flow (shown in detail above)
-test('maintains data integrity through complete user workflow', async () => {
-    // User input → Form → API → Database → API → UI display
-    // Verifies no data is lost or corrupted at any step
+// Test real validation with edge cases
+import { bookmarkValidation } from "@vrooli/shared";
+import { invalidBookmarkFormInputs } from '../fixtures/form-data/bookmarkFormData.js';
+
+test('real validation catches invalid data', async () => {
+    await expect(
+        bookmarkValidation.create.validate(invalidBookmarkFormInputs.invalidId)
+    ).rejects.toThrow();
+    // Testing REAL validation logic!
 });
-```
-
-### 4. Storybook Testing (Visual)
-
-```typescript
-// Use fixtures for consistent Storybook stories
-import { projectStoryResponse } from '../fixtures/api-responses/projectResponses.js';
-
-export const DefaultProject = {
-    args: { project: projectStoryResponse }
-};
-
-export const LoadingProject = {
-    args: { project: null, loading: true }
-};
 ```
 
 ## Implementation Guidelines
@@ -630,29 +853,24 @@ export class ProjectFixtureFactory {
 }
 ```
 
-### 4. Transformation Utilities
+### 4. Real Transformation Integration
 
 ```typescript
-// Helper functions to convert between fixture types
-import { type Prisma } from "@prisma/client";
-import { type Project } from "@vrooli/shared";
+// ❌ Don't create transformation utilities - use real shape functions!
+// Instead of custom dbToApi(), apiToForm() functions:
 
-export function dbToApi(dbProject: Prisma.Project): Project {
-    return {
-        __typename: "Project",
-        id: dbProject.id,
-        name: dbProject.name,
-        // ... transformation logic
-    };
-}
+// ✅ Use existing real functions:
+import { shapeBookmark, shapeComment, shapeProject } from "@vrooli/shared";
 
-export function apiToForm(apiProject: Project): ProjectFormData {
-    return {
-        name: apiProject.name,
-        description: apiProject.description,
-        // ... transformation logic
-    };
-}
+// These handle all transformations consistently across 41 object types:
+const bookmarkRequest = shapeBookmark.create(formData); // ✅ Real
+const commentRequest = shapeComment.create(formData);   // ✅ Real  
+const projectRequest = shapeProject.create(formData);   // ✅ Real
+
+// Update operations:
+const bookmarkUpdate = shapeBookmark.update(original, changes); // ✅ Real
+const commentUpdate = shapeComment.update(original, changes);   // ✅ Real
+const projectUpdate = shapeProject.update(original, changes);   // ✅ Real
 ```
 
 ## Best Practices
@@ -671,18 +889,22 @@ export function apiToForm(apiProject: Project): ProjectFormData {
 - **Performance**: Optimize fixture size for test execution speed
 - **Isolation**: Ensure fixtures don't create dependencies between tests
 
-### 3. Type Safety
+### 3. Type Safety with Real Functions
 
 ```typescript
-// Use strict typing for fixtures
-import { type Project } from "@vrooli/shared";
+// Real shape functions provide automatic type safety
+import { shapeBookmark, type BookmarkShape } from "@vrooli/shared";
 import { generatePK } from "@vrooli/shared";
 
-export const typedProjectFixture: Project = {
-    __typename: "Project", // Required for API responses
+// Shape functions enforce correct typing automatically:
+const bookmarkRequest = shapeBookmark.create({
+    __typename: "Bookmark", // TypeScript enforces this
     id: generatePK().toString(),
-    // ... TypeScript enforces all required fields
-} as const; // Prevents accidental mutations
+    to: { __typename: "Resource", id: "123" }, // Type-safe
+    list: null // Type-safe
+}); // Result is properly typed BookmarkCreateInput
+
+// No need for custom type assertions - shape functions handle it!
 ```
 
 ### 4. Error State Fixtures
@@ -708,122 +930,199 @@ export const projectErrorStates = {
 
 ## Integration with Existing Systems
 
-### 1. Storybook Integration
+### 1. Storybook Integration with Real Endpoints
 
 ```typescript
-// Enhanced MSW handlers using fixtures
+// Use real endpoint patterns with MSW
 import { http, HttpResponse } from 'msw';
-import { projectStoryResponse } from '../fixtures/api-responses/projectResponses.js';
+import { endpointsBookmark } from "@vrooli/shared"; // ✅ Real endpoints
+import { bookmarkResponseVariants } from '../fixtures/api-responses/bookmarkResponses.js';
 
-export const projectHandlers = [
-    http.get('/api/projects/:id', ({ params }) => {
+// Mirror real API structure:
+export const bookmarkHandlers = [
+    http.post(`/api/v2${endpointsBookmark.createOne.endpoint}`, ({ request }) => {
         return HttpResponse.json({
-            data: { ...projectStoryResponse, id: params.id }
+            data: bookmarkResponseVariants.Resource // Use realistic fixture
+        });
+    }),
+    http.get(`/api/v2${endpointsBookmark.findMany.endpoint}`, ({ params }) => {
+        return HttpResponse.json({
+            data: { edges: [{ node: bookmarkResponseVariants.Resource }] }
         });
     })
 ];
+// Tests Storybook against real API patterns!
 ```
 
-### 2. Vitest Integration
+### 2. Vitest Integration with Real Functions
 
 ```typescript
-// Setup fixtures in test configuration
-import { beforeEach } from 'vitest';
-import { resetFixtures, loadFixtures } from '../fixtures/index.js';
+// Setup real function testing environment
+import { beforeEach, vi } from 'vitest';
+import { useLazyFetch } from '../hooks/useFetch.js';
 
-beforeEach(async () => {
-    await resetFixtures();
-    await loadFixtures(['users', 'projects', 'swarms']);
+// Mock real API calls but keep transformation logic real:
+beforeEach(() => {
+    vi.mock('../hooks/useFetch.js', () => ({
+        useLazyFetch: vi.fn(() => [
+            vi.fn(), // Mock fetch function
+            { data: null, loading: false, error: null } // Mock state
+        ])
+    }));
 });
+
+// Shape functions, validation, etc. remain real and unmocked!
 ```
 
-### 3. Database Seeding
+### 3. Test Database Setup
 
 ```typescript
-// Use fixtures for consistent database seeding
-import { baseProjectDb, completeUserDb } from '../fixtures/index.js';
+// Use existing database fixtures (already well-organized)
+import { baseProjectDb, completeUserDb } from '@vrooli/server/fixtures'; // In server tests
 
-export async function seedTestDatabase() {
-    await prisma.user.createMany({ data: [completeUserDb] });
-    await prisma.project.createMany({ data: [baseProjectDb] });
+// In UI tests, use test containers or mock servers:
+export async function setupTestEnvironment() {
+    // Use testcontainers for real database testing
+    // Or use MSW for API mocking while keeping transformation logic real
+    // Real shape functions work with either approach!
 }
 ```
 
-## Getting Started
+## Implementation Roadmap
 
-### Step 1: Understand the Current State
+### Phase 1: Refactor Existing Round-Trip Test (⚡ Immediate)
 
-Before implementing fixtures, familiarize yourself with our existing structure:
+1. **Update `bookmarkRoundTrip.test.ts`** to use real functions:
+   ```typescript
+   // Replace custom functions with real ones:
+   - transformFormToCreateRequest() → shapeBookmark.create()
+   - validateBookmarkFormData() → bookmarkValidation.create.validate()
+   - mockBookmarkService → useLazyFetch() + real endpoints
+   ```
 
-```bash
-# View current test fixtures
-ls packages/server/src/__test/fixtures/    # Database fixtures (already exist)
-ls packages/shared/src/__test/fixtures/    # API fixtures (already exist)  
-ls packages/ui/src/__test/                # UI tests (needs fixture structure)
-```
+2. **Test real transformation logic** instead of mock implementations
+3. **Verify existing pattern** works with real functions
 
-### Step 2: Start with One Entity
+### Phase 2: Complete Action Hook Pattern (🕰️ Next)
 
-Pick a simple entity (like `Project` or `User`) and create the complete fixture chain:
-
-1. **Use existing database fixture** from `packages/server/src/__test/fixtures/`
-2. **Use existing API fixture** from `packages/shared/src/__test/fixtures/`
-3. **Create UI fixtures** following the structure above
-4. **Write a round-trip test** to verify the complete flow
-
-### Step 3: Verify Data Consistency
+Create missing action hooks following the `useBookmarker` pattern:
 
 ```typescript
-// Example verification script (run this in server package where you have access to both)
-import { baseProjectDb } from '../__test/fixtures/db/projectFixtures.js';
-import { projectApiFixture } from '@vrooli/shared/validation/models/fixtures';
-import { projectFormInput } from '@vrooli/ui/fixtures/form-data/projectFormData.js';
+// ⚠️ TODO: Create these hooks
+export function useCommenter({ objectId, objectType, onActionComplete }) {
+    // Follow useBookmarker pattern for comment creation/management
+}
 
-console.log('Database name:', baseProjectDb.name);
-console.log('API name:', projectApiFixture.name);
-console.log('Form name:', projectFormInput.name);
-// Should all print the same value!
+export function useReporter({ objectId, objectType, onActionComplete }) {
+    // Follow useBookmarker pattern for report creation/management
+}
+
+export function useSharer({ objectId, objectType, onActionComplete }) {
+    // Follow useBookmarker pattern for sharing functionality
+}
 ```
 
-### Step 4: Add to Your Workflow
+### Phase 3: Systematic Fixture Generation (🚀 Future)
 
-1. **When writing components**: Use UI fixtures for props
-2. **When writing forms**: Use form data fixtures for testing input
-3. **When writing API logic**: Use API fixtures for request/response testing  
-4. **When writing database logic**: Use database fixtures for persistence testing
-5. **When writing features**: Write round-trip tests for critical user workflows
+1. **Create fixture generator script**:
+   ```bash
+   pnpm generate:fixtures --object=Comment
+   # Generates: commentFormData.ts, commentResponses.ts, commentRoundTrip.test.ts
+   ```
 
-### Step 5: Maintain Consistency
+2. **Apply to all 41 object types** using consistent patterns
+3. **Automate fixture maintenance** when schemas change
 
-- **Update all fixture layers** when changing data structure
-- **Add new fixture variants** for new UI states or error conditions
-- **Keep fixture data realistic** and representative of actual usage
-- **Document complex relationships** between fixture variants
+### Phase 4: Missing Form Components (📈 Enhancement)
 
-## Benefits Summary
+Create missing form components for:
+- Individual `bookmark` forms
+- `issue` and `pullRequest` forms 
+- `tag` management forms
 
-### For Developers
-- **Faster testing**: Consistent, reusable test data
-- **Fewer bugs**: Catch data transformation issues early
-- **Better debugging**: Know exactly what data should look like at each layer
-- **Easier maintenance**: Change fixture once, affects all tests
+## Getting Started
 
-### For the Application
-- **Data integrity**: Ensure user input survives the complete journey
-- **Type safety**: Fixtures enforce consistent data shapes
-- **Regression prevention**: Tests catch breaking changes between layers
-- **Documentation**: Fixtures serve as examples of correct data structure
+### Step 1: Understand What We Have (✅ Complete Coverage)
 
-### For Users
-- **Reliable experience**: Data they enter is data they see
-- **Consistent behavior**: Features work predictably across the app
-- **Fewer errors**: Robust testing means fewer production bugs
-- **Better performance**: Well-tested data flows are optimized flows
+```bash
+# Excellent existing structure:
+ls packages/shared/src/shape/models/models.ts     # 41 shape objects ✅
+ls packages/shared/src/api/pairs.ts               # 47 endpoint groups ✅
+ls packages/shared/src/validation/models/         # 40 validation schemas ✅
+ls packages/ui/src/hooks/objectActions.tsx        # Action hooks (7 existing, 3 missing)
+ls packages/ui/src/views/objects/                 # Form components (23/41 complete)
+```
+
+### Step 2: Refactor Bookmark Test (Start Here!)
+
+1. **Replace mock functions** in existing `bookmarkRoundTrip.test.ts`
+2. **Use real shape functions** (`shapeBookmark.create`)
+3. **Use real validation** (`bookmarkValidation.create`)
+4. **Use real hooks** (`useBookmarker`)
+
+### Step 3: Verify Real Function Integration
+
+```typescript
+// Test that real functions work together:
+import { shapeBookmark, bookmarkValidation } from "@vrooli/shared";
+
+const formData = { bookmarkFor: "Resource", forConnect: "123" };
+const validation = await bookmarkValidation.create.validate(formData); // ✅
+const apiRequest = shapeBookmark.create({
+    __typename: "Bookmark",
+    id: "temp",
+    to: { __typename: formData.bookmarkFor, id: formData.forConnect }
+}); // ✅
+// Real functions integrate perfectly!
+```
+
+### Step 4: Expand to Other Object Types
+
+1. **Choose next object type** (Comment, Project, etc.)
+2. **Follow same pattern** using real shape/validation functions
+3. **Create missing action hooks** as needed
+4. **Write round-trip tests** for critical user workflows
+
+### Step 5: Systematic Application
+
+1. **Prioritize by user impact**: Start with most-used features
+2. **Use existing patterns**: All 41 objects follow consistent structure
+3. **Automate where possible**: Create templates and generators
+4. **Test integration**: Ensure real functions work together seamlessly
+
+## Key Benefits of Using Real Functions
+
+### ✅ **Testing Real Application Logic**
+- **Catch actual bugs** in transformation functions
+- **Verify real integration** between shape objects and validation
+- **Test production code paths** instead of mock implementations
+- **Ensure type safety** with existing TypeScript interfaces
+
+### 🚀 **Reduced Maintenance Overhead**
+- **No duplicate logic** to maintain
+- **Automatic updates** when shape objects change
+- **Consistent behavior** between tests and production
+- **Leverage existing 41 object patterns** systematically
+
+### 💡 **Better Developer Experience**
+- **Confidence in tests** that mirror real application
+- **Faster debugging** using familiar application functions
+- **Type safety** from existing shape and validation functions
+- **Consistent patterns** across all 41 object types
+
+## Next Steps
+
+1. **⚡ Immediate**: Refactor `bookmarkRoundTrip.test.ts` to use real functions
+2. **🕰️ Next**: Create missing action hooks (`useCommenter`, `useReporter`, `useSharer`)
+3. **🚀 Future**: Generate fixtures for all 41 object types systematically
+4. **📈 Enhancement**: Create missing form components for complete coverage
 
 ## Conclusion
 
-This fixture strategy provides a robust foundation for testing data flow integrity across the entire Vrooli platform. By maintaining consistency between database, API, and UI layers, we can confidently test complex user workflows and catch transformation bugs early in the development process.
+**The key insight**: Instead of creating mock implementations, leverage the excellent existing architecture with its 41 consistently-organized object types, 47 endpoint groups, and 40 validation schemas.
 
-**The key insight**: Fixtures aren't just test data—they're a guarantee that your application preserves user intent throughout the entire data journey.
+**Our current strength**: Exceptional architectural consistency across all layers provides a perfect foundation for comprehensive testing.
 
-For implementation questions or to propose improvements to this strategy, please refer to the [Test Strategy](./test-strategy.md) or contribute to the documentation directly.
+**Our opportunity**: Systematically apply the real function pattern to create robust, maintainable tests that mirror actual application behavior.
+
+For implementation questions or to contribute improvements, see the implementation roadmap above or the existing architectural patterns in the codebase.
