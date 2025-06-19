@@ -139,11 +139,11 @@ These commands can be invoked by using the keywords listed for each:
 
 ## ⏱️ Timeout Guidelines for Long-Running Commands
 **Remember to set appropriate timeouts when running:**
-- Test suites: Usually need 3-5 minutes
-- Type checking full packages: Usually need 3-4 minutes
-- Building/compiling: Usually need 5+ minutes
-- Database migrations: Usually need 3+ minutes
-- Docker builds: Can take 5-10 minutes
+- Test suites: Can take 15+ minutes in worst case scenarios (better to be safe than sorry)
+- Type checking full packages: Can take 15+ minutes
+- Building/compiling: Can take 10+ minutes
+- Database migrations: Can take 3+ minutes
+- Docker builds: Can take 20+ minutes
 
 The default timeout is 2 minutes, which is often insufficient for these operations.
 
