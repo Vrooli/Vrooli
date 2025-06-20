@@ -9,7 +9,7 @@ export const apiConfigFixtures: ConfigTestFixtures<ApiVersionConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         rateLimiting: {
@@ -24,7 +24,7 @@ export const apiConfigFixtures: ConfigTestFixtures<ApiVersionConfigObject> = {
             settings: {
                 prefix: "Bearer",
                 required: true,
-            }
+            },
         },
         caching: {
             enabled: true,
@@ -62,11 +62,11 @@ paths:
             translations: [{
                 language: "en",
                 name: "API Documentation",
-                description: "Official API documentation and reference"
-            }]
-        }]
+                description: "Official API documentation and reference",
+            }],
+        }],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         rateLimiting: {
@@ -92,7 +92,7 @@ paths:
             initialDelay: 1000,
         },
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
@@ -121,10 +121,10 @@ paths:
             },
             timeout: {
                 request: "5 seconds", // Should be number
-            }
-        }
+            },
+        },
     },
-    
+
     variants: {
         publicApiNoAuth: {
             __version: LATEST_CONFIG_VERSION,
@@ -142,7 +142,7 @@ paths:
                 invalidation: "ttl",
             },
         },
-        
+
         secureApiKeyAuth: {
             __version: LATEST_CONFIG_VERSION,
             authentication: {
@@ -153,7 +153,7 @@ paths:
                     prefix: "Bearer",
                     required: true,
                     validatePattern: "^[A-Za-z0-9-_]+$",
-                }
+                },
             },
             rateLimiting: {
                 requestsPerMinute: 1000,
@@ -166,7 +166,7 @@ paths:
             },
             documentationLink: "https://api.secure.com/docs",
         },
-        
+
         oauth2ProtectedApi: {
             __version: LATEST_CONFIG_VERSION,
             authentication: {
@@ -178,7 +178,7 @@ paths:
                     tokenUrl: "https://auth.example.com/token",
                     scopes: ["read", "write"],
                     flow: "authorizationCode",
-                }
+                },
             },
             rateLimiting: {
                 requestsPerMinute: 5000,
@@ -191,7 +191,7 @@ paths:
                 initialDelay: 500,
             },
         },
-        
+
         basicAuthApi: {
             __version: LATEST_CONFIG_VERSION,
             authentication: {
@@ -200,14 +200,14 @@ paths:
                 parameterName: "Authorization",
                 settings: {
                     realm: "API Access",
-                }
+                },
             },
             timeout: {
                 request: 60000,
                 connection: 10000,
             },
         },
-        
+
         highPerformanceApi: {
             __version: LATEST_CONFIG_VERSION,
             rateLimiting: {
@@ -226,7 +226,7 @@ paths:
                 maxAttempts: 1, // No retries for speed
             },
         },
-        
+
         webhookApi: {
             __version: LATEST_CONFIG_VERSION,
             authentication: {
@@ -236,7 +236,7 @@ paths:
                 settings: {
                     algorithm: "sha256",
                     secret: "webhook_secret",
-                }
+                },
             },
             timeout: {
                 request: 30000,
@@ -249,7 +249,7 @@ paths:
             },
             callLink: "https://webhook.example.com/notify",
         },
-        
+
         graphqlApi: {
             __version: LATEST_CONFIG_VERSION,
             authentication: {
@@ -273,7 +273,7 @@ type User {
             callLink: "https://api.example.com/graphql",
             documentationLink: "https://api.example.com/graphql/docs",
         },
-        
+
         restApiWithSwagger: {
             __version: LATEST_CONFIG_VERSION,
             schema: {
@@ -312,8 +312,8 @@ paths:
                     translations: [{
                         language: "en",
                         name: "Swagger UI",
-                        description: "Interactive API documentation"
-                    }]
+                        description: "Interactive API documentation",
+                    }],
                 },
                 {
                     link: "https://api.example.com/postman",
@@ -321,12 +321,12 @@ paths:
                     translations: [{
                         language: "en",
                         name: "Postman Collection",
-                        description: "Ready-to-use API collection"
-                    }]
-                }
-            ]
-        }
-    }
+                        description: "Ready-to-use API collection",
+                    }],
+                },
+            ],
+        },
+    },
 };
 
 /**
@@ -334,15 +334,15 @@ paths:
  */
 export function createApiConfigWithAuth(
     authType: string,
-    authSettings: Partial<ApiVersionConfigObject["authentication"]> = {}
+    authSettings: Partial<ApiVersionConfigObject["authentication"]> = {},
 ): ApiVersionConfigObject {
     return mergeWithBaseDefaults<ApiVersionConfigObject>({
         authentication: {
             type: authType,
             location: "header",
             parameterName: "Authorization",
-            ...authSettings
-        }
+            ...authSettings,
+        },
     });
 }
 
@@ -351,14 +351,14 @@ export function createApiConfigWithAuth(
  */
 export function createApiConfigWithRateLimit(
     requestsPerMinute: number,
-    burstLimit?: number
+    burstLimit?: number,
 ): ApiVersionConfigObject {
     return mergeWithBaseDefaults<ApiVersionConfigObject>({
         rateLimiting: {
             requestsPerMinute,
             burstLimit: burstLimit || Math.floor(requestsPerMinute / 10),
             useGlobalRateLimit: false,
-        }
+        },
     });
 }
 
@@ -368,7 +368,7 @@ export function createApiConfigWithRateLimit(
 export function createApiConfigWithSchema(
     language: string,
     text: string,
-    callLink?: string
+    callLink?: string,
 ): ApiVersionConfigObject {
     return mergeWithBaseDefaults<ApiVersionConfigObject>({
         schema: {

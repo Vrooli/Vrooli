@@ -1,4 +1,4 @@
-// AI_CHECK: TEST_COVERAGE=1 | LAST: 2025-06-18
+// AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-06-18
 import { describe, expect, it } from "vitest";
 import { CommentFor, RunStatus } from "../../../api/types.js";
 import {
@@ -180,6 +180,16 @@ describe("shape models", () => {
                 userConnect: "456",
             });
         });
+
+        it("should update chat invite shape", () => {
+            const original = { id: "123", message: "Join our chat!" };
+            const update = { id: "123", message: "Updated invitation!" };
+            const result = shapeChatInvite.update(original, update);
+            expect(result).toEqual({
+                id: "123",
+                message: "Updated invitation!",
+            });
+        });
     });
 
     describe("shapeChatMessage", () => {
@@ -196,6 +206,16 @@ describe("shape models", () => {
                 text: "Hello world",
                 language: "en",
                 versionIndex: 0,
+            });
+        });
+
+        it("should update chat message shape", () => {
+            const original = { id: "123", text: "Hello world", language: "en", versionIndex: 0 };
+            const update = { id: "123", text: "Updated message" };
+            const result = shapeChatMessage.update(original, update);
+            expect(result).toEqual({
+                id: "123",
+                text: "Updated message",
             });
         });
     });
@@ -242,6 +262,15 @@ describe("shape models", () => {
                     language: "en",
                     text: "Great resource!",
                 }],
+            });
+        });
+
+        it("should update comment shape", () => {
+            const original = { id: "123" };
+            const update = { id: "123" };
+            const result = shapeComment.update(original, update);
+            expect(result).toEqual({
+                id: "123",
             });
         });
     });
@@ -440,6 +469,18 @@ describe("shape models", () => {
                 dueDate: null,
                 index: 0,
                 reminderConnect: "456",
+            });
+        });
+
+        it("should update reminder item shape", () => {
+            const original = { id: "123", name: "Subtask", isComplete: false };
+            const update = { id: "123", name: "Updated Subtask", isComplete: true };
+            const result = shapeReminderItem.update(original, update);
+            expect(result).toEqual({
+                id: "123",
+                name: "Updated Subtask",
+                isComplete: true,
+                dueDate: null,
             });
         });
     });

@@ -7,25 +7,12 @@ import {
     DEFAULT_ROLLOVER_SETTINGS,
     DEFAULT_DONATION_SETTINGS,
 } from "./credit.js";
+import { creditConfigFixtures } from "../../__test/fixtures/config/creditConfigFixtures.js";
 
 describe("CreditConfig", () => {
     describe("constructor", () => {
         it("should create CreditConfig with complete data", () => {
-            const configData: CreditConfigObject = {
-                __version: "1.0",
-                rollover: {
-                    enabled: true,
-                    maxMonthsToKeep: 3,
-                    lastProcessedMonth: "2024-01",
-                },
-                donation: {
-                    enabled: true,
-                    percentage: 15,
-                    minThreshold: 500,
-                    recipientType: "community",
-                    lastProcessedMonth: "2024-01",
-                },
-            };
+            const configData = creditConfigFixtures.complete;
 
             const config = new CreditConfig(configData);
 

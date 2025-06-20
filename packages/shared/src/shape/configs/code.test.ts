@@ -3,6 +3,7 @@ import { type ResourceVersion } from "../../api/types.js";
 import { CodeLanguage } from "../../consts/index.js";
 import { CodeVersionConfig, type CodeVersionConfigObject, type JsonSchema } from "./code.js";
 import { LATEST_CONFIG_VERSION } from "./utils.js";
+import { codeConfigFixtures } from "../../__test/fixtures/config/codeConfigFixtures.js";
 
 // Type for constructing the argument to CodeVersionConfig.parse
 type VersionInputForParse = Pick<ResourceVersion, "codeLanguage" | "config">;
@@ -42,21 +43,7 @@ describe("CodeVersionConfig", () => {
         describe("inputs", () => {
             describe("spreads", () => {
                 it("number array", () => {
-                    const configObject: CodeVersionConfigObject = {
-                        __version: LATEST_CONFIG_VERSION,
-                        inputConfig: {
-                            inputSchema: {
-                                type: "array",
-                                items: { type: "number" },
-                                minItems: 3,
-                                maxItems: 3,
-                            },
-                            shouldSpread: true,
-                        },
-                        outputConfig: [],
-                        testCases: [],
-                        content: "function sum(a, b, c) { return a + b + c; }",
-                    };
+                    const configObject = codeConfigFixtures.variants.spreadFunction;
                     const configString = JSON.stringify(configObject);
                     const versionInput: VersionInputForParse = {
                         codeLanguage: CodeLanguage.Javascript,

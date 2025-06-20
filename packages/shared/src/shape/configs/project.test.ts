@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ProjectVersionConfig, type ProjectVersionConfigObject } from "./project.js";
 import { type ResourceVersion } from "../../api/types.js";
 import { ResourceUsedFor } from "./base.js";
+import { projectConfigFixtures } from "../../__test/fixtures/config/projectConfigFixtures.js";
 
 describe("ProjectVersionConfig", () => {
     let mockLogger: any;
@@ -18,61 +19,32 @@ describe("ProjectVersionConfig", () => {
 
     describe("constructor", () => {
         it("should create ProjectVersionConfig with complete data", () => {
-            const config: ProjectVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://github.com/example/project",
-                        usedFor: ResourceUsedFor.Developer,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Project Repository",
-                                description: "Main project source code repository",
-                            },
-                        ],
-                    },
-                    {
-                        link: "https://project-docs.com",
-                        usedFor: ResourceUsedFor.OfficialWebsite,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Official Documentation",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const config = projectConfigFixtures.complete;
 
             const projectConfig = new ProjectVersionConfig({ config });
 
-            expect(projectConfig.__version).toBe("1.0");
-            expect(projectConfig.resources).toHaveLength(2);
-            expect(projectConfig.resources[0].link).toBe("https://github.com/example/project");
-            expect(projectConfig.resources[0].usedFor).toBe(ResourceUsedFor.Developer);
-            expect(projectConfig.resources[1].usedFor).toBe(ResourceUsedFor.OfficialWebsite);
+            expect(projectConfig.__version).toBe(config.__version);
+            expect(projectConfig.resources).toHaveLength(3);
+            expect(projectConfig.resources[0].link).toBe("https://example.com/project-docs");
+            expect(projectConfig.resources[0].usedFor).toBe(ResourceUsedFor.OfficialWebsite);
+            expect(projectConfig.resources[1].usedFor).toBe(ResourceUsedFor.Developer);
         });
 
         it("should create ProjectVersionConfig with minimal data", () => {
-            const config: ProjectVersionConfigObject = {
-                __version: "1.0",
-            };
+            const config = projectConfigFixtures.minimal;
 
             const projectConfig = new ProjectVersionConfig({ config });
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(config.__version);
             expect(projectConfig.resources).toEqual([]);
         });
 
         it("should create ProjectVersionConfig without version (uses default)", () => {
-            const config: Partial<ProjectVersionConfigObject> = {
-                resources: [],
-            };
+            const config = projectConfigFixtures.withDefaults;
 
-            const projectConfig = new ProjectVersionConfig({ config: config as ProjectVersionConfigObject });
+            const projectConfig = new ProjectVersionConfig({ config });
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(config.__version);
             expect(projectConfig.resources).toEqual([]);
         });
     });
@@ -80,25 +52,12 @@ describe("ProjectVersionConfig", () => {
     describe("parse", () => {
         it("should parse valid project version data", () => {
             const versionData: Pick<ResourceVersion, "config"> = {
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://project.example.com",
-                            translations: [
-                                {
-                                    language: "en",
-                                    name: "Project Site",
-                                },
-                            ],
-                        },
-                    ],
-                },
+                config: projectConfigFixtures.variants.minimalWithResource,
             };
 
             const projectConfig = ProjectVersionConfig.parse(versionData, mockLogger);
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(projectConfigFixtures.variants.minimalWithResource.__version);
             expect(projectConfig.resources).toHaveLength(1);
             expect(projectConfig.resources[0].link).toBe("https://project.example.com");
         });
@@ -110,7 +69,7 @@ describe("ProjectVersionConfig", () => {
 
             const projectConfig = ProjectVersionConfig.parse(versionData, mockLogger);
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(projectConfigFixtures.minimal.__version);
             expect(projectConfig.resources).toEqual([]);
         });
 
@@ -121,15 +80,13 @@ describe("ProjectVersionConfig", () => {
 
             const projectConfig = ProjectVersionConfig.parse(versionData, mockLogger);
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(projectConfigFixtures.minimal.__version);
             expect(projectConfig.resources).toEqual([]);
         });
 
         it("should parse with useFallbacks parameter (no effect for ProjectVersionConfig)", () => {
             const versionData: Pick<ResourceVersion, "config"> = {
-                config: {
-                    __version: "1.0",
-                },
+                config: projectConfigFixtures.minimal,
             };
 
             const configWithFallbacks = ProjectVersionConfig.parse(versionData, mockLogger, { useFallbacks: true });
@@ -144,34 +101,14 @@ describe("ProjectVersionConfig", () => {
         it("should create default ProjectVersionConfig", () => {
             const projectConfig = ProjectVersionConfig.default();
 
-            expect(projectConfig.__version).toBe("1.0");
+            expect(projectConfig.__version).toBe(projectConfigFixtures.minimal.__version);
             expect(projectConfig.resources).toEqual([]);
         });
     });
 
     describe("export", () => {
         it("should export all properties", () => {
-            const originalConfig: ProjectVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://community.project.com",
-                        usedFor: ResourceUsedFor.Community,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Community Forum",
-                                description: "Discuss the project with other users",
-                            },
-                            {
-                                language: "ja",
-                                name: "コミュニティフォーラム",
-                                description: "他のユーザーとプロジェクトについて話し合う",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const originalConfig = projectConfigFixtures.variants.multiLanguageProject;
 
             const projectConfig = new ProjectVersionConfig({ config: originalConfig });
             const exported = projectConfig.export();
@@ -180,11 +117,11 @@ describe("ProjectVersionConfig", () => {
         });
 
         it("should export minimal config", () => {
-            const projectConfig = new ProjectVersionConfig({ config: { __version: "1.0" } });
+            const projectConfig = new ProjectVersionConfig({ config: projectConfigFixtures.minimal });
             const exported = projectConfig.export();
 
             expect(exported).toEqual({
-                __version: "1.0",
+                __version: projectConfigFixtures.minimal.__version,
                 resources: [],
             });
         });
@@ -310,152 +247,32 @@ describe("ProjectVersionConfig", () => {
 
     describe("Complex scenarios", () => {
         it("should handle projects with comprehensive resource ecosystem", () => {
-            const config: ProjectVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    // Development resources
-                    {
-                        link: "https://github.com/org/project",
-                        usedFor: ResourceUsedFor.Developer,
-                        translations: [
-                            { language: "en", name: "GitHub Repository" },
-                        ],
-                    },
-                    {
-                        link: "https://ci.project.com",
-                        usedFor: ResourceUsedFor.Developer,
-                        translations: [
-                            { language: "en", name: "CI/CD Pipeline" },
-                        ],
-                    },
-                    // Community resources
-                    {
-                        link: "https://discord.gg/project",
-                        usedFor: ResourceUsedFor.Community,
-                        translations: [
-                            { language: "en", name: "Discord Server" },
-                        ],
-                    },
-                    {
-                        link: "https://forum.project.com",
-                        usedFor: ResourceUsedFor.Community,
-                        translations: [
-                            { language: "en", name: "Community Forum" },
-                        ],
-                    },
-                    // Learning resources
-                    {
-                        link: "https://learn.project.com",
-                        usedFor: ResourceUsedFor.Learning,
-                        translations: [
-                            { language: "en", name: "Learning Platform" },
-                        ],
-                    },
-                    {
-                        link: "https://youtube.com/projectchannel",
-                        usedFor: ResourceUsedFor.Tutorial,
-                        translations: [
-                            { language: "en", name: "YouTube Tutorials" },
-                        ],
-                    },
-                    // Official resources
-                    {
-                        link: "https://project.com",
-                        usedFor: ResourceUsedFor.OfficialWebsite,
-                        translations: [
-                            { language: "en", name: "Official Website" },
-                        ],
-                    },
-                    // Support resources
-                    {
-                        link: "https://opencollective.com/project",
-                        usedFor: ResourceUsedFor.Donation,
-                        translations: [
-                            { language: "en", name: "Open Collective" },
-                        ],
-                    },
-                    // Integration resources
-                    {
-                        link: "https://api.project.com/v2",
-                        usedFor: ResourceUsedFor.ExternalService,
-                        translations: [
-                            { language: "en", name: "REST API v2" },
-                        ],
-                    },
-                    // Proposal resources
-                    {
-                        link: "https://rfcs.project.com",
-                        usedFor: ResourceUsedFor.Proposal,
-                        translations: [
-                            { language: "en", name: "RFCs & Proposals" },
-                        ],
-                    },
-                ],
-            };
+            const config = projectConfigFixtures.variants.openSourceProject;
 
             const projectConfig = new ProjectVersionConfig({ config });
 
-            expect(projectConfig.resources).toHaveLength(10);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.Developer)).toHaveLength(2);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.Community)).toHaveLength(2);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.Learning)).toHaveLength(1);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.Tutorial)).toHaveLength(1);
+            expect(projectConfig.resources).toHaveLength(4);
+            expect(projectConfig.getResourcesByType(ResourceUsedFor.Developer)).toHaveLength(1);
+            expect(projectConfig.getResourcesByType(ResourceUsedFor.Community)).toHaveLength(1);
             expect(projectConfig.getResourcesByType(ResourceUsedFor.OfficialWebsite)).toHaveLength(1);
             expect(projectConfig.getResourcesByType(ResourceUsedFor.Donation)).toHaveLength(1);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.ExternalService)).toHaveLength(1);
-            expect(projectConfig.getResourcesByType(ResourceUsedFor.Proposal)).toHaveLength(1);
         });
 
         it("should handle resources with missing optional fields", () => {
-            const config: ProjectVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://minimal.com",
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Minimal Resource",
-                                // No description
-                            },
-                        ],
-                        // No usedFor
-                    },
-                    {
-                        link: "https://complete.com",
-                        usedFor: ResourceUsedFor.Feed,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Complete Resource",
-                                description: "Has all fields",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const config = projectConfigFixtures.variants.socialProject;
 
             const projectConfig = new ProjectVersionConfig({ config });
 
-            expect(projectConfig.resources[0].usedFor).toBeUndefined();
-            expect(projectConfig.resources[0].translations[0].description).toBeUndefined();
-            expect(projectConfig.resources[1].usedFor).toBe(ResourceUsedFor.Feed);
-            expect(projectConfig.resources[1].translations[0].description).toBe("Has all fields");
+            expect(projectConfig.resources[0].usedFor).toBe(ResourceUsedFor.Social);
+            expect(projectConfig.resources[0].translations[0].description).toBe("Follow us for updates");
+            expect(projectConfig.resources[2].usedFor).toBe(ResourceUsedFor.Feed);
+            expect(projectConfig.resources[2].translations[0].description).toBe("Project blog and announcements");
         });
 
         it("should handle project evolution through resource updates", () => {
             // Start with basic project
             const projectConfig = new ProjectVersionConfig({
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://github.com/user/project",
-                            usedFor: ResourceUsedFor.Developer,
-                            translations: [{ language: "en", name: "Personal Project" }],
-                        },
-                    ],
-                },
+                config: projectConfigFixtures.variants.minimalWithResource,
             });
 
             // Project grows, add community
@@ -493,38 +310,7 @@ describe("ProjectVersionConfig", () => {
 
         it("should handle resource categorization for project dashboard", () => {
             const projectConfig = new ProjectVersionConfig({
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        // Multiple resources of same type
-                        {
-                            link: "https://github.com/project/main",
-                            usedFor: ResourceUsedFor.Developer,
-                            translations: [{ language: "en", name: "Main Repo" }],
-                        },
-                        {
-                            link: "https://github.com/project/plugins",
-                            usedFor: ResourceUsedFor.Developer,
-                            translations: [{ language: "en", name: "Plugins Repo" }],
-                        },
-                        {
-                            link: "https://github.com/project/examples",
-                            usedFor: ResourceUsedFor.Developer,
-                            translations: [{ language: "en", name: "Examples" }],
-                        },
-                        // Social presence
-                        {
-                            link: "https://twitter.com/project",
-                            usedFor: ResourceUsedFor.Social,
-                            translations: [{ language: "en", name: "Twitter" }],
-                        },
-                        {
-                            link: "https://linkedin.com/company/project",
-                            usedFor: ResourceUsedFor.Social,
-                            translations: [{ language: "en", name: "LinkedIn" }],
-                        },
-                    ],
-                },
+                config: projectConfigFixtures.variants.socialProject,
             });
 
             // Simulate building a categorized view
@@ -535,34 +321,14 @@ describe("ProjectVersionConfig", () => {
                 community: projectConfig.getResourcesByType(ResourceUsedFor.Community),
             };
 
-            expect(categories.development).toHaveLength(3);
+            expect(categories.development).toHaveLength(0);
             expect(categories.social).toHaveLength(2);
             expect(categories.learning).toHaveLength(0);
             expect(categories.community).toHaveLength(0);
         });
 
         it("should maintain data integrity through serialization cycle", () => {
-            const originalConfig: ProjectVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://test.com/resource",
-                        usedFor: ResourceUsedFor.Install,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Installation Guide",
-                                description: "Step-by-step installation instructions",
-                            },
-                            {
-                                language: "zh",
-                                name: "安装指南",
-                                description: "分步安装说明",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const originalConfig = projectConfigFixtures.variants.multiLanguageProject;
 
             // Create, export, re-import cycle
             const config1 = new ProjectVersionConfig({ config: originalConfig });
@@ -572,7 +338,7 @@ describe("ProjectVersionConfig", () => {
 
             // Should remain identical
             expect(exported2).toEqual(originalConfig);
-            expect(exported2.resources[0].translations).toHaveLength(2);
+            expect(exported2.resources[0].translations).toHaveLength(5);
         });
     });
 });

@@ -25,7 +25,7 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         resources: [
@@ -35,8 +35,8 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Documentation",
-                    description: "Official documentation"
-                }]
+                    description: "Official documentation",
+                }],
             },
             {
                 link: "https://github.com/example/repo",
@@ -44,29 +44,29 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Source Code",
-                    description: "GitHub repository"
-                }]
-            }
-        ]
+                    description: "GitHub repository",
+                }],
+            },
+        ],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
-        resources: []
+        resources: [],
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing required __version field
-            resources: []
+            resources: [],
         },
         invalidVersion: {
             __version: "0.1", // Invalid version
-            resources: []
+            resources: [],
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
-            resources: "not an array" // Should be array
+            resources: "not an array", // Should be array
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
@@ -74,12 +74,12 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                 {
                     link: 123, // Should be string
                     usedFor: "InvalidType",
-                    translations: []
-                }
-            ]
-        }
+                    translations: [],
+                },
+            ],
+        },
     },
-    
+
     variants: {
         singleResource: {
             __version: LATEST_CONFIG_VERSION,
@@ -88,11 +88,11 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                 usedFor: ResourceUsedFor.Learning,
                 translations: [{
                     language: "en",
-                    name: "Learning Resource"
-                }]
-            }]
+                    name: "Learning Resource",
+                }],
+            }],
         },
-        
+
         multiLanguage: {
             __version: LATEST_CONFIG_VERSION,
             resources: [{
@@ -102,22 +102,22 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                     {
                         language: "en",
                         name: "Tutorial",
-                        description: "Step-by-step guide"
+                        description: "Step-by-step guide",
                     },
                     {
                         language: "es",
                         name: "Tutorial",
-                        description: "Guía paso a paso"
+                        description: "Guía paso a paso",
                     },
                     {
                         language: "fr",
                         name: "Tutoriel",
-                        description: "Guide étape par étape"
-                    }
-                ]
-            }]
+                        description: "Guide étape par étape",
+                    },
+                ],
+            }],
         },
-        
+
         allResourceTypes: {
             __version: LATEST_CONFIG_VERSION,
             resources: Object.values(ResourceUsedFor).map((usedFor, index) => ({
@@ -126,24 +126,24 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
                 translations: [{
                     language: "en",
                     name: `${usedFor} Resource`,
-                    description: `Resource for ${usedFor}`
-                }]
-            }))
-        }
-    }
+                    description: `Resource for ${usedFor}`,
+                }],
+            })),
+        },
+    },
 };
 
 /**
  * Utility function to merge partial config with base defaults
  */
 export function mergeWithBaseDefaults<T extends BaseConfigObject>(
-    partial: Partial<T>, 
-    base: BaseConfigObject = baseConfigFixtures.minimal
+    partial: Partial<T>,
+    base: BaseConfigObject = baseConfigFixtures.minimal,
 ): T {
     return {
         ...base,
         ...partial,
-        resources: partial.resources ?? base.resources
+        resources: partial.resources ?? base.resources,
     } as T;
 }
 
@@ -152,8 +152,8 @@ export function mergeWithBaseDefaults<T extends BaseConfigObject>(
  */
 export function createConfigWithResource(
     usedFor: ResourceUsedFor,
-    link: string = "https://example.com",
-    name: string = "Test Resource"
+    link = "https://example.com",
+    name = "Test Resource",
 ): BaseConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
@@ -163,7 +163,7 @@ export function createConfigWithResource(
             translations: [{
                 language: "en",
                 name,
-            }]
-        }]
+            }],
+        }],
     };
 }

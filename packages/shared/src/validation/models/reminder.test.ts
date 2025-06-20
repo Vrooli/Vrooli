@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reminderFixtures } from "./__test/fixtures/reminderFixtures.js";
+import { reminderFixtures } from "../../__test/fixtures/api/reminderFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { reminderValidation } from "./reminder.js";
 

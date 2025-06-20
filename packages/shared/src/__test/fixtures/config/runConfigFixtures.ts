@@ -63,7 +63,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 data: { input: "test" },
                 outputs: { result: "pending" },
                 errors: [],
-            }
+            },
         ],
         config: {
             botConfig: {
@@ -102,7 +102,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 options: ["Option A", "Option B"],
                 selectedOption: "Option A",
                 timestamp: "2024-01-01T00:00:00Z",
-            }
+            },
         ],
         metrics: {
             creditsSpent: "1000",
@@ -111,7 +111,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             "sub_1": {
                 data: { key: "value" },
                 outputs: { result: "success" },
-            }
+            },
         },
     },
 
@@ -193,7 +193,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             metrics: {
                 creditsSpent: 1000, // Should be string
             },
-        }
+        },
     },
 
     variants: {
@@ -289,7 +289,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                     data: { taskType: "validate" },
                     outputs: {},
                     errors: [],
-                }
+                },
             ],
             config: {
                 botConfig: {},
@@ -360,9 +360,9 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                     status: "Resolved",
                     question: "Enter required input",
                     options: [],
-                    selectedOption: '{"value": "test input"}',
+                    selectedOption: "{\"value\": \"test input\"}",
                     timestamp: "2024-01-01T10:05:00Z",
-                }
+                },
             ],
             metrics: {
                 creditsSpent: "250",
@@ -391,9 +391,9 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                             message: "Retry failed",
                             code: "RETRY_EXHAUSTED",
                             timestamp: "2024-01-01T12:01:00Z",
-                        }
+                        },
                     ],
-                }
+                },
             ],
             config: {
                 botConfig: {},
@@ -471,10 +471,10 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                         transformed: { key: "value" },
                         metadata: { size: 1024 },
                     },
-                }
+                },
             },
-        }
-    }
+        },
+    },
 };
 
 /**
@@ -483,7 +483,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
 export function createRunConfigWithStrategies(
     inputGeneration: InputGenerationStrategy,
     pathSelection: PathSelectionStrategy,
-    subroutineExecution: SubroutineExecutionStrategy
+    subroutineExecution: SubroutineExecutionStrategy,
 ): RunProgressConfigObject {
     return mergeWithBaseDefaults<RunProgressConfigObject>({
         config: {
@@ -500,7 +500,7 @@ export function createRunConfigWithStrategies(
             onNormalNodeFailure: "Fail",
             onOnlyWaitingBranches: "Continue",
             testMode: false,
-        }
+        },
     });
 }
 
@@ -509,7 +509,7 @@ export function createRunConfigWithStrategies(
  */
 export function createRunConfigWithBranches(
     branchCount: number,
-    status: "Active" | "Waiting" | "Completed" | "Failed" = "Active"
+    status: "Active" | "Waiting" | "Completed" | "Failed" = "Active",
 ): RunProgressConfigObject {
     const branches = Array.from({ length: branchCount }, (_, i) => ({
         id: `branch_${i + 1}`,
@@ -526,7 +526,7 @@ export function createRunConfigWithBranches(
         branches,
         metrics: {
             creditsSpent: (branchCount * 100).toString(),
-        }
+        },
     });
 }
 
@@ -534,7 +534,7 @@ export function createRunConfigWithBranches(
  * Create a run config with specific limits
  */
 export function createRunConfigWithLimits(
-    limits: Partial<RunProgress["config"]["limits"]>
+    limits: Partial<RunProgress["config"]["limits"]>,
 ): RunProgressConfigObject {
     return mergeWithBaseDefaults<RunProgressConfigObject>({
         config: {
@@ -551,6 +551,6 @@ export function createRunConfigWithLimits(
             onNormalNodeFailure: "Fail",
             onOnlyWaitingBranches: "Continue",
             testMode: false,
-        }
+        },
     });
 }

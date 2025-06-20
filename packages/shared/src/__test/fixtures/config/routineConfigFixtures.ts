@@ -28,7 +28,7 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
         __version: LATEST_CONFIG_VERSION,
         routineType: "action",
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         routineType: "multiStep",
@@ -41,8 +41,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 actionConfig: {
                     actionType: "api_call",
                     endpoint: "/api/v1/collect",
-                    method: "POST"
-                }
+                    method: "POST",
+                },
             },
             {
                 stepId: "step2",
@@ -52,8 +52,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 generateConfig: {
                     model: "gpt-4",
                     prompt: "Process the following data: {{input}}",
-                    temperature: 0.7
-                }
+                    temperature: 0.7,
+                },
             },
             {
                 stepId: "step3",
@@ -63,9 +63,9 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 actionConfig: {
                     actionType: "api_call",
                     endpoint: "/api/v1/save",
-                    method: "POST"
-                }
-            }
+                    method: "POST",
+                },
+            },
         ],
         resources: [{
             link: "https://example.com/routine-guide",
@@ -73,17 +73,17 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
             translations: [{
                 language: "en",
                 name: "Routine Guide",
-                description: "How to use this routine"
-            }]
-        }]
+                description: "How to use this routine",
+            }],
+        }],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         routineType: "action",
-        resources: []
+        resources: [],
     },
-    
+
     invalid: {
         missingVersion: {
             routineType: "action",
@@ -99,10 +99,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "multiStep",
-            steps: "not an array" // Should be array
-        }
+            steps: "not an array", // Should be array
+        },
     },
-    
+
     variants: {
         simpleApiCall: {
             __version: LATEST_CONFIG_VERSION,
@@ -110,10 +110,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
             actionConfig: {
                 actionType: "api_call",
                 endpoint: "/api/v1/users",
-                method: "GET"
-            }
+                method: "GET",
+            },
         },
-        
+
         textGeneration: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "generate",
@@ -121,10 +121,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 model: "gpt-4",
                 prompt: "Generate a summary of: {{text}}",
                 temperature: 0.5,
-                maxTokens: 500
-            }
+                maxTokens: 500,
+            },
         },
-        
+
         dataTransformation: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "action",
@@ -135,20 +135,20 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     type: "object",
                     properties: {
                         name: { type: "string" },
-                        age: { type: "number" }
-                    }
+                        age: { type: "number" },
+                    },
                 },
                 outputSchema: {
                     type: "object",
                     properties: {
                         fullName: { type: "string" },
-                        isAdult: { type: "boolean" }
-                    }
-                }
-            }
-        }
+                        isAdult: { type: "boolean" },
+                    },
+                },
+            },
+        },
     },
-    
+
     // Action routine fixtures
     action: {
         simple: {
@@ -157,10 +157,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
             actionConfig: {
                 actionType: "api_call",
                 endpoint: "/api/v1/data",
-                method: "GET"
-            }
+                method: "GET",
+            },
         },
-        
+
         withInputMapping: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "action",
@@ -171,11 +171,11 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 inputMapping: {
                     "userInput": "$.data.input",
                     "userId": "$.context.userId",
-                    "timestamp": "$.context.timestamp"
-                }
-            }
+                    "timestamp": "$.context.timestamp",
+                },
+            },
         },
-        
+
         withOutputMapping: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "action",
@@ -186,11 +186,11 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 outputMapping: {
                     "result": "$.response.analysis",
                     "confidence": "$.response.metadata.confidence",
-                    "processedAt": "$.response.timestamp"
-                }
-            }
+                    "processedAt": "$.response.timestamp",
+                },
+            },
         },
-        
+
         withMachine: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "action",
@@ -200,12 +200,12 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 operation: "process",
                 parameters: {
                     mode: "advanced",
-                    timeout: 30000
-                }
-            }
-        }
+                    timeout: 30000,
+                },
+            },
+        },
     },
-    
+
     // Generate routine fixtures
     generate: {
         basic: {
@@ -213,10 +213,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
             routineType: "generate",
             generateConfig: {
                 model: "gpt-3.5-turbo",
-                prompt: "Answer the following question: {{question}}"
-            }
+                prompt: "Answer the following question: {{question}}",
+            },
         },
-        
+
         withCustomModel: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "generate",
@@ -225,10 +225,10 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 prompt: "Analyze the following code and suggest improvements: {{code}}",
                 temperature: 0.3,
                 maxTokens: 2000,
-                systemPrompt: "You are an expert code reviewer."
-            }
+                systemPrompt: "You are an expert code reviewer.",
+            },
         },
-        
+
         withComplexPrompt: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "generate",
@@ -247,11 +247,11 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                 maxTokens: 1000,
                 stopSequences: ["END", "DONE"],
                 frequencyPenalty: 0.5,
-                presencePenalty: 0.5
-            }
-        }
+                presencePenalty: 0.5,
+            },
+        },
     },
-    
+
     // Multi-step routine fixtures
     multiStep: {
         sequential: {
@@ -265,8 +265,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     actionConfig: {
                         actionType: "api_call",
                         endpoint: "/api/v1/data",
-                        method: "GET"
-                    }
+                        method: "GET",
+                    },
                 },
                 {
                     stepId: "process",
@@ -274,8 +274,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     name: "Process Data",
                     generateConfig: {
                         model: "gpt-3.5-turbo",
-                        prompt: "Summarize this data: {{fetch.output}}"
-                    }
+                        prompt: "Summarize this data: {{fetch.output}}",
+                    },
                 },
                 {
                     stepId: "save",
@@ -286,13 +286,13 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                         endpoint: "/api/v1/summaries",
                         method: "POST",
                         inputMapping: {
-                            "summary": "{{process.output}}"
-                        }
-                    }
-                }
-            ]
+                            "summary": "{{process.output}}",
+                        },
+                    },
+                },
+            ],
         },
-        
+
         withBranching: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "multiStep",
@@ -303,8 +303,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     name: "Check Condition",
                     actionConfig: {
                         actionType: "evaluate",
-                        expression: "input.value > 100"
-                    }
+                        expression: "input.value > 100",
+                    },
                 },
                 {
                     stepId: "highValuePath",
@@ -314,8 +314,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     actionConfig: {
                         actionType: "api_call",
                         endpoint: "/api/v1/high-value",
-                        method: "POST"
-                    }
+                        method: "POST",
+                    },
                 },
                 {
                     stepId: "lowValuePath",
@@ -325,12 +325,12 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     actionConfig: {
                         actionType: "api_call",
                         endpoint: "/api/v1/low-value",
-                        method: "POST"
-                    }
-                }
-            ]
+                        method: "POST",
+                    },
+                },
+            ],
         },
-        
+
         complexWorkflow: {
             __version: LATEST_CONFIG_VERSION,
             routineType: "multiStep",
@@ -345,9 +345,9 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                         defaultValues: {
                             status: "pending",
                             attempts: 0,
-                            results: []
-                        }
-                    }
+                            results: [],
+                        },
+                    },
                 },
                 {
                     stepId: "fetchSources",
@@ -357,8 +357,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     actionConfig: {
                         actionType: "api_call",
                         endpoint: "/api/v1/sources",
-                        method: "GET"
-                    }
+                        method: "GET",
+                    },
                 },
                 {
                     stepId: "analyzeEach",
@@ -368,8 +368,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     generateConfig: {
                         model: "gpt-4",
                         prompt: "Analyze this data source: {{item}}",
-                        temperature: 0.5
-                    }
+                        temperature: 0.5,
+                    },
                 },
                 {
                     stepId: "aggregate",
@@ -379,9 +379,9 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                         actionType: "aggregate",
                         aggregationType: "combine",
                         inputMapping: {
-                            "analyses": "{{analyzeEach.outputs}}"
-                        }
-                    }
+                            "analyses": "{{analyzeEach.outputs}}",
+                        },
+                    },
                 },
                 {
                     stepId: "generateReport",
@@ -391,8 +391,8 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                         model: "gpt-4",
                         prompt: "Create a comprehensive report from these analyses: {{aggregate.output}}",
                         temperature: 0.3,
-                        maxTokens: 3000
-                    }
+                        maxTokens: 3000,
+                    },
                 },
                 {
                     stepId: "notify",
@@ -402,18 +402,18 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
                     actionConfig: {
                         actionType: "notify",
                         channels: ["email", "slack", "webhook"],
-                        message: "Report completed: {{generateReport.output.summary}}"
-                    }
-                }
+                        message: "Report completed: {{generateReport.output.summary}}",
+                    },
+                },
             ],
             errorHandling: {
                 retryAttempts: 3,
                 retryDelay: 1000,
-                fallbackStep: "errorHandler"
+                fallbackStep: "errorHandler",
             },
-            timeout: 300000 // 5 minutes
-        }
-    }
+            timeout: 300000, // 5 minutes
+        },
+    },
 };
 
 /**
@@ -421,7 +421,7 @@ export const routineConfigFixtures: ConfigTestFixtures<RoutineVersionConfigObjec
  */
 export function createActionRoutineConfig(
     endpoint: string,
-    method: string = "GET"
+    method = "GET",
 ): RoutineVersionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
@@ -429,8 +429,8 @@ export function createActionRoutineConfig(
         actionConfig: {
             actionType: "api_call",
             endpoint,
-            method
-        }
+            method,
+        },
     };
 }
 
@@ -439,15 +439,15 @@ export function createActionRoutineConfig(
  */
 export function createGenerateRoutineConfig(
     prompt: string,
-    model: string = "gpt-3.5-turbo"
+    model = "gpt-3.5-turbo",
 ): RoutineVersionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         routineType: "generate",
         generateConfig: {
             model,
-            prompt
-        }
+            prompt,
+        },
     };
 }
 
@@ -455,11 +455,11 @@ export function createGenerateRoutineConfig(
  * Create a multi-step routine config
  */
 export function createMultiStepRoutineConfig(
-    steps: RoutineVersionConfigObject["steps"]
+    steps: RoutineVersionConfigObject["steps"],
 ): RoutineVersionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         routineType: "multiStep",
-        steps
+        steps,
     };
 }

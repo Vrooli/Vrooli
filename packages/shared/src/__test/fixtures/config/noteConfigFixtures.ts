@@ -1,5 +1,5 @@
-import { type NoteVersionConfigObject } from "../../../shape/configs/note.js";
 import { ResourceUsedFor } from "../../../shape/configs/base.js";
+import { type NoteVersionConfigObject } from "../../../shape/configs/note.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
@@ -10,7 +10,7 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         resources: [
@@ -20,8 +20,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Note Documentation",
-                    description: "Complete guide for this note"
-                }]
+                    description: "Complete guide for this note",
+                }],
             },
             {
                 link: "https://example.com/related",
@@ -29,8 +29,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Related Resources",
-                    description: "Additional information related to this note"
-                }]
+                    description: "Additional information related to this note",
+                }],
             },
             {
                 link: "https://github.com/example/note-project",
@@ -38,29 +38,29 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Source Code",
-                    description: "GitHub repository for this note project"
-                }]
-            }
-        ]
+                    description: "GitHub repository for this note project",
+                }],
+            },
+        ],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
-        resources: []
+        resources: [],
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing required __version field
-            resources: []
+            resources: [],
         },
         invalidVersion: {
             __version: "0.1", // Invalid version
-            resources: []
+            resources: [],
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
-            resources: "not an array" // Should be array
+            resources: "not an array", // Should be array
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
@@ -68,12 +68,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                 {
                     link: 123, // Should be string
                     usedFor: "InvalidResourceType",
-                    translations: []
-                }
-            ]
-        }
+                    translations: [],
+                },
+            ],
+        },
     },
-    
+
     variants: {
         researchNote: {
             __version: LATEST_CONFIG_VERSION,
@@ -84,8 +84,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Research Papers",
-                        description: "Academic papers related to this topic"
-                    }]
+                        description: "Academic papers related to this topic",
+                    }],
                 },
                 {
                     link: "https://arxiv.org/abs/2024.12345",
@@ -93,12 +93,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Background Paper",
-                        description: "Foundational research paper"
-                    }]
-                }
-            ]
+                        description: "Foundational research paper",
+                    }],
+                },
+            ],
         },
-        
+
         tutorialNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [
@@ -108,8 +108,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Video Tutorial",
-                        description: "Step-by-step video guide"
-                    }]
+                        description: "Step-by-step video guide",
+                    }],
                 },
                 {
                     link: "https://example.com/tutorial",
@@ -117,12 +117,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Written Tutorial",
-                        description: "Detailed written instructions"
-                    }]
-                }
-            ]
+                        description: "Detailed written instructions",
+                    }],
+                },
+            ],
         },
-        
+
         communityNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [
@@ -132,8 +132,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Discord Server",
-                        description: "Join our community discussion"
-                    }]
+                        description: "Join our community discussion",
+                    }],
                 },
                 {
                     link: "https://twitter.com/example",
@@ -141,8 +141,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Twitter Account",
-                        description: "Follow for updates"
-                    }]
+                        description: "Follow for updates",
+                    }],
                 },
                 {
                     link: "https://example.com/feed.rss",
@@ -150,12 +150,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "RSS Feed",
-                        description: "Subscribe to updates"
-                    }]
-                }
-            ]
+                        description: "Subscribe to updates",
+                    }],
+                },
+            ],
         },
-        
+
         multiLanguageNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [
@@ -166,28 +166,28 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                         {
                             language: "en",
                             name: "Official Guide",
-                            description: "Complete documentation"
+                            description: "Complete documentation",
                         },
                         {
                             language: "es",
                             name: "Guía Oficial",
-                            description: "Documentación completa"
+                            description: "Documentación completa",
                         },
                         {
                             language: "fr",
                             name: "Guide Officiel",
-                            description: "Documentation complète"
+                            description: "Documentation complète",
                         },
                         {
                             language: "de",
                             name: "Offizieller Leitfaden",
-                            description: "Vollständige Dokumentation"
-                        }
-                    ]
-                }
-            ]
+                            description: "Vollständige Dokumentation",
+                        },
+                    ],
+                },
+            ],
         },
-        
+
         projectNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [
@@ -197,8 +197,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Project Repository",
-                        description: "Main development repository"
-                    }]
+                        description: "Main development repository",
+                    }],
                 },
                 {
                     link: "https://org.github.io/project",
@@ -206,8 +206,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Project Website",
-                        description: "Official project documentation"
-                    }]
+                        description: "Official project documentation",
+                    }],
                 },
                 {
                     link: "https://github.com/org/project/issues/new",
@@ -215,12 +215,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Submit Proposal",
-                        description: "Propose new features or changes"
-                    }]
-                }
-            ]
+                        description: "Propose new features or changes",
+                    }],
+                },
+            ],
         },
-        
+
         externalServiceNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [
@@ -230,8 +230,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "API Endpoint",
-                        description: "External API service"
-                    }]
+                        description: "External API service",
+                    }],
                 },
                 {
                     link: "https://example.com/install",
@@ -239,8 +239,8 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Installation Guide",
-                        description: "How to install and configure"
-                    }]
+                        description: "How to install and configure",
+                    }],
                 },
                 {
                     link: "https://cal.example.com/schedule",
@@ -248,12 +248,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Schedule Meeting",
-                        description: "Book a consultation"
-                    }]
-                }
-            ]
+                        description: "Book a consultation",
+                    }],
+                },
+            ],
         },
-        
+
         minimalResourceNote: {
             __version: LATEST_CONFIG_VERSION,
             resources: [{
@@ -261,12 +261,12 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
                 usedFor: ResourceUsedFor.Notes,
                 translations: [{
                     language: "en",
-                    name: "Note Link"
+                    name: "Note Link",
                     // No description - testing minimal translation
-                }]
-            }]
-        }
-    }
+                }],
+            }],
+        },
+    },
 };
 
 /**
@@ -279,7 +279,7 @@ export function createNoteConfigWithResources(
         name: string;
         description?: string;
         language?: string;
-    }>
+    }>,
 ): NoteVersionConfigObject {
     return mergeWithBaseDefaults<NoteVersionConfigObject>({
         resources: resources.map(resource => ({
@@ -288,9 +288,9 @@ export function createNoteConfigWithResources(
             translations: [{
                 language: resource.language || "en",
                 name: resource.name,
-                description: resource.description
-            }]
-        }))
+                description: resource.description,
+            }],
+        })),
     });
 }
 
@@ -298,15 +298,15 @@ export function createNoteConfigWithResources(
  * Create a note config for a specific use case
  */
 export function createNoteConfigForUseCase(
-    useCase: "research" | "tutorial" | "community" | "project"
+    useCase: "research" | "tutorial" | "community" | "project",
 ): NoteVersionConfigObject {
     const useCaseMap = {
         research: noteConfigFixtures.variants.researchNote,
         tutorial: noteConfigFixtures.variants.tutorialNote,
         community: noteConfigFixtures.variants.communityNote,
-        project: noteConfigFixtures.variants.projectNote
+        project: noteConfigFixtures.variants.projectNote,
     };
-    
+
     return useCaseMap[useCase];
 }
 
@@ -322,8 +322,8 @@ export function createNoteConfigWithAllResourceTypes(): NoteVersionConfigObject 
             translations: [{
                 language: "en",
                 name: `${usedFor} Resource`,
-                description: `Example ${usedFor} resource for testing`
-            }]
-        }))
+                description: `Example ${usedFor} resource for testing`,
+            }],
+        })),
     };
 }

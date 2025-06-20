@@ -1,7 +1,7 @@
-import { 
-    type CreditConfigObject, 
-    DEFAULT_ROLLOVER_SETTINGS, 
-    DEFAULT_DONATION_SETTINGS 
+import {
+    type CreditConfigObject,
+    DEFAULT_DONATION_SETTINGS,
+    DEFAULT_ROLLOVER_SETTINGS,
 } from "../../../shape/configs/credit.js";
 import { type ConfigTestFixtures } from "./baseConfigFixtures.js";
 
@@ -16,7 +16,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
         rollover: DEFAULT_ROLLOVER_SETTINGS,
         donation: DEFAULT_DONATION_SETTINGS,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         rollover: {
@@ -32,13 +32,13 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
             lastProcessedMonth: "2024-01",
         },
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         rollover: DEFAULT_ROLLOVER_SETTINGS,
         donation: DEFAULT_DONATION_SETTINGS,
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
@@ -69,7 +69,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
             },
         },
     },
-    
+
     variants: {
         rolloverOnlyEnabled: {
             __version: LATEST_CONFIG_VERSION,
@@ -79,7 +79,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
             },
             donation: DEFAULT_DONATION_SETTINGS,
         },
-        
+
         donationOnlyEnabled: {
             __version: LATEST_CONFIG_VERSION,
             rollover: DEFAULT_ROLLOVER_SETTINGS,
@@ -90,7 +90,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
                 recipientType: "platform",
             },
         },
-        
+
         bothEnabledHighDonation: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
@@ -106,7 +106,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
                 lastProcessedMonth: "2023-12",
             },
         },
-        
+
         bothEnabledLowThreshold: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
@@ -120,7 +120,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
                 recipientType: "platform",
             },
         },
-        
+
         maxRolloverMonths: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
@@ -129,7 +129,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
             },
             donation: DEFAULT_DONATION_SETTINGS,
         },
-        
+
         minRolloverMonths: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
@@ -138,7 +138,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
             },
             donation: DEFAULT_DONATION_SETTINGS,
         },
-        
+
         zeroPercentDonation: {
             __version: LATEST_CONFIG_VERSION,
             rollover: DEFAULT_ROLLOVER_SETTINGS,
@@ -149,7 +149,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
                 recipientType: "platform",
             },
         },
-        
+
         maxPercentDonation: {
             __version: LATEST_CONFIG_VERSION,
             rollover: DEFAULT_ROLLOVER_SETTINGS,
@@ -160,7 +160,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
                 recipientType: "community",
             },
         },
-        
+
         processedLastMonth: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
@@ -184,7 +184,7 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
  */
 export function createCreditConfigWithRollover(
     maxMonthsToKeep: number,
-    lastProcessedMonth?: string
+    lastProcessedMonth?: string,
 ): CreditConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
@@ -203,7 +203,7 @@ export function createCreditConfigWithRollover(
 export function createCreditConfigWithDonation(
     percentage: number,
     minThreshold: number,
-    recipientType: "platform" | "community" = "platform"
+    recipientType: "platform" | "community" = "platform",
 ): CreditConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
@@ -222,7 +222,7 @@ export function createCreditConfigWithDonation(
  */
 export function createCreditConfigForBoundaryTesting(
     rolloverMonths?: number,
-    donationPercentage?: number
+    donationPercentage?: number,
 ): CreditConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,

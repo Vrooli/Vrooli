@@ -10,7 +10,7 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         validation: {
@@ -18,33 +18,33 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
             rules: {
                 required: ["field1", "field2"],
                 minLength: { field1: 3, field2: 5 },
-                pattern: { email: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$" }
+                pattern: { email: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$" },
             },
             errorMessages: {
                 required: "This field is required",
                 minLength: "Field must be at least {min} characters",
-                pattern: "Invalid format"
-            }
+                pattern: "Invalid format",
+            },
         },
         format: {
             defaultFormat: "json",
             options: {
                 indentation: 2,
                 sortKeys: true,
-                includeComments: false
-            }
+                includeComments: false,
+            },
         },
         compatibility: {
             minimumRequirements: {
                 runtime: "node >= 16.0.0",
                 memory: "512MB",
-                diskSpace: "100MB"
+                diskSpace: "100MB",
             },
             knownIssues: [
                 "Does not support Unicode characters in field names",
-                "Performance degradation with arrays over 10,000 items"
+                "Performance degradation with arrays over 10,000 items",
             ],
-            compatibleWith: ["ISO-8601", "RFC-3339", "JSON-Schema-Draft-07"]
+            compatibleWith: ["ISO-8601", "RFC-3339", "JSON-Schema-Draft-07"],
         },
         compliance: {
             compliesWith: ["GDPR", "HIPAA", "SOC2"],
@@ -53,15 +53,15 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                     name: "ISO 27001",
                     issuer: "International Organization for Standardization",
                     date: "2024-01-01",
-                    expiration: "2027-01-01"
+                    expiration: "2027-01-01",
                 },
                 {
                     name: "SOC 2 Type II",
                     issuer: "AICPA",
                     date: "2023-06-15",
-                    expiration: "2024-06-15"
-                }
-            ]
+                    expiration: "2024-06-15",
+                },
+            ],
         },
         schema: JSON.stringify({
             "$schema": "http://json-schema.org/draft-07/schema#",
@@ -69,9 +69,9 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
             "properties": {
                 "field1": { "type": "string", "minLength": 3 },
                 "field2": { "type": "string", "minLength": 5 },
-                "email": { "type": "string", "format": "email" }
+                "email": { "type": "string", "format": "email" },
             },
-            "required": ["field1", "field2"]
+            "required": ["field1", "field2"],
         }),
         schemaLanguage: "json-schema",
         props: {
@@ -80,21 +80,21 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
             customProp3: true,
             nestedProps: {
                 prop1: "nested value",
-                prop2: [1, 2, 3]
-            }
-        }
+                prop2: [1, 2, 3],
+            },
+        },
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
             validation: {
-                strictMode: true
-            }
+                strictMode: true,
+            },
         },
         invalidVersion: {
             __version: "0.1", // Invalid version
@@ -108,22 +108,22 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
             __version: LATEST_CONFIG_VERSION,
             validation: {
                 strictMode: "yes", // Should be boolean
-                rules: "not an object" // Should be object
+                rules: "not an object", // Should be object
             },
             compliance: {
-                certifications: "not an array" // Should be array
-            }
-        }
+                certifications: "not an array", // Should be array
+            },
+        },
     },
-    
+
     variants: {
         minimalValidation: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
-                strictMode: false
-            }
+                strictMode: false,
+            },
         },
-        
+
         dataStructureStandard: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
@@ -134,9 +134,9 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                     properties: {
                         id: { type: "string", format: "uuid" },
                         name: { type: "string", minLength: 1, maxLength: 255 },
-                        type: { type: "string", enum: ["string", "number", "boolean", "object", "array"] }
-                    }
-                }
+                        type: { type: "string", enum: ["string", "number", "boolean", "object", "array"] },
+                    },
+                },
             },
             schema: JSON.stringify({
                 "$schema": "http://json-schema.org/draft-07/schema#",
@@ -148,15 +148,15 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                     "name": { "type": "string", "minLength": 1, "maxLength": 255 },
                     "type": { "type": "string", "enum": ["string", "number", "boolean", "object", "array"] },
                     "description": { "type": "string" },
-                    "properties": { "type": "object" }
-                }
+                    "properties": { "type": "object" },
+                },
             }),
             schemaLanguage: "json-schema",
             compatibility: {
-                compatibleWith: ["JSON-Schema-Draft-07", "OpenAPI-3.0"]
-            }
+                compatibleWith: ["JSON-Schema-Draft-07", "OpenAPI-3.0"],
+            },
         },
-        
+
         promiseStandard: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
@@ -166,29 +166,29 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                     required: ["title", "description", "criteria"],
                     dateValidation: {
                         startDate: "future",
-                        endDate: "afterStartDate"
-                    }
+                        endDate: "afterStartDate",
+                    },
                 },
                 errorMessages: {
                     required: "Promise {field} is required",
                     maxLength: "Description cannot exceed 500 characters",
-                    dateValidation: "End date must be after start date"
-                }
+                    dateValidation: "End date must be after start date",
+                },
             },
             format: {
                 defaultFormat: "markdown",
                 options: {
                     includeMetadata: true,
-                    formatDates: "ISO8601"
-                }
+                    formatDates: "ISO8601",
+                },
             },
             props: {
                 templateType: "promise",
                 allowPartialCompletion: true,
-                trackingEnabled: true
-            }
+                trackingEnabled: true,
+            },
         },
-        
+
         technicalStandard: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
@@ -197,28 +197,28 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                     syntaxValidation: true,
                     linting: {
                         enabled: true,
-                        rules: ["no-unused-vars", "no-console", "strict-types"]
-                    }
-                }
+                        rules: ["no-unused-vars", "no-console", "strict-types"],
+                    },
+                },
             },
             compatibility: {
                 minimumRequirements: {
                     runtime: "node >= 18.0.0",
                     typescript: ">= 5.0.0",
-                    memory: "1GB"
+                    memory: "1GB",
                 },
                 knownIssues: [
-                    "TypeScript 4.x requires polyfills for certain features"
+                    "TypeScript 4.x requires polyfills for certain features",
                 ],
-                compatibleWith: ["ES2022", "CommonJS", "ESM"]
+                compatibleWith: ["ES2022", "CommonJS", "ESM"],
             },
             compliance: {
                 compliesWith: ["OWASP", "CWE-Top-25"],
                 certifications: [{
                     name: "Security Audit",
                     issuer: "Internal Security Team",
-                    date: "2024-03-01"
-                }]
+                    date: "2024-03-01",
+                }],
             },
             schema: JSON.stringify({
                 "$schema": "http://json-schema.org/draft-07/schema#",
@@ -226,12 +226,12 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                 "properties": {
                     "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
                     "dependencies": { "type": "object" },
-                    "scripts": { "type": "object" }
-                }
+                    "scripts": { "type": "object" },
+                },
             }),
-            schemaLanguage: "json-schema"
+            schemaLanguage: "json-schema",
         },
-        
+
         apiContractStandard: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
@@ -239,32 +239,32 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                 rules: {
                     validateEndpoints: true,
                     validateResponses: true,
-                    allowAdditionalProperties: false
-                }
+                    allowAdditionalProperties: false,
+                },
             },
             format: {
                 defaultFormat: "openapi",
                 options: {
                     version: "3.1.0",
-                    includeExamples: true
-                }
+                    includeExamples: true,
+                },
             },
             compatibility: {
-                compatibleWith: ["OpenAPI-3.1", "JSON-Schema-2020-12", "REST", "GraphQL"]
+                compatibleWith: ["OpenAPI-3.1", "JSON-Schema-2020-12", "REST", "GraphQL"],
             },
             compliance: {
-                compliesWith: ["REST-Best-Practices", "API-Security-Top-10"]
+                compliesWith: ["REST-Best-Practices", "API-Security-Top-10"],
             },
             schema: JSON.stringify({
                 "openapi": "3.1.0",
                 "info": {
                     "title": "Standard API",
-                    "version": "1.0.0"
+                    "version": "1.0.0",
                 },
                 "paths": {},
                 "components": {
-                    "schemas": {}
-                }
+                    "schemas": {},
+                },
             }),
             schemaLanguage: "openapi",
             props: {
@@ -272,11 +272,11 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                 rateLimiting: {
                     enabled: true,
                     requests: 100,
-                    window: "1h"
-                }
-            }
+                    window: "1h",
+                },
+            },
         },
-        
+
         formStandard: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
@@ -284,32 +284,32 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
                 rules: {
                     clientSideValidation: true,
                     serverSideValidation: true,
-                    realTimeValidation: false
+                    realTimeValidation: false,
                 },
                 errorMessages: {
                     email: "Please enter a valid email address",
                     required: "This field cannot be empty",
-                    minLength: "Must be at least {min} characters long"
-                }
+                    minLength: "Must be at least {min} characters long",
+                },
             },
             format: {
                 defaultFormat: "json",
                 options: {
                     preserveOrder: true,
-                    includeHelpText: true
-                }
+                    includeHelpText: true,
+                },
             },
             props: {
                 formType: "dynamic",
                 fields: [
                     { name: "email", type: "email", required: true },
                     { name: "name", type: "text", required: true, minLength: 2 },
-                    { name: "message", type: "textarea", required: false, maxLength: 1000 }
+                    { name: "message", type: "textarea", required: false, maxLength: 1000 },
                 ],
-                submitAction: "POST /api/contact"
-            }
-        }
-    }
+                submitAction: "POST /api/contact",
+            },
+        },
+    },
 };
 
 /**
@@ -317,16 +317,16 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
  */
 export function createStandardConfigWithValidation(
     rules: Record<string, unknown>,
-    strictMode: boolean = true
+    strictMode = true,
 ): StandardVersionConfigObject {
     return mergeWithBaseDefaults<StandardVersionConfigObject>({
         validation: {
             strictMode,
             rules,
             errorMessages: {
-                default: "Validation failed"
-            }
-        }
+                default: "Validation failed",
+            },
+        },
     });
 }
 
@@ -335,12 +335,12 @@ export function createStandardConfigWithValidation(
  */
 export function createStandardConfigWithSchema(
     schema: string | object,
-    schemaLanguage: string = "json-schema"
+    schemaLanguage = "json-schema",
 ): StandardVersionConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         schema: typeof schema === "string" ? schema : JSON.stringify(schema),
-        schemaLanguage
+        schemaLanguage,
     };
 }
 
@@ -349,7 +349,7 @@ export function createStandardConfigWithSchema(
  */
 export function createStandardConfigForSubType(
     subType: ResourceSubType,
-    overrides: Partial<StandardVersionConfigObject> = {}
+    overrides: Partial<StandardVersionConfigObject> = {},
 ): StandardVersionConfigObject {
     const baseConfigs: Record<ResourceSubType, Partial<StandardVersionConfigObject>> = {
         [ResourceSubType.StandardDataStructure]: {
@@ -357,62 +357,62 @@ export function createStandardConfigForSubType(
                 strictMode: true,
                 rules: {
                     type: "object",
-                    additionalProperties: false
-                }
+                    additionalProperties: false,
+                },
             },
-            schemaLanguage: "json-schema"
+            schemaLanguage: "json-schema",
         },
         [ResourceSubType.StandardPromise]: {
             format: {
-                defaultFormat: "markdown"
+                defaultFormat: "markdown",
             },
             props: {
                 templateType: "promise",
-                trackingEnabled: true
-            }
+                trackingEnabled: true,
+            },
         },
         [ResourceSubType.StandardContractDelivery]: {
             validation: {
                 strictMode: true,
                 rules: {
                     validateDeliverables: true,
-                    validateTimeline: true
-                }
+                    validateTimeline: true,
+                },
             },
             compliance: {
-                compliesWith: ["Contract-Law-Standards"]
-            }
+                compliesWith: ["Contract-Law-Standards"],
+            },
         },
         [ResourceSubType.StandardApiContract]: {
             format: {
                 defaultFormat: "openapi",
                 options: {
-                    version: "3.1.0"
-                }
+                    version: "3.1.0",
+                },
             },
-            schemaLanguage: "openapi"
+            schemaLanguage: "openapi",
         },
         [ResourceSubType.StandardForm]: {
             validation: {
                 strictMode: false,
                 rules: {
-                    clientSideValidation: true
-                }
+                    clientSideValidation: true,
+                },
             },
             props: {
-                formType: "dynamic"
-            }
+                formType: "dynamic",
+            },
         },
         [ResourceSubType.StandardWidget]: {
             props: {
                 widgetType: "component",
-                reactive: true
-            }
-        }
+                reactive: true,
+            },
+        },
     };
 
     return mergeWithBaseDefaults<StandardVersionConfigObject>({
         ...baseConfigs[subType],
-        ...overrides
+        ...overrides,
     });
 }

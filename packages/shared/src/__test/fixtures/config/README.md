@@ -13,66 +13,112 @@ Config fixtures are a **foundational layer** that other fixture types depend on.
 - Enable composition and reuse across fixture layers
 - Validate configuration integrity before use
 
-## 📁 Current Architecture
+## 📁 Current State (THIRD PASS - REFINEMENT NEEDED ⚠️)
 
-### File Structure
+### ✅ **Mapping Status**: Perfect 1:1 Mapping Confirmed
+### ❌ **Type Safety**: Multiple Type Errors Found
+
+**Source of Truth Analysis:**
+- **Config shape files in `packages/shared/src/shape/configs/`**: 14 files (13 configs + 1 utils)
+- **Configs needing fixtures**: 13 files (excludes utils.ts - utility functions only)
+- **Current config fixture files**: 13 files
+- **Infrastructure files**: 4 files (configFactory.ts, configUtils.ts, index.ts, README.md)
+- **Total files**: 17 files
+- **Mapping Status**: ✅ Perfect 1:1 mapping confirmed
+- **Type Safety Status**: ❌ Multiple type errors requiring fixes
+
+### **Source Files Analysis (14 total):**
+```
+✅ api.ts → apiConfigFixtures.ts (❌ type errors)
+✅ base.ts → baseConfigFixtures.ts (❌ type errors)
+✅ bot.ts → botConfigFixtures.ts (❌ type errors)
+✅ chat.ts → chatConfigFixtures.ts (❌ type errors)
+✅ code.ts → codeConfigFixtures.ts (❌ type errors)
+✅ credit.ts → creditConfigFixtures.ts (❌ type errors)
+✅ message.ts → messageConfigFixtures.ts (❌ type errors)
+✅ note.ts → noteConfigFixtures.ts (❌ type errors)
+✅ project.ts → projectConfigFixtures.ts (❌ type errors)
+✅ routine.ts → routineConfigFixtures.ts (❌ type errors)
+✅ run.ts → runConfigFixtures.ts (❌ type errors)
+✅ standard.ts → standardConfigFixtures.ts (❌ type errors)
+✅ team.ts → teamConfigFixtures.ts (❌ type errors)
+✅ utils.ts → NO FIXTURE NEEDED (utility functions only)
+```
+
+### **Infrastructure Files (Correct - 4):**
+```
+✅ configFactory.ts - Factory infrastructure
+✅ configUtils.ts - Utility functions
+✅ index.ts - Export management
+✅ README.md - Documentation
+```
+
+### **Verification Summary:**
+```
+✅ All 13 source files have corresponding fixtures
+✅ All 13 fixture files have corresponding sources  
+✅ No extra fixtures without source files
+✅ No missing fixtures for existing sources
+✅ Infrastructure files are appropriate and minimal
+❌ Type safety issues found across all fixture files
+```
+
+**Previous Issues Resolved**: 26 extra fixtures were deleted that had no corresponding source files.
+
+## 🔧 Third Pass Refinement Status
+
+### **Phase 1: Mapping Analysis ✅ COMPLETED**
+Perfect 1:1 mapping confirmed - no structural changes needed.
+
+### **Phase 2: Type Safety Analysis ❌ ISSUES FOUND**
+Multiple type errors discovered across all fixture files requiring fixes.
+
+### **Phase 3: Correction Plan 📋 REQUIRED**
+
+**Type Safety Issues Identified:**
+1. **Type mismatches**: String values where numbers expected, invalid enum values
+2. **Missing properties**: Required fields missing from config objects
+3. **Unknown properties**: Invalid fields not in actual config interfaces
+4. **Outdated interfaces**: Fixtures using old type definitions
+
+**Priority Order for Fixes:**
+1. **High Priority**: Core config types (base, api, bot) - used by many others
+2. **Medium Priority**: Feature configs (chat, message, routine, run)
+3. **Lower Priority**: Specialized configs (code, credit, standard, team)
+
+**Approach:**
+- Fix type errors one fixture at a time
+- Validate against actual source config interfaces
+- Ensure all factory methods work correctly
+- Update invalid fixtures to properly test edge cases
+
+## 🏗️ Ideal Architecture (CORRECTED)
+
+### **Final Structure (17 files total):**
 ```
 packages/shared/src/__test/fixtures/config/
-├── index.ts                    # Central exports and namespace
-├── baseConfigFixtures.ts       # Base configuration pattern
-├── apiConfigFixtures.ts        # API endpoint configurations
-├── botConfigFixtures.ts        # AI bot persona & settings
-├── chatConfigFixtures.ts       # Chat room configurations
-├── codeConfigFixtures.ts       # Code execution configs
-├── creditConfigFixtures.ts     # Credit system configs
-├── messageConfigFixtures.ts    # Message formatting configs
-├── noteConfigFixtures.ts       # Note/document configs
-├── projectConfigFixtures.ts    # Project settings
-├── routineConfigFixtures.ts    # Routine execution configs
-├── runConfigFixtures.ts        # Run environment configs
-├── standardConfigFixtures.ts   # Standard/template configs
-├── teamConfigFixtures.ts       # Team structure configs
-└── utilsConfigFixtures.ts      # Utility configurations
+├── README.md                     # This documentation
+├── index.ts                      # Exports (17 items total)
+├── configFactory.ts              # Infrastructure: Factory pattern
+├── configUtils.ts                # Infrastructure: Utilities
+├── apiConfigFixtures.ts          # Config: API settings
+├── baseConfigFixtures.ts         # Config: Base configuration
+├── botConfigFixtures.ts          # Config: Bot personality
+├── chatConfigFixtures.ts         # Config: Chat settings  
+├── codeConfigFixtures.ts         # Config: Code execution
+├── creditConfigFixtures.ts       # Config: Credit system
+├── messageConfigFixtures.ts      # Config: Message formatting
+├── noteConfigFixtures.ts         # Config: Note/document settings
+├── projectConfigFixtures.ts      # Config: Project settings
+├── routineConfigFixtures.ts      # Config: Routine execution
+├── runConfigFixtures.ts          # Config: Run environment
+├── standardConfigFixtures.ts     # Config: Standard templates
+└── teamConfigFixtures.ts         # Config: Team structure
 ```
 
-### Current Pattern
+### **Enhanced Factory Pattern**
 
-Each config fixture follows the `ConfigTestFixtures` interface:
-
-```typescript
-interface ConfigTestFixtures<T extends BaseConfigObject> {
-    minimal: T;              // Minimal valid config
-    complete: T;             // Fully populated config
-    withDefaults: T;         // Config with defaults applied
-    invalid: {               // Invalid configurations for testing
-        missingVersion?: Partial<T>;
-        invalidVersion?: T;
-        malformedStructure?: any;
-        invalidTypes?: Partial<T>;
-    };
-    variants: Record<string, T>;  // Different valid configurations
-}
-```
-
-### Strengths of Current Architecture
-
-1. **Consistent Structure**: All configs follow the same pattern
-2. **Type Safety**: Full TypeScript support with shape types
-3. **Validation Testing**: Invalid fixtures for testing error cases
-4. **Scenario Coverage**: Variants provide realistic use cases
-5. **Factory Functions**: Helper functions for common patterns
-
-### Areas for Improvement
-
-1. **Validation Integration**: No built-in validation methods
-2. **Composition Helpers**: Limited support for merging configs
-3. **Documentation**: Missing usage examples in each file
-4. **Cross-References**: No clear links to consuming fixtures
-5. **Version Management**: Manual version tracking
-
-## 🏗️ Ideal Architecture
-
-### Enhanced Factory Pattern
+Each config fixture implements the `ConfigFixtureFactory<T>` interface:
 
 ```typescript
 interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
@@ -82,9 +128,7 @@ interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
     withDefaults: TConfig;
     
     // Variant collections
-    variants: {
-        [key: string]: TConfig;
-    };
+    variants: { [key: string]: TConfig };
     
     // Invalid configurations for validation testing
     invalid: {
@@ -99,12 +143,12 @@ interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
     createVariant: (variant: keyof this['variants'], overrides?: Partial<TConfig>) => TConfig;
     
     // Validation methods
-    validate: (config: TConfig) => ValidationResult;
+    validate: (config: any) => ValidationResult;
     isValid: (config: unknown) => config is TConfig;
     
     // Composition helpers
     merge: (base: TConfig, override: Partial<TConfig>) => TConfig;
-    withDefaults: (partialConfig: Partial<TConfig>) => TConfig;
+    applyDefaults: (partialConfig: Partial<TConfig>) => TConfig;
     
     // Integration helpers
     toApiFormat: () => ApiConfigFormat;
@@ -112,70 +156,6 @@ interface ConfigFixtureFactory<TConfig extends BaseConfigObject> {
     fromJson: (json: string) => TConfig;
     toJson: (config: TConfig) => string;
 }
-```
-
-### Enhanced Implementation Example
-
-```typescript
-// Enhanced bot config fixtures with ideal pattern
-export const botConfigFixtures: ConfigFixtureFactory<BotConfigObject> = {
-    // Core fixtures (existing)
-    minimal: { __version: LATEST_CONFIG_VERSION },
-    complete: { /* ... */ },
-    withDefaults: { /* ... */ },
-    variants: { /* ... */ },
-    invalid: { /* ... */ },
-    
-    // Factory methods
-    create: (overrides = {}) => {
-        return mergeWithValidation(botConfigFixtures.minimal, overrides);
-    },
-    
-    createVariant: (variant, overrides = {}) => {
-        const base = botConfigFixtures.variants[variant];
-        if (!base) throw new Error(`Unknown variant: ${variant}`);
-        return mergeWithValidation(base, overrides);
-    },
-    
-    // Validation methods
-    validate: (config) => {
-        return botConfigSchema.validate(config);
-    },
-    
-    isValid: (config): config is BotConfigObject => {
-        return botConfigSchema.isValid(config);
-    },
-    
-    // Composition helpers
-    merge: (base, override) => {
-        return deepMerge(base, override, { 
-            arrayMerge: 'replace',
-            preserveVersion: true 
-        });
-    },
-    
-    withDefaults: (partial) => {
-        return { ...DEFAULT_BOT_CONFIG, ...partial };
-    },
-    
-    // Integration helpers
-    toApiFormat: () => {
-        // Transform for API consumption
-    },
-    
-    toDbFormat: () => {
-        // Transform for database storage
-    },
-    
-    fromJson: (json) => {
-        const parsed = JSON.parse(json);
-        return botConfigFixtures.validate(parsed).data;
-    },
-    
-    toJson: (config) => {
-        return JSON.stringify(config, null, 2);
-    }
-};
 ```
 
 ## 🔄 Integration with Other Fixtures
@@ -193,17 +173,6 @@ export const botApiFixtures = {
             name: "Assistant Bot",
             // Use config fixture for botSettings
             botSettings: botConfigFixtures.complete,
-        }
-    }
-};
-
-export const chatApiFixtures = {
-    variants: {
-        supportChat: {
-            id: "chat_456",
-            name: "Customer Support",
-            // Use config fixture variant
-            chatSettings: chatConfigFixtures.variants.supportChat,
         }
     }
 };
@@ -229,27 +198,12 @@ export const RoutineDbFactory = {
 };
 ```
 
-### UI Component Integration
-
-```typescript
-// In UI tests, use configs for component props
-import { configFixtures } from "@vrooli/shared/__test/fixtures";
-
-const mockBot = {
-    id: "bot_789",
-    name: "Test Bot",
-    settings: configFixtures.botConfigFixtures.variants.customerServiceBot,
-};
-
-render(<BotConfigEditor bot={mockBot} />);
-```
-
 ## 📋 Usage Guidelines
 
 ### 1. Always Use Config Fixtures for JSON Fields
 
 ```typescript
-// ✅ GOOD: Use config fixtures
+// ✅ GOOD: Use config fixtures for JSON configuration fields
 const resource = {
     id: "resource_123",
     versionId: "version_456",
@@ -258,7 +212,7 @@ const resource = {
 
 // ❌ BAD: Hardcode JSON config
 const resource = {
-    id: "resource_123",
+    id: "resource_123", 
     versionId: "version_456",
     config: { version: "1.0", settings: {} }, // Don't do this!
 };
@@ -283,39 +237,6 @@ const supportBot = {
 };
 ```
 
-### 3. Validate Configurations
-
-```typescript
-// Always validate when creating custom configs
-const customConfig = botConfigFixtures.create({
-    model: "custom-model",
-    maxTokens: 4096,
-});
-
-// Validate external configs
-const isValid = botConfigFixtures.isValid(externalConfig);
-if (!isValid) {
-    throw new Error("Invalid bot configuration");
-}
-```
-
-### 4. Use Factory Methods for Variations
-
-```typescript
-// Create variations using factory methods
-const technicalBot = createBotConfigWithPersona("Software Engineer", {
-    tone: "technical and precise",
-    creativity: 0.2,
-    verbosity: 0.8,
-});
-
-// Create team structures
-const startupTeam = createMoiseTeamStructure("Startup", [
-    { name: "founder", min: 1, max: 2 },
-    { name: "developer", min: 1, max: 5 },
-]);
-```
-
 ## 🧪 Testing Patterns
 
 ### Testing Configuration Validation
@@ -334,37 +255,21 @@ describe("Bot Configuration", () => {
     });
     
     it("should provide defaults", () => {
-        const config = botConfigFixtures.withDefaults({ model: "gpt-4" });
+        const config = botConfigFixtures.applyDefaults({ model: "gpt-4" });
         expect(config.persona).toEqual(DEFAULT_PERSONA);
-    });
-});
-```
-
-### Testing Configuration Usage
-
-```typescript
-describe("Resource with Config", () => {
-    it("should create resource with API config", async () => {
-        const resource = await ResourceDbFactory.create({
-            config: apiConfigFixtures.variants.rateLimited,
-        });
-        
-        expect(resource.config.rateLimit).toBeDefined();
-        expect(resource.config.rateLimit.maxRequests).toBe(100);
     });
 });
 ```
 
 ## 🚀 Best Practices
 
-1. **Version All Configs**: Always include `__version` field
-2. **Provide Variants**: Cover common use cases with named variants
-3. **Document Variants**: Add comments explaining each variant's purpose
+1. **1:1 Mapping**: One fixture file per config shape file, nothing more
+2. **Version All Configs**: Always include `__version` field
+3. **Provide Variants**: Cover common use cases with named variants
 4. **Type Everything**: Use TypeScript interfaces for all configs
 5. **Validate Early**: Validate configs at creation time
 6. **Test Invalid States**: Include invalid fixtures for error testing
-7. **Use Composition**: Build complex configs from simpler ones
-8. **Keep Realistic**: Ensure configs mirror production usage
+7. **Keep Realistic**: Ensure configs mirror production usage
 
 ## 📚 Config Types Reference
 
@@ -382,7 +287,6 @@ describe("Resource with Config", () => {
 | `runConfig` | Run environment | `environment`, `resources`, `timeout` | `development`, `production`, `testing` |
 | `standardConfig` | Template settings | `category`, `tags`, `licensing` | `official`, `community`, `premium` |
 | `teamConfig` | Team structure | `structure`, `roles`, `permissions` | `startup`, `enterprise`, `flat` |
-| `utilsConfig` | Utility settings | `features`, `defaults`, `overrides` | `basic`, `advanced`, `custom` |
 
 ## 🔗 Related Documentation
 
@@ -393,28 +297,17 @@ describe("Resource with Config", () => {
 
 ## 📝 Implementation Checklist
 
-When adding new config fixtures:
+When adding new config fixtures **ONLY IF** a corresponding config shape file exists:
 
+- [ ] Verify corresponding file exists in `packages/shared/src/shape/configs/`
 - [ ] Create TypeScript interface extending `BaseConfigObject`
-- [ ] Implement `ConfigTestFixtures` structure
+- [ ] Implement `ConfigFixtureFactory` pattern
 - [ ] Include `minimal`, `complete`, and `withDefaults` fixtures
 - [ ] Add at least 3 meaningful variants
 - [ ] Include invalid fixtures for validation testing
 - [ ] Create factory functions for common patterns
 - [ ] Add to index.ts exports
-- [ ] Document in this README
-- [ ] Update consuming fixtures to use new configs
+- [ ] Update this README
 - [ ] Add validation tests
-
-## 🤝 Contributing
-
-When contributing to config fixtures:
-
-1. Follow the established `ConfigTestFixtures` pattern
-2. Ensure all configs have proper TypeScript types
-3. Include realistic data that mirrors production usage
-4. Document the purpose of each variant
-5. Test both valid and invalid configurations
-6. Update related fixtures that should use the new configs
 
 Config fixtures are the foundation of our testing strategy - they ensure consistency, type safety, and realistic test scenarios across the entire Vrooli platform.

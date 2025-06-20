@@ -3,7 +3,7 @@
 // The c8 coverage tool cannot accurately track coverage of these dynamically generated functions,
 // so we exclude this file from coverage analysis. The validation logic is tested in pullRequest.test.ts
 import * as yup from "yup";
-import { PullRequestStatus, PullRequestToObjectType } from "../../api/types.js";
+import { PullRequestStatus, PullRequestToObjectType, PullRequestFromObjectType } from "../../api/types.js";
 import { enumToYup } from "../utils/builders/convert.js";
 import { opt, req } from "../utils/builders/optionality.js";
 import { transRel } from "../utils/builders/rel.js";
@@ -15,6 +15,9 @@ import { PULL_REQUEST_TEXT_MAX_LENGTH } from "../utils/validationConstants.js";
 
 function pullRequestTo() {
     return enumToYup(PullRequestToObjectType);
+}
+function pullRequestFrom() {
+    return enumToYup(PullRequestFromObjectType);
 }
 function pullRequestStatus() {
     return enumToYup(PullRequestStatus);
@@ -34,6 +37,7 @@ export const pullRequestValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         toObjectType: req(pullRequestTo()),
+        fromObjectType: req(pullRequestFrom()),
     }, [
         ["to", ["Connect"], "one", "req"],
         ["from", ["Connect"], "one", "req"],

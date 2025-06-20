@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pullRequestFixtures } from "./__test/fixtures/pullRequestFixtures.js";
+import { pullRequestFixtures } from "../../__test/fixtures/api/pullRequestFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { pullRequestTranslationValidation, pullRequestValidation } from "./pullRequest.js";
 
@@ -297,6 +297,7 @@ describe("pullRequestValidation", () => {
                     id: "123456789012345678",
                     toObjectType: "Resource",
                     toConnect: "123456789012345679",
+                    fromObjectType: "ResourceVersion",
                     fromConnect: "123456789012345680",
                     status: "Open",
                 };
@@ -415,6 +416,7 @@ describe("pullRequestValidation", () => {
                 id: 123456789012345, // Smaller number to avoid precision issues
                 toObjectType: "Resource",
                 toConnect: "123456789012345679",
+                fromObjectType: "ResourceVersion",
                 fromConnect: "123456789012345680",
             };
 

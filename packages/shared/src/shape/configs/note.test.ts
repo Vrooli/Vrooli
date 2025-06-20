@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NoteVersionConfig, type NoteVersionConfigObject } from "./note.js";
 import { type ResourceVersion } from "../../api/types.js";
 import { ResourceUsedFor } from "./base.js";
+import { noteConfigFixtures } from "../../__test/fixtures/config/noteConfigFixtures.js";
 
 describe("NoteVersionConfig", () => {
     let mockLogger: any;
@@ -18,57 +19,30 @@ describe("NoteVersionConfig", () => {
 
     describe("constructor", () => {
         it("should create NoteVersionConfig with complete data", () => {
-            const config: NoteVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://example.com/note-reference",
-                        usedFor: ResourceUsedFor.Notes,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Reference Material",
-                                description: "Additional reference for this note",
-                            },
-                        ],
-                    },
-                    {
-                        link: "https://docs.example.com/tutorial",
-                        usedFor: ResourceUsedFor.Tutorial,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Related Tutorial",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const config = noteConfigFixtures.complete;
 
             const noteConfig = new NoteVersionConfig({ config });
 
-            expect(noteConfig.__version).toBe("1.0");
-            expect(noteConfig.resources).toHaveLength(2);
-            expect(noteConfig.resources[0].link).toBe("https://example.com/note-reference");
+            expect(noteConfig.__version).toBe(config.__version);
+            expect(noteConfig.resources).toHaveLength(3);
+            expect(noteConfig.resources[0].link).toBe("https://example.com/note-docs");
             expect(noteConfig.resources[0].usedFor).toBe(ResourceUsedFor.Notes);
-            expect(noteConfig.resources[1].usedFor).toBe(ResourceUsedFor.Tutorial);
+            expect(noteConfig.resources[1].usedFor).toBe(ResourceUsedFor.Related);
+            expect(noteConfig.resources[2].usedFor).toBe(ResourceUsedFor.Developer);
         });
 
         it("should create NoteVersionConfig with minimal data", () => {
-            const config: NoteVersionConfigObject = {
-                __version: "1.0",
-            };
+            const config = noteConfigFixtures.minimal;
 
             const noteConfig = new NoteVersionConfig({ config });
 
-            expect(noteConfig.__version).toBe("1.0");
+            expect(noteConfig.__version).toBe(config.__version);
             expect(noteConfig.resources).toEqual([]);
         });
 
         it("should create NoteVersionConfig without version (uses default)", () => {
-            const config: Partial<NoteVersionConfigObject> = {
-                resources: [],
-            };
+            const config = noteConfigFixtures.withDefaults as Partial<NoteVersionConfigObject>;
+            delete (config as any).__version; // Remove version to test default behavior
 
             const noteConfig = new NoteVersionConfig({ config: config as NoteVersionConfigObject });
 
@@ -80,27 +54,14 @@ describe("NoteVersionConfig", () => {
     describe("parse", () => {
         it("should parse valid note version data", () => {
             const versionData: Pick<ResourceVersion, "config"> = {
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://example.com/resource",
-                            translations: [
-                                {
-                                    language: "en",
-                                    name: "Resource",
-                                },
-                            ],
-                        },
-                    ],
-                },
+                config: noteConfigFixtures.variants.minimalResourceNote,
             };
 
             const noteConfig = NoteVersionConfig.parse(versionData, mockLogger);
 
-            expect(noteConfig.__version).toBe("1.0");
+            expect(noteConfig.__version).toBe(versionData.config.__version);
             expect(noteConfig.resources).toHaveLength(1);
-            expect(noteConfig.resources[0].link).toBe("https://example.com/resource");
+            expect(noteConfig.resources[0].link).toBe("https://example.com/note");
         });
 
         it("should parse with null config", () => {
@@ -127,9 +88,7 @@ describe("NoteVersionConfig", () => {
 
         it("should parse with useFallbacks parameter (no effect for NoteVersionConfig)", () => {
             const versionData: Pick<ResourceVersion, "config"> = {
-                config: {
-                    __version: "1.0",
-                },
+                config: noteConfigFixtures.minimal,
             };
 
             const configWithFallbacks = NoteVersionConfig.parse(versionData, mockLogger, { useFallbacks: true });
@@ -151,27 +110,7 @@ describe("NoteVersionConfig", () => {
 
     describe("export", () => {
         it("should export all properties", () => {
-            const originalConfig: NoteVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://research.example.com",
-                        usedFor: ResourceUsedFor.Researching,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Research Paper",
-                                description: "Academic research related to this note",
-                            },
-                            {
-                                language: "es",
-                                name: "Documento de Investigación",
-                                description: "Investigación académica relacionada con esta nota",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const originalConfig = noteConfigFixtures.variants.researchNote;
 
             const noteConfig = new NoteVersionConfig({ config: originalConfig });
             const exported = noteConfig.export();
@@ -180,11 +119,11 @@ describe("NoteVersionConfig", () => {
         });
 
         it("should export minimal config", () => {
-            const noteConfig = new NoteVersionConfig({ config: { __version: "1.0" } });
+            const noteConfig = new NoteVersionConfig({ config: noteConfigFixtures.minimal });
             const exported = noteConfig.export();
 
             expect(exported).toEqual({
-                __version: "1.0",
+                __version: noteConfigFixtures.minimal.__version,
                 resources: [],
             });
         });
@@ -211,43 +150,19 @@ describe("NoteVersionConfig", () => {
 
         it("should remove resources", () => {
             const noteConfig = new NoteVersionConfig({
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://example1.com",
-                            translations: [{ language: "en", name: "Resource 1" }],
-                        },
-                        {
-                            link: "https://example2.com",
-                            translations: [{ language: "en", name: "Resource 2" }],
-                        },
-                        {
-                            link: "https://example3.com",
-                            translations: [{ language: "en", name: "Resource 3" }],
-                        },
-                    ],
-                },
+                config: noteConfigFixtures.complete,
             });
 
             noteConfig.removeResource(1); // Remove middle resource
 
             expect(noteConfig.resources).toHaveLength(2);
-            expect(noteConfig.resources[0].link).toBe("https://example1.com");
-            expect(noteConfig.resources[1].link).toBe("https://example3.com");
+            expect(noteConfig.resources[0].link).toBe("https://example.com/note-docs");
+            expect(noteConfig.resources[1].link).toBe("https://github.com/example/note-project");
         });
 
         it("should update resources", () => {
             const noteConfig = new NoteVersionConfig({
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://old-link.com",
-                            translations: [{ language: "en", name: "Old Name" }],
-                        },
-                    ],
-                },
+                config: noteConfigFixtures.variants.minimalResourceNote,
             });
 
             noteConfig.updateResource(0, {
@@ -269,131 +184,34 @@ describe("NoteVersionConfig", () => {
 
         it("should get resources by type", () => {
             const noteConfig = new NoteVersionConfig({
-                config: {
-                    __version: "1.0",
-                    resources: [
-                        {
-                            link: "https://learn1.com",
-                            usedFor: ResourceUsedFor.Learning,
-                            translations: [{ language: "en", name: "Learning 1" }],
-                        },
-                        {
-                            link: "https://context.com",
-                            usedFor: ResourceUsedFor.Context,
-                            translations: [{ language: "en", name: "Context" }],
-                        },
-                        {
-                            link: "https://learn2.com",
-                            usedFor: ResourceUsedFor.Learning,
-                            translations: [{ language: "en", name: "Learning 2" }],
-                        },
-                        {
-                            link: "https://tutorial.com",
-                            usedFor: ResourceUsedFor.Tutorial,
-                            translations: [{ language: "en", name: "Tutorial" }],
-                        },
-                    ],
-                },
+                config: noteConfigFixtures.variants.tutorialNote,
             });
 
             const learningResources = noteConfig.getResourcesByType(ResourceUsedFor.Learning);
 
-            expect(learningResources).toHaveLength(2);
-            expect(learningResources[0].link).toBe("https://learn1.com");
-            expect(learningResources[1].link).toBe("https://learn2.com");
+            expect(learningResources).toHaveLength(1);
+            expect(learningResources[0].link).toBe("https://example.com/tutorial");
 
-            const contextResources = noteConfig.getResourcesByType(ResourceUsedFor.Context);
-            expect(contextResources).toHaveLength(1);
-            expect(contextResources[0].link).toBe("https://context.com");
+            const tutorialResources = noteConfig.getResourcesByType(ResourceUsedFor.Tutorial);
+            expect(tutorialResources).toHaveLength(1);
+            expect(tutorialResources[0].link).toBe("https://youtube.com/watch?v=abc123");
         });
     });
 
     describe("Complex scenarios", () => {
         it("should handle notes with diverse resource types", () => {
-            const config: NoteVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://github.com/example/code-snippets",
-                        usedFor: ResourceUsedFor.Developer,
-                        translations: [
-                            { language: "en", name: "Code Examples" },
-                        ],
-                    },
-                    {
-                        link: "https://research-paper.pdf",
-                        usedFor: ResourceUsedFor.Researching,
-                        translations: [
-                            { language: "en", name: "Research Paper", description: "Academic research on the topic" },
-                        ],
-                    },
-                    {
-                        link: "https://youtube.com/watch?v=tutorial",
-                        usedFor: ResourceUsedFor.Tutorial,
-                        translations: [
-                            { language: "en", name: "Video Tutorial" },
-                            { language: "fr", name: "Tutoriel Vidéo" },
-                        ],
-                    },
-                    {
-                        link: "https://related-article.com",
-                        usedFor: ResourceUsedFor.Related,
-                        translations: [
-                            { language: "en", name: "Related Article" },
-                        ],
-                    },
-                    {
-                        link: "https://context-doc.pdf",
-                        usedFor: ResourceUsedFor.Context,
-                        translations: [
-                            { language: "en", name: "Background Information" },
-                        ],
-                    },
-                ],
-            };
+            const config = noteConfigFixtures.variants.communityNote;
 
             const noteConfig = new NoteVersionConfig({ config });
 
-            expect(noteConfig.resources).toHaveLength(5);
-            expect(noteConfig.getResourcesByType(ResourceUsedFor.Developer)).toHaveLength(1);
-            expect(noteConfig.getResourcesByType(ResourceUsedFor.Researching)).toHaveLength(1);
-            expect(noteConfig.getResourcesByType(ResourceUsedFor.Tutorial)).toHaveLength(1);
-            expect(noteConfig.getResourcesByType(ResourceUsedFor.Related)).toHaveLength(1);
-            expect(noteConfig.getResourcesByType(ResourceUsedFor.Context)).toHaveLength(1);
+            expect(noteConfig.resources).toHaveLength(3);
+            expect(noteConfig.getResourcesByType(ResourceUsedFor.Community)).toHaveLength(1);
+            expect(noteConfig.getResourcesByType(ResourceUsedFor.Social)).toHaveLength(1);
+            expect(noteConfig.getResourcesByType(ResourceUsedFor.Feed)).toHaveLength(1);
         });
 
         it("should handle multilingual resources", () => {
-            const config: NoteVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://multilingual-resource.com",
-                        usedFor: ResourceUsedFor.Learning,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "Learning Resource",
-                                description: "A comprehensive guide",
-                            },
-                            {
-                                language: "es",
-                                name: "Recurso de Aprendizaje",
-                                description: "Una guía completa",
-                            },
-                            {
-                                language: "fr",
-                                name: "Ressource d'Apprentissage",
-                                description: "Un guide complet",
-                            },
-                            {
-                                language: "de",
-                                name: "Lernressource",
-                                description: "Ein umfassender Leitfaden",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const config = noteConfigFixtures.variants.multiLanguageNote;
 
             const noteConfig = new NoteVersionConfig({ config });
 
@@ -450,22 +268,7 @@ describe("NoteVersionConfig", () => {
         });
 
         it("should maintain data integrity through export/import cycle", () => {
-            const originalConfig: NoteVersionConfigObject = {
-                __version: "1.0",
-                resources: [
-                    {
-                        link: "https://example.com/resource",
-                        usedFor: ResourceUsedFor.ExternalService,
-                        translations: [
-                            {
-                                language: "en",
-                                name: "External API",
-                                description: "Integration with external service",
-                            },
-                        ],
-                    },
-                ],
-            };
+            const originalConfig = noteConfigFixtures.variants.externalServiceNote;
 
             // Create config, export it
             const noteConfig1 = new NoteVersionConfig({ config: originalConfig });

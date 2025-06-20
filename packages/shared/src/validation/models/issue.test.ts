@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { IssueFor } from "../../api/types.js";
-import { issueFixtures } from "./__test/fixtures/issueFixtures.js";
+import { issueFixtures } from "../../__test/fixtures/api/issueFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { issueValidation } from "./issue.js";
 

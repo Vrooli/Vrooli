@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ApiVersionConfig, type ApiVersionConfigObject } from "./api.js";
+import { apiConfigFixtures } from "../../__test/fixtures/config/apiConfigFixtures.js";
 
 describe("ApiVersionConfig", () => {
     const mockLogger = {
@@ -11,39 +12,7 @@ describe("ApiVersionConfig", () => {
 
     describe("constructor", () => {
         it("should create config with provided values", () => {
-            const configObj: ApiVersionConfigObject = {
-                __version: "1.0",
-                resources: [],
-                rateLimiting: {
-                    requestsPerMinute: 500,
-                    burstLimit: 50,
-                    useGlobalRateLimit: false,
-                },
-                authentication: {
-                    type: "apiKey",
-                    location: "header",
-                    parameterName: "X-API-Key",
-                },
-                caching: {
-                    enabled: false,
-                    ttl: 1800,
-                },
-                timeout: {
-                    request: 5000,
-                    connection: 3000,
-                },
-                retry: {
-                    maxAttempts: 5,
-                    backoffStrategy: "fixed",
-                    initialDelay: 500,
-                },
-                documentationLink: "https://api.example.com/docs",
-                schema: {
-                    language: "openapi",
-                    text: "openapi: 3.0.0",
-                },
-                callLink: "https://api.example.com",
-            };
+            const configObj = apiConfigFixtures.complete;
 
             const config = new ApiVersionConfig({ config: configObj });
 
@@ -58,10 +27,7 @@ describe("ApiVersionConfig", () => {
         });
 
         it("should handle minimal config", () => {
-            const configObj: ApiVersionConfigObject = {
-                __version: "1.0",
-                resources: [],
-            };
+            const configObj = apiConfigFixtures.minimal;
 
             const config = new ApiVersionConfig({ config: configObj });
 
@@ -109,13 +75,7 @@ describe("ApiVersionConfig", () => {
         describe("parse", () => {
             it("should parse valid config with fallbacks enabled", () => {
                 const version = {
-                    config: {
-                        __version: "1.0",
-                        resources: [],
-                        authentication: {
-                            type: "oauth2",
-                        },
-                    },
+                    config: apiConfigFixtures.variants.oauth2ProtectedApi,
                 };
 
                 const config = ApiVersionConfig.parse(version, mockLogger, { useFallbacks: true });
@@ -130,13 +90,7 @@ describe("ApiVersionConfig", () => {
 
             it("should parse config without fallbacks", () => {
                 const version = {
-                    config: {
-                        __version: "1.0",
-                        resources: [],
-                        authentication: {
-                            type: "oauth2",
-                        },
-                    },
+                    config: apiConfigFixtures.variants.oauth2ProtectedApi,
                 };
 
                 const config = ApiVersionConfig.parse(version, mockLogger, { useFallbacks: false });
@@ -151,10 +105,7 @@ describe("ApiVersionConfig", () => {
 
             it("should parse config with default useFallbacks (true)", () => {
                 const version = {
-                    config: {
-                        __version: "1.0",
-                        resources: [],
-                    },
+                    config: apiConfigFixtures.minimal,
                 };
 
                 const config = ApiVersionConfig.parse(version, mockLogger);
@@ -297,29 +248,7 @@ describe("ApiVersionConfig", () => {
 
     describe("export", () => {
         it("should export all config properties", () => {
-            const originalConfig: ApiVersionConfigObject = {
-                __version: "1.0",
-                resources: [{ type: "test", description: "Test resource" }],
-                rateLimiting: {
-                    requestsPerMinute: 2000,
-                    burstLimit: 200,
-                    useGlobalRateLimit: false,
-                },
-                authentication: {
-                    type: "apiKey",
-                    location: "query",
-                    parameterName: "key",
-                },
-                caching: {
-                    enabled: false,
-                },
-                timeout: {
-                    request: 8000,
-                },
-                retry: {
-                    maxAttempts: 2,
-                },
-            };
+            const originalConfig = apiConfigFixtures.complete;
 
             const config = new ApiVersionConfig({ config: originalConfig });
             const exported = config.export();
@@ -335,10 +264,7 @@ describe("ApiVersionConfig", () => {
         });
 
         it("should export undefined values correctly", () => {
-            const minimalConfig: ApiVersionConfigObject = {
-                __version: "1.0",
-                resources: [],
-            };
+            const minimalConfig = apiConfigFixtures.minimal;
 
             const config = new ApiVersionConfig({ config: minimalConfig });
             const exported = config.export();
@@ -353,45 +279,7 @@ describe("ApiVersionConfig", () => {
 
     describe("complex scenarios", () => {
         it("should handle complete API configuration", () => {
-            const completeConfig: ApiVersionConfigObject = {
-                __version: "1.0",
-                resources: [],
-                rateLimiting: {
-                    requestsPerMinute: 5000,
-                    burstLimit: 500,
-                    useGlobalRateLimit: true,
-                },
-                authentication: {
-                    type: "oauth2",
-                    location: "header",
-                    parameterName: "Authorization",
-                    settings: {
-                        tokenType: "Bearer",
-                        scope: ["read", "write"],
-                        clientId: "test-client",
-                    },
-                },
-                caching: {
-                    enabled: true,
-                    ttl: 7200,
-                    invalidation: "webhook",
-                },
-                timeout: {
-                    request: 30000,
-                    connection: 10000,
-                },
-                retry: {
-                    maxAttempts: 5,
-                    backoffStrategy: "exponential",
-                    initialDelay: 1000,
-                },
-                documentationLink: "https://api.example.com/v1/docs",
-                schema: {
-                    language: "openapi",
-                    text: "openapi: 3.0.0\ninfo:\n  title: Test API\n  version: 1.0.0",
-                },
-                callLink: "https://api.example.com/v1",
-            };
+            const completeConfig = apiConfigFixtures.variants.oauth2ProtectedApi;
 
             const config = new ApiVersionConfig({ config: completeConfig });
 
@@ -407,12 +295,7 @@ describe("ApiVersionConfig", () => {
         });
 
         it("should maintain consistency through parse and export cycle", () => {
-            const originalConfig = {
-                __version: "1.0",
-                resources: [],
-                authentication: { type: "basic" },
-                rateLimiting: { requestsPerMinute: 100 },
-            };
+            const originalConfig = apiConfigFixtures.variants.basicAuthApi;
 
             const version = { config: originalConfig };
             const parsed = ApiVersionConfig.parse(version, mockLogger, { useFallbacks: false });

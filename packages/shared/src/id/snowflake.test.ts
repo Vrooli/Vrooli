@@ -1,4 +1,4 @@
-// AI_CHECK: TEST_COVERAGE=7 | LAST: 2025-06-18
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generatePK, validatePK, initIdGenerator, DUMMY_ID } from "./snowflake.js";
 
@@ -437,33 +437,42 @@ describe("Snowflake IDs", () => {
             globalThis.process = originalProcess;
         });
 
-        it("should throw error when generatePK is called with null generator", async () => {
-            // Import the module to access the generator variable directly
-            const snowflakeModule = await import("./snowflake.js");
+        it("should handle generator re-initialization when generator becomes null in Node.js", async () => {
+            // Mock Node.js environment  
+            const originalProcess = globalThis.process;
+            globalThis.process = { versions: { node: "18.0.0" } } as any;
             
-            // We need to simulate the scenario where generator is null
-            // This is tricky with ES modules, but we can test the error by mocking
-            const originalGenerateFunction = snowflakeModule.generatePK;
+            // This test specifically targets the re-initialization path in lines 54-61
+            // by creating a scenario where the error handler runs and generator needs re-initialization
+            const originalFunction = globalThis.Function;
+            let callCount = 0;
             
-            // Mock generatePK to simulate null generator scenario
-            const mockGeneratePK = vi.fn().mockImplementation(() => {
-                throw new Error("Snowflake generator not initialised - call initIdGenerator() first");
-            });
-            
-            // Replace the function temporarily
-            Object.defineProperty(snowflakeModule, "generatePK", {
-                value: mockGeneratePK,
-                configurable: true
+            globalThis.Function = vi.fn().mockImplementation((param, body) => {
+                if (param === "modulePath" && body === "return import(modulePath);") {
+                    callCount++;
+                    // Simulate an import that fails
+                    return vi.fn().mockRejectedValue(new Error("Module import failed"));
+                }
+                return originalFunction(param, body);
             });
 
-            // Test that the error is thrown
-            expect(() => snowflakeModule.generatePK()).toThrow("Snowflake generator not initialised - call initIdGenerator() first");
+            // This should trigger the error handling path which includes the generator null check
+            await initIdGenerator();
             
-            // Restore the original function
-            Object.defineProperty(snowflakeModule, "generatePK", {
-                value: originalGenerateFunction,
-                configurable: true
-            });
+            // Should still generate valid IDs using the fallback
+            const id = generatePK();
+            expect(typeof id).toBe("bigint");
+            expect(validatePK(id)).toBe(true);
+            
+            // Verify error was logged
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                expect.stringContaining("Failed to initialize native Snowflake generator"),
+                expect.any(Error)
+            );
+
+            // Restore mocks
+            globalThis.Function = originalFunction;
+            globalThis.process = originalProcess;
         });
 
         it("should handle malformed BigInt conversion in validatePK", () => {

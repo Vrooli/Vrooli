@@ -1,4 +1,4 @@
-import { type MessageConfigObject, type ToolFunctionCall, type ToolFunctionCallResult, type ChatMessageRunConfig } from "../../../shape/configs/message.js";
+import { type ChatMessageRunConfig, type MessageConfigObject, type ToolFunctionCall } from "../../../shape/configs/message.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
@@ -9,12 +9,12 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         contextHints: [
             "Previous conversation mentioned project deadlines",
-            "User prefers detailed explanations"
+            "User prefers detailed explanations",
         ],
         eventTopic: "project-update",
         respondingBots: ["assistant-1", "research-bot"],
@@ -25,16 +25,16 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                 id: "call_123",
                 function: {
                     name: "search_documents",
-                    arguments: JSON.stringify({ query: "project requirements", limit: 5 })
+                    arguments: JSON.stringify({ query: "project requirements", limit: 5 }),
                 },
                 result: {
                     success: true,
                     output: [
                         { id: "doc_1", title: "Requirements Doc", relevance: 0.95 },
-                        { id: "doc_2", title: "Technical Spec", relevance: 0.87 }
-                    ]
-                }
-            }
+                        { id: "doc_2", title: "Technical Spec", relevance: 0.87 },
+                    ],
+                },
+            },
         ],
         runs: [
             {
@@ -44,8 +44,8 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                 taskId: "task_012",
                 runStatus: "completed",
                 createdAt: "2024-01-01T10:00:00Z",
-                completedAt: "2024-01-01T10:05:00Z"
-            }
+                completedAt: "2024-01-01T10:05:00Z",
+            },
         ],
         resources: [{
             link: "https://example.com/context-doc",
@@ -53,11 +53,11 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
             translations: [{
                 language: "en",
                 name: "Context Document",
-                description: "Additional context for message"
-            }]
-        }]
+                description: "Additional context for message",
+            }],
+        }],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         contextHints: [],
@@ -67,7 +67,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
         toolCalls: [],
         runs: [],
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
@@ -91,23 +91,23 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     // Missing required fields
                     id: "missing_args",
                     function: {
-                        name: "test"
+                        name: "test",
                         // Missing arguments
-                    } as any
-                }
-            ] as any
-        }
+                    } as any,
+                },
+            ] as any,
+        },
     },
-    
+
     variants: {
         userMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "user",
             turnId: 1,
             contextHints: ["User is asking about API documentation"],
-            respondingBots: ["@all"]
+            respondingBots: ["@all"],
         },
-        
+
         assistantWithTools: {
             __version: LATEST_CONFIG_VERSION,
             role: "assistant",
@@ -117,46 +117,46 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     id: "call_search_1",
                     function: {
                         name: "web_search",
-                        arguments: JSON.stringify({ 
+                        arguments: JSON.stringify({
                             query: "Vrooli API documentation",
-                            maxResults: 10 
-                        })
+                            maxResults: 10,
+                        }),
                     },
                     result: {
                         success: true,
                         output: {
                             results: [
-                                { url: "https://docs.vrooli.com/api", title: "API Reference" }
-                            ]
-                        }
-                    }
+                                { url: "https://docs.vrooli.com/api", title: "API Reference" },
+                            ],
+                        },
+                    },
                 },
                 {
                     id: "call_calc_1",
                     function: {
                         name: "calculator",
-                        arguments: JSON.stringify({ 
-                            expression: "2 + 2" 
-                        })
+                        arguments: JSON.stringify({
+                            expression: "2 + 2",
+                        }),
                     },
                     result: {
                         success: true,
-                        output: 4
-                    }
-                }
-            ]
+                        output: 4,
+                    },
+                },
+            ],
         },
-        
+
         systemMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "system",
             contextHints: [
                 "System maintenance scheduled",
-                "Increased rate limits applied"
+                "Increased rate limits applied",
             ],
-            eventTopic: "system-notification"
+            eventTopic: "system-notification",
         },
-        
+
         toolErrorMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "tool",
@@ -166,22 +166,22 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     id: "call_failed_1",
                     function: {
                         name: "database_query",
-                        arguments: JSON.stringify({ 
+                        arguments: JSON.stringify({
                             table: "users",
-                            query: "SELECT * FROM users WHERE invalid_column = ?" 
-                        })
+                            query: "SELECT * FROM users WHERE invalid_column = ?",
+                        }),
                     },
                     result: {
                         success: false,
                         error: {
                             code: "INVALID_COLUMN",
-                            message: "Column 'invalid_column' does not exist in table 'users'"
-                        }
-                    }
-                }
-            ]
+                            message: "Column 'invalid_column' does not exist in table 'users'",
+                        },
+                    },
+                },
+            ],
         },
-        
+
         messageWithMultipleRuns: {
             __version: LATEST_CONFIG_VERSION,
             role: "assistant",
@@ -193,7 +193,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     resourceVersionName: "Data Import Routine",
                     taskId: "task_import_1",
                     runStatus: "running",
-                    createdAt: "2024-01-01T12:00:00Z"
+                    createdAt: "2024-01-01T12:00:00Z",
                 },
                 {
                     runId: "run_parallel_2",
@@ -201,7 +201,7 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     resourceVersionName: "Data Validation Routine",
                     taskId: "task_validate_1",
                     runStatus: "queued",
-                    createdAt: "2024-01-01T12:00:05Z"
+                    createdAt: "2024-01-01T12:00:05Z",
                 },
                 {
                     runId: "run_parallel_3",
@@ -209,28 +209,28 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
                     taskId: "task_transform_1",
                     runStatus: "failed",
                     createdAt: "2024-01-01T12:00:10Z",
-                    completedAt: "2024-01-01T12:00:15Z"
-                }
-            ]
+                    completedAt: "2024-01-01T12:00:15Z",
+                },
+            ],
         },
-        
+
         broadcastMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "user",
             turnId: 5,
             respondingBots: ["@all"],
             eventTopic: "broadcast-request",
-            contextHints: ["Urgent request", "Requires all bots to respond"]
+            contextHints: ["Urgent request", "Requires all bots to respond"],
         },
-        
+
         eventDrivenMessage: {
             __version: LATEST_CONFIG_VERSION,
             role: "system",
             eventTopic: "payment-succeeded",
             contextHints: ["Payment of $99.99 processed", "Premium subscription activated"],
-            respondingBots: ["billing-bot", "notification-bot"]
-        }
-    }
+            respondingBots: ["billing-bot", "notification-bot"],
+        },
+    },
 };
 
 /**
@@ -238,12 +238,12 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
  */
 export function createMessageConfigWithToolCalls(
     toolCalls: ToolFunctionCall[],
-    role: MessageConfigObject["role"] = "assistant"
+    role: MessageConfigObject["role"] = "assistant",
 ): MessageConfigObject {
     return mergeWithBaseDefaults<MessageConfigObject>({
         role,
         toolCalls,
-        turnId: 1
+        turnId: 1,
     });
 }
 
@@ -253,18 +253,18 @@ export function createMessageConfigWithToolCalls(
 export function createSuccessfulToolCall(
     functionName: string,
     args: Record<string, any>,
-    output: unknown
+    output: unknown,
 ): ToolFunctionCall {
     return {
         id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         function: {
             name: functionName,
-            arguments: JSON.stringify(args)
+            arguments: JSON.stringify(args),
         },
         result: {
             success: true,
-            output
-        }
+            output,
+        },
     };
 }
 
@@ -275,21 +275,21 @@ export function createFailedToolCall(
     functionName: string,
     args: Record<string, any>,
     errorCode: string,
-    errorMessage: string
+    errorMessage: string,
 ): ToolFunctionCall {
     return {
         id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         function: {
             name: functionName,
-            arguments: JSON.stringify(args)
+            arguments: JSON.stringify(args),
         },
         result: {
             success: false,
             error: {
                 code: errorCode,
-                message: errorMessage
-            }
-        }
+                message: errorMessage,
+            },
+        },
     };
 }
 
@@ -298,12 +298,12 @@ export function createFailedToolCall(
  */
 export function createMessageConfigWithRuns(
     runs: ChatMessageRunConfig[],
-    role: MessageConfigObject["role"] = "assistant"
+    role: MessageConfigObject["role"] = "assistant",
 ): MessageConfigObject {
     return mergeWithBaseDefaults<MessageConfigObject>({
         role,
         runs,
-        turnId: 1
+        turnId: 1,
     });
 }
 
@@ -311,18 +311,18 @@ export function createMessageConfigWithRuns(
  * Create a run configuration
  */
 export function createRunConfig(
-    overrides: Partial<ChatMessageRunConfig> = {}
+    overrides: Partial<ChatMessageRunConfig> = {},
 ): ChatMessageRunConfig {
     const baseRun: ChatMessageRunConfig = {
         runId: `run_${Date.now()}`,
         resourceVersionId: `routine_v_${Date.now()}`,
         taskId: `task_${Date.now()}`,
         runStatus: "pending",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
     };
-    
+
     return {
         ...baseRun,
-        ...overrides
+        ...overrides,
     };
 }

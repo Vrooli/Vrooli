@@ -9,7 +9,7 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         structure: {
@@ -47,8 +47,8 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Team Repository",
-                    description: "Main codebase for the team"
-                }]
+                    description: "Main codebase for the team",
+                }],
             },
             {
                 link: "https://vrooli.com/team-handbook",
@@ -56,12 +56,12 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 translations: [{
                     language: "en",
                     name: "Team Handbook",
-                    description: "Team policies and procedures"
-                }]
-            }
-        ]
+                    description: "Team policies and procedures",
+                }],
+            },
+        ],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         structure: {
@@ -70,7 +70,7 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
             content: "",
         },
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
@@ -98,10 +98,10 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 type: 123, // Should be string
                 version: true, // Should be string
                 content: null, // Should be string
-            }
-        }
+            },
+        },
     },
-    
+
     variants: {
         // Minimal team with just a leader and members
         simpleTeam: {
@@ -116,9 +116,9 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                         link leader > member
                     }
                 }`,
-            }
+            },
         },
-        
+
         // Startup team structure
         startupTeam: {
             __version: LATEST_CONFIG_VERSION,
@@ -143,11 +143,11 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 usedFor: "OfficialWebsite",
                 translations: [{
                     language: "en",
-                    name: "Startup Homepage"
-                }]
-            }]
+                    name: "Startup Homepage",
+                }],
+            }],
         },
-        
+
         // Research team structure
         researchTeam: {
             __version: LATEST_CONFIG_VERSION,
@@ -167,9 +167,9 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                         link phdStudent > researchAssistant
                     }
                 }`,
-            }
+            },
         },
-        
+
         // Flat organization (no hierarchy)
         flatOrganization: {
             __version: LATEST_CONFIG_VERSION,
@@ -182,9 +182,9 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                         // No links - all contributors are equal
                     }
                 }`,
-            }
+            },
         },
-        
+
         // Using FIPA ACL instead of MOISE+
         fipaTeam: {
             __version: LATEST_CONFIG_VERSION,
@@ -201,9 +201,9 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 team:Developer a fipa:AgentRole ;
                     fipa:hasCapability team:Coding ;
                     fipa:hasCapability team:Testing .`,
-            }
+            },
         },
-        
+
         // Complex organization with multiple departments
         enterpriseTeam: {
             __version: LATEST_CONFIG_VERSION,
@@ -250,8 +250,8 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Corporate Website",
-                        description: "Public-facing corporate site"
-                    }]
+                        description: "Public-facing corporate site",
+                    }],
                 },
                 {
                     link: "https://wiki.enterprise.example.com",
@@ -259,12 +259,12 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Internal Wiki",
-                        description: "Team knowledge base"
-                    }]
-                }
-            ]
+                        description: "Team knowledge base",
+                    }],
+                },
+            ],
         },
-        
+
         // Empty structure (team exists but no formal organization defined)
         unstructuredTeam: {
             __version: LATEST_CONFIG_VERSION,
@@ -272,9 +272,9 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
                 type: "MOISE+",
                 version: "1.0",
                 content: "",
-            }
-        }
-    }
+            },
+        },
+    },
 };
 
 /**
@@ -283,14 +283,14 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
 export function createTeamConfigWithStructure(
     type: string,
     content: string,
-    version?: string
+    version?: string,
 ): TeamConfigObject {
     return mergeWithBaseDefaults<TeamConfigObject>({
         structure: {
             type,
             version: version ?? "1.0",
             content,
-        }
+        },
     });
 }
 
@@ -299,18 +299,18 @@ export function createTeamConfigWithStructure(
  */
 export function createMoiseTeamStructure(
     groupName: string,
-    roles: Array<{ name: string; min?: number; max?: number }>
+    roles: Array<{ name: string; min?: number; max?: number }>,
 ): TeamConfigObject {
-    const roleDefinitions = roles.map(role => 
-        `role ${role.name} cardinality ${role.min ?? 1}..${role.max ?? "*"}`
+    const roleDefinitions = roles.map(role =>
+        `role ${role.name} cardinality ${role.min ?? 1}..${role.max ?? "*"}`,
     ).join("\n        ");
-    
+
     const content = `structure ${groupName}Team {
     group ${groupName} {
         ${roleDefinitions}
     }
 }`;
-    
+
     return createTeamConfigWithStructure("MOISE+", content);
 }
 
@@ -318,23 +318,23 @@ export function createMoiseTeamStructure(
  * Create a hierarchical team structure
  */
 export function createHierarchicalTeamStructure(
-    levels: Array<{ role: string; reportsTo?: string; count?: { min: number; max: number } }>
+    levels: Array<{ role: string; reportsTo?: string; count?: { min: number; max: number } }>,
 ): TeamConfigObject {
-    const roles = levels.map(level => 
-        `role ${level.role} cardinality ${level.count?.min ?? 1}..${level.count?.max ?? "*"}`
+    const roles = levels.map(level =>
+        `role ${level.role} cardinality ${level.count?.min ?? 1}..${level.count?.max ?? "*"}`,
     ).join("\n        ");
-    
+
     const links = levels
         .filter(level => level.reportsTo)
         .map(level => `link ${level.reportsTo} > ${level.role}`)
         .join("\n        ");
-    
+
     const content = `structure HierarchicalTeam {
     group organization {
         ${roles}
         ${links ? "\n        " + links : ""}
     }
 }`;
-    
+
     return createTeamConfigWithStructure("MOISE+", content);
 }

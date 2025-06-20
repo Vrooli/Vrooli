@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ChatConfig, type ChatConfigObject, type SwarmSubTask, type SwarmResource, type BlackboardItem, type ChatToolCallRecord, PendingToolCallStatus, type PendingToolCallEntry } from "./chat.js";
 import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
+import { chatConfigFixtures } from "../../__test/fixtures/config/chatConfigFixtures.js";
 
 describe("ChatConfig", () => {
     let mockLogger: any;
@@ -107,10 +108,7 @@ describe("ChatConfig", () => {
         });
 
         it("should create ChatConfig with minimal data and defaults", () => {
-            const config: ChatConfigObject = {
-                __version: "1.0",
-                stats: ChatConfig.defaultStats(),
-            };
+            const config = chatConfigFixtures.minimal;
 
             const chatConfig = new ChatConfig({ config });
 

@@ -3,28 +3,12 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vites
 import { OpenAIModel } from "../../ai/services.js";
 import { type User } from "../../api/types.js";
 import { BotConfig, DEFAULT_CREATIVITY, DEFAULT_PERSONA, DEFAULT_VERBOSITY, type BotConfigObject, getModelName, getModelDescription, type LlmModel } from "./bot.js";
+import { botConfigFixtures } from "../../__test/fixtures/config/botConfigFixtures.js";
 
 const LATEST_VERSION_STRING = "1.0"; // Consistent version string
 
 // Valid bot data for new BotConfig structure
-const validBotSettingsObject: BotConfigObject = {
-    __version: LATEST_VERSION_STRING,
-    model: "gpt-3",
-    maxTokens: 100,
-    persona: {
-        occupation: "friendly",
-        tone: "humorous",
-        // Add other default persona fields to make it a complete persona object expected by tests
-        bias: "",
-        creativity: DEFAULT_CREATIVITY, // Use default from bot.ts
-        domainKnowledge: "",
-        keyPhrases: "",
-        persona: "", // field in DEFAULT_PERSONA
-        startingMessage: "",
-        verbosity: DEFAULT_VERBOSITY, // Use default from bot.ts
-    },
-    resources: [],
-};
+const validBotSettingsObject: BotConfigObject = botConfigFixtures.complete;
 
 // Test data will use BotConfigObject | null | undefined for botSettings
 const validUserWithBotSettings: Pick<User, "botSettings"> = {
@@ -146,17 +130,7 @@ describe("BotConfig", () => {
 
     it("parses a complete botSettings object correctly", () => {
         // This is similar to the first test but re-confirms with a full object.
-        const fullBotSettings: BotConfigObject = {
-            __version: LATEST_VERSION_STRING,
-            model: "gpt-4-turbo",
-            maxTokens: 2048,
-            persona: {
-                ...DEFAULT_PERSONA,
-                bias: "Slightly positive",
-                domainKnowledge: "Quantum Physics",
-            },
-            resources: [{ link: "http://example.com/qp.pdf", translations: [{ language: "en", name: "QP Doc" }] }],
-        };
+        const fullBotSettings = botConfigFixtures.variants.gpt4Assistant;
         const userData: Pick<User, "botSettings"> = {
             botSettings: fullBotSettings,
         };
@@ -167,14 +141,13 @@ describe("BotConfig", () => {
 
     describe("persona handling with useFallbacks option", () => {
         it("should use fallbacks for persona when useFallbacks is true (default) and persona is missing in settings object", () => {
-            const settingsNoPersona: Omit<BotConfigObject, "persona"> = {
-                __version: LATEST_VERSION_STRING,
+            const settingsNoPersona = {
+                ...botConfigFixtures.minimal,
                 model: "test-model-fallback",
                 maxTokens: 300,
-                resources: [],
             };
             const userData: Pick<User, "botSettings"> = {
-                botSettings: settingsNoPersona as BotConfigObject, // Cast because Omit<> doesn't guarantee all BaseConfigObject fields
+                botSettings: settingsNoPersona as BotConfigObject,
             };
 
             const configWithFallback = BotConfig.parse(userData, console, { useFallbacks: true });
@@ -186,11 +159,10 @@ describe("BotConfig", () => {
         });
 
         it("should NOT use fallbacks for persona (leaving it undefined) when useFallbacks is false and persona is missing", () => {
-            const settingsNoPersona: Omit<BotConfigObject, "persona"> = {
-                __version: LATEST_VERSION_STRING,
+            const settingsNoPersona = {
+                ...botConfigFixtures.minimal,
                 model: "test-model-no-fallback",
                 maxTokens: 350,
-                resources: [],
             };
             const userData: Pick<User, "botSettings"> = {
                 botSettings: settingsNoPersona as BotConfigObject,

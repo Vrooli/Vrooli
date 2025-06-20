@@ -9,7 +9,7 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
     },
-    
+
     complete: {
         __version: LATEST_CONFIG_VERSION,
         model: "gpt-4",
@@ -31,16 +31,16 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
             translations: [{
                 language: "en",
                 name: "Bot Documentation",
-                description: "Official documentation for this bot"
-            }]
-        }]
+                description: "Official documentation for this bot",
+            }],
+        }],
     },
-    
+
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
         persona: DEFAULT_PERSONA,
     },
-    
+
     invalid: {
         missingVersion: {
             // Missing __version
@@ -61,18 +61,18 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
             persona: {
                 creativity: "high", // Should be number
                 verbosity: 2, // Should be 0-1
-            }
-        }
+            },
+        },
     },
-    
+
     variants: {
         minimalPersona: {
             __version: LATEST_CONFIG_VERSION,
             persona: {
                 occupation: "Developer",
-            }
+            },
         },
-        
+
         creativeBotHighTokens: {
             __version: LATEST_CONFIG_VERSION,
             model: "gpt-4",
@@ -82,10 +82,10 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                 creativity: 1,
                 tone: "imaginative and playful",
                 occupation: "Creative Writer",
-                keyPhrases: "storytelling, imagination, creativity"
-            }
+                keyPhrases: "storytelling, imagination, creativity",
+            },
         },
-        
+
         technicalBotPrecise: {
             __version: LATEST_CONFIG_VERSION,
             model: "claude-3",
@@ -100,9 +100,9 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                 bias: "evidence-based and analytical",
                 creativity: 0.2,
                 verbosity: 0.8,
-            }
+            },
         },
-        
+
         customerServiceBot: {
             __version: LATEST_CONFIG_VERSION,
             model: "gpt-3.5-turbo",
@@ -117,9 +117,9 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                 bias: "customer-focused and positive",
                 creativity: 0.3,
                 verbosity: 0.6,
-            }
+            },
         },
-        
+
         educationalBot: {
             __version: LATEST_CONFIG_VERSION,
             persona: {
@@ -132,9 +132,9 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                 bias: "educational and growth-oriented",
                 creativity: 0.6,
                 verbosity: 0.7,
-            }
+            },
         },
-        
+
         researchBot: {
             __version: LATEST_CONFIG_VERSION,
             model: "claude-3",
@@ -157,8 +157,8 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "Google Scholar",
-                        description: "Academic research database"
-                    }]
+                        description: "Academic research database",
+                    }],
                 },
                 {
                     link: "https://arxiv.org",
@@ -166,12 +166,12 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
                     translations: [{
                         language: "en",
                         name: "arXiv",
-                        description: "Open-access research papers"
-                    }]
-                }
-            ]
-        }
-    }
+                        description: "Open-access research papers",
+                    }],
+                },
+            ],
+        },
+    },
 };
 
 /**
@@ -179,14 +179,14 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
  */
 export function createBotConfigWithPersona(
     occupation: string,
-    traits: Partial<BotConfigObject["persona"]> = {}
+    traits: Partial<BotConfigObject["persona"]> = {},
 ): BotConfigObject {
     return mergeWithBaseDefaults<BotConfigObject>({
         persona: {
             ...DEFAULT_PERSONA,
             occupation,
-            ...traits
-        }
+            ...traits,
+        },
     });
 }
 
@@ -195,12 +195,12 @@ export function createBotConfigWithPersona(
  */
 export function createBotConfigForModel(
     model: string,
-    maxTokens: number = 2048
+    maxTokens = 2048,
 ): BotConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,
         model,
         maxTokens,
-        persona: DEFAULT_PERSONA
+        persona: DEFAULT_PERSONA,
     };
 }

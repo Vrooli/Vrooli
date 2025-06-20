@@ -1,6 +1,7 @@
 // AI_CHECK: TEST_COVERAGE=2 | LAST: 2025-06-18
 import { describe, expect, it, vi } from "vitest";
 import { ResourceSubType } from "../../api/types.js";
+import { standardConfigFixtures } from "../../__test/fixtures/config/standardConfigFixtures.js";
 import { StandardVersionConfig, type StandardVersionConfigObject } from "./standard.js";
 
 describe("StandardVersionConfig", () => {
@@ -13,37 +14,9 @@ describe("StandardVersionConfig", () => {
 
     describe("constructor", () => {
         it("should create config with provided values", () => {
-            const configObj: StandardVersionConfigObject = {
-                __version: "1.0",
+            const configObj = {
+                ...standardConfigFixtures.complete,
                 resources: [],
-                validation: {
-                    strictMode: true,
-                    rules: { required: ["name"] },
-                    errorMessages: { required: "This field is required" },
-                },
-                format: {
-                    defaultFormat: "json",
-                    options: { indent: 2 },
-                },
-                compatibility: {
-                    minimumRequirements: { version: "1.0.0" },
-                    knownIssues: ["Issue with old browsers"],
-                    compatibleWith: ["JSON Schema", "OpenAPI"],
-                },
-                compliance: {
-                    compliesWith: ["ISO 27001", "GDPR"],
-                    certifications: [
-                        {
-                            name: "Security Standard",
-                            issuer: "Security Corp",
-                            date: "2024-01-01",
-                            expiration: "2025-01-01",
-                        },
-                    ],
-                },
-                schema: '{"type": "object"}',
-                schemaLanguage: "json-schema",
-                props: { example: "value" },
             };
 
             const config = new StandardVersionConfig({
@@ -62,8 +35,8 @@ describe("StandardVersionConfig", () => {
         });
 
         it("should handle minimal config", () => {
-            const configObj: StandardVersionConfigObject = {
-                __version: "1.0",
+            const configObj = {
+                ...standardConfigFixtures.minimal,
                 resources: [],
             };
 
@@ -88,11 +61,8 @@ describe("StandardVersionConfig", () => {
             it("should parse valid config", () => {
                 const version = {
                     config: {
-                        __version: "1.0",
+                        ...standardConfigFixtures.variants.minimalValidation,
                         resources: [],
-                        validation: {
-                            strictMode: false,
-                        },
                         schema: '{"type": "string"}',
                     },
                     resourceSubType: ResourceSubType.StandardPrompt,
@@ -123,13 +93,13 @@ describe("StandardVersionConfig", () => {
             it("should create config with manual constructor call", () => {
                 const config = new StandardVersionConfig({
                     config: {
-                        __version: "1.0",
+                        ...standardConfigFixtures.minimal,
                         resources: [],
                     },
                     resourceSubType: ResourceSubType.StandardDataStructure,
                 });
 
-                expect(config.__version).toBe("1.0");
+                expect(config.__version).toBe(standardConfigFixtures.minimal.__version);
                 expect(config.resources).toEqual([]);
                 expect(config.resourceSubType).toBe(ResourceSubType.StandardDataStructure);
                 expect(config.validation).toBeUndefined();
@@ -145,8 +115,8 @@ describe("StandardVersionConfig", () => {
 
     describe("export", () => {
         it("should export all config properties", () => {
-            const originalConfig: StandardVersionConfigObject = {
-                __version: "1.0",
+            const originalConfig = {
+                ...standardConfigFixtures.complete,
                 resources: [{ link: "https://example.com", translations: [{ language: "en", name: "Example" }] }],
                 validation: {
                     strictMode: true,
@@ -156,7 +126,6 @@ describe("StandardVersionConfig", () => {
                     defaultFormat: "yaml",
                 },
                 schema: '{"type": "array"}',
-                schemaLanguage: "json-schema",
             };
 
             const config = new StandardVersionConfig({
@@ -169,13 +138,13 @@ describe("StandardVersionConfig", () => {
             expect(exported.format).toEqual(originalConfig.format);
             expect(exported.schema).toBe(originalConfig.schema);
             expect(exported.schemaLanguage).toBe(originalConfig.schemaLanguage);
-            expect(exported.__version).toBe("1.0");
+            expect(exported.__version).toBe(standardConfigFixtures.complete.__version);
             expect(exported.resources).toEqual(originalConfig.resources);
         });
 
         it("should export undefined values correctly", () => {
-            const minimalConfig: StandardVersionConfigObject = {
-                __version: "1.0",
+            const minimalConfig = {
+                ...standardConfigFixtures.minimal,
                 resources: [],
             };
 
@@ -199,7 +168,7 @@ describe("StandardVersionConfig", () => {
         it("should handle strict mode validation", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.variants.dataStructureStandard,
                     resources: [],
                     validation: {
                         strictMode: true,
@@ -227,11 +196,8 @@ describe("StandardVersionConfig", () => {
         it("should handle non-strict validation", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.variants.minimalValidation,
                     resources: [],
-                    validation: {
-                        strictMode: false,
-                    },
                 },
                 resourceSubType: ResourceSubType.StandardPrompt,
             });
@@ -244,7 +210,7 @@ describe("StandardVersionConfig", () => {
         it("should handle various format settings", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.complete,
                     resources: [],
                     format: {
                         defaultFormat: "xml",
@@ -268,7 +234,7 @@ describe("StandardVersionConfig", () => {
         it("should handle compatibility settings", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.variants.technicalStandard,
                     resources: [],
                     compatibility: {
                         minimumRequirements: {
@@ -298,7 +264,7 @@ describe("StandardVersionConfig", () => {
         it("should handle compliance settings", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.complete,
                     resources: [],
                     compliance: {
                         compliesWith: ["SOX", "HIPAA", "PCI DSS"],
@@ -340,7 +306,7 @@ describe("StandardVersionConfig", () => {
 
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                     schema: jsonSchema,
                     schemaLanguage: "json-schema",
@@ -357,7 +323,7 @@ describe("StandardVersionConfig", () => {
 
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                     schema: xmlSchema,
                     schemaLanguage: "xml-schema",
@@ -374,7 +340,7 @@ describe("StandardVersionConfig", () => {
         it("should handle custom props", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.complete,
                     resources: [],
                     props: {
                         generator: "custom-tool-v1.2.3",
@@ -402,7 +368,7 @@ describe("StandardVersionConfig", () => {
         it("should set validation", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardDataStructure,
@@ -424,7 +390,7 @@ describe("StandardVersionConfig", () => {
         it("should set format", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardPrompt,
@@ -445,7 +411,7 @@ describe("StandardVersionConfig", () => {
         it("should set compatibility", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardDataStructure,
@@ -467,7 +433,7 @@ describe("StandardVersionConfig", () => {
         it("should set compliance", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardPrompt,
@@ -492,7 +458,7 @@ describe("StandardVersionConfig", () => {
         it("should set schema", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardDataStructure,
@@ -510,7 +476,7 @@ describe("StandardVersionConfig", () => {
         it("should set schemaLanguage", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardPrompt,
@@ -528,7 +494,7 @@ describe("StandardVersionConfig", () => {
         it("should handle setting undefined values", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                     validation: { strictMode: true },
                     format: { defaultFormat: "json" },
@@ -546,7 +512,7 @@ describe("StandardVersionConfig", () => {
         it("should handle chaining setters", () => {
             const config = new StandardVersionConfig({
                 config: {
-                    __version: "1.0",
+                    ...standardConfigFixtures.minimal,
                     resources: [],
                 },
                 resourceSubType: ResourceSubType.StandardPrompt,
@@ -627,7 +593,7 @@ describe("StandardVersionConfig", () => {
 
             expect(exported.validation).toEqual(originalConfig.validation);
             expect(exported.schema).toBe(originalConfig.schema);
-            expect(exported.schemaLanguage).toBe(originalConfig.schemaLanguage);
+            expect(exported.schemaLanguage).toBe(standardConfigFixtures.complete.schemaLanguage);
         });
     });
 });
