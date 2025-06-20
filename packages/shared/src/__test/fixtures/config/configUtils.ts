@@ -7,6 +7,7 @@ const MB_SIZE = KB_SIZE * KB_SIZE;
 const GB_SIZE = MB_SIZE * KB_SIZE;
 const FILE_SIZE_MULTIPLIER = 10;
 const DEFAULT_TIMEOUT_MS = 1000;
+const LARGE_ARRAY_SIZE = 100;
 
 /**
  * Common resource configurations used across different config types
@@ -295,7 +296,7 @@ export const edgeCaseGenerators = {
             } else if (typeof value === "string") {
                 (result as any)[key] = "x".repeat(DEFAULT_TIMEOUT_MS); // Long string
             } else if (Array.isArray(value)) {
-                (result as any)[key] = Array(100).fill(value[0] || {}); // Large array
+                (result as any)[key] = Array(LARGE_ARRAY_SIZE).fill(value[0] || {}); // Large array
             } else {
                 (result as any)[key] = value;
             }

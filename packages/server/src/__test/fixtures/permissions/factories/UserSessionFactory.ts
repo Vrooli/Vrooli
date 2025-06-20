@@ -34,7 +34,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
             emailVerified: true,
             accountStatus: AccountStatus.Unlocked,
             isLoggedIn: true,
-            timeZone: this.defaultOptions.timeZone!,
+            timeZone: this.defaultOptions.timeZone ?? "UTC",
             hasPremium: false,
             roles: [],
         };
@@ -154,7 +154,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
             id: "",
             accountStatus: AccountStatus.Unlocked,
             isLoggedIn: false,
-            timeZone: this.defaultOptions.timeZone!,
+            timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
         } as AuthenticatedSessionData;
     }
@@ -205,7 +205,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
             ...this.baseUserData,
             id: "000000000000000001",
             isLoggedIn: true,
-            timeZone: this.defaultOptions.timeZone!,
+            timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
         } as AuthenticatedSessionData;
     }

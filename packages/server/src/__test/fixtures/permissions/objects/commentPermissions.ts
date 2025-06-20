@@ -14,7 +14,7 @@ import { ObjectPermissionFactory } from "../factories/ObjectPermissionFactory.js
 const USER_ID_SUFFIX_LENGTH = 16;
 
 // Minimal comment object for testing
-function createMinimalComment(overrides: any = {}) {
+function createMinimalComment(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Comment",
         id: generatePK(),
@@ -37,7 +37,7 @@ function createMinimalComment(overrides: any = {}) {
 }
 
 // Complete comment object for testing
-function createCompleteComment(overrides: any = {}) {
+function createCompleteComment(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Comment",
         id: generatePK(),
@@ -94,7 +94,7 @@ export const commentPermissionFactory = new ObjectPermissionFactory({
             
             // If it's a team object and user is a team member
             if (parentObject.team && "id" in session && session._testTeamMembership) {
-                const membership = session._testTeamMembership as any;
+                const membership = session._testTeamMembership as { teamId: string; role: string };
                 if (membership.teamId === parentObject.team.id) {
                     return true;
                 }
@@ -124,7 +124,7 @@ export const commentPermissionFactory = new ObjectPermissionFactory({
             
             // Team member access
             if (parentObject.team && "id" in session && session._testTeamMembership) {
-                const membership = session._testTeamMembership as any;
+                const membership = session._testTeamMembership as { teamId: string; role: string };
                 if (membership.teamId === parentObject.team.id) {
                     return true;
                 }
@@ -175,7 +175,7 @@ export const commentPermissionFactory = new ObjectPermissionFactory({
         // Custom rule: anyone can report comments they can read
         report: (session, comment) => {
             // Must be able to read the comment to report it
-            return commentPermissionFactory.config.customRules!.read!(session, comment);
+            return commentPermissionFactory.config.customRules?.read?.(session, comment) ?? false;
         },
         
         // Custom rule: anyone can vote on comments they can read
@@ -186,7 +186,7 @@ export const commentPermissionFactory = new ObjectPermissionFactory({
                 return false;
             }
             
-            return commentPermissionFactory.config.customRules!.read!(session, comment);
+            return commentPermissionFactory.config.customRules?.read?.(session, comment) ?? false;
         },
     },
 });
@@ -211,7 +211,7 @@ export const commentScenarios = {
         actors: [
             {
                 id: "comment_owner",
-                session: { id: "222222222222222222" } as any,
+                session: { id: "222222222222222222" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -223,7 +223,7 @@ export const commentScenarios = {
             },
             {
                 id: "issue_owner",
-                session: { id: "333333333333333333" } as any,
+                session: { id: "333333333333333333" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -235,7 +235,7 @@ export const commentScenarios = {
             },
             {
                 id: "other_user",
-                session: { id: "444444444444444444" } as any,
+                session: { id: "444444444444444444" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -267,7 +267,7 @@ export const commentScenarios = {
         actors: [
             {
                 id: "comment_owner",
-                session: { id: "222222222222222222" } as any,
+                session: { id: "222222222222222222" } as Record<string, unknown>,
                 permissions: {
                     read: false, // Can't read comment on private resource they can't access
                     create: false,
@@ -279,7 +279,7 @@ export const commentScenarios = {
             },
             {
                 id: "resource_owner",
-                session: { id: "333333333333333333" } as any,
+                session: { id: "333333333333333333" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -314,7 +314,7 @@ export const commentScenarios = {
                 session: { 
                     id: "222222222222222222",
                     _testTeamMembership: { teamId: "team_123", role: "Member" },
-                } as any,
+                } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -326,7 +326,7 @@ export const commentScenarios = {
             },
             {
                 id: "non_member",
-                session: { id: "444444444444444444" } as any,
+                session: { id: "444444444444444444" } as Record<string, unknown>,
                 permissions: {
                     read: false,
                     create: false,
@@ -356,7 +356,7 @@ export const commentScenarios = {
         actors: [
             {
                 id: "thread_starter",
-                session: { id: "333333333333333333" } as any,
+                session: { id: "333333333333333333" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -368,7 +368,7 @@ export const commentScenarios = {
             },
             {
                 id: "reply_author",
-                session: { id: "222222222222222222" } as any,
+                session: { id: "222222222222222222" } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -409,7 +409,7 @@ export const commentPermissionHelpers = {
     /**
      * Test if user can comment on an object
      */
-    canUserCommentOn: (userId: string, targetObject: any) => {
+    canUserCommentOn: (userId: string, targetObject: Record<string, unknown>) => {
         // Can comment on public objects
         if (targetObject.isPublic) {
             return true;
@@ -421,7 +421,7 @@ export const commentPermissionHelpers = {
         }
         
         // Can comment on team objects if team member
-        if (targetObject.team && targetObject.team.members?.some((m: any) => m.userId === userId)) {
+        if (targetObject.team && targetObject.team.members?.some((m: Record<string, unknown>) => m.userId === userId)) {
             return true;
         }
         
@@ -431,7 +431,7 @@ export const commentPermissionHelpers = {
     /**
      * Test if user can read a comment
      */
-    canUserReadComment: (userId: string, comment: any) => {
+    canUserReadComment: (userId: string, comment: Record<string, unknown>) => {
         // Can read own comments
         if (comment.owner?.id === userId) {
             return true;
@@ -454,7 +454,7 @@ export const commentPermissionHelpers = {
      * Create a comment thread (parent-child comments)
      */
     createCommentThread: (issueId: string, depth = 3) => {
-        const comments: any[] = [];
+        const comments: Record<string, unknown>[] = [];
         let parentId: string | undefined;
         
         for (let i = 0; i < depth; i++) {
@@ -478,7 +478,7 @@ export const commentPermissionHelpers = {
     /**
      * Test comment voting permissions
      */
-    canUserVoteOnComment: (userId: string, comment: any) => {
+    canUserVoteOnComment: (userId: string, comment: Record<string, unknown>) => {
         // Cannot vote on own comments
         if (comment.owner?.id === userId) {
             return false;

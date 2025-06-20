@@ -1,10 +1,33 @@
+import { ResourceType } from "../../../api/types.js";
 import { BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "../../../run/enums.js";
-import { type RunProgress } from "../../../run/types.js";
+import { type BranchProgress, type RunProgress } from "../../../run/types.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
 // Constants to avoid magic numbers
+const ONE_SECOND_MS = 1000;
+const TWO_SECONDS_MS = 2000;
 const FIVE_SECONDS_MS = 5000;
+const TEN_SECONDS_MS = 10000;
+const THIRTY_MINUTES_MS = 1800000; // 30 minutes in milliseconds
+
+// Credit amounts for testing
+const CREDITS_SMALL = "50";
+const CREDITS_MEDIUM = "100";
+const CREDITS_LARGE = "200";
+const CREDITS_XLARGE = "250";
+const CREDITS_TEST_AMOUNT = "500";
+const CREDITS_HIGH_LIMIT = "1000";
+const CREDITS_MAX_LIMIT = "5000";
+
+// Step and processing limits
+const STEPS_MEDIUM = 500;
+const STEPS_HIGH = 1000;
+const LOOP_DELAY_MS = 5000;
+const LOOP_DELAY_SHORT_MS = 100;
+
+// Multiplier for credit calculation
+const CREDITS_PER_BRANCH = 100;
 
 /**
  * Run configuration fixtures for testing run execution settings and progress
@@ -54,6 +77,9 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 creditsSpent: "0",
                 locationStack: [{
                     locationId: "node_1",
+                    objectId: "routine_123",
+                    objectType: ResourceType.Routine,
+                    subroutineId: null,
                 }],
                 manualExecutionConfirmed: false,
                 nodeStartTimeMs: Date.now(),
@@ -61,16 +87,28 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 status: BranchStatus.Active,
                 stepId: null,
                 subroutineInstanceId: "sub_instance_1",
+                supportsParallelExecution: false,
             },
             {
                 branchId: "branch_2",
                 childSubroutineInstanceId: "sub_child_1",
-                closedLocations: [{ locationId: "node_1" }],
-                creditsSpent: "100",
+                closedLocations: [{
+                    locationId: "node_1",
+                    objectId: "routine_123",
+                    objectType: ResourceType.Routine,
+                    subroutineId: null,
+                }],
+                creditsSpent: CREDITS_MEDIUM,
                 locationStack: [{
                     locationId: "node_1",
+                    objectId: "routine_123",
+                    objectType: ResourceType.Routine,
+                    subroutineId: null,
                 }, {
                     locationId: "node_2",
+                    objectId: "routine_123",
+                    objectType: ResourceType.Routine,
+                    subroutineId: "sub_456",
                 }],
                 manualExecutionConfirmed: true,
                 nodeStartTimeMs: Date.now() - FIVE_SECONDS_MS,
@@ -78,11 +116,13 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 status: BranchStatus.Waiting,
                 stepId: "step_1",
                 subroutineInstanceId: "sub_instance_2",
+                supportsParallelExecution: false,
             },
         ],
         config: {
             botConfig: {
-                model: "gpt-4" as any, // LlmModel type
+                // @ts-expect-error - Intentionally invalid type for testing
+                model: "gpt-4", // LlmModel type
                 modelHandling: "OnlyWhenMissing",
             },
             decisionConfig: {
@@ -94,7 +134,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 maxTime: 3600000, // 1 hour
             },
             loopConfig: {
-                loopDelayMs: 100,
+                loopDelayMs: LOOP_DELAY_SHORT_MS,
                 loopDelayMultiplier: 1.5,
             },
             onBranchFailure: "Continue",
@@ -105,22 +145,14 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         },
         decisions: [
             {
-                id: "decision_1",
-                branchId: "branch_1",
-                nodeId: "node_1",
-                type: "PathSelection",
-                status: "Resolved",
-                question: "Which path to take?",
-                options: [
-                    { nodeId: "node_option_a" },
-                    { nodeId: "node_option_b" },
-                ],
-                selectedOption: { nodeId: "node_option_a" },
-                timestamp: "2024-01-01T00:00:00Z",
+                __type: "Resolved" as const,
+                key: "decision_branch_1_node_1",
+                decisionType: "chooseOne" as const,
+                result: "node_option_a",
             },
         ],
         metrics: {
-            creditsSpent: "1000",
+            creditsSpent: CREDITS_HIGH_LIMIT,
         },
         subcontexts: {
             "sub_1": {
@@ -142,7 +174,7 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 },
                 triggeredBoundaryEventIds: [],
                 nodeStartTimes: {
-                    "node_1": Date.now() - 10000,
+                    "node_1": Date.now() - TEN_SECONDS_MS,
                 },
                 runtimeEvents: {
                     messages: [],
@@ -207,9 +239,20 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         invalidVersion: {
             __version: "0.1", // Invalid version
             branches: [],
-            config: {},
+            config: {
+                botConfig: {},
+                decisionConfig: {
+                    inputGeneration: InputGenerationStrategy.Auto,
+                    pathSelection: PathSelectionStrategy.AutoPickFirst,
+                    subroutineExecution: SubroutineExecutionStrategy.Auto,
+                },
+                limits: {},
+                loopConfig: {},
+            },
             decisions: [],
-            metrics: {},
+            metrics: {
+                creditsSpent: "0",
+            },
             subcontexts: {},
         },
         malformedStructure: {
@@ -220,17 +263,37 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             branches: [{
-                id: 123, // Should be string
+                branchId: "branch_invalid",
+                childSubroutineInstanceId: null,
+                closedLocations: [],
+                creditsSpent: "0",
+                locationStack: [],
+                manualExecutionConfirmed: false,
+                nodeStartTimeMs: Date.now(),
+                processId: "process_invalid",
+                // @ts-expect-error - Intentionally invalid enum value for testing
                 status: "Invalid", // Invalid enum value
-                nodeId: true, // Should be string
+                stepId: null,
+                subroutineInstanceId: "sub_invalid",
+                supportsParallelExecution: false,
             }],
             config: {
-                testMode: "yes", // Should be boolean
-                limits: {
-                    maxRunTime: "1 hour", // Should be number
+                botConfig: {},
+                decisionConfig: {
+                    inputGeneration: InputGenerationStrategy.Auto,
+                    pathSelection: PathSelectionStrategy.AutoPickFirst,
+                    subroutineExecution: SubroutineExecutionStrategy.Auto,
                 },
+                limits: {
+                    // @ts-expect-error - Intentionally invalid type for testing
+                    maxTime: "1 hour", // Should be number
+                },
+                loopConfig: {},
+                // @ts-expect-error - Intentionally invalid type for testing
+                testMode: "yes", // Should be boolean
             },
             metrics: {
+                // @ts-expect-error - Intentionally invalid type for testing
                 creditsSpent: 1000, // Should be string
             },
         },
@@ -242,26 +305,29 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             branches: [],
             config: {
                 botConfig: {
-                    model: "gpt-4-turbo",
-                    maxTokens: 4096,
+                    model: {
+                        name: "model.gpt4turbo" as any, // Intentionally invalid translation key for testing
+                        value: "gpt-4-turbo",
+                    },
+                    modelHandling: "Override",
                 },
                 decisionConfig: {
                     inputGeneration: InputGenerationStrategy.Auto,
-                    pathSelection: PathSelectionStrategy.AutoPickBest,
+                    pathSelection: PathSelectionStrategy.AutoPickLLM,
                     subroutineExecution: SubroutineExecutionStrategy.Auto,
                 },
                 limits: {
-                    maxRunTime: 1800000, // 30 minutes
-                    maxDecisions: 50,
-                    maxComplexity: 500,
+                    maxTime: THIRTY_MINUTES_MS,
+                    maxCredits: CREDITS_MAX_LIMIT,
+                    maxSteps: STEPS_MEDIUM,
                 },
                 loopConfig: {
-                    maxIterations: 5,
-                    detectInfiniteLoops: true,
+                    loopDelayMs: LOOP_DELAY_MS,
+                    loopDelayMultiplier: 2,
                 },
                 onBranchFailure: "Continue",
                 onGatewayForkFailure: "Fail",
-                onNormalNodeFailure: "Retry",
+                onNormalNodeFailure: "Fail",
                 onOnlyWaitingBranches: "Continue",
                 testMode: false,
             },
@@ -278,16 +344,16 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             config: {
                 botConfig: {},
                 decisionConfig: {
-                    inputGeneration: InputGenerationStrategy.ManualPrompt,
-                    pathSelection: PathSelectionStrategy.ManualPrompt,
-                    subroutineExecution: SubroutineExecutionStrategy.ManualPrompt,
+                    inputGeneration: InputGenerationStrategy.Manual,
+                    pathSelection: PathSelectionStrategy.ManualPick,
+                    subroutineExecution: SubroutineExecutionStrategy.Manual,
                 },
                 limits: {},
                 loopConfig: {},
-                onBranchFailure: "Prompt",
-                onGatewayForkFailure: "Prompt",
-                onNormalNodeFailure: "Prompt",
-                onOnlyWaitingBranches: "Prompt",
+                onBranchFailure: "Stop",
+                onGatewayForkFailure: "Fail",
+                onNormalNodeFailure: "Fail",
+                onOnlyWaitingBranches: "Continue",
                 testMode: true,
             },
             decisions: [],
@@ -302,33 +368,60 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             branches: [
                 {
                     branchId: "branch_main",
+                    childSubroutineInstanceId: null,
+                    closedLocations: [],
+                    creditsSpent: "0",
+                    locationStack: [{
+                        locationId: "node_start",
+                        objectId: "routine_123",
+                        objectType: ResourceType.Routine,
+                        subroutineId: null,
+                    }],
+                    manualExecutionConfirmed: false,
+                    nodeStartTimeMs: Date.now(),
+                    processId: "process_main",
                     status: BranchStatus.Active,
-                    nodeId: "node_start",
-                    depth: 0,
-                    parentId: null,
-                    data: { initialized: true },
-                    outputs: {},
-                    errors: [],
+                    stepId: null,
+                    subroutineInstanceId: "sub_main",
+                    supportsParallelExecution: true,
                 },
                 {
                     branchId: "branch_parallel_1",
+                    childSubroutineInstanceId: null,
+                    closedLocations: [],
+                    creditsSpent: CREDITS_SMALL,
+                    locationStack: [{
+                        locationId: "node_task_1",
+                        objectId: "routine_123",
+                        objectType: ResourceType.Routine,
+                        subroutineId: "sub_task_1",
+                    }],
+                    manualExecutionConfirmed: false,
+                    nodeStartTimeMs: Date.now() - ONE_SECOND_MS,
+                    processId: "process_main",
                     status: BranchStatus.Active,
-                    nodeId: "node_task_1",
-                    depth: 1,
-                    parentId: "branch_main",
-                    data: { taskType: "process" },
-                    outputs: {},
-                    errors: [],
+                    stepId: "step_1",
+                    subroutineInstanceId: "sub_parallel_1",
+                    supportsParallelExecution: true,
                 },
                 {
                     branchId: "branch_parallel_2",
+                    childSubroutineInstanceId: null,
+                    closedLocations: [],
+                    creditsSpent: "75",
+                    locationStack: [{
+                        locationId: "node_task_2",
+                        objectId: "routine_123",
+                        objectType: ResourceType.Routine,
+                        subroutineId: "sub_task_2",
+                    }],
+                    manualExecutionConfirmed: false,
+                    nodeStartTimeMs: Date.now() - TWO_SECONDS_MS,
+                    processId: "process_main",
                     status: BranchStatus.Active,
-                    nodeId: "node_task_2",
-                    depth: 1,
-                    parentId: "branch_main",
-                    data: { taskType: "validate" },
-                    outputs: {},
-                    errors: [],
+                    stepId: "step_2",
+                    subroutineInstanceId: "sub_parallel_2",
+                    supportsParallelExecution: true,
                 },
             ],
             config: {
@@ -342,13 +435,13 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 loopConfig: {},
                 onBranchFailure: "Continue",
                 onGatewayForkFailure: "Fail",
-                onNormalNodeFailure: "Retry",
+                onNormalNodeFailure: "Fail",
                 onOnlyWaitingBranches: "Continue",
                 testMode: false,
             },
             decisions: [],
             metrics: {
-                creditsSpent: "500",
+                creditsSpent: CREDITS_TEST_AMOUNT,
             },
             subcontexts: {},
         },
@@ -357,19 +450,28 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             branches: [{
                 branchId: "branch_1",
+                childSubroutineInstanceId: null,
+                closedLocations: [],
+                creditsSpent: CREDITS_LARGE,
+                locationStack: [{
+                    locationId: "node_1",
+                    objectId: "routine_123",
+                    objectType: ResourceType.Routine,
+                    subroutineId: null,
+                }],
+                manualExecutionConfirmed: true,
+                nodeStartTimeMs: Date.now() - TEN_SECONDS_MS,
+                processId: "process_1",
                 status: BranchStatus.Completed,
-                nodeId: "node_1",
-                depth: 0,
-                parentId: null,
-                data: {},
-                outputs: { decision: "A" },
-                errors: [],
+                stepId: "step_1",
+                subroutineInstanceId: "sub_instance_1",
+                supportsParallelExecution: false,
             }],
             config: {
                 botConfig: {},
                 decisionConfig: {
-                    inputGeneration: InputGenerationStrategy.ManualPrompt,
-                    pathSelection: PathSelectionStrategy.ManualPrompt,
+                    inputGeneration: InputGenerationStrategy.Manual,
+                    pathSelection: PathSelectionStrategy.ManualPick,
                     subroutineExecution: SubroutineExecutionStrategy.Auto,
                 },
                 limits: {},
@@ -382,30 +484,20 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             },
             decisions: [
                 {
-                    id: "decision_1",
-                    branchId: "branch_1",
-                    nodeId: "node_1",
-                    type: "PathSelection",
-                    status: "Resolved",
-                    question: "Select path A or B?",
-                    options: ["Path A", "Path B"],
-                    selectedOption: "Path A",
-                    timestamp: "2024-01-01T10:00:00Z",
+                    __type: "Resolved" as const,
+                    key: "decision_branch_1_node_1",
+                    decisionType: "chooseOne" as const,
+                    result: "path_a",
                 },
                 {
-                    id: "decision_2",
-                    branchId: "branch_1",
-                    nodeId: "node_2",
-                    type: "InputGeneration",
-                    status: "Resolved",
-                    question: "Enter required input",
-                    options: [],
-                    selectedOption: "{\"value\": \"test input\"}",
-                    timestamp: "2024-01-01T10:05:00Z",
+                    __type: "Resolved" as const,
+                    key: "decision_branch_1_node_2",
+                    decisionType: "chooseOne" as const,
+                    result: "input_option_1",
                 },
             ],
             metrics: {
-                creditsSpent: "250",
+                creditsSpent: CREDITS_XLARGE,
             },
             subcontexts: {},
         },
@@ -415,24 +507,22 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             branches: [
                 {
                     branchId: "branch_failed",
+                    childSubroutineInstanceId: null,
+                    closedLocations: [],
+                    creditsSpent: "150",
+                    locationStack: [{
+                        locationId: "node_error",
+                        objectId: "routine_123",
+                        objectType: ResourceType.Routine,
+                        subroutineId: "sub_error",
+                    }],
+                    manualExecutionConfirmed: false,
+                    nodeStartTimeMs: Date.now() - FIVE_SECONDS_MS,
+                    processId: "process_error",
                     status: BranchStatus.Failed,
-                    nodeId: "node_error",
-                    depth: 0,
-                    parentId: null,
-                    data: {},
-                    outputs: {},
-                    errors: [
-                        {
-                            message: "Network timeout",
-                            code: "NETWORK_ERROR",
-                            timestamp: "2024-01-01T12:00:00Z",
-                        },
-                        {
-                            message: "Retry failed",
-                            code: "RETRY_EXHAUSTED",
-                            timestamp: "2024-01-01T12:01:00Z",
-                        },
-                    ],
+                    stepId: "step_error",
+                    subroutineInstanceId: "sub_instance_error",
+                    supportsParallelExecution: false,
                 },
             ],
             config: {
@@ -443,18 +533,18 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                     subroutineExecution: SubroutineExecutionStrategy.Auto,
                 },
                 limits: {
-                    maxRetries: 3,
+                    maxSteps: STEPS_HIGH,
                 },
                 loopConfig: {},
                 onBranchFailure: "Stop",
                 onGatewayForkFailure: "Fail",
-                onNormalNodeFailure: "Retry",
+                onNormalNodeFailure: "Fail",
                 onOnlyWaitingBranches: "Continue",
                 testMode: false,
             },
             decisions: [],
             metrics: {
-                creditsSpent: "100",
+                creditsSpent: CREDITS_MEDIUM,
             },
             subcontexts: {},
         },
@@ -483,34 +573,98 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             },
             subcontexts: {
                 "sub_process_1": {
-                    data: {
+                    currentTask: {
+                        name: "Process Data",
+                        description: "Process raw input data",
+                        instructions: "Apply transformation rules to input",
+                    },
+                    allInputsList: [
+                        { key: "input", value: "raw data" },
+                        { key: "processedAt", value: "2024-01-01T15:00:00Z" },
+                    ],
+                    allInputsMap: {
                         input: "raw data",
                         processedAt: "2024-01-01T15:00:00Z",
                     },
-                    outputs: {
+                    allOutputsList: [
+                        { key: "result", value: "processed" },
+                        { key: "count", value: 42 },
+                    ],
+                    allOutputsMap: {
                         result: "processed",
                         count: 42,
                     },
+                    triggeredBoundaryEventIds: [],
+                    nodeStartTimes: {},
+                    runtimeEvents: {
+                        messages: [],
+                        signals: [],
+                        errors: [],
+                        escalations: [],
+                    },
+                    timeZone: "UTC",
                 },
                 "sub_validate_1": {
-                    data: {
+                    currentTask: {
+                        name: "Validate Data",
+                        description: "Validate processed data against rules",
+                    },
+                    allInputsList: [
+                        { key: "target", value: "processed data" },
+                        { key: "rules", value: ["rule1", "rule2"] },
+                    ],
+                    allInputsMap: {
                         target: "processed data",
                         rules: ["rule1", "rule2"],
                     },
-                    outputs: {
+                    allOutputsList: [
+                        { key: "valid", value: true },
+                        { key: "errors", value: [] },
+                    ],
+                    allOutputsMap: {
                         valid: true,
                         errors: [],
                     },
+                    triggeredBoundaryEventIds: [],
+                    nodeStartTimes: {},
+                    runtimeEvents: {
+                        messages: [],
+                        signals: [],
+                        errors: [],
+                        escalations: [],
+                    },
+                    timeZone: "UTC",
                 },
                 "sub_transform_1": {
-                    data: {
+                    currentTask: {
+                        name: "Transform Data",
+                        description: "Transform validated data to final format",
+                    },
+                    allInputsList: [
+                        { key: "source", value: "validated data" },
+                        { key: "format", value: "json" },
+                    ],
+                    allInputsMap: {
                         source: "validated data",
                         format: "json",
                     },
-                    outputs: {
+                    allOutputsList: [
+                        { key: "transformed", value: { key: "value" } },
+                        { key: "metadata", value: { size: 1024 } },
+                    ],
+                    allOutputsMap: {
                         transformed: { key: "value" },
                         metadata: { size: 1024 },
                     },
+                    triggeredBoundaryEventIds: [],
+                    nodeStartTimes: {},
+                    runtimeEvents: {
+                        messages: [],
+                        signals: [],
+                        errors: [],
+                        escalations: [],
+                    },
+                    timeZone: "UTC",
                 },
             },
         },
@@ -549,23 +703,32 @@ export function createRunConfigWithStrategies(
  */
 export function createRunConfigWithBranches(
     branchCount: number,
-    status: BranchStatus.Active | "Waiting" | "Completed" | "Failed" = "Active",
+    status: BranchStatus = BranchStatus.Active,
 ): RunProgressConfigObject {
-    const branches = Array.from({ length: branchCount }, (_, i) => ({
-        id: `branch_${i + 1}`,
+    const branches: BranchProgress[] = Array.from({ length: branchCount }, (_, i) => ({
+        branchId: `branch_${i + 1}`,
+        childSubroutineInstanceId: null,
+        closedLocations: [],
+        creditsSpent: "0",
+        locationStack: [{
+            locationId: `node_${i + 1}`,
+            objectId: "routine_123",
+            objectType: ResourceType.Routine,
+            subroutineId: null,
+        }],
+        manualExecutionConfirmed: false,
+        nodeStartTimeMs: Date.now(),
+        processId: `process_${i + 1}`,
         status,
-        nodeId: `node_${i + 1}`,
-        depth: Math.floor(i / 2),
-        parentId: i > 0 ? `branch_${Math.floor((i - 1) / 2) + 1}` : null,
-        data: {},
-        outputs: {},
-        errors: [],
+        stepId: null,
+        subroutineInstanceId: `sub_instance_${i + 1}`,
+        supportsParallelExecution: false,
     }));
 
     return mergeWithBaseDefaults<RunProgressConfigObject>({
         branches,
         metrics: {
-            creditsSpent: (branchCount * 100).toString(),
+            creditsSpent: (branchCount * CREDITS_PER_BRANCH).toString(),
         },
     });
 }

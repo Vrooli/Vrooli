@@ -178,7 +178,7 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
     /**
      * Create test context for permission checking
      */
-    createTestContext(session: TSession, additionalContext?: Record<string, any>): PermissionContext {
+    createTestContext(session: TSession, additionalContext?: Record<string, unknown>): PermissionContext {
         return {
             session,
             context: additionalContext,

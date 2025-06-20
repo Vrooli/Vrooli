@@ -4,6 +4,14 @@
  * organization, and comprehensive test coverage
  */
 
+// Re-export types from Prisma for convenience
+export type { Prisma, PrismaClient } from "@prisma/client";
+
+/**
+ * Generic database result type
+ */
+export type DbResult<T = any> = T & { id: string };
+
 /**
  * Standard structure for database test fixtures
  * Provides consistent categories across all model fixtures
@@ -217,3 +225,98 @@ export type ExtractCreateInput<T> = T extends { create: (args: { data: infer U }
  * Utility type for extracting update input from Prisma models
  */
 export type ExtractUpdateInput<T> = T extends { update: (args: { data: infer U }) => any } ? U : never;
+
+/**
+ * Relationship configuration for database fixtures
+ */
+export interface RelationConfig {
+    /** Field overrides for the main record */
+    overrides?: Record<string, any>;
+    /** Additional relationship-specific configurations */
+    [key: string]: any;
+}
+
+/**
+ * Relationship connections for existing records
+ */
+export interface RelationConnections {
+    [key: string]: { id: string } | Array<{ id: string }>;
+}
+
+/**
+ * Expected relationship counts for verification
+ */
+export interface RelationCounts {
+    [key: string]: number;
+}
+
+/**
+ * Test scenario configuration
+ */
+export interface TestScenario {
+    /** Scenario name */
+    name: string;
+    /** Optional description */
+    description?: string;
+    /** Scenario configuration */
+    config: Record<string, any>;
+}
+
+/**
+ * Result of scenario execution
+ */
+export interface ScenarioResult {
+    /** ID of the main record created */
+    id: string;
+    /** Scenario name */
+    scenario: string;
+    /** IDs of related records created */
+    relatedIds: Record<string, string[]>;
+}
+
+/**
+ * Database constraint validation result
+ */
+export interface ConstraintValidation {
+    /** Whether all constraints are valid */
+    valid: boolean;
+    /** List of constraint violations */
+    violations: string[];
+}
+
+/**
+ * Base factory interface that all database fixtures implement
+ */
+export interface DatabaseFixtureFactory<TPrismaCreateInput, TPrismaInclude> {
+    // Core factory methods
+    createMinimal: (overrides?: Partial<TPrismaCreateInput>) => Promise<DbResult>;
+    createComplete: (overrides?: Partial<TPrismaCreateInput>) => Promise<DbResult>;
+    createWithRelations: (config: RelationConfig) => Promise<DbResult>;
+    
+    // Bulk operations
+    seedMultiple: (count: number, template?: Partial<TPrismaCreateInput>) => Promise<DbResult[]>;
+    seedScenario: (scenario: TestScenario | string) => Promise<ScenarioResult>;
+    
+    // Relationship management
+    setupRelationships: (parentId: string, config: RelationConfig) => Promise<void>;
+    connectExisting: (id: string, relations: RelationConnections) => Promise<void>;
+    
+    // Verification utilities
+    verifyState: (id: string, expected: Partial<DbResult>) => Promise<void>;
+    verifyRelationships: (id: string, expectedCounts: RelationCounts) => Promise<void>;
+    verifyConstraints: (id: string) => Promise<ConstraintValidation>;
+    
+    // Cleanup utilities
+    cleanup: (ids: string[]) => Promise<void>;
+    cleanupAll: () => Promise<void>;
+    cleanupRelated: (id: string, options?: { depth?: number; include?: string[] }) => Promise<void>;
+    
+    // Factory methods
+    createFactory: (defaults?: Partial<TPrismaCreateInput>) => (overrides?: Partial<TPrismaCreateInput>) => Promise<DbResult>;
+    validateCreate: (input: TPrismaCreateInput) => Promise<{ valid: boolean; errors: string[] }>;
+    
+    // Utility methods
+    getCreatedIds: () => string[];
+    clearTracking: () => void;
+    getAvailableScenarios: () => string[];
+}

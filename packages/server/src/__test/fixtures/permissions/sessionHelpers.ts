@@ -125,7 +125,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Expect a permission to be denied
      */
     expectPermissionDenied: async (
-        fn: () => Promise<any>,
+        fn: () => Promise<unknown>,
         expectedError?: string | RegExp,
     ): Promise<void> => {
         try {
@@ -151,7 +151,7 @@ export const testHelpers: PermissionTestHelpers = {
     /**
      * Expect a permission to be granted
      */
-    expectPermissionGranted: async (fn: () => Promise<any>): Promise<void> => {
+    expectPermissionGranted: async (fn: () => Promise<unknown>): Promise<void> => {
         try {
             const result = await fn();
             expect(result).toBeDefined();
@@ -164,7 +164,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test a permission matrix
      */
     testPermissionMatrix: async (
-        testFn: (session: any) => Promise<any>,
+        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
         matrix: PermissionMatrix,
     ): Promise<void> => {
         const personas = {
@@ -203,7 +203,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test permission changes
      */
     testPermissionChange: async (
-        testFn: (session: any) => Promise<any>,
+        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
         before: AuthenticatedSessionData,
         after: AuthenticatedSessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean },
@@ -239,8 +239,8 @@ export const testHelpers: PermissionTestHelpers = {
      * Test bulk permissions
      */
     testBulkPermissions: async (
-        operations: Array<{ name: string; fn: (session: any) => Promise<any> }>,
-        sessions: Array<{ name: string; session: any; isApiKey?: boolean }>,
+        operations: Array<{ name: string; fn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        sessions: Array<{ name: string; session: AuthenticatedSessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>,
     ): Promise<void> => {
         for (const operation of operations) {
@@ -292,7 +292,7 @@ export async function checkPermission(
 export async function checkAccess(
     session: AuthenticatedSessionData | ApiKeyAuthData,
     action: string,
-    resource: any,
+    resource: Record<string, unknown>,
 ): Promise<boolean> {
     return validator.canAccess(session, action, resource);
 }
@@ -302,7 +302,7 @@ export async function checkAccess(
  */
 export function createPermissionContext(
     session: AuthenticatedSessionData | ApiKeyAuthData,
-    additionalContext?: Record<string, any>,
+    additionalContext?: Record<string, unknown>,
 ) {
     return {
         session,

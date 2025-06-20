@@ -6,6 +6,9 @@ import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixt
 const TEST_NUMBER_FIVE = 5;
 const TEST_SUM_NUMBERS = [1, 2, 3, 4, TEST_NUMBER_FIVE];
 const TEST_SUM_RESULT = 15;
+const TEST_RETURN_VALUE = 42;
+const TEST_INVALID_NUMBER = 123;
+const TEST_OUTPUT_TEN = 10;
 
 /**
  * Code configuration fixtures for testing code execution and validation
@@ -105,7 +108,7 @@ function processData(input) {
     invalid: {
         missingVersion: {
             // Missing __version
-            content: "function test() { return 42; }",
+            content: `function test() { return ${TEST_RETURN_VALUE}; }`,
             inputConfig: {
                 inputSchema: { type: "null" },
                 shouldSpread: false,
@@ -113,11 +116,11 @@ function processData(input) {
         },
         invalidVersion: {
             __version: "0.5", // Invalid version
-            content: "function test() { return 42; }",
+            content: `function test() { return ${TEST_RETURN_VALUE}; }`,
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
-            content: 123, // Wrong type - should be string
+            content: TEST_INVALID_NUMBER as any, // Wrong type - should be string
             inputConfig: "not an object", // Wrong type
         },
         invalidTypes: {
@@ -143,7 +146,7 @@ function processData(input) {
                 {
                     description: "Double positive number",
                     input: 5,
-                    expectedOutput: 10,
+                    expectedOutput: TEST_OUTPUT_TEN,
                 },
                 {
                     description: "Double negative number",

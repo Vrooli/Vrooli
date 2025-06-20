@@ -2,6 +2,10 @@ import { type ChatMessageRunConfig, type MessageConfigObject, type ToolFunctionC
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
+// Constants for random ID generation
+const RADIX_BASE_36 = 36;
+const RANDOM_ID_LENGTH = 9;
+
 /**
  * Message configuration fixtures for testing chat message metadata and tool usage
  */
@@ -84,18 +88,20 @@ export const messageConfigFixtures: ConfigTestFixtures<MessageConfigObject> = {
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
-            turnId: "not a number" as any, // Should be number or null
-            role: "admin" as any, // Invalid role
+            // @ts-expect-error - Intentionally invalid type for testing
+            turnId: "not a number", // Should be number or null
+            // @ts-expect-error - Intentionally invalid type for testing
+            role: "admin", // Invalid role
             toolCalls: [
                 {
                     // Missing required fields
                     id: "missing_args",
                     function: {
                         name: "test",
-                        // Missing arguments
-                    } as any,
+                        arguments: "", // Empty arguments for invalid test case
+                    },
                 },
-            ] as any,
+            ],
         },
     },
 
@@ -256,7 +262,7 @@ export function createSuccessfulToolCall(
     output: unknown,
 ): ToolFunctionCall {
     return {
-        id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `call_${Date.now()}_${Math.random().toString(RADIX_BASE_36).substr(2, RANDOM_ID_LENGTH)}`,
         function: {
             name: functionName,
             arguments: JSON.stringify(args),
@@ -268,8 +274,7 @@ export function createSuccessfulToolCall(
     };
 }
 
-// Constants
-const RANDOM_ID_LENGTH = 9;
+// Constants - using already declared RANDOM_ID_LENGTH from top of file
 
 /**
  * Create a failed tool call result
@@ -281,7 +286,7 @@ export function createFailedToolCall(
     errorMessage: string,
 ): ToolFunctionCall {
     return {
-        id: `call_${Date.now()}_${Math.random().toString(36).substr(2, RANDOM_ID_LENGTH)}`,
+        id: `call_${Date.now()}_${Math.random().toString(RADIX_BASE_36).substr(2, RANDOM_ID_LENGTH)}`,
         function: {
             name: functionName,
             arguments: JSON.stringify(args),

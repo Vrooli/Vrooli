@@ -107,10 +107,13 @@ export const standardConfigFixtures: ConfigTestFixtures<StandardVersionConfigObj
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             validation: {
+                // @ts-expect-error - Intentionally invalid type for testing
                 strictMode: "yes", // Should be boolean
+                // @ts-expect-error - Intentionally invalid type for testing
                 rules: "not an object", // Should be object
             },
             compliance: {
+                // @ts-expect-error - Intentionally invalid type for testing
                 certifications: "not an array", // Should be array
             },
         },
@@ -362,7 +365,7 @@ export function createStandardConfigForSubType(
             },
             schemaLanguage: "json-schema",
         },
-        [ResourceSubType.StandardPromise]: {
+        [ResourceSubType.StandardPrompt]: {
             format: {
                 defaultFormat: "markdown",
             },
@@ -371,19 +374,36 @@ export function createStandardConfigForSubType(
                 trackingEnabled: true,
             },
         },
-        [ResourceSubType.StandardContractDelivery]: {
-            validation: {
-                strictMode: true,
-                rules: {
-                    validateDeliverables: true,
-                    validateTimeline: true,
-                },
-            },
-            compliance: {
-                compliesWith: ["Contract-Law-Standards"],
-            },
+        // Routine types
+        [ResourceSubType.RoutineInternalAction]: {
+            format: { defaultFormat: "json" },
         },
-        [ResourceSubType.StandardApiContract]: {
+        [ResourceSubType.RoutineCode]: {
+            format: { defaultFormat: "javascript" },
+        },
+        [ResourceSubType.RoutineData]: {
+            validation: { strictMode: false },
+        },
+        [ResourceSubType.RoutineGenerate]: {
+            format: { defaultFormat: "template" },
+        },
+        [ResourceSubType.RoutineInformational]: {
+            format: { defaultFormat: "markdown" },
+        },
+        [ResourceSubType.RoutineMultiStep]: {
+            format: { defaultFormat: "bpmn" },
+        },
+        [ResourceSubType.RoutineSmartContract]: {
+            format: { defaultFormat: "solidity" },
+        },
+        [ResourceSubType.RoutineWeb]: {
+            format: { defaultFormat: "html" },
+        },
+        // Code types
+        [ResourceSubType.CodeSmartContract]: {
+            format: { defaultFormat: "solidity" },
+        },
+        [ResourceSubType.RoutineApi]: {
             format: {
                 defaultFormat: "openapi",
                 options: {
@@ -392,18 +412,7 @@ export function createStandardConfigForSubType(
             },
             schemaLanguage: "openapi",
         },
-        [ResourceSubType.StandardForm]: {
-            validation: {
-                strictMode: false,
-                rules: {
-                    clientSideValidation: true,
-                },
-            },
-            props: {
-                formType: "dynamic",
-            },
-        },
-        [ResourceSubType.StandardWidget]: {
+        [ResourceSubType.CodeDataConverter]: {
             props: {
                 widgetType: "component",
                 reactive: true,

@@ -8,7 +8,7 @@ import { generatePK, DUMMY_ID } from "@vrooli/shared";
 import { ObjectPermissionFactory } from "../factories/ObjectPermissionFactory.js";
 
 // Minimal bookmark object for testing
-function createMinimalBookmark(overrides: any = {}) {
+function createMinimalBookmark(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Bookmark",
         id: generatePK(),
@@ -25,7 +25,7 @@ function createMinimalBookmark(overrides: any = {}) {
 }
 
 // Complete bookmark object for testing
-function createCompleteBookmark(overrides: any = {}) {
+function createCompleteBookmark(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Bookmark",
         id: generatePK(),
@@ -127,7 +127,7 @@ export const bookmarkScenarios = {
         actors: [
             {
                 id: "user",
-                session: { id: "222222222222222222" } as any,
+                session: { id: "222222222222222222" } as Record<string, unknown>,
                 permissions: {
                     read: false,
                     create: false, // Cannot bookmark private object they don't own
@@ -153,7 +153,7 @@ export const bookmarkScenarios = {
         actors: [
             {
                 id: "user",
-                session: { id: "222222222222222222" } as any,
+                session: { id: "222222222222222222" } as Record<string, unknown>,
                 permissions: {
                     read: false, // Cannot read other user's bookmark
                     create: false,
@@ -166,7 +166,7 @@ export const bookmarkScenarios = {
                 session: { 
                     id: "111111111111111111",
                     roles: [{ role: { name: "Admin", permissions: "[\"*\"]" } }],
-                } as any,
+                } as Record<string, unknown>,
                 permissions: {
                     read: true, // Admins can see all bookmarks
                     create: true,
@@ -211,7 +211,7 @@ export const bookmarkPermissionHelpers = {
     /**
      * Test if user can bookmark a specific object
      */
-    canUserBookmarkObject: (userId: string, targetObject: any) => {
+    canUserBookmarkObject: (userId: string, targetObject: Record<string, unknown>) => {
         // Public objects can be bookmarked by anyone
         if (targetObject.isPublic) {
             return true;
@@ -228,7 +228,7 @@ export const bookmarkPermissionHelpers = {
     /**
      * Test if user can access a bookmark
      */
-    canUserAccessBookmark: (userId: string, bookmark: any) => {
+    canUserAccessBookmark: (userId: string, bookmark: Record<string, unknown>) => {
         // Users can access bookmarks in their own lists
         if (bookmark.list?.owner?.id === userId) {
             return true;

@@ -1,6 +1,6 @@
 import type { ChatParticipantUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
-import { chatParticipantValidation } from "../../../validation/models/chatParticpant.js";
+import { chatParticipantValidation } from "../../../validation/models/chatParticipant.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {

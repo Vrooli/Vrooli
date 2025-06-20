@@ -6,7 +6,60 @@
 
 // Core fixture types and utilities
 export * from "./types.js";
-export { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+export { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+export { DatabaseFactoryRegistry, getFactoryRegistry, resetFactoryRegistry } from "./DatabaseFactoryRegistry.js";
+
+// Enhanced database factories - Core Objects
+export { UserDbFactory, createUserDbFactory } from "./UserDbFactory.js";
+export { TeamDbFactory, createTeamDbFactory } from "./TeamDbFactory.js";
+
+// Content Objects
+export { BookmarkDbFactory, createBookmarkDbFactory } from "./BookmarkDbFactory.js";
+export { BookmarkListDbFactory, createBookmarkListDbFactory } from "./BookmarkListDbFactory.js";
+export { CommentDbFactory, createCommentDbFactory } from "./CommentDbFactory.js";
+export { IssueDbFactory, createIssueDbFactory } from "./IssueDbFactory.js";
+export { TagDbFactory, createTagDbFactory } from "./TagDbFactory.js";
+
+// User Extension Objects
+export { AuthDbFactory, createAuthDbFactory } from "./AuthDbFactory.js";
+export { EmailDbFactory, createEmailDbFactory } from "./EmailDbFactory.js";
+export { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
+export { PaymentDbFactory, createPaymentDbFactory } from "./PaymentDbFactory.js";
+export { SessionDbFactory, createSessionDbFactory } from "./SessionDbFactory.js";
+
+// Communication Objects
+export { ChatDbFactory, createChatDbFactory } from "./ChatDbFactory.js";
+export { ChatInviteDbFactory, createChatInviteDbFactory } from "./ChatInviteDbFactory.js";
+export { ChatMessageDbFactory, createChatMessageDbFactory } from "./ChatMessageDbFactory.js";
+export { ChatParticipantDbFactory, createChatParticipantDbFactory } from "./ChatParticipantDbFactory.js";
+export { MeetingDbFactory, createMeetingDbFactory } from "./MeetingDbFactory.js";
+export { MeetingInviteDbFactory, createMeetingInviteDbFactory } from "./MeetingInviteDbFactory.js";
+export { NotificationDbFactory, createNotificationDbFactory } from "./NotificationDbFactory.js";
+
+// Interaction Objects
+export { ReactionDbFactory, createReactionDbFactory } from "./ReactionDbFactory.js";
+export { ReactionSummaryDbFactory, createReactionSummaryDbFactory } from "./ReactionSummaryDbFactory.js";
+export { ViewDbFactory, createViewDbFactory } from "./ViewDbFactory.js";
+export { ReportDbFactory, createReportDbFactory } from "./ReportDbFactory.js";
+export { ReportResponseDbFactory, createReportResponseDbFactory } from "./ReportResponseDbFactory.js";
+
+// Billing and Credit Objects
+export { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
+
+// Team Management Objects
+export { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
+
+// Version Control Objects
+export { PullRequestDbFactory, createPullRequestDbFactory } from "./PullRequestDbFactory.js";
+
+// Resource management factories
+export { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
+export { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
+export { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
+export { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
+export { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
+export { RoutineDbFactory, createRoutineDbFactory } from "./RoutineDbFactory.js";
+export { RoutineVersionDbFactory, createRoutineVersionDbFactory } from "./RoutineVersionDbFactory.js";
 
 export * from "./apiKeyFixtures.js";
 export * from "./apiKeyExternalFixtures.js";
@@ -49,6 +102,13 @@ export * from "./scheduleExceptionFixtures.js";
 export * from "./scheduleRecurrenceFixtures.js";
 export * from "./ScheduleExceptionDbFactory.js";
 export * from "./ScheduleRecurrenceDbFactory.js";
+
+// Schedule and Execution Objects
+export { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
+export { RunDbFactory, createRunDbFactory } from "./RunDbFactory.js";
+export { RunIODbFactory, createRunIODbFactory } from "./RunIODbFactory.js";
+export { RunStepDbFactory, createRunStepDbFactory } from "./RunStepDbFactory.js";
+export { ReminderDbFactory, createReminderDbFactory } from "./ReminderDbFactory.js";
 export * from "./sessionFixtures.js";
 export * from "./statsFixtures.js";
 export * from "./tagFixtures.js";
@@ -67,6 +127,38 @@ import {
     userDbIds
 } from "./userFixtures.js";
 
+import { BookmarkDbFactory, createBookmarkDbFactory } from "./BookmarkDbFactory.js";
+import { BookmarkListDbFactory, createBookmarkListDbFactory } from "./BookmarkListDbFactory.js";
+import { CommentDbFactory, createCommentDbFactory } from "./CommentDbFactory.js";
+import { IssueDbFactory, createIssueDbFactory } from "./IssueDbFactory.js";
+import { TagDbFactory, createTagDbFactory } from "./TagDbFactory.js";
+import { AuthDbFactory, createAuthDbFactory } from "./AuthDbFactory.js";
+import { EmailDbFactory, createEmailDbFactory } from "./EmailDbFactory.js";
+import { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
+import { PaymentDbFactory, createPaymentDbFactory } from "./PaymentDbFactory.js";
+import { SessionDbFactory, createSessionDbFactory } from "./SessionDbFactory.js";
+import { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
+import { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
+import { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
+import { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
+import { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
+import { RoutineDbFactory, createRoutineDbFactory } from "./RoutineDbFactory.js";
+import { RoutineVersionDbFactory, createRoutineVersionDbFactory } from "./RoutineVersionDbFactory.js";
+
+// Schedule and execution object imports
+import { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
+import { ScheduleExceptionDbFactory, createScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
+import { ScheduleRecurrenceEnhancedDbFactory, createScheduleRecurrenceEnhancedDbFactory } from "./ScheduleRecurrenceEnhancedDbFactory.js";
+import { RunDbFactory, createRunDbFactory } from "./RunDbFactory.js";
+import { RunIODbFactory, createRunIODbFactory } from "./RunIODbFactory.js";
+import { RunStepDbFactory, createRunStepDbFactory } from "./RunStepDbFactory.js";
+import { ReminderDbFactory, createReminderDbFactory, ReminderListDbFactory, createReminderListDbFactory } from "./ReminderDbFactory.js";
+
+// Import new factory classes
+import { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
+import { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
+import { PullRequestDbFactory, createPullRequestDbFactory } from "./PullRequestDbFactory.js";
+
 /**
  * Organized namespace exports for better developer experience
  * Usage: import { userDb } from "../fixtures/db";
@@ -77,6 +169,148 @@ export const userDb = {
     seed: seedTestUsers,
     createSession: createSessionUser,
     ids: userDbIds,
+};
+
+export const bookmarkDb = {
+    factory: BookmarkDbFactory,
+    create: createBookmarkDbFactory,
+};
+
+export const bookmarkListDb = {
+    factory: BookmarkListDbFactory,
+    create: createBookmarkListDbFactory,
+};
+
+export const commentDb = {
+    factory: CommentDbFactory,
+    create: createCommentDbFactory,
+};
+
+export const issueDb = {
+    factory: IssueDbFactory,
+    create: createIssueDbFactory,
+};
+
+export const tagDb = {
+    factory: TagDbFactory,
+    create: createTagDbFactory,
+};
+
+export const authDb = {
+    factory: AuthDbFactory,
+    create: createAuthDbFactory,
+};
+
+export const emailDb = {
+    factory: EmailDbFactory,
+    create: createEmailDbFactory,
+};
+
+export const phoneDb = {
+    factory: PhoneDbFactory,
+    create: createPhoneDbFactory,
+};
+
+export const paymentDb = {
+    factory: PaymentDbFactory,
+    create: createPaymentDbFactory,
+};
+
+export const sessionDb = {
+    factory: SessionDbFactory,
+    create: createSessionDbFactory,
+};
+
+export const resourceDb = {
+    factory: ResourceDbFactory,
+    create: createResourceDbFactory,
+};
+
+export const resourceVersionDb = {
+    factory: ResourceVersionDbFactory,
+    create: createResourceVersionDbFactory,
+};
+
+export const resourceVersionRelationDb = {
+    factory: ResourceVersionRelationDbFactory,
+    create: createResourceVersionRelationDbFactory,
+};
+
+export const projectDb = {
+    factory: ProjectDbFactory,
+    create: createProjectDbFactory,
+};
+
+export const projectVersionDb = {
+    factory: ProjectVersionDbFactory,
+    create: createProjectVersionDbFactory,
+};
+
+export const routineDb = {
+    factory: RoutineDbFactory,
+    create: createRoutineDbFactory,
+};
+
+export const routineVersionDb = {
+    factory: RoutineVersionDbFactory,
+    create: createRoutineVersionDbFactory,
+};
+
+// Schedule and execution object namespaces
+export const scheduleDb = {
+    factory: ScheduleDbFactory,
+    create: createScheduleDbFactory,
+};
+
+export const scheduleExceptionDb = {
+    factory: ScheduleExceptionDbFactory,
+    create: createScheduleExceptionDbFactory,
+};
+
+export const scheduleRecurrenceDb = {
+    factory: ScheduleRecurrenceEnhancedDbFactory,
+    create: createScheduleRecurrenceEnhancedDbFactory,
+};
+
+export const runDb = {
+    factory: RunDbFactory,
+    create: createRunDbFactory,
+};
+
+export const runIODb = {
+    factory: RunIODbFactory,
+    create: createRunIODbFactory,
+};
+
+export const runStepDb = {
+    factory: RunStepDbFactory,
+    create: createRunStepDbFactory,
+};
+
+export const reminderDb = {
+    factory: ReminderDbFactory,
+    create: createReminderDbFactory,
+};
+
+export const reminderListDb = {
+    factory: ReminderListDbFactory,
+    create: createReminderListDbFactory,
+};
+
+// New namespace exports
+export const creditAccountDb = {
+    factory: CreditAccountDbFactory,
+    create: createCreditAccountDbFactory,
+};
+
+export const memberDb = {
+    factory: MemberDbFactory,
+    create: createMemberDbFactory,
+};
+
+export const pullRequestDb = {
+    factory: PullRequestDbFactory,
+    create: createPullRequestDbFactory,
 };
 
 /**
@@ -96,7 +330,37 @@ export const dbFixtureUtils = {
     getEnhancedFactories(): Record<string, any> {
         return {
             user: UserDbFactory,
-            // Add more as they're enhanced
+            team: TeamDbFactory,
+            bookmark: BookmarkDbFactory,
+            bookmarkList: BookmarkListDbFactory,
+            comment: CommentDbFactory,
+            issue: IssueDbFactory,
+            tag: TagDbFactory,
+            auth: AuthDbFactory,
+            email: EmailDbFactory,
+            phone: PhoneDbFactory,
+            payment: PaymentDbFactory,
+            session: SessionDbFactory,
+            resource: ResourceDbFactory,
+            resourceVersion: ResourceVersionDbFactory,
+            resourceVersionRelation: ResourceVersionRelationDbFactory,
+            project: ProjectDbFactory,
+            projectVersion: ProjectVersionDbFactory,
+            routine: RoutineDbFactory,
+            routineVersion: RoutineVersionDbFactory,
+            // Schedule and execution objects
+            schedule: ScheduleDbFactory,
+            scheduleException: ScheduleExceptionDbFactory,
+            scheduleRecurrence: ScheduleRecurrenceEnhancedDbFactory,
+            run: RunDbFactory,
+            runIO: RunIODbFactory,
+            runStep: RunStepDbFactory,
+            reminder: ReminderDbFactory,
+            reminderList: ReminderListDbFactory,
+            // New factories
+            creditAccount: CreditAccountDbFactory,
+            member: MemberDbFactory,
+            pullRequest: PullRequestDbFactory,
         };
     },
 

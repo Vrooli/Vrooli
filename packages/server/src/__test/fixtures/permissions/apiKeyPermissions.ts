@@ -28,10 +28,10 @@ export interface ApiKeyFullAuthData {
 const baseApiKeyData = {
     csrfToken: "test-csrf-token",
     isLoggedIn: true,
-    languages: ["en"],
+    languages: ["en"] as string[],
     timeZone: "UTC",
     theme: "light",
-} as const;
+};
 
 /**
  * Read-only API key - can only read public data

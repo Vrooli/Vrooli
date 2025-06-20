@@ -58,7 +58,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: true,
-        } as any);
+        } as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_public_user_owned`,
@@ -78,7 +78,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: false,
-        } as any);
+        } as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_private_user_owned`,
@@ -102,7 +102,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             team: { id: teamId },
             isPublic: false,
-        } as any);
+        } as Partial<TObject>);
 
         const owner = this.userFactory.withTeam(
             this.userFactory.createSession({ id: "111111111111111111" }),
@@ -167,7 +167,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: userId },
             visibility: "Unlisted" as VisibilityType,
-        } as any);
+        } as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_unlisted`,
@@ -259,7 +259,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: true,
-        } as any);
+        } as Partial<TObject>);
 
         const readOnlyKey = this.apiKeyFactory.createReadOnlyPublic({ userId });
         const writeKey = this.apiKeyFactory.createWrite({ userId });
@@ -314,7 +314,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: "DELETED_USER_ID" },
             isPublic: true,
-        } as any);
+        } as Partial<TObject>);
 
         const admin = this.userFactory.createAdmin();
         const user = this.userFactory.createStandard();
@@ -354,7 +354,7 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
             __typename: this.config.objectType,
             owner: { id: suspendedUser.id },
             isPublic: false,
-        } as any);
+        } as Partial<TObject>);
 
         const admin = this.userFactory.createAdmin();
 

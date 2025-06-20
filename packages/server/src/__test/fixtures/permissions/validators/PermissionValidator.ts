@@ -71,7 +71,7 @@ export class PermissionValidator implements IPermissionValidator {
     canAccess(
         session: AuthenticatedSessionData | ApiKeyAuthData,
         action: string,
-        resource: any,
+        resource: Record<string, unknown>,
     ): boolean {
         // Basic permission check
         if (!this.hasPermission(session, `${resource.__typename?.toLowerCase()}.${action}`)) {
@@ -87,7 +87,7 @@ export class PermissionValidator implements IPermissionValidator {
 
             // Check team membership if resource is team-owned
             if (resource.team && session._testTeamMembership) {
-                const membership = session._testTeamMembership as any;
+                const membership = session._testTeamMembership as { teamId: string; role: string };
                 if (membership.teamId === resource.team.id) {
                     // Owners and admins can do anything
                     if (membership.role === "Owner" || membership.role === "Admin") {

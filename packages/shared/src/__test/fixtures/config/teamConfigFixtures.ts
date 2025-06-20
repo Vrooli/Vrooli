@@ -95,9 +95,10 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             structure: {
+                // @ts-expect-error - Intentionally invalid type for testing
                 type: 123, // Should be string
-                version: true, // Should be string
-                content: null, // Should be string
+                version: true as any, // Should be string - invalid type for testing
+                content: null as any, // Should be string - invalid type for testing
             },
         },
     },

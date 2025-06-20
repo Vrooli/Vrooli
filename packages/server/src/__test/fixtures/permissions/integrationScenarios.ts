@@ -303,13 +303,13 @@ export function generatePermissionTests(scenario: IntegrationScenario) {
     }> = [];
 
     for (const actor of scenario.actors) {
-        const outcome = scenario.expectedOutcomes[actor.role!];
+        const outcome = actor.role ? scenario.expectedOutcomes[actor.role] : undefined;
         if (!outcome) continue;
 
         tests.push(
-            { actor: actor.role!, action: "read", expected: outcome.canRead, reason: outcome.reason },
-            { actor: actor.role!, action: "write", expected: outcome.canWrite, reason: outcome.reason },
-            { actor: actor.role!, action: "delete", expected: outcome.canDelete, reason: outcome.reason },
+            { actor: actor.role ?? "unknown", action: "read", expected: outcome.canRead, reason: outcome.reason },
+            { actor: actor.role ?? "unknown", action: "write", expected: outcome.canWrite, reason: outcome.reason },
+            { actor: actor.role ?? "unknown", action: "delete", expected: outcome.canDelete, reason: outcome.reason },
         );
     }
 

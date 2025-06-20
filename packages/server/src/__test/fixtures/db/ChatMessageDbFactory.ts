@@ -1,0 +1,679 @@
+import { generatePK } from "@vrooli/shared";
+import { type Prisma, type PrismaClient } from "@prisma/client";
+import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+import type { 
+    DbTestFixtures, 
+    RelationConfig,
+    TestScenario,
+} from "./types.js";
+import { messageConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+
+interface ChatMessageRelationConfig extends RelationConfig {
+    chat: { chatId: string };
+    user?: { userId: string };
+    parent?: { parentId: string };
+    children?: number;
+    reactions?: Array<{ userId: string; emoji: string }>;
+}
+
+/**
+ * Enhanced database fixture factory for ChatMessage model
+ * Provides comprehensive testing capabilities for chat messaging systems
+ * 
+ * Features:
+ * - Type-safe Prisma integration
+ * - Support for message threading (parent/child relationships)
+ * - Version control for edited messages
+ * - Reaction and score tracking
+ * - Language support
+ * - Tool call and run configuration
+ * - Predefined test scenarios
+ */
+export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
+    Prisma.ChatMessage,
+    Prisma.ChatMessageCreateInput,
+    Prisma.ChatMessageInclude,
+    Prisma.ChatMessageUpdateInput
+> {
+    constructor(prisma: PrismaClient) {
+        super('ChatMessage', prisma);
+        this.initializeScenarios();
+    }
+
+    protected getPrismaDelegate() {
+        return this.prisma.chatMessage;
+    }
+
+    /**
+     * Get complete test fixtures for ChatMessage model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.ChatMessageCreateInput, Prisma.ChatMessageUpdateInput> {
+        return {
+            minimal: {
+                id: generatePK().toString(),
+                language: "en",
+                text: "Hello, world!",
+                score: 0,
+                versionIndex: 0,
+                config: messageConfigFixtures.minimal,
+                chat: { connect: { id: "chat-123" } },
+            },
+            complete: {
+                id: generatePK().toString(),
+                language: "en",
+                text: "This is a complete message with all features enabled. It includes formatting, mentions, and more!",
+                score: 42,
+                versionIndex: 2,
+                config: messageConfigFixtures.complete,
+                chat: { connect: { id: "chat-456" } },
+                user: { connect: { id: "user-456" } },
+            },
+            invalid: {
+                missingRequired: {
+                    // Missing id, language, text, chat
+                    score: 0,
+                    versionIndex: 0,
+                },
+                invalidTypes: {
+                    id: "not-a-snowflake",
+                    language: 123, // Should be string
+                    text: null, // Should be string
+                    score: "not-a-number", // Should be number
+                    versionIndex: "zero", // Should be number
+                    config: "not-an-object", // Should be object
+                    chat: null, // Should be object
+                },
+                textTooLong: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: 'a'.repeat(32769), // Exceeds max length of 32768
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-123" } },
+                },
+                invalidLanguage: {
+                    id: generatePK().toString(),
+                    language: "invalid", // Should be valid language code
+                    text: "Invalid language code",
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-123" } },
+                },
+            },
+            edgeCases: {
+                maxLengthMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: 'a'.repeat(32768), // Max length
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-max" } },
+                },
+                unicodeMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: "Hello 👋 World 🌍! Here's some Unicode: 你好世界 مرحبا بالعالم",
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-unicode" } },
+                },
+                multiLanguageMessage: {
+                    id: generatePK().toString(),
+                    language: "ja",
+                    text: "こんにちは世界！これは日本語のメッセージです。",
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-multilang" } },
+                },
+                editedMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: "This message has been edited multiple times",
+                    score: 5,
+                    versionIndex: 5, // High version index indicates multiple edits
+                    chat: { connect: { id: "chat-edited" } },
+                },
+                highScoreMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: "This is a highly upvoted message",
+                    score: 999,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-popular" } },
+                },
+                threadedMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: "This is a reply in a thread",
+                    score: 0,
+                    versionIndex: 0,
+                    chat: { connect: { id: "chat-thread" } },
+                    parent: { connect: { id: "parent-message-123" } },
+                },
+                botMessage: {
+                    id: generatePK().toString(),
+                    language: "en",
+                    text: "I'm an AI assistant. Here's the information you requested:",
+                    score: 0,
+                    versionIndex: 0,
+                    config: messageConfigFixtures.variants.assistantWithTools,
+                    chat: { connect: { id: "chat-bot" } },
+                    user: { connect: { id: "bot-user-123" } },
+                },
+            },
+            updates: {
+                minimal: {
+                    text: "Updated message text",
+                    versionIndex: { increment: 1 },
+                },
+                complete: {
+                    text: "Completely updated message with new content and configuration",
+                    score: { increment: 10 },
+                    versionIndex: { increment: 1 },
+                    config: messageConfigFixtures.complete,
+                },
+            },
+        };
+    }
+
+    protected generateMinimalData(overrides?: Partial<Prisma.ChatMessageCreateInput>): Prisma.ChatMessageCreateInput {
+        return {
+            id: generatePK().toString(),
+            language: "en",
+            text: "Hello!",
+            score: 0,
+            versionIndex: 0,
+            config: messageConfigFixtures.minimal,
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.ChatMessageCreateInput>): Prisma.ChatMessageCreateInput {
+        return {
+            id: generatePK().toString(),
+            language: "en",
+            text: "This is a complete message with rich content, formatting, and metadata.",
+            score: 0,
+            versionIndex: 0,
+            config: messageConfigFixtures.complete,
+            ...overrides,
+        };
+    }
+
+    /**
+     * Initialize test scenarios
+     */
+    protected initializeScenarios(): void {
+        this.scenarios = {
+            simpleUserMessage: {
+                name: "simpleUserMessage",
+                description: "Basic user message",
+                config: {
+                    overrides: {
+                        text: "Hey everyone!",
+                        config: messageConfigFixtures.variants.userMessage,
+                    },
+                    chat: { chatId: "chat-simple" },
+                    user: { userId: "user-simple" },
+                },
+            },
+            botResponse: {
+                name: "botResponse",
+                description: "AI bot response with tool usage",
+                config: {
+                    overrides: {
+                        text: "I've searched for that information. Here's what I found:",
+                        config: messageConfigFixtures.variants.assistantWithTools,
+                    },
+                    chat: { chatId: "chat-bot" },
+                    user: { userId: "bot-assistant" },
+                },
+            },
+            threadConversation: {
+                name: "threadConversation",
+                description: "Threaded conversation with replies",
+                config: {
+                    overrides: {
+                        text: "This is a reply to your question",
+                    },
+                    chat: { chatId: "chat-thread" },
+                    user: { userId: "user-reply" },
+                    parent: { parentId: "parent-msg-123" },
+                },
+            },
+            editedMessage: {
+                name: "editedMessage",
+                description: "Message that has been edited",
+                config: {
+                    overrides: {
+                        text: "Updated: This message has been corrected",
+                        versionIndex: 3,
+                    },
+                    chat: { chatId: "chat-edited" },
+                    user: { userId: "user-editor" },
+                },
+            },
+            popularMessage: {
+                name: "popularMessage",
+                description: "Highly upvoted message",
+                config: {
+                    overrides: {
+                        text: "This is a really helpful answer!",
+                        score: 150,
+                    },
+                    chat: { chatId: "chat-popular" },
+                    user: { userId: "user-helpful" },
+                },
+            },
+            systemMessage: {
+                name: "systemMessage",
+                description: "System notification message",
+                config: {
+                    overrides: {
+                        text: "User joined the chat",
+                        config: messageConfigFixtures.variants.systemMessage,
+                    },
+                    chat: { chatId: "chat-system" },
+                    // No user for system messages
+                },
+            },
+        };
+    }
+
+    protected getDefaultInclude(): Prisma.ChatMessageInclude {
+        return {
+            chat: {
+                select: {
+                    id: true,
+                    publicId: true,
+                    isPrivate: true,
+                },
+            },
+            user: {
+                select: {
+                    id: true,
+                    publicId: true,
+                    name: true,
+                    handle: true,
+                    isBot: true,
+                },
+            },
+            parent: {
+                select: {
+                    id: true,
+                    text: true,
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            },
+            children: {
+                select: {
+                    id: true,
+                    text: true,
+                    score: true,
+                },
+                orderBy: {
+                    createdAt: 'asc',
+                },
+            },
+            _count: {
+                select: {
+                    children: true,
+                    reactions: true,
+                },
+            },
+        };
+    }
+
+    protected async applyRelationships(
+        baseData: Prisma.ChatMessageCreateInput,
+        config: ChatMessageRelationConfig,
+        tx: any
+    ): Promise<Prisma.ChatMessageCreateInput> {
+        let data = { ...baseData };
+
+        // Handle chat connection (required)
+        if (config.chat) {
+            data.chat = {
+                connect: { id: config.chat.chatId },
+            };
+        } else {
+            throw new Error('ChatMessage requires a chat connection');
+        }
+
+        // Handle user connection (optional - system messages may not have user)
+        if (config.user) {
+            data.user = {
+                connect: { id: config.user.userId },
+            };
+        }
+
+        // Handle parent message for threading
+        if (config.parent) {
+            data.parent = {
+                connect: { id: config.parent.parentId },
+            };
+        }
+
+        // Note: Child messages and reactions would be created separately
+
+        return data;
+    }
+
+    /**
+     * Create a user message
+     */
+    async createUserMessage(
+        chatId: string,
+        userId: string,
+        text: string,
+        language: string = "en"
+    ): Promise<Prisma.ChatMessage> {
+        return await this.createWithRelations({
+            overrides: {
+                text,
+                language,
+                config: messageConfigFixtures.variants.userMessage,
+            },
+            chat: { chatId },
+            user: { userId },
+        });
+    }
+
+    /**
+     * Create a bot message with tool usage
+     */
+    async createBotMessage(
+        chatId: string,
+        botId: string,
+        text: string,
+        toolCalls?: any[]
+    ): Promise<Prisma.ChatMessage> {
+        const config = toolCalls 
+            ? { ...messageConfigFixtures.variants.assistantWithTools, toolCalls }
+            : messageConfigFixtures.variants.assistantWithTools;
+
+        return await this.createWithRelations({
+            overrides: {
+                text,
+                config,
+            },
+            chat: { chatId },
+            user: { userId: botId },
+        });
+    }
+
+    /**
+     * Create a threaded reply
+     */
+    async createReply(
+        parentMessageId: string,
+        userId: string,
+        text: string
+    ): Promise<Prisma.ChatMessage> {
+        // Get parent message to inherit chat
+        const parent = await this.prisma.chatMessage.findUnique({
+            where: { id: parentMessageId },
+            select: { chatId: true },
+        });
+
+        if (!parent) {
+            throw new Error('Parent message not found');
+        }
+
+        return await this.createWithRelations({
+            overrides: {
+                text,
+            },
+            chat: { chatId: parent.chatId },
+            user: { userId },
+            parent: { parentId: parentMessageId },
+        });
+    }
+
+    /**
+     * Edit a message
+     */
+    async editMessage(messageId: string, newText: string): Promise<Prisma.ChatMessage> {
+        return await this.prisma.chatMessage.update({
+            where: { id: messageId },
+            data: {
+                text: newText,
+                versionIndex: { increment: 1 },
+            },
+            include: this.getDefaultInclude(),
+        });
+    }
+
+    /**
+     * Update message score
+     */
+    async updateScore(messageId: string, delta: number): Promise<Prisma.ChatMessage> {
+        return await this.prisma.chatMessage.update({
+            where: { id: messageId },
+            data: {
+                score: { increment: delta },
+            },
+            include: this.getDefaultInclude(),
+        });
+    }
+
+    protected async checkModelConstraints(record: Prisma.ChatMessage): Promise<string[]> {
+        const violations: string[] = [];
+        
+        // Check text length
+        if (record.text.length > 32768) {
+            violations.push('Message text exceeds maximum length of 32768 characters');
+        }
+
+        // Check language code format
+        if (!/^[a-z]{2,3}$/.test(record.language)) {
+            violations.push('Invalid language code format');
+        }
+
+        // Check version index
+        if (record.versionIndex < 0) {
+            violations.push('Version index cannot be negative');
+        }
+
+        // Check parent relationship
+        if (record.parentId) {
+            const parent = await this.prisma.chatMessage.findUnique({
+                where: { id: record.parentId },
+                select: { chatId: true },
+            });
+            
+            if (!parent) {
+                violations.push('Parent message does not exist');
+            } else if (parent.chatId !== record.chatId) {
+                violations.push('Parent message must be in the same chat');
+            }
+        }
+
+        // Check circular references
+        if (record.parentId === record.id) {
+            violations.push('Message cannot be its own parent');
+        }
+
+        return violations;
+    }
+
+    protected getCascadeInclude(): any {
+        return {
+            children: true,
+            reactions: true,
+            reactionSummaries: true,
+            reports: true,
+        };
+    }
+
+    protected async deleteRelatedRecords(
+        record: Prisma.ChatMessage,
+        remainingDepth: number,
+        tx: any,
+        includeOnly?: string[]
+    ): Promise<void> {
+        // Helper to check if a relation should be deleted
+        const shouldDelete = (relation: string) => 
+            !includeOnly || includeOnly.includes(relation);
+
+        // Delete in order of dependencies
+        
+        // Delete child messages recursively
+        if (shouldDelete('children') && record.children?.length) {
+            await tx.chatMessage.deleteMany({
+                where: { parentId: record.id },
+            });
+        }
+
+        // Delete reactions
+        if (shouldDelete('reactions') && record.reactions?.length) {
+            await tx.reaction.deleteMany({
+                where: { chatMessageId: record.id },
+            });
+        }
+
+        // Delete reaction summaries
+        if (shouldDelete('reactionSummaries') && record.reactionSummaries?.length) {
+            await tx.reactionSummary.deleteMany({
+                where: { chatMessageId: record.id },
+            });
+        }
+
+        // Delete reports
+        if (shouldDelete('reports') && record.reports?.length) {
+            await tx.report.deleteMany({
+                where: { chatMessageId: record.id },
+            });
+        }
+    }
+
+    /**
+     * Create a message thread
+     */
+    async createMessageThread(
+        chatId: string,
+        messages: Array<{ userId: string; text: string }>
+    ): Promise<Prisma.ChatMessage[]> {
+        const thread: Prisma.ChatMessage[] = [];
+        let parentId: string | undefined;
+
+        for (const msg of messages) {
+            const message = await this.createWithRelations({
+                overrides: {
+                    text: msg.text,
+                },
+                chat: { chatId },
+                user: { userId: msg.userId },
+                parent: parentId ? { parentId } : undefined,
+            });
+
+            thread.push(message);
+            parentId = message.id; // Next message will reply to this one
+        }
+
+        return thread;
+    }
+
+    /**
+     * Create a conversation between users
+     */
+    async createConversation(
+        chatId: string,
+        exchanges: Array<{ userId: string; text: string; isBot?: boolean }>
+    ): Promise<Prisma.ChatMessage[]> {
+        const messages: Prisma.ChatMessage[] = [];
+
+        for (const exchange of exchanges) {
+            const config = exchange.isBot 
+                ? messageConfigFixtures.variants.assistantWithTools
+                : messageConfigFixtures.variants.userMessage;
+
+            const message = await this.createWithRelations({
+                overrides: {
+                    text: exchange.text,
+                    config,
+                },
+                chat: { chatId },
+                user: { userId: exchange.userId },
+            });
+
+            messages.push(message);
+        }
+
+        return messages;
+    }
+
+    /**
+     * Create test message scenarios
+     */
+    async createTestingScenarios(chatId: string): Promise<{
+        userMessage: Prisma.ChatMessage;
+        botMessage: Prisma.ChatMessage;
+        threadedMessage: Prisma.ChatMessage;
+        editedMessage: Prisma.ChatMessage;
+        popularMessage: Prisma.ChatMessage;
+    }> {
+        const userMessage = await this.createUserMessage(
+            chatId,
+            "user-123",
+            "Hello, I have a question"
+        );
+
+        const botMessage = await this.createBotMessage(
+            chatId,
+            "bot-123",
+            "I'd be happy to help! What would you like to know?"
+        );
+
+        const threadParent = await this.createUserMessage(
+            chatId,
+            "user-456",
+            "This is the start of a thread"
+        );
+
+        const threadedMessage = await this.createReply(
+            threadParent.id,
+            "user-789",
+            "This is a reply in the thread"
+        );
+
+        const toEdit = await this.createUserMessage(
+            chatId,
+            "user-edit",
+            "This message will be edited"
+        );
+
+        const editedMessage = await this.editMessage(
+            toEdit.id,
+            "This message has been edited"
+        );
+
+        const popular = await this.createUserMessage(
+            chatId,
+            "user-popular",
+            "This is a really helpful answer!"
+        );
+
+        const popularMessage = await this.updateScore(popular.id, 100);
+
+        return {
+            userMessage,
+            botMessage,
+            threadedMessage,
+            editedMessage,
+            popularMessage,
+        };
+    }
+}
+
+// Export factory creator function
+export const createChatMessageDbFactory = (prisma: PrismaClient) => 
+    ChatMessageDbFactory.getInstance('ChatMessage', prisma);
+
+// Export the class for type usage
+export { ChatMessageDbFactory as ChatMessageDbFactoryClass };

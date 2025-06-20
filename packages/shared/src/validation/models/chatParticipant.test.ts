@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chatParticipantFixtures, chatParticipantTestDataFactory } from "./__test/fixtures/chatParticipantFixtures.js";
 import { runStandardValidationTests, testValidation } from "./__test/validationTestUtils.js";
-import { chatParticipantValidation } from "./chatParticpant.js";
+import { chatParticipantValidation } from "./chatParticipant.js";
 
 describe("chatParticipantValidation", () => {
     // Run standard validation tests using shared fixtures

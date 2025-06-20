@@ -1,0 +1,665 @@
+import { generatePK } from "@vrooli/shared";
+import { type Prisma, type PrismaClient } from "@prisma/client";
+import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+import type { 
+    DbTestFixtures, 
+    RelationConfig,
+    TestScenario,
+} from "./types.js";
+
+interface NotificationRelationConfig extends RelationConfig {
+    user: { userId: string };
+}
+
+/**
+ * Enhanced database fixture factory for Notification model
+ * Provides comprehensive testing capabilities for notification systems
+ * 
+ * Features:
+ * - Type-safe Prisma integration
+ * - Support for different notification categories
+ * - Read/unread status tracking
+ * - Notification grouping (count)
+ * - Link and image support
+ * - Predefined test scenarios
+ * - Bulk notification operations
+ */
+export class NotificationDbFactory extends EnhancedDatabaseFactory<
+    Prisma.Notification,
+    Prisma.NotificationCreateInput,
+    Prisma.NotificationInclude,
+    Prisma.NotificationUpdateInput
+> {
+    constructor(prisma: PrismaClient) {
+        super('Notification', prisma);
+        this.initializeScenarios();
+    }
+
+    protected getPrismaDelegate() {
+        return this.prisma.notification;
+    }
+
+    /**
+     * Get complete test fixtures for Notification model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.NotificationCreateInput, Prisma.NotificationUpdateInput> {
+        return {
+            minimal: {
+                id: generatePK().toString(),
+                category: "system",
+                isRead: false,
+                title: "System Update",
+                count: 1,
+                user: { connect: { id: "user-123" } },
+            },
+            complete: {
+                id: generatePK().toString(),
+                category: "message",
+                isRead: false,
+                title: "New Message",
+                description: "You have received a new message from John Doe",
+                count: 1,
+                link: "/messages/chat-456",
+                imgLink: "https://example.com/avatars/john-doe.jpg",
+                user: { connect: { id: "user-456" } },
+            },
+            invalid: {
+                missingRequired: {
+                    // Missing id, category, title, user
+                    isRead: false,
+                    count: 1,
+                },
+                invalidTypes: {
+                    id: "not-a-snowflake",
+                    category: 123, // Should be string
+                    isRead: "no", // Should be boolean
+                    title: null, // Should be string
+                    description: true, // Should be string
+                    count: "one", // Should be number
+                    link: 456, // Should be string
+                    imgLink: false, // Should be string
+                    user: null, // Should be object
+                },
+                titleTooLong: {
+                    id: generatePK().toString(),
+                    category: "system",
+                    isRead: false,
+                    title: 'a'.repeat(129), // Exceeds max length of 128
+                    count: 1,
+                    user: { connect: { id: "user-123" } },
+                },
+                descriptionTooLong: {
+                    id: generatePK().toString(),
+                    category: "system",
+                    isRead: false,
+                    title: "Notification",
+                    description: 'a'.repeat(2049), // Exceeds max length of 2048
+                    count: 1,
+                    user: { connect: { id: "user-123" } },
+                },
+                invalidCategory: {
+                    id: generatePK().toString(),
+                    category: "a".repeat(65), // Exceeds max length of 64
+                    isRead: false,
+                    title: "Invalid Category",
+                    count: 1,
+                    user: { connect: { id: "user-123" } },
+                },
+            },
+            edgeCases: {
+                maxLengthTitle: {
+                    id: generatePK().toString(),
+                    category: "system",
+                    isRead: false,
+                    title: 'a'.repeat(128), // Max length
+                    count: 1,
+                    user: { connect: { id: "user-max" } },
+                },
+                maxLengthDescription: {
+                    id: generatePK().toString(),
+                    category: "system",
+                    isRead: false,
+                    title: "Long Description",
+                    description: 'a'.repeat(2048), // Max length
+                    count: 1,
+                    user: { connect: { id: "user-max-desc" } },
+                },
+                unicodeNotification: {
+                    id: generatePK().toString(),
+                    category: "social",
+                    isRead: false,
+                    title: "👋 New follower!",
+                    description: "ユーザー様 started following you 🎉",
+                    count: 1,
+                    user: { connect: { id: "user-unicode" } },
+                },
+                groupedNotification: {
+                    id: generatePK().toString(),
+                    category: "likes",
+                    isRead: false,
+                    title: "Your post received likes",
+                    description: "25 people liked your recent post",
+                    count: 25,
+                    link: "/posts/post-789",
+                    user: { connect: { id: "user-grouped" } },
+                },
+                readNotification: {
+                    id: generatePK().toString(),
+                    category: "update",
+                    isRead: true,
+                    title: "App Update Available",
+                    description: "Version 2.0 is now available with new features",
+                    count: 1,
+                    link: "/settings/updates",
+                    user: { connect: { id: "user-read" } },
+                },
+                urgentNotification: {
+                    id: generatePK().toString(),
+                    category: "security",
+                    isRead: false,
+                    title: "⚠️ Security Alert",
+                    description: "Unusual login attempt detected from new location",
+                    count: 1,
+                    link: "/settings/security",
+                    imgLink: "https://example.com/icons/warning.png",
+                    user: { connect: { id: "user-urgent" } },
+                },
+                noDescriptionNotification: {
+                    id: generatePK().toString(),
+                    category: "reminder",
+                    isRead: false,
+                    title: "Meeting in 15 minutes",
+                    description: null,
+                    count: 1,
+                    link: "/meetings/meeting-123",
+                    user: { connect: { id: "user-no-desc" } },
+                },
+            },
+            updates: {
+                minimal: {
+                    isRead: true,
+                },
+                complete: {
+                    isRead: true,
+                    count: { increment: 5 },
+                    description: "Updated notification description",
+                },
+            },
+        };
+    }
+
+    protected generateMinimalData(overrides?: Partial<Prisma.NotificationCreateInput>): Prisma.NotificationCreateInput {
+        return {
+            id: generatePK().toString(),
+            category: "system",
+            isRead: false,
+            title: "Notification",
+            count: 1,
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.NotificationCreateInput>): Prisma.NotificationCreateInput {
+        return {
+            id: generatePK().toString(),
+            category: "message",
+            isRead: false,
+            title: "New Activity",
+            description: "You have new activity on your account",
+            count: 1,
+            link: "/activity",
+            imgLink: "https://example.com/icons/activity.png",
+            ...overrides,
+        };
+    }
+
+    /**
+     * Initialize test scenarios
+     */
+    protected initializeScenarios(): void {
+        this.scenarios = {
+            messageNotification: {
+                name: "messageNotification",
+                description: "New message notification",
+                config: {
+                    overrides: {
+                        category: "message",
+                        title: "New message from Alice",
+                        description: "Hey! How are you doing?",
+                        link: "/messages/chat-alice",
+                        imgLink: "https://example.com/avatars/alice.jpg",
+                    },
+                    user: { userId: "user-message" },
+                },
+            },
+            mentionNotification: {
+                name: "mentionNotification",
+                description: "User mentioned notification",
+                config: {
+                    overrides: {
+                        category: "mention",
+                        title: "@johndoe mentioned you",
+                        description: "You were mentioned in a comment: 'Great work @you!'",
+                        link: "/posts/post-123#comment-456",
+                    },
+                    user: { userId: "user-mention" },
+                },
+            },
+            likeNotification: {
+                name: "likeNotification",
+                description: "Content liked notification",
+                config: {
+                    overrides: {
+                        category: "like",
+                        title: "Your post was liked",
+                        description: "Sarah and 5 others liked your post",
+                        count: 6,
+                        link: "/posts/post-789",
+                    },
+                    user: { userId: "user-like" },
+                },
+            },
+            followNotification: {
+                name: "followNotification",
+                description: "New follower notification",
+                config: {
+                    overrides: {
+                        category: "follow",
+                        title: "New follower",
+                        description: "TechGuru started following you",
+                        link: "/profile/techguru",
+                        imgLink: "https://example.com/avatars/techguru.jpg",
+                    },
+                    user: { userId: "user-follow" },
+                },
+            },
+            systemNotification: {
+                name: "systemNotification",
+                description: "System update notification",
+                config: {
+                    overrides: {
+                        category: "system",
+                        title: "System Maintenance",
+                        description: "Scheduled maintenance on Sunday 2-4 AM UTC",
+                        link: "/announcements/maintenance",
+                    },
+                    user: { userId: "user-system" },
+                },
+            },
+            securityAlert: {
+                name: "securityAlert",
+                description: "Security alert notification",
+                config: {
+                    overrides: {
+                        category: "security",
+                        title: "New login detected",
+                        description: "Login from Chrome on Windows in New York",
+                        link: "/settings/security/sessions",
+                        imgLink: "https://example.com/icons/security.png",
+                    },
+                    user: { userId: "user-security" },
+                },
+            },
+            achievementNotification: {
+                name: "achievementNotification",
+                description: "Achievement unlocked notification",
+                config: {
+                    overrides: {
+                        category: "achievement",
+                        title: "Achievement Unlocked! 🏆",
+                        description: "You've earned the 'Active Contributor' badge",
+                        link: "/profile/achievements",
+                        imgLink: "https://example.com/badges/contributor.png",
+                    },
+                    user: { userId: "user-achievement" },
+                },
+            },
+            reminderNotification: {
+                name: "reminderNotification",
+                description: "Reminder notification",
+                config: {
+                    overrides: {
+                        category: "reminder",
+                        title: "Meeting starting soon",
+                        description: "Team standup in 10 minutes",
+                        link: "/meetings/standup-daily",
+                    },
+                    user: { userId: "user-reminder" },
+                },
+            },
+        };
+    }
+
+    protected getDefaultInclude(): Prisma.NotificationInclude {
+        return {
+            user: {
+                select: {
+                    id: true,
+                    publicId: true,
+                    name: true,
+                    handle: true,
+                },
+            },
+        };
+    }
+
+    protected async applyRelationships(
+        baseData: Prisma.NotificationCreateInput,
+        config: NotificationRelationConfig,
+        tx: any
+    ): Promise<Prisma.NotificationCreateInput> {
+        let data = { ...baseData };
+
+        // Handle user connection (required)
+        if (config.user) {
+            data.user = {
+                connect: { id: config.user.userId },
+            };
+        } else {
+            throw new Error('Notification requires a user connection');
+        }
+
+        return data;
+    }
+
+    /**
+     * Create a notification
+     */
+    async createNotification(
+        userId: string,
+        category: string,
+        title: string,
+        options?: {
+            description?: string;
+            link?: string;
+            imgLink?: string;
+            count?: number;
+            isRead?: boolean;
+        }
+    ): Promise<Prisma.Notification> {
+        return await this.createWithRelations({
+            overrides: {
+                category,
+                title,
+                description: options?.description,
+                link: options?.link,
+                imgLink: options?.imgLink,
+                count: options?.count ?? 1,
+                isRead: options?.isRead ?? false,
+            },
+            user: { userId },
+        });
+    }
+
+    /**
+     * Create a grouped notification
+     */
+    async createGroupedNotification(
+        userId: string,
+        category: string,
+        title: string,
+        count: number,
+        description?: string
+    ): Promise<Prisma.Notification> {
+        return await this.createNotification(userId, category, title, {
+            description,
+            count,
+        });
+    }
+
+    /**
+     * Mark notification as read
+     */
+    async markAsRead(notificationId: string): Promise<Prisma.Notification> {
+        return await this.prisma.notification.update({
+            where: { id: notificationId },
+            data: { isRead: true },
+            include: this.getDefaultInclude(),
+        });
+    }
+
+    /**
+     * Mark multiple notifications as read
+     */
+    async markMultipleAsRead(notificationIds: string[]): Promise<void> {
+        await this.prisma.notification.updateMany({
+            where: {
+                id: { in: notificationIds },
+            },
+            data: { isRead: true },
+        });
+    }
+
+    /**
+     * Mark all user notifications as read
+     */
+    async markAllAsRead(userId: string): Promise<void> {
+        await this.prisma.notification.updateMany({
+            where: {
+                userId,
+                isRead: false,
+            },
+            data: { isRead: true },
+        });
+    }
+
+    /**
+     * Increment notification count
+     */
+    async incrementCount(notificationId: string, increment: number = 1): Promise<Prisma.Notification> {
+        return await this.prisma.notification.update({
+            where: { id: notificationId },
+            data: { count: { increment } },
+            include: this.getDefaultInclude(),
+        });
+    }
+
+    protected async checkModelConstraints(record: Prisma.Notification): Promise<string[]> {
+        const violations: string[] = [];
+        
+        // Check title length
+        if (record.title.length > 128) {
+            violations.push('Title exceeds maximum length of 128 characters');
+        }
+
+        // Check description length
+        if (record.description && record.description.length > 2048) {
+            violations.push('Description exceeds maximum length of 2048 characters');
+        }
+
+        // Check category length
+        if (record.category.length > 64) {
+            violations.push('Category exceeds maximum length of 64 characters');
+        }
+
+        // Check count is positive
+        if (record.count < 1) {
+            violations.push('Count must be at least 1');
+        }
+
+        // Check link format
+        if (record.link && record.link.length > 2048) {
+            violations.push('Link exceeds maximum length of 2048 characters');
+        }
+
+        // Check image link format
+        if (record.imgLink && record.imgLink.length > 2048) {
+            violations.push('Image link exceeds maximum length of 2048 characters');
+        }
+
+        return violations;
+    }
+
+    protected getCascadeInclude(): any {
+        return {
+            // Notification has no dependent records
+        };
+    }
+
+    protected async deleteRelatedRecords(
+        record: Prisma.Notification,
+        remainingDepth: number,
+        tx: any,
+        includeOnly?: string[]
+    ): Promise<void> {
+        // Notification has no dependent records to delete
+    }
+
+    /**
+     * Get unread notifications for user
+     */
+    async getUnreadNotifications(userId: string, limit?: number): Promise<Prisma.Notification[]> {
+        return await this.prisma.notification.findMany({
+            where: {
+                userId,
+                isRead: false,
+            },
+            include: this.getDefaultInclude(),
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+        });
+    }
+
+    /**
+     * Get notifications by category
+     */
+    async getNotificationsByCategory(
+        userId: string,
+        category: string,
+        options?: { isRead?: boolean; limit?: number }
+    ): Promise<Prisma.Notification[]> {
+        const where: Prisma.NotificationWhereInput = {
+            userId,
+            category,
+        };
+
+        if (options?.isRead !== undefined) {
+            where.isRead = options.isRead;
+        }
+
+        return await this.prisma.notification.findMany({
+            where,
+            include: this.getDefaultInclude(),
+            orderBy: { createdAt: 'desc' },
+            take: options?.limit,
+        });
+    }
+
+    /**
+     * Create bulk notifications for multiple users
+     */
+    async createBulkNotifications(
+        userIds: string[],
+        category: string,
+        title: string,
+        description?: string
+    ): Promise<Prisma.Notification[]> {
+        const notifications = await Promise.all(
+            userIds.map(userId =>
+                this.createNotification(userId, category, title, { description })
+            )
+        );
+        return notifications;
+    }
+
+    /**
+     * Delete old read notifications
+     */
+    async deleteOldReadNotifications(userId: string, daysOld: number = 30): Promise<number> {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+        const result = await this.prisma.notification.deleteMany({
+            where: {
+                userId,
+                isRead: true,
+                updatedAt: { lt: cutoffDate },
+            },
+        });
+
+        return result.count;
+    }
+
+    /**
+     * Create notification set for testing
+     */
+    async createTestNotificationSet(userId: string): Promise<{
+        unread: Prisma.Notification[];
+        read: Prisma.Notification[];
+        grouped: Prisma.Notification;
+        urgent: Prisma.Notification;
+    }> {
+        const unread = await Promise.all([
+            this.createNotification(userId, "message", "New message", {
+                description: "You have a new message",
+                link: "/messages",
+            }),
+            this.createNotification(userId, "like", "Post liked", {
+                description: "Someone liked your post",
+                link: "/posts/123",
+            }),
+        ]);
+
+        const readNotif = await this.createNotification(userId, "system", "Update complete", {
+            description: "System update completed successfully",
+        });
+        const read = [await this.markAsRead(readNotif.id)];
+
+        const grouped = await this.createGroupedNotification(
+            userId,
+            "follow",
+            "New followers",
+            15,
+            "15 people started following you"
+        );
+
+        const urgent = await this.createNotification(userId, "security", "⚠️ Security Alert", {
+            description: "Suspicious activity detected",
+            link: "/security",
+            imgLink: "https://example.com/warning.png",
+        });
+
+        return {
+            unread,
+            read,
+            grouped,
+            urgent,
+        };
+    }
+
+    /**
+     * Get notification statistics for user
+     */
+    async getNotificationStats(userId: string): Promise<{
+        total: number;
+        unread: number;
+        byCategory: Record<string, number>;
+    }> {
+        const notifications = await this.prisma.notification.findMany({
+            where: { userId },
+            select: {
+                category: true,
+                isRead: true,
+            },
+        });
+
+        const stats = {
+            total: notifications.length,
+            unread: notifications.filter(n => !n.isRead).length,
+            byCategory: {} as Record<string, number>,
+        };
+
+        notifications.forEach(notif => {
+            stats.byCategory[notif.category] = (stats.byCategory[notif.category] || 0) + 1;
+        });
+
+        return stats;
+    }
+}
+
+// Export factory creator function
+export const createNotificationDbFactory = (prisma: PrismaClient) => 
+    NotificationDbFactory.getInstance('Notification', prisma);
+
+// Export the class for type usage
+export { NotificationDbFactory as NotificationDbFactoryClass };

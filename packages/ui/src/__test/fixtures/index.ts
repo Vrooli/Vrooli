@@ -1,6 +1,9 @@
 /**
  * Central export for all UI fixtures
- * Provides easy access to form data, API responses, and transformation utilities
+ * 
+ * This module provides the main entry point for the new type-safe fixture system.
+ * Legacy exports are maintained for backward compatibility but should be migrated
+ * to use the new factory-based system.
  */
 
 // Form data fixtures
@@ -31,6 +34,26 @@ export * from "./ui-states/successStates.js";
 
 // Session fixtures
 export * from "./sessions/sessionFixtures.js";
+
+// New type-safe fixture system
+export * from "./types.js";
+export * from "./BaseFormFixtureFactory.js";
+export * from "./BaseRoundTripOrchestrator.js";
+export * from "./BaseMSWHandlerFactory.js";
+export * from "./utils/integration.js";
+export * from "./factories/index.js";
+
+// Export specific factory implementations as they are created
+export { UserFixtureFactory } from "./factories/userFixtureFactory.js";
+export { TagFixtureFactory } from "./factories/tagFixtureFactory.js";
+export { TeamFixtureFactory } from "./factories/teamFixtureFactory.js";
+export { ChatFixtureFactory } from "./factories/chatFixtureFactory.js";
+export { BookmarkFixtureFactory } from "./factories/bookmarkFixtureFactory.js";
+export { CommentFixtureFactory } from "./factories/commentFixtureFactory.js";
+export { BotFixtureFactory } from "./factories/botFixtureFactory.js";
+export { ProjectFixtureFactory } from "./factories/projectFixtureFactory.js";
+export { ResourceFixtureFactory } from "./factories/resourceFixtureFactory.js";
+export { ScheduleFixtureFactory } from "./factories/scheduleFixtureFactory.js";
 
 /**
  * Quick access to commonly used fixtures

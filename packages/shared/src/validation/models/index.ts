@@ -7,7 +7,7 @@ export * from "./bot.js";
 export * from "./chat.js";
 export * from "./chatInvite.js";
 export * from "./chatMessage.js";
-export * from "./chatParticpant.js";
+export * from "./chatParticipant.js";
 export * from "./comment.js";
 export * from "./email.js";
 export * from "./issue.js";

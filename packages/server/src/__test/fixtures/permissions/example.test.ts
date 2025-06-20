@@ -84,7 +84,7 @@ describe("Permission Fixtures - Complete Examples", () => {
 
     describe("Permission Matrix Testing", () => {
         // Mock endpoint function for testing
-        async function mockBookmarkEndpoint(session: { req: { session: any } }) {
+        async function mockBookmarkEndpoint(session: { req: { session: AuthenticatedSessionData | ApiKeyAuthData } }) {
             // Simulate endpoint that requires bookmark.create permission
             if (!permissionValidator.hasPermission(session.req.session, "bookmark.create")) {
                 throw new Error("Permission denied: bookmark.create required");
@@ -308,7 +308,7 @@ describe("Permission Fixtures - Complete Examples", () => {
             const { req } = await quickSession.withUser(user);
             
             // Example of how this would work with actual endpoints
-            async function mockCreateBookmark(session: { req: { session: any } }, bookmarkData: any) {
+            async function mockCreateBookmark(session: { req: { session: AuthenticatedSessionData | ApiKeyAuthData } }, bookmarkData: Record<string, unknown>) {
                 if (!permissionValidator.hasPermission(session.req.session, "bookmark.create")) {
                     throw new Error("Permission denied");
                 }

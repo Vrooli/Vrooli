@@ -22,7 +22,7 @@ export interface PermissionContext {
     /** The authenticated session (user or API key) */
     session: AuthenticatedSessionData | ApiKeyAuthData;
     /** Additional context like team membership, resource ownership */
-    context?: Record<string, any>;
+    context?: Record<string, unknown>;
     /** Expected permission result */
     expected?: boolean;
 }
@@ -42,13 +42,13 @@ export interface PermissionTestResult {
         duration: number;
     };
     /** Additional metadata */
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 /**
  * Multi-actor permission scenario for testing complex interactions
  */
-export interface PermissionScenario<TResource = any> {
+export interface PermissionScenario<TResource = Record<string, unknown>> {
     /** Unique identifier for the scenario */
     id: string;
     /** Human-readable description */
@@ -140,7 +140,7 @@ export interface PermissionInheritance {
     /** Permissions to remove from inheritance */
     excludes?: string[];
     /** Permissions that override inherited ones */
-    overrides?: Record<string, any>;
+    overrides?: Record<string, unknown>;
 }
 
 /**
@@ -174,7 +174,7 @@ export interface PermissionValidator {
     hasPermission: (session: AuthenticatedSessionData | ApiKeyAuthData, permission: string) => boolean;
     
     /** Check if a session can perform an action on a resource */
-    canAccess: (session: AuthenticatedSessionData | ApiKeyAuthData, action: string, resource: any) => boolean;
+    canAccess: (session: AuthenticatedSessionData | ApiKeyAuthData, action: string, resource: Record<string, unknown>) => boolean;
     
     /** Get all permissions for a session */
     getPermissions: (session: AuthenticatedSessionData | ApiKeyAuthData) => string[];
@@ -204,20 +204,20 @@ export interface SessionOptions {
  */
 export interface PermissionTestHelpers {
     /** Expect a permission to be denied */
-    expectPermissionDenied: (fn: () => Promise<any>, expectedError?: string | RegExp) => Promise<void>;
+    expectPermissionDenied: (fn: () => Promise<unknown>, expectedError?: string | RegExp) => Promise<void>;
     
     /** Expect a permission to be granted */
-    expectPermissionGranted: (fn: () => Promise<any>) => Promise<void>;
+    expectPermissionGranted: (fn: () => Promise<unknown>) => Promise<void>;
     
     /** Test a permission matrix against multiple personas */
     testPermissionMatrix: (
-        testFn: (session: any) => Promise<any>,
+        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
         matrix: PermissionMatrix
     ) => Promise<void>;
     
     /** Test permission changes over time */
     testPermissionChange: (
-        testFn: (session: any) => Promise<any>,
+        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
         before: AuthenticatedSessionData,
         after: AuthenticatedSessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean }
@@ -225,8 +225,8 @@ export interface PermissionTestHelpers {
     
     /** Test bulk permissions */
     testBulkPermissions: (
-        operations: Array<{ name: string; fn: (session: any) => Promise<any> }>,
-        sessions: Array<{ name: string; session: any; isApiKey?: boolean }>,
+        operations: Array<{ name: string; fn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        sessions: Array<{ name: string; session: AuthenticatedSessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>
     ) => Promise<void>;
 }
@@ -238,7 +238,7 @@ export interface SecurityEdgeCases {
     /** Session-related edge cases */
     sessionEdgeCases: {
         expired: AuthenticatedSessionData;
-        malformed: any;
+        malformed: Record<string, unknown>;
         hijacked: AuthenticatedSessionData;
         replayed: AuthenticatedSessionData;
     };
