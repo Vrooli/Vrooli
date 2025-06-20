@@ -47,29 +47,34 @@ export const bookmarkFixtures: ModelTestFixtures<BookmarkCreateInput, BookmarkUp
             create: {
                 // Missing id, bookmarkFor, and forConnect
                 listConnect: validIds.listId1,
-            },
+            } as BookmarkCreateInput,
             update: {
                 // Missing id
                 listConnect: validIds.listId1,
-            },
+            } as BookmarkUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types for validation
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types for validation
                 bookmarkFor: "InvalidType", // Should be valid BookmarkFor enum
+                // @ts-expect-error - Testing invalid types for validation
                 forConnect: 123, // Should be string
-            },
+            } as unknown as BookmarkCreateInput,
             update: {
                 id: validIds.id3,
+                // @ts-expect-error - Testing invalid types for validation
                 listConnect: 123, // Should be string
-            },
+            } as unknown as BookmarkUpdateInput,
         },
         invalidBookmarkFor: {
             create: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid enum value for validation
                 bookmarkFor: "NotAValidEnum",
                 forConnect: validIds.forId1,
-            },
+            } as unknown as BookmarkCreateInput,
         },
         invalidId: {
             create: {
@@ -83,7 +88,7 @@ export const bookmarkFixtures: ModelTestFixtures<BookmarkCreateInput, BookmarkUp
                 id: validIds.id1,
                 bookmarkFor: BookmarkFor.Tag,
                 // Missing required 'forConnect' relationship
-            },
+            } as BookmarkCreateInput,
         },
     },
     edgeCases: {

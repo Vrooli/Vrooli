@@ -268,6 +268,9 @@ export function createSuccessfulToolCall(
     };
 }
 
+// Constants
+const RANDOM_ID_LENGTH = 9;
+
 /**
  * Create a failed tool call result
  */
@@ -278,7 +281,7 @@ export function createFailedToolCall(
     errorMessage: string,
 ): ToolFunctionCall {
     return {
-        id: `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `call_${Date.now()}_${Math.random().toString(36).substr(2, RANDOM_ID_LENGTH)}`,
         function: {
             name: functionName,
             arguments: JSON.stringify(args),

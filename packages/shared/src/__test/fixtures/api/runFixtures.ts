@@ -3,6 +3,11 @@ import { RunStatus, RunStepStatus } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { runValidation } from "../../../validation/models/run.js";
 
+// Magic number constants for testing
+const DATA_TOO_LONG_LENGTH = 16385;
+const NAME_TOO_LONG_LENGTH = 129;
+const DATA_MAX_LENGTH = 16384;
+
 // Generate consistent test IDs
 const validIds = {
     runId1: testValues.snowflakeId(),
@@ -77,7 +82,7 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
                 {
                     id: validIds.stepId2,
                     complexity: 2,
-                    name: "Step 2", 
+                    name: "Step 2",
                     nodeId: "node2",
                     order: 1,
                     resourceInId: validIds.resourceVersionId1,
@@ -101,30 +106,39 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
             create: {
                 // Missing required fields: id, status, name, isPrivate, resourceVersionConnect
                 completedComplexity: 5,
-            },
+            } as RunCreateInput,
             update: {
                 // Missing required field: id
                 completedComplexity: 10,
-            },
+            } as RunUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                status: "InvalidStatus", // Should be valid RunStatus enum
-                name: 123, // Should be string
-                completedComplexity: "not a number", // Should be number
-                contextSwitches: -5, // Should be positive or zero
-                isPrivate: "not a boolean", // Should be boolean
-                timeElapsed: -100, // Should be positive or zero
-                resourceVersionConnect: 123, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - id should be string
+                id: 123,
+                // @ts-expect-error Testing invalid type - status should be valid RunStatus enum
+                status: "InvalidStatus",
+                // @ts-expect-error Testing invalid type - name should be string
+                name: 123,
+                // @ts-expect-error Testing invalid type - completedComplexity should be number
+                completedComplexity: "not a number",
+                contextSwitches: -5, // Negative values might be caught at runtime
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "not a boolean",
+                timeElapsed: -100, // Negative values might be caught at runtime
+                // @ts-expect-error Testing invalid type - resourceVersionConnect should be string
+                resourceVersionConnect: 123,
+            } as unknown as RunCreateInput,
             update: {
-                id: 123, // Should be string
-                completedComplexity: "not a number", // Should be number
-                contextSwitches: -5, // Should be positive or zero
-                isPrivate: "not a boolean", // Should be boolean
-                timeElapsed: -100, // Should be positive or zero
-            },
+                // @ts-expect-error Testing invalid type - id should be string
+                id: 123,
+                // @ts-expect-error Testing invalid type - completedComplexity should be number
+                completedComplexity: "not a number",
+                contextSwitches: -5, // Negative values might be caught at runtime
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "not a boolean",
+                timeElapsed: -100, // Negative values might be caught at runtime
+            } as unknown as RunUpdateInput,
         },
         invalidId: {
             create: {
@@ -141,11 +155,12 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
         invalidStatus: {
             create: {
                 id: validIds.runId3,
+                // @ts-expect-error Testing invalid enum value
                 status: "NotAValidStatus",
                 name: "Test Run",
                 isPrivate: false,
                 resourceVersionConnect: validIds.resourceVersionId1,
-            },
+            } as unknown as RunCreateInput,
         },
         tooLongData: {
             create: {
@@ -153,7 +168,7 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
                 status: RunStatus.InProgress,
                 name: "Test Run",
                 isPrivate: false,
-                data: "x".repeat(16385), // Exceeds max length of 16384
+                data: "x".repeat(DATA_TOO_LONG_LENGTH), // Exceeds max length of DATA_MAX_LENGTH
                 resourceVersionConnect: validIds.resourceVersionId1,
             },
         },
@@ -161,7 +176,7 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
             create: {
                 id: validIds.runId3,
                 status: RunStatus.InProgress,
-                name: "x".repeat(129), // Exceeds max length of 128
+                name: "x".repeat(NAME_TOO_LONG_LENGTH), // Exceeds max length of 128
                 isPrivate: false,
                 resourceVersionConnect: validIds.resourceVersionId1,
             },
@@ -199,13 +214,13 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
                 resourceVersionConnect: validIds.resourceVersionId1,
             },
         },
-        maxData: {
+        maxLengthData: {
             create: {
                 id: validIds.runId3,
                 status: RunStatus.InProgress,
                 name: "Test Run",
                 isPrivate: false,
-                data: "x".repeat(16384), // Exactly at max length
+                data: "x".repeat(DATA_MAX_LENGTH), // Exactly at max length
                 resourceVersionConnect: validIds.resourceVersionId1,
             },
         },

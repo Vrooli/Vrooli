@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId, generateSnowflake, nanoid } from "@vrooli/shared";
+import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -23,7 +23,7 @@ export const apiKeyDbIds = {
 export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
     minimal: {
         id: generatePK(),
-        key: `vrooli_test_${generateSnowflake()}`,
+        key: `vrooli_test_${nanoid()}`,
         name: "Test API Key",
         permissions: {},
         limitHard: BigInt(25000000000),
@@ -31,7 +31,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
     },
     complete: {
         id: generatePK(),
-        key: `vrooli_test_${generateSnowflake()}`,
+        key: `vrooli_test_${nanoid()}`,
         name: "Complete Test API Key",
         permissions: {
             endpoints: ["user:read", "user:write", "project:read", "project:write", "routine:read", "routine:write"],
@@ -68,7 +68,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         softLimitExceedsHard: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Invalid Limits API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -77,7 +77,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         negativeCredits: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Negative Credits API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -88,7 +88,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
     edgeCases: {
         maxLengthName: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "a".repeat(255), // Maximum name length
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -96,7 +96,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         zeroLimits: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Zero Limits API Key",
             permissions: {},
             limitHard: BigInt(0),
@@ -106,7 +106,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         maxLimits: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Max Limits API Key",
             permissions: {},
             limitHard: BigInt(Number.MAX_SAFE_INTEGER), // Max safe bigint value
@@ -116,7 +116,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         complexPermissions: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Complex Permissions API Key",
             permissions: {
                 endpoints: [
@@ -143,7 +143,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         disabledApiKey: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Disabled API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -152,7 +152,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         nearSoftLimit: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Near Soft Limit API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -162,7 +162,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         nearHardLimit: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Near Hard Limit API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -171,7 +171,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
         },
         exceededSoftLimit: {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
             name: "Exceeded Soft Limit API Key",
             permissions: {},
             limitHard: BigInt(25000000000),
@@ -187,7 +187,7 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
  */
 export const minimalApiKeyDb: Prisma.api_keyCreateInput = {
     id: apiKeyDbIds.apiKey1,
-    key: `vrooli_test_${generateSnowflake()}`,
+    key: `vrooli_test_${nanoid()}`,
     name: "Test API Key",
     permissions: {},
     limitHard: BigInt(25000000000),
@@ -196,7 +196,7 @@ export const minimalApiKeyDb: Prisma.api_keyCreateInput = {
 
 export const apiKeyWithSoftLimitDb: Prisma.api_keyCreateInput = {
     id: apiKeyDbIds.apiKey2,
-    key: `vrooli_test_${generateSnowflake()}`,
+    key: `vrooli_test_${nanoid()}`,
     name: "API Key with Soft Limit",
     permissions: {},
     limitHard: BigInt(50000000000),
@@ -206,7 +206,7 @@ export const apiKeyWithSoftLimitDb: Prisma.api_keyCreateInput = {
 
 export const apiKeyWithPermissionsDb: Prisma.api_keyCreateInput = {
     id: apiKeyDbIds.apiKey3,
-    key: `vrooli_test_${generateSnowflake()}`,
+    key: `vrooli_test_${nanoid()}`,
     name: "API Key with Permissions",
     permissions: {
         endpoints: ["user:read", "project:read", "routine:read"],
@@ -219,7 +219,7 @@ export const apiKeyWithPermissionsDb: Prisma.api_keyCreateInput = {
 
 export const disabledApiKeyDb: Prisma.api_keyCreateInput = {
     id: apiKeyDbIds.apiKey4,
-    key: `vrooli_test_${generateSnowflake()}`,
+    key: `vrooli_test_${nanoid()}`,
     name: "Disabled API Key",
     permissions: {},
     limitHard: BigInt(25000000000),
@@ -229,7 +229,7 @@ export const disabledApiKeyDb: Prisma.api_keyCreateInput = {
 
 export const apiKeyWithUsageDb: Prisma.api_keyCreateInput = {
     id: apiKeyDbIds.apiKey5,
-    key: `vrooli_test_${generateSnowflake()}`,
+    key: `vrooli_test_${nanoid()}`,
     name: "API Key with Usage",
     permissions: {},
     limitHard: BigInt(25000000000),
@@ -256,7 +256,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
     protected generateFreshIdentifiers(): Record<string, any> {
         return {
             id: generatePK(),
-            key: `vrooli_test_${generateSnowflake()}`,
+            key: `vrooli_test_${nanoid()}`,
         };
     }
 
@@ -268,7 +268,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
             constraints: {
                 uniqueViolation: {
                     id: apiKeyDbIds.apiKey1, // Duplicate ID
-                    key: `vrooli_test_${generateSnowflake()}`,
+                    key: `vrooli_test_${nanoid()}`,
                     name: "Duplicate ID API Key",
                     permissions: {},
                     limitHard: BigInt(25000000000),
@@ -276,7 +276,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    key: `vrooli_test_${generateSnowflake()}`,
+                    key: `vrooli_test_${nanoid()}`,
                     name: "Foreign Key API Key",
                     permissions: {},
                     limitHard: BigInt(25000000000),
@@ -297,7 +297,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                 invalidDataType: apiKeyDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    key: `vrooli_test_${generateSnowflake()}`,
+                    key: `vrooli_test_${nanoid()}`,
                     name: "a".repeat(1000), // Name too long
                     permissions: {},
                     limitHard: BigInt(0), // Zero limit instead of negative
@@ -309,7 +309,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                 negativeCredits: apiKeyDbFixtures.invalid.negativeCredits,
                 creditsExceedHardLimit: {
                     id: generatePK(),
-                    key: `vrooli_test_${generateSnowflake()}`,
+                    key: `vrooli_test_${nanoid()}`,
                     name: "Credits Exceed Hard Limit API Key",
                     permissions: {},
                     limitHard: BigInt(25000000000),
@@ -318,7 +318,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                 },
                 disabledKeyWithUsage: {
                     id: generatePK(),
-                    key: `vrooli_test_${generateSnowflake()}`,
+                    key: `vrooli_test_${nanoid()}`,
                     name: "Disabled Key with Usage",
                     permissions: {},
                     limitHard: BigInt(25000000000),

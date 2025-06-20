@@ -1,9 +1,14 @@
-import { generatePK } from "@vrooli/shared";
+import { generatePK, ViewFor } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for View model - used for seeding test data
- * Views track user interactions with objects (Issue, Resource, Team, User)
+ * Views track user interactions with objects and support anonymous viewing
+ * 
+ * Supported object types from ViewFor enum:
+ * Resource, ResourceVersion, Team, User
  */
 
 // Consistent IDs for testing
@@ -13,172 +18,351 @@ export const viewDbIds = {
     view3: generatePK(),
     view4: generatePK(),
     view5: generatePK(),
+    user1: generatePK(),
+    user2: generatePK(),
+    session1: generatePK(),
+    resource1: generatePK(),
+    resourceVersion1: generatePK(),
+    team1: generatePK(),
 };
 
 /**
- * Minimal view data for database creation
+ * Enhanced test fixtures for View model following standard structure
  */
-export const minimalViewDb: Prisma.viewCreateInput = {
-    id: viewDbIds.view1,
-    name: "Test View",
-    lastViewedAt: new Date("2024-01-01T00:00:00Z"),
-    by: { connect: { id: "user_123" } },
-};
-
-/**
- * View for Issue object
- */
-export const issueViewDb: Prisma.viewCreateInput = {
-    id: viewDbIds.view2,
-    name: "Issue View",
-    lastViewedAt: new Date("2024-01-01T12:00:00Z"),
-    by: { connect: { id: "user_123" } },
-    issue: { connect: { id: "issue_123" } },
-};
-
-/**
- * View for Resource object
- */
-export const resourceViewDb: Prisma.viewCreateInput = {
-    id: viewDbIds.view3,
-    name: "Resource View", 
-    lastViewedAt: new Date("2024-01-02T00:00:00Z"),
-    by: { connect: { id: "user_123" } },
-    resource: { connect: { id: "resource_123" } },
-};
-
-/**
- * View for Team object
- */
-export const teamViewDb: Prisma.viewCreateInput = {
-    id: viewDbIds.view4,
-    name: "Team View",
-    lastViewedAt: new Date("2024-01-03T00:00:00Z"),
-    by: { connect: { id: "user_123" } },
-    team: { connect: { id: "team_123" } },
-};
-
-/**
- * View for User object
- */
-export const userViewDb: Prisma.viewCreateInput = {
-    id: viewDbIds.view5,
-    name: "User View",
-    lastViewedAt: new Date("2024-01-04T00:00:00Z"),
-    by: { connect: { id: "user_123" } },
-    user: { connect: { id: "user_456" } },
-};
-
-/**
- * Factory for creating view database fixtures with overrides
- */
-export class ViewDbFactory {
-    static createMinimal(
-        byId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        return {
-            id: generatePK(),
-            name: "Test View",
+export const viewDbFixtures: DbTestFixtures<Prisma.viewUncheckedCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        name: "Test View",
+        lastViewedAt: new Date(),
+        // Note: Views must have either byId (user) or bySessionId
+        byId: viewDbIds.user1,
+    },
+    complete: {
+        id: generatePK(),
+        name: "Complete View",
+        lastViewedAt: new Date(),
+        byId: viewDbIds.user1,
+        resourceId: viewDbIds.resource1,
+    },
+    invalid: {
+        missingRequired: {
+            // Missing both byId and bySessionId
+            name: "Invalid View",
             lastViewedAt: new Date(),
-            by: { connect: { id: byId } },
-            ...overrides,
-        };
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            name: 123, // Should be string
+            lastViewedAt: "not-a-date", // Should be Date
+            byId: "invalid-user-id", // Should be valid BigInt
+        },
+        bothUserAndSession: {
+            id: generatePK(),
+            name: "Invalid View",
+            lastViewedAt: new Date(),
+            byId: viewDbIds.user1,
+            bySessionId: viewDbIds.session1, // Cannot have both
+        },
+        noViewedObject: {
+            id: generatePK(),
+            name: "View with no object",
+            lastViewedAt: new Date(),
+            byId: viewDbIds.user1,
+            // No object connected
+        },
+        multipleObjects: {
+            id: generatePK(),
+            name: "Multiple Objects View",
+            lastViewedAt: new Date(),
+            byId: viewDbIds.user1,
+            resourceId: viewDbIds.resource1,
+            teamId: viewDbIds.team1, // Multiple objects (invalid)
+        },
+    },
+    edgeCases: {
+        anonymousView: {
+            id: generatePK(),
+            name: "Anonymous View",
+            lastViewedAt: new Date(),
+            bySessionId: viewDbIds.session1, // Session instead of user
+            resourceId: viewDbIds.resource1,
+        },
+        recentView: {
+            id: generatePK(),
+            name: "Recent View",
+            lastViewedAt: new Date(), // Current time
+            byId: viewDbIds.user1,
+            teamId: viewDbIds.team1,
+        },
+        oldView: {
+            id: generatePK(),
+            name: "Old View",
+            lastViewedAt: new Date("2020-01-01"), // Old timestamp
+            byId: viewDbIds.user1,
+            userId: viewDbIds.user2,
+        },
+        resourceVersionView: {
+            id: generatePK(),
+            name: "Resource Version View",
+            lastViewedAt: new Date(),
+            byId: viewDbIds.user1,
+            resourceVersionId: viewDbIds.resourceVersion1,
+        },
+        maxLengthName: {
+            id: generatePK(),
+            name: "a".repeat(255), // Maximum name length
+            lastViewedAt: new Date(),
+            byId: viewDbIds.user1,
+            resourceId: viewDbIds.resource1,
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating view database fixtures
+ */
+export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateInput> {
+    
+    /**
+     * Get the test fixtures for View model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.viewUncheckedCreateInput> {
+        return viewDbFixtures;
     }
 
-    static createForIssue(
-        byId: string,
-        issueId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
+    /**
+     * Get View-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
         return {
-            ...this.createMinimal(byId, overrides),
-            name: "Issue View",
-            issue: { connect: { id: issueId } },
-        };
-    }
-
-    static createForResource(
-        byId: string,
-        resourceId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        return {
-            ...this.createMinimal(byId, overrides),
-            name: "Resource View",
-            resource: { connect: { id: resourceId } },
-        };
-    }
-
-    static createForTeam(
-        byId: string,
-        teamId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        return {
-            ...this.createMinimal(byId, overrides),
-            name: "Team View",
-            team: { connect: { id: teamId } },
-        };
-    }
-
-    static createForUser(
-        byId: string,
-        userId: string,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        return {
-            ...this.createMinimal(byId, overrides),
-            name: "User Profile View",
-            user: { connect: { id: userId } },
+            constraints: {
+                uniqueViolation: {
+                    id: viewDbIds.view1, // Duplicate ID
+                    name: "Test View",
+                    lastViewedAt: new Date(),
+                    byId: viewDbIds.user1,
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    name: "Test View",
+                    lastViewedAt: new Date(),
+                    byId: BigInt("9999999999999999"), // Non-existent user
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    name: "", // Empty name might violate constraint
+                    lastViewedAt: new Date(),
+                    byId: viewDbIds.user1,
+                },
+            },
+            validation: {
+                requiredFieldMissing: viewDbFixtures.invalid.missingRequired,
+                invalidDataType: viewDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    name: "a".repeat(256), // Name too long
+                    lastViewedAt: new Date(),
+                    byId: viewDbIds.user1,
+                },
+            },
+            businessLogic: {
+                bothUserAndSession: viewDbFixtures.invalid.bothUserAndSession,
+                noViewedObject: viewDbFixtures.invalid.noViewedObject,
+                multipleObjects: viewDbFixtures.invalid.multipleObjects,
+                futureTimestamp: {
+                    id: generatePK(),
+                    name: "Future View",
+                    lastViewedAt: new Date(Date.now() + 86400000), // Tomorrow
+                    byId: viewDbIds.user1,
+                    resourceId: viewDbIds.resource1,
+                },
+            },
         };
     }
 
     /**
-     * Create view for any object type
+     * Generate fresh identifiers for views
      */
+    protected generateFreshIdentifiers(): Record<string, any> {
+        return {
+            id: generatePK(),
+            // Views don't have publicId or handle
+        };
+    }
+
+    /**
+     * View-specific validation
+     */
+    protected validateSpecific(data: Prisma.viewUncheckedCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to View
+        if (!data.name) {
+            errors.push("View name is required");
+        }
+
+        if (!data.lastViewedAt) {
+            errors.push("View lastViewedAt is required");
+        }
+
+        // Must have either byId or bySessionId
+        if (!data.byId && !data.bySessionId) {
+            errors.push("View must have either byId (user) or bySessionId");
+        }
+
+        if (data.byId && data.bySessionId) {
+            errors.push("View cannot have both byId and bySessionId");
+        }
+
+        // Check business logic - must have exactly one viewed object
+        const viewableFields = ['resourceId', 'resourceVersionId', 'teamId', 'userId'];
+        const connectedObjects = viewableFields.filter(field => data[field as keyof Prisma.viewUncheckedCreateInput]);
+        
+        if (connectedObjects.length === 0) {
+            warnings.push("View should reference exactly one viewable object");
+        } else if (connectedObjects.length > 1) {
+            errors.push("View cannot reference multiple objects");
+        }
+
+        // Check timestamp validity
+        if (data.lastViewedAt && data.lastViewedAt > new Date(Date.now() + 60000)) { // Allow 1 minute future tolerance
+            warnings.push("View timestamp is in the future");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
+    static createMinimal(
+        byId: string,
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        const factory = new ViewDbFactory();
+        return factory.createMinimal({
+            byId: BigInt(byId),
+            ...overrides,
+        });
+    }
+
     static createForObject(
         byId: string,
         objectId: string,
-        objectType: "Issue" | "Resource" | "Team" | "User",
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        const factories = {
-            Issue: this.createForIssue,
-            Resource: this.createForResource,
-            Team: this.createForTeam,
-            User: this.createForUser,
+        objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        const factory = new ViewDbFactory();
+        
+        // Map ViewFor enum and legacy types to field names
+        const typeMapping: Record<string, string> = {
+            [ViewFor.Resource]: 'resourceId',
+            [ViewFor.ResourceVersion]: 'resourceVersionId',
+            [ViewFor.Team]: 'teamId',
+            [ViewFor.User]: 'userId',
+            // Legacy mappings
+            'Issue': 'issueId',
+            'Resource': 'resourceId',
+            'Team': 'teamId',
+            'User': 'userId',
         };
 
-        return factories[objectType](byId, objectId, overrides);
+        const fieldName = typeMapping[objectType];
+        if (!fieldName) {
+            throw new Error(`Invalid view object type: ${objectType}`);
+        }
+
+        return factory.createMinimal({
+            byId: BigInt(byId),
+            [fieldName]: BigInt(objectId),
+            name: `${objectType} View`,
+            ...overrides,
+        });
     }
 
-    /**
-     * Create view with specific timestamp
-     */
+    static createAnonymousView(
+        sessionId: string,
+        objectId: string,
+        objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        const factory = new ViewDbFactory();
+        const typeMapping: Record<string, string> = {
+            [ViewFor.Resource]: 'resourceId',
+            [ViewFor.ResourceVersion]: 'resourceVersionId',
+            [ViewFor.Team]: 'teamId',
+            [ViewFor.User]: 'userId',
+            'Issue': 'issueId',
+            'Resource': 'resourceId',
+            'Team': 'teamId',
+            'User': 'userId',
+        };
+
+        const fieldName = typeMapping[objectType];
+        const data = factory.createMinimal({
+            [fieldName]: BigInt(objectId),
+            name: `Anonymous ${objectType} View`,
+            ...overrides,
+        });
+        
+        // Remove byId and set bySessionId for anonymous views
+        delete data.byId;
+        data.bySessionId = BigInt(sessionId);
+        
+        return data;
+    }
+
     static createWithTimestamp(
         byId: string,
         viewedAt: Date,
-        overrides?: Partial<Prisma.viewCreateInput>
-    ): Prisma.viewCreateInput {
-        return {
-            ...this.createMinimal(byId, overrides),
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        return this.createMinimal(byId, {
             lastViewedAt: viewedAt,
-        };
+            ...overrides,
+        });
     }
 
-    /**
-     * Create multiple views for the same user on different objects
-     */
     static createViewHistory(
         byId: string,
-        objects: Array<{ id: string; type: "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>
-    ): Prisma.viewCreateInput[] {
+        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>
+    ): Prisma.viewUncheckedCreateInput[] {
         return objects.map((obj, index) => 
             this.createForObject(byId, obj.id, obj.type, {
                 lastViewedAt: obj.viewedAt || new Date(Date.now() - (index * 60000)), // 1 minute intervals
             })
         );
+    }
+
+    static createForIssue(
+        byId: string,
+        issueId: string,
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        return this.createForObject(byId, issueId, "Issue", overrides);
+    }
+
+    static createForResource(
+        byId: string,
+        resourceId: string,
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        return this.createForObject(byId, resourceId, ViewFor.Resource, overrides);
+    }
+
+    static createForTeam(
+        byId: string,
+        teamId: string,
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        return this.createForObject(byId, teamId, ViewFor.Team, overrides);
+    }
+
+    static createForUser(
+        byId: string,
+        userId: string,
+        overrides?: Partial<Prisma.viewUncheckedCreateInput>
+    ): Prisma.viewUncheckedCreateInput {
+        return this.createForObject(byId, userId, ViewFor.User, overrides);
     }
 }
 
@@ -188,23 +372,37 @@ export class ViewDbFactory {
 export async function seedViews(
     prisma: any,
     options: {
-        byId: string;
-        objects: Array<{ id: string; type: "Issue" | "Resource" | "Team" | "User" }>;
+        byId?: string;
+        bySessionId?: string;
+        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User" }>;
         withTimestamps?: boolean;
     }
-) {
+): Promise<BulkSeedResult<any>> {
     const views = [];
+
+    if (!options.byId && !options.bySessionId) {
+        throw new Error("Must provide either byId or bySessionId for views");
+    }
 
     for (let i = 0; i < options.objects.length; i++) {
         const obj = options.objects[i];
-        const viewData = ViewDbFactory.createForObject(
-            options.byId,
-            obj.id,
-            obj.type,
-            options.withTimestamps ? {
-                lastViewedAt: new Date(Date.now() - (i * 60000)), // 1 minute intervals
-            } : undefined
-        );
+        const viewData = options.byId
+            ? ViewDbFactory.createForObject(
+                options.byId,
+                obj.id,
+                obj.type,
+                options.withTimestamps ? {
+                    lastViewedAt: new Date(Date.now() - (i * 60000)), // 1 minute intervals
+                } : undefined
+            )
+            : ViewDbFactory.createAnonymousView(
+                options.bySessionId!,
+                obj.id,
+                obj.type,
+                options.withTimestamps ? {
+                    lastViewedAt: new Date(Date.now() - (i * 60000)),
+                } : undefined
+            );
 
         const view = await prisma.view.create({
             data: viewData,
@@ -212,6 +410,7 @@ export async function seedViews(
                 by: true,
                 issue: true,
                 resource: true,
+                resourceVersion: true,
                 team: true,
                 user: true,
             },
@@ -219,7 +418,15 @@ export async function seedViews(
         views.push(view);
     }
 
-    return views;
+    return {
+        records: views,
+        summary: {
+            total: views.length,
+            withAuth: options.byId ? views.length : 0,
+            bots: 0,
+            teams: 0,
+        },
+    };
 }
 
 /**
@@ -229,7 +436,7 @@ export async function seedRecentActivity(
     prisma: any,
     userId: string,
     count: number = 5
-) {
+): Promise<BulkSeedResult<any>> {
     const activities = [];
     const now = new Date();
 
@@ -251,7 +458,15 @@ export async function seedRecentActivity(
         activities.push(activity);
     }
 
-    return activities;
+    return {
+        records: activities,
+        summary: {
+            total: activities.length,
+            withAuth: activities.length,
+            bots: 0,
+            teams: 0,
+        },
+    };
 }
 
 /**
@@ -260,33 +475,51 @@ export async function seedRecentActivity(
 export async function seedViewAnalytics(
     prisma: any,
     objectId: string,
-    objectType: "Issue" | "Resource" | "Team" | "User",
+    objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
     options: {
-        viewerIds: string[];
+        viewerIds?: string[];
+        sessionIds?: string[];
         daysBack?: number;
         viewsPerDay?: number;
     }
-) {
+): Promise<BulkSeedResult<any>> {
     const views = [];
-    const { viewerIds, daysBack = 7, viewsPerDay = 3 } = options;
+    const { viewerIds = [], sessionIds = [], daysBack = 7, viewsPerDay = 3 } = options;
     const now = new Date();
+    let anonymousCount = 0;
+
+    if (viewerIds.length === 0 && sessionIds.length === 0) {
+        throw new Error("Must provide either viewerIds or sessionIds for analytics");
+    }
 
     for (let day = 0; day < daysBack; day++) {
         for (let view = 0; view < viewsPerDay; view++) {
-            const viewerId = viewerIds[view % viewerIds.length];
+            const useSession = sessionIds.length > 0 && (viewerIds.length === 0 || Math.random() > 0.5);
             const viewedAt = new Date(
                 now.getTime() - (day * 24 * 60 * 60 * 1000) - (view * 60 * 60 * 1000)
             );
 
-            const viewData = ViewDbFactory.createForObject(
-                viewerId,
-                objectId,
-                objectType,
-                {
-                    lastViewedAt: viewedAt,
-                    name: `Analytics View Day ${day + 1} #${view + 1}`,
-                }
-            );
+            const viewData = useSession
+                ? ViewDbFactory.createAnonymousView(
+                    sessionIds[view % sessionIds.length],
+                    objectId,
+                    objectType,
+                    {
+                        lastViewedAt: viewedAt,
+                        name: `Analytics View Day ${day + 1} #${view + 1} (Anonymous)`,
+                    }
+                )
+                : ViewDbFactory.createForObject(
+                    viewerIds[view % viewerIds.length],
+                    objectId,
+                    objectType,
+                    {
+                        lastViewedAt: viewedAt,
+                        name: `Analytics View Day ${day + 1} #${view + 1}`,
+                    }
+                );
+
+            if (useSession) anonymousCount++;
 
             const analyticsView = await prisma.view.create({
                 data: viewData,
@@ -296,5 +529,67 @@ export async function seedViewAnalytics(
         }
     }
 
-    return views;
+    return {
+        records: views,
+        summary: {
+            total: views.length,
+            withAuth: views.length - anonymousCount,
+            bots: 0,
+            teams: 0,
+            anonymous: anonymousCount,
+        },
+    };
+}
+
+/**
+ * Helper to seed views by date range
+ */
+export async function seedViewsByDateRange(
+    prisma: any,
+    options: {
+        userId: string;
+        objectId: string;
+        objectType: ViewFor | "Issue" | "Resource" | "Team" | "User";
+        startDate: Date;
+        endDate: Date;
+        viewsPerDay?: number;
+    }
+): Promise<BulkSeedResult<any>> {
+    const views = [];
+    const { userId, objectId, objectType, startDate, endDate, viewsPerDay = 1 } = options;
+    
+    const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    for (let day = 0; day < days; day++) {
+        for (let viewNum = 0; viewNum < viewsPerDay; viewNum++) {
+            const viewedAt = new Date(
+                startDate.getTime() + (day * 24 * 60 * 60 * 1000) + (viewNum * 60 * 60 * 1000)
+            );
+            
+            if (viewedAt > endDate) break;
+            
+            const viewData = ViewDbFactory.createForObject(
+                userId,
+                objectId,
+                objectType,
+                {
+                    lastViewedAt: viewedAt,
+                    name: `Date Range View Day ${day + 1} #${viewNum + 1}`,
+                }
+            );
+            
+            const view = await prisma.view.create({ data: viewData });
+            views.push(view);
+        }
+    }
+    
+    return {
+        records: views,
+        summary: {
+            total: views.length,
+            withAuth: views.length,
+            bots: 0,
+            teams: 0,
+        },
+    };
 }

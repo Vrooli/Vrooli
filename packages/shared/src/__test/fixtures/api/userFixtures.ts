@@ -2,6 +2,16 @@ import type { BotCreateInput, ProfileUpdateInput, UserTranslationCreateInput, Us
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { userValidation } from "../../../validation/models/user.js";
 
+// Magic number constants for testing
+const HANDLE_TOO_LONG_LENGTH = 17;
+const NAME_TOO_LONG_LENGTH = 257;
+const BIO_TOO_LONG_LENGTH = 2049;
+const HANDLE_MAX_LENGTH = 16;
+const BIO_MAX_LENGTH = 2048;
+const PASSWORD_TOO_LONG_LENGTH = 257;
+const VERIFICATION_CODE_TOO_LONG_LENGTH = 129;
+const TIMEZONE_TOO_LONG_LENGTH = 129;
+
 // Valid Snowflake IDs for testing
 const validIds = {
     id1: "300000000000000001",
@@ -60,7 +70,7 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                     bio: "A comprehensive test bot with all features",
                 },
                 {
-                    id: "400000000000000002", 
+                    id: "400000000000000002",
                     language: "es",
                     bio: "Un bot de prueba integral con todas las características",
                 },
@@ -82,17 +92,6 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
             isPrivateVotes: true,
             bannerImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
             profileImage: "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
-            // Bot-specific fields for bot updates (these would be separate from profile updates in practice)
-            // isBotDepictingPerson: false, // Not part of ProfileUpdateInput - this would be bot-specific
-            // botSettings: { // Not part of ProfileUpdateInput - this would be bot-specific  
-            //     __version: "1.0",
-            //     model: "claude-3",
-            //     maxTokens: 2048,
-            //     persona: {
-            //         creativity: 0.5,
-            //         bias: "balanced and objective",
-            //     },
-            // },
             translationsUpdate: [
                 {
                     id: "400000000000000001",
@@ -115,24 +114,31 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
             create: {
                 // Missing required fields: handle, isPrivate, name
                 isBotDepictingPerson: true,
-            },
+            } as BotCreateInput,
             update: {
                 // Missing id
                 handle: "noIdUser",
-            },
+            } as ProfileUpdateInput,
         },
         invalidTypes: {
             create: {
-                handle: 123, // Should be string
-                isPrivate: "yes", // Should be boolean
-                name: true, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - handle should be string
+                handle: 123,
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "yes",
+                // @ts-expect-error Testing invalid type - name should be string
+                name: true,
+            } as unknown as BotCreateInput,
             update: {
-                id: true, // Should be string
-                handle: [], // Should be string
-                isPrivate: "false", // Should be boolean
-                theme: 123, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - id should be string
+                id: true,
+                // @ts-expect-error Testing invalid type - handle should be string
+                handle: [],
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "false",
+                // @ts-expect-error Testing invalid type - theme should be string
+                theme: 123,
+            } as unknown as ProfileUpdateInput,
         },
         invalidHandle: {
             create: {
@@ -151,7 +157,7 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
         tooLongHandle: {
             create: {
                 id: validIds.id1,
-                handle: "a".repeat(17), // Too long (max 16 chars)
+                handle: "a".repeat(HANDLE_TOO_LONG_LENGTH), // Too long (max 16 chars)
                 isPrivate: false,
                 name: "Test Bot",
                 isBotDepictingPerson: false,
@@ -159,7 +165,7 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
             },
             update: {
                 id: validIds.id1,
-                handle: "x".repeat(17), // Too long
+                handle: "x".repeat(HANDLE_TOO_LONG_LENGTH), // Too long
             },
         },
         invalidTheme: {
@@ -179,13 +185,13 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 id: validIds.id1,
                 handle: "validhandle",
                 isPrivate: false,
-                name: "N".repeat(257), // Too long (max 256 chars)
+                name: "N".repeat(NAME_TOO_LONG_LENGTH), // Too long (max 256 chars)
                 isBotDepictingPerson: false,
                 botSettings: {},
             },
             update: {
                 id: validIds.id1,
-                name: "M".repeat(257), // Too long
+                name: "M".repeat(NAME_TOO_LONG_LENGTH), // Too long
             },
         },
         tooLongBio: {
@@ -196,22 +202,24 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 name: "Bio Bot",
                 isBotDepictingPerson: false,
                 botSettings: {},
+                // @ts-expect-error Testing invalid structure - translations should use translationsCreate
                 translations: {
                     create: [{
                         language: "en",
-                        bio: "B".repeat(2049), // Too long (max 2048 chars)
+                        bio: "B".repeat(BIO_TOO_LONG_LENGTH), // Too long (max 2048 chars)
                     }],
                 },
-            },
+            } as unknown as BotCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error Testing invalid structure - translations should use translationsCreate/Update
                 translations: {
                     create: [{
                         language: "en",
-                        bio: "B".repeat(2049), // Too long
+                        bio: "B".repeat(BIO_TOO_LONG_LENGTH), // Too long
                     }],
                 },
-            },
+            } as unknown as ProfileUpdateInput,
         },
     },
     edgeCases: {
@@ -228,7 +236,7 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
         maximalHandle: {
             create: {
                 id: validIds.id1,
-                handle: "h".repeat(16), // Maximum 16 chars
+                handle: "h".repeat(HANDLE_MAX_LENGTH), // Maximum 16 chars
                 isPrivate: false,
                 name: "Max Handle Bot",
                 isBotDepictingPerson: false,
@@ -253,10 +261,11 @@ export const userFixtures: ModelTestFixtures<BotCreateInput, ProfileUpdateInput>
                 name: "No Translations Bot",
                 isBotDepictingPerson: false,
                 botSettings: {},
+                // @ts-expect-error Testing invalid structure - translations should use translationsCreate
                 translations: {
                     create: [],
                 },
-            },
+            } as unknown as BotCreateInput,
         },
         privateBot: {
             create: {
@@ -358,7 +367,7 @@ export const userTranslationFixtures: ModelTestFixtures<UserTranslationCreateInp
     },
     complete: {
         create: {
-            id: "400000000000000002", 
+            id: "400000000000000002",
             language: "en",
             bio: "A comprehensive bio with detailed information about the user",
         },
@@ -373,23 +382,27 @@ export const userTranslationFixtures: ModelTestFixtures<UserTranslationCreateInp
             create: {
                 // Missing language and id
                 bio: "Bio without required fields",
-            },
+            } as UserTranslationCreateInput,
             update: {
                 // Missing id and language
                 bio: "Updated bio without required fields",
-            },
+            } as UserTranslationUpdateInput,
         },
         invalidTypes: {
             create: {
                 id: "400000000000000003",
-                language: 123, // Should be string
-                bio: true, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - language should be string
+                language: 123,
+                // @ts-expect-error Testing invalid type - bio should be string
+                bio: true,
+            } as unknown as UserTranslationCreateInput,
             update: {
-                id: 456, // Should be string
+                // @ts-expect-error Testing invalid type - id should be string
+                id: 456,
                 language: "en",
-                bio: [], // Should be string
-            },
+                // @ts-expect-error Testing invalid type - bio should be string
+                bio: [],
+            } as unknown as UserTranslationUpdateInput,
         },
     },
     edgeCases: {
@@ -404,7 +417,7 @@ export const userTranslationFixtures: ModelTestFixtures<UserTranslationCreateInp
             create: {
                 id: "400000000000000005",
                 language: "en",
-                bio: "B".repeat(2048), // Max length bio
+                bio: "B".repeat(BIO_MAX_LENGTH), // Max length bio
             },
         },
         multipleLanguages: {
@@ -440,11 +453,11 @@ export const emailLogInFixtures = {
         },
         tooLongPassword: {
             email: "user@example.com",
-            password: "P".repeat(257), // Too long (max 256)
+            password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256)
         },
         tooLongVerificationCode: {
             email: "user@example.com",
-            verificationCode: "V".repeat(129), // Too long (max 128)
+            verificationCode: "V".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH), // Too long (max 128)
         },
     },
 };
@@ -466,7 +479,7 @@ export const userDeleteOneFixtures = {
             password: "CurrentPassword123!",
         },
         tooLongPassword: {
-            password: "P".repeat(257), // Too long (max 256),
+            password: "P".repeat(PASSWORD_TOO_LONG_LENGTH), // Too long (max 256),
             deletePublicData: true,
         },
     },
@@ -539,7 +552,7 @@ export const emailResetPasswordFixtures = {
         },
         tooLongCode: {
             id: validIds.id1,
-            code: "C".repeat(129),
+            code: "C".repeat(VERIFICATION_CODE_TOO_LONG_LENGTH),
             newPassword: "NewSecure123!",
         },
     },
@@ -557,7 +570,7 @@ export const validateSessionFixtures = {
     invalid: {
         missingTimeZone: {},
         emptyTimeZone: { timeZone: "" },
-        tooLongTimeZone: { timeZone: "T".repeat(129) },
+        tooLongTimeZone: { timeZone: "T".repeat(TIMEZONE_TOO_LONG_LENGTH) },
     },
 };
 
@@ -567,6 +580,7 @@ export const switchCurrentAccountFixtures = {
     },
     invalid: {
         missingId: {},
+        // @ts-expect-error Testing invalid type - id should be string
         invalidIdType: { id: 123 },
     },
 };

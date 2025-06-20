@@ -3,25 +3,97 @@
  * 
  * These fixtures provide business rule violation scenarios including
  * resource limits, workflow errors, data conflicts, and domain-specific errors.
+ * 
+ * Enhanced with unified error fixture factory pattern:
+ * - userImpact: 'blocking' for hard limits, 'degraded' for soft limits, 'none' for informational
+ * - recovery: Strategies include 'fail', 'fallback', 'retry', and 'circuit-break'
+ * - BusinessErrorFactory: Extends BaseErrorFactory for consistent error creation
  */
 
-export interface BusinessError {
-    code: string;
-    message: string;
-    type: "limit" | "conflict" | "state" | "workflow" | "constraint" | "policy";
-    details?: {
-        current?: number | string;
-        limit?: number | string;
-        required?: number | string;
-        conflictWith?: string;
-        suggestion?: string;
-        [key: string]: any;
+import type {
+    EnhancedBusinessError,
+    ErrorContext
+} from "./types.js";
+import { BaseErrorFactory } from "./types.js";
+
+/**
+ * Factory for creating business error fixtures with enhanced properties
+ */
+export class BusinessErrorFactory extends BaseErrorFactory<EnhancedBusinessError> {
+    standard: EnhancedBusinessError = {
+        code: "BUSINESS_RULE_VIOLATION",
+        message: "A business rule has been violated",
+        type: "constraint",
+        userImpact: "blocking",
+        recovery: { strategy: "fail" },
     };
-    userAction?: {
-        label: string;
-        action: string;
-        url?: string;
+
+    withDetails: EnhancedBusinessError = {
+        code: "RESOURCE_LIMIT_EXCEEDED",
+        message: "You have exceeded the allowed resource limit",
+        type: "limit",
+        details: {
+            current: 100,
+            limit: 50,
+            suggestion: "Upgrade your plan to increase limits",
+        },
+        userAction: {
+            label: "Upgrade Plan",
+            action: "upgrade_plan",
+            url: "/billing/upgrade",
+        },
+        userImpact: "blocking",
+        recovery: {
+            strategy: "fallback",
+            fallbackAction: "upgrade_plan",
+        },
     };
+
+    variants = {
+        softLimit: {
+            code: "SOFT_LIMIT_WARNING",
+            message: "You are approaching your resource limit",
+            type: "limit",
+            details: {
+                current: 80,
+                limit: 100,
+                percentage: 80,
+            },
+            userImpact: "degraded",
+            recovery: { strategy: "retry", attempts: 3 },
+        } satisfies EnhancedBusinessError,
+
+        hardConstraint: {
+            code: "HARD_CONSTRAINT_VIOLATION",
+            message: "This operation violates a critical business constraint",
+            type: "constraint",
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedBusinessError,
+    };
+
+    create(overrides?: Partial<EnhancedBusinessError>): EnhancedBusinessError {
+        return {
+            ...this.standard,
+            ...overrides,
+        };
+    }
+
+    createWithContext(context: ErrorContext): EnhancedBusinessError {
+        return {
+            ...this.standard,
+            context,
+            telemetry: {
+                traceId: `trace-${Date.now()}`,
+                spanId: `span-${Date.now()}`,
+                tags: {
+                    operation: context.operation || "unknown",
+                    environment: context.environment || "development",
+                },
+                level: "error",
+            },
+        };
+    }
 }
 
 export const businessErrorFixtures = {
@@ -41,7 +113,12 @@ export const businessErrorFixtures = {
                 action: "purchase_credits",
                 url: "/billing/credits",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "upgrade_plan",
+            },
+        } satisfies EnhancedBusinessError,
 
         projectLimit: {
             code: "PROJECT_LIMIT_REACHED",
@@ -57,7 +134,12 @@ export const businessErrorFixtures = {
                 action: "upgrade_plan",
                 url: "/billing/upgrade",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "upgrade_plan",
+            },
+        } satisfies EnhancedBusinessError,
 
         teamMemberLimit: {
             code: "TEAM_MEMBER_LIMIT",
@@ -73,7 +155,12 @@ export const businessErrorFixtures = {
                 action: "upgrade_team",
                 url: "/team/billing",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "upgrade_plan",
+            },
+        } satisfies EnhancedBusinessError,
 
         storageLimit: {
             code: "STORAGE_LIMIT_EXCEEDED",
@@ -89,7 +176,12 @@ export const businessErrorFixtures = {
                 action: "manage_storage",
                 url: "/settings/storage",
             },
-        } satisfies BusinessError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "upgrade_plan",
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // Workflow errors
@@ -103,7 +195,11 @@ export const businessErrorFixtures = {
                 requestedState: "published",
                 allowedStates: ["review", "archived"],
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         prerequisiteNotMet: {
             code: "PREREQUISITE_NOT_MET",
@@ -118,7 +214,11 @@ export const businessErrorFixtures = {
                 action: "complete_prerequisites",
                 url: "/onboarding",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         approvalRequired: {
             code: "APPROVAL_REQUIRED",
@@ -133,7 +233,11 @@ export const businessErrorFixtures = {
                 label: "Request Approval",
                 action: "request_approval",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         dependencyNotReady: {
             code: "DEPENDENCY_NOT_READY",
@@ -143,7 +247,13 @@ export const businessErrorFixtures = {
                 dependencies: ["data_source_connection", "api_key_validation"],
                 readyDependencies: ["data_source_connection"],
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 2,
+                delay: 1000,
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // Data conflict errors
@@ -158,7 +268,11 @@ export const businessErrorFixtures = {
                 existingId: "proj_789",
                 suggestion: "My Project (2)",
             },
-        } satisfies BusinessError,
+            userImpact: "none",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         versionConflict: {
             code: "VERSION_CONFLICT",
@@ -174,7 +288,12 @@ export const businessErrorFixtures = {
                 label: "Review Changes",
                 action: "review_conflicts",
             },
-        } satisfies BusinessError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                attempts: 2,
+            },
+        } satisfies EnhancedBusinessError,
 
         scheduleConflict: {
             code: "SCHEDULE_CONFLICT",
@@ -186,7 +305,11 @@ export const businessErrorFixtures = {
                 conflictId: "meeting_123",
                 suggestion: "2024-03-15T15:00:00Z",
             },
-        } satisfies BusinessError,
+            userImpact: "none",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         resourceLocked: {
             code: "RESOURCE_LOCKED",
@@ -197,7 +320,13 @@ export const businessErrorFixtures = {
                 lockedAt: new Date(Date.now() - 120000).toISOString(),
                 expectedRelease: new Date(Date.now() + 180000).toISOString(),
             },
-        } satisfies BusinessError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 60000,
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // State errors
@@ -210,7 +339,11 @@ export const businessErrorFixtures = {
                 completedAt: new Date(Date.now() - 3600000).toISOString(),
                 completedBy: "user_123",
             },
-        } satisfies BusinessError,
+            userImpact: "none",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         notPublished: {
             code: "NOT_PUBLISHED",
@@ -225,7 +358,11 @@ export const businessErrorFixtures = {
                 label: "Publish Now",
                 action: "publish_resource",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         archived: {
             code: "RESOURCE_ARCHIVED",
@@ -239,7 +376,11 @@ export const businessErrorFixtures = {
                 label: "Restore Resource",
                 action: "restore_resource",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         maintenanceMode: {
             code: "MAINTENANCE_MODE",
@@ -250,7 +391,12 @@ export const businessErrorFixtures = {
                 estimatedEndTime: new Date(Date.now() + 3600000).toISOString(),
                 alternativeAction: "manual_execution",
             },
-        } satisfies BusinessError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "manual_execution",
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // Constraint violations
@@ -263,7 +409,11 @@ export const businessErrorFixtures = {
                 path: ["A", "B", "C", "A"],
                 newConnection: { from: "C", to: "A" },
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         invalidHierarchy: {
             code: "INVALID_HIERARCHY",
@@ -274,7 +424,11 @@ export const businessErrorFixtures = {
                 child: "team_456",
                 reason: "Child team is already a parent of the proposed parent",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         dataIntegrity: {
             code: "DATA_INTEGRITY_VIOLATION",
@@ -286,7 +440,11 @@ export const businessErrorFixtures = {
                 referencedTable: "teams",
                 missingId: "team_999",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         businessRule: {
             code: "BUSINESS_RULE_VIOLATION",
@@ -298,7 +456,11 @@ export const businessErrorFixtures = {
                 current: 1,
                 required: 2,
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // Policy errors
@@ -311,7 +473,11 @@ export const businessErrorFixtures = {
                 requiredAge: 18,
                 feature: "payment_processing",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         regionRestriction: {
             code: "REGION_RESTRICTED",
@@ -322,7 +488,11 @@ export const businessErrorFixtures = {
                 allowedRegions: ["US", "CA"],
                 reason: "regulatory_compliance",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         contentPolicy: {
             code: "CONTENT_POLICY_VIOLATION",
@@ -338,7 +508,11 @@ export const businessErrorFixtures = {
                 action: "view_guidelines",
                 url: "/policies/community",
             },
-        } satisfies BusinessError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedBusinessError,
 
         usagePolicy: {
             code: "USAGE_POLICY_VIOLATION",
@@ -355,7 +529,12 @@ export const businessErrorFixtures = {
                 action: "view_policy",
                 url: "/policies/fair-use",
             },
-        } satisfies BusinessError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "circuit-break",
+                delay: 300000, // 5 minutes
+            },
+        } satisfies EnhancedBusinessError,
     },
 
     // Factory functions
@@ -368,11 +547,16 @@ export const businessErrorFixtures = {
             current: number,
             limit: number,
             upgradeUrl?: string,
-        ): BusinessError => ({
+        ): EnhancedBusinessError => ({
             code: `${resource.toUpperCase()}_LIMIT_EXCEEDED`,
             message: `You have reached the ${resource} limit`,
             type: "limit",
             details: { current, limit },
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "upgrade_plan",
+            },
             ...(upgradeUrl && {
                 userAction: {
                     label: "Upgrade",
@@ -385,7 +569,7 @@ export const businessErrorFixtures = {
         /**
          * Create a conflict error
          */
-        createConflictError: (field: string, value: string, suggestion?: string): BusinessError => ({
+        createConflictError: (field: string, value: string, suggestion?: string): EnhancedBusinessError => ({
             code: "CONFLICT",
             message: `A conflict was detected for ${field}`,
             type: "conflict",
@@ -393,6 +577,10 @@ export const businessErrorFixtures = {
                 field,
                 value,
                 ...(suggestion && { suggestion }),
+            },
+            userImpact: "none",
+            recovery: {
+                strategy: "fail",
             },
         }),
 
@@ -402,13 +590,17 @@ export const businessErrorFixtures = {
         createWorkflowError: (
             currentStep: string,
             blockedBy: string[],
-        ): BusinessError => ({
+        ): EnhancedBusinessError => ({
             code: "WORKFLOW_BLOCKED",
             message: "Cannot proceed with current workflow",
             type: "workflow",
             details: {
                 currentStep,
                 blockedBy,
+            },
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
             },
         }),
 
@@ -418,13 +610,20 @@ export const businessErrorFixtures = {
         createBusinessError: (
             code: string,
             message: string,
-            type: BusinessError["type"],
+            type: EnhancedBusinessError["type"],
             details?: any,
-        ): BusinessError => ({
+        ): EnhancedBusinessError => ({
             code,
             message,
             type,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
             ...(details && { details }),
         }),
     },
 };
+
+// Create factory instance
+export const businessErrorFactory = new BusinessErrorFactory();

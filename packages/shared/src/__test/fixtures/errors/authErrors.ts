@@ -4,24 +4,74 @@
  * These fixtures provide auth-related error scenarios including
  * login failures, session issues, permission errors, and account states.
  */
+import { BaseErrorFactory, type EnhancedAuthError, type ErrorContext } from "./types.js";
 
-export interface AuthError {
-    code: string;
-    message: string;
-    details?: {
-        reason?: string;
-        requiredRole?: string;
-        requiredPermission?: string;
-        expiresAt?: string;
-        remainingAttempts?: number;
-        lockoutDuration?: number;
-        [key: string]: any;
+/**
+ * Factory for creating enhanced authentication errors
+ */
+export class AuthErrorFactory extends BaseErrorFactory<EnhancedAuthError> {
+    standard: EnhancedAuthError = {
+        code: "AUTH_ERROR",
+        message: "Authentication error occurred",
+        userImpact: "blocking",
+        recovery: { strategy: "fail" },
     };
-    action?: {
-        type: "login" | "logout" | "refresh" | "verify" | "upgrade";
-        label: string;
-        url?: string;
+
+    withDetails: EnhancedAuthError = {
+        code: "AUTH_ERROR",
+        message: "Authentication error occurred",
+        details: {
+            reason: "Generic authentication failure",
+        },
+        userImpact: "blocking",
+        recovery: { strategy: "fail" },
     };
+
+    variants = {
+        sessionExpired: {
+            code: "SESSION_EXPIRED",
+            message: "Your session has expired. Please log in again",
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "redirect_to_login",
+            },
+            action: {
+                type: "login",
+                label: "Log In",
+                url: "/auth/login",
+            },
+        } satisfies EnhancedAuthError,
+
+        unauthorized: {
+            code: "UNAUTHORIZED",
+            message: "You must be logged in to perform this action",
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "redirect_to_login",
+            },
+        } satisfies EnhancedAuthError,
+    };
+
+    create(overrides?: Partial<EnhancedAuthError>): EnhancedAuthError {
+        return {
+            ...this.standard,
+            ...overrides,
+        };
+    }
+
+    createWithContext(context: ErrorContext): EnhancedAuthError {
+        return {
+            ...this.standard,
+            context,
+            details: {
+                operation: context.operation,
+                userId: context.user?.id,
+                userRole: context.user?.role,
+            },
+        };
+    }
 }
 
 export const authErrorFixtures = {
@@ -33,7 +83,12 @@ export const authErrorFixtures = {
             details: {
                 remainingAttempts: 3,
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+            },
+        } satisfies EnhancedAuthError,
 
         accountLocked: {
             code: "ACCOUNT_LOCKED",
@@ -48,7 +103,11 @@ export const authErrorFixtures = {
                 label: "Unlock Account",
                 url: "/auth/unlock",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         emailNotVerified: {
             code: "EMAIL_NOT_VERIFIED",
@@ -58,7 +117,12 @@ export const authErrorFixtures = {
                 label: "Resend Verification Email",
                 url: "/auth/verify-email",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "verify_email",
+            },
+        } satisfies EnhancedAuthError,
 
         twoFactorRequired: {
             code: "2FA_REQUIRED",
@@ -67,7 +131,12 @@ export const authErrorFixtures = {
                 methods: ["totp", "sms"],
                 sessionToken: "temp_session_123",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "complete_2fa",
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // Session errors
@@ -80,7 +149,12 @@ export const authErrorFixtures = {
                 label: "Log In",
                 url: "/auth/login",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "redirect_to_login",
+            },
+        } satisfies EnhancedAuthError,
 
         invalidToken: {
             code: "INVALID_TOKEN",
@@ -88,7 +162,11 @@ export const authErrorFixtures = {
             details: {
                 reason: "Token signature verification failed",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         refreshFailed: {
             code: "REFRESH_FAILED",
@@ -101,7 +179,12 @@ export const authErrorFixtures = {
                 label: "Log In Again",
                 url: "/auth/login",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "redirect_to_login",
+            },
+        } satisfies EnhancedAuthError,
 
         concurrentSession: {
             code: "CONCURRENT_SESSION",
@@ -111,7 +194,12 @@ export const authErrorFixtures = {
                 location: "New York, US",
                 timestamp: new Date().toISOString(),
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "redirect_to_login",
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // Permission errors
@@ -123,7 +211,11 @@ export const authErrorFixtures = {
                 requiredRole: "admin",
                 currentRole: "member",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         missingPermission: {
             code: "MISSING_PERMISSION",
@@ -132,7 +224,11 @@ export const authErrorFixtures = {
                 requiredPermission: "project:write",
                 resource: "project_123",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         teamPermission: {
             code: "TEAM_PERMISSION_DENIED",
@@ -142,7 +238,11 @@ export const authErrorFixtures = {
                 requiredRole: "owner",
                 currentRole: "viewer",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         apiKeyScope: {
             code: "API_KEY_SCOPE_INSUFFICIENT",
@@ -151,7 +251,11 @@ export const authErrorFixtures = {
                 requiredScope: "write:projects",
                 availableScopes: ["read:projects", "read:users"],
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // Account state errors
@@ -168,7 +272,12 @@ export const authErrorFixtures = {
                 label: "Appeal Suspension",
                 url: "/support/appeal",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "contact_support",
+            },
+        } satisfies EnhancedAuthError,
 
         banned: {
             code: "ACCOUNT_BANNED",
@@ -177,7 +286,11 @@ export const authErrorFixtures = {
                 reason: "Repeated violations",
                 bannedAt: new Date(Date.now() - 604800000).toISOString(),
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         deleted: {
             code: "ACCOUNT_DELETED",
@@ -192,7 +305,12 @@ export const authErrorFixtures = {
                 label: "Recover Account",
                 url: "/auth/recover",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "recover_account",
+            },
+        } satisfies EnhancedAuthError,
 
         inactive: {
             code: "ACCOUNT_INACTIVE",
@@ -200,7 +318,12 @@ export const authErrorFixtures = {
             details: {
                 lastActiveAt: new Date(Date.now() - 7776000000).toISOString(),
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "contact_support",
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // OAuth errors
@@ -212,7 +335,12 @@ export const authErrorFixtures = {
                 provider: "google",
                 providerError: "access_denied",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+            },
+        } satisfies EnhancedAuthError,
 
         accountLinking: {
             code: "OAUTH_ACCOUNT_EXISTS",
@@ -227,7 +355,12 @@ export const authErrorFixtures = {
                 label: "Log In with Email",
                 url: "/auth/login",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "use_existing_provider",
+            },
+        } satisfies EnhancedAuthError,
 
         scopeDenied: {
             code: "OAUTH_SCOPE_DENIED",
@@ -237,7 +370,12 @@ export const authErrorFixtures = {
                 requiredScopes: ["user:email", "read:org"],
                 grantedScopes: ["user:email"],
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "retry_oauth_with_scopes",
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // API key errors
@@ -245,15 +383,24 @@ export const authErrorFixtures = {
         invalid: {
             code: "INVALID_API_KEY",
             message: "The provided API key is invalid",
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         expired: {
             code: "API_KEY_EXPIRED",
             message: "This API key has expired",
             details: {
-                expiredAt: new Date(Date.now() - 86400000).toISOString(),
+                expiresAt: new Date(Date.now() - 86400000).toISOString(),
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: "regenerate_api_key",
+            },
+        } satisfies EnhancedAuthError,
 
         revoked: {
             code: "API_KEY_REVOKED",
@@ -262,7 +409,11 @@ export const authErrorFixtures = {
                 revokedAt: new Date(Date.now() - 3600000).toISOString(),
                 reason: "Security breach",
             },
-        } satisfies AuthError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
+        } satisfies EnhancedAuthError,
 
         rateLimited: {
             code: "API_KEY_RATE_LIMITED",
@@ -272,7 +423,14 @@ export const authErrorFixtures = {
                 window: "hour",
                 reset: new Date(Date.now() + 1800000).toISOString(),
             },
-        } satisfies AuthError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 60000,
+                backoffMultiplier: 2,
+            },
+        } satisfies EnhancedAuthError,
     },
 
     // Factory functions
@@ -280,10 +438,14 @@ export const authErrorFixtures = {
         /**
          * Create a custom auth error
          */
-        createAuthError: (code: string, message: string, details?: any): AuthError => ({
+        createAuthError: (code: string, message: string, details?: any): EnhancedAuthError => ({
             code,
             message,
             ...(details && { details }),
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
         }),
 
         /**
@@ -293,7 +455,7 @@ export const authErrorFixtures = {
             resource: string,
             requiredPermission: string,
             currentPermission?: string,
-        ): AuthError => ({
+        ): EnhancedAuthError => ({
             code: "PERMISSION_DENIED",
             message: `You don't have permission to access ${resource}`,
             details: {
@@ -301,24 +463,32 @@ export const authErrorFixtures = {
                 requiredPermission,
                 ...(currentPermission && { currentPermission }),
             },
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
         }),
 
         /**
          * Create a role-based error
          */
-        createRoleError: (requiredRole: string, currentRole: string): AuthError => ({
+        createRoleError: (requiredRole: string, currentRole: string): EnhancedAuthError => ({
             code: "INSUFFICIENT_ROLE",
             message: `This action requires ${requiredRole} role`,
             details: {
                 requiredRole,
                 currentRole,
             },
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fail",
+            },
         }),
 
         /**
          * Create a session error with action
          */
-        createSessionError: (reason: string, actionUrl?: string): AuthError => ({
+        createSessionError: (reason: string, actionUrl?: string): EnhancedAuthError => ({
             code: "SESSION_ERROR",
             message: "There was a problem with your session",
             details: { reason },
@@ -329,6 +499,14 @@ export const authErrorFixtures = {
                     url: actionUrl,
                 },
             }),
+            userImpact: "blocking",
+            recovery: {
+                strategy: "fallback",
+                fallbackAction: actionUrl ? "redirect_to_login" : "show_error",
+            },
         }),
     },
 };
+
+// Create and export the auth error factory instance
+export const authErrorFactory = new AuthErrorFactory();

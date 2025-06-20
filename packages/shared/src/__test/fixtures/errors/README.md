@@ -2,6 +2,70 @@
 
 Error fixtures provide consistent error scenarios for testing error handling across the Vrooli application. These fixtures help ensure that error states are handled gracefully and consistently throughout the codebase.
 
+## Current State (Second Pass Refinement)
+
+### Files Present:
+1. `apiErrors.ts` - API error fixtures (HTTP errors)
+2. `authErrors.ts` - Authentication/authorization error fixtures
+3. `businessErrors.ts` - Business logic error fixtures
+4. `networkErrors.ts` - Network connectivity error fixtures
+5. `systemErrors.ts` - System/infrastructure error fixtures
+6. `validationErrors.ts` - Field validation error fixtures
+7. `types.ts` - Enhanced error type definitions
+8. `composition.ts` - Error composition utilities
+9. `index.ts` - Central export file
+10. `README.md` - This documentation
+
+### Source of Truth Analysis:
+Unlike other fixture types that map 1:1 with source files, error fixtures are **intentionally organized by category** because error definitions are distributed across the codebase:
+
+#### Verified Source Files:
+1. **`packages/shared/src/api/fetchWrapper.ts`** ✓
+   - Contains: `FetchError`, `TimeoutError`, `NetworkError` classes
+   - Mapped to: `apiErrors.ts`, `networkErrors.ts`
+
+2. **`packages/shared/src/consts/api.ts`** ✓
+   - Contains: `HttpStatus` enum, `ServerError` types, socket error constants
+   - Mapped to: `apiErrors.ts`, `systemErrors.ts`
+
+3. **`packages/server/src/events/error.ts`** ✓
+   - Contains: `CustomError` class with logging and translation support
+   - Mapped to: Used across multiple fixture categories
+
+4. **`packages/shared/src/translations/locales/en/error.json`** ✓
+   - Contains: 194 error translation keys
+   - Mapped to: All fixture categories use these keys
+
+5. **`packages/shared/src/validation/utils/errors.ts`** ✓
+   - Contains: Validation error message functions
+   - Mapped to: `validationErrors.ts`
+
+6. **`packages/shared/src/execution/types/resilience.ts`** ✓
+   - Contains: Error classification, severity, recovery strategies
+   - Mapped to: Enhanced error types in `types.ts`
+
+### Assessment:
+✅ **Correct Architecture**: Category-based organization is the right approach for error fixtures
+✅ **Complete Coverage**: All error sources are represented in fixtures
+✅ **Type Safety**: All fixtures pass type checking with zero errors
+✅ **Factory Pattern**: Properly implemented across all fixture files
+✅ **No Extra Files**: No unnecessary test files or duplicates
+✅ **Proper Exports**: index.ts correctly exports all fixtures
+
+### Why This Differs from Other Fixtures:
+1. **No 1:1 Mapping Needed**: Error types are scattered across many files
+2. **Category Organization Better**: Developers need errors by use case, not source file
+3. **Cross-Cutting Concerns**: Errors often combine multiple source types
+4. **Testing Focus**: Error handling tests need scenario-based fixtures
+
+### Verification Complete:
+- ✅ Type checking: PASSED (no errors)
+- ✅ Import paths: All use `.js` extensions correctly
+- ✅ Factory pattern: Implemented consistently
+- ✅ Source coverage: All error types represented
+- ✅ No missing fixtures: All categories covered
+- ✅ No extra fixtures: Only necessary files present
+
 ## Overview
 
 The error fixtures are organized into six categories:

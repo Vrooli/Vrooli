@@ -123,6 +123,11 @@ export interface BulkSeedResult<T> {
         withAuth: number;
         bots: number;
         teams: number;
+        /** Additional fields for specific object types */
+        lists?: number;        // For bookmark lists
+        bookmarks?: number;    // For bookmarks in lists
+        anonymous?: number;    // For anonymous views
+        [key: string]: number | undefined; // Allow additional summary fields
     };
 }
 

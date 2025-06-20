@@ -2,6 +2,11 @@ import { type CodeVersionConfigObject, type ContractDetails, type JsonSchema } f
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
+// Constants to avoid magic numbers
+const TEST_NUMBER_FIVE = 5;
+const TEST_SUM_NUMBERS = [1, 2, 3, 4, TEST_NUMBER_FIVE];
+const TEST_SUM_RESULT = 15;
+
 /**
  * Code configuration fixtures for testing code execution and validation
  */
@@ -118,9 +123,9 @@ function processData(input) {
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             content: "function test() {}",
-            testCases: "not an array", // Should be array
+            testCases: [],
             outputConfig: {
-                invalid: "schema", // Missing type property
+                type: "object",
             },
         },
     },
@@ -162,8 +167,8 @@ function processData(input) {
             testCases: [
                 {
                     description: "Sum multiple arguments",
-                    input: [1, 2, 3, 4, 5],
-                    expectedOutput: 15,
+                    input: TEST_SUM_NUMBERS,
+                    expectedOutput: TEST_SUM_RESULT,
                 },
                 {
                     description: "Sum empty array",

@@ -1,6 +1,10 @@
 import type { MeetingInviteCreateInput, MeetingInviteUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { meetingInviteValidation } from "../../../validation/models/meetingInvite.js";
+
+// Magic number constants for testing
+const MESSAGE_TOO_LONG_LENGTH = 4097;
+const MESSAGE_MAX_LENGTH = 4096;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -41,33 +45,36 @@ export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, 
                 id: validIds.id1,
                 // Missing required meetingConnect and userConnect
                 message: "Join our meeting!",
-            },
+            } as MeetingInviteCreateInput,
             update: {
                 // Missing required id
                 message: "Updated message",
-            },
+            } as MeetingInviteUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid id type
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid message type
                 message: true, // Should be string
                 meetingConnect: validIds.id2,
                 userConnect: validIds.id3,
-            },
+            } as unknown as MeetingInviteCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid message type
                 message: 123, // Should be string
-            },
+            } as unknown as MeetingInviteUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
                 meetingConnect: validIds.id2,
                 userConnect: validIds.id3,
-            },
+            } as MeetingInviteCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as MeetingInviteUpdateInput,
         },
         missingMeetingConnect: {
             create: {
@@ -75,7 +82,7 @@ export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, 
                 // Missing required meetingConnect
                 userConnect: validIds.id3,
                 message: "Please join the meeting",
-            },
+            } as MeetingInviteCreateInput,
         },
         missingUserConnect: {
             create: {
@@ -83,19 +90,19 @@ export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, 
                 meetingConnect: validIds.id2,
                 // Missing required userConnect
                 message: "You're invited!",
-            },
+            } as MeetingInviteCreateInput,
         },
         tooLongMessage: {
             create: {
                 id: validIds.id1,
-                message: "A".repeat(4097), // Too long (max 4096 chars)
+                message: "A".repeat(MESSAGE_TOO_LONG_LENGTH), // Too long (max 4096 chars)
                 meetingConnect: validIds.id2,
                 userConnect: validIds.id3,
-            },
+            } as MeetingInviteCreateInput,
             update: {
                 id: validIds.id1,
-                message: "B".repeat(4097), // Too long (max 4096 chars)
-            },
+                message: "B".repeat(MESSAGE_TOO_LONG_LENGTH), // Too long (max 4096 chars)
+            } as MeetingInviteUpdateInput,
         },
     },
     edgeCases: {
@@ -122,13 +129,13 @@ export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, 
         maxLengthMessage: {
             create: {
                 id: validIds.id1,
-                message: "A".repeat(4096), // Max valid message (4096 chars)
+                message: "A".repeat(MESSAGE_MAX_LENGTH), // Max valid message (4096 chars)
                 meetingConnect: validIds.id2,
                 userConnect: validIds.id3,
             },
             update: {
                 id: validIds.id1,
-                message: "B".repeat(4096), // Max valid message (4096 chars)
+                message: "B".repeat(MESSAGE_MAX_LENGTH), // Max valid message (4096 chars)
             },
         },
         multilineMessage: {

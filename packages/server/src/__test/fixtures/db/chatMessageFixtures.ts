@@ -1,5 +1,6 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK, generatePublicId } from "../../../../../shared/src/id/index.js";
 import { type Prisma } from "@prisma/client";
+import { messageConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/messageConfigFixtures.js";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
@@ -23,182 +24,154 @@ export const chatMessageDbIds = {
 /**
  * Enhanced test fixtures for ChatMessage model following standard structure
  */
-export const chatMessageDbFixtures: DbTestFixtures<Prisma.ChatMessageCreateInput> = {
+export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
         versionIndex: 0,
-        chat: { connect: { id: chatMessageDbIds.chat1 } },
-        user: { connect: { id: chatMessageDbIds.user1 } },
-        translations: {
-            create: [{
-                id: generatePK(),
-                language: "en",
-                text: "Test message",
-            }],
-        },
+        language: "en",
+        text: "Test message",
+        chatId: BigInt(chatMessageDbIds.chat1),
+        userId: BigInt(chatMessageDbIds.user1),
+        config: messageConfigFixtures.minimal as any,
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
         versionIndex: 1,
-        chat: { connect: { id: chatMessageDbIds.chat1 } },
-        user: { connect: { id: chatMessageDbIds.user1 } },
-        parent: { connect: { id: chatMessageDbIds.message1 } },
-        translations: {
-            create: [
-                {
-                    id: generatePK(),
-                    language: "en",
-                    text: "This is a complete test message with detailed content and proper formatting.",
-                },
-                {
-                    id: generatePK(),
-                    language: "es",
-                    text: "Este es un mensaje de prueba completo con contenido detallado y formato adecuado.",
-                },
-            ],
-        },
+        language: "en",
+        text: "This is a complete test message with detailed content and proper formatting.",
+        chatId: BigInt(chatMessageDbIds.chat1),
+        userId: BigInt(chatMessageDbIds.user1),
+        parentId: BigInt(chatMessageDbIds.message1),
+        config: messageConfigFixtures.complete as any,
+        score: 5,
     },
     invalid: {
         missingRequired: {
-            // Missing required chat, user, versionIndex, and translations
-            publicId: generatePublicId(),
+            // Missing required chat, user, versionIndex, language, and text
+            id: generatePK(),
         },
         invalidTypes: {
             id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
+            language: 123, // Should be string
+            text: null, // Should be string
             versionIndex: "invalid", // Should be number
-            chat: "invalid-chat-reference", // Should be connect object
-            user: "invalid-user-reference", // Should be connect object
-            parent: "invalid-parent-reference", // Should be connect object
+            chatId: "invalid-chat-reference", // Should be BigInt
+            userId: "invalid-user-reference", // Should be BigInt
+            parentId: "invalid-parent-reference", // Should be BigInt
         },
         negativeVersionIndex: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: -1, // Negative version index
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Invalid version index",
-                }],
-            },
+            language: "en",
+            text: "Invalid version index",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
         },
-        emptyTranslations: {
+        emptyText: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [], // Empty translations array
-            },
+            language: "en",
+            text: "", // Empty text
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
         },
     },
     edgeCases: {
         rootMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Root message without parent",
-                }],
-            },
+            language: "en",
+            text: "Root message without parent",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.variants.userMessage as any,
         },
         replyMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user2 } },
-            parent: { connect: { id: chatMessageDbIds.message1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Reply to root message",
-                }],
-            },
+            language: "en",
+            text: "Reply to root message",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user2),
+            parentId: BigInt(chatMessageDbIds.message1),
+            config: messageConfigFixtures.minimal as any,
         },
         botMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.bot1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "This is an automated bot response with helpful information.",
-                }],
-            },
+            language: "en",
+            text: "This is an automated bot response with helpful information.",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.bot1),
+            config: messageConfigFixtures.variants.assistantWithTools as any,
         },
         longMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "This is a very long message that contains a lot of text to test how the system handles messages with substantial content. ".repeat(10),
-                }],
-            },
+            language: "en",
+            text: "This is a very long message that contains a lot of text to test how the system handles messages with substantial content. ".repeat(10),
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
         },
         multiLanguageMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [
-                    { id: generatePK(), language: "en", text: "Hello world" },
-                    { id: generatePK(), language: "es", text: "Hola mundo" },
-                    { id: generatePK(), language: "fr", text: "Bonjour le monde" },
-                    { id: generatePK(), language: "de", text: "Hallo Welt" },
-                    { id: generatePK(), language: "ja", text: "こんにちは世界" },
-                ],
-            },
+            language: "en",
+            text: "Hello world",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
         },
         highVersionIndex: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 999,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Message with high version index",
-                }],
-            },
+            language: "en",
+            text: "Message with high version index",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
         },
         specialCharactersMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: chatMessageDbIds.chat1 } },
-            user: { connect: { id: chatMessageDbIds.user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Message with special chars: !@#$%^&*()_+{}|:<>?[]\\;'\",./ and emojis 😀😁😂",
-                }],
-            },
+            language: "en",
+            text: "Message with special chars: !@#$%^&*()_+{}|:<>?[]\\;'\",./ and emojis 😀😁😂",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
+        },
+        pendingMessage: {
+            id: generatePK(),
+            versionIndex: 0,
+            language: "en",
+            text: "Message still pending delivery",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
+            score: -1, // Could indicate pending state
+        },
+        failedMessage: {
+            id: generatePK(),
+            versionIndex: 0,
+            language: "en",
+            text: "Message failed to send",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            config: messageConfigFixtures.minimal as any,
+            score: -2, // Could indicate failed state
+        },
+        threadedConversation: {
+            id: generatePK(),
+            versionIndex: 0,
+            language: "en",
+            text: "Part of a threaded conversation",
+            chatId: BigInt(chatMessageDbIds.chat1),
+            userId: BigInt(chatMessageDbIds.user1),
+            parentId: BigInt(chatMessageDbIds.message2),
+            config: messageConfigFixtures.minimal as any,
         },
     },
 };
@@ -206,12 +179,12 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.ChatMessageCreateInput
 /**
  * Enhanced factory for creating chat message database fixtures
  */
-export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCreateInput> {
+export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageCreateInput> {
     
     /**
      * Get the test fixtures for ChatMessage model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ChatMessageCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.chat_messageCreateInput> {
         return chatMessageDbFixtures;
     }
 
@@ -223,45 +196,30 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
             constraints: {
                 uniqueViolation: {
                     id: chatMessageDbIds.message1, // Duplicate ID
-                    publicId: generatePublicId(),
                     versionIndex: 0,
-                    chat: { connect: { id: chatMessageDbIds.chat1 } },
-                    user: { connect: { id: chatMessageDbIds.user1 } },
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            text: "Duplicate message",
-                        }],
-                    },
+                    language: "en",
+                    text: "Duplicate message",
+                    chatId: BigInt(chatMessageDbIds.chat1),
+                    userId: BigInt(chatMessageDbIds.user1),
+                    config: messageConfigFixtures.minimal as any,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     versionIndex: 0,
+                    language: "en",
+                    text: "Foreign key violation",
                     chat: { connect: { id: "non-existent-chat-id" } },
                     user: { connect: { id: chatMessageDbIds.user1 } },
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            text: "Foreign key violation",
-                        }],
-                    },
+                    config: messageConfigFixtures.minimal as any,
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    publicId: "", // Empty publicId
                     versionIndex: 0,
-                    chat: { connect: { id: chatMessageDbIds.chat1 } },
-                    user: { connect: { id: chatMessageDbIds.user1 } },
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            text: "Check constraint violation",
-                        }],
-                    },
+                    language: "", // Empty language
+                    text: "Check constraint violation",
+                    chatId: BigInt(chatMessageDbIds.chat1),
+                    userId: BigInt(chatMessageDbIds.user1),
+                    config: messageConfigFixtures.minimal as any,
                 },
             },
             validation: {
@@ -269,36 +227,26 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
                 invalidDataType: chatMessageDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: "a".repeat(500), // PublicId too long
                     versionIndex: 999999, // Very high version index
-                    chat: { connect: { id: chatMessageDbIds.chat1 } },
-                    user: { connect: { id: chatMessageDbIds.user1 } },
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            text: "a".repeat(100000), // Extremely long text
-                        }],
-                    },
+                    language: "en",
+                    text: "a".repeat(50000), // Text too long (max 32768)
+                    chatId: BigInt(chatMessageDbIds.chat1),
+                    userId: BigInt(chatMessageDbIds.user1),
+                    config: messageConfigFixtures.minimal as any,
                 },
             },
             businessLogic: {
                 circularParent: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     versionIndex: 0,
-                    chat: { connect: { id: chatMessageDbIds.chat1 } },
-                    user: { connect: { id: chatMessageDbIds.user1 } },
-                    parent: { connect: { id: chatMessageDbIds.message1 } }, // Would create circular reference
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            text: "Circular parent reference",
-                        }],
-                    },
+                    language: "en",
+                    text: "Circular parent reference",
+                    chatId: BigInt(chatMessageDbIds.chat1),
+                    userId: BigInt(chatMessageDbIds.user1),
+                    parentId: BigInt(chatMessageDbIds.message1), // Would create circular reference
+                    config: messageConfigFixtures.minimal as any,
                 },
-                emptyTranslations: chatMessageDbFixtures.invalid.emptyTranslations,
+                emptyText: chatMessageDbFixtures.invalid.emptyText,
             },
         };
     }
@@ -306,16 +254,16 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
     /**
      * ChatMessage-specific validation
      */
-    protected validateSpecific(data: Prisma.ChatMessageCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.chat_messageCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
         // Check required fields specific to ChatMessage
         if (!data.chat) errors.push("ChatMessage chat is required");
         if (!data.user) errors.push("ChatMessage user is required");
-        if (!data.publicId) errors.push("ChatMessage publicId is required");
+        if (!data.language) errors.push("ChatMessage language is required");
+        if (!data.text) errors.push("ChatMessage text is required");
         if (data.versionIndex === undefined) errors.push("ChatMessage versionIndex is required");
-        if (!data.translations) errors.push("ChatMessage translations are required");
 
         // Check version index
         if (typeof data.versionIndex === 'number') {
@@ -327,22 +275,22 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
             }
         }
 
-        // Check translations
-        if (data.translations && typeof data.translations === 'object' && 'create' in data.translations) {
-            const createTranslations = data.translations.create;
-            if (Array.isArray(createTranslations)) {
-                if (createTranslations.length === 0) {
-                    errors.push("Message must have at least one translation");
-                }
-                createTranslations.forEach((trans, index) => {
-                    if (!trans.text || trans.text.length === 0) {
-                        errors.push(`Translation ${index} has empty text`);
-                    }
-                    if (trans.text && trans.text.length > 10000) {
-                        warnings.push(`Translation ${index} text is very long (>10000 chars)`);
-                    }
-                });
+        // Check text content
+        if (data.text && typeof data.text === 'string') {
+            if (data.text.length === 0) {
+                errors.push("Message text cannot be empty");
             }
+            if (data.text.length > 32768) {
+                errors.push("Message text exceeds maximum length of 32768 characters");
+            }
+            if (data.text.length > 10000) {
+                warnings.push("Message text is very long (>10000 chars)");
+            }
+        }
+
+        // Check language
+        if (data.language && (data.language.length < 2 || data.language.length > 3)) {
+            errors.push("Language code must be 2-3 characters");
         }
 
         return { errors, warnings };
@@ -352,20 +300,16 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.ChatMessageCreateInput>
-    ): Prisma.ChatMessageCreateInput {
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
         const factory = new ChatMessageDbFactory();
         return factory.createMinimal({
-            chat: { connect: { id: chatId } },
-            user: { connect: { id: userId } },
+            chatId: BigInt(chatId),
+            userId: BigInt(userId),
             versionIndex: 0,
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "Test message",
-                }],
-            },
+            language: "en",
+            text: "Test message",
+            config: messageConfigFixtures.minimal as any,
             ...overrides,
         });
     }
@@ -374,10 +318,10 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
         chatId: string,
         userId: string,
         parentId: string,
-        overrides?: Partial<Prisma.ChatMessageCreateInput>
-    ): Prisma.ChatMessageCreateInput {
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, userId, {
-            parent: { connect: { id: parentId } },
+            parentId: BigInt(parentId),
             ...overrides,
         });
     }
@@ -385,16 +329,69 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
     static createBotMessage(
         chatId: string,
         botId: string,
-        overrides?: Partial<Prisma.ChatMessageCreateInput>
-    ): Prisma.ChatMessageCreateInput {
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, botId, {
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: "This is an automated bot response.",
-                }],
-            },
+            config: messageConfigFixtures.variants.assistantWithTools as any,
+            text: "This is an automated bot response.",
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create user message with specific text
+     */
+    static createUserMessage(
+        chatId: string,
+        userId: string,
+        text: string,
+        score: number = 0,
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
+        return this.createMinimal(chatId, userId, {
+            config: messageConfigFixtures.variants.userMessage as any,
+            text,
+            score,
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create bot response with tool calls
+     */
+    static createBotResponseWithTools(
+        chatId: string,
+        botId: string,
+        text: string,
+        toolCalls?: any[],
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
+        const config = toolCalls 
+            ? {
+                ...messageConfigFixtures.variants.assistantWithTools,
+                toolCalls,
+            }
+            : messageConfigFixtures.variants.assistantWithTools;
+
+        return this.createMinimal(chatId, botId, {
+            config,
+            text,
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create threaded conversation message
+     */
+    static createThreadedMessage(
+        chatId: string,
+        userId: string,
+        parentId: string,
+        text: string,
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
+        return this.createWithParent(chatId, userId, parentId, {
+            text,
             ...overrides,
         });
     }
@@ -404,21 +401,82 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.ChatMessageCr
         userId: string,
         count: number,
         startIndex: number = 0
-    ): Prisma.ChatMessageCreateInput[] {
+    ): Prisma.chat_messageCreateInput[] {
         const messages = [];
         for (let i = 0; i < count; i++) {
             messages.push(this.createMinimal(chatId, userId, {
                 versionIndex: startIndex + i,
-                translations: {
-                    create: [{
-                        id: generatePK(),
-                        language: "en",
-                        text: `Message ${startIndex + i + 1} in sequence`,
-                    }],
-                },
+                text: `Message ${startIndex + i + 1} in sequence`,
             }));
         }
         return messages;
+    }
+
+    /**
+     * Create a realistic conversation between users and bot
+     */
+    static createConversationSequence(
+        chatId: string,
+        participants: {
+            userId: string;
+            botId: string;
+        },
+        messages: Array<{
+            type: "user" | "bot";
+            text: string;
+            score?: number;
+            parentId?: string;
+        }>
+    ): Prisma.chat_messageCreateInput[] {
+        const messageData: Prisma.chat_messageCreateInput[] = [];
+        const factory = new ChatMessageDbFactory();
+
+        messages.forEach((msg, index) => {
+            const isBot = msg.type === "bot";
+            const senderId = isBot ? participants.botId : participants.userId;
+            const config = isBot 
+                ? messageConfigFixtures.variants.assistantWithTools 
+                : messageConfigFixtures.variants.userMessage;
+
+            const message: Prisma.chat_messageCreateInput = {
+                id: generatePK(),
+                versionIndex: index,
+                language: "en",
+                text: msg.text,
+                chatId: BigInt(chatId),
+                userId: BigInt(senderId),
+                config,
+                score: msg.score || 0,
+            };
+
+            if (msg.parentId) {
+                message.parentId = BigInt(msg.parentId);
+            }
+
+            messageData.push(message);
+        });
+
+        return messageData;
+    }
+
+    /**
+     * Create typing indicator message
+     */
+    static createTypingIndicator(
+        chatId: string,
+        userId: string,
+        overrides?: Partial<Prisma.chat_messageCreateInput>
+    ): Prisma.chat_messageCreateInput {
+        return this.createMinimal(chatId, userId, {
+            config: {
+                ...messageConfigFixtures.minimal,
+                role: "system",
+                eventTopic: "typing-indicator",
+            },
+            text: "...",
+            score: -1,
+            ...overrides,
+        });
     }
 }
 
@@ -443,23 +501,18 @@ export async function seedChatMessages(
     let botCount = 0;
 
     for (const msg of options.messages) {
-        const messageData: Prisma.ChatMessageCreateInput = {
+        const messageData: Prisma.chat_messageCreateInput = {
             id: generatePK(),
-            publicId: generatePublicId(),
             versionIndex: msg.versionIndex ?? 0,
-            chat: { connect: { id: options.chatId } },
-            user: { connect: { id: msg.userId } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: msg.text || "Test message",
-                }],
-            },
+            language: "en",
+            text: msg.text || "Test message",
+            chatId: BigInt(options.chatId),
+            userId: BigInt(msg.userId),
+            config: messageConfigFixtures.minimal as any,
         };
 
         if (msg.parentId) {
-            messageData.parent = { connect: { id: msg.parentId } };
+            messageData.parentId = BigInt(msg.parentId);
             replyCount++;
         } else {
             rootCount++;
@@ -515,23 +568,18 @@ export async function seedConversationTree(
 
     async function createNode(node: any, parentId?: string) {
         const messageId = node.id || generatePK();
-        const messageData: Prisma.ChatMessageCreateInput = {
+        const messageData: Prisma.chat_messageCreateInput = {
             id: messageId,
-            publicId: generatePublicId(),
             versionIndex: 0,
-            chat: { connect: { id: options.chatId } },
-            user: { connect: { id: node.userId } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    text: node.text,
-                }],
-            },
+            language: "en",
+            text: node.text,
+            chatId: BigInt(options.chatId),
+            userId: BigInt(node.userId),
+            config: messageConfigFixtures.minimal as any,
         };
 
         if (parentId) {
-            messageData.parent = { connect: { id: parentId } };
+            messageData.parentId = BigInt(parentId);
         }
 
         // Check if this is a bot message
@@ -571,7 +619,7 @@ export async function seedConversationTree(
             withAuth: 0,
             bots: botCount,
             teams: 0,
-            treeStructure: true,
+            treeNodes: totalCreated,
         },
     };
 }

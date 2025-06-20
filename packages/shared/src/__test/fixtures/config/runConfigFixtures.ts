@@ -1,7 +1,10 @@
-import { InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "../../../run/enums.js";
+import { BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "../../../run/enums.js";
 import { type RunProgress } from "../../../run/types.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
+
+// Constants to avoid magic numbers
+const FIVE_SECONDS_MS = 5000;
 
 /**
  * Run configuration fixtures for testing run execution settings and progress
@@ -45,50 +48,59 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         __version: LATEST_CONFIG_VERSION,
         branches: [
             {
-                id: "branch_1",
-                status: "Active",
-                nodeId: "node_1",
-                depth: 0,
-                parentId: null,
-                data: {},
-                outputs: {},
-                errors: [],
+                branchId: "branch_1",
+                childSubroutineInstanceId: null,
+                closedLocations: [],
+                creditsSpent: "0",
+                locationStack: [{
+                    locationId: "node_1",
+                }],
+                manualExecutionConfirmed: false,
+                nodeStartTimeMs: Date.now(),
+                processId: "process_1",
+                status: BranchStatus.Active,
+                stepId: null,
+                subroutineInstanceId: "sub_instance_1",
             },
             {
-                id: "branch_2",
-                status: "Waiting",
-                nodeId: "node_2",
-                depth: 1,
-                parentId: "branch_1",
-                data: { input: "test" },
-                outputs: { result: "pending" },
-                errors: [],
+                branchId: "branch_2",
+                childSubroutineInstanceId: "sub_child_1",
+                closedLocations: [{ locationId: "node_1" }],
+                creditsSpent: "100",
+                locationStack: [{
+                    locationId: "node_1",
+                }, {
+                    locationId: "node_2",
+                }],
+                manualExecutionConfirmed: true,
+                nodeStartTimeMs: Date.now() - FIVE_SECONDS_MS,
+                processId: "process_2",
+                status: BranchStatus.Waiting,
+                stepId: "step_1",
+                subroutineInstanceId: "sub_instance_2",
             },
         ],
         config: {
             botConfig: {
-                model: "gpt-4",
-                maxTokens: 2048,
+                model: "gpt-4" as any, // LlmModel type
+                modelHandling: "OnlyWhenMissing",
             },
             decisionConfig: {
-                inputGeneration: InputGenerationStrategy.ManualPrompt,
-                pathSelection: PathSelectionStrategy.ManualPrompt,
-                subroutineExecution: SubroutineExecutionStrategy.ManualPrompt,
+                inputGeneration: InputGenerationStrategy.Manual,
+                pathSelection: PathSelectionStrategy.ManualPick,
+                subroutineExecution: SubroutineExecutionStrategy.Manual,
             },
             limits: {
-                maxRunTime: 3600000, // 1 hour
-                maxDecisions: 100,
-                maxComplexity: 1000,
-                maxApiCalls: 50,
+                maxTime: 3600000, // 1 hour
             },
             loopConfig: {
-                maxIterations: 10,
-                detectInfiniteLoops: true,
+                loopDelayMs: 100,
+                loopDelayMultiplier: 1.5,
             },
             onBranchFailure: "Continue",
-            onGatewayForkFailure: "Prompt",
-            onNormalNodeFailure: "Retry",
-            onOnlyWaitingBranches: "Wait",
+            onGatewayForkFailure: "Wait", // Valid options: Continue, Wait, Fail
+            onNormalNodeFailure: "Continue", // Valid options: Continue, Wait, Fail
+            onOnlyWaitingBranches: "Pause", // Valid options: Pause, Stop, Continue
             testMode: true,
         },
         decisions: [
@@ -99,8 +111,11 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                 type: "PathSelection",
                 status: "Resolved",
                 question: "Which path to take?",
-                options: ["Option A", "Option B"],
-                selectedOption: "Option A",
+                options: [
+                    { nodeId: "node_option_a" },
+                    { nodeId: "node_option_b" },
+                ],
+                selectedOption: { nodeId: "node_option_a" },
                 timestamp: "2024-01-01T00:00:00Z",
             },
         ],
@@ -109,8 +124,33 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         },
         subcontexts: {
             "sub_1": {
-                data: { key: "value" },
-                outputs: { result: "success" },
+                currentTask: {
+                    name: "Process Data",
+                    description: "Process the input data",
+                },
+                allInputsList: [
+                    { key: "input1", value: "test" },
+                ],
+                allInputsMap: {
+                    input1: "test",
+                },
+                allOutputsList: [
+                    { key: "output1", value: "success" },
+                ],
+                allOutputsMap: {
+                    output1: "success",
+                },
+                triggeredBoundaryEventIds: [],
+                nodeStartTimes: {
+                    "node_1": Date.now() - 10000,
+                },
+                runtimeEvents: {
+                    messages: [],
+                    signals: [],
+                    errors: [],
+                    escalations: [],
+                },
+                timeZone: "UTC",
             },
         },
     },
@@ -261,8 +301,8 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             branches: [
                 {
-                    id: "branch_main",
-                    status: "Active",
+                    branchId: "branch_main",
+                    status: BranchStatus.Active,
                     nodeId: "node_start",
                     depth: 0,
                     parentId: null,
@@ -271,8 +311,8 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                     errors: [],
                 },
                 {
-                    id: "branch_parallel_1",
-                    status: "Active",
+                    branchId: "branch_parallel_1",
+                    status: BranchStatus.Active,
                     nodeId: "node_task_1",
                     depth: 1,
                     parentId: "branch_main",
@@ -281,8 +321,8 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
                     errors: [],
                 },
                 {
-                    id: "branch_parallel_2",
-                    status: "Active",
+                    branchId: "branch_parallel_2",
+                    status: BranchStatus.Active,
                     nodeId: "node_task_2",
                     depth: 1,
                     parentId: "branch_main",
@@ -316,8 +356,8 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
         withCompletedDecisions: {
             __version: LATEST_CONFIG_VERSION,
             branches: [{
-                id: "branch_1",
-                status: "Completed",
+                branchId: "branch_1",
+                status: BranchStatus.Completed,
                 nodeId: "node_1",
                 depth: 0,
                 parentId: null,
@@ -374,8 +414,8 @@ export const runConfigFixtures: ConfigTestFixtures<RunProgressConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             branches: [
                 {
-                    id: "branch_failed",
-                    status: "Failed",
+                    branchId: "branch_failed",
+                    status: BranchStatus.Failed,
                     nodeId: "node_error",
                     depth: 0,
                     parentId: null,
@@ -509,7 +549,7 @@ export function createRunConfigWithStrategies(
  */
 export function createRunConfigWithBranches(
     branchCount: number,
-    status: "Active" | "Waiting" | "Completed" | "Failed" = "Active",
+    status: BranchStatus.Active | "Waiting" | "Completed" | "Failed" = "Active",
 ): RunProgressConfigObject {
     const branches = Array.from({ length: branchCount }, (_, i) => ({
         id: `branch_${i + 1}`,

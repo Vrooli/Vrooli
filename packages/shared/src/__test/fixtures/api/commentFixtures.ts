@@ -1,7 +1,11 @@
-import type { CommentCreateInput, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput } from "../../../api/types.js";
+import type { CommentCreateInput, CommentUpdateInput } from "../../../api/types.js";
 import { CommentFor } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { commentValidation } from "../../../validation/models/comment.js";
+
+// Magic number constants for testing
+const TEXT_TOO_LONG_LENGTH = 40000;
+const TEXT_MAX_LENGTH = 32768;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -62,7 +66,7 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
             create: {
                 // Missing id, createdFor, and forConnect
                 parentConnect: validIds.parentId1,
-            },
+            } as CommentCreateInput,
             update: {
                 // Missing id
                 translationsCreate: [{
@@ -70,25 +74,30 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
                     language: "en",
                     text: "Some text",
                 }],
-            },
+            } as CommentUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                createdFor: "InvalidType", // Should be valid CommentFor enum
-                forConnect: 456, // Should be string
-            },
+                // @ts-expect-error - Testing invalid type for id (should be string)
+                id: 123,
+                // @ts-expect-error - Testing invalid type for createdFor (should be valid CommentFor enum)
+                createdFor: "InvalidType",
+                // @ts-expect-error - Testing invalid type for forConnect (should be string)
+                forConnect: 456,
+            } as unknown as CommentCreateInput,
             update: {
                 id: validIds.id3,
-                translationsCreate: "not-an-array", // Should be array
-            },
+                // @ts-expect-error - Testing invalid type for translationsCreate (should be array)
+                translationsCreate: "not-an-array",
+            } as unknown as CommentUpdateInput,
         },
         invalidCreatedFor: {
             create: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid enum value for createdFor
                 createdFor: "NotAValidEnum",
                 forConnect: validIds.forId1,
-            },
+            } as unknown as CommentCreateInput,
         },
         invalidId: {
             create: {
@@ -102,7 +111,7 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
                 id: validIds.id1,
                 createdFor: CommentFor.Issue,
                 // Missing required 'forConnect' relationship
-            },
+            } as CommentCreateInput,
         },
         invalidTranslationText: {
             create: {
@@ -124,7 +133,7 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
                 translationsCreate: [{
                     id: validIds.translationId1,
                     language: "en",
-                    text: testValues.longString(40000), // Exceeds max length (32768)
+                    text: testValues.longString(TEXT_TOO_LONG_LENGTH), // Exceeds max length (32768)
                 }],
             },
         },
@@ -182,7 +191,7 @@ export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdat
                 translationsCreate: [{
                     id: validIds.translationId1,
                     language: "en",
-                    text: "a".repeat(32768), // Exactly at max length
+                    text: "a".repeat(TEXT_MAX_LENGTH), // Exactly at max length
                 }],
             },
         },

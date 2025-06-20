@@ -1,6 +1,10 @@
-import type { ChatCreateInput, ChatUpdateInput, ChatTranslationCreateInput, ChatTranslationUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ChatCreateInput, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { chatValidation } from "../../../validation/models/chat.js";
+
+// Magic number constants for testing
+const NAME_MAX_LENGTH = 50;
+const DESCRIPTION_MAX_LENGTH = 2048;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -114,65 +118,59 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
             create: {
                 // Missing id
                 openToAnyoneWithInvite: true,
-            },
+            } as ChatCreateInput,
             update: {
                 // Missing id
                 openToAnyoneWithInvite: false,
-            },
+            } as ChatUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                openToAnyoneWithInvite: "yes", // Should be boolean
-            },
+                // @ts-expect-error Testing invalid type - id should be string
+                id: 123,
+                // @ts-expect-error Testing invalid type - openToAnyoneWithInvite should be boolean
+                openToAnyoneWithInvite: "yes",
+            } as unknown as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
-                openToAnyoneWithInvite: "no", // Should be boolean
-                participants: {
-                    delete: "all", // Should be array
-                },
-            },
+                // @ts-expect-error Testing invalid type - openToAnyoneWithInvite should be boolean
+                openToAnyoneWithInvite: "no",
+                // @ts-expect-error Testing invalid type - participantsDelete should be array
+                participantsDelete: "all",
+            } as unknown as ChatUpdateInput,
         },
         invalidRelations: {
             create: {
                 id: validIds.chatId1,
-                invites: {
-                    create: [{
-                        // Missing required fields for invite
-                        message: "Invalid invite",
-                    }],
-                },
-            },
+                invitesCreate: [{
+                    // Missing required fields for invite
+                    message: "Invalid invite",
+                } as any],
+            } as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
-                messages: {
-                    update: [{
-                        // Missing id for update
-                        content: "Updated content",
-                    }],
-                },
-            },
+                messagesUpdate: [{
+                    // Missing id for update
+                    text: "Updated content",
+                } as any],
+            } as ChatUpdateInput,
         },
         invalidTranslations: {
             create: {
                 id: validIds.chatId1,
-                translations: {
-                    create: [{
-                        // Missing language
-                        name: "Chat name",
-                    }],
-                },
-            },
+                translationsCreate: [{
+                    // Missing required fields
+                    name: "Chat name",
+                } as any],
+            } as ChatCreateInput,
             update: {
                 id: validIds.chatId1,
-                translations: {
-                    update: [{
-                        // Missing id
-                        language: "en",
-                        name: "Updated name",
-                    }],
-                },
-            },
+                translationsUpdate: [{
+                    // Missing id
+                    language: "en",
+                    name: "Updated name",
+                } as any],
+            } as ChatUpdateInput,
         },
     },
     edgeCases: {
@@ -219,21 +217,21 @@ export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> =
                 translationsCreate: [{
                     id: "923456789012345681",
                     language: "en",
-                    name: testValues.longString(50), // Max length for name field
-                    description: testValues.longString(2048), // Assuming reasonable description length
+                    name: testValues.longString(NAME_MAX_LENGTH), // Max length for name field
+                    description: testValues.longString(DESCRIPTION_MAX_LENGTH), // Assuming reasonable description length
                 }],
             },
         },
     },
 };
 
-// Custom factory that always generates valid IDs and required fields
+// Custom factory that always generates valid IDs and required fields with proper typing
 const customizers = {
-    create: (base: any): ChatCreateInput => ({
+    create: (base: ChatCreateInput): ChatCreateInput => ({
         ...base,
         id: base.id || validIds.chatId1,
     }),
-    update: (base: any): ChatUpdateInput => ({
+    update: (base: ChatUpdateInput): ChatUpdateInput => ({
         ...base,
         id: base.id || validIds.chatId1,
     }),
@@ -274,24 +272,27 @@ export const chatTranslationFixtures: ModelTestFixtures<ChatTranslationCreateInp
             create: {
                 // Missing id and language
                 name: "Chat Name",
-            },
+            } as ChatTranslationCreateInput,
             update: {
                 // Missing id
                 language: "en",
                 description: "Updated description",
-            },
+            } as ChatTranslationUpdateInput,
         },
         invalidTypes: {
             create: {
                 id: validIds.chatId3,
-                language: 123, // Should be string
-                name: true, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - language should be string
+                language: 123,
+                // @ts-expect-error Testing invalid type - name should be string
+                name: true,
+            } as unknown as ChatTranslationCreateInput,
             update: {
                 id: validIds.chatId3,
                 language: "en",
-                description: [], // Should be string
-            },
+                // @ts-expect-error Testing invalid type - description should be string
+                description: [],
+            } as unknown as ChatTranslationUpdateInput,
         },
     },
     edgeCases: {
@@ -306,8 +307,8 @@ export const chatTranslationFixtures: ModelTestFixtures<ChatTranslationCreateInp
             create: {
                 id: validIds.chatId3,
                 language: "en",
-                name: testValues.longString(50),
-                description: testValues.longString(2048),
+                name: testValues.longString(NAME_MAX_LENGTH),
+                description: testValues.longString(DESCRIPTION_MAX_LENGTH),
             },
         },
     },

@@ -12,13 +12,13 @@ const validIds = {
 // Shared member test fixtures (Member has no create operation)
 export const memberFixtures: ModelTestFixtures<never, MemberUpdateInput> = {
     minimal: {
-        create: null, // No create operation supported
+        create: null as never, // No create operation supported
         update: {
             id: validIds.id1,
         },
     },
     complete: {
-        create: null, // No create operation supported
+        create: null as never, // No create operation supported
         update: {
             id: validIds.id2,
             isAdmin: true,
@@ -27,22 +27,22 @@ export const memberFixtures: ModelTestFixtures<never, MemberUpdateInput> = {
     },
     invalid: {
         missingRequired: {
-            create: null, // No create operation supported
+            create: null as never, // No create operation supported
             update: {
                 // Missing id
                 isAdmin: true,
-            },
+            } as MemberUpdateInput,
         },
         invalidTypes: {
-            create: null, // No create operation supported
+            create: null as never, // No create operation supported
             update: {
                 id: 123, // Should be string
                 isAdmin: "yes", // Should be boolean
                 permissions: "invalid", // Should be array
-            },
+            } as unknown as MemberUpdateInput,
         },
         invalidId: {
-            create: null, // No create operation supported
+            create: null as never, // No create operation supported
             update: {
                 id: "not-a-valid-snowflake",
                 isAdmin: false,
@@ -79,7 +79,7 @@ export const memberFixtures: ModelTestFixtures<never, MemberUpdateInput> = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (_base: any): never => null as never, // No create operation
+    create: (_base: never): never => null as never, // No create operation
     update: (base: Partial<MemberUpdateInput>): MemberUpdateInput => ({
         id: validIds.id1,
         ...base,

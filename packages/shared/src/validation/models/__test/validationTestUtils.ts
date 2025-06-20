@@ -1,10 +1,14 @@
 import { expect } from "vitest";
 import type * as yup from "yup";
+import type { YupModel } from "../utils/types.js";
 
 /**
  * Standard test fixture structure for model validation tests.
  * This ensures consistency across all model tests and can be reused
  * by API endpoint tests and UI form tests.
+ * 
+ * @template TCreate - The TypeScript type for create operations (e.g., UserCreateInput)
+ * @template TUpdate - The TypeScript type for update operations (e.g., UserUpdateInput)
  */
 export interface ModelTestFixtures<TCreate = any, TUpdate = any> {
     minimal: {
@@ -224,7 +228,7 @@ export function runStandardValidationTests<TCreate, TUpdate>(
  */
 export class TestDataFactory<TCreate, TUpdate> {
     constructor(
-        private fixtures: ModelTestFixtures<TCreate, TUpdate>,
+        protected fixtures: ModelTestFixtures<TCreate, TUpdate>,
         private customizers?: {
             create?: (base: TCreate) => TCreate;
             update?: (base: TUpdate) => TUpdate;
@@ -327,5 +331,152 @@ export function createRelationshipData(
             return { delete: Array.isArray(data) ? data : [data] };
         default:
             return data;
+    }
+}
+
+/**
+ * Enhanced type-safe test fixture utilities
+ */
+
+/**
+ * Creates type-safe fixtures that link with validation schemas.
+ * This ensures fixtures match both TypeScript types and validation schemas.
+ * 
+ * @template TCreate - The TypeScript type for create operations
+ * @template TUpdate - The TypeScript type for update operations
+ * @param fixtures - The fixture data conforming to TypeScript types
+ * @param validation - Optional validation schema for runtime validation
+ * @returns Enhanced fixtures with optional validation methods
+ */
+export function createTypedFixtures<TCreate, TUpdate>(
+    fixtures: ModelTestFixtures<TCreate, TUpdate>,
+    validation?: YupModel<["create", "update"]>
+): ModelTestFixtures<TCreate, TUpdate> & {
+    validateCreate?: (data: TCreate) => Promise<TCreate>;
+    validateUpdate?: (data: TUpdate) => Promise<TUpdate>;
+} {
+    if (!validation) {
+        return fixtures;
+    }
+
+    return {
+        ...fixtures,
+        validateCreate: async (data: TCreate): Promise<TCreate> => {
+            return validation.create({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TCreate>;
+        },
+        validateUpdate: async (data: TUpdate): Promise<TUpdate> => {
+            return validation.update({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TUpdate>;
+        },
+    };
+}
+
+/**
+ * Enhanced TestDataFactory with type safety and optional schema validation.
+ * Provides compile-time type safety while maintaining backward compatibility.
+ * 
+ * @template TCreate - The TypeScript type for create operations
+ * @template TUpdate - The TypeScript type for update operations
+ */
+export class TypedTestDataFactory<TCreate, TUpdate> extends TestDataFactory<TCreate, TUpdate> {
+    constructor(
+        fixtures: ModelTestFixtures<TCreate, TUpdate>,
+        private validation?: YupModel<["create", "update"]>,
+        customizers?: {
+            create?: (base: TCreate) => TCreate;
+            update?: (base: TUpdate) => TUpdate;
+        }
+    ) {
+        super(fixtures, customizers);
+    }
+
+    /**
+     * Create minimal test data with optional schema validation
+     */
+    async createMinimalValidated(overrides?: Partial<TCreate>): Promise<TCreate> {
+        const data = this.createMinimal(overrides);
+        if (this.validation) {
+            return this.validation.create({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TCreate>;
+        }
+        return data;
+    }
+
+    /**
+     * Create complete test data with optional schema validation
+     */
+    async createCompleteValidated(overrides?: Partial<TCreate>): Promise<TCreate> {
+        const data = this.createComplete(overrides);
+        if (this.validation) {
+            return this.validation.create({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TCreate>;
+        }
+        return data;
+    }
+
+    /**
+     * Create minimal update data with optional schema validation
+     */
+    async updateMinimalValidated(overrides?: Partial<TUpdate>): Promise<TUpdate> {
+        const data = this.updateMinimal(overrides);
+        if (this.validation) {
+            return this.validation.update({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TUpdate>;
+        }
+        return data;
+    }
+
+    /**
+     * Create complete update data with optional schema validation
+     */
+    async updateCompleteValidated(overrides?: Partial<TUpdate>): Promise<TUpdate> {
+        const data = this.updateComplete(overrides);
+        if (this.validation) {
+            return this.validation.update({ env: "test" }).validate(data, { 
+                abortEarly: false,
+                stripUnknown: true 
+            }) as Promise<TUpdate>;
+        }
+        return data;
+    }
+
+    /**
+     * Validate that all fixtures pass their respective schemas
+     * Useful for ensuring fixture integrity during development
+     */
+    async validateAllFixtures(): Promise<void> {
+        if (!this.validation) {
+            throw new Error("Cannot validate fixtures without validation schema");
+        }
+
+        const createSchema = this.validation.create({ env: "test" });
+        const updateSchema = this.validation.update({ env: "test" });
+
+        // Validate core fixtures
+        await createSchema.validate(this.fixtures.minimal.create);
+        await createSchema.validate(this.fixtures.complete.create);
+        await updateSchema.validate(this.fixtures.minimal.update);
+        await updateSchema.validate(this.fixtures.complete.update);
+
+        // Validate edge cases that should pass
+        for (const [key, value] of Object.entries(this.fixtures.edgeCases)) {
+            if (value.create) {
+                await createSchema.validate(value.create);
+            }
+            if (value.update) {
+                await updateSchema.validate(value.update);
+            }
+        }
     }
 }

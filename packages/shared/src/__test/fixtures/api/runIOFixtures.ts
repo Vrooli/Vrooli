@@ -2,6 +2,12 @@ import type { RunIOCreateInput, RunIOUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { runIOValidation } from "../../../validation/models/runIO.js";
 
+// Magic number constants for testing
+const DATA_TOO_LONG_LENGTH = 8193;
+const NAME_TOO_LONG_LENGTH = 129;
+const DATA_MAX_LENGTH = 8192;
+const NAME_MAX_LENGTH = 128;
+
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
     id1: "123456789012345678",
@@ -49,8 +55,11 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
             nodeName: "DataProcessorNode",
             runConnect: validIds.id2,
             // Add some extra fields that will be stripped
+            // @ts-expect-error - Testing unknown fields
             unknownField1: "should be stripped",
+            // @ts-expect-error - Testing unknown fields
             unknownField2: 123,
+            // @ts-expect-error - Testing unknown fields
             unknownField3: true,
         },
         update: {
@@ -65,7 +74,9 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 },
             }),
             // Add some extra fields that will be stripped
+            // @ts-expect-error - Testing unknown fields
             unknownField1: "should be stripped",
+            // @ts-expect-error - Testing unknown fields
             unknownField2: 456,
         },
     },
@@ -74,11 +85,11 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
             create: {
                 // Missing required id, data, nodeInputName, nodeName, and runConnect
                 unknownField: "test",
-            },
+            } as unknown as RunIOCreateInput,
             update: {
                 // Missing required id and data
                 unknownField: "test",
-            },
+            } as unknown as RunIOUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -87,11 +98,11 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 nodeInputName: 789, // Should be string
                 nodeName: 101112, // Should be string
                 runConnect: 131415, // Should be string
-            },
+            } as unknown as RunIOCreateInput,
             update: {
                 id: validIds.id1,
                 data: 123, // Should be string
-            },
+            } as unknown as RunIOUpdateInput,
         },
         invalidId: {
             create: {
@@ -113,7 +124,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
                 // Missing required data
-            },
+            } as RunIOCreateInput,
         },
         missingNodeInputName: {
             create: {
@@ -122,7 +133,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
                 // Missing required nodeInputName
-            },
+            } as RunIOCreateInput,
         },
         missingNodeName: {
             create: {
@@ -131,7 +142,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 nodeInputName: "input1",
                 runConnect: validIds.id2,
                 // Missing required nodeName
-            },
+            } as RunIOCreateInput,
         },
         missingRunConnect: {
             create: {
@@ -140,12 +151,12 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 nodeInputName: "input1",
                 nodeName: "TestNode",
                 // Missing required runConnect
-            },
+            } as RunIOCreateInput,
         },
         longData: {
             create: {
                 id: validIds.id1,
-                data: "x".repeat(8193), // Too long (exceeds 8192)
+                data: "x".repeat(DATA_TOO_LONG_LENGTH), // Too long (exceeds 8192)
                 nodeInputName: "input1",
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
@@ -155,7 +166,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
             create: {
                 id: validIds.id1,
                 data: "test data",
-                nodeInputName: "x".repeat(129), // Too long (exceeds 128)
+                nodeInputName: "x".repeat(NAME_TOO_LONG_LENGTH), // Too long (exceeds 128)
                 nodeName: "TestNode",
                 runConnect: validIds.id2,
             },
@@ -165,7 +176,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
                 id: validIds.id1,
                 data: "test data",
                 nodeInputName: "input1",
-                nodeName: "x".repeat(129), // Too long (exceeds 128)
+                nodeName: "x".repeat(NAME_TOO_LONG_LENGTH), // Too long (exceeds 128)
                 runConnect: validIds.id2,
             },
         },
@@ -237,7 +248,7 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
         maxLengthData: {
             create: {
                 id: validIds.id1,
-                data: "a".repeat(8192), // Maximum length data
+                data: "a".repeat(DATA_MAX_LENGTH), // Maximum length data
                 nodeInputName: "maxInput",
                 nodeName: "MaxDataNode",
                 runConnect: validIds.id2,
@@ -247,8 +258,8 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
             create: {
                 id: validIds.id1,
                 data: "test data",
-                nodeInputName: "a".repeat(128), // Maximum length
-                nodeName: "b".repeat(128), // Maximum length
+                nodeInputName: "a".repeat(NAME_MAX_LENGTH), // Maximum length
+                nodeName: "b".repeat(NAME_MAX_LENGTH), // Maximum length
                 runConnect: validIds.id2,
             },
         },
@@ -330,14 +341,14 @@ export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput
         updateMaxLengthData: {
             update: {
                 id: validIds.id1,
-                data: "z".repeat(8192), // Maximum length in update
+                data: "z".repeat(DATA_MAX_LENGTH), // Maximum length in update
             },
         },
         updateEmptyData: {
             update: {
                 id: validIds.id1,
                 data: "", // This should become undefined and fail validation since data is required
-            },
+            } as RunIOUpdateInput,
         },
     },
 };

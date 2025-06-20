@@ -1,8 +1,7 @@
-import { MemberRole } from "@vrooli/shared";
-import { adminUser, standardUser, premiumUser, bannedUser, guestUser } from "./userPersonas.js";
-import { readOnlyPublicApiKey, writeApiKey, botApiKey, type ApiKeyFullAuthData } from "./apiKeyPermissions.js";
-import { basicTeamScenario, privateTeamScenario } from "./teamScenarios.js";
 import { type AuthenticatedSessionData } from "../../../types.js";
+import { botApiKey, readOnlyPublicApiKey, writeApiKey, type ApiKeyFullAuthData } from "./apiKeyPermissions.js";
+import { basicTeamScenario } from "./teamScenarios.js";
+import { adminUser, bannedUser, guestUser, premiumUser, standardUser } from "./userPersonas.js";
 
 /**
  * Complex integration scenarios that combine multiple permission concepts

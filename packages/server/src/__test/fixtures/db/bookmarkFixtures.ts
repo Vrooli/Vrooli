@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK, generatePublicId, BookmarkFor } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -6,6 +6,9 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
 /**
  * Database fixtures for Bookmark model - used for seeding test data
  * These follow Prisma's shape for database operations
+ * 
+ * Bookmarks support polymorphic relationships through different object types:
+ * Comment, Issue, Resource, Tag, Team, User
  */
 
 // Consistent IDs for testing
@@ -287,17 +290,23 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
     static createForObject(
         byId: string,
         objectId: string,
-        objectType: string,
+        objectType: BookmarkFor | string,
         overrides?: Partial<Prisma.BookmarkCreateInput>
     ): Prisma.BookmarkCreateInput {
         const baseBookmark = this.createMinimal(byId, overrides);
         
         // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
+            // BookmarkFor enum values
+            [BookmarkFor.Comment]: { comment: { connect: { id: objectId } } },
+            [BookmarkFor.Issue]: { issue: { connect: { id: objectId } } },
+            [BookmarkFor.Resource]: { resource: { connect: { id: objectId } } },
+            [BookmarkFor.Tag]: { tag: { connect: { id: objectId } } },
+            [BookmarkFor.Team]: { team: { connect: { id: objectId } } },
+            [BookmarkFor.User]: { user: { connect: { id: objectId } } },
+            // Additional supported types not in BookmarkFor enum
             Api: { api: { connect: { id: objectId } } },
             Code: { code: { connect: { id: objectId } } },
-            Comment: { comment: { connect: { id: objectId } } },
-            Issue: { issue: { connect: { id: objectId } } },
             Note: { note: { connect: { id: objectId } } },
             Post: { post: { connect: { id: objectId } } },
             Project: { project: { connect: { id: objectId } } },
@@ -309,13 +318,15 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateIn
             RunRoutine: { runRoutine: { connect: { id: objectId } } },
             SmartContract: { smartContract: { connect: { id: objectId } } },
             Standard: { standard: { connect: { id: objectId } } },
-            Team: { team: { connect: { id: objectId } } },
-            User: { user: { connect: { id: objectId } } },
         };
+
+        if (!connections[objectType]) {
+            throw new Error(`Invalid bookmark object type: ${objectType}`);
+        }
 
         return {
             ...baseBookmark,
-            ...(connections[objectType] || {}),
+            ...connections[objectType],
         };
     }
 
@@ -432,7 +443,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
 
     static createWithBookmarks(
         createdById: string,
-        bookmarks: Array<{ objectId: string; objectType: string }>,
+        bookmarks: Array<{ objectId: string; objectType: BookmarkFor | string }>,
         overrides?: Partial<Prisma.BookmarkListCreateInput>
     ): Prisma.BookmarkListCreateInput {
         return {
@@ -447,6 +458,38 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
                 ),
             },
         };
+    }
+
+    /**
+     * Create a private bookmark list
+     */
+    static createPrivateList(
+        createdById: string,
+        overrides?: Partial<Prisma.BookmarkListCreateInput>
+    ): Prisma.BookmarkListCreateInput {
+        return this.createMinimal(createdById, {
+            isPrivate: true,
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create a shared bookmark list with collaborators
+     */
+    static createSharedList(
+        createdById: string,
+        name: string,
+        collaboratorIds: string[],
+        overrides?: Partial<Prisma.BookmarkListCreateInput>
+    ): Prisma.BookmarkListCreateInput {
+        return this.createWithTranslations(
+            createdById,
+            [{ language: "en", name }],
+            {
+                isPrivate: false,
+                ...overrides,
+            }
+        );
     }
 }
 

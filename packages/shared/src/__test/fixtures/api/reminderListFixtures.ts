@@ -93,33 +93,37 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     name: "Reminder without list ID",
                     index: 0,
                 }],
-            },
+            } as ReminderListCreateInput,
             update: {
                 // Missing required id
                 remindersUpdate: [{
                     id: validIds.id2,
                     name: "Updated reminder",
                 }],
-            },
+            } as ReminderListUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid type for id (number instead of string)
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid type for remindersCreate (string instead of array)
                 remindersCreate: "not-an-array", // Should be array
-            },
+            } as unknown as ReminderListCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid type for remindersUpdate (string instead of array)
                 remindersUpdate: "not-an-array", // Should be array
+                // @ts-expect-error - Testing invalid type for remindersDelete (number instead of array)
                 remindersDelete: 123, // Should be array of strings
-            },
+            } as unknown as ReminderListUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-            },
+            } as ReminderListCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as ReminderListUpdateInput,
         },
         invalidReminders: {
             create: {
@@ -130,7 +134,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     description: "Reminder without name",
                     index: 0,
                 }],
-            },
+            } as ReminderListCreateInput,
             update: {
                 id: validIds.id1,
                 remindersCreate: [{
@@ -138,13 +142,14 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     name: "Reminder without ID",
                     index: 0,
                 }],
-            },
+            } as ReminderListUpdateInput,
         },
         invalidReminderDelete: {
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid type in array (number instead of string)
                 remindersDelete: ["not-a-valid-id", 123], // Should be valid IDs
-            },
+            } as unknown as ReminderListUpdateInput,
         },
     },
     edgeCases: {
@@ -152,11 +157,11 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
             create: {
                 id: validIds.id1,
                 // No reminders - valid as they're optional
-            },
+            } as ReminderListCreateInput,
             update: {
                 id: validIds.id1,
                 // No operations - valid
-            },
+            } as ReminderListUpdateInput,
         },
         singleReminder: {
             create: {
@@ -166,7 +171,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     name: "Only reminder in list",
                     index: 0,
                 }],
-            },
+            } as ReminderListCreateInput,
         },
         manyReminders: {
             create: {
@@ -176,7 +181,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     name: `Reminder ${i + 1}`,
                     index: i,
                 })),
-            },
+            } as ReminderListCreateInput,
         },
         complexUpdate: {
             update: {
@@ -205,7 +210,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     },
                 ],
                 remindersDelete: [validIds.id6, validIds.id7],
-            },
+            } as ReminderListUpdateInput,
         },
         nestedReminderItems: {
             create: {
@@ -221,7 +226,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                         reminderConnect: validIds.id2,
                     })),
                 }],
-            },
+            } as ReminderListCreateInput,
         },
         circularListReference: {
             create: {
@@ -232,7 +237,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                     index: 0,
                     reminderListConnect: validIds.id1, // References the list being created
                 }],
-            },
+            } as ReminderListCreateInput,
         },
         reminderWithAllFields: {
             create: {
@@ -254,7 +259,7 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                         reminderConnect: validIds.id2,
                     }],
                 }],
-            },
+            } as ReminderListCreateInput,
         },
         updateOnlyOperations: {
             update: {
@@ -274,20 +279,23 @@ export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, Re
                         dueDate: new Date("2025-07-01T00:00:00Z"),
                     },
                 ],
-            },
+            } as ReminderListUpdateInput,
         },
         deleteOnlyOperations: {
             update: {
                 id: validIds.id1,
                 // Only delete operations
                 remindersDelete: [validIds.id2, validIds.id3, validIds.id4],
-            },
+            } as ReminderListUpdateInput,
         },
     },
 };
 
 // Custom factory that always generates valid IDs
-const customizers = {
+const customizers: {
+    create: (base: ReminderListCreateInput) => ReminderListCreateInput;
+    update: (base: ReminderListUpdateInput) => ReminderListUpdateInput;
+} = {
     create: (base: ReminderListCreateInput): ReminderListCreateInput => ({
         ...base,
         id: base.id || validIds.id1,

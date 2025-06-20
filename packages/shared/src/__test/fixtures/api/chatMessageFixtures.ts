@@ -1,6 +1,11 @@
 import type { ChatMessageCreateInput, ChatMessageUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type MessageConfigObject, type ToolFunctionCall } from "../../../shape/configs/message.js";
+import { type ModelTestFixtures, type TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { chatMessageValidation } from "../../../validation/models/chatMessage.js";
+
+// Magic number constants for testing
+const TEXT_MAX_LENGTH = 32768;
+const TEXT_TOO_LONG_LENGTH = 32769;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -16,7 +21,7 @@ const validIds = {
 };
 
 // Helper to create valid message config
-function createValidConfig(overrides = {}) {
+function createValidConfig(overrides: Partial<MessageConfigObject> = {}): MessageConfigObject {
     return {
         __version: "1.0.0",
         resources: [],
@@ -25,7 +30,7 @@ function createValidConfig(overrides = {}) {
 }
 
 // Helper for tool function calls
-function createToolCall(overrides = {}) {
+function createToolCall(overrides: Partial<ToolFunctionCall> = {}): ToolFunctionCall {
     return {
         id: validIds.toolCallId1,
         function: {
@@ -37,7 +42,7 @@ function createToolCall(overrides = {}) {
 }
 
 // Helper for successful tool result
-function createSuccessResult(output = "success output") {
+function createSuccessResult(output = "success output"): { success: true; output: string } {
     return {
         success: true,
         output,
@@ -45,7 +50,7 @@ function createSuccessResult(output = "success output") {
 }
 
 // Helper for error tool result
-function createErrorResult(code = "ERROR_CODE", message = "Error message") {
+function createErrorResult(code = "ERROR_CODE", message = "Error message"): { success: false; error: { code: string; message: string } } {
     return {
         success: false,
         error: { code, message },
@@ -103,11 +108,11 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
             create: {
                 // Missing id, config, and chatConnect
                 versionIndex: 0,
-            },
+            } as ChatMessageCreateInput,
             update: {
                 // Missing id
                 config: createValidConfig(),
-            },
+            } as ChatMessageUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -115,11 +120,11 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 versionIndex: "not-a-number", // Should be number
                 config: "not-an-object", // Should be object
                 chatConnect: 456, // Should be string
-            },
+            } as unknown as ChatMessageCreateInput,
             update: {
                 id: validIds.id1,
                 config: false, // Should be object
-            },
+            } as unknown as ChatMessageUpdateInput,
         },
         invalidConfig: {
             create: {
@@ -129,16 +134,18 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                     role: "user",
                 },
                 chatConnect: validIds.chatId1,
-            },
+            } as ChatMessageCreateInput,
         },
         invalidRole: {
             create: {
                 id: validIds.id1,
-                config: createValidConfig({
+                config: {
+                    __version: "1.0.0",
+                    resources: [],
                     role: "invalid_role", // Should be one of user, assistant, system, tool
-                }),
+                } as unknown as MessageConfigObject,
                 chatConnect: validIds.chatId1,
-            },
+            } as ChatMessageCreateInput,
         },
         invalidVersionIndex: {
             create: {
@@ -146,7 +153,7 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 versionIndex: -1, // Should be >= 0
                 config: createValidConfig(),
                 chatConnect: validIds.chatId1,
-            },
+            } as ChatMessageCreateInput,
         },
         invalidToolCall: {
             create: {
@@ -156,11 +163,11 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                         {
                             // Missing required id and function
                             result: createSuccessResult(),
-                        },
+                        } as unknown as ToolFunctionCall,
                     ],
                 }),
                 chatConnect: validIds.chatId1,
-            },
+            } as ChatMessageCreateInput,
         },
         invalidToolResult: {
             create: {
@@ -172,18 +179,22 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                                 success: true,
                                 // Missing output when success is true
                                 error: { code: "CODE", message: "msg" }, // Should not have error when success is true
-                            },
+                            } as any,
                         }),
                     ],
                 }),
                 chatConnect: validIds.chatId1,
-            },
+            } as ChatMessageCreateInput,
         },
         invalidTranslationText: {
             create: {
                 id: validIds.id1,
                 config: createValidConfig(),
                 chatConnect: validIds.chatId1,
+                language: "en",
+                text: "Base message text",
+                userConnect: validIds.userId1,
+                versionIndex: 0,
                 translationsCreate: [
                     {
                         id: validIds.id3,
@@ -191,7 +202,7 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                         text: "", // Empty text should fail
                     },
                 ],
-            },
+            } as ChatMessageCreateInput,
         },
     },
     edgeCases: {
@@ -284,7 +295,7 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                     {
                         id: validIds.id3,
                         language: "en",
-                        text: "x".repeat(32768), // Exactly at max length
+                        text: "x".repeat(TEXT_MAX_LENGTH), // Exactly at max length
                     },
                 ],
             },
@@ -294,22 +305,34 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
                 id: validIds.id1,
                 config: createValidConfig(),
                 chatConnect: validIds.chatId1,
+                language: "en",
+                text: "Base message text",
+                userConnect: validIds.userId1,
+                versionIndex: 0,
                 translationsCreate: [
                     {
                         id: validIds.id3,
                         language: "en",
-                        text: "x".repeat(32769), // Over max length
+                        text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Over max length
                     },
                 ],
-            },
+            } as ChatMessageCreateInput,
         },
         complexConfig: {
             create: {
                 id: validIds.id1,
                 config: createValidConfig({
                     resources: [
-                        { id: "resource1", type: "document" },
-                        { id: "resource2", type: "image" },
+                        {
+                            link: "https://example.com/resource1",
+                            usedFor: "Context" as const,
+                            translations: [{ language: "en", name: "Resource 1" }],
+                        },
+                        {
+                            link: "https://example.com/resource2",
+                            usedFor: "Context" as const,
+                            translations: [{ language: "en", name: "Resource 2" }],
+                        },
                     ],
                     contextHints: ["context1", "context2", "context3"],
                     eventTopic: "complex.event.topic",
@@ -351,12 +374,15 @@ export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, Chat
 };
 
 // Custom factory that always generates valid IDs
-const customizers = {
-    create: (base: ChatMessageCreateInput) => ({
+const customizers: {
+    create: (base: ChatMessageCreateInput) => ChatMessageCreateInput;
+    update: (base: ChatMessageUpdateInput) => ChatMessageUpdateInput;
+} = {
+    create: (base: ChatMessageCreateInput): ChatMessageCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: ChatMessageUpdateInput) => ({
+    update: (base: ChatMessageUpdateInput): ChatMessageUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),

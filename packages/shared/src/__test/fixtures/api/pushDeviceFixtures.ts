@@ -1,6 +1,9 @@
 import type { PushDeviceCreateInput, PushDeviceUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { pushDeviceValidation } from "../../../validation/models/pushDevice.js";
+
+// Magic number constants for testing
+const LONG_KEY_LENGTH = 255;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -54,23 +57,29 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
                 // Missing required endpoint and keys
                 expires: 86400,
                 name: "Incomplete Device",
-            },
+            } as PushDeviceCreateInput,
             update: {
                 // Missing required id
                 name: "Updated Name",
-            },
+            } as PushDeviceUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 endpoint: 123, // Should be string URL
+                // @ts-expect-error - Testing invalid types
                 expires: "not-a-number", // Should be number
+                // @ts-expect-error - Testing invalid types
                 keys: "not-an-object", // Should be object
+                // @ts-expect-error - Testing invalid types
                 name: 456, // Should be string
-            },
+            } as unknown as PushDeviceCreateInput,
             update: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 name: 789, // Should be string
-            },
+            } as unknown as PushDeviceUpdateInput,
         },
         invalidId: {
             create: {
@@ -99,8 +108,8 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
                 keys: {
                     // Missing required auth field
                     p256dh: "VALID-P256DH-KEY",
-                },
-            },
+                } as PushDeviceCreateInput["keys"],
+            } as PushDeviceCreateInput,
         },
         missingKeysAuth: {
             create: {
@@ -108,8 +117,8 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
                 keys: {
                     p256dh: "VALID-P256DH-KEY",
                     // Missing required auth field
-                },
-            },
+                } as PushDeviceCreateInput["keys"],
+            } as PushDeviceCreateInput,
         },
         missingKeysP256dh: {
             create: {
@@ -117,8 +126,8 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
                 keys: {
                     // Missing required p256dh field
                     auth: "VALID-AUTH-KEY",
-                },
-            },
+                } as PushDeviceCreateInput["keys"],
+            } as PushDeviceCreateInput,
         },
         invalidExpires: {
             create: {
@@ -213,8 +222,8 @@ export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDe
             create: {
                 endpoint: "https://long-keys.com/path",
                 keys: {
-                    p256dh: "A".repeat(255), // Very long key near max length
-                    auth: "B".repeat(255), // Very long key near max length
+                    p256dh: "A".repeat(LONG_KEY_LENGTH), // Very long key near max length
+                    auth: "B".repeat(LONG_KEY_LENGTH), // Very long key near max length
                 },
                 name: "Long Keys Device",
             },

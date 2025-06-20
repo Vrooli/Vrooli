@@ -45,30 +45,36 @@ export const notificationSubscriptionFixtures: ModelTestFixtures<NotificationSub
             create: {
                 // Missing id, objectType, and objectConnect
                 silent: true,
-            },
+            } as NotificationSubscriptionCreateInput,
             update: {
                 // Missing id
                 silent: false,
-            },
+            } as NotificationSubscriptionUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid id type
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid silent type
                 silent: "not-a-boolean", // Should be boolean
+                // @ts-expect-error - Testing invalid objectType enum
                 objectType: "InvalidType", // Should be valid SubscribableObject enum
+                // @ts-expect-error - Testing invalid objectConnect type
                 objectConnect: 456, // Should be string
-            },
+            } as unknown as NotificationSubscriptionCreateInput,
             update: {
                 id: validIds.id3,
+                // @ts-expect-error - Testing invalid silent type
                 silent: "false", // Should be boolean, not string
-            },
+            } as unknown as NotificationSubscriptionUpdateInput,
         },
         invalidObjectType: {
             create: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid objectType string
                 objectType: "InvalidObjectType",
                 objectConnect: validIds.objectId1,
-            },
+            } as unknown as NotificationSubscriptionCreateInput,
         },
         invalidId: {
             create: {
@@ -89,14 +95,14 @@ export const notificationSubscriptionFixtures: ModelTestFixtures<NotificationSub
                 id: validIds.id1,
                 objectType: SubscribableObject.Resource,
                 // Missing required objectConnect
-            },
+            } as NotificationSubscriptionCreateInput,
         },
         missingObjectType: {
             create: {
                 id: validIds.id1,
                 objectConnect: validIds.objectId1,
                 // Missing required objectType
-            },
+            } as NotificationSubscriptionCreateInput,
         },
     },
     edgeCases: {

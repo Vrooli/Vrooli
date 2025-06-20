@@ -3,6 +3,10 @@ import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, test
 import { apiKeyExternalValidation } from "../../../validation/models/apiKeyExternal.js";
 import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH, NAME_MAX_LENGTH } from "../../../validation/utils/validationConstants.js";
 
+// Magic number constants for testing
+const TOO_LONG_KEY_LENGTH = 300;
+const TOO_LONG_SERVICE_LENGTH = 150;
+
 // Extend create type to include id (required by validation but not API)
 type ApiKeyExternalCreateInputWithId = ApiKeyExternalCreateInput & { id: string };
 
@@ -49,11 +53,11 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
             create: {
                 // Missing id, key, name, service
                 disabled: true,
-            },
+            } as ApiKeyExternalCreateInput,
             update: {
                 // Missing id
                 name: "Missing ID",
-            },
+            } as ApiKeyExternalUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -62,30 +66,30 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: true, // Should be string
                 name: null, // Should be string
                 service: 456, // Should be string
-            },
+            } as unknown as ApiKeyExternalCreateInput,
             update: {
                 id: validIds.id3,
                 disabled: "no", // Should be boolean
                 key: {}, // Should be string
                 name: [], // Should be string
                 service: false, // Should be string
-            },
+            } as unknown as ApiKeyExternalUpdateInput,
         },
         tooLongKey: {
             create: {
                 id: validIds.id1,
-                key: testValues.longString(300), // Exceeds max length (255)
+                key: testValues.longString(TOO_LONG_KEY_LENGTH), // Exceeds max length (255)
                 name: "Valid Name",
                 service: "OpenAI",
-            },
+            } as ApiKeyExternalCreateInput,
         },
         tooLongService: {
             create: {
                 id: validIds.id1,
                 key: "sk-valid-key",
                 name: "Valid Name",
-                service: testValues.longString(150), // Exceeds max length (128)
-            },
+                service: testValues.longString(TOO_LONG_SERVICE_LENGTH), // Exceeds max length (128)
+            } as ApiKeyExternalCreateInput,
         },
         tooLongName: {
             create: {
@@ -93,15 +97,15 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: "sk-valid-key",
                 name: testValues.longString(100), // Exceeds max length (50)
                 service: "OpenAI",
-            },
+            } as ApiKeyExternalCreateInput,
         },
         invalidId: {
             create: {
-                id: "not-a-valid-snowflake",
+                id: "not-a-valid-snowflake", // Invalid ID format - will fail validation
                 key: "sk-valid-key",
                 name: "Valid Name",
                 service: "OpenAI",
-            },
+            } as ApiKeyExternalCreateInput,
         },
     },
     edgeCases: {
@@ -111,7 +115,7 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: "",
                 name: "",
                 service: "",
-            },
+            } as ApiKeyExternalCreateInput,
         },
         whitespaceStrings: {
             create: {
@@ -119,7 +123,7 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: "   ",
                 name: "   ",
                 service: "   ",
-            },
+            } as ApiKeyExternalCreateInput,
         },
         maxLengthStrings: {
             create: {
@@ -127,7 +131,7 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: "a".repeat(API_KEY_EXTERNAL_MAX_LENGTH), // Exactly at max length
                 name: "a".repeat(NAME_MAX_LENGTH), // At name max length
                 service: "a".repeat(API_KEY_SERVICE_MAX_LENGTH), // Exactly at max length
-            },
+            } as ApiKeyExternalCreateInput,
         },
         differentServices: {
             create: {
@@ -135,7 +139,7 @@ export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInput
                 key: "test-key-123",
                 name: "Multi Service Key",
                 service: "Mistral",
-            },
+            } as ApiKeyExternalCreateInput,
         },
     },
 };

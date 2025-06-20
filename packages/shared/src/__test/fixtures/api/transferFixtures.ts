@@ -42,22 +42,24 @@ export const transferFixtures: ModelTestFixtures<never, TransferUpdateInput> = {
         missingRequired: {
             create: null as never,  // No create operations for transfers
             update: {
-                // Missing required id
+                // Missing required id field
                 message: "Updated message",
-            },
+            } as TransferUpdateInput,
         },
         invalidTypes: {
             create: null as never,  // No create operations for transfers
             update: {
                 id: validIds.id1,
+                // Testing invalid type: message should be string
                 message: 123, // Should be string
-            },
+            } as unknown as TransferUpdateInput,
         },
         invalidId: {
             create: null as never,  // No create operations for transfers
             update: {
+                // Testing invalid ID format
                 id: "invalid-id",
-            },
+            } as unknown as TransferUpdateInput,
         },
         invalidObjectType: {
             create: null as never,  // No create operations for transfers
@@ -168,26 +170,32 @@ export const transferRequestSendFixtures: ModelTestFixtures<TransferRequestSendI
     invalid: {
         missingRequired: {
             create: {
-                // Missing required id, objectType, objectConnect, and recipient
+                // Missing required fields: id, objectType, objectConnect, and recipient
                 message: "Incomplete send request",
-            },
+            } as TransferRequestSendInputWithId,
             update: {
-                // Missing required id
+                // Missing required id field
                 message: "Updated message",
-            },
+            } as TransferUpdateInput,
         },
         invalidTypes: {
             create: {
+                // Testing invalid types: id should be string
                 id: 123, // Should be string
+                // Testing invalid types: message should be string
                 message: 456, // Should be string
+                // Testing invalid enum value
                 objectType: "InvalidType", // Invalid enum value
+                // Testing invalid types: objectConnect should be string
                 objectConnect: 789, // Should be string
+                // Testing invalid types: toUserConnect should be string
                 toUserConnect: 101112, // Should be string
-            },
+            } as unknown as TransferRequestSendInputWithId,
             update: {
                 id: validIds.id1,
+                // Testing invalid type: message should be string
                 message: 123, // Should be string
-            },
+            } as unknown as TransferUpdateInput,
         },
         bothRecipients: {
             create: {
@@ -247,27 +255,33 @@ export const transferRequestReceiveFixtures: ModelTestFixtures<TransferRequestRe
     invalid: {
         missingRequired: {
             create: {
-                // Missing required id, objectType, and objectConnect
+                // Missing required fields: id, objectType, and objectConnect
                 message: "Incomplete receive request",
                 toTeamConnect: validIds.id4,
-            },
+            } as TransferRequestReceiveInputWithId,
             update: {
-                // Missing required id
+                // Missing required id field
                 message: "Updated message",
-            },
+            } as TransferUpdateInput,
         },
         invalidTypes: {
             create: {
+                // Testing invalid types: id should be string
                 id: 123, // Should be string
+                // Testing invalid types: message should be string
                 message: 456, // Should be string
+                // Testing invalid enum value
                 objectType: "InvalidType", // Invalid enum value
+                // Testing invalid types: objectConnect should be string
                 objectConnect: 789, // Should be string
+                // Testing invalid types: toTeamConnect should be string
                 toTeamConnect: 101112, // Should be string
-            },
+            } as unknown as TransferRequestReceiveInputWithId,
             update: {
                 id: validIds.id1,
+                // Testing invalid type: message should be string
                 message: 123, // Should be string
-            },
+            } as unknown as TransferUpdateInput,
         },
     },
     edgeCases: {

@@ -14,7 +14,7 @@ export const scheduleExceptionValidation: YupModel<["create", "update"]> = {
         newStartTime: opt(newStartTime),
         newEndTime: req(newEndTime),
     }, [
-        ["schedule", ["Connect"], "one", "req", ["exceptions"]],
+        ["schedule", ["Connect"], "one", "req", undefined, ["exceptions"]],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

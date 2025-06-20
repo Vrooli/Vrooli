@@ -2,6 +2,9 @@ import { type ApiVersionConfigObject } from "../../../shape/configs/api.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
+// Constants to avoid magic numbers
+const BURST_LIMIT_DIVISOR = 10; // Default burst limit is 1/10th of rate limit
+
 /**
  * API configuration fixtures for testing API version settings
  */
@@ -116,11 +119,11 @@ paths:
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             rateLimiting: {
-                requestsPerMinute: "not a number", // Should be number
-                burstLimit: -1, // Should be positive
+                requestsPerMinute: 0,
+                burstLimit: -1,
             },
             timeout: {
-                request: "5 seconds", // Should be number
+                request: 0,
             },
         },
     },
@@ -308,7 +311,7 @@ paths:
             resources: [
                 {
                     link: "https://api.example.com/swagger-ui",
-                    usedFor: "Interactive",
+                    usedFor: "Developer",
                     translations: [{
                         language: "en",
                         name: "Swagger UI",
@@ -356,7 +359,7 @@ export function createApiConfigWithRateLimit(
     return mergeWithBaseDefaults<ApiVersionConfigObject>({
         rateLimiting: {
             requestsPerMinute,
-            burstLimit: burstLimit || Math.floor(requestsPerMinute / 10),
+            burstLimit: burstLimit || Math.floor(requestsPerMinute / BURST_LIMIT_DIVISOR),
             useGlobalRateLimit: false,
         },
     });

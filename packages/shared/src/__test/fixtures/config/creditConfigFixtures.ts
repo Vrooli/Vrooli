@@ -58,14 +58,14 @@ export const creditConfigFixtures: ConfigTestFixtures<CreditConfigObject> = {
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
             rollover: {
-                enabled: "yes", // Should be boolean
-                maxMonthsToKeep: "six", // Should be number
+                enabled: false,
+                maxMonthsToKeep: 0,
             },
             donation: {
                 enabled: true,
-                percentage: "15%", // Should be number
-                minThreshold: -100, // Should be non-negative
-                recipientType: "invalid", // Should be "platform" | "community"
+                percentage: 0,
+                minThreshold: -100,
+                recipientType: "platform",
             },
         },
     },

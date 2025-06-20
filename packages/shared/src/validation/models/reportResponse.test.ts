@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { reportResponseFixtures } from "./__test/fixtures/reportResponseFixtures.js";
+import { ReportSuggestedAction } from "../../api/types.js";
+import { reportResponseFixtures } from "../../__test/fixtures/api/reportResponseFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { reportResponseValidation } from "./reportResponse.js";
 
@@ -32,7 +33,7 @@ describe("reportResponseValidation", () => {
                 id: "123456789012345678",
                 reportConnect: "123456789012345679",
                 // Missing required actionSuggested
-            };
+            } as any;
 
             await testValidation(
                 createSchema,
@@ -289,8 +290,8 @@ describe("reportResponseValidation", () => {
                 const dataWithRestrictedFields = {
                     id: "123456789012345678",
                     reportConnect: "123456789012345679",
-                    actionSuggested: "Delete",
-                };
+                    actionSuggested: ReportSuggestedAction.Delete,
+                } as any;
 
                 const result = await testValidation(updateSchema, dataWithRestrictedFields, true);
                 expect(result).to.not.have.property("reportConnect");
@@ -301,7 +302,7 @@ describe("reportResponseValidation", () => {
             it("should still validate actionSuggested values in update", async () => {
                 const dataWithInvalidAction = {
                     id: "123456789012345678",
-                    actionSuggested: "InvalidAction",
+                    actionSuggested: "InvalidAction" as any,
                 };
 
                 await testValidation(
@@ -365,17 +366,17 @@ describe("reportResponseValidation", () => {
             it("should handle action change updates", async () => {
                 const scenarios = [
                     {
-                        data: { id: "123456789012345678", actionSuggested: "Delete" },
+                        data: { id: "123456789012345678", actionSuggested: ReportSuggestedAction.Delete },
                         shouldPass: true,
                         description: "change to Delete",
                     },
                     {
-                        data: { id: "123456789012345678", actionSuggested: "SuspendUser" },
+                        data: { id: "123456789012345678", actionSuggested: ReportSuggestedAction.SuspendUser },
                         shouldPass: true,
                         description: "change to SuspendUser",
                     },
                     {
-                        data: { id: "123456789012345678", actionSuggested: "FalseReport" },
+                        data: { id: "123456789012345678", actionSuggested: ReportSuggestedAction.FalseReport },
                         shouldPass: true,
                         description: "change to FalseReport",
                     },
@@ -470,11 +471,11 @@ describe("reportResponseValidation", () => {
 
         it("should handle all action types", async () => {
             const actionTypes = [
-                "Delete",
-                "FalseReport",
-                "HideUntilFixed",
-                "NonIssue",
-                "SuspendUser",
+                ReportSuggestedAction.Delete,
+                ReportSuggestedAction.FalseReport,
+                ReportSuggestedAction.HideUntilFixed,
+                ReportSuggestedAction.NonIssue,
+                ReportSuggestedAction.SuspendUser,
             ];
 
             for (const actionType of actionTypes) {
@@ -494,7 +495,7 @@ describe("reportResponseValidation", () => {
             for (const language of languages) {
                 const data = {
                     id: "123456789012345678",
-                    actionSuggested: "NonIssue",
+                    actionSuggested: ReportSuggestedAction.NonIssue,
                     language,
                     reportConnect: "123456789012345679",
                 };

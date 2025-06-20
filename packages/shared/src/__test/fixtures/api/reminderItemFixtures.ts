@@ -1,6 +1,12 @@
 import type { ReminderItemCreateInput, ReminderItemUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { reminderItemValidation } from "../../../validation/models/reminderItem.js";
+
+// Magic number constants for testing
+const NAME_TOO_LONG_LENGTH = 51;
+const DESCRIPTION_TOO_LONG_LENGTH = 2049;
+const NAME_MAX_LENGTH = 50;
+const DESCRIPTION_MAX_LENGTH = 2048;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -49,38 +55,46 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
                 id: validIds.id1,
                 // Missing required name, index, and reminderConnect
                 description: "Task without required fields",
-            },
+            } as ReminderItemCreateInput,
             update: {
                 // Missing required id
                 name: "Updated task",
-            },
+            } as ReminderItemUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 name: true, // Should be string
+                // @ts-expect-error - Testing invalid types
                 description: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 dueDate: "not-a-date", // Should be Date
+                // @ts-expect-error - Testing invalid types
                 index: "zero", // Should be number
+                // @ts-expect-error - Testing invalid types
                 isComplete: "yes", // Should be boolean
                 reminderConnect: validIds.id2,
-            },
+            } as unknown as ReminderItemCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid types
                 name: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 isComplete: 1, // Should be boolean
                 index: -1, // Should be non-negative
-            },
+            } as unknown as ReminderItemUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
                 name: "Invalid ID task",
                 reminderConnect: validIds.id2,
-            },
+            } as ReminderItemCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as ReminderItemUpdateInput,
         },
         missingReminderConnect: {
             create: {
@@ -88,7 +102,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
                 name: "Task without reminder connection",
                 index: 0,
                 // Missing required reminderConnect
-            },
+            } as ReminderItemCreateInput,
         },
         nameTooShort: {
             create: {
@@ -101,7 +115,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
         nameTooLong: {
             create: {
                 id: validIds.id1,
-                name: "A".repeat(51), // Too long (max 50 chars)
+                name: "A".repeat(NAME_TOO_LONG_LENGTH), // Too long (max 50 chars)
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -110,7 +124,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             create: {
                 id: validIds.id1,
                 name: "Valid name",
-                description: "A".repeat(2049), // Too long (max 2048 chars)
+                description: "A".repeat(DESCRIPTION_TOO_LONG_LENGTH), // Too long (max 2048 chars)
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -158,7 +172,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
         maxLengthName: {
             create: {
                 id: validIds.id1,
-                name: "A".repeat(50), // Maximum valid name (50 chars)
+                name: "A".repeat(NAME_MAX_LENGTH), // Maximum valid name (50 chars)
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -167,7 +181,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
             create: {
                 id: validIds.id1,
                 name: "Valid task",
-                description: "A".repeat(2048), // Maximum valid description (2048 chars)
+                description: "A".repeat(DESCRIPTION_MAX_LENGTH), // Maximum valid description (2048 chars)
                 index: 0,
                 reminderConnect: validIds.id2,
             },
@@ -237,13 +251,15 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
                 id: validIds.id1,
                 name: "Task with boolean string",
                 index: 0,
+                // @ts-expect-error - Testing string to boolean conversion
                 isComplete: "true", // String to boolean
                 reminderConnect: validIds.id2,
-            },
+            } as unknown as ReminderItemCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing string to boolean conversion
                 isComplete: "false", // String to boolean
-            },
+            } as unknown as ReminderItemUpdateInput,
         },
         floatIndex: {
             create: {
@@ -251,7 +267,7 @@ export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, Re
                 name: "Task with float index",
                 index: 3.14, // Should be converted to integer or rejected
                 reminderConnect: validIds.id2,
-            },
+            } as ReminderItemCreateInput,
         },
         differentReminderId: {
             create: {

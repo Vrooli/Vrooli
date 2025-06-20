@@ -1,4 +1,5 @@
-import type { ApiKeyCreateInput, ApiKeyUpdateInput } from "@vrooli/shared";
+// Note: Using simple types since ApiKeyCreateInput/UpdateInput are not re-exported from shared
+// These represent the form data structure before API submission
 
 /**
  * Form data fixtures for API key-related forms
@@ -8,14 +9,14 @@ import type { ApiKeyCreateInput, ApiKeyUpdateInput } from "@vrooli/shared";
 /**
  * API key creation form data
  */
-export const minimalApiKeyCreateFormInput: Partial<ApiKeyCreateInput> = {
+export const minimalApiKeyCreateFormInput = {
     name: "Development API Key",
     limitHard: "1000000",
     stopAtLimit: true,
     permissions: "read,write",
 };
 
-export const completeApiKeyCreateFormInput: ApiKeyCreateInput = {
+export const completeApiKeyCreateFormInput = {
     name: "Production API Key",
     disabled: false,
     limitHard: "5000000",
@@ -28,12 +29,12 @@ export const completeApiKeyCreateFormInput: ApiKeyCreateInput = {
 /**
  * API key update form data
  */
-export const minimalApiKeyUpdateFormInput: Partial<ApiKeyUpdateInput> = {
+export const minimalApiKeyUpdateFormInput = {
     id: "123456789012345678",
     name: "Updated API Key Name",
 };
 
-export const completeApiKeyUpdateFormInput: ApiKeyUpdateInput = {
+export const completeApiKeyUpdateFormInput = {
     id: "123456789012345678",
     name: "Production API Key - Updated",
     disabled: false,
@@ -47,19 +48,16 @@ export const completeApiKeyUpdateFormInput: ApiKeyUpdateInput = {
  * Form validation scenarios
  */
 export const invalidApiKeyCreateFormInputs = {
-    // @ts-expect-error - Missing required fields
     missingName: {
         limitHard: "1000000",
         stopAtLimit: true,
         permissions: "read",
     },
-    // @ts-expect-error - Missing required fields
     missingLimitHard: {
         name: "Test Key",
         stopAtLimit: true,
         permissions: "read",
     },
-    // @ts-expect-error - Missing required fields  
     missingPermissions: {
         name: "Test Key",
         limitHard: "1000000",
@@ -70,7 +68,7 @@ export const invalidApiKeyCreateFormInputs = {
 /**
  * Helper functions
  */
-export const transformApiKeyFormToApiInput = (formData: Partial<ApiKeyCreateInput | ApiKeyUpdateInput>) => {
+export const transformApiKeyFormToApiInput = (formData: any) => {
     return {
         ...formData,
         // Ensure BigInt fields are strings

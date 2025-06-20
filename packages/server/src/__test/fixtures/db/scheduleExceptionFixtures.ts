@@ -1,5 +1,6 @@
 import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { ScheduleExceptionDbFactory as EnhancedScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
 
 /**
  * Database fixtures for ScheduleException model - used for seeding test data
@@ -57,9 +58,10 @@ export const cancelledScheduleExceptionDb: Prisma.schedule_exceptionCreateInput 
 };
 
 /**
- * Factory for creating schedule exception database fixtures with overrides
+ * Legacy factory for creating schedule exception database fixtures with overrides
+ * @deprecated Use EnhancedScheduleExceptionDbFactory instead
  */
-export class ScheduleExceptionDbFactory {
+export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFactory {
     static createMinimal(
         scheduleId: string,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>

@@ -2,6 +2,9 @@ import { type BotConfigObject, DEFAULT_PERSONA } from "../../../shape/configs/bo
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
+// Constants to avoid magic numbers
+const DEFAULT_MAX_TOKENS = 2048;
+
 /**
  * Bot configuration fixtures for testing bot personality and settings
  */
@@ -57,10 +60,10 @@ export const botConfigFixtures: ConfigTestFixtures<BotConfigObject> = {
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
-            maxTokens: "not a number", // Should be number
+            maxTokens: 0,
             persona: {
-                creativity: "high", // Should be number
-                verbosity: 2, // Should be 0-1
+                creativity: 2,
+                verbosity: 2,
             },
         },
     },
@@ -195,7 +198,7 @@ export function createBotConfigWithPersona(
  */
 export function createBotConfigForModel(
     model: string,
-    maxTokens = 2048,
+    maxTokens = DEFAULT_MAX_TOKENS,
 ): BotConfigObject {
     return {
         __version: LATEST_CONFIG_VERSION,

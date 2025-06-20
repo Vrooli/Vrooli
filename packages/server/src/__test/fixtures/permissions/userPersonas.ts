@@ -154,7 +154,7 @@ export const customRoleUser: AuthenticatedSessionData = {
     roles: [{
         role: { 
             name: "ContentModerator", 
-            permissions: JSON.stringify(["moderate_content", "view_reports"]) 
+            permissions: JSON.stringify(["moderate_content", "view_reports"]), 
         },
     }],
 };
@@ -174,7 +174,7 @@ export function createUserWithPermissions(
         roles: permissions.length > 0 ? [{
             role: { 
                 name: "CustomRole", 
-                permissions: JSON.stringify(permissions) 
+                permissions: JSON.stringify(permissions), 
             },
         }] : [],
     };
@@ -218,7 +218,7 @@ export const expiredPremiumUser: AuthenticatedSessionData = {
 /**
  * Create multiple related users for testing cross-user permissions
  */
-export function createUserGroup(baseName: string, count: number = 3): AuthenticatedSessionData[] {
+export function createUserGroup(baseName: string, count = 3): AuthenticatedSessionData[] {
     return Array(count).fill(null).map((_, index) => ({
         ...standardUser,
         id: generatePK().toString(),

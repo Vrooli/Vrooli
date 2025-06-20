@@ -2,6 +2,10 @@ import { BookmarkFor, type BookmarkListCreateInput, type BookmarkListUpdateInput
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { bookmarkListValidation } from "../../../validation/models/bookmarkList.js";
 
+// Magic number constants for testing
+const LABEL_TOO_LONG_LENGTH = 129;
+const LABEL_MAX_LENGTH = 128;
+
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
     id1: "123456789012345678",
@@ -48,46 +52,52 @@ export const bookmarkListFixtures: ModelTestFixtures<BookmarkListCreateInput, Bo
             create: {
                 // Missing id and label
                 bookmarksCreate: [],
-            },
+            } as BookmarkListCreateInput,
             update: {
                 // Missing id
                 label: "Updated",
-            },
+            } as BookmarkListUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 label: 456, // Should be string
-            },
+            } as unknown as BookmarkListCreateInput,
             update: {
                 id: validIds.id3,
+                // @ts-expect-error - Testing invalid types
                 label: false, // Should be string
-            },
+            } as unknown as BookmarkListUpdateInput,
         },
         invalidId: {
             create: {
+                // @ts-expect-error - Testing invalid ID format
                 id: "not-a-valid-snowflake",
                 label: "Valid Label",
-            },
+            } as unknown as BookmarkListCreateInput,
         },
         emptyLabel: {
             create: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing empty string validation
                 label: "", // Empty string should be removed and cause required error
-            },
+            } as unknown as BookmarkListCreateInput,
         },
         labelTooLong: {
             create: {
                 id: validIds.id1,
-                label: "x".repeat(129), // Max 128 characters
-            },
+                // @ts-expect-error - Testing label length validation
+                label: "x".repeat(LABEL_TOO_LONG_LENGTH), // Max 128 characters
+            } as unknown as BookmarkListCreateInput,
         },
     },
     edgeCases: {
         maxLengthLabel: {
             create: {
                 id: validIds.id1,
-                label: "x".repeat(128), // Exactly at max length
+                label: "x".repeat(LABEL_MAX_LENGTH), // Exactly at max length
             },
         },
         withWhitespaceLabel: {

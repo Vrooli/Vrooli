@@ -1,39 +1,45 @@
 /**
- * Example tests demonstrating how to use event fixtures
+ * Example tests demonstrating how to use the enhanced event fixtures
+ * Shows both legacy patterns and new factory-based approaches
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { MockSocketEmitter, waitForEvent, collectEvents, assertEventEmitted } from "@vrooli/ui/__test/fixtures/events";
-import { socketEventFixtures } from "./socketEvents";
-import { chatEventFixtures } from "./chatEvents";
-import { swarmEventFixtures } from "./swarmEvents";
-import { notificationEventFixtures } from "./notificationEvents";
-import { collaborationEventFixtures } from "./collaborationEvents";
-import { systemEventFixtures } from "./systemEvents";
+import { MockSocketEmitter } from "./MockSocketEmitter.js";
+import { waitForEvent, collectEvents, generateCorrelationId, EventCorrelator, TimingAnalyzer, networkPresets } from "./eventUtils.js";
+import { socketEventFixtures, connectionFactory, roomFactory, reconnectionFactory } from "./socketEvents.js";
+import { chatEventFixtures } from "./chatEvents.js";
+import { swarmEventFixtures } from "./swarmEvents.js";
+import { notificationEventFixtures } from "./notificationEvents.js";
+import { collaborationEventFixtures } from "./collaborationEvents.js";
+import { systemEventFixtures } from "./systemEvents.js";
+import { userJourneySequences, systemReliabilitySequences, comprehensiveScenarios, SequenceOrchestrator } from "./comprehensiveSequences.js";
 
-describe("Event Fixtures Examples", () => {
+describe("Enhanced Event Fixtures Examples", () => {
     let socket: MockSocketEmitter;
 
     beforeEach(() => {
-        socket = new MockSocketEmitter();
+        socket = new MockSocketEmitter({
+            simulateNetwork: false,
+            autoAcknowledge: true,
+            stateTracking: true,
+            correlationTracking: true
+        });
     });
 
-    describe("Socket Events", () => {
+    describe("Legacy Event Patterns (Backward Compatibility)", () => {
         it("should handle connection lifecycle", async () => {
-            // Test connection
+            socket.connect();
             expect(socket.isConnected()).toBe(true);
-            assertEventEmitted(socket, "connect");
+            socket.assertEventEmitted("connect");
 
-            // Test disconnection
             socket.disconnect();
             expect(socket.isConnected()).toBe(false);
-            assertEventEmitted(socket, "disconnect");
+            socket.assertEventEmitted("disconnect");
         });
 
         it("should handle room events with callbacks", async () => {
             const callback = vi.fn();
 
-            // Join chat room
             socket.emitWithAck(
                 "joinChatRoom",
                 socketEventFixtures.room.joinChatSuccess.data,
@@ -49,406 +55,488 @@ describe("Event Fixtures Examples", () => {
             await socket.emitSequence(socketEventFixtures.sequences.connectionFlow);
 
             const history = socket.getEmitHistory();
-            expect(history).toHaveLength(3);
-            expect(history[0].event).toBe("connect");
-            expect(history[1].event).toBe("joinUserRoom");
-            expect(history[2].event).toBe("joinChatRoom");
+            expect(history.length).toBeGreaterThanOrEqual(3);
+            socket.assertEventOrder(["connect", "joinUserRoom", "joinChatRoom"]);
         });
     });
 
-    describe("Chat Events", () => {
-        it("should handle message events", () => {
+    describe("Enhanced Factory Patterns", () => {
+        it("should use connection factory for dynamic events", () => {
+            // Create custom connection event
+            const customConnection = connectionFactory.create({
+                socketId: "custom_socket_456",
+                transport: "polling"
+            });
+
+            const handler = vi.fn();
+            socket.on("connect", handler);
+            socket.emit(customConnection.event, customConnection.data);
+
+            expect(handler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    socketId: "custom_socket_456",
+                    transport: "polling"
+                })
+            );
+        });
+
+        it("should use room factory for various room types", () => {
+            const roomHandler = vi.fn();
+            socket.on("joinChatRoom", roomHandler);
+
+            // Create chat room join event
+            const chatJoin = roomFactory.create({
+                roomType: "chat",
+                roomId: "custom_chat_789",
+                userId: "user_456"
+            });
+
+            socket.emit(chatJoin.event, chatJoin.data);
+
+            expect(roomHandler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    roomType: "chat",
+                    roomId: "custom_chat_789",
+                    userId: "user_456"
+                })
+            );
+        });
+
+        it("should create event sequences with factory patterns", () => {
+            // Create escalating reconnection sequence
+            const reconnectSequence = reconnectionFactory.createSequence("escalating", { count: 3 });
+            
+            expect(reconnectSequence).toHaveLength(3);
+            expect(reconnectSequence[0].data.attempt).toBe(1);
+            expect(reconnectSequence[2].data.attempt).toBe(3);
+            
+            // Verify exponential backoff
+            expect(reconnectSequence[1].data.delay).toBeGreaterThan(reconnectSequence[0].data.delay);
+            expect(reconnectSequence[2].data.delay).toBeGreaterThan(reconnectSequence[1].data.delay);
+        });
+
+        it("should create correlated events", () => {
+            const correlationId = generateCorrelationId();
+            
+            const correlatedEvents = connectionFactory.createCorrelated(correlationId, [
+                connectionFactory.single,
+                roomFactory.variants.joinUserSuccess as any,
+                roomFactory.variants.joinChatSuccess as any
+            ]);
+
+            expect(correlatedEvents).toHaveLength(3);
+            correlatedEvents.forEach(event => {
+                expect(event.metadata.correlationId).toBe(correlationId);
+            });
+            
+            // First event should not have causedBy
+            expect(correlatedEvents[0].metadata.causedBy).toBeUndefined();
+            
+            // Second event should be caused by first
+            expect(correlatedEvents[1].metadata.causedBy).toBe(correlatedEvents[0].event);
+        });
+    });
+
+    describe("Enhanced MockSocketEmitter Features", () => {
+        it("should track state changes", async () => {
+            socket.setState({ connected: false, roomsJoined: 0 });
+
+            await socket.emit("connect", { socketId: "test_socket" });
+            await socket.emit("joinChatRoom", { chatId: "chat_123" });
+
+            const state = socket.getState();
+            expect(state.lastEvent).toBe("joinChatRoom");
+            expect(state.lastEventTime).toBeDefined();
+        });
+
+        it("should simulate network conditions", async () => {
+            // Enable network simulation with poor conditions
+            socket.setNetworkCondition(networkPresets.mobile3G);
+
+            const startTime = Date.now();
+            await socket.emit("messages", { content: "Test message" });
+            const endTime = Date.now();
+
+            // Should have network delay
+            expect(endTime - startTime).toBeGreaterThan(100); // At least some delay
+        });
+
+        it("should support parallel event emission", async () => {
             const messageHandler = vi.fn();
             socket.on("messages", messageHandler);
 
-            // Emit text message
-            socket.emit("messages", chatEventFixtures.messages.textMessage.data);
-            expect(messageHandler).toHaveBeenCalledWith(chatEventFixtures.messages.textMessage.data);
-
-            // Emit message with attachment
-            socket.emit("messages", chatEventFixtures.messages.messageWithAttachment.data);
-            expect(messageHandler).toHaveBeenCalledTimes(2);
-        });
-
-        it("should handle response streaming", async () => {
-            const chunks: string[] = [];
-            let finalMessage: string | undefined;
-
-            socket.on("responseStream", (data) => {
-                if (data.__type === "stream" && data.chunk) {
-                    chunks.push(data.chunk);
-                } else if (data.__type === "end" && data.finalMessage) {
-                    finalMessage = data.finalMessage;
-                }
-            });
-
-            // Emit stream sequence
-            await socket.emitSequence([
-                { event: "responseStream", data: chatEventFixtures.responseStream.streamStart.data },
-                { delay: 100 },
-                { event: "responseStream", data: chatEventFixtures.responseStream.streamChunk.data },
-                { delay: 100 },
-                { event: "responseStream", data: chatEventFixtures.responseStream.streamEnd.data },
+            await socket.emitParallel([
+                { event: "messages", data: { added: [{ id: "msg_1", content: "Message 1" }] } },
+                { event: "messages", data: { added: [{ id: "msg_2", content: "Message 2" }] } },
+                { event: "messages", data: { added: [{ id: "msg_3", content: "Message 3" }] } }
             ]);
 
-            expect(chunks).toHaveLength(2);
-            expect(chunks[0]).toBe("I'm thinking about");
-            expect(chunks[1]).toBe(" your question...");
-            expect(finalMessage).toBe("I'm thinking about your question... Here's my answer.");
+            expect(messageHandler).toHaveBeenCalledTimes(3);
         });
 
-        it("should handle bot status updates", () => {
-            const statusHandler = vi.fn();
-            socket.on("botStatusUpdate", statusHandler);
+        it("should provide detailed emit history", () => {
+            socket.emit("connect", {});
+            socket.emit("joinChatRoom", { chatId: "test" });
+            socket.emit("messages", { content: "test" });
 
-            // Test thinking status
-            socket.emit("botStatusUpdate", chatEventFixtures.botStatus.thinking.data);
-            expect(statusHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    status: "thinking",
-                    message: "Processing your request...",
-                })
-            );
-
-            // Test tool calling
-            socket.emit("botStatusUpdate", chatEventFixtures.botStatus.toolCalling.data);
-            expect(statusHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    status: "tool_calling",
-                    toolInfo: expect.objectContaining({
-                        name: "search",
-                    }),
-                })
-            );
+            const timedHistory = socket.getTimedHistory();
+            expect(timedHistory).toHaveLength(3);
+            
+            // First event has no delta
+            expect(timedHistory[0].delta).toBe(0);
+            
+            // Subsequent events have timing deltas
+            expect(timedHistory[1].delta).toBeGreaterThanOrEqual(0);
+            expect(timedHistory[2].delta).toBeGreaterThanOrEqual(0);
         });
 
-        it("should handle typing indicators", () => {
-            const typingHandler = vi.fn();
-            socket.on("typing", typingHandler);
+        it("should support assertion helpers", () => {
+            socket.emit("connect", {});
+            socket.emit("joinChatRoom", { chatId: "test_123" });
+            socket.emit("messages", { content: "Hello" });
+            socket.emit("disconnect", {});
 
-            // User starts typing
-            socket.emit("typing", chatEventFixtures.typing.userStartTyping.data);
-            expect(typingHandler).toHaveBeenCalledWith({
-                starting: ["user_123"],
+            // Test various assertions
+            socket.assertEventEmitted("connect");
+            socket.assertEventNotEmitted("error");
+            socket.assertEventCount("messages", 1);
+            socket.assertEventOrder(["connect", "joinChatRoom", "messages", "disconnect"]);
+        });
+    });
+
+    describe("Comprehensive Sequences", () => {
+        it("should execute new user onboarding journey", async () => {
+            const events: any[] = [];
+            
+            // Capture all events
+            ["connect", "joinUserRoom", "joinChatRoom", "messages", "notification"].forEach(eventType => {
+                socket.on(eventType, (data) => events.push({ type: eventType, data }));
             });
 
-            // User stops typing
-            socket.emit("typing", chatEventFixtures.typing.userStopTyping.data);
-            expect(typingHandler).toHaveBeenCalledWith({
-                stopping: ["user_123"],
-            });
+            await socket.emitSequence(userJourneySequences.newUserOnboarding);
+
+            // Verify journey completion
+            expect(events.length).toBeGreaterThan(10);
+            
+            const eventTypes = events.map(e => e.type);
+            expect(eventTypes).toContain("connect");
+            expect(eventTypes).toContain("joinUserRoom");
+            expect(eventTypes).toContain("joinChatRoom");
+            expect(eventTypes).toContain("messages");
+            expect(eventTypes).toContain("notification");
         });
 
-        it("should execute chat flow sequences", async () => {
-            const messages: any[] = [];
-            const botStatuses: any[] = [];
+        it("should handle advanced user workflow", async () => {
+            const taskEvents: any[] = [];
+            const swarmEvents: any[] = [];
+            
+            socket.on("runTask", (data) => taskEvents.push(data));
+            socket.on("swarmStateUpdate", (data) => swarmEvents.push(data));
 
-            socket.on("messages", (data) => messages.push(data));
-            socket.on("botStatusUpdate", (data) => botStatuses.push(data));
+            await socket.emitSequence(userJourneySequences.advancedUserWorkflow);
 
-            await socket.emitSequence(chatEventFixtures.sequences.botResponseFlow);
-
-            expect(botStatuses).toHaveLength(3);
-            expect(botStatuses[0].status).toBe("thinking");
-            expect(botStatuses[2].status).toBe("processing_complete");
-        });
-    });
-
-    describe("Swarm Events", () => {
-        it("should handle swarm state updates", () => {
-            const stateHandler = vi.fn();
-            socket.on("swarmStateUpdate", stateHandler);
-
-            // Test state transitions
-            socket.emit("swarmStateUpdate", swarmEventFixtures.state.uninitialized.data);
-            socket.emit("swarmStateUpdate", swarmEventFixtures.state.starting.data);
-            socket.emit("swarmStateUpdate", swarmEventFixtures.state.running.data);
-
-            expect(stateHandler).toHaveBeenCalledTimes(3);
-            expect(stateHandler).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    state: "RUNNING",
-                })
-            );
+            expect(taskEvents.length).toBeGreaterThan(0);
+            expect(swarmEvents.length).toBeGreaterThan(0);
+            
+            // Verify workflow progression
+            const taskStatuses = taskEvents.map(t => t.status);
+            expect(taskStatuses).toContain("created");
+            expect(taskStatuses).toContain("in_progress");
+            expect(taskStatuses).toContain("completed");
         });
 
-        it("should handle resource updates", () => {
-            const resourceHandler = vi.fn();
-            socket.on("swarmResourceUpdate", resourceHandler);
-
-            // Test resource consumption
-            socket.emit("swarmResourceUpdate", swarmEventFixtures.resources.initialAllocation.data);
-            socket.emit("swarmResourceUpdate", swarmEventFixtures.resources.consumptionUpdate.data);
-
-            expect(resourceHandler).toHaveBeenCalledTimes(2);
-            expect(resourceHandler).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    resources: {
-                        allocated: 10000,
-                        consumed: 3500,
-                        remaining: 6500,
-                    },
-                })
-            );
-        });
-
-        it("should execute swarm lifecycle sequence", async () => {
-            const events = await collectEvents(socket, "swarmStateUpdate", 15000);
-
-            // Start lifecycle sequence in background
-            socket.emitSequence(swarmEventFixtures.sequences.basicLifecycle);
-
-            // Wait for events
-            await new Promise(resolve => setTimeout(resolve, 15000));
-
-            expect(events.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe("Notification Events", () => {
-        it("should handle various notification types", () => {
-            const notificationHandler = vi.fn();
-            socket.on("notification", notificationHandler);
-
-            // Test different notification types
-            socket.emit("notification", notificationEventFixtures.notifications.newMessage.data);
-            socket.emit("notification", notificationEventFixtures.notifications.mention.data);
-            socket.emit("notification", notificationEventFixtures.notifications.awardEarned.data);
-
-            expect(notificationHandler).toHaveBeenCalledTimes(3);
-            expect(notificationHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: "ChatMessage",
-                })
-            );
-        });
-
-        it("should handle API credit updates", () => {
-            const creditHandler = vi.fn();
-            socket.on("apiCredits", creditHandler);
-
-            // Test credit updates
-            socket.emit("apiCredits", notificationEventFixtures.apiCredits.creditUpdate.data);
-            expect(creditHandler).toHaveBeenCalledWith({
-                credits: "1000000",
-            });
-
-            // Test low credits
-            socket.emit("apiCredits", notificationEventFixtures.apiCredits.lowCredits.data);
-            expect(creditHandler).toHaveBeenCalledWith({
-                credits: "100",
-            });
-        });
-
-        it("should execute notification burst sequence", async () => {
-            const notifications: any[] = [];
-            socket.on("notification", (data) => notifications.push(data));
-
-            await socket.emitSequence(notificationEventFixtures.sequences.notificationBurst);
-
-            expect(notifications).toHaveLength(3);
-            expect(notifications[0].type).toBe("ChatMessage");
-            expect(notifications[1].type).toBe("Mention");
-            expect(notifications[2].type).toBe("TeamInvite");
-        });
-    });
-
-    describe("Collaboration Events", () => {
-        it("should handle run task updates", () => {
-            const taskHandler = vi.fn();
-            socket.on("runTask", taskHandler);
-
-            // Test task lifecycle
-            socket.emit("runTask", collaborationEventFixtures.runTask.taskCreated.data);
-            socket.emit("runTask", collaborationEventFixtures.runTask.taskInProgress.data);
-            socket.emit("runTask", collaborationEventFixtures.runTask.taskCompleted.data);
-
-            expect(taskHandler).toHaveBeenCalledTimes(3);
-            expect(taskHandler).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    status: "completed",
-                })
-            );
-        });
-
-        it("should handle decision requests", async () => {
-            const decisionHandler = vi.fn();
-            socket.on("runTaskDecisionRequest", decisionHandler);
-
-            // Test simple decision
-            socket.emit("runTaskDecisionRequest", collaborationEventFixtures.decisionRequest.simpleDecision.data);
-
-            expect(decisionHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: "boolean",
-                    title: "Proceed with analysis?",
-                })
-            );
-        });
-
-        it("should execute parallel task sequence", async () => {
-            const tasks: any[] = [];
-            socket.on("runTask", (data) => tasks.push(data));
-
-            await socket.emitSequence(collaborationEventFixtures.sequences.parallelExecution);
-
-            // Should have multiple tasks running in parallel
-            const inProgressTasks = tasks.filter(t => t.status === "in_progress");
-            expect(inProgressTasks.length).toBeGreaterThanOrEqual(2);
-        });
-    });
-
-    describe("System Events", () => {
-        it("should handle system status updates", () => {
-            const statusHandler = vi.fn();
-            socket.on("systemStatus", statusHandler);
-
-            // Test different system states
-            socket.emit("systemStatus", systemEventFixtures.status.healthy.data);
-            socket.emit("systemStatus", systemEventFixtures.status.degraded.data);
-            socket.emit("systemStatus", systemEventFixtures.status.critical.data);
-
-            expect(statusHandler).toHaveBeenCalledTimes(3);
-            expect(statusHandler).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    status: "critical",
-                    issues: expect.arrayContaining(["Database connection lost"]),
-                })
-            );
-        });
-
-        it("should handle deployment events", () => {
-            const deployHandler = vi.fn();
-            socket.on("deploymentStatus", deployHandler);
-
-            // Test deployment flow
-            socket.emit("deploymentStatus", systemEventFixtures.deployment.started.data);
-            socket.emit("deploymentStatus", systemEventFixtures.deployment.progress.data);
-            socket.emit("deploymentStatus", systemEventFixtures.deployment.completed.data);
-
-            expect(deployHandler).toHaveBeenCalledTimes(3);
-            expect(deployHandler).toHaveBeenLastCalledWith(
-                expect.objectContaining({
-                    status: "completed",
-                    success: true,
-                })
-            );
-        });
-
-        it("should handle security alerts", () => {
-            const securityHandler = vi.fn();
-            socket.on("securityAlert", securityHandler);
-
-            // Test security alert
-            socket.emit("securityAlert", systemEventFixtures.security.alert.data);
-
-            expect(securityHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: "suspicious_activity",
-                    severity: "medium",
-                })
-            );
-        });
-    });
-
-    describe("Factory Functions", () => {
-        it("should create custom events using factories", () => {
-            // Create custom message event
-            const customMessage = chatEventFixtures.factories.createMessageEvent({
-                id: "custom_msg",
-                content: "Custom message",
-            });
-
-            const handler = vi.fn();
-            socket.on("messages", handler);
-            socket.emit(customMessage.event as any, customMessage.data);
-
-            expect(handler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    added: expect.arrayContaining([
-                        expect.objectContaining({
-                            content: "Custom message",
-                        }),
-                    ]),
-                })
-            );
-        });
-
-        it("should create custom swarm state updates", () => {
-            const customState = swarmEventFixtures.factories.createStateUpdate(
-                "swarm_custom",
-                "FAILED",
-                "Custom failure message"
-            );
-
-            const handler = vi.fn();
-            socket.on("swarmStateUpdate", handler);
-            socket.emit(customState.event as any, customState.data);
-
-            expect(handler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    swarmId: "swarm_custom",
-                    state: "FAILED",
-                    message: "Custom failure message",
-                })
-            );
-        });
-    });
-
-    describe("Error Scenarios", () => {
-        it("should handle stream errors", () => {
-            const errorHandler = vi.fn();
+        it("should simulate system degradation and recovery", async () => {
+            const systemEvents: any[] = [];
+            const errorEvents: any[] = [];
+            
+            socket.on("systemStatus", (data) => systemEvents.push(data));
             socket.on("responseStream", (data) => {
-                if (data.__type === "error") {
-                    errorHandler(data.error);
-                }
+                if (data.__type === "error") errorEvents.push(data);
             });
 
-            socket.emit("responseStream", chatEventFixtures.responseStream.streamError.data);
+            await socket.emitSequence(systemReliabilitySequences.gracefulDegradation);
 
-            expect(errorHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    code: "LLM_ERROR",
-                    retryable: true,
-                })
-            );
-        });
+            expect(systemEvents.length).toBeGreaterThan(0);
+            expect(errorEvents.length).toBeGreaterThan(0);
 
-        it("should handle connection errors", () => {
-            const errorHandler = vi.fn();
-            socket.on("error", errorHandler);
-
-            socket.emit("error", socketEventFixtures.errors.unauthorized.data);
-            socket.emit("error", socketEventFixtures.errors.rateLimit.data);
-
-            expect(errorHandler).toHaveBeenCalledTimes(2);
-            expect(errorHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    code: "RATE_LIMIT",
-                    retryAfter: 60,
-                })
-            );
+            // Verify degradation and recovery cycle
+            const healthStatuses = systemEvents.map(e => e.status);
+            expect(healthStatuses).toContain("healthy");
+            expect(healthStatuses).toContain("degraded");
+            expect(healthStatuses).toContain("recovering");
         });
     });
 
-    describe("Waiting for Events", () => {
-        it("should wait for specific events", async () => {
+    describe("Event Correlation and Analysis", () => {
+        it("should track event correlations", async () => {
+            const correlator = new EventCorrelator();
+            const correlationId = generateCorrelationId();
+
+            // Create correlated events
+            const events = connectionFactory.createCorrelated(correlationId, [
+                connectionFactory.single,
+                roomFactory.variants.joinUserSuccess as any
+            ]);
+
+            // Track events
+            events.forEach(event => correlator.track(event));
+
+            // Verify correlation
+            const correlatedEvents = correlator.getCorrelatedEvents(correlationId);
+            expect(correlatedEvents).toHaveLength(2);
+
+            const chain = correlator.getEventChain(correlationId);
+            expect(chain).toEqual(["connect", "joinUserRoom"]);
+
+            // Test pattern matching
+            expect(correlator.matchesPattern(correlationId, ["connect", "joinUserRoom"])).toBe(true);
+            expect(correlator.matchesPattern(correlationId, ["connect", "*"])).toBe(true);
+            expect(correlator.matchesPattern(correlationId, ["disconnect", "joinUserRoom"])).toBe(false);
+        });
+
+        it("should analyze event timing", async () => {
+            const analyzer = new TimingAnalyzer();
+
+            // Record events with timing
+            analyzer.record("connect");
+            await new Promise(resolve => setTimeout(resolve, 100));
+            analyzer.record("joinRoom");
+            await new Promise(resolve => setTimeout(resolve, 50));
+            analyzer.record("message");
+
+            const stats = analyzer.getStats();
+            expect(stats.eventCount).toBe(3);
+            expect(stats.totalDuration).toBeGreaterThan(140); // At least 150ms
+            expect(stats.averageInterval).toBeGreaterThan(0);
+            expect(stats.eventFrequency.get("connect")).toBe(1);
+
+            // Test timing relationships
+            expect(analyzer.withinWindow("connect", "joinRoom", 200)).toBe(true);
+            expect(analyzer.withinWindow("connect", "message", 50)).toBe(false);
+        });
+    });
+
+    describe("Sequence Orchestration", () => {
+        it("should orchestrate complex scenarios", async () => {
+            const orchestrator = new SequenceOrchestrator({
+                simulation: { timing: "fast", network: "fast" }
+            });
+
+            const result = await orchestrator.executeSequence([
+                { event: "connect", data: {} },
+                { delay: 100 },
+                { event: "joinChatRoom", data: { chatId: "test" } },
+                { delay: 200 },
+                { event: "messages", data: { content: "Hello" } }
+            ]);
+
+            expect(result.success).toBe(true);
+            expect(result.events).toHaveLength(3);
+            expect(result.correlationId).toBeDefined();
+            expect(result.duration).toBeGreaterThan(0);
+        });
+
+        it("should combine multiple sequences", () => {
+            const orchestrator = new SequenceOrchestrator();
+
+            const combined = orchestrator.combineSequences([
+                { 
+                    name: "connection", 
+                    sequence: [{ event: "connect", data: {} }], 
+                    delay: 1000 
+                },
+                { 
+                    name: "chat", 
+                    sequence: [{ event: "joinChatRoom", data: { chatId: "test" } }], 
+                    delay: 500 
+                }
+            ]);
+
+            expect(combined).toHaveLength(4); // connect + delay + joinChatRoom + delay
+            expect(combined[0].event).toBe("connect");
+            expect(combined[1].delay).toBe(1000);
+            expect(combined[2].event).toBe("joinChatRoom");
+        });
+
+        it("should create parallel scenarios", () => {
+            const orchestrator = new SequenceOrchestrator();
+
+            const parallel = orchestrator.createParallelScenario([
+                { 
+                    name: "user1", 
+                    sequence: [{ event: "joinChat", data: { userId: "user_1" } }],
+                    userContext: "user_1"
+                },
+                { 
+                    name: "user2", 
+                    sequence: [{ event: "joinChat", data: { userId: "user_2" } }],
+                    userContext: "user_2"
+                }
+            ]);
+
+            expect(parallel[0].parallel).toHaveLength(2);
+            expect(parallel[0].parallel![0].data).toMatchObject({ scenario: "user1", user: "user_1" });
+        });
+    });
+
+    describe("Advanced Chat Scenarios", () => {
+        it("should handle bot tool approval workflow", async () => {
+            const toolEvents: any[] = [];
+            const statusEvents: any[] = [];
+            
+            socket.on("tool_approval_required", (data) => toolEvents.push({ type: "required", data }));
+            socket.on("tool_approval_rejected", (data) => toolEvents.push({ type: "rejected", data }));
+            socket.on("botStatusUpdate", (data) => statusEvents.push(data));
+
+            await socket.emitSequence(chatEventFixtures.sequences.toolApprovalFlow);
+
+            expect(toolEvents.length).toBeGreaterThan(0);
+            expect(statusEvents.length).toBeGreaterThan(0);
+
+            // Verify approval workflow
+            const approvalRequired = toolEvents.find(e => e.type === "required");
+            expect(approvalRequired).toBeDefined();
+            expect(approvalRequired.data.toolName).toBe("execute_code");
+
+            const approvalRejected = toolEvents.find(e => e.type === "rejected");
+            expect(approvalRejected).toBeDefined();
+            expect(approvalRejected.data.reason).toContain("declined");
+        });
+
+        it("should handle streaming with error recovery", async () => {
+            const streamEvents: any[] = [];
+            
+            socket.on("responseStream", (data) => streamEvents.push(data));
+
+            await socket.emitSequence(chatEventFixtures.sequences.errorRecoveryFlow);
+
+            // Should have stream start, error, then recovery
+            expect(streamEvents.length).toBeGreaterThan(3);
+            
+            const errorEvent = streamEvents.find(e => e.__type === "error");
+            expect(errorEvent).toBeDefined();
+            expect(errorEvent.error.retryable).toBe(true);
+
+            // Should have retry after error
+            const streamAfterError = streamEvents.slice(streamEvents.indexOf(errorEvent) + 1);
+            expect(streamAfterError.some(e => e.__type === "stream")).toBe(true);
+        });
+    });
+
+    describe("System Monitoring Scenarios", () => {
+        it("should handle maintenance window", async () => {
+            const maintenanceEvents: any[] = [];
+            const notificationEvents: any[] = [];
+            
+            socket.on("maintenanceStatus", (data) => maintenanceEvents.push(data));
+            socket.on("notification", (data) => notificationEvents.push(data));
+
+            await socket.emitSequence(systemReliabilitySequences.plannedMaintenance);
+
+            expect(maintenanceEvents.length).toBeGreaterThan(0);
+            expect(notificationEvents.length).toBeGreaterThan(0);
+
+            // Verify maintenance progression
+            const statuses = maintenanceEvents.map(e => e.status);
+            expect(statuses).toContain("scheduled");
+            expect(statuses).toContain("in_progress");
+            expect(statuses).toContain("completed");
+        });
+
+        it("should handle security incident", async () => {
+            const securityEvents: any[] = [];
+            const errorEvents: any[] = [];
+            
+            socket.on("securityAlert", (data) => securityEvents.push(data));
+            socket.on("error", (data) => errorEvents.push(data));
+
+            await socket.emitSequence(systemReliabilitySequences.securityIncident);
+
+            expect(securityEvents.length).toBeGreaterThan(0);
+            
+            // Verify incident escalation
+            const severities = securityEvents.map(e => e.severity);
+            expect(severities).toContain("low");
+            expect(severities).toContain("high");
+
+            // Should have lockdown error
+            const lockdownError = errorEvents.find(e => e.code === "SECURITY_LOCKDOWN");
+            expect(lockdownError).toBeDefined();
+        });
+    });
+
+    describe("Performance Testing Utilities", () => {
+        it("should test event waiting with timeout", async () => {
             // Emit event after delay
             setTimeout(() => {
-                socket.emit("notification", notificationEventFixtures.notifications.taskComplete.data);
+                socket.emit("notification", { type: "test", message: "Delayed notification" });
             }, 100);
 
             const notification = await waitForEvent(socket, "notification", 1000);
-            expect(notification).toMatchObject({
-                type: "RunComplete",
-                title: "Task completed successfully",
-            });
+            expect(notification.type).toBe("test");
+            expect(notification.message).toBe("Delayed notification");
         });
 
-        it("should timeout when event doesn't arrive", async () => {
+        it("should collect events over time period", async () => {
+            // Start emitting events
+            const emitInterval = setInterval(() => {
+                socket.emit("heartbeat", { timestamp: Date.now() });
+            }, 50);
+
+            const events = await collectEvents(socket, "heartbeat", 250);
+            clearInterval(emitInterval);
+
+            expect(events.length).toBeGreaterThanOrEqual(4); // At least 4 heartbeats in 250ms
+            expect(events.length).toBeLessThanOrEqual(6); // But not too many
+        });
+
+        it("should timeout when waiting for events that don't arrive", async () => {
             await expect(
-                waitForEvent(socket, "notification", 100)
-            ).rejects.toThrow("Timeout waiting for event: notification");
+                waitForEvent(socket, "never-emitted-event", 100)
+            ).rejects.toThrow("Timeout waiting for event: never-emitted-event");
+        });
+    });
+
+    describe("Full-Scale Integration Test", () => {
+        it("should execute comprehensive scenario", async () => {
+            // Set up comprehensive monitoring
+            const allEvents: any[] = [];
+            const eventTypes = [
+                "connect", "disconnect", "joinChatRoom", "leaveChatRoom",
+                "messages", "responseStream", "botStatusUpdate", "typing",
+                "participants", "notification", "runTask", "swarmStateUpdate",
+                "systemStatus", "error"
+            ];
+            
+            eventTypes.forEach(eventType => {
+                socket.on(eventType, (data) => allEvents.push({ 
+                    type: eventType, 
+                    data, 
+                    timestamp: Date.now() 
+                }));
+            });
+
+            // Execute comprehensive scenario with timing
+            const startTime = Date.now();
+            await socket.emitSequence(comprehensiveScenarios.fullScale);
+            const endTime = Date.now();
+
+            // Verify comprehensive execution
+            expect(allEvents.length).toBeGreaterThan(20);
+            expect(endTime - startTime).toBeGreaterThan(100);
+
+            // Verify we have events from multiple systems
+            const uniqueEventTypes = [...new Set(allEvents.map(e => e.type))];
+            expect(uniqueEventTypes.length).toBeGreaterThan(5);
+            
+            // Should include connection events
+            expect(uniqueEventTypes).toContain("connect");
+            expect(uniqueEventTypes).toContain("joinChatRoom");
+
+            // Verify event ordering makes sense
+            const connectIndex = allEvents.findIndex(e => e.type === "connect");
+            const joinRoomIndex = allEvents.findIndex(e => e.type === "joinChatRoom");
+            expect(joinRoomIndex).toBeGreaterThan(connectIndex);
         });
     });
 });

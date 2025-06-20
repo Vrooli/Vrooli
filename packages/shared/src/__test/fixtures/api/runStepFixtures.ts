@@ -52,7 +52,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        } as any,
+        } as RunStepCreateInput,
         update: {
             id: validIds.id1,
             contextSwitches: 8,
@@ -61,18 +61,18 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        } as any,
+        } as RunStepUpdateInput,
     },
     invalid: {
         missingRequired: {
             create: {
                 // Missing required id, complexity, name, nodeId, order, resourceInId, and runConnect
                 status: RunStepStatus.InProgress,
-            },
+            } as RunStepCreateInput,
             update: {
                 // Missing required id
                 status: RunStepStatus.Completed,
-            },
+            } as RunStepUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -87,13 +87,13 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 timeElapsed: "invalid", // Should be number
                 runConnect: 131415, // Should be string
                 resourceVersionConnect: 161718, // Should be string
-            },
+            } as unknown as RunStepCreateInput,
             update: {
                 id: validIds.id1,
                 contextSwitches: "invalid", // Should be number
                 status: "InvalidStatus", // Invalid enum value
                 timeElapsed: "invalid", // Should be number
-            },
+            } as unknown as RunStepUpdateInput,
         },
         invalidId: {
             create: {
@@ -104,10 +104,10 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as RunStepUpdateInput,
         },
         missingComplexity: {
             create: {
@@ -118,7 +118,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
                 // Missing required complexity
-            },
+            } as RunStepCreateInput,
         },
         missingName: {
             create: {
@@ -129,7 +129,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
                 // Missing required name
-            },
+            } as RunStepCreateInput,
         },
         missingNodeId: {
             create: {
@@ -140,7 +140,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
                 // Missing required nodeId
-            },
+            } as RunStepCreateInput,
         },
         missingOrder: {
             create: {
@@ -151,7 +151,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
                 // Missing required order
-            },
+            } as RunStepCreateInput,
         },
         missingResourceInId: {
             create: {
@@ -162,7 +162,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 runConnect: validIds.id3,
                 // Missing required resourceInId
-            },
+            } as RunStepCreateInput,
         },
         missingRunConnect: {
             create: {
@@ -173,7 +173,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 // Missing required runConnect
-            },
+            } as RunStepCreateInput,
         },
         negativeComplexity: {
             create: {
@@ -184,7 +184,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         negativeOrder: {
             create: {
@@ -195,7 +195,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: -1, // Should be positive or zero
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         zeroContextSwitches: {
             create: {
@@ -207,7 +207,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         negativeTimeElapsed: {
             create: {
@@ -219,7 +219,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 resourceInId: validIds.id2,
                 timeElapsed: -100, // Should be positive or zero
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         longNodeId: {
             create: {
@@ -230,7 +230,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         emptyName: {
             create: {
@@ -241,7 +241,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
         emptyNodeId: {
             create: {
@@ -252,7 +252,7 @@ export const runStepFixtures: ModelTestFixtures<RunStepCreateInput, RunStepUpdat
                 order: 0,
                 resourceInId: validIds.id2,
                 runConnect: validIds.id3,
-            },
+            } as RunStepCreateInput,
         },
     },
     edgeCases: {

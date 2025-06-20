@@ -3,8 +3,17 @@
  * 
  * These fixtures provide standard HTTP error scenarios including
  * bad requests, authentication errors, rate limiting, and server errors.
+ * 
+ * Upgraded to use the unified error fixture factory pattern.
  */
 
+import {
+    BaseErrorFactory,
+    type EnhancedApiError,
+    type ErrorContext
+} from "./types.js";
+
+// Legacy interface for backwards compatibility
 export interface ApiError {
     status: number;
     code: string;
@@ -16,18 +25,92 @@ export interface ApiError {
     reset?: string;
 }
 
+// Enhanced API error factory class
+class ApiErrorFactory extends BaseErrorFactory<EnhancedApiError> {
+    standard: EnhancedApiError = {
+        status: 500,
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred. Please try again later",
+        userImpact: "blocking",
+        recovery: {
+            strategy: "retry",
+            attempts: 3,
+            delay: 1000,
+            backoffMultiplier: 2,
+        },
+    };
+
+    withDetails: EnhancedApiError = {
+        status: 500,
+        code: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred",
+        details: {
+            requestId: "req_abc123def456",
+            timestamp: new Date().toISOString(),
+        },
+        userImpact: "blocking",
+        recovery: {
+            strategy: "retry",
+            attempts: 3,
+            delay: 1000,
+        },
+    };
+
+    variants = {
+        minimal: {
+            status: 500,
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Internal server error",
+            userImpact: "blocking" as const,
+            recovery: { strategy: "retry" as const },
+        },
+    };
+
+    create(overrides: Partial<EnhancedApiError> = {}): EnhancedApiError {
+        return {
+            ...this.standard,
+            ...overrides,
+        };
+    }
+
+    createWithContext(context: ErrorContext): EnhancedApiError {
+        return {
+            ...this.standard,
+            context,
+            telemetry: {
+                traceId: Math.random().toString(36).substring(2, 15),
+                spanId: Math.random().toString(36).substring(2, 10),
+                tags: {
+                    operation: context.operation || "unknown",
+                    resource: context.resource?.type || "unknown",
+                    user_role: context.user?.role || "anonymous",
+                },
+                level: "error",
+            },
+        };
+    }
+}
+
+// Create the enhanced factory instance
+const apiErrorFactory = new ApiErrorFactory();
+
 export const apiErrorFixtures = {
+    // Enhanced factory instance for new patterns
+    factory: apiErrorFactory,
+
     // 400 Bad Request
     badRequest: {
         minimal: {
             status: 400,
             code: "BAD_REQUEST",
             message: "Invalid request parameters",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         withDetails: {
             status: 400,
-            code: "BAD_REQUEST", 
+            code: "BAD_REQUEST",
             message: "Invalid request parameters",
             details: {
                 fields: {
@@ -35,13 +118,17 @@ export const apiErrorFixtures = {
                     password: "Password must be at least 8 characters",
                 },
             },
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         malformedJson: {
             status: 400,
             code: "MALFORMED_JSON",
             message: "Request body contains invalid JSON",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
     },
 
     // 401 Unauthorized
@@ -50,19 +137,25 @@ export const apiErrorFixtures = {
             status: 401,
             code: "UNAUTHORIZED",
             message: "Authentication required",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         invalidToken: {
             status: 401,
-            code: "INVALID_TOKEN", 
+            code: "INVALID_TOKEN",
             message: "The provided authentication token is invalid",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         expiredToken: {
             status: 401,
             code: "TOKEN_EXPIRED",
             message: "Your session has expired. Please log in again",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
     },
 
     // 403 Forbidden
@@ -71,8 +164,10 @@ export const apiErrorFixtures = {
             status: 403,
             code: "FORBIDDEN",
             message: "You do not have permission to access this resource",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         insufficientRole: {
             status: 403,
             code: "INSUFFICIENT_ROLE",
@@ -81,13 +176,17 @@ export const apiErrorFixtures = {
                 requiredRole: "admin",
                 currentRole: "member",
             },
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         resourceOwner: {
             status: 403,
             code: "NOT_OWNER",
             message: "Only the resource owner can perform this action",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
     },
 
     // 404 Not Found
@@ -96,8 +195,10 @@ export const apiErrorFixtures = {
             status: 404,
             code: "NOT_FOUND",
             message: "Resource not found",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         withDetails: {
             status: 404,
             code: "NOT_FOUND",
@@ -106,13 +207,17 @@ export const apiErrorFixtures = {
                 resource: "User",
                 id: "user_123456789",
             },
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
+
         endpoint: {
             status: 404,
             code: "ENDPOINT_NOT_FOUND",
             message: "The requested endpoint does not exist",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
+        } satisfies EnhancedApiError,
     },
 
     // 429 Too Many Requests
@@ -125,8 +230,14 @@ export const apiErrorFixtures = {
             limit: 100,
             remaining: 0,
             reset: new Date(Date.now() + 60000).toISOString(),
-        } satisfies ApiError,
-        
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 60000,
+            },
+        } satisfies EnhancedApiError,
+
         daily: {
             status: 429,
             code: "DAILY_LIMIT_EXCEEDED",
@@ -135,17 +246,28 @@ export const apiErrorFixtures = {
             limit: 10000,
             remaining: 0,
             reset: new Date(Date.now() + 86400000).toISOString(),
-        } satisfies ApiError,
-        
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                delay: 86400000,
+            },
+        } satisfies EnhancedApiError,
+
         burst: {
             status: 429,
             code: "BURST_LIMIT_EXCEEDED",
             message: "Request rate too high. Please slow down",
             retryAfter: 5,
             limit: 10,
-            remaining: 0, 
+            remaining: 0,
             reset: new Date(Date.now() + 5000).toISOString(),
-        } satisfies ApiError,
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                attempts: 5,
+                delay: 5000,
+            },
+        } satisfies EnhancedApiError,
     },
 
     // 500 Internal Server Error
@@ -154,14 +276,26 @@ export const apiErrorFixtures = {
             status: 500,
             code: "INTERNAL_SERVER_ERROR",
             message: "An unexpected error occurred. Please try again later",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
+
         database: {
             status: 500,
             code: "DATABASE_ERROR",
             message: "A database error occurred while processing your request",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
+
         withRequestId: {
             status: 500,
             code: "INTERNAL_SERVER_ERROR",
@@ -170,7 +304,13 @@ export const apiErrorFixtures = {
                 requestId: "req_abc123def456",
                 timestamp: new Date().toISOString(),
             },
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
     },
 
     // 502 Bad Gateway
@@ -179,7 +319,13 @@ export const apiErrorFixtures = {
             status: 502,
             code: "BAD_GATEWAY",
             message: "The server received an invalid response from the upstream server",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
     },
 
     // 503 Service Unavailable
@@ -188,8 +334,14 @@ export const apiErrorFixtures = {
             status: 503,
             code: "SERVICE_UNAVAILABLE",
             message: "The service is temporarily unavailable. Please try again later",
-        } satisfies ApiError,
-        
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
+
         maintenance: {
             status: 503,
             code: "MAINTENANCE_MODE",
@@ -197,7 +349,13 @@ export const apiErrorFixtures = {
             details: {
                 estimatedEndTime: new Date(Date.now() + 3600000).toISOString(),
             },
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
     },
 
     // 504 Gateway Timeout
@@ -206,7 +364,13 @@ export const apiErrorFixtures = {
             status: 504,
             code: "GATEWAY_TIMEOUT",
             message: "The request timed out",
-        } satisfies ApiError,
+            userImpact: "blocking",
+            recovery: {
+                strategy: "retry",
+                attempts: 3,
+                delay: 1000,
+            },
+        } satisfies EnhancedApiError,
     },
 
     // Factory functions
@@ -214,27 +378,34 @@ export const apiErrorFixtures = {
         /**
          * Create a validation error with custom field errors
          */
-        createValidationError: (fields: Record<string, string>): ApiError => ({
+        createValidationError: (fields: Record<string, string>): EnhancedApiError => ({
             status: 400,
             code: "VALIDATION_ERROR",
             message: "Validation failed",
             details: { fields },
+            userImpact: "blocking",
+            recovery: { strategy: "fail" },
         }),
 
         /**
          * Create a custom API error
          */
-        createApiError: (status: number, code: string, message: string, details?: any): ApiError => ({
+        createApiError: (status: number, code: string, message: string, details?: any): EnhancedApiError => ({
             status,
             code,
             message,
             ...(details && { details }),
+            userImpact: status >= 500 ? "blocking" : "blocking",
+            recovery: {
+                strategy: status >= 500 ? "retry" : "fail",
+                ...(status >= 500 && { attempts: 3, delay: 1000 }),
+            },
         }),
 
         /**
          * Create a rate limit error with custom limits
          */
-        createRateLimitError: (limit: number, windowSeconds: number): ApiError => ({
+        createRateLimitError: (limit: number, windowSeconds: number): EnhancedApiError => ({
             status: 429,
             code: "RATE_LIMIT_EXCEEDED",
             message: `Rate limit of ${limit} requests per ${windowSeconds} seconds exceeded`,
@@ -242,6 +413,21 @@ export const apiErrorFixtures = {
             limit,
             remaining: 0,
             reset: new Date(Date.now() + windowSeconds * 1000).toISOString(),
+            userImpact: "degraded",
+            recovery: {
+                strategy: "retry",
+                delay: windowSeconds * 1000,
+            },
+        }),
+
+        /**
+         * Create a legacy API error (for backwards compatibility)
+         */
+        createLegacyApiError: (status: number, code: string, message: string, details?: any): ApiError => ({
+            status,
+            code,
+            message,
+            ...(details && { details }),
         }),
     },
 };

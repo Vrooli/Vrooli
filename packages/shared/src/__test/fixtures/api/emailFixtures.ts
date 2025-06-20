@@ -2,6 +2,9 @@ import type { EmailCreateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { emailValidation } from "../../../validation/models/email.js";
 
+// Magic number constants for testing
+const EMAIL_TOO_LONG_LENGTH = 250;
+
 // Valid Snowflake IDs for testing
 const validIds = {
     id1: "200000000000000001",
@@ -32,26 +35,29 @@ export const emailFixtures: ModelTestFixtures<EmailCreateInput, never> = {
         missingRequired: {
             create: {
                 // Missing both id and emailAddress
-            },
+            } as EmailCreateInput,
             update: null, // Not applicable - no update operation
         },
         invalidTypes: {
+            // @ts-expect-error - Testing invalid types
             create: {
                 id: 123, // Should be string
                 emailAddress: true, // Should be string
-            },
+            } as unknown as EmailCreateInput,
             update: null, // Not applicable
         },
         invalidEmail: {
+            // @ts-expect-error - Testing invalid email format
             create: {
                 id: validIds.id1,
                 emailAddress: "not-an-email",
             },
         },
         tooLongEmail: {
+            // @ts-expect-error - Testing email length validation
             create: {
                 id: validIds.id1,
-                emailAddress: `${"a".repeat(250)}@example.com`, // Exceeds 256 char limit
+                emailAddress: `${"a".repeat(EMAIL_TOO_LONG_LENGTH)}@example.com`, // Exceeds 256 char limit
             },
         },
     },
@@ -87,12 +93,14 @@ export const emailFixtures: ModelTestFixtures<EmailCreateInput, never> = {
             },
         },
         emptyString: {
+            // @ts-expect-error - Testing empty email validation
             create: {
                 id: validIds.id1,
                 emailAddress: "",
             },
         },
         whitespaceOnly: {
+            // @ts-expect-error - Testing whitespace-only email validation
             create: {
                 id: validIds.id1,
                 emailAddress: "   ",
@@ -108,7 +116,7 @@ const customizers = {
         emailAddress: "default@example.com",
         ...base,
     }),
-    update: (_base: any): never => null as never, // No update operation
+    update: (_base: unknown): never => null as never, // No update operation
 };
 
 // Export a factory for creating test data programmatically

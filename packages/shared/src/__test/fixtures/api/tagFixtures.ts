@@ -56,21 +56,24 @@ export const tagFixtures: ModelTestFixtures<TagCreateInput, TagUpdateInput> = {
             create: {
                 // Missing both id and tag
                 anonymous: true,
-            },
+            } as TagCreateInput,
             update: {
                 // Missing id - tag is required by TypeScript type
                 tag: "python",
-            },
+            } as TagUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid type: number instead of string
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid type: boolean instead of string
                 tag: true, // Should be string
-            },
+            } as unknown as TagCreateInput,
             update: {
                 id: validIds.id5,
+                // @ts-expect-error - Testing invalid type: string instead of boolean
                 anonymous: "yes", // Should be boolean
-            },
+            } as unknown as TagUpdateInput,
         },
         tooLongTag: {
             create: {
@@ -136,23 +139,29 @@ export const tagTranslationFixtures: ModelTestFixtures<TagTranslationCreateInput
             create: {
                 // Missing id and language
                 description: "Description without required fields",
-            },
+            } as TagTranslationCreateInput,
             update: {
                 // Missing id and language
                 description: "Updated description without required fields",
-            },
+            } as TagTranslationUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid type: number instead of string
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid type: boolean instead of string
                 language: true, // Should be string
+                // @ts-expect-error - Testing invalid type: array instead of string
                 description: [], // Should be string
-            },
+            } as unknown as TagTranslationCreateInput,
             update: {
+                // @ts-expect-error - Testing invalid type: boolean instead of string
                 id: false, // Should be string
+                // @ts-expect-error - Testing invalid type: number instead of string
                 language: 456, // Should be string
+                // @ts-expect-error - Testing invalid type: object instead of string
                 description: {}, // Should be string
-            },
+            } as unknown as TagTranslationUpdateInput,
         },
     },
     edgeCases: {

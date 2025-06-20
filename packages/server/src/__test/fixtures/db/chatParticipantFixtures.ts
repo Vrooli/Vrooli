@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK } from "../../../../../shared/src/id/index.js";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -23,111 +23,53 @@ export const chatParticipantDbIds = {
 /**
  * Enhanced test fixtures for ChatParticipant model following standard structure
  */
-export const chatParticipantDbFixtures: DbTestFixtures<Prisma.Chat_participantsCreateInput> = {
+export const chatParticipantDbFixtures: DbTestFixtures<Prisma.chat_participantsCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        chat: { connect: { id: chatParticipantDbIds.chat1 } },
-        user: { connect: { id: chatParticipantDbIds.user1 } },
+        chatId: BigInt(chatParticipantDbIds.chat1),
+        userId: BigInt(chatParticipantDbIds.user1),
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        chat: { connect: { id: chatParticipantDbIds.chat1 } },
-        user: { connect: { id: chatParticipantDbIds.admin1 } },
-        permissions: JSON.stringify({
-            canDelete: true,
-            canInvite: true,
-            canKick: true,
-            canUpdate: true,
-            canViewHistory: true,
-            canMention: true,
-        }),
+        chatId: BigInt(chatParticipantDbIds.chat1),
+        userId: BigInt(chatParticipantDbIds.admin1),
+        hasUnread: false,
     },
     invalid: {
         missingRequired: {
             // Missing required chat and user
-            publicId: generatePublicId(),
+            id: generatePK(),
         },
         invalidTypes: {
             id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            chat: "invalid-chat-reference", // Should be connect object
-            user: "invalid-user-reference", // Should be connect object
-            permissions: { invalid: "object" }, // Should be JSON string
+            hasUnread: "yes", // Should be boolean
+            chatId: "invalid-chat-reference", // Should be BigInt
+            userId: "invalid-user-reference", // Should be BigInt
         },
-        invalidPermissions: {
+        duplicateParticipant: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat1 } },
-            user: { connect: { id: chatParticipantDbIds.user1 } },
-            permissions: "invalid-json", // Invalid JSON
+            chatId: BigInt(chatParticipantDbIds.chat1),
+            userId: BigInt(chatParticipantDbIds.user1), // Same user in same chat
         },
     },
     edgeCases: {
-        adminParticipant: {
+        participantWithNoUnread: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat1 } },
-            user: { connect: { id: chatParticipantDbIds.admin1 } },
-            permissions: JSON.stringify({
-                canDelete: true,
-                canInvite: true,
-                canKick: true,
-                canUpdate: true,
-            }),
+            chatId: BigInt(chatParticipantDbIds.chat1),
+            userId: BigInt(chatParticipantDbIds.admin1),
+            hasUnread: false,
         },
-        memberParticipant: {
+        participantWithUnread: {
             id: generatePK(),
-            publicId: generatePublicId(),
             chat: { connect: { id: chatParticipantDbIds.chat1 } },
             user: { connect: { id: chatParticipantDbIds.user1 } },
-            permissions: JSON.stringify({
-                canDelete: false,
-                canInvite: false,
-                canKick: false,
-                canUpdate: false,
-            }),
-        },
-        customPermissions: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat1 } },
-            user: { connect: { id: chatParticipantDbIds.user2 } },
-            permissions: JSON.stringify({
-                canDelete: false,
-                canInvite: true,
-                canKick: false,
-                canUpdate: true,
-                canMention: true,
-                canViewHistory: true,
-            }),
-        },
-        noPermissions: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat1 } },
-            user: { connect: { id: chatParticipantDbIds.user1 } },
-            permissions: null,
-        },
-        emptyPermissions: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat1 } },
-            user: { connect: { id: chatParticipantDbIds.user1 } },
-            permissions: JSON.stringify({}),
+            hasUnread: true,
         },
         multipleChats: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            chat: { connect: { id: chatParticipantDbIds.chat2 } },
-            user: { connect: { id: chatParticipantDbIds.user1 } },
-            permissions: JSON.stringify({
-                canDelete: false,
-                canInvite: false,
-                canKick: false,
-                canUpdate: false,
-            }),
+            chatId: BigInt(chatParticipantDbIds.chat2),
+            userId: BigInt(chatParticipantDbIds.user1),
+            hasUnread: true,
         },
     },
 };
@@ -135,12 +77,12 @@ export const chatParticipantDbFixtures: DbTestFixtures<Prisma.Chat_participantsC
 /**
  * Enhanced factory for creating chat participant database fixtures
  */
-export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.Chat_participantsCreateInput> {
+export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.chat_participantsCreateInput> {
     
     /**
      * Get the test fixtures for ChatParticipant model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.Chat_participantsCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.chat_participantsCreateInput> {
         return chatParticipantDbFixtures;
     }
 
@@ -152,21 +94,19 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.Chat_part
             constraints: {
                 uniqueViolation: {
                     id: chatParticipantDbIds.participant1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    chat: { connect: { id: chatParticipantDbIds.chat1 } },
-                    user: { connect: { id: chatParticipantDbIds.user1 } },
+                    chatId: BigInt(chatParticipantDbIds.chat1),
+                    userId: BigInt(chatParticipantDbIds.user1),
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    chat: { connect: { id: "non-existent-chat-id" } },
-                    user: { connect: { id: chatParticipantDbIds.user1 } },
+                    chatId: "non-existent-chat-id",
+                    userId: BigInt(chatParticipantDbIds.user1),
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    publicId: "", // Empty publicId
-                    chat: { connect: { id: chatParticipantDbIds.chat1 } },
-                    user: { connect: { id: chatParticipantDbIds.user1 } },
+                    chatId: BigInt(chatParticipantDbIds.chat1),
+                    userId: BigInt(chatParticipantDbIds.user1),
+                    // We might create a constraint violation in the future
                 },
             },
             validation: {
@@ -174,20 +114,13 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.Chat_part
                 invalidDataType: chatParticipantDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: "a".repeat(500), // PublicId too long
-                    chat: { connect: { id: chatParticipantDbIds.chat1 } },
-                    user: { connect: { id: chatParticipantDbIds.user1 } },
-                    permissions: "a".repeat(10000), // Very long permissions string
+                    chatId: BigInt(chatParticipantDbIds.chat1),
+                    userId: BigInt(chatParticipantDbIds.user1),
+                    // No out of range scenarios for current schema
                 },
             },
             businessLogic: {
-                duplicateParticipant: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    chat: { connect: { id: chatParticipantDbIds.chat1 } },
-                    user: { connect: { id: chatParticipantDbIds.user1 } }, // Same user in same chat
-                },
-                invalidPermissions: chatParticipantDbFixtures.invalid.invalidPermissions,
+                duplicateParticipant: chatParticipantDbFixtures.invalid.duplicateParticipant,
             },
         };
     }
@@ -195,25 +128,17 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.Chat_part
     /**
      * ChatParticipant-specific validation
      */
-    protected validateSpecific(data: Prisma.Chat_participantsCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.chat_participantsCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
         // Check required fields specific to ChatParticipant
-        if (!data.chat) errors.push("ChatParticipant chat is required");
-        if (!data.user) errors.push("ChatParticipant user is required");
-        if (!data.publicId) errors.push("ChatParticipant publicId is required");
+        if (!data.chatId) errors.push("ChatParticipant chatId is required");
+        if (!data.userId) errors.push("ChatParticipant userId is required");
 
-        // Check permissions
-        if (data.permissions && typeof data.permissions === 'string') {
-            try {
-                const perms = JSON.parse(data.permissions);
-                if (typeof perms !== 'object') {
-                    errors.push("Permissions must be a JSON object");
-                }
-            } catch (e) {
-                errors.push("Permissions must be valid JSON");
-            }
+        // Check hasUnread field
+        if (data.hasUnread !== undefined && typeof data.hasUnread !== 'boolean') {
+            errors.push("hasUnread must be a boolean");
         }
 
         return { errors, warnings };
@@ -223,56 +148,24 @@ export class ChatParticipantDbFactory extends EnhancedDbFactory<Prisma.Chat_part
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.Chat_participantsCreateInput>
-    ): Prisma.Chat_participantsCreateInput {
+        overrides?: Partial<Prisma.chat_participantsCreateInput>
+    ): Prisma.chat_participantsCreateInput {
         const factory = new ChatParticipantDbFactory();
         return factory.createMinimal({
-            chat: { connect: { id: chatId } },
-            user: { connect: { id: userId } },
+            chatId: BigInt(chatId),
+            userId: BigInt(userId),
             ...overrides,
         });
     }
 
-    static createAdmin(
+    static createWithUnread(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.Chat_participantsCreateInput>
-    ): Prisma.Chat_participantsCreateInput {
+        hasUnread: boolean = true,
+        overrides?: Partial<Prisma.chat_participantsCreateInput>
+    ): Prisma.chat_participantsCreateInput {
         return this.createMinimal(chatId, userId, {
-            permissions: JSON.stringify({
-                canDelete: true,
-                canInvite: true,
-                canKick: true,
-                canUpdate: true,
-            }),
-            ...overrides,
-        });
-    }
-
-    static createMember(
-        chatId: string,
-        userId: string,
-        overrides?: Partial<Prisma.Chat_participantsCreateInput>
-    ): Prisma.Chat_participantsCreateInput {
-        return this.createMinimal(chatId, userId, {
-            permissions: JSON.stringify({
-                canDelete: false,
-                canInvite: false,
-                canKick: false,
-                canUpdate: false,
-            }),
-            ...overrides,
-        });
-    }
-
-    static createWithCustomPermissions(
-        chatId: string,
-        userId: string,
-        permissions: Record<string, boolean>,
-        overrides?: Partial<Prisma.Chat_participantsCreateInput>
-    ): Prisma.Chat_participantsCreateInput {
-        return this.createMinimal(chatId, userId, {
-            permissions: JSON.stringify(permissions),
+            hasUnread,
             ...overrides,
         });
     }
@@ -287,32 +180,25 @@ export async function seedChatParticipants(
         chatId: string;
         participants: Array<{
             userId: string;
-            role?: "admin" | "member";
-            permissions?: Record<string, boolean>;
+            hasUnread?: boolean;
         }>;
     }
 ): Promise<BulkSeedResult<any>> {
     const createdParticipants = [];
-    let adminCount = 0;
-    let memberCount = 0;
-    let customCount = 0;
+    let withUnreadCount = 0;
+    let withoutUnreadCount = 0;
 
     for (const participant of options.participants) {
-        let participantData: Prisma.Chat_participantsCreateInput;
+        const participantData = ChatParticipantDbFactory.createWithUnread(
+            options.chatId,
+            participant.userId,
+            participant.hasUnread ?? true
+        );
 
-        if (participant.role === "admin") {
-            participantData = ChatParticipantDbFactory.createAdmin(options.chatId, participant.userId);
-            adminCount++;
-        } else if (participant.permissions) {
-            participantData = ChatParticipantDbFactory.createWithCustomPermissions(
-                options.chatId,
-                participant.userId,
-                participant.permissions
-            );
-            customCount++;
+        if (participant.hasUnread !== false) {
+            withUnreadCount++;
         } else {
-            participantData = ChatParticipantDbFactory.createMember(options.chatId, participant.userId);
-            memberCount++;
+            withoutUnreadCount++;
         }
 
         const chatParticipant = await prisma.chat_participants.create({
@@ -332,9 +218,8 @@ export async function seedChatParticipants(
             withAuth: 0, // ChatParticipants don't have auth
             bots: 0, // Not tracked here
             teams: 0, // ChatParticipants don't have teams
-            admins: adminCount,
-            members: memberCount,
-            customPermissions: customCount,
+            withUnread: withUnreadCount,
+            withoutUnread: withoutUnreadCount,
         },
     };
 }
@@ -346,11 +231,11 @@ export async function addParticipantsToChat(
     prisma: any,
     chatId: string,
     userIds: string[],
-    role: "admin" | "member" = "member"
+    hasUnread: boolean = true
 ): Promise<BulkSeedResult<any>> {
     const participants = userIds.map(userId => ({
         userId,
-        role,
+        hasUnread,
     }));
 
     return seedChatParticipants(prisma, {
@@ -373,4 +258,61 @@ export async function getChatParticipants(
             chat: true,
         },
     });
+}
+
+/**
+ * Helper to mark messages as read
+ */
+export async function markAsRead(
+    prisma: any,
+    chatId: string,
+    userId: string
+): Promise<any> {
+    return prisma.chat_participants.update({
+        where: {
+            chatId_userId: {
+                chatId: BigInt(chatId),
+                userId: BigInt(userId),
+            },
+        },
+        data: {
+            hasUnread: false,
+        },
+    });
+}
+
+/**
+ * Helper to simulate real-time participant states
+ */
+export async function seedParticipantStates(
+    prisma: any,
+    chatId: string,
+    states: Array<{
+        userId: string;
+        hasUnread?: boolean;
+    }>
+): Promise<any[]> {
+    const updates = [];
+
+    for (const state of states) {
+        const updateData: any = {};
+
+        if (state.hasUnread !== undefined) {
+            updateData.hasUnread = state.hasUnread;
+        }
+
+        const updated = await prisma.chat_participants.update({
+            where: {
+                chatId_userId: {
+                    chatId: BigInt(chatId),
+                    userId: BigInt(state.userId),
+                },
+            },
+            data: updateData,
+        });
+
+        updates.push(updated);
+    }
+
+    return updates;
 }

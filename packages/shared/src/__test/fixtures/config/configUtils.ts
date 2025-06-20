@@ -1,6 +1,13 @@
 import { type BaseConfigObject, ResourceUsedFor } from "../../../shape/configs/base.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 
+// Constants to avoid magic numbers
+const KB_SIZE = 1024;
+const MB_SIZE = KB_SIZE * KB_SIZE;
+const GB_SIZE = MB_SIZE * KB_SIZE;
+const FILE_SIZE_MULTIPLIER = 10;
+const DEFAULT_TIMEOUT_MS = 1000;
+
 /**
  * Common resource configurations used across different config types
  */
@@ -112,19 +119,19 @@ export const limitPatterns = {
     free: {
         maxRequests: 100,
         maxTokens: 1000,
-        maxStorage: 1024 * 1024 * 100, // 100MB
+        maxStorage: MB_SIZE * 100, // 100MB
         maxCompute: 60, // 60 seconds
     },
     premium: {
         maxRequests: 1000,
         maxTokens: 10000,
-        maxStorage: 1024 * 1024 * 1024, // 1GB
+        maxStorage: GB_SIZE, // 1GB
         maxCompute: 300, // 5 minutes
     },
     enterprise: {
         maxRequests: 10000,
         maxTokens: 100000,
-        maxStorage: 1024 * 1024 * 1024 * 10, // 10GB
+        maxStorage: GB_SIZE * FILE_SIZE_MULTIPLIER, // 10GB
         maxCompute: 3600, // 1 hour
     },
 };
@@ -147,9 +154,10 @@ export function createInvalidConfig<T extends BaseConfigObject>(
     baseConfig: Partial<T> = {},
 ): any {
     switch (type) {
-        case "missingVersion":
-            const { __version, ...withoutVersion } = { ...baseConfig, __version: undefined };
+        case "missingVersion": {
+            const { __version: _version, ...withoutVersion } = { ...baseConfig, __version: undefined };
             return withoutVersion;
+        }
         case "invalidVersion":
             return { ...baseConfig, __version: "0.0.1" };
         case "wrongType":
@@ -285,7 +293,7 @@ export const edgeCaseGenerators = {
             if (typeof value === "number") {
                 (result as any)[key] = Number.MAX_SAFE_INTEGER;
             } else if (typeof value === "string") {
-                (result as any)[key] = "x".repeat(1000); // Long string
+                (result as any)[key] = "x".repeat(DEFAULT_TIMEOUT_MS); // Long string
             } else if (Array.isArray(value)) {
                 (result as any)[key] = Array(100).fill(value[0] || {}); // Large array
             } else {

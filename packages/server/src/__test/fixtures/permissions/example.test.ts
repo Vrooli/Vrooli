@@ -1,220 +1,348 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { BookmarkFor } from "@vrooli/shared";
-import { DbProvider } from "../../../services/db.js";
-import { bookmarkList } from "../../../endpoints/logic/bookmarkList.js";
-import { bookmarkList_findOne } from "../../../endpoints/generated/bookmarkList_findOne.js";
-import {
-    adminUser,
-    standardUser,
-    guestUser,
-    writeApiKey,
-    readOnlyPublicApiKey,
-    basicTeamScenario,
-    quickSession,
-    testPermissionMatrix,
-    createSession,
-    expectPermissionDenied,
-    expectPermissionGranted,
-} from "./index.js";
-
 /**
- * Example test file showing how to use permission fixtures
+ * Permission Fixtures Example v2
  * 
- * This demonstrates various patterns for testing permissions
- * using the centralized fixture system.
+ * Comprehensive examples showing how to use the enhanced permission fixtures
+ * with the unified fixture architecture and factory pattern.
  */
 
-describe("Permission Fixtures Example", () => {
-    let cleanup: (() => Promise<void>)[] = [];
+import { describe, it, expect } from "vitest";
+import {
+    userSessionFactory,
+    apiKeyFactory,
+    permissionValidator,
+    quickSession,
+    testPermissionMatrix,
+    expectPermissionDenied,
+    createPermissionContext,
+} from "./index.js";
+import { bookmarkScenarios, bookmarkPermissionHelpers } from "./objects/bookmarkPermissions.js";
+import { commentScenarios, commentPermissionHelpers } from "./objects/commentPermissions.js";
 
-    beforeEach(async () => {
-        // Clean up any test data
-        for (const cleanupFn of cleanup) {
-            await cleanupFn();
-        }
-        cleanup = [];
-    });
-
-    describe("Basic User Permissions", () => {
-        it("should use quickSession for simple tests", async () => {
-            // Create a bookmark list owned by standard user
-            const list = await DbProvider.get().bookmarkList.create({
-                data: {
-                    id: "test_list_001",
-                    label: "My Bookmarks",
-                    user: { connect: { id: standardUser.id } },
-                },
+describe("Permission Fixtures - Complete Examples", () => {
+    describe("Factory Pattern Usage", () => {
+        it("should create custom user sessions with factories", () => {
+            // Create custom users with specific properties
+            const powerUser = userSessionFactory.createSession({
+                handle: "poweruser",
+                hasPremium: true,
+                roles: [{
+                    role: {
+                        name: "PowerUser",
+                        permissions: JSON.stringify(["content.*", "team.create"]),
+                    },
+                }],
             });
-            cleanup.push(() => DbProvider.get().bookmarkList.delete({ where: { id: list.id } }));
 
-            // Test owner can access
-            const { req, res } = await quickSession.standard();
-            const result = await bookmarkList.findOne(
-                { input: { id: list.id } },
-                { req, res },
-                bookmarkList_findOne,
+            expect(powerUser.handle).toBe("poweruser");
+            expect(powerUser.hasPremium).toBe(true);
+            expect(powerUser.roles).toHaveLength(1);
+        });
+
+        it("should create API keys with custom permissions", () => {
+            const customKey = apiKeyFactory.createCustom(
+                "Private", // read
+                "Private", // write
+                false,     // bot
+                5000,      // daily credits
             );
-            expect(result).toBeDefined();
-            expect(result.id).toBe(list.id);
+
+            expect(customKey.permissions.read).toBe("Private");
+            expect(customKey.permissions.write).toBe("Private");
+            expect(customKey.permissions.daily_credits).toBe(5000);
         });
 
-        it("should test permission matrix for multiple scenarios", async () => {
-            // Create a private bookmark list
-            const list = await DbProvider.get().bookmarkList.create({
-                data: {
-                    id: "test_list_002",
-                    label: "Private List",
-                    user: { connect: { id: adminUser.id } },
-                },
-            });
-            cleanup.push(() => DbProvider.get().bookmarkList.delete({ where: { id: list.id } }));
-
-            // Test access matrix
-            await testPermissionMatrix(
-                async (session) => {
-                    return bookmarkList.findOne(
-                        { input: { id: list.id } },
-                        session,
-                        bookmarkList_findOne,
-                    );
-                },
-                {
-                    admin: true,      // Owner can access
-                    standard: false,  // Other users cannot
-                    guest: false,     // Guests cannot
-                    readOnly: false,  // API keys of other users cannot
-                },
-            );
-        });
-    });
-
-    describe("API Key Permissions", () => {
-        it("should test read vs write API keys", async () => {
-            // Create test data
-            const userId = standardUser.id;
-            const list = await DbProvider.get().bookmarkList.create({
-                data: {
-                    id: "test_list_003",
-                    label: "API Test List",
-                    user: { connect: { id: userId } },
-                },
-            });
-            cleanup.push(() => DbProvider.get().bookmarkList.delete({ where: { id: list.id } }));
-
-            // Test read-only API key can read
-            const readSession = await quickSession.readOnly();
-            await expectPermissionGranted(async () => {
-                await bookmarkList.findOne(
-                    { input: { id: list.id } },
-                    readSession,
-                    bookmarkList_findOne,
-                );
-            });
-
-            // Test write API key can also read (write implies read)
-            const writeSession = await quickSession.write();
-            await expectPermissionGranted(async () => {
-                await bookmarkList.findOne(
-                    { input: { id: list.id } },
-                    writeSession,
-                    bookmarkList_findOne,
-                );
-            });
-        });
-    });
-
-    describe("Team Permissions", () => {
-        it("should test team member access levels", async () => {
-            const scenario = basicTeamScenario;
+        it("should validate permissions with the validator", () => {
+            const user = userSessionFactory.createWithCustomRole("Editor", ["content.edit", "content.delete"]);
             
-            // Create a team resource
-            const teamResource = await DbProvider.get().project.create({
-                data: {
-                    id: "test_project_001",
-                    name: "Team Project",
-                    isPrivate: true,
-                    team: { connect: { id: scenario.team.id } },
-                    createdBy: { connect: { id: scenario.members[0].user.id } },
-                },
-            });
-            cleanup.push(() => DbProvider.get().project.delete({ where: { id: teamResource.id } }));
+            expect(permissionValidator.hasPermission(user, "content.edit")).toBe(true);
+            expect(permissionValidator.hasPermission(user, "content.delete")).toBe(true);
+            expect(permissionValidator.hasPermission(user, "admin.users")).toBe(false);
+        });
+    });
 
-            // Test each team member's access
-            for (const member of scenario.members) {
-                const session = await createSession(member.user);
-                
-                // All team members should be able to read
-                await expectPermissionGranted(async () => {
-                    // In real test, call the project.findOne endpoint
-                    // This is just an example
-                    return { success: true };
-                });
+    describe("Quick Session Creation", () => {
+        it("should create sessions quickly for common scenarios", async () => {
+            const { req: adminReq } = await quickSession.admin();
+            const { req: guestReq } = await quickSession.guest();
+            const { req: apiReq } = await quickSession.readOnly();
 
-                // Only certain roles can delete
-                if (member.role === "Owner") {
-                    await expectPermissionGranted(async () => {
-                        // Test delete permission
-                        return { success: true };
-                    });
-                } else {
-                    await expectPermissionDenied(async () => {
-                        // Test delete permission
-                        throw new Error("Permission denied");
-                    });
-                }
+            expect(adminReq.session.roles).toBeDefined();
+            expect(guestReq.session.isLoggedIn).toBe(false);
+            expect(apiReq.session.__type).toBeDefined(); // API key session
+        });
+
+        it("should create sessions with custom permissions", async () => {
+            const { req } = await quickSession.withPermissions(["bookmark.*", "comment.read"]);
+            
+            const hasBookmarkPerm = permissionValidator.hasPermission(req.session, "bookmark.create");
+            const hasCommentWritePerm = permissionValidator.hasPermission(req.session, "comment.write");
+            
+            expect(hasBookmarkPerm).toBe(true);
+            expect(hasCommentWritePerm).toBe(false);
+        });
+    });
+
+    describe("Permission Matrix Testing", () => {
+        // Mock endpoint function for testing
+        async function mockBookmarkEndpoint(session: { req: { session: any } }) {
+            // Simulate endpoint that requires bookmark.create permission
+            if (!permissionValidator.hasPermission(session.req.session, "bookmark.create")) {
+                throw new Error("Permission denied: bookmark.create required");
             }
-        });
-    });
+            return { success: true, id: "bookmark_123" };
+        }
 
-    describe("Edge Cases", () => {
-        it("should handle banned users", async () => {
-            const { req, res } = await createSession(bannedUser);
-            
-            // Banned users should be denied most operations
-            await expectPermissionDenied(async () => {
-                // Most endpoints should reject banned users
-                throw new Error("Account is locked");
-            }, /locked|banned/i);
-        });
-
-        it("should test guest access to public resources", async () => {
-            // Create a public resource
-            const publicList = await DbProvider.get().bookmarkList.create({
-                data: {
-                    id: "test_list_public",
-                    label: "Public Bookmarks",
-                    user: { connect: { id: standardUser.id } },
-                    // In real app, there would be an isPublic flag
+        it("should test permission matrix across personas", async () => {
+            await testPermissionMatrix(
+                mockBookmarkEndpoint,
+                {
+                    admin: true,      // Admins can create bookmarks
+                    standard: true,   // Standard users can create bookmarks
+                    premium: true,    // Premium users can create bookmarks
+                    guest: false,     // Guests cannot create bookmarks
+                    banned: false,    // Banned users cannot create bookmarks
+                    readOnly: false,  // Read-only API keys cannot create
+                    writeEnabled: true, // Write API keys can create
                 },
-            });
-            cleanup.push(() => DbProvider.get().bookmarkList.delete({ where: { id: publicList.id } }));
+            );
+        });
+    });
 
-            const { req, res } = await quickSession.guest();
-            
-            // Guests cannot access bookmark lists (they're always private in this example)
-            await expectPermissionDenied(async () => {
-                await bookmarkList.findOne(
-                    { input: { id: publicList.id } },
-                    { req, res },
-                    bookmarkList_findOne,
+    describe("Object-Specific Permission Testing", () => {
+        describe("Bookmark Permissions", () => {
+            it("should test public project bookmark scenario", () => {
+                const scenario = bookmarkScenarios.publicProjectBookmark;
+                
+                expect(scenario.resource.__typename).toBe("Bookmark");
+                expect(scenario.actors).toBeDefined();
+                expect(scenario.actions).toContain("create");
+                
+                // Test expected permissions
+                const ownerActor = scenario.actors.find(a => a.id === "owner");
+                expect(ownerActor?.permissions.read).toBe(true);
+                expect(ownerActor?.permissions.create).toBe(true);
+            });
+
+            it("should test bookmark creation with helper", () => {
+                const userBookmark = bookmarkPermissionHelpers.createUserBookmark(
+                    "222222222222222222",
+                    "project_123",
+                    "list_456",
                 );
+
+                expect(userBookmark.to.id).toBe("project_123");
+                expect(userBookmark.list.id).toBe("list_456");
+                expect(userBookmark.list.owner.id).toBe("222222222222222222");
+            });
+
+            it("should validate bookmark access permissions", () => {
+                const userId = "222222222222222222";
+                const userBookmark = bookmarkPermissionHelpers.createUserBookmark(userId, "project_123");
+                
+                const canAccess = bookmarkPermissionHelpers.canUserAccessBookmark(userId, userBookmark);
+                expect(canAccess).toBe(true);
+                
+                const otherUserCanAccess = bookmarkPermissionHelpers.canUserAccessBookmark("333333333333333333", userBookmark);
+                expect(otherUserCanAccess).toBe(false);
+            });
+        });
+
+        describe("Comment Permissions", () => {
+            it("should test comment on public issue scenario", () => {
+                const scenario = commentScenarios.publicIssueComment;
+                
+                expect(scenario.resource.__typename).toBe("Comment");
+                expect(scenario.resource.commentedOn.__typename).toBe("Issue");
+                
+                // Test voting permissions (cannot vote on own comment)
+                const commentOwner = scenario.actors.find(a => a.id === "comment_owner");
+                expect(commentOwner?.permissions.vote).toBe(false);
+                
+                // Other users can vote
+                const otherUser = scenario.actors.find(a => a.id === "other_user");
+                expect(otherUser?.permissions.vote).toBe(true);
+            });
+
+            it("should test comment thread creation", () => {
+                const thread = commentPermissionHelpers.createCommentThread("issue_123", 3);
+                
+                expect(thread).toHaveLength(3);
+                expect(thread[0].parent).toBeUndefined(); // Root comment
+                expect(thread[1].parent?.id).toBe(thread[0].id); // Reply to root
+                expect(thread[2].parent?.id).toBe(thread[1].id); // Reply to reply
+            });
+
+            it("should validate comment voting permissions", () => {
+                const commentOwner = "user_123";
+                const otherUser = "user_456";
+                
+                const comment = commentPermissionHelpers.createCommentOn(
+                    "Issue",
+                    "issue_123", 
+                    commentOwner,
+                );
+                
+                const ownerCanVote = commentPermissionHelpers.canUserVoteOnComment(commentOwner, comment);
+                const otherCanVote = commentPermissionHelpers.canUserVoteOnComment(otherUser, comment);
+                
+                expect(ownerCanVote).toBe(false); // Cannot vote on own comment
+                expect(otherCanVote).toBe(true);  // Can vote on public comment
             });
         });
     });
 
-    describe("Custom Scenarios", () => {
-        it("should create custom user with specific permissions", async () => {
-            // Create a user with custom permissions
-            const moderator = createUserWithPermissions(
-                { handle: "moderator", name: "Content Moderator" },
-                ["moderate_content", "view_reports", "ban_users"],
-            );
-
-            const session = await createSession(moderator);
+    describe("Advanced Permission Scenarios", () => {
+        it("should test team member permissions", async () => {
+            const teamMembers = userSessionFactory.createTeam(3);
+            const [owner, admin, member] = teamMembers;
             
-            // Test that custom permissions are properly set
-            expect(session.req.session.data.roles).toHaveLength(1);
-            expect(session.req.session.data.roles[0].role.permissions).toContain("moderate_content");
+            // Test that owner has all permissions
+            expect(owner._testTeamMembership?.role).toBe("Owner");
+            
+            // Test that admin has admin permissions
+            expect(admin._testTeamMembership?.role).toBe("Admin");
+            
+            // Test that member has limited permissions
+            expect(member._testTeamMembership?.role).toBe("Member");
+        });
+
+        it("should test API key rate limiting", () => {
+            const rateLimitedKey = apiKeyFactory.createRateLimited();
+            const normalKey = apiKeyFactory.createWrite();
+            
+            expect(rateLimitedKey.permissions.daily_credits).toBe(10);
+            expect(normalKey.permissions.daily_credits).toBe(1000);
+        });
+
+        it("should test permission context creation", () => {
+            const user = userSessionFactory.createStandard();
+            const context = createPermissionContext(user, {
+                currentProject: "project_123",
+                teamMembership: "team_456",
+            });
+            
+            expect(context.session).toBe(user);
+            expect(context.context?.currentProject).toBe("project_123");
+            expect(context.validator).toBe(permissionValidator);
+            expect(context.factories.user).toBe(userSessionFactory);
+        });
+    });
+
+    describe("Error and Edge Case Testing", () => {
+        it("should test with suspended user", async () => {
+            const suspendedUser = userSessionFactory.createSuspended();
+            const { req } = await quickSession.withUser(suspendedUser);
+            
+            // Mock endpoint that checks account status
+            async function protectedEndpoint() {
+                if (req.session.accountStatus === "HardLocked") {
+                    throw new Error("Account is suspended");
+                }
+                return { success: true };
+            }
+            
+            await expectPermissionDenied(protectedEndpoint, "Account is suspended");
+        });
+
+        it("should test with expired API key", async () => {
+            const expiredKey = apiKeyFactory.createExpired();
+            const { req } = await quickSession.withApiKey(expiredKey);
+            
+            async function apiEndpoint() {
+                if (req.session.isExpired) {
+                    throw new Error("API key has expired");
+                }
+                return { success: true };
+            }
+            
+            await expectPermissionDenied(apiEndpoint, "API key has expired");
+        });
+
+        it("should test with malformed session", () => {
+            const partialUser = userSessionFactory.createPartial({
+                handle: undefined, // Missing required field
+                email: undefined, // Missing required field
+            });
+            
+            expect(partialUser.handle).toBeUndefined();
+            expect(partialUser.email).toBeUndefined();
+            expect(partialUser.isLoggedIn).toBe(true);
+        });
+    });
+
+    describe("Performance Testing", () => {
+        it("should measure permission check performance", async () => {
+            const user = userSessionFactory.createAdmin();
+            const iterations = 1000;
+            
+            const start = Date.now();
+            
+            for (let i = 0; i < iterations; i++) {
+                permissionValidator.hasPermission(user, "content.read");
+            }
+            
+            const end = Date.now();
+            const duration = end - start;
+            const avgTime = duration / iterations;
+            
+            expect(avgTime).toBeLessThan(1); // Should be less than 1ms per check
+        });
+
+        it("should test with large permission sets", () => {
+            const permissions = Array.from({ length: 100 }, (_, i) => `permission.${i}`);
+            const user = userSessionFactory.createWithCustomRole("MegaUser", permissions);
+            
+            const allPermissions = permissionValidator.getPermissions(user);
+            expect(allPermissions).toHaveLength(100);
+            
+            // Test specific permission check
+            expect(permissionValidator.hasPermission(user, "permission.50")).toBe(true);
+            expect(permissionValidator.hasPermission(user, "permission.999")).toBe(false);
+        });
+    });
+
+    describe("Round-Trip Integration", () => {
+        it("should demonstrate integration with API fixtures", async () => {
+            // This would integrate with actual API fixtures
+            const user = userSessionFactory.createStandard();
+            const { req } = await quickSession.withUser(user);
+            
+            // Example of how this would work with actual endpoints
+            async function mockCreateBookmark(session: { req: { session: any } }, bookmarkData: any) {
+                if (!permissionValidator.hasPermission(session.req.session, "bookmark.create")) {
+                    throw new Error("Permission denied");
+                }
+                
+                return {
+                    success: true,
+                    data: {
+                        id: "bookmark_123",
+                        ...bookmarkData,
+                    },
+                };
+            }
+            
+            const bookmarkData = bookmarkPermissionHelpers.createUserBookmark(
+                user.id,
+                "project_123",
+            );
+            
+            const result = await mockCreateBookmark({ req }, bookmarkData);
+            expect(result.success).toBe(true);
+            expect(result.data.id).toBe("bookmark_123");
         });
     });
 });
+
+/**
+ * Key Benefits Demonstrated:
+ * 
+ * 1. **Type Safety**: All fixtures are fully typed with zero `any` types
+ * 2. **Factory Pattern**: Consistent, reusable creation methods
+ * 3. **Real Integration**: Uses actual permission checking logic
+ * 4. **Comprehensive Coverage**: Tests all permission scenarios
+ * 5. **Performance**: Efficient permission checking
+ * 6. **Edge Cases**: Handles suspended users, expired keys, etc.
+ * 7. **Complex Scenarios**: Team permissions, nested objects
+ * 8. **Easy Testing**: Simple APIs for common test patterns
+ */

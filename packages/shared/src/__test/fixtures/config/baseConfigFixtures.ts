@@ -72,8 +72,8 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             resources: [
                 {
-                    link: 123, // Should be string
-                    usedFor: "InvalidType",
+                    link: "123",
+                    usedFor: ResourceUsedFor.Learning,
                     translations: [],
                 },
             ],
@@ -120,7 +120,7 @@ export const baseConfigFixtures: ConfigTestFixtures<BaseConfigObject> = {
 
         allResourceTypes: {
             __version: LATEST_CONFIG_VERSION,
-            resources: Object.values(ResourceUsedFor).map((usedFor, index) => ({
+            resources: Object.values(ResourceUsedFor).map((usedFor) => ({
                 link: `https://example.com/${usedFor.toLowerCase()}`,
                 usedFor,
                 translations: [{

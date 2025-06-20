@@ -1,7 +1,11 @@
 import type { ReportResponseCreateInput, ReportResponseUpdateInput } from "../../../api/types.js";
 import { ReportSuggestedAction } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { reportResponseValidation } from "../../../validation/models/reportResponse.js";
+
+// Magic number constants for testing
+const DETAILS_TOO_LONG_LENGTH = 8193;
+const DETAILS_MAX_LENGTH = 8192;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -36,7 +40,7 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        } as any,
+        } as ReportResponseCreateInput,
         update: {
             id: validIds.id1,
             actionSuggested: ReportSuggestedAction.Delete,
@@ -45,7 +49,7 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        } as any,
+        } as ReportResponseUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -53,65 +57,74 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
                 // Missing required id, actionSuggested, and reportConnect
                 details: "Incomplete response",
                 language: "en",
-            },
+            } as ReportResponseCreateInput,
             update: {
                 // Missing required id
                 details: "Updated details",
-            },
+            } as ReportResponseUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
-                actionSuggested: "InvalidAction" as any, // Invalid enum value
+                // @ts-expect-error - Testing invalid enum value
+                actionSuggested: "InvalidAction", // Invalid enum value
+                // @ts-expect-error - Testing invalid type
                 details: 456, // Should be string
+                // @ts-expect-error - Testing invalid type
                 language: 789, // Should be string
+                // @ts-expect-error - Testing invalid type
                 reportConnect: 101112, // Should be string
-            },
+            } as unknown as ReportResponseCreateInput,
             update: {
                 id: validIds.id1,
-                actionSuggested: "InvalidAction" as any, // Invalid enum value
+                // @ts-expect-error - Testing invalid enum value
+                actionSuggested: "InvalidAction", // Invalid enum value
+                // @ts-expect-error - Testing invalid type
                 details: 123, // Should be string
+                // @ts-expect-error - Testing invalid type
                 language: 456, // Should be string
-            },
+            } as unknown as ReportResponseUpdateInput,
         },
         invalidId: {
             create: {
-                id: "not-a-valid-snowflake",
+                id: "not-a-valid-snowflake", // Invalid snowflake ID for runtime validation testing
                 actionSuggested: ReportSuggestedAction.NonIssue,
                 reportConnect: validIds.id2,
-            },
+            } as ReportResponseCreateInput,
             update: {
-                id: "invalid-id",
-            },
+                id: "invalid-id", // Invalid snowflake ID for runtime validation testing
+            } as ReportResponseUpdateInput,
         },
         invalidActionSuggested: {
             create: {
                 id: validIds.id1,
-                actionSuggested: "UnknownAction" as any, // Not a valid enum value
+                // @ts-expect-error - Testing invalid enum value
+                actionSuggested: "UnknownAction", // Not a valid enum value
                 reportConnect: validIds.id2,
-            },
+            } as unknown as ReportResponseCreateInput,
         },
         missingReport: {
             create: {
                 id: validIds.id1,
                 actionSuggested: ReportSuggestedAction.NonIssue,
                 // Missing required reportConnect
-            },
+            } as ReportResponseCreateInput,
         },
         invalidReportConnect: {
             create: {
                 id: validIds.id1,
                 actionSuggested: ReportSuggestedAction.NonIssue,
-                reportConnect: "invalid-report-id",
-            },
+                reportConnect: "invalid-report-id", // Invalid snowflake ID for runtime validation testing
+            } as ReportResponseCreateInput,
         },
         longDetails: {
             create: {
                 id: validIds.id1,
                 actionSuggested: ReportSuggestedAction.NonIssue,
-                details: "x".repeat(8193), // Exceeds max length
+                details: "x".repeat(DETAILS_TOO_LONG_LENGTH), // Exceeds max length for runtime validation testing
                 reportConnect: validIds.id2,
-            },
+            } as ReportResponseCreateInput,
         },
     },
     edgeCases: {
@@ -203,9 +216,8 @@ export const reportResponseFixtures: ModelTestFixtures<ReportResponseCreateInput
         maxLengthDetails: {
             create: {
                 id: validIds.id1,
-                actionSuggested: ReportSuggestedAction.HideUntilFixed,
-                details: "x".repeat(8192), // Exactly max length
-                language: "en",
+                actionSuggested: ReportSuggestedAction.NonIssue,
+                details: "x".repeat(DETAILS_MAX_LENGTH), // Exactly max length
                 reportConnect: validIds.id2,
             },
         },

@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK } from "../../../../../shared/src/id/index.js";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -23,101 +23,90 @@ export const chatInviteDbIds = {
 /**
  * Enhanced test fixtures for ChatInvite model following standard structure
  */
-export const chatInviteDbFixtures: DbTestFixtures<Prisma.ChatInviteCreateInput> = {
+export const chatInviteDbFixtures: DbTestFixtures<Prisma.chat_inviteCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
         message: "You're invited to join this chat!",
-        chat: { connect: { id: chatInviteDbIds.chat1 } },
-        user: { connect: { id: chatInviteDbIds.user1 } },
+        chat: { connect: { id: BigInt(chatInviteDbIds.chat1) } },
+        user: { connect: { id: BigInt(chatInviteDbIds.user1) } },
         status: "Pending",
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
         message: "Welcome to our discussion! We'd love to have you join us in this conversation.",
-        chat: { connect: { id: chatInviteDbIds.chat1 } },
-        user: { connect: { id: chatInviteDbIds.user1 } },
+        chat: { connect: { id: BigInt(chatInviteDbIds.chat1) } },
+        user: { connect: { id: BigInt(chatInviteDbIds.user1) } },
         status: "Accepted",
     },
     invalid: {
         missingRequired: {
-            // Missing required chat, user, and message
-            publicId: generatePublicId(),
+            // Missing required chat and user
+            id: generatePK(),
             status: "Pending",
         },
         invalidTypes: {
             id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            message: null, // Should be string
-            chat: "invalid-chat-reference", // Should be connect object
-            user: "invalid-user-reference", // Should be connect object
+            message: 123, // Should be string
+            chatId: "invalid-chat-reference", // Should be BigInt
+            userId: "invalid-user-reference", // Should be BigInt
             status: "InvalidStatus", // Not a valid status
         },
         emptyMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "", // Empty message
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
     },
     edgeCases: {
         pendingInvite: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Pending invitation",
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
         acceptedInvite: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Accepted invitation",
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user2 } },
+            chat: { connect: { id: BigInt(chatInviteDbIds.chat1) } },
+            user: { connect: { id: BigInt(chatInviteDbIds.user2) } },
             status: "Accepted",
         },
         declinedInvite: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Declined invitation",
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user3 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user3),
             status: "Declined",
         },
         longMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "This is a very long invitation message that goes into great detail about the chat, its purpose, the participants, the expected discussion topics, and all the reasons why the invitee should consider joining this particular conversation. ".repeat(5),
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
         shortMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Hi!",
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
         specialCharactersMessage: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Welcome! 🚀 Join us for a great discussion 💬 with special chars: @#$%^&*()_+{}|:<>?[]\\/.,;'\"",
-            chat: { connect: { id: chatInviteDbIds.chat1 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat1),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
         multipleChatsInvite: {
             id: generatePK(),
-            publicId: generatePublicId(),
             message: "Invitation to second chat",
-            chat: { connect: { id: chatInviteDbIds.chat2 } },
-            user: { connect: { id: chatInviteDbIds.user1 } },
+            chatId: BigInt(chatInviteDbIds.chat2),
+            userId: BigInt(chatInviteDbIds.user1),
             status: "Pending",
         },
     },
@@ -126,12 +115,12 @@ export const chatInviteDbFixtures: DbTestFixtures<Prisma.ChatInviteCreateInput> 
 /**
  * Enhanced factory for creating chat invite database fixtures
  */
-export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCreateInput> {
+export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCreateInput> {
     
     /**
      * Get the test fixtures for ChatInvite model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ChatInviteCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.chat_inviteCreateInput> {
         return chatInviteDbFixtures;
     }
 
@@ -143,26 +132,23 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
             constraints: {
                 uniqueViolation: {
                     id: chatInviteDbIds.invite1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    message: "Duplicate invite",
-                    chat: { connect: { id: chatInviteDbIds.chat1 } },
-                    user: { connect: { id: chatInviteDbIds.user1 } },
+                            message: "Duplicate invite",
+                    chatId: BigInt(chatInviteDbIds.chat1),
+                    userId: BigInt(chatInviteDbIds.user1),
                     status: "Pending",
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    message: "Foreign key violation",
-                    chat: { connect: { id: "non-existent-chat-id" } },
-                    user: { connect: { id: chatInviteDbIds.user1 } },
+                            message: "Foreign key violation",
+                    chatId: "non-existent-chat-id",
+                    userId: BigInt(chatInviteDbIds.user1),
                     status: "Pending",
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    publicId: "", // Empty publicId
                     message: "Check constraint violation",
-                    chat: { connect: { id: chatInviteDbIds.chat1 } },
-                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    chatId: BigInt(chatInviteDbIds.chat1),
+                    userId: BigInt(chatInviteDbIds.user1),
                     status: "Pending",
                 },
             },
@@ -171,28 +157,25 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
                 invalidDataType: chatInviteDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: "a".repeat(500), // PublicId too long
-                    message: "a".repeat(10000), // Message too long
-                    chat: { connect: { id: chatInviteDbIds.chat1 } },
-                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    message: "a".repeat(10000), // Message too long (max 4096)
+                    chatId: BigInt(chatInviteDbIds.chat1),
+                    userId: BigInt(chatInviteDbIds.user1),
                     status: "Pending",
                 },
             },
             businessLogic: {
                 duplicateInvite: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    message: "Duplicate chat invite",
-                    chat: { connect: { id: chatInviteDbIds.chat1 } },
-                    user: { connect: { id: chatInviteDbIds.user1 } }, // Same user/chat combo
+                            message: "Duplicate chat invite",
+                    chatId: BigInt(chatInviteDbIds.chat1),
+                    userId: BigInt(chatInviteDbIds.user1), // Same user/chat combo
                     status: "Pending",
                 },
                 selfInvite: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    message: "Self invitation",
-                    chat: { connect: { id: chatInviteDbIds.chat1 } },
-                    user: { connect: { id: chatInviteDbIds.user1 } }, // User inviting themselves
+                            message: "Self invitation",
+                    chatId: BigInt(chatInviteDbIds.chat1),
+                    userId: BigInt(chatInviteDbIds.user1), // User inviting themselves
                     status: "Pending",
                 },
             },
@@ -202,26 +185,21 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
     /**
      * ChatInvite-specific validation
      */
-    protected validateSpecific(data: Prisma.ChatInviteCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.chat_inviteCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
         // Check required fields specific to ChatInvite
-        if (!data.chat) errors.push("ChatInvite chat is required");
-        if (!data.user) errors.push("ChatInvite user is required");
-        if (!data.message) errors.push("ChatInvite message is required");
-        if (!data.publicId) errors.push("ChatInvite publicId is required");
+        if (!data.chatId) errors.push("ChatInvite chatId is required");
+        if (!data.userId) errors.push("ChatInvite userId is required");
 
         // Check message content
         if (data.message && typeof data.message === 'string') {
-            if (data.message.length === 0) {
-                errors.push("Message cannot be empty");
+            if (data.message.length > 4096) {
+                errors.push("Message exceeds maximum length of 4096 characters");
             }
             if (data.message.length > 1000) {
                 warnings.push("Message is very long (>1000 chars)");
-            }
-            if (data.message.length < 5) {
-                warnings.push("Message is very short (<5 chars)");
             }
         }
 
@@ -237,12 +215,12 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
     static createMinimal(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.ChatInviteCreateInput>
-    ): Prisma.ChatInviteCreateInput {
+        overrides?: Partial<Prisma.chat_inviteCreateInput>
+    ): Prisma.chat_inviteCreateInput {
         const factory = new ChatInviteDbFactory();
         return factory.createMinimal({
-            chat: { connect: { id: chatId } },
-            user: { connect: { id: userId } },
+            chatId: BigInt(chatId),
+            userId: BigInt(userId),
             message: "You're invited to join this chat!",
             status: "Pending",
             ...overrides,
@@ -253,8 +231,8 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
         chatId: string,
         userId: string,
         message: string,
-        overrides?: Partial<Prisma.ChatInviteCreateInput>
-    ): Prisma.ChatInviteCreateInput {
+        overrides?: Partial<Prisma.chat_inviteCreateInput>
+    ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             message,
             ...overrides,
@@ -264,8 +242,8 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
     static createAccepted(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.ChatInviteCreateInput>
-    ): Prisma.ChatInviteCreateInput {
+        overrides?: Partial<Prisma.chat_inviteCreateInput>
+    ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             status: "Accepted",
             ...overrides,
@@ -275,10 +253,25 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCrea
     static createDeclined(
         chatId: string,
         userId: string,
-        overrides?: Partial<Prisma.ChatInviteCreateInput>
-    ): Prisma.ChatInviteCreateInput {
+        overrides?: Partial<Prisma.chat_inviteCreateInput>
+    ): Prisma.chat_inviteCreateInput {
         return this.createMinimal(chatId, userId, {
             status: "Declined",
+            ...overrides,
+        });
+    }
+
+    /**
+     * Create invite with custom message
+     */
+    static createWithMessage(
+        chatId: string,
+        userId: string,
+        message: string,
+        overrides?: Partial<Prisma.chat_inviteCreateInput>
+    ): Prisma.chat_inviteCreateInput {
+        return this.createMinimal(chatId, userId, {
+            message,
             ...overrides,
         });
     }
@@ -303,7 +296,7 @@ export async function seedChatInvites(
 
     for (let i = 0; i < options.userIds.length; i++) {
         const userId = options.userIds[i];
-        let inviteData: Prisma.ChatInviteCreateInput;
+        let inviteData: Prisma.chat_inviteCreateInput;
 
         if (options.status === "Accepted") {
             inviteData = ChatInviteDbFactory.createAccepted(options.chatId, userId);
@@ -323,7 +316,7 @@ export async function seedChatInvites(
             pendingCount++;
         }
 
-        const invite = await prisma.chatInvite.create({ data: inviteData });
+        const invite = await prisma.chat_invite.create({ data: inviteData });
         invites.push(invite);
     }
 
@@ -338,5 +331,116 @@ export async function seedChatInvites(
             accepted: acceptedCount,
             declined: declinedCount,
         },
+    };
+}
+
+/**
+ * Helper to create bulk invites with different configurations
+ */
+export async function seedBulkInvites(
+    prisma: any,
+    options: {
+        chatId: string;
+        creatorId: string;
+        messages: string[];
+    }
+): Promise<BulkSeedResult<any>> {
+    const invites = [];
+
+    for (const message of options.messages) {
+        const inviteData = ChatInviteDbFactory.createWithMessage(
+            options.chatId,
+            options.creatorId,
+            message
+        );
+
+        const invite = await prisma.chat_invite.create({ data: inviteData });
+        invites.push(invite);
+    }
+
+    return {
+        records: invites,
+        summary: {
+            total: invites.length,
+            withAuth: 0,
+            bots: 0,
+            teams: 0,
+        },
+    };
+}
+
+/**
+ * Helper to simulate invite usage
+ */
+export async function useInvite(
+    prisma: any,
+    inviteId: string,
+    userId: string
+): Promise<{ success: boolean; message?: string; chatId?: string }> {
+    const invite = await prisma.chatInvite.findUnique({
+        where: { id: BigInt(inviteId) },
+        include: { chat: true },
+    });
+
+    if (!invite) {
+        return { success: false, message: "Invite not found" };
+    }
+
+    if (invite.status !== "Pending") {
+        return { success: false, message: "Invite already used or declined" };
+    }
+
+    // Simple invite logic without expiry/usage limits
+
+    // Update invite status
+    await prisma.chat_invite.update({
+        where: { id: BigInt(inviteId) },
+        data: { status: "Accepted" },
+    });
+
+    // Add user to chat participants
+    await prisma.chat_participants.create({
+        data: {
+            id: generatePK(),
+            chatId: invite.chatId,
+            userId: invite.userId,
+        },
+    });
+
+    return { 
+        success: true, 
+        chatId: invite.chatId.toString(),
+        message: "Successfully joined chat" 
+    };
+}
+
+/**
+ * Helper to decline an invite
+ */
+export async function declineInvite(
+    prisma: any,
+    inviteId: string
+): Promise<{ success: boolean; message?: string }> {
+    const invite = await prisma.chat_invite.findUnique({
+        where: { id: BigInt(inviteId) },
+    });
+
+    if (!invite) {
+        return { success: false, message: "Invite not found" };
+    }
+
+    if (invite.status !== "Pending") {
+        return { success: false, message: "Invite already responded to" };
+    }
+
+    // Update invite status
+    await prisma.chat_invite.update({
+        where: { id: BigInt(inviteId) },
+        data: { status: "Declined" },
+    });
+
+    return { 
+        success: true, 
+        message: "Invite declined" 
     };
 }

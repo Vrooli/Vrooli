@@ -1,6 +1,12 @@
-import type { MeetingCreateInput, MeetingUpdateInput, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingInviteCreateInput, MeetingInviteUpdateInput } from "../../../api/types.js";
+import type { MeetingCreateInput, MeetingInviteCreateInput, MeetingUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { meetingValidation } from "../../../validation/models/meeting.js";
+
+// Magic number constants for testing
+const NAME_TOO_LONG_LENGTH = 51;
+const DESCRIPTION_TOO_LONG_LENGTH = 2049;
+const NAME_MAX_LENGTH = 50;
+const DESCRIPTION_MAX_LENGTH = 2048;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -81,33 +87,38 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                 id: validIds.id1,
                 // Missing required teamConnect
                 openToAnyoneWithInvite: true,
-            },
+            } as MeetingCreateInput,
             update: {
                 // Missing required id
                 openToAnyoneWithInvite: false,
-            },
+            } as MeetingUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid id type
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid boolean type
                 openToAnyoneWithInvite: "maybe", // Should be boolean
+                // @ts-expect-error - Testing invalid boolean type
                 showOnTeamProfile: 1, // Should be boolean
                 teamConnect: validIds.id2,
-            },
+            } as unknown as MeetingCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid boolean type
                 openToAnyoneWithInvite: "true", // Will be converted to boolean
+                // @ts-expect-error - Testing invalid boolean type
                 showOnTeamProfile: "false", // Will be converted to boolean
-            },
+            } as unknown as MeetingUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
                 teamConnect: validIds.id2,
-            },
+            } as MeetingCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as MeetingUpdateInput,
         },
         invalidTranslations: {
             create: {
@@ -119,7 +130,7 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                     name: "AB", // Too short (min 3 chars)
                     description: "Valid description",
                 }],
-            },
+            } as MeetingCreateInput,
         },
         invalidTranslationUrl: {
             create: {
@@ -131,7 +142,7 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                     name: "Valid Meeting Name",
                     link: "not-a-valid-url",
                 }],
-            },
+            } as MeetingCreateInput,
         },
         tooLongTranslationName: {
             create: {
@@ -140,10 +151,10 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                 translationsCreate: [{
                     id: validIds.id3,
                     language: "en",
-                    name: "A".repeat(51), // Too long (max 50 chars)
+                    name: "A".repeat(NAME_TOO_LONG_LENGTH), // Too long (max 50 chars)
                     description: "Valid description",
                 }],
-            },
+            } as MeetingCreateInput,
         },
         tooLongTranslationDescription: {
             create: {
@@ -153,9 +164,9 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                     id: validIds.id3,
                     language: "en",
                     name: "Valid Meeting Name",
-                    description: "A".repeat(2049), // Too long (max 2048 chars)
+                    description: "A".repeat(DESCRIPTION_TOO_LONG_LENGTH), // Too long (max 2048 chars)
                 }],
-            },
+            } as MeetingCreateInput,
         },
         invalidInvite: {
             create: {
@@ -165,8 +176,8 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                     id: validIds.id3,
                     // Missing required meetingConnect and userConnect
                     message: "Valid message",
-                }],
-            },
+                } as MeetingInviteCreateInput],
+            } as MeetingCreateInput,
         },
     },
     edgeCases: {
@@ -182,9 +193,11 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
             create: {
                 id: validIds.id1,
                 teamConnect: validIds.id2,
+                // @ts-expect-error - Testing string to boolean conversion
                 openToAnyoneWithInvite: "true", // String to boolean
+                // @ts-expect-error - Testing string to boolean conversion
                 showOnTeamProfile: "no", // String to boolean
-            },
+            } as unknown as MeetingCreateInput,
         },
         emptyTranslations: {
             create: {
@@ -247,8 +260,8 @@ export const meetingFixtures: ModelTestFixtures<MeetingCreateInput, MeetingUpdat
                 translationsCreate: [{
                     id: validIds.id3,
                     language: "en",
-                    name: "A".repeat(50), // Max valid name (50 chars)
-                    description: "A".repeat(2048), // Max valid description (2048 chars)
+                    name: "A".repeat(NAME_MAX_LENGTH), // Max valid name (50 chars)
+                    description: "A".repeat(DESCRIPTION_MAX_LENGTH), // Max valid description (2048 chars)
                     link: "https://example.com/meeting", // Valid URL
                 }],
             },

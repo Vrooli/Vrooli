@@ -2,6 +2,9 @@ import type { PhoneCreateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { phoneValidation } from "../../../validation/models/phone.js";
 
+// Define PhoneUpdateInput as empty since Phone doesn't support updates
+type PhoneUpdateInput = Record<string, never>;
+
 // Valid Snowflake IDs for testing
 const validIds = {
     id1: "300000000000000001",
@@ -12,44 +15,36 @@ const validIds = {
 // Shared phone test fixtures
 // Phone model only supports create operations (no updates allowed)
 // Using empty object type for update since Phone doesn't support updates
-export const phoneFixtures: ModelTestFixtures<PhoneCreateInput, {}> = {
+export const phoneFixtures: ModelTestFixtures<PhoneCreateInput, PhoneUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
             phoneNumber: "+1234567890",
         },
-        update: {
-            // Phone model doesn't support updates
-            id: validIds.id1,
-        },
+        update: {} as PhoneUpdateInput,
     },
     complete: {
         create: {
             id: validIds.id2,
             phoneNumber: "+12025551234", // US format
         },
-        update: {
-            // Phone model doesn't support updates
-            id: validIds.id2,
-        },
+        update: {} as PhoneUpdateInput,
     },
     invalid: {
         missingRequired: {
             create: {
                 // Missing both id and phoneNumber
-            },
-            update: {
-                // Not applicable - no update operation
-            },
+            } as PhoneCreateInput,
+            update: {} as PhoneUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 phoneNumber: 1234567890, // Should be string
-            },
-            update: {
-                // Not applicable
-            },
+            } as unknown as PhoneCreateInput,
+            update: {} as PhoneUpdateInput,
         },
         tooLongPhone: {
             create: {
@@ -122,7 +117,7 @@ const customizers = {
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: {}): {} => ({
+    update: (base: PhoneUpdateInput): PhoneUpdateInput => ({
         ...base,
     }),
 };

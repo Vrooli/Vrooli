@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resourceVersionRelationFixtures } from "./__test/fixtures/resourceVersionRelationFixtures.js";
+import { resourceVersionRelationFixtures } from "../../__test/fixtures/api/resourceVersionRelationFixtures.js";
 import { runStandardValidationTests, testValidation, testValidationBatch } from "./__test/validationTestUtils.js";
 import { resourceVersionRelationValidation } from "./resourceVersionRelation.js";
 

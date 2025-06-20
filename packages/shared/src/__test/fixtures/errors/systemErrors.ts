@@ -5,6 +5,14 @@
  * database errors, service failures, configuration issues, and infrastructure problems.
  */
 
+import {
+    type EnhancedSystemError,
+    type ErrorContext,
+    type RecoveryStrategy,
+    BaseErrorFactory
+} from "./types.js";
+
+// Legacy interface for backward compatibility
 export interface SystemError {
     code: string;
     message: string;
@@ -25,6 +33,166 @@ export interface SystemError {
     };
 }
 
+// Helper function to convert legacy recovery to RecoveryStrategy
+function toRecoveryStrategy(legacy?: SystemError["recovery"]): RecoveryStrategy {
+    if (!legacy) {
+        return { strategy: "fail" };
+    }
+
+    if (legacy.retryable) {
+        return {
+            strategy: "retry",
+            attempts: 3,
+            delay: 1000,
+            backoffMultiplier: 2,
+            fallbackAction: legacy.fallback,
+        };
+    }
+
+    if (legacy.fallback) {
+        return {
+            strategy: "fallback",
+            fallbackAction: legacy.fallback,
+        };
+    }
+
+    return { strategy: "fail" };
+}
+
+/**
+ * System Error Factory - Provides enhanced system error creation
+ * with telemetry, recovery strategies, and user impact analysis
+ */
+export class SystemErrorFactory extends BaseErrorFactory<EnhancedSystemError> {
+    standard: EnhancedSystemError = {
+        code: "SYSTEM_ERROR",
+        message: "A system error occurred",
+        severity: "error",
+        component: "System",
+        userImpact: "degraded",
+        recovery: { automatic: false, retryable: true },
+    };
+
+    withDetails: EnhancedSystemError = {
+        code: "SYSTEM_ERROR_DETAILED",
+        message: "System error with detailed information",
+        severity: "error",
+        component: "System",
+        details: {
+            service: "unknown",
+            operation: "unknown",
+            errorCode: "UNKNOWN",
+            metadata: {
+                timestamp: new Date().toISOString(),
+                environment: "production",
+            },
+        },
+        userImpact: "degraded",
+        recovery: { automatic: false, retryable: true },
+        telemetry: {
+            traceId: "trace-123",
+            spanId: "span-456",
+            tags: { service: "system", severity: "error" },
+            level: "error",
+        },
+    };
+
+    variants = {
+        // Critical system failures
+        criticalFailure: {
+            code: "CRITICAL_SYSTEM_FAILURE",
+            message: "Critical system failure - immediate attention required",
+            severity: "critical" as const,
+            component: "Core System",
+            userImpact: "blocking" as const,
+            recovery: { automatic: false, retryable: false },
+        } satisfies EnhancedSystemError,
+
+        // Degraded performance
+        degradedPerformance: {
+            code: "SYSTEM_DEGRADED",
+            message: "System performance is degraded",
+            severity: "warning" as const,
+            component: "Performance Monitor",
+            userImpact: "degraded" as const,
+            recovery: {
+                automatic: true,
+                retryable: true,
+                fallback: "reduce_load",
+            },
+        } satisfies EnhancedSystemError,
+
+        // Monitoring/telemetry error
+        telemetryError: {
+            code: "TELEMETRY_ERROR",
+            message: "Error in monitoring/telemetry system",
+            severity: "warning" as const,
+            component: "Telemetry",
+            userImpact: "none" as const,
+            recovery: { automatic: true, retryable: false },
+        } satisfies EnhancedSystemError,
+    };
+
+    create(overrides?: Partial<EnhancedSystemError>): EnhancedSystemError {
+        const base = { ...this.standard };
+        if (overrides) {
+            Object.assign(base, overrides);
+        }
+        return base;
+    }
+
+    createWithContext(context: ErrorContext): EnhancedSystemError {
+        return {
+            ...this.withDetails,
+            context,
+            details: {
+                ...this.withDetails.details,
+                metadata: {
+                    ...this.withDetails.details?.metadata,
+                    userId: context.user?.id,
+                    operation: context.operation,
+                    resourceType: context.resource?.type,
+                    resourceId: context.resource?.id,
+                },
+            },
+        };
+    }
+
+    /**
+     * Convert legacy SystemError to EnhancedSystemError
+     */
+    fromLegacy(legacy: SystemError): EnhancedSystemError {
+        return {
+            code: legacy.code,
+            message: legacy.message,
+            severity: legacy.severity,
+            component: legacy.component || "System",
+            details: legacy.details,
+            recovery: legacy.recovery,
+            userImpact: this.determineUserImpact(legacy),
+        };
+    }
+
+    /**
+     * Determine user impact based on legacy error properties
+     */
+    determineUserImpact(error: SystemError): EnhancedSystemError["userImpact"] {
+        if (error.severity === "critical") {
+            return "blocking";
+        }
+        if (error.severity === "warning" || error.recovery?.automatic) {
+            return "none";
+        }
+        return "degraded";
+    }
+}
+
+// Create factory instance
+export const systemErrorFactory = new SystemErrorFactory();
+
+// Export helper function
+export { toRecoveryStrategy };
+
 export const systemErrorFixtures = {
     // Database errors
     database: {
@@ -43,7 +211,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 estimatedRecovery: new Date(Date.now() + 30000).toISOString(),
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         queryTimeout: {
             code: "DATABASE_QUERY_TIMEOUT",
@@ -63,7 +232,8 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable: true,
             },
-        } satisfies SystemError,
+            userImpact: "degraded",
+        } satisfies EnhancedSystemError,
 
         deadlock: {
             code: "DATABASE_DEADLOCK",
@@ -82,7 +252,8 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable: true,
             },
-        } satisfies SystemError,
+            userImpact: "degraded",
+        } satisfies EnhancedSystemError,
 
         diskFull: {
             code: "DATABASE_DISK_FULL",
@@ -102,7 +273,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "read_only_mode",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
     },
 
     // Cache errors
@@ -122,7 +294,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "bypass_cache",
             },
-        } satisfies SystemError,
+            userImpact: "degraded",
+        } satisfies EnhancedSystemError,
 
         cacheMemoryFull: {
             code: "CACHE_MEMORY_FULL",
@@ -142,7 +315,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "evict_old_keys",
             },
-        } satisfies SystemError,
+            userImpact: "none",
+        } satisfies EnhancedSystemError,
 
         serializationError: {
             code: "CACHE_SERIALIZATION_ERROR",
@@ -161,7 +335,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "skip_cache",
             },
-        } satisfies SystemError,
+            userImpact: "none",
+        } satisfies EnhancedSystemError,
     },
 
     // External service errors
@@ -182,7 +357,8 @@ export const systemErrorFixtures = {
                 estimatedRecovery: new Date(Date.now() + 300000).toISOString(),
                 fallback: "queue_for_later",
             },
-        } satisfies SystemError,
+            userImpact: "degraded",
+        } satisfies EnhancedSystemError,
 
         paymentGatewayError: {
             code: "PAYMENT_GATEWAY_ERROR",
@@ -199,7 +375,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "alternative_gateway",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         emailServiceError: {
             code: "EMAIL_SERVICE_ERROR",
@@ -220,7 +397,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "queue_email",
             },
-        } satisfies SystemError,
+            userImpact: "none",
+        } satisfies EnhancedSystemError,
     },
 
     // Configuration errors
@@ -240,7 +418,8 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable: false,
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         invalidConfig: {
             code: "INVALID_CONFIGURATION",
@@ -258,7 +437,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "default_config",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         secretsManagerError: {
             code: "SECRETS_MANAGER_ERROR",
@@ -274,7 +454,8 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable: true,
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
     },
 
     // Infrastructure errors
@@ -296,7 +477,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "restart_process",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         diskSpaceError: {
             code: "DISK_SPACE_ERROR",
@@ -316,7 +498,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "cleanup_old_files",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         cpuOverload: {
             code: "CPU_OVERLOAD",
@@ -335,7 +518,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "throttle_requests",
             },
-        } satisfies SystemError,
+            userImpact: "degraded",
+        } satisfies EnhancedSystemError,
 
         networkPartition: {
             code: "NETWORK_PARTITION",
@@ -354,7 +538,8 @@ export const systemErrorFixtures = {
                 estimatedRecovery: new Date(Date.now() + 600000).toISOString(),
                 fallback: "failover_to_west",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
     },
 
     // Process errors
@@ -376,7 +561,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "restart_required",
             },
-        } satisfies SystemError,
+            userImpact: "blocking",
+        } satisfies EnhancedSystemError,
 
         workerCrash: {
             code: "WORKER_CRASH",
@@ -396,7 +582,8 @@ export const systemErrorFixtures = {
                 retryable: true,
                 fallback: "spawn_new_worker",
             },
-        } satisfies SystemError,
+            userImpact: "none",
+        } satisfies EnhancedSystemError,
 
         zombieProcess: {
             code: "ZOMBIE_PROCESS",
@@ -415,7 +602,8 @@ export const systemErrorFixtures = {
                 retryable: false,
                 fallback: "cleanup_process",
             },
-        } satisfies SystemError,
+            userImpact: "none",
+        } satisfies EnhancedSystemError,
     },
 
     // Factory functions
@@ -423,7 +611,7 @@ export const systemErrorFixtures = {
         /**
          * Create a database error
          */
-        createDatabaseError: (operation: string, errorCode: string): SystemError => ({
+        createDatabaseError: (operation: string, errorCode: string): EnhancedSystemError => ({
             code: "DATABASE_ERROR",
             message: `Database error during ${operation}`,
             severity: "error",
@@ -436,6 +624,7 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable: true,
             },
+            userImpact: "degraded",
         }),
 
         /**
@@ -445,7 +634,7 @@ export const systemErrorFixtures = {
             service: string,
             operation: string,
             retryable = true,
-        ): SystemError => ({
+        ): EnhancedSystemError => ({
             code: `${service.toUpperCase()}_ERROR`,
             message: `${service} service error`,
             severity: "error",
@@ -458,6 +647,7 @@ export const systemErrorFixtures = {
                 automatic: false,
                 retryable,
             },
+            userImpact: "degraded",
         }),
 
         /**
@@ -467,7 +657,7 @@ export const systemErrorFixtures = {
             component: string,
             message: string,
             fallback?: string,
-        ): SystemError => ({
+        ): EnhancedSystemError => ({
             code: "CRITICAL_ERROR",
             message,
             severity: "critical",
@@ -477,6 +667,7 @@ export const systemErrorFixtures = {
                 retryable: false,
                 ...(fallback && { fallback }),
             },
+            userImpact: "blocking",
         }),
 
         /**
@@ -485,17 +676,20 @@ export const systemErrorFixtures = {
         createSystemError: (
             code: string,
             message: string,
-            severity: SystemError["severity"],
-            details?: SystemError["details"],
-        ): SystemError => ({
+            severity: EnhancedSystemError["severity"],
+            details?: EnhancedSystemError["details"],
+            component = "System",
+        ): EnhancedSystemError => ({
             code,
             message,
             severity,
+            component,
             ...(details && { details }),
             recovery: {
                 automatic: false,
                 retryable: false,
             },
+            userImpact: systemErrorFactory.determineUserImpact({ code, message, severity, component, recovery: { automatic: false, retryable: false } } as SystemError),
         }),
     },
 };

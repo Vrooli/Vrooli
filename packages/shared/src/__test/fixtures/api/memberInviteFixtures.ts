@@ -2,6 +2,9 @@ import type { MemberInviteCreateInput, MemberInviteUpdateInput } from "../../../
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { memberInviteValidation } from "../../../validation/models/memberInvite.js";
 
+// Magic number constants for testing
+const LONG_MESSAGE_LENGTH = 1000;
+
 /**
  * MemberInvite test fixtures with full TypeScript type safety.
  * 
@@ -65,27 +68,27 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
             create: {
                 // Missing id, teamConnect, and userConnect
                 message: "Incomplete invite",
-            },
+            } as MemberInviteCreateInput,
             update: {
                 // Missing id
                 message: "Updated message",
-            },
+            } as MemberInviteUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                message: false, // Should be string
-                willBeAdmin: "not-a-boolean", // Should be boolean
-                willHavePermissions: 123, // Should be string (JSON)
-                teamConnect: 456, // Should be string
-                userConnect: 789, // Should be string
-            },
+                id: 123, // Should be string - invalid type
+                message: false, // Should be string - invalid type
+                willBeAdmin: "not-a-boolean", // Should be boolean - invalid type
+                willHavePermissions: 123, // Should be string (JSON) - invalid type
+                teamConnect: 456, // Should be string - invalid type
+                userConnect: 789, // Should be string - invalid type
+            } as unknown as MemberInviteCreateInput,
             update: {
                 id: validIds.id3,
-                message: 123, // Should be string
-                willBeAdmin: "true", // Should be boolean, not string
-                willHavePermissions: false, // Should be string (JSON)
-            },
+                message: 123, // Should be string - invalid type
+                willBeAdmin: "true", // Should be boolean, not string - invalid type
+                willHavePermissions: false, // Should be string (JSON) - invalid type
+            } as unknown as MemberInviteUpdateInput,
         },
         invalidId: {
             create: {
@@ -113,14 +116,14 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
                 id: validIds.id1,
                 userConnect: validIds.userId1,
                 // Missing required teamConnect
-            },
+            } as MemberInviteCreateInput,
         },
         missingUserConnect: {
             create: {
                 id: validIds.id1,
                 teamConnect: validIds.teamId1,
                 // Missing required userConnect
-            },
+            } as MemberInviteCreateInput,
         },
         invalidPermissionsFormat: {
             create: {
@@ -163,7 +166,7 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
                 id: validIds.id1,
                 willHavePermissions: JSON.stringify([
                     "read",
-                    "write", 
+                    "write",
                     "delete",
                     "admin",
                     "moderate",
@@ -176,7 +179,7 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
         longMessage: {
             create: {
                 id: validIds.id1,
-                message: "x".repeat(1000), // Test long message
+                message: "x".repeat(LONG_MESSAGE_LENGTH), // Test long message
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
             },
@@ -212,13 +215,13 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
                 willBeAdmin: true,
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
-            },
+            } as MemberInviteCreateInput,
             {
                 id: validIds.id2,
                 willBeAdmin: false,
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
-            },
+            } as MemberInviteCreateInput,
         ],
         permissionsEdgeCases: [
             {
@@ -226,19 +229,19 @@ export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, Me
                 willHavePermissions: "[]", // Empty array as JSON string
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
-            },
+            } as MemberInviteCreateInput,
             {
                 id: validIds.id2,
                 willHavePermissions: JSON.stringify(["read"]), // Single permission
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
-            },
+            } as MemberInviteCreateInput,
             {
                 id: validIds.id3,
                 willHavePermissions: JSON.stringify({ role: "editor" }), // Object permissions
                 teamConnect: validIds.teamId1,
                 userConnect: validIds.userId1,
-            },
+            } as MemberInviteCreateInput,
         ],
     },
 };

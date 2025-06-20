@@ -2,6 +2,8 @@ import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import { ScheduleExceptionDbFactory } from "./scheduleExceptionFixtures.js";
+import { ScheduleRecurrenceDbFactory } from "./scheduleRecurrenceFixtures.js";
 
 /**
  * Database fixtures for Schedule model - used for seeding test data
@@ -167,6 +169,110 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.ScheduleCreateInput> = {
 };
 
 /**
+ * RRULE helper utilities for creating complex recurrence patterns
+ */
+export const RRuleHelpers = {
+    /**
+     * Daily recurrence
+     */
+    daily: (interval: number = 1) => `FREQ=DAILY;INTERVAL=${interval}`,
+    
+    /**
+     * Weekly recurrence with specific days
+     */
+    weekly: (days: string[], interval: number = 1) => 
+        `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${days.join(',')}`,
+    
+    /**
+     * Monthly by day of month
+     */
+    monthlyByDate: (dayOfMonth: number, interval: number = 1) => 
+        `FREQ=MONTHLY;INTERVAL=${interval};BYMONTHDAY=${dayOfMonth}`,
+    
+    /**
+     * Monthly by position (e.g., 2nd Tuesday)
+     */
+    monthlyByPosition: (position: number, day: string, interval: number = 1) => 
+        `FREQ=MONTHLY;INTERVAL=${interval};BYDAY=${position}${day}`,
+    
+    /**
+     * Yearly recurrence
+     */
+    yearly: (month: number, day: number, interval: number = 1) => 
+        `FREQ=YEARLY;INTERVAL=${interval};BYMONTH=${month};BYMONTHDAY=${day}`,
+    
+    /**
+     * Add count limit to any RRULE
+     */
+    withCount: (rrule: string, count: number) => 
+        `${rrule};COUNT=${count}`,
+    
+    /**
+     * Add until date to any RRULE
+     */
+    withUntil: (rrule: string, until: Date) => 
+        `${rrule};UNTIL=${until.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+    
+    /**
+     * Parse RRULE to recurrence properties
+     */
+    parseToRecurrence: (rrule: string): Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> => {
+        const parts = rrule.split(';').reduce((acc, part) => {
+            const [key, value] = part.split('=');
+            acc[key] = value;
+            return acc;
+        }, {} as Record<string, string>);
+        
+        // Map RRULE to database schema
+        const recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> = {
+            interval: parseInt(parts.INTERVAL || '1'),
+        };
+        
+        // Map frequency
+        switch (parts.FREQ) {
+            case 'DAILY':
+                recurrence.recurrenceType = 'Daily';
+                break;
+            case 'WEEKLY':
+                recurrence.recurrenceType = 'Weekly';
+                if (parts.BYDAY) {
+                    // Convert day codes to numbers (MO=1, TU=2, etc.)
+                    const dayMap: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
+                    const days = parts.BYDAY.split(',');
+                    recurrence.dayOfWeek = dayMap[days[0]] || 1; // Take first day for simplicity
+                }
+                break;
+            case 'MONTHLY':
+                recurrence.recurrenceType = 'Monthly';
+                if (parts.BYMONTHDAY) {
+                    recurrence.dayOfMonth = parseInt(parts.BYMONTHDAY);
+                }
+                break;
+            case 'YEARLY':
+                recurrence.recurrenceType = 'Yearly';
+                if (parts.BYMONTH) {
+                    recurrence.month = parseInt(parts.BYMONTH);
+                }
+                if (parts.BYMONTHDAY) {
+                    recurrence.dayOfMonth = parseInt(parts.BYMONTHDAY);
+                }
+                break;
+        }
+        
+        // Handle end conditions
+        if (parts.UNTIL) {
+            // Parse UNTIL date (format: YYYYMMDDTHHMMSSZ)
+            const year = parts.UNTIL.substring(0, 4);
+            const month = parts.UNTIL.substring(4, 6);
+            const day = parts.UNTIL.substring(6, 8);
+            recurrence.endDate = new Date(`${year}-${month}-${day}`);
+        }
+        
+        return recurrence;
+    },
+};
+
+/**
  * Enhanced factory for creating schedule database fixtures
  */
 export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateInput> {
@@ -278,20 +384,159 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
     }
 
     /**
-     * Add exceptions to a schedule fixture
+     * Add recurrence from RRULE string
      */
-    protected addExceptions(data: Prisma.ScheduleCreateInput, exceptions: Array<{ date: Date; newStartTime?: Date; newEndTime?: Date }>): Prisma.ScheduleCreateInput {
-        return {
-            ...data,
-            exceptions: {
-                create: exceptions.map(ex => ({
+    protected addRecurrenceFromRRule(data: Prisma.ScheduleCreateInput, rrule: string): Prisma.ScheduleCreateInput {
+        const recurrence = RRuleHelpers.parseToRecurrence(rrule);
+        return this.addRecurrence(data, recurrence);
+    }
+
+    /**
+     * Create schedule with multiple recurrences
+     */
+    protected createWithRecurrences(
+        baseSchedule: Prisma.ScheduleCreateInput,
+        recurrencePatterns: Array<Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> | string>
+    ): Prisma.ScheduleCreateInput {
+        const recurrences = recurrencePatterns.map(pattern => {
+            if (typeof pattern === 'string') {
+                // RRULE string
+                return {
                     id: generatePK(),
-                    originalStartTime: ex.date,
-                    newStartTime: ex.newStartTime,
-                    newEndTime: ex.newEndTime,
-                })),
+                    ...RRuleHelpers.parseToRecurrence(pattern),
+                };
+            } else {
+                // Direct recurrence object
+                return {
+                    id: generatePK(),
+                    recurrenceType: "Daily" as const,
+                    interval: 1,
+                    dayOfWeek: null,
+                    dayOfMonth: null,
+                    month: null,
+                    endDate: null,
+                    ...pattern,
+                };
+            }
+        });
+
+        return {
+            ...baseSchedule,
+            recurrences: {
+                create: recurrences,
             },
         };
+    }
+
+    /**
+     * Add exceptions to schedule
+     */
+    protected addExceptions(
+        scheduleId: string,
+        exceptionDates: Array<{
+            originalDate: Date;
+            type: 'cancel' | 'reschedule' | 'extend';
+            newStartTime?: Date;
+            newEndTime?: Date;
+            extensionHours?: number;
+        }>
+    ): Array<Prisma.schedule_exceptionCreateInput> {
+        return exceptionDates.map(exception => {
+            switch (exception.type) {
+                case 'cancel':
+                    return ScheduleExceptionDbFactory.createCancellation(
+                        scheduleId,
+                        exception.originalDate
+                    );
+                case 'reschedule':
+                    return ScheduleExceptionDbFactory.createRescheduled(
+                        scheduleId,
+                        exception.originalDate,
+                        exception.newStartTime!,
+                        exception.newEndTime!
+                    );
+                case 'extend':
+                    return ScheduleExceptionDbFactory.createExtended(
+                        scheduleId,
+                        exception.originalDate,
+                        exception.extensionHours
+                    );
+                default:
+                    return ScheduleExceptionDbFactory.createMinimal(scheduleId);
+            }
+        });
+    }
+
+    /**
+     * Helper to generate occurrences for testing
+     */
+    static generateOccurrences(
+        schedule: {
+            startTime: Date;
+            endTime: Date;
+            timezone: string;
+            recurrences?: Array<{
+                recurrenceType: string;
+                interval: number;
+                dayOfWeek?: number | null;
+                dayOfMonth?: number | null;
+                month?: number | null;
+                endDate?: Date | null;
+            }>;
+        },
+        dateRange: { start: Date; end: Date }
+    ): Array<{ start: Date; end: Date }> {
+        const occurrences: Array<{ start: Date; end: Date }> = [];
+        
+        if (!schedule.recurrences || schedule.recurrences.length === 0) {
+            // One-time event
+            if (schedule.startTime >= dateRange.start && schedule.startTime <= dateRange.end) {
+                occurrences.push({ start: schedule.startTime, end: schedule.endTime });
+            }
+            return occurrences;
+        }
+        
+        // Generate occurrences for each recurrence
+        for (const recurrence of schedule.recurrences) {
+            let currentDate = new Date(schedule.startTime);
+            const duration = schedule.endTime.getTime() - schedule.startTime.getTime();
+            
+            while (currentDate <= dateRange.end && (!recurrence.endDate || currentDate <= recurrence.endDate)) {
+                if (currentDate >= dateRange.start) {
+                    occurrences.push({
+                        start: new Date(currentDate),
+                        end: new Date(currentDate.getTime() + duration),
+                    });
+                }
+                
+                // Calculate next occurrence
+                switch (recurrence.recurrenceType) {
+                    case 'Daily':
+                        currentDate.setDate(currentDate.getDate() + recurrence.interval);
+                        break;
+                    case 'Weekly':
+                        currentDate.setDate(currentDate.getDate() + (7 * recurrence.interval));
+                        break;
+                    case 'Monthly':
+                        currentDate.setMonth(currentDate.getMonth() + recurrence.interval);
+                        if (recurrence.dayOfMonth) {
+                            currentDate.setDate(recurrence.dayOfMonth);
+                        }
+                        break;
+                    case 'Yearly':
+                        currentDate.setFullYear(currentDate.getFullYear() + recurrence.interval);
+                        if (recurrence.month) {
+                            currentDate.setMonth(recurrence.month - 1);
+                        }
+                        if (recurrence.dayOfMonth) {
+                            currentDate.setDate(recurrence.dayOfMonth);
+                        }
+                        break;
+                }
+            }
+        }
+        
+        return occurrences.sort((a, b) => a.start.getTime() - b.start.getTime());
     }
 
     /**
@@ -356,6 +601,30 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         return factory.addRecurrence(data, recurrence);
     }
 
+    static createWithRRule(
+        forId: string,
+        forType: string,
+        rrule: string,
+        overrides?: Partial<Prisma.ScheduleCreateInput>
+    ): Prisma.ScheduleCreateInput {
+        const factory = new ScheduleDbFactory();
+        let data = factory.createMinimal(overrides);
+        data = factory.addObjectAssociation(data, forId, forType);
+        return factory.addRecurrenceFromRRule(data, rrule);
+    }
+
+    static createWithRecurrences(
+        forId: string,
+        forType: string,
+        recurrencePatterns: Array<Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> | string>,
+        overrides?: Partial<Prisma.ScheduleCreateInput>
+    ): Prisma.ScheduleCreateInput {
+        const factory = new ScheduleDbFactory();
+        let data = factory.createMinimal(overrides);
+        data = factory.addObjectAssociation(data, forId, forType);
+        return factory.createWithRecurrences(data, recurrencePatterns);
+    }
+
     static createWithExceptions(
         forId: string,
         forType: string,
@@ -365,7 +634,23 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.ScheduleCreateIn
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
-        return factory.addExceptions(data, exceptions);
+        
+        // Convert old format to new format for backward compatibility
+        const formattedExceptions = exceptions.map(ex => ({
+            originalDate: ex.date,
+            type: ex.newStartTime ? 'reschedule' as const : 'cancel' as const,
+            newStartTime: ex.newStartTime,
+            newEndTime: ex.newEndTime,
+        }));
+        
+        const exceptionData = factory.addExceptions(data.id as string, formattedExceptions);
+        
+        return {
+            ...data,
+            exceptions: {
+                create: exceptionData,
+            },
+        };
     }
 
     static createWithLabels(

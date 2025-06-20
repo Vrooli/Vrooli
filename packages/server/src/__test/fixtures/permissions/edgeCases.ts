@@ -157,20 +157,27 @@ export const permissionInheritance = {
 };
 
 /**
+ * Constants for time-based calculations
+ */
+const ONE_HOUR_MS = 3600000;
+const MAX_ID_LENGTH = 30;
+const MAX_NAME_LENGTH = 1000;
+
+/**
  * Time-based permission scenarios
  */
 export const timeBasedPermissions = {
     // Temporary elevated permissions
     temporaryAdmin: {
         user: standardUser,
-        elevatedUntil: new Date(Date.now() + 3600000), // 1 hour from now
+        elevatedUntil: new Date(Date.now() + ONE_HOUR_MS), // 1 hour from now
         elevatedPermissions: ["admin"],
     },
     
     // Expired temporary permissions
     expiredElevation: {
         user: standardUser,
-        elevatedUntil: new Date(Date.now() - 3600000), // 1 hour ago
+        elevatedUntil: new Date(Date.now() - ONE_HOUR_MS), // 1 hour ago
         elevatedPermissions: ["admin"],
     },
 };
@@ -226,8 +233,8 @@ export function createEdgeCaseUser(
         case "overflow":
             return {
                 ...standardUser,
-                id: "9".repeat(30), // ID too long
-                name: "A".repeat(1000), // Name too long
+                id: "9".repeat(MAX_ID_LENGTH), // ID too long
+                name: "A".repeat(MAX_NAME_LENGTH), // Name too long
             };
         
         case "injection":

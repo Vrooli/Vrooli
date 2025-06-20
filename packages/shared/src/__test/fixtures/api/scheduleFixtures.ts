@@ -1,7 +1,11 @@
 import type { ScheduleCreateInput, ScheduleUpdateInput } from "../../../api/types.js";
 import { ScheduleRecurrenceType } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
 import { scheduleValidation } from "../../../validation/models/schedule.js";
+
+// Magic number constants for testing
+const TIMEZONE_TOO_LONG_LENGTH = 65;
+const TIMEZONE_MAX_LENGTH = 64;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -70,7 +74,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        } as any,
+        } as unknown as ScheduleCreateInput,
         update: {
             id: validIds.id1,
             startTime: new Date("2025-02-01T10:00:00Z"),
@@ -107,7 +111,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        } as any,
+        } as unknown as ScheduleUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -115,25 +119,32 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 id: validIds.id1,
                 // Missing required timezone
                 startTime: new Date("2025-01-01T09:00:00Z"),
-            },
+            } as ScheduleCreateInput,
             update: {
                 // Missing required id
                 timezone: "America/New_York",
-            },
+            } as ScheduleUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 timezone: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 startTime: "not-a-date", // Should be Date
+                // @ts-expect-error - Testing invalid types
                 endTime: "invalid-date", // Should be Date
-            },
+            } as unknown as ScheduleCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid types
                 timezone: true, // Should be string
+                // @ts-expect-error - Testing invalid types
                 startTime: "2025-01-01", // Should be Date object
+                // @ts-expect-error - Testing invalid types
                 endTime: 12345, // Should be Date
-            },
+            } as unknown as ScheduleUpdateInput,
         },
         invalidId: {
             create: {
@@ -151,7 +162,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
             },
             update: {
                 id: validIds.id1,
-                timezone: "A".repeat(65), // Too long (max 64)
+                timezone: "A".repeat(TIMEZONE_TOO_LONG_LENGTH), // Too long (max 64)
             },
         },
         invalidTimeOrder: {
@@ -176,8 +187,9 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                     id: validIds.id3,
                     // Missing required originalStartTime
                     newStartTime: new Date("2025-07-05T10:00:00Z"),
+                    // @ts-expect-error - Missing required originalStartTime for testing
                 }],
-            },
+            } as unknown as ScheduleCreateInput,
         },
         invalidRecurrence: {
             create: {
@@ -188,8 +200,9 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                     id: validIds.id5,
                     // Missing required recurrenceType and duration
                     interval: 1,
+                    // @ts-expect-error - Missing required recurrenceType and duration for testing
                 }],
-            },
+            } as unknown as ScheduleCreateInput,
         },
     },
     edgeCases: {
@@ -220,13 +233,13 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 timezone: "America/New_York",
                 endTime: new Date("2025-12-31T23:59:59Z"),
                 // No start time - should fail validation
-            },
+            } as ScheduleCreateInput,
         },
         maxLengthTimezone: {
             create: {
                 id: validIds.id1,
-                timezone: "A".repeat(64), // Maximum length
-                startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime to avoid endTime validation issues
+                timezone: "A".repeat(TIMEZONE_MAX_LENGTH), // Maximum length
+                startTime: new Date("2025-01-01T00:00:00Z"),
             },
         },
         differentTimezones: {
@@ -249,7 +262,7 @@ export const scheduleFixtures: ModelTestFixtures<ScheduleCreateInput, ScheduleUp
                 startTime: new Date("2025-01-01T00:00:00Z"), // Adding startTime
                 meetingConnect: validIds.id2,
                 runConnect: validIds.id3, // Can't have both
-            },
+            } as ScheduleCreateInput,
         },
         withRun: {
             create: {

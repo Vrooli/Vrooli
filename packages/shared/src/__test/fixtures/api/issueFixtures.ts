@@ -1,6 +1,10 @@
-import { IssueFor, type IssueCreateInput, type IssueUpdateInput, type IssueTranslationCreateInput, type IssueTranslationUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { IssueFor, type IssueCreateInput, type IssueTranslationCreateInput, type IssueUpdateInput } from "../../../api/types.js";
+import { TestDataFactory, TypedTestDataFactory, createTypedFixtures, type ModelTestFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { issueValidation } from "../../../validation/models/issue.js";
+
+// Magic number constants for testing
+const NAME_MAX_LENGTH = 50;
+const DESCRIPTION_LONG_LENGTH = 1000;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -57,29 +61,29 @@ export const issueFixtures: ModelTestFixtures<IssueCreateInput, IssueUpdateInput
             create: {
                 // Missing id, issueFor, and forConnect
                 translationsCreate: [],
-            },
+            } as IssueCreateInput,
             update: {
                 // Missing id
                 translationsCreate: [],
-            },
+            } as IssueUpdateInput,
         },
         invalidTypes: {
             create: {
                 id: 123, // Should be string
                 issueFor: "InvalidType", // Should be valid IssueFor enum
                 forConnect: 456, // Should be string
-            },
+            } as unknown as IssueCreateInput,
             update: {
                 id: validIds.id3,
                 translationsCreate: "not-an-array", // Should be array
-            },
+            } as unknown as IssueUpdateInput,
         },
         invalidIssueFor: {
             create: {
                 id: validIds.id1,
-                issueFor: "InvalidIssueType",
+                issueFor: "InvalidIssueType", // Should be valid IssueFor enum
                 forConnect: validIds.forId1,
-            },
+            } as unknown as IssueCreateInput,
         },
         invalidId: {
             create: {
@@ -100,7 +104,7 @@ export const issueFixtures: ModelTestFixtures<IssueCreateInput, IssueUpdateInput
                 id: validIds.id1,
                 issueFor: IssueFor.Resource,
                 // Missing required forConnect
-            },
+            } as IssueCreateInput,
         },
         invalidTranslationName: {
             create: {
@@ -128,9 +132,9 @@ export const issueFixtures: ModelTestFixtures<IssueCreateInput, IssueUpdateInput
                         // Missing required language field (added by transRel)
                         name: "Valid name",
                         description: "Valid description",
-                    },
+                    } as IssueTranslationCreateInput,
                 ],
-            },
+            } as IssueCreateInput,
         },
     },
     edgeCases: {
@@ -191,8 +195,8 @@ export const issueFixtures: ModelTestFixtures<IssueCreateInput, IssueUpdateInput
                     {
                         id: validIds.translationId1,
                         language: "en",
-                        name: "x".repeat(50), // Test long name
-                        description: "x".repeat(1000), // Test long description
+                        name: "x".repeat(NAME_MAX_LENGTH), // Test long name
+                        description: "x".repeat(DESCRIPTION_LONG_LENGTH), // Test long description
                     },
                 ],
             },

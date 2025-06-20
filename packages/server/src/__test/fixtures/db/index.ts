@@ -47,6 +47,8 @@ export * from "./runStepFixtures.js";
 export * from "./scheduleFixtures.js";
 export * from "./scheduleExceptionFixtures.js";
 export * from "./scheduleRecurrenceFixtures.js";
+export * from "./ScheduleExceptionDbFactory.js";
+export * from "./ScheduleRecurrenceDbFactory.js";
 export * from "./sessionFixtures.js";
 export * from "./statsFixtures.js";
 export * from "./tagFixtures.js";

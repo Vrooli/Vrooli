@@ -3,6 +3,10 @@ import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } fro
 import { apiKeyValidation } from "../../../validation/models/apiKey.js";
 import { API_KEY_PERMISSIONS_MAX_LENGTH, NAME_MAX_LENGTH, TEST_FIELD_TOO_LONG_MULTIPLIER } from "../../../validation/utils/validationConstants.js";
 
+// Magic number constants for testing
+const PERMISSIONS_TOO_LONG_LENGTH = 4097;
+const MAX_LENGTH_NAME = 50;
+
 // Valid Snowflake IDs for testing
 const validIds = {
     id1: "500000000000000001",
@@ -45,31 +49,43 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
     invalid: {
         missingRequired: {
             create: {
-                // Missing all required fields: id, limitHard, name, stopAtLimit, permissions
+                // Missing all required fields: limitHard, name, stopAtLimit, permissions
                 disabled: false,
-            },
+            } as ApiKeyCreateInput,
             update: {
                 // Missing id
                 name: "Missing ID",
-            },
+            } as ApiKeyUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 limitHard: 1000, // Should be string
+                // @ts-expect-error - Testing invalid types
                 name: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 stopAtLimit: "yes", // Should be boolean
+                // @ts-expect-error - Testing invalid types
                 permissions: 123, // Should be string
-            },
+            } as unknown as ApiKeyCreateInput,
             update: {
+                // @ts-expect-error - Testing invalid types
                 id: true, // Should be string
+                // @ts-expect-error - Testing invalid types
                 disabled: "no", // Should be boolean
+                // @ts-expect-error - Testing invalid types
                 limitHard: true, // Should be string
+                // @ts-expect-error - Testing invalid types
                 limitSoft: false, // Should be string
+                // @ts-expect-error - Testing invalid types
                 name: [], // Should be string
+                // @ts-expect-error - Testing invalid types
                 stopAtLimit: 1, // Should be boolean (but will be converted)
+                // @ts-expect-error - Testing invalid types
                 permissions: { read: true }, // Should be string
-            },
+            } as unknown as ApiKeyUpdateInput,
         },
         nameTooShort: {
             create: {
@@ -108,7 +124,7 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
                 limitHard: "1000000",
                 name: "Test API Key",
                 stopAtLimit: true,
-                permissions: "a".repeat(4097), // Exceeds 4096 char limit
+                permissions: "a".repeat(PERMISSIONS_TOO_LONG_LENGTH), // Exceeds 4096 char limit
             },
         },
     },
@@ -124,7 +140,7 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
         maxLengthName: {
             create: {
                 limitHard: "1000000",
-                name: "a".repeat(50), // Exactly 50 characters
+                name: "a".repeat(MAX_LENGTH_NAME), // Exactly 50 characters
                 stopAtLimit: true,
                 permissions: "{}",
             },
@@ -166,9 +182,10 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
             create: {
                 limitHard: "1000000",
                 name: "Test API Key",
+                // @ts-expect-error - Testing string boolean conversion
                 stopAtLimit: "true", // String boolean, should be converted
                 permissions: "{}",
-            },
+            } as unknown as ApiKeyCreateInput,
         },
         updateOnlyName: {
             update: {
@@ -186,17 +203,20 @@ export const apiKeyFixtures: ModelTestFixtures<ApiKeyCreateInput, ApiKeyUpdateIn
 };
 
 // Custom factory that always generates valid IDs
-const customizers = {
-    create: (base: ApiKeyCreateInput): ApiKeyCreateInput => ({
+const customizers: {
+    create: (base: Partial<ApiKeyCreateInput>) => ApiKeyCreateInput;
+    update: (base: Partial<ApiKeyUpdateInput>) => ApiKeyUpdateInput;
+} = {
+    create: (base: Partial<ApiKeyCreateInput>): ApiKeyCreateInput => ({
+        limitHard: "1000000",
+        name: "Generated API Key",
+        stopAtLimit: true,
+        permissions: "{}",
         ...base,
-        limitHard: base.limitHard || "1000000",
-        name: base.name || "Generated API Key",
-        stopAtLimit: base.stopAtLimit !== undefined ? base.stopAtLimit : true,
-        permissions: base.permissions || "{}",
     }),
-    update: (base: ApiKeyUpdateInput): ApiKeyUpdateInput => ({
+    update: (base: Partial<ApiKeyUpdateInput>): ApiKeyUpdateInput => ({
+        id: validIds.id1,
         ...base,
-        id: base.id || validIds.id1,
     }),
 };
 

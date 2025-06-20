@@ -1,6 +1,9 @@
 import type { ChatInviteCreateInput, ChatInviteUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { chatInviteValidation } from "../../../validation/models/chatInvite.js";
+
+// Magic number constants for testing
+const LONG_MESSAGE_LENGTH = 1000;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -42,11 +45,11 @@ export const chatInviteFixtures: ModelTestFixtures<ChatInviteCreateInput, ChatIn
             create: {
                 // Missing id, chatConnect, and userConnect
                 message: "Incomplete invite",
-            },
+            } as ChatInviteCreateInput,
             update: {
                 // Missing id
                 message: "Updated message",
-            },
+            } as ChatInviteUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -54,11 +57,11 @@ export const chatInviteFixtures: ModelTestFixtures<ChatInviteCreateInput, ChatIn
                 message: false, // Should be string
                 chatConnect: 456, // Should be string
                 userConnect: 789, // Should be string
-            },
+            } as unknown as ChatInviteCreateInput,
             update: {
                 id: validIds.id3,
                 message: 123, // Should be string
-            },
+            } as unknown as ChatInviteUpdateInput,
         },
         invalidId: {
             create: {
@@ -86,21 +89,21 @@ export const chatInviteFixtures: ModelTestFixtures<ChatInviteCreateInput, ChatIn
                 id: validIds.id1,
                 userConnect: validIds.userId1,
                 // Missing required chatConnect
-            },
+            } as ChatInviteCreateInput,
         },
         missingUserConnect: {
             create: {
                 id: validIds.id1,
                 chatConnect: validIds.chatId1,
                 // Missing required userConnect
-            },
+            } as ChatInviteCreateInput,
         },
     },
     edgeCases: {
         maxLengthMessage: {
             create: {
                 id: validIds.id1,
-                message: "x".repeat(1000), // Test long message
+                message: "x".repeat(LONG_MESSAGE_LENGTH), // Test long message
                 chatConnect: validIds.chatId1,
                 userConnect: validIds.userId1,
             },

@@ -1,7 +1,11 @@
-import type { PullRequestCreateInput, PullRequestUpdateInput, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput } from "../../../api/types.js";
-import { PullRequestToObjectType, PullRequestFromObjectType, PullRequestStatus } from "../../../api/types.js";
+import type { PullRequestCreateInput, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput } from "../../../api/types.js";
+import { PullRequestFromObjectType, PullRequestStatus, PullRequestToObjectType } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
-import { pullRequestValidation, pullRequestTranslationValidation } from "../../../validation/models/pullRequest.js";
+import { pullRequestValidation } from "../../../validation/models/pullRequest.js";
+
+// Magic number constants for testing
+const TEXT_TOO_LONG_LENGTH = 32769;
+const TEXT_MAX_LENGTH = 32768;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -85,18 +89,22 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                         text: "Incomplete pull request",
                     },
                 ],
-            },
+            } as PullRequestCreateInput,
             update: {
                 // Missing required id
                 status: PullRequestStatus.Draft,
-            },
+            } as PullRequestUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid enum value
                 toObjectType: "InvalidType", // Invalid enum value
+                // @ts-expect-error - Testing invalid types
                 toConnect: 456, // Should be string
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
+                // @ts-expect-error - Testing invalid types
                 fromConnect: 789, // Should be string
                 translationsCreate: [
                     {
@@ -105,11 +113,12 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                         text: "Invalid types test",
                     },
                 ],
-            },
+            } as unknown as PullRequestCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid enum value
                 status: "InvalidStatus", // Invalid enum value
-            },
+            } as unknown as PullRequestUpdateInput,
         },
         invalidId: {
             create: {
@@ -126,11 +135,12 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
         invalidToObjectType: {
             create: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid enum value
                 toObjectType: "UnknownType", // Not a valid enum value
                 toConnect: validIds.id2,
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
-            },
+            } as unknown as PullRequestCreateInput,
         },
         missingTo: {
             create: {
@@ -139,7 +149,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                 // Missing required toConnect
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
-            },
+            } as PullRequestCreateInput,
         },
         missingFrom: {
             create: {
@@ -148,7 +158,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                 toConnect: validIds.id2,
                 fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 // Missing required fromConnect
-            },
+            } as PullRequestCreateInput,
         },
         invalidToConnect: {
             create: {
@@ -195,7 +205,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                     {
                         id: validIds.id4,
                         language: "en",
-                        text: "x".repeat(32769), // Exceeds max length
+                        text: "x".repeat(TEXT_TOO_LONG_LENGTH), // Exceeds max length
                     },
                 ],
             },
@@ -347,7 +357,7 @@ export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, Pull
                     {
                         id: validIds.id4,
                         language: "en",
-                        text: "x".repeat(32768), // Exactly max length
+                        text: "x".repeat(TEXT_MAX_LENGTH), // Exactly max length
                     },
                 ],
             },
@@ -402,7 +412,7 @@ export const pullRequestTranslationFixtures: ModelTestFixtures<PullRequestTransl
     },
     complete: {
         create: {
-            id: "400000000000000002", 
+            id: "400000000000000002",
             language: "en",
             text: "A comprehensive pull request description with detailed information about the changes and implementation details",
         },
@@ -416,23 +426,27 @@ export const pullRequestTranslationFixtures: ModelTestFixtures<PullRequestTransl
         missingRequired: {
             create: {
                 // Missing language, id, and text
-            },
+            } as PullRequestTranslationCreateInput,
             update: {
                 // Missing id and language
                 text: "Updated description without required fields",
-            },
+            } as PullRequestTranslationUpdateInput,
         },
         invalidTypes: {
             create: {
                 id: "400000000000000003",
+                // @ts-expect-error - Testing invalid type
                 language: 123, // Should be string
+                // @ts-expect-error - Testing invalid type
                 text: true, // Should be string
-            },
+            } as unknown as PullRequestTranslationCreateInput,
             update: {
+                // @ts-expect-error - Testing invalid type
                 id: 456, // Should be string
                 language: "en",
+                // @ts-expect-error - Testing invalid type
                 text: [], // Should be string
-            },
+            } as unknown as PullRequestTranslationUpdateInput,
         },
     },
     edgeCases: {
@@ -447,7 +461,7 @@ export const pullRequestTranslationFixtures: ModelTestFixtures<PullRequestTransl
             create: {
                 id: "400000000000000005",
                 language: "en",
-                text: "x".repeat(32768), // Max length text
+                text: "x".repeat(TEXT_MAX_LENGTH), // Max length text
             },
         },
         multipleLanguages: {

@@ -1,6 +1,14 @@
-import type { ResourceVersionCreateInput, ResourceVersionUpdateInput, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput, ResourceSubType } from "../../../api/types.js";
+import type { ResourceSubType, ResourceVersionCreateInput, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput, ResourceVersionUpdateInput } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { resourceVersionValidation } from "../../../validation/models/resourceVersion.js";
+
+// Magic number constants for testing
+const CODE_LANGUAGE_TOO_LONG_LENGTH = 129;
+const VERSION_NOTES_TOO_LONG_LENGTH = 4093;
+const NAME_MAX_LENGTH = 256;
+const DESCRIPTION_MAX_LENGTH = 2048;
+const DETAILS_MAX_LENGTH = 16384;
+const INSTRUCTIONS_MAX_LENGTH = 8192;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -85,6 +93,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                 },
             ],
             // Add some extra fields that will be stripped
+            // @ts-expect-error Testing unknown fields
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
@@ -134,6 +143,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
             ],
             translationsDelete: [validIds.id4],
             // Add some extra fields that will be stripped
+            // @ts-expect-error Testing unknown fields
             unknownField1: "should be stripped",
             unknownField2: 456,
         },
@@ -144,11 +154,11 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                 // Missing required id, versionLabel, and root connection
                 codeLanguage: "python",
                 isComplete: true,
-            },
+            } as ResourceVersionCreateInput,
             update: {
                 // Missing required id
                 versionLabel: "1.0.1",
-            },
+            } as ResourceVersionUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -164,7 +174,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                 versionLabel: 123, // Should be string
                 versionNotes: 456, // Should be string
                 rootConnect: 789, // Should be string
-            },
+            } as unknown as ResourceVersionCreateInput,
             update: {
                 id: validIds.id1,
                 codeLanguage: 123, // Should be string
@@ -175,7 +185,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                 isPrivate: 0, // Should be boolean
                 versionLabel: true, // Should be string
                 versionNotes: {}, // Should be string
-            },
+            } as unknown as ResourceVersionUpdateInput,
         },
         invalidId: {
             create: {
@@ -190,10 +200,10 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Invalid ID Version",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as ResourceVersionUpdateInput,
         },
         invalidVersionLabel: {
             create: {
@@ -208,7 +218,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Invalid Version Label",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
         },
         invalidResourceSubType: {
             create: {
@@ -224,7 +234,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Invalid SubType Version",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
         },
         missingRoot: {
             create: {
@@ -239,7 +249,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "No Root Version",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
         },
         bothRoots: {
             create: {
@@ -265,7 +275,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
         invalidCodeLanguage: {
             create: {
                 id: validIds.id1,
-                codeLanguage: "x".repeat(129), // Too long
+                codeLanguage: "x".repeat(CODE_LANGUAGE_TOO_LONG_LENGTH), // Too long
                 versionLabel: "1.0.0",
                 isPrivate: false,
                 rootConnect: validIds.id2,
@@ -276,7 +286,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Long Language Version",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
         },
         invalidConfig: {
             create: {
@@ -292,13 +302,13 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Invalid Config Version",
                     },
                 ],
-            },
+            } as unknown as ResourceVersionCreateInput,
         },
         longVersionNotes: {
             create: {
                 id: validIds.id1,
                 versionLabel: "1.0.0",
-                versionNotes: "x".repeat(4093), // Too long (exceeds 4092)
+                versionNotes: "x".repeat(VERSION_NOTES_TOO_LONG_LENGTH), // Too long (exceeds 4092)
                 isPrivate: false,
                 rootConnect: validIds.id2,
                 translationsCreate: [
@@ -308,7 +318,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Long Notes Version",
                     },
                 ],
-            },
+            } as ResourceVersionCreateInput,
         },
     },
     edgeCases: {
@@ -634,7 +644,7 @@ export const resourceVersionFixtures: ModelTestFixtures<ResourceVersionCreateInp
                         name: "Boolean Conversion Version",
                     },
                 ],
-            },
+            } as unknown as ResourceVersionCreateInput,
         },
     },
 };
@@ -675,11 +685,11 @@ export const resourceVersionTranslationFixtures: ModelTestFixtures<ResourceVersi
             create: {
                 // Missing id, language, and name
                 description: "Description without required fields",
-            },
+            } as ResourceVersionTranslationCreateInput,
             update: {
                 // Missing id and language
                 name: "Name without required fields",
-            },
+            } as ResourceVersionTranslationUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -687,13 +697,13 @@ export const resourceVersionTranslationFixtures: ModelTestFixtures<ResourceVersi
                 language: 123, // Should be string
                 name: true, // Should be string
                 description: [], // Should be string
-            },
+            } as unknown as ResourceVersionTranslationCreateInput,
             update: {
                 id: 456, // Should be string
                 language: "en",
                 name: {}, // Should be string
                 details: false, // Should be string
-            },
+            } as unknown as ResourceVersionTranslationUpdateInput,
         },
     },
     edgeCases: {
@@ -716,17 +726,20 @@ export const resourceVersionTranslationFixtures: ModelTestFixtures<ResourceVersi
             create: {
                 id: "400000000000000006",
                 language: "en",
-                name: "N".repeat(256), // Max length name
-                description: "D".repeat(2048), // Max length description
-                details: "D".repeat(16384), // Max length details
-                instructions: "I".repeat(8192), // Max length instructions
+                name: "N".repeat(NAME_MAX_LENGTH), // Max length name
+                description: "D".repeat(DESCRIPTION_MAX_LENGTH), // Max length description
+                details: "D".repeat(DETAILS_MAX_LENGTH), // Max length details
+                instructions: "I".repeat(INSTRUCTIONS_MAX_LENGTH), // Max length instructions
             },
         },
     },
 };
 
 // Custom factory that always generates valid IDs and required fields
-const customizers = {
+const customizers: {
+    create: (base: ResourceVersionCreateInput) => ResourceVersionCreateInput;
+    update: (base: ResourceVersionUpdateInput) => ResourceVersionUpdateInput;
+} = {
     create: (base: ResourceVersionCreateInput): ResourceVersionCreateInput => ({
         ...base,
         id: base.id || validIds.id1,

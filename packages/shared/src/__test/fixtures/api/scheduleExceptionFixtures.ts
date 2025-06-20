@@ -55,27 +55,34 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
                 id: validIds.id1,
                 // Missing required originalStartTime, newEndTime and scheduleConnect
                 newStartTime: new Date("2025-07-05T10:00:00Z"),
-            },
+            } as ScheduleExceptionCreateInput,
             update: {
                 // Missing required id
                 newStartTime: new Date("2025-07-05T10:00:00Z"),
                 newEndTime: new Date("2025-07-05T17:00:00Z"),
-            },
+            } as ScheduleExceptionUpdateInput,
         },
         invalidTypes: {
             create: {
+                // @ts-expect-error - Testing invalid types
                 id: 123, // Should be string
+                // @ts-expect-error - Testing invalid types
                 originalStartTime: "not-a-date", // Should be Date
+                // @ts-expect-error - Testing invalid types
                 newStartTime: "invalid-date", // Should be Date
+                // @ts-expect-error - Testing invalid types
                 newEndTime: 12345, // Should be Date
                 scheduleConnect: validIds.id2,
-            },
+            } as unknown as ScheduleExceptionCreateInput,
             update: {
                 id: validIds.id1,
+                // @ts-expect-error - Testing invalid types
                 originalStartTime: "2025-07-04", // Should be Date object
+                // @ts-expect-error - Testing invalid types
                 newStartTime: 123, // Should be Date
+                // @ts-expect-error - Testing invalid types
                 newEndTime: true, // Should be Date
-            },
+            } as unknown as ScheduleExceptionUpdateInput,
         },
         invalidId: {
             create: {
@@ -83,10 +90,10 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
                 newStartTime: new Date("2025-07-05T10:00:00Z"),
                 newEndTime: new Date("2025-07-05T17:00:00Z"),
                 scheduleConnect: validIds.id2,
-            },
+            } as ScheduleExceptionCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as ScheduleExceptionUpdateInput,
         },
         invalidTimeOrder: {
             create: {
@@ -94,12 +101,12 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
                 newStartTime: new Date("2025-07-05T17:00:00Z"),
                 newEndTime: new Date("2025-07-05T10:00:00Z"), // Before start time
                 scheduleConnect: validIds.id2,
-            },
+            } as ScheduleExceptionCreateInput,
             update: {
                 id: validIds.id1,
                 newStartTime: new Date("2025-07-05T12:00:00Z"),
                 newEndTime: new Date("2025-07-05T12:00:00Z"), // Same as start time
-            },
+            } as ScheduleExceptionUpdateInput,
         },
         missingScheduleConnect: {
             create: {
@@ -107,7 +114,7 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
                 newStartTime: new Date("2025-07-05T10:00:00Z"),
                 newEndTime: new Date("2025-07-05T17:00:00Z"),
                 // Missing required scheduleConnect
-            },
+            } as ScheduleExceptionCreateInput,
         },
         endTimeWithoutStartTime: {
             create: {
@@ -115,7 +122,7 @@ export const scheduleExceptionFixtures: ModelTestFixtures<ScheduleExceptionCreat
                 // No newStartTime
                 newEndTime: new Date("2025-07-05T17:00:00Z"),
                 scheduleConnect: validIds.id2,
-            },
+            } as ScheduleExceptionCreateInput,
         },
     },
     edgeCases: {

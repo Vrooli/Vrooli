@@ -3,6 +3,12 @@ import { ReportFor } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { reportValidation } from "../../../validation/models/report.js";
 
+// Magic number constants for testing
+const REASON_TOO_LONG_LENGTH = 129;
+const DETAILS_TOO_LONG_LENGTH = 8193;
+const REASON_MAX_LENGTH = 128;
+const DETAILS_MAX_LENGTH = 8192;
+
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
     id1: "123456789012345678",
@@ -48,27 +54,27 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
             create: {
                 // Missing required id, createdForType, language, reason, and createdForConnect
                 details: "Incomplete report",
-            },
+            } as ReportCreateInput,
             update: {
                 // Missing required id
                 details: "Updated details",
-            },
+            } as ReportUpdateInput,
         },
         invalidTypes: {
             create: {
                 id: 123, // Should be string
-                createdForType: "InvalidType" as any, // Invalid enum value
+                createdForType: "InvalidType", // Invalid enum value
                 details: 456, // Should be string
                 language: 789, // Should be string
                 reason: 101112, // Should be string
                 createdForConnect: 131415, // Should be string
-            },
+            } as unknown as ReportCreateInput,
             update: {
                 id: validIds.id1,
                 details: 123, // Should be string
                 language: 456, // Should be string
                 reason: 789, // Should be string
-            },
+            } as unknown as ReportUpdateInput,
         },
         invalidId: {
             create: {
@@ -85,11 +91,11 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
         invalidCreatedForType: {
             create: {
                 id: validIds.id1,
-                createdForType: "UnknownType" as any, // Not a valid enum value
+                createdForType: "UnknownType", // Not a valid enum value
                 language: "en",
                 reason: "Test reason",
                 createdForConnect: validIds.id2,
-            },
+            } as unknown as ReportCreateInput,
         },
         missingCreatedFor: {
             create: {
@@ -98,7 +104,7 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
                 language: "en",
                 reason: "Test reason",
                 // Missing required createdForConnect
-            },
+            } as ReportCreateInput,
         },
         invalidCreatedForConnect: {
             create: {
@@ -132,7 +138,7 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
                 id: validIds.id1,
                 createdForType: ReportFor.User,
                 language: "en",
-                reason: "x".repeat(129), // Exceeds max length
+                reason: "x".repeat(REASON_TOO_LONG_LENGTH), // Exceeds max length
                 createdForConnect: validIds.id2,
             },
         },
@@ -142,7 +148,7 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
                 createdForType: ReportFor.User,
                 language: "en",
                 reason: "Test reason",
-                details: "x".repeat(8193), // Exceeds max length
+                details: "x".repeat(DETAILS_TOO_LONG_LENGTH), // Exceeds max length
                 createdForConnect: validIds.id2,
             },
         },
@@ -257,7 +263,7 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
                 id: validIds.id1,
                 createdForType: ReportFor.User,
                 language: "en",
-                reason: "x".repeat(128), // Exactly max length
+                reason: "x".repeat(REASON_MAX_LENGTH), // Exactly max length
                 createdForConnect: validIds.id2,
             },
         },
@@ -276,7 +282,7 @@ export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateIn
                 createdForType: ReportFor.User,
                 language: "en",
                 reason: "Detailed violation",
-                details: "x".repeat(8192), // Exactly max length
+                details: "x".repeat(DETAILS_MAX_LENGTH), // Exactly max length
                 createdForConnect: validIds.id2,
             },
         },

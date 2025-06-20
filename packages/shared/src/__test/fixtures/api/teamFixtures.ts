@@ -1,6 +1,9 @@
-import type { TeamCreateInput, TeamUpdateInput, TeamTranslationCreateInput, TeamTranslationUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import type { TeamCreateInput, TeamTranslationCreateInput, TeamUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { teamValidation } from "../../../validation/models/team.js";
+
+// Magic number constants for testing
+const NAME_MAX_LENGTH = 50;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -12,8 +15,8 @@ const validIds = {
     id6: "123456789012345683",
 };
 
-// Shared team test fixtures
-export const teamFixtures: ModelTestFixtures = {
+// Shared team test fixtures with proper type safety
+export const teamFixtures: ModelTestFixtures<TeamCreateInput, TeamUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -68,11 +71,14 @@ export const teamFixtures: ModelTestFixtures = {
                     bio: "Estamos construyendo cosas increíbles juntos.",
                 },
             ],
-            // Add some extra fields that will be stripped
+            // These fields should not be in the type, demonstrating type safety
+            // @ts-expect-error Testing that unknown fields are caught
             unknownField1: "should be stripped",
+            // @ts-expect-error Testing that unknown fields are caught
             unknownField2: 123,
+            // @ts-expect-error Testing that unknown fields are caught
             unknownField3: true,
-        },
+        } as TeamCreateInput,
         update: {
             id: validIds.id1,
             bannerImage: "new-banner.jpg",
@@ -99,10 +105,12 @@ export const teamFixtures: ModelTestFixtures = {
             ],
             memberInvitesDelete: [validIds.id2],
             membersDelete: [validIds.id4],
-            // Add some extra fields that will be stripped
+            // These fields should not be in the type
+            // @ts-expect-error Testing that unknown fields are caught
             unknownField1: "should be stripped",
+            // @ts-expect-error Testing that unknown fields are caught
             unknownField2: 456,
-        },
+        } as TeamUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -117,22 +125,28 @@ export const teamFixtures: ModelTestFixtures = {
                         name: "Team Name",
                     },
                 ],
-            },
+            } as TeamCreateInput,
             update: {
                 // Missing required id
                 handle: "updated_team",
                 isPrivate: false,
-            },
+            } as TeamUpdateInput,
         },
         invalidTypes: {
             create: {
-                id: 123, // Should be string
-                bannerImage: 456, // Should be string
-                config: { invalid: "object" }, // Should be JSON string
-                handle: 789, // Should be string
-                isOpenToNewMembers: "true", // Should be boolean
-                isPrivate: "false", // Should be boolean
-                profileImage: 101112, // Should be string
+                // @ts-expect-error Testing invalid type - id should be string
+                id: 123,
+                // @ts-expect-error Testing invalid type - bannerImage should be string
+                bannerImage: 456,
+                config: { invalid: "object" }, // Config can be any object shape
+                // @ts-expect-error Testing invalid type - handle should be string
+                handle: 789,
+                // @ts-expect-error Testing invalid type - isOpenToNewMembers should be boolean
+                isOpenToNewMembers: "true",
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "false",
+                // @ts-expect-error Testing invalid type - profileImage should be string
+                profileImage: 101112,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -140,16 +154,22 @@ export const teamFixtures: ModelTestFixtures = {
                         name: "Team Name",
                     },
                 ],
-            },
+            } as unknown as TeamCreateInput,
             update: {
                 id: validIds.id1,
-                bannerImage: 123, // Should be string
-                config: true, // Should be JSON string
-                handle: false, // Should be string
-                isOpenToNewMembers: "yes", // Should be boolean
-                isPrivate: "no", // Should be boolean
-                profileImage: 456, // Should be string
-            },
+                // @ts-expect-error Testing invalid type - bannerImage should be string
+                bannerImage: 123,
+                // @ts-expect-error Testing invalid type - config should be object
+                config: true,
+                // @ts-expect-error Testing invalid type - handle should be string
+                handle: false,
+                // @ts-expect-error Testing invalid type - isOpenToNewMembers should be boolean
+                isOpenToNewMembers: "yes",
+                // @ts-expect-error Testing invalid type - isPrivate should be boolean
+                isPrivate: "no",
+                // @ts-expect-error Testing invalid type - profileImage should be string
+                profileImage: 456,
+            } as unknown as TeamUpdateInput,
         },
         invalidId: {
             create: {
@@ -232,7 +252,7 @@ export const teamFixtures: ModelTestFixtures = {
                         language: "en",
                         // Missing required name
                         bio: "Team without name",
-                    },
+                    } as TeamTranslationCreateInput,
                 ],
             },
         },
@@ -419,7 +439,7 @@ export const teamFixtures: ModelTestFixtures = {
                     {
                         id: validIds.id2,
                         language: "en",
-                        name: "X".repeat(50), // Max length name (50 chars)
+                        name: "X".repeat(NAME_MAX_LENGTH), // Max length name (50 chars)
                     },
                 ],
             },
@@ -475,9 +495,9 @@ export const teamFixtures: ModelTestFixtures = {
     },
 };
 
-// Custom factory that always generates valid IDs and required fields
+// Custom factory that always generates valid IDs and required fields with proper typing
 const customizers = {
-    create: (base: any): TeamCreateInput => ({
+    create: (base: TeamCreateInput): TeamCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
         isPrivate: base.isPrivate ?? false,
@@ -489,7 +509,7 @@ const customizers = {
             },
         ],
     }),
-    update: (base: any): TeamUpdateInput => ({
+    update: (base: TeamUpdateInput): TeamUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),

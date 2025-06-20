@@ -2,6 +2,10 @@ import type { ResourceVersionRelationCreateInput, ResourceVersionRelationUpdateI
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { resourceVersionRelationValidation } from "../../../validation/models/resourceVersionRelation.js";
 
+// Magic number constants for testing
+const LABEL_TOO_LONG_LENGTH = 129;
+const LABEL_MAX_LENGTH = 128;
+
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
     id1: "123456789012345678",
@@ -14,27 +18,28 @@ const validIds = {
     id8: "123456789012345685",
 };
 
-// Extended create input type that includes the fromVersionConnect field used in validation
-// and makes labels optional for testing scenarios where it might be missing
+// Extended create input type that makes labels optional for testing scenarios where it might be missing
 // Also allows unknown fields for testing field stripping behavior
-type ExtendedResourceVersionRelationCreateInput = Omit<ResourceVersionRelationCreateInput, 'labels'> & {
-    fromVersionConnect?: string;
+type ExtendedResourceVersionRelationCreateInput = Omit<ResourceVersionRelationCreateInput, "labels"> & {
     labels?: string[];
-    [key: string]: any; // Allow unknown fields for testing
+    unknownField1?: string;
+    unknownField2?: number;
+    unknownField3?: boolean;
 };
 
 // Extended update input type that allows unknown fields for testing field stripping behavior
 type ExtendedResourceVersionRelationUpdateInput = ResourceVersionRelationUpdateInput & {
-    [key: string]: any; // Allow unknown fields for testing
+    unknownField1?: string;
+    unknownField2?: number;
 };
 
 // Shared resourceVersionRelation test fixtures
-export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResourceVersionRelationCreateInput, ExtendedResourceVersionRelationUpdateInput> = {
+export const resourceVersionRelationFixtures: ModelTestFixtures<ResourceVersionRelationCreateInput | ExtendedResourceVersionRelationCreateInput, ResourceVersionRelationUpdateInput | ExtendedResourceVersionRelationUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            fromVersionConnect: validIds.id2,
             toVersionConnect: validIds.id3,
+            labels: [],
         },
         update: {
             id: validIds.id1,
@@ -44,31 +49,30 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
         create: {
             id: validIds.id1,
             labels: ["dependency", "upgrade", "replaces"],
-            fromVersionConnect: validIds.id2,
             toVersionConnect: validIds.id3,
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        },
+        } as ExtendedResourceVersionRelationCreateInput,
         update: {
             id: validIds.id1,
             labels: ["updated", "verified", "tested"],
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        },
+        } as ExtendedResourceVersionRelationUpdateInput,
     },
     invalid: {
         missingRequired: {
             create: {
                 // Missing required id, fromVersionConnect, and toVersionConnect
                 labels: ["test"],
-            },
+            } as unknown as ResourceVersionRelationCreateInput,
             update: {
                 // Missing required id
                 labels: ["updated"],
-            },
+            } as unknown as ResourceVersionRelationUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -76,11 +80,11 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
                 labels: "not-an-array", // Should be array
                 fromVersionConnect: 456, // Should be string
                 toVersionConnect: 789, // Should be string
-            },
+            } as unknown as ResourceVersionRelationCreateInput,
             update: {
                 id: validIds.id1,
                 labels: { not: "array" }, // Should be array
-            },
+            } as unknown as ResourceVersionRelationUpdateInput,
         },
         invalidId: {
             create: {
@@ -99,7 +103,7 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
                 labels: [],
                 toVersionConnect: validIds.id3,
                 // Missing required fromVersionConnect
-            },
+            } as unknown as ResourceVersionRelationCreateInput,
         },
         missingToVersion: {
             create: {
@@ -107,13 +111,12 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
                 labels: [],
                 fromVersionConnect: validIds.id2,
                 // Missing required toVersionConnect
-            },
+            } as unknown as ResourceVersionRelationCreateInput,
         },
         longLabel: {
             create: {
                 id: validIds.id1,
-                labels: ["x".repeat(129)], // Too long (exceeds 128)
-                fromVersionConnect: validIds.id2,
+                labels: ["x".repeat(LABEL_TOO_LONG_LENGTH)], // Too long (exceeds 128)
                 toVersionConnect: validIds.id3,
             },
         },
@@ -121,7 +124,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: [""], // Empty string should be removed
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -131,7 +133,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["dependency"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -139,7 +140,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["dependency", "upgrade", "replaces", "successor", "predecessor"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -147,7 +147,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["dependency"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -155,7 +154,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["upgrade", "successor"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -163,15 +161,14 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["replaces", "deprecated"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
         withoutLabels: {
             create: {
                 id: validIds.id1,
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
+                labels: [],
                 // No labels array
             },
         },
@@ -179,15 +176,13 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: [], // Empty array
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
         maxLengthLabels: {
             create: {
                 id: validIds.id1,
-                labels: ["a".repeat(128), "b".repeat(128)], // Maximum length labels
-                fromVersionConnect: validIds.id2,
+                labels: ["a".repeat(LABEL_MAX_LENGTH), "b".repeat(LABEL_MAX_LENGTH)], // Maximum length labels
                 toVersionConnect: validIds.id3,
             },
         },
@@ -195,7 +190,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["dependency", "requirement", "uses", "includes"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -203,7 +197,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["upgrade", "next-version", "improvement"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -211,7 +204,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["compatible", "tested-with"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -243,7 +235,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["version upgrade", "bug fix", "security patch"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -251,7 +242,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["v1.0->v2.0", "api-change", "breaking_change"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id3,
             },
         },
@@ -259,7 +249,6 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
             create: {
                 id: validIds.id1,
                 labels: ["self-reference"],
-                fromVersionConnect: validIds.id2,
                 toVersionConnect: validIds.id2, // Same version
             },
         },
@@ -268,16 +257,14 @@ export const resourceVersionRelationFixtures: ModelTestFixtures<ExtendedResource
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: ExtendedResourceVersionRelationCreateInput): ExtendedResourceVersionRelationCreateInput => ({
-        ...base,
+    create: (base: ResourceVersionRelationCreateInput | ExtendedResourceVersionRelationCreateInput): ResourceVersionRelationCreateInput => ({
         id: base.id || validIds.id1,
-        fromVersionConnect: base.fromVersionConnect || validIds.id2,
         toVersionConnect: base.toVersionConnect || validIds.id3,
         labels: base.labels || [],
     }),
-    update: (base: ExtendedResourceVersionRelationUpdateInput): ExtendedResourceVersionRelationUpdateInput => ({
-        ...base,
+    update: (base: ResourceVersionRelationUpdateInput | ExtendedResourceVersionRelationUpdateInput): ResourceVersionRelationUpdateInput => ({
         id: base.id || validIds.id1,
+        ...(base.labels !== undefined && { labels: base.labels }),
     }),
 };
 

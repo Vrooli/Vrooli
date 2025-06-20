@@ -1,6 +1,12 @@
 import type { ReminderCreateInput, ReminderUpdateInput } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { reminderValidation } from "../../../validation/models/reminder.js";
+
+// Magic number constants for testing
+const NAME_TOO_LONG_LENGTH = 51;
+const DESCRIPTION_TOO_LONG_LENGTH = 2049;
+const NAME_MAX_LENGTH = 50;
+const DESCRIPTION_MAX_LENGTH = 2048;
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -75,11 +81,11 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
                 id: validIds.id1,
                 // Missing required name
                 description: "This reminder has no name",
-            },
+            } as ReminderCreateInput,
             update: {
                 // Missing required id
                 name: "Updated reminder",
-            },
+            } as ReminderUpdateInput,
         },
         invalidTypes: {
             create: {
@@ -88,48 +94,48 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
                 description: 123, // Should be string
                 dueDate: "not-a-date", // Should be Date
                 index: "zero", // Should be number
-            },
+            } as unknown as ReminderCreateInput,
             update: {
                 id: validIds.id1,
                 name: 123, // Should be string
                 dueDate: "invalid-date", // Should be Date
                 index: -1, // Should be non-negative
-            },
+            } as unknown as ReminderUpdateInput,
         },
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
                 name: "Invalid ID reminder",
-            },
+            } as ReminderCreateInput,
             update: {
                 id: "invalid-id",
-            },
+            } as ReminderUpdateInput,
         },
         nameTooShort: {
             create: {
                 id: validIds.id1,
                 name: "", // Too short (min 1 char)
-            },
+            } as ReminderCreateInput,
         },
         nameTooLong: {
             create: {
                 id: validIds.id1,
-                name: "A".repeat(51), // Too long (max 50 chars)
-            },
+                name: "A".repeat(NAME_TOO_LONG_LENGTH), // Too long (max 50 chars)
+            } as ReminderCreateInput,
         },
         descriptionTooLong: {
             create: {
                 id: validIds.id1,
                 name: "Valid name",
-                description: "A".repeat(2049), // Too long (max 2048 chars)
-            },
+                description: "A".repeat(DESCRIPTION_TOO_LONG_LENGTH), // Too long (max 2048 chars)
+            } as ReminderCreateInput,
         },
         negativeIndex: {
             create: {
                 id: validIds.id1,
                 name: "Reminder with negative index",
                 index: -1, // Should be non-negative
-            },
+            } as ReminderCreateInput,
         },
         invalidReminderItem: {
             create: {
@@ -141,7 +147,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
                     // Missing required name, index, and reminderConnect
                     description: "Item without name",
                 }],
-            },
+            } as unknown as ReminderCreateInput,
         },
         conflictingListConnections: {
             create: {
@@ -152,7 +158,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
                 reminderListCreate: {
                     id: validIds.id3,
                 }, // Can't have both connect and create
-            },
+            } as ReminderCreateInput,
         },
     },
     edgeCases: {
@@ -186,7 +192,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
         maxLengthName: {
             create: {
                 id: validIds.id1,
-                name: "A".repeat(50), // Maximum valid name (50 chars)
+                name: "A".repeat(NAME_MAX_LENGTH), // Maximum valid name (50 chars)
                 index: 0,
             },
         },
@@ -194,7 +200,7 @@ export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUp
             create: {
                 id: validIds.id1,
                 name: "Valid reminder",
-                description: "A".repeat(2048), // Maximum valid description (2048 chars)
+                description: "A".repeat(DESCRIPTION_MAX_LENGTH), // Maximum valid description (2048 chars)
                 index: 0,
             },
         },

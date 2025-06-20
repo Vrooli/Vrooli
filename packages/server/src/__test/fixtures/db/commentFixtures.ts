@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK, generatePublicId, CommentFor } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
@@ -6,6 +6,9 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
 /**
  * Database fixtures for Comment model - used for seeding test data
  * These follow Prisma's shape for database operations
+ * 
+ * Comments support polymorphic relationships through the commentFor field
+ * and can be attached to: Issue, PullRequest, ResourceVersion
  */
 
 // Consistent IDs for testing
@@ -546,6 +549,52 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
             ...overrides,
             ...parentRelation,
         });
+    }
+
+    /**
+     * Create comment for a specific object type using the commentFor pattern
+     */
+    static createForObject(
+        objectType: CommentFor,
+        objectId: string,
+        overrides?: Partial<Prisma.commentUncheckedCreateInput>
+    ): Prisma.commentUncheckedCreateInput {
+        const factory = new CommentDbFactory();
+        const typeMapping = {
+            [CommentFor.Issue]: 'issueId',
+            [CommentFor.PullRequest]: 'pullRequestId',
+            [CommentFor.ResourceVersion]: 'resourceVersionId',
+        };
+        
+        const relationField = typeMapping[objectType];
+        if (!relationField) {
+            throw new Error(`Invalid comment object type: ${objectType}`);
+        }
+        
+        return factory.createMinimal({
+            ...overrides,
+            [relationField]: BigInt(objectId),
+        });
+    }
+
+    /**
+     * Create bulk comments for various object types
+     */
+    static createBulkForObjects(
+        objects: Array<{ type: CommentFor; id: string; userId: string; text?: string }>
+    ): Prisma.commentUncheckedCreateInput[] {
+        return objects.map((obj, index) => 
+            this.createForObject(obj.type, obj.id, {
+                ownedByUserId: BigInt(obj.userId),
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        text: obj.text || `Comment ${index + 1} on ${obj.type}`,
+                    }],
+                },
+            })
+        );
     }
 }
 

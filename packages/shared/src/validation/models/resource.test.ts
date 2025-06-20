@@ -35,6 +35,7 @@ describe("resourceValidation", () => {
                     {
                         id: "123456789012345680",
                         versionLabel: "1.0.0",
+                        isPrivate: false,
                         translationsCreate: [
                             {
                                 id: "123456789012345681",
@@ -278,6 +279,7 @@ describe("resourceValidation", () => {
                             {
                                 id: "123456789012345680",
                                 versionLabel: "1.0.0",
+                                isPrivate: false,
                                 translationsCreate: [
                                     {
                                         id: "123456789012345681",
@@ -511,6 +513,7 @@ describe("resourceValidation", () => {
                     {
                         id: "123456789012345680",
                         versionLabel: "1.0.0",
+                        isPrivate: false,
                         translationsCreate: [
                             {
                                 id: "123456789012345681",
@@ -542,6 +545,7 @@ describe("resourceValidation", () => {
                     {
                         id: "123456789012345680",
                         versionLabel: "1.0.0",
+                        isPrivate: false,
                         translationsCreate: [
                             {
                                 id: "123456789012345681",
@@ -597,6 +601,7 @@ describe("resourceValidation", () => {
                         {
                             id: "123456789012345680",
                             versionLabel: "1.0.0",
+                            isPrivate: false,
                             translationsCreate: [
                                 {
                                     id: "123456789012345681",

@@ -66,7 +66,9 @@ export const noteConfigFixtures: ConfigTestFixtures<NoteVersionConfigObject> = {
             __version: LATEST_CONFIG_VERSION,
             resources: [
                 {
-                    link: 123, // Should be string
+                    // @ts-expect-error - Testing invalid type (number instead of string)
+                    link: 123,
+                    // @ts-expect-error - Testing invalid enum value
                     usedFor: "InvalidResourceType",
                     translations: [],
                 },

@@ -3,6 +3,9 @@ import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } fro
 import { walletValidation } from "../../../validation/models/wallet.js";
 import { NAME_MAX_LENGTH } from "../../../validation/utils/validationConstants.js";
 
+// Magic number constants for testing
+const NAME_TOO_LONG_LENGTH = 51;
+
 // Wallet doesn't support create, so we use a placeholder type
 type WalletCreateInput = { id: string };
 
@@ -38,20 +41,22 @@ export const walletFixtures: ModelTestFixtures<WalletCreateInput, WalletUpdateIn
         missingRequired: {
             create: {
                 // Not applicable - no create operation
-            },
+            } as WalletCreateInput,
             update: {
-                // Missing id
+                // @ts-expect-error - Missing required id field
                 name: "Wallet Name",
-            },
+            } as unknown as WalletUpdateInput,
         },
         invalidTypes: {
             create: {
                 // Not applicable
-            },
+            } as WalletCreateInput,
             update: {
-                id: 123, // Should be string
-                name: true, // Should be string
-            },
+                // @ts-expect-error - id should be string, not number
+                id: 123,
+                // @ts-expect-error - name should be string, not boolean
+                name: true,
+            } as unknown as WalletUpdateInput,
         },
         nameTooShort: {
             update: {
@@ -62,7 +67,7 @@ export const walletFixtures: ModelTestFixtures<WalletCreateInput, WalletUpdateIn
         nameTooLong: {
             update: {
                 id: validIds.id1,
-                name: "a".repeat(51), // Exceeds 50 char limit
+                name: "a".repeat(NAME_TOO_LONG_LENGTH), // Exceeds 50 char limit
             },
         },
     },
