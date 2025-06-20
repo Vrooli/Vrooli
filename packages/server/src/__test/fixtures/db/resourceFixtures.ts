@@ -1,5 +1,7 @@
-import { generatePK, generatePublicId, ResourceType } from "@vrooli/shared";
+import { generatePK, generatePublicId, ResourceType, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for Resource model - used for seeding test data
@@ -90,16 +92,405 @@ export const completeResourceDb: Prisma.ResourceCreateInput = {
 };
 
 /**
- * Factory for creating resource database fixtures with overrides
+ * Enhanced test fixtures for Resource model following standard structure
  */
-export class ResourceDbFactory {
-    static createMinimal(overrides?: Partial<Prisma.ResourceCreateInput>): Prisma.ResourceCreateInput {
-        return {
-            ...minimalResourceDb,
+export const resourceDbFixtures: DbTestFixtures<Prisma.ResourceCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        isPrivate: false,
+        resourceType: ResourceType.Code,
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        isPrivate: false,
+        isInternal: false,
+        resourceType: ResourceType.Routine,
+        permissions: JSON.stringify({
+            canEdit: ["Owner", "Admin"],
+            canView: ["Public"],
+            canDelete: ["Owner"],
+        }),
+        ownedByUser: {
+            connect: { id: "user_placeholder_id" },
+        },
+        versions: {
+            create: [{
+                id: generatePK(),
+                publicId: generatePublicId(),
+                isComplete: true,
+                isLatest: true,
+                isPrivate: false,
+                versionLabel: "1.0.0",
+                versionNotes: "Initial complete version with all features",
+                complexity: 8,
+                translations: {
+                    create: [
+                        {
+                            id: generatePK(),
+                            language: "en",
+                            name: "Complete Resource",
+                            description: "A comprehensive resource with all features implemented",
+                            instructions: "Follow these detailed steps to utilize this resource effectively",
+                            details: "This resource includes advanced functionality and comprehensive documentation",
+                        },
+                        {
+                            id: generatePK(),
+                            language: "es",
+                            name: "Recurso Completo",
+                            description: "Un recurso integral con todas las características implementadas",
+                            instructions: "Sigue estos pasos detallados para utilizar este recurso de manera efectiva",
+                            details: "Este recurso incluye funcionalidad avanzada y documentación integral",
+                        },
+                    ],
+                },
+            }],
+        },
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required resourceType
+            isPrivate: false,
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            publicId: 123, // Should be string
+            isPrivate: "yes", // Should be boolean
+            isInternal: "no", // Should be boolean
+            resourceType: "InvalidType", // Not a valid ResourceType
+            permissions: { invalid: "object" }, // Should be string
+        },
+        invalidOwnership: {
             id: generatePK(),
             publicId: generatePublicId(),
-            ...overrides,
+            isPrivate: false,
+            resourceType: ResourceType.Code,
+            ownedByUser: { connect: { id: "non-existent-user-id" } },
+            ownedByTeam: { connect: { id: "non-existent-team-id" } }, // Both owners
+        },
+        invalidVersionData: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            resourceType: ResourceType.Routine,
+            versions: {
+                create: [{
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isComplete: true,
+                    isLatest: true,
+                    isPrivate: false,
+                    versionLabel: "", // Empty version label
+                    complexity: -1, // Invalid complexity
+                }],
+            },
+        },
+    },
+    edgeCases: {
+        maxComplexityResource: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            resourceType: ResourceType.SmartContract,
+            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            versions: {
+                create: [{
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isComplete: true,
+                    isLatest: true,
+                    isPrivate: false,
+                    versionLabel: "1.0.0",
+                    complexity: 10, // Maximum complexity
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Maximum Complexity Resource",
+                            description: "A resource with the highest possible complexity rating",
+                        }],
+                    },
+                }],
+            },
+        },
+        multipleVersionsResource: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            resourceType: ResourceType.Api,
+            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            versions: {
+                create: [
+                    {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isComplete: true,
+                        isLatest: false,
+                        isPrivate: false,
+                        versionLabel: "1.0.0",
+                        complexity: 3,
+                        translations: {
+                            create: [{
+                                id: generatePK(),
+                                language: "en",
+                                name: "API v1.0",
+                                description: "Initial API version",
+                            }],
+                        },
+                    },
+                    {
+                        id: generatePK(),
+                        publicId: generatePublicId(),
+                        isComplete: true,
+                        isLatest: true,
+                        isPrivate: false,
+                        versionLabel: "2.0.0",
+                        complexity: 6,
+                        translations: {
+                            create: [{
+                                id: generatePK(),
+                                language: "en",
+                                name: "API v2.0",
+                                description: "Enhanced API with new features",
+                            }],
+                        },
+                    },
+                ],
+            },
+        },
+        privateInternalResource: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: true,
+            isInternal: true,
+            resourceType: ResourceType.DataStructure,
+            ownedByTeam: { connect: { id: "team_placeholder_id" } },
+            permissions: JSON.stringify({
+                canEdit: ["TeamOwner", "TeamAdmin"],
+                canView: ["TeamMember"],
+                canDelete: ["TeamOwner"],
+            }),
+        },
+        multiLanguageResource: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            resourceType: ResourceType.Project,
+            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            versions: {
+                create: [{
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isComplete: true,
+                    isLatest: true,
+                    isPrivate: false,
+                    versionLabel: "1.0.0",
+                    complexity: 5,
+                    translations: {
+                        create: [
+                            { id: generatePK(), language: "en", name: "Global Project", description: "International collaboration project" },
+                            { id: generatePK(), language: "es", name: "Proyecto Global", description: "Proyecto de colaboración internacional" },
+                            { id: generatePK(), language: "fr", name: "Projet Global", description: "Projet de collaboration internationale" },
+                            { id: generatePK(), language: "de", name: "Globales Projekt", description: "Internationales Kooperationsprojekt" },
+                            { id: generatePK(), language: "ja", name: "グローバルプロジェクト", description: "国際協力プロジェクト" },
+                        ],
+                    },
+                }],
+            },
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating resource database fixtures
+ */
+export class ResourceDbFactory extends EnhancedDbFactory<Prisma.ResourceCreateInput> {
+    
+    /**
+     * Get the test fixtures for Resource model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.ResourceCreateInput> {
+        return resourceDbFixtures;
+    }
+
+    /**
+     * Get Resource-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: resourceDbIds.resource1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    resourceType: ResourceType.Code,
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    resourceType: ResourceType.Code,
+                    ownedByUser: { connect: { id: "non-existent-user-id" } },
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: "", // Empty publicId violates constraint
+                    isPrivate: false,
+                    resourceType: ResourceType.Code,
+                },
+            },
+            validation: {
+                requiredFieldMissing: resourceDbFixtures.invalid.missingRequired,
+                invalidDataType: resourceDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    resourceType: ResourceType.Code,
+                    versions: {
+                        create: [{
+                            id: generatePK(),
+                            publicId: generatePublicId(),
+                            isComplete: true,
+                            isLatest: true,
+                            isPrivate: false,
+                            versionLabel: "1.0.0",
+                            complexity: 15, // Out of range (max 10)
+                        }],
+                    },
+                },
+            },
+            businessLogic: {
+                bothUserAndTeamOwners: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    resourceType: ResourceType.Code,
+                    ownedByUser: { connect: { id: "user_placeholder_id" } },
+                    ownedByTeam: { connect: { id: "team_placeholder_id" } }, // Should have only one owner
+                },
+                privateResourceWithoutOwner: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: true, // Private but no owner
+                    resourceType: ResourceType.Code,
+                },
+                incompleteLatestVersion: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    resourceType: ResourceType.Routine,
+                    versions: {
+                        create: [{
+                            id: generatePK(),
+                            publicId: generatePublicId(),
+                            isComplete: false, // Latest version incomplete
+                            isLatest: true,
+                            isPrivate: false,
+                            versionLabel: "1.0.0",
+                            complexity: 5,
+                        }],
+                    },
+                },
+            },
         };
+    }
+
+    /**
+     * Add owner to a resource fixture
+     */
+    protected addOwner(data: Prisma.ResourceCreateInput, ownerId: string, ownerType: 'user' | 'team' = 'user'): Prisma.ResourceCreateInput {
+        return {
+            ...data,
+            ...(ownerType === 'user' 
+                ? { ownedByUser: { connect: { id: ownerId } } }
+                : { ownedByTeam: { connect: { id: ownerId } } }
+            ),
+        };
+    }
+
+    /**
+     * Add versions to a resource fixture
+     */
+    protected addVersions(data: Prisma.ResourceCreateInput, versions: Array<{
+        name: string;
+        versionLabel: string;
+        isLatest?: boolean;
+        isComplete?: boolean;
+        complexity?: number;
+        description?: string;
+    }>): Prisma.ResourceCreateInput {
+        return {
+            ...data,
+            versions: {
+                create: versions.map(version => ({
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isComplete: version.isComplete ?? false,
+                    isLatest: version.isLatest ?? false,
+                    isPrivate: false,
+                    versionLabel: version.versionLabel,
+                    complexity: version.complexity ?? 1,
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: version.name,
+                            description: version.description ?? "Resource version description",
+                        }],
+                    },
+                })),
+            },
+        };
+    }
+
+    /**
+     * Resource-specific validation
+     */
+    protected validateSpecific(data: Prisma.ResourceCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to Resource
+        if (!data.resourceType) errors.push("Resource type is required");
+        if (data.isPrivate === undefined) errors.push("isPrivate flag is required");
+
+        // Check business logic
+        if (data.ownedByUser && data.ownedByTeam) {
+            errors.push("Resource cannot be owned by both user and team");
+        }
+
+        if (data.isPrivate && !data.ownedByUser && !data.ownedByTeam) {
+            warnings.push("Private resource should have an owner");
+        }
+
+        if (data.isInternal && !data.ownedByTeam) {
+            warnings.push("Internal resources are typically team-owned");
+        }
+
+        // Check versions
+        if (data.versions?.create) {
+            const versions = Array.isArray(data.versions.create) ? data.versions.create : [data.versions.create];
+            const latestVersions = versions.filter(v => v.isLatest);
+            
+            if (latestVersions.length !== 1) {
+                errors.push("Resource must have exactly one latest version");
+            }
+
+            const hasCompleteVersion = versions.some(v => v.isComplete);
+            if (!hasCompleteVersion) {
+                warnings.push("Resource should have at least one complete version");
+            }
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
+    static createMinimal(overrides?: Partial<Prisma.ResourceCreateInput>): Prisma.ResourceCreateInput {
+        const factory = new ResourceDbFactory();
+        return factory.createMinimal(overrides);
     }
 
     static createWithOwner(
@@ -107,14 +498,9 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...resourceWithOwnerDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            resourceType,
-            ownedByUser: { connect: { id: ownerId } },
-            ...overrides,
-        };
+        const factory = new ResourceDbFactory();
+        const data = factory.createMinimal({ resourceType, ...overrides });
+        return factory.addOwner(data, ownerId, 'user');
     }
 
     static createWithTeamOwner(
@@ -122,14 +508,9 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Project,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...minimalResourceDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            resourceType,
-            ownedByTeam: { connect: { id: teamId } },
-            ...overrides,
-        };
+        const factory = new ResourceDbFactory();
+        const data = factory.createMinimal({ resourceType, ...overrides });
+        return factory.addOwner(data, teamId, 'team');
     }
 
     static createComplete(
@@ -137,40 +518,9 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Routine,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        const versionId = generatePK();
-        
-        return {
-            ...completeResourceDb,
-            id: generatePK(),
-            publicId: generatePublicId(),
-            resourceType,
-            ownedByUser: { connect: { id: ownerId } },
-            versions: {
-                create: [{
-                    id: versionId,
-                    publicId: generatePublicId(),
-                    isComplete: true,
-                    isLatest: true,
-                    isPrivate: false,
-                    versionLabel: "1.0.0",
-                    versionNotes: "Initial version",
-                    complexity: 5,
-                    translations: {
-                        create: [
-                            {
-                                id: generatePK(),
-                                language: "en",
-                                name: "Test Resource",
-                                description: "A complete test resource",
-                                instructions: "Follow these steps to use the resource",
-                                details: "Detailed information about the resource",
-                            },
-                        ],
-                    },
-                }],
-            },
-            ...overrides,
-        };
+        const factory = new ResourceDbFactory();
+        const data = factory.createComplete({ resourceType, ...overrides });
+        return factory.addOwner(data, ownerId, 'user');
     }
 
     static createWithVersion(
@@ -184,30 +534,17 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...this.createMinimal(overrides),
-            resourceType,
-            ownedByUser: { connect: { id: ownerId } },
-            versions: {
-                create: [{
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    isComplete: versionData.isComplete ?? false,
-                    isLatest: true,
-                    isPrivate: false,
-                    versionLabel: versionData.versionLabel ?? "1.0.0",
-                    complexity: 1,
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            name: versionData.name,
-                            description: versionData.description ?? "Test resource description",
-                        }],
-                    },
-                }],
-            },
-        };
+        const factory = new ResourceDbFactory();
+        let data = factory.createMinimal({ resourceType, ...overrides });
+        data = factory.addOwner(data, ownerId, 'user');
+        return factory.addVersions(data, [{
+            name: versionData.name,
+            versionLabel: versionData.versionLabel ?? "1.0.0",
+            isLatest: true,
+            isComplete: versionData.isComplete ?? false,
+            complexity: 1,
+            description: versionData.description,
+        }]);
     }
 
     static createWithMultipleVersions(
@@ -222,30 +559,17 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...this.createMinimal(overrides),
-            resourceType,
-            ownedByUser: { connect: { id: ownerId } },
-            versions: {
-                create: versions.map(version => ({
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    isComplete: version.isComplete ?? false,
-                    isLatest: version.isLatest ?? false,
-                    isPrivate: false,
-                    versionLabel: version.versionLabel,
-                    complexity: 1,
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            name: version.name,
-                            description: version.description ?? "Test resource description",
-                        }],
-                    },
-                })),
-            },
-        };
+        const factory = new ResourceDbFactory();
+        let data = factory.createMinimal({ resourceType, ...overrides });
+        data = factory.addOwner(data, ownerId, 'user');
+        return factory.addVersions(data, versions.map(version => ({
+            name: version.name,
+            versionLabel: version.versionLabel,
+            isLatest: version.isLatest ?? false,
+            isComplete: version.isComplete ?? false,
+            complexity: 1,
+            description: version.description,
+        })));
     }
 
     /**
@@ -256,10 +580,13 @@ export class ResourceDbFactory {
         permissions: Record<string, any>,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...this.createWithOwner(ownerId, ResourceType.Code, overrides),
+        const factory = new ResourceDbFactory();
+        let data = factory.createMinimal({ 
+            resourceType: ResourceType.Code,
             permissions: JSON.stringify(permissions),
-        };
+            ...overrides 
+        });
+        return factory.addOwner(data, ownerId, 'user');
     }
 
     /**
@@ -270,10 +597,13 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...this.createWithOwner(ownerId, resourceType, overrides),
+        const factory = new ResourceDbFactory();
+        let data = factory.createMinimal({ 
+            resourceType,
             isPrivate: true,
-        };
+            ...overrides 
+        });
+        return factory.addOwner(data, ownerId, 'user');
     }
 
     /**
@@ -284,10 +614,13 @@ export class ResourceDbFactory {
         resourceType: ResourceType = ResourceType.Api,
         overrides?: Partial<Prisma.ResourceCreateInput>
     ): Prisma.ResourceCreateInput {
-        return {
-            ...this.createWithOwner(ownerId, resourceType, overrides),
+        const factory = new ResourceDbFactory();
+        let data = factory.createMinimal({ 
+            resourceType,
             isInternal: true,
-        };
+            ...overrides 
+        });
+        return factory.addOwner(data, ownerId, 'user');
     }
 }
 
@@ -346,7 +679,7 @@ export class ResourceVersionDbFactory {
 }
 
 /**
- * Helper to seed multiple test resources
+ * Enhanced helper to seed multiple test resources with comprehensive options
  */
 export async function seedTestResources(
     prisma: any,
@@ -359,22 +692,30 @@ export async function seedTestResources(
         isInternal?: boolean;
         teamOwnerId?: string;
     }
-) {
+): Promise<BulkSeedResult<any>> {
+    const factory = new ResourceDbFactory();
     const resources = [];
     const resourceType = options?.resourceType ?? ResourceType.Code;
+    let versionCount = 0;
+    let privateCount = 0;
+    let internalCount = 0;
+    let teamOwnedCount = 0;
 
     for (let i = 0; i < count; i++) {
         let resourceData: Prisma.ResourceCreateInput;
+        const isPrivate = options?.isPrivate ?? false;
+        const isInternal = options?.isInternal ?? false;
 
         if (options?.teamOwnerId) {
             resourceData = ResourceDbFactory.createWithTeamOwner(
                 options.teamOwnerId,
                 resourceType,
                 {
-                    isPrivate: options?.isPrivate ?? false,
-                    isInternal: options?.isInternal ?? false,
+                    isPrivate,
+                    isInternal,
                 }
             );
+            teamOwnedCount++;
         } else {
             resourceData = options?.withVersions
                 ? ResourceDbFactory.createWithVersion(
@@ -384,13 +725,22 @@ export async function seedTestResources(
                         description: `Description for test resource ${i + 1}`,
                         isComplete: i % 2 === 0, // Alternate complete/incomplete
                     },
-                    resourceType
+                    resourceType,
+                    {
+                        isPrivate,
+                        isInternal,
+                    }
                 )
                 : ResourceDbFactory.createWithOwner(ownerId, resourceType, {
-                    isPrivate: options?.isPrivate ?? false,
-                    isInternal: options?.isInternal ?? false,
+                    isPrivate,
+                    isInternal,
                 });
+            
+            if (options?.withVersions) versionCount++;
         }
+
+        if (isPrivate) privateCount++;
+        if (isInternal) internalCount++;
 
         const resource = await prisma.resource.create({
             data: resourceData,
@@ -408,7 +758,16 @@ export async function seedTestResources(
         resources.push(resource);
     }
 
-    return resources;
+    return {
+        records: resources,
+        summary: {
+            total: resources.length,
+            withVersions: versionCount,
+            private: privateCount,
+            internal: internalCount,
+            teamOwned: teamOwnedCount,
+        },
+    };
 }
 
 /**

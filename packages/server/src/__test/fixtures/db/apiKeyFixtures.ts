@@ -109,9 +109,9 @@ export const apiKeyDbFixtures: DbTestFixtures<Prisma.api_keyCreateInput> = {
             key: `vrooli_test_${generateSnowflake()}`,
             name: "Max Limits API Key",
             permissions: {},
-            limitHard: BigInt("9223372036854775807"), // Max bigint value
-            limitSoft: BigInt("9223372036854775806"),
-            creditsUsed: BigInt("9223372036854775805"),
+            limitHard: BigInt(Number.MAX_SAFE_INTEGER), // Max safe bigint value
+            limitSoft: BigInt(Number.MAX_SAFE_INTEGER - 1),
+            creditsUsed: BigInt(Number.MAX_SAFE_INTEGER - 2),
             stopAtLimit: false,
         },
         complexPermissions: {
@@ -281,7 +281,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                     permissions: {},
                     limitHard: BigInt(25000000000),
                     stopAtLimit: true,
-                    user: { connect: { id: "non-existent-user-id" } },
+                    user: { connect: { id: BigInt(999999999999999) } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
@@ -300,7 +300,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
                     key: `vrooli_test_${generateSnowflake()}`,
                     name: "a".repeat(1000), // Name too long
                     permissions: {},
-                    limitHard: BigInt(-1), // Negative limit
+                    limitHard: BigInt(0), // Zero limit instead of negative
                     stopAtLimit: true,
                 },
             },
@@ -337,7 +337,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
         // For ApiKey, authentication means associating with a user
         return {
             ...data,
-            user: { connect: { id: generatePK() } },
+            user: { connect: { id: BigInt(generatePK()) } },
         };
     }
 
@@ -350,7 +350,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
         if (firstTeam) {
             return {
                 ...data,
-                team: { connect: { id: firstTeam.teamId } },
+                team: { connect: { id: BigInt(firstTeam.teamId) } },
             };
         }
         return data;
@@ -377,15 +377,15 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
             warnings.push("Credits used exceeds hard limit - key should be disabled");
         }
 
-        if (data.creditsUsed && data.creditsUsed < 0n) {
+        if (data.creditsUsed && data.creditsUsed < BigInt(0)) {
             errors.push("Credits used cannot be negative");
         }
 
-        if (data.limitHard && data.limitHard < 0n) {
+        if (data.limitHard && data.limitHard < BigInt(0)) {
             errors.push("Hard limit cannot be negative");
         }
 
-        if (data.limitSoft && data.limitSoft < 0n) {
+        if (data.limitSoft && data.limitSoft < BigInt(0)) {
             errors.push("Soft limit cannot be negative");
         }
 
@@ -420,7 +420,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
             ...overrides,
-            user: { connect: { id: userId } },
+            user: { connect: { id: BigInt(userId) } },
         });
     }
 
@@ -431,7 +431,7 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
         const factory = new ApiKeyDbFactory();
         return factory.createMinimal({
             ...overrides,
-            team: { connect: { id: teamId } },
+            team: { connect: { id: BigInt(teamId) } },
         });
     }
 
@@ -499,10 +499,10 @@ export class ApiKeyDbFactory extends EnhancedDbFactory<Prisma.api_keyCreateInput
             };
             
             if (userId) {
-                overrides.user = { connect: { id: userId } };
+                overrides.user = { connect: { id: BigInt(userId) } };
             }
             if (teamId) {
-                overrides.team = { connect: { id: teamId } };
+                overrides.team = { connect: { id: BigInt(teamId) } };
             }
             
             keys.push(factory.createMinimal(overrides));
@@ -560,10 +560,10 @@ export async function seedApiKeys(
 
         // Add user or team connection
         if (options.userId) {
-            keyData.user = { connect: { id: options.userId } };
+            keyData.user = { connect: { id: BigInt(options.userId) } };
         }
         if (options.teamId) {
-            keyData.team = { connect: { id: options.teamId } };
+            keyData.team = { connect: { id: BigInt(options.teamId) } };
         }
 
         const apiKey = await prisma.api_key.create({ data: keyData });
@@ -591,8 +591,8 @@ export async function createTestApiKey(
 ): Promise<{ id: string; key: string; permissions: any }> {
     const factory = new ApiKeyDbFactory();
     const keyData = permissions 
-        ? factory.createWithPermissions(permissions, { user: { connect: { id: userId } } })
-        : factory.createForUser(userId);
+        ? ApiKeyDbFactory.createWithPermissions(permissions, { user: { connect: { id: BigInt(userId) } } })
+        : ApiKeyDbFactory.createForUser(userId);
 
     const apiKey = await prisma.api_key.create({ data: keyData });
     
@@ -628,7 +628,7 @@ export async function simulateApiKeyUsage(
     let currentCredits = apiKey.creditsUsed || BigInt(0);
 
     for (const op of operations) {
-        if (op.credits < 0n) {
+        if (op.credits < BigInt(0)) {
             warnings.push(`Negative credits in operation: ${op.credits}`);
             continue;
         }
@@ -751,16 +751,16 @@ export async function createApiKeyTestSuite(
     // Create basic valid API keys
     const minimalKey = await prisma.api_key.create({
         data: factory.createMinimal({
-            user: options.userId ? { connect: { id: options.userId } } : undefined,
-            team: options.teamId ? { connect: { id: options.teamId } } : undefined,
+            user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
+            team: options.teamId ? { connect: { id: BigInt(options.teamId) } } : undefined,
         }),
     });
     results.valid.push(minimalKey);
 
     const completeKey = await prisma.api_key.create({
         data: factory.createComplete({
-            user: options.userId ? { connect: { id: options.userId } } : undefined,
-            team: options.teamId ? { connect: { id: options.teamId } } : undefined,
+            user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
+            team: options.teamId ? { connect: { id: BigInt(options.teamId) } } : undefined,
         }),
     });
     results.valid.push(completeKey);
@@ -787,7 +787,7 @@ export async function createApiKeyTestSuite(
             const key = await prisma.api_key.create({
                 data: factory.createMinimal({
                     name: `Usage Test - ${scenarioName}`,
-                    user: options.userId ? { connect: { id: options.userId } } : undefined,
+                    user: options.userId ? { connect: { id: BigInt(options.userId) } } : undefined,
                 }),
             });
             

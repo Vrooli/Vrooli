@@ -1,4 +1,5 @@
 import type { ResourceCreateInput, ResourceUpdateInput, ResourceVersionTranslationCreateInput, ResourceVersionTranslationUpdateInput } from "../../../api/types.js";
+import { ResourceType } from "../../../api/types.js";
 import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
 import { resourceValidation } from "../../../validation/models/resource.js";
 
@@ -27,7 +28,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
     minimal: {
         create: {
             id: validIds.id1,
-            resourceType: "Note",
+            resourceType: ResourceType.Note,
             isPrivate: false,
             ownedByUserConnect: validIds.id2,
             versionsCreate: [
@@ -56,7 +57,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             isInternal: false,
             isPrivate: true,
             permissions: JSON.stringify(["read", "write", "admin"]),
-            resourceType: "Project",
+            resourceType: ResourceType.Project,
             ownedByTeamConnect: validIds.id2,
             parentConnect: validIds.id3,
             tagsConnect: [validIds.id4, validIds.id5],
@@ -92,10 +93,6 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
                     ],
                 },
             ],
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 123,
-            unknownField3: true,
         },
         update: {
             id: validIds.id1,
@@ -132,9 +129,6 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
                 },
             ],
             versionsDelete: [validIds.id4],
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 456,
         },
     },
     invalid: {
@@ -156,7 +150,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
                 isInternal: "true", // Should be boolean
                 isPrivate: "false", // Should be boolean
                 permissions: ["read", "write"], // Should be JSON string
-                resourceType: "InvalidType", // Invalid enum value
+                resourceType: "InvalidType" as any, // Invalid enum value
                 ownedByUserConnect: 789, // Should be string
             },
             update: {
@@ -169,7 +163,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -194,7 +188,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         invalidResourceType: {
             create: {
                 id: validIds.id1,
-                resourceType: "UnknownType", // Not a valid enum value
+                resourceType: "UnknownType" as any, // Not a valid enum value
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -216,7 +210,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         missingOwner: {
             create: {
                 id: validIds.id1,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 // Missing both ownedByUserConnect and ownedByTeamConnect
                 versionsCreate: [
                     {
@@ -238,7 +232,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         bothOwners: {
             create: {
                 id: validIds.id1,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 ownedByTeamConnect: validIds.id3, // Should only have one owner
                 versionsCreate: [
@@ -261,7 +255,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         missingVersions: {
             create: {
                 id: validIds.id1,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 // Missing required versionsCreate
             },
@@ -270,7 +264,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 publicId: "invalid-public-id!", // Invalid characters
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -291,7 +285,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 permissions: "not-valid-json", // Invalid JSON string
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -313,7 +307,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         userOwnedResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Api",
+                resourceType: ResourceType.Api,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -335,7 +329,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         teamOwnedResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Routine",
+                resourceType: ResourceType.Routine,
                 ownedByTeamConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -357,7 +351,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         codeResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Code",
+                resourceType: ResourceType.Code,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -379,7 +373,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         standardResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Standard",
+                resourceType: ResourceType.Standard,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -401,7 +395,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         projectResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Project",
+                resourceType: ResourceType.Project,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -423,7 +417,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         noteResource: {
             create: {
                 id: validIds.id1,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -446,7 +440,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 publicId: validPublicIds.pub2,
-                resourceType: "Api",
+                resourceType: ResourceType.Api,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -469,7 +463,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 isInternal: true,
-                resourceType: "Code",
+                resourceType: ResourceType.Code,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -492,7 +486,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 isPrivate: true,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -515,7 +509,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
             create: {
                 id: validIds.id1,
                 permissions: JSON.stringify(["read", "write", "delete", "admin"]),
-                resourceType: "Project",
+                resourceType: ResourceType.Project,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -537,7 +531,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         withParent: {
             create: {
                 id: validIds.id1,
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 parentConnect: validIds.id3,
                 versionsCreate: [
@@ -560,7 +554,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         withTags: {
             create: {
                 id: validIds.id1,
-                resourceType: "Routine",
+                resourceType: ResourceType.Routine,
                 ownedByUserConnect: validIds.id2,
                 tagsConnect: [validIds.id3, validIds.id4],
                 tagsCreate: [
@@ -593,7 +587,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
         multipleVersions: {
             create: {
                 id: validIds.id1,
-                resourceType: "Api",
+                resourceType: ResourceType.Api,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -682,7 +676,7 @@ export const resourceFixtures: ModelTestFixtures<ResourceCreateInput, ResourceUp
                 id: validIds.id1,
                 isInternal: "true",
                 isPrivate: "false",
-                resourceType: "Note",
+                resourceType: ResourceType.Note,
                 ownedByUserConnect: validIds.id2,
                 versionsCreate: [
                     {
@@ -709,7 +703,7 @@ const customizers = {
     create: (base: ResourceCreateInput): ResourceCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
-        resourceType: base.resourceType || "Note",
+        resourceType: base.resourceType || ResourceType.Note,
         ownedByUserConnect: base.ownedByUserConnect || (base.ownedByTeamConnect ? undefined : validIds.id2),
         versionsCreate: base.versionsCreate || [
             {

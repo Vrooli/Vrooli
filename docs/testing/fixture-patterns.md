@@ -62,6 +62,119 @@ export const bookmarkValidation = {
 
 ## Pattern Catalog
 
+### Pattern 0: Factory Chain Pattern (Primary Pattern) 🏭
+**When to use**: For all round-trip testing and multi-layer integration testing
+
+The Factory Chain Pattern is the foundation of Vrooli's Unified Fixture Architecture. Each factory connects exactly two adjacent layers, ensuring type safety and data integrity across the entire application flow.
+
+```typescript
+// The complete factory chain
+interface UnifiedFixtureArchitecture {
+  // Each factory connects 2 layers
+  formFactory: FormFactory<TFormData, TShape>
+  shapeFactory: ShapeFactory<TShape, TAPIInput>
+  apiFactory: APIFactory<TAPIInput, TValidated>
+  validationFactory: ValidationFactory<TValidated, TEndpointInput>
+  endpointFactory: EndpointFactory<TEndpointInput, TDBInput>
+  databaseFactory: DatabaseFactory<TDBInput, TDBResult>
+  responseFactory: ResponseFactory<TDBResult, TAPIResponse>
+  uiFactory: UIFactory<TAPIResponse, TUIState>
+  
+  // Round-trip orchestrator combines all factories
+  roundTripOrchestrator: RoundTripOrchestrator<TFormData, TUIState>
+}
+
+// Example implementation for Bookmark
+export class BookmarkFactoryChain implements UnifiedFixtureArchitecture {
+  // Form → Shape
+  formFactory = new FormFactory({
+    transform: (formData: BookmarkFormData) => {
+      return {
+        __typename: "Bookmark",
+        id: generatePK(),
+        to: { 
+          __typename: formData.bookmarkFor,
+          id: formData.forConnect
+        },
+        list: formData.newListLabel ? {
+          __typename: "BookmarkList",
+          label: formData.newListLabel
+        } : undefined
+      };
+    }
+  });
+
+  // Shape → API Input  
+  shapeFactory = new ShapeFactory({
+    transform: (shape: BookmarkShape) => {
+      return shapeBookmark.create(shape); // Use real shape function
+    }
+  });
+
+  // API Input → Validated
+  apiFactory = new APIFactory({
+    transform: async (input: BookmarkCreateInput) => {
+      const validation = await bookmarkValidation.create.validate(input);
+      if (!validation.isValid) throw new ValidationError(validation.errors);
+      return input;
+    }
+  });
+
+  // Execute round-trip test
+  async executeRoundTrip(formData: BookmarkFormData) {
+    const shape = await this.formFactory.transform(formData);
+    const apiInput = await this.shapeFactory.transform(shape);
+    const validated = await this.apiFactory.transform(apiInput);
+    const dbResult = await this.endpointFactory.execute(validated);
+    const apiResponse = await this.responseFactory.transform(dbResult);
+    const uiState = await this.uiFactory.transform(apiResponse);
+    
+    return {
+      success: true,
+      formData,
+      finalUIState: uiState,
+      databaseRecord: dbResult,
+      dataIntegrity: this.verifyIntegrity(formData, uiState)
+    };
+  }
+}
+```
+
+**Key Benefits**:
+- **Type Safety**: Each transformation is fully typed
+- **Testability**: Can test any subset of the chain
+- **Real Functions**: Uses actual application code
+- **Error Injection**: Each factory supports error scenarios
+- **Composability**: Factories can be mixed and matched
+
+**Usage Example**:
+```typescript
+describe("Bookmark Round-Trip", () => {
+  const factoryChain = new BookmarkFactoryChain();
+  
+  it("should handle complete flow", async () => {
+    const formData = {
+      bookmarkFor: "Project",
+      forConnect: "project_123",
+      newListLabel: "My Projects"
+    };
+    
+    const result = await factoryChain.executeRoundTrip(formData);
+    
+    expect(result.success).toBe(true);
+    expect(result.dataIntegrity).toBe(true);
+    expect(result.finalUIState.list.label).toBe("My Projects");
+  });
+  
+  it("should handle validation errors", async () => {
+    const invalidData = { bookmarkFor: null };
+    
+    await expect(factoryChain.executeRoundTrip(invalidData))
+      .rejects.toThrow(ValidationError);
+  });
+});
+```
+
 ### Pattern 1: Minimal Fixtures
 **When to use**: Unit tests, quick validation, performance-critical tests
 

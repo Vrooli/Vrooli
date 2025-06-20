@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "./components/buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import type { AvatarProps, BoxProps, Palette, StackProps, Theme } from "@mui/material";
 import { styled } from "@mui/material";

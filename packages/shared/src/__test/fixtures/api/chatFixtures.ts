@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ChatCreateInput, ChatUpdateInput, ChatTranslationCreateInput, ChatTranslationUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { chatValidation } from "../../../validation/models/chat.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -17,7 +19,7 @@ const validIds = {
 };
 
 // Shared chat test fixtures that can be imported by API tests, UI tests, etc.
-export const chatFixtures: ModelTestFixtures = {
+export const chatFixtures: ModelTestFixtures<ChatCreateInput, ChatUpdateInput> = {
     minimal: {
         create: {
             id: validIds.chatId1,
@@ -44,11 +46,9 @@ export const chatFixtures: ModelTestFixtures = {
                 },
                 chatConnect: validIds.chatId2,
                 userConnect: validIds.userId1,
-                translationsCreate: [{
-                    id: "1023456789012345678",
-                    language: "en",
-                    text: "Hello world!",
-                }],
+                language: "en",
+                text: "Hello world!",
+                versionIndex: 0,
             }],
             teamConnect: validIds.teamId1,
             translationsCreate: [{
@@ -80,11 +80,9 @@ export const chatFixtures: ModelTestFixtures = {
                 },
                 chatConnect: validIds.chatId2,
                 userConnect: validIds.userId2,
-                translationsCreate: [{
-                    id: "1123456789012345678",
-                    language: "en",
-                    text: "New message",
-                }],
+                language: "en",
+                text: "New message",
+                versionIndex: 0,
             }],
             messagesUpdate: [{
                 id: validIds.messageId1,
@@ -92,11 +90,7 @@ export const chatFixtures: ModelTestFixtures = {
                     __version: "1.0.0",
                     resources: [],
                 },
-                translationsCreate: [{
-                    id: "1223456789012345678",
-                    language: "en",
-                    text: "Updated message content",
-                }],
+                text: "Updated message content",
             }],
             messagesDelete: [validIds.messageId1],
             participantsDelete: [validIds.participantId1, validIds.participantId2],
@@ -233,11 +227,24 @@ export const chatFixtures: ModelTestFixtures = {
     },
 };
 
+// Custom factory that always generates valid IDs and required fields
+const customizers = {
+    create: (base: any): ChatCreateInput => ({
+        ...base,
+        id: base.id || validIds.chatId1,
+    }),
+    update: (base: any): ChatUpdateInput => ({
+        ...base,
+        id: base.id || validIds.chatId1,
+    }),
+};
+
 // Test data factory for generating dynamic test data
-export const chatTestDataFactory = new TestDataFactory(chatFixtures);
+export const chatTestDataFactory = new TypedTestDataFactory(chatFixtures, chatValidation, customizers);
+export const typedChatFixtures = createTypedFixtures(chatFixtures, chatValidation);
 
 // Export translation fixtures separately for focused testing
-export const chatTranslationFixtures = {
+export const chatTranslationFixtures: ModelTestFixtures<ChatTranslationCreateInput, ChatTranslationUpdateInput> = {
     minimal: {
         create: {
             id: validIds.chatId3,
@@ -284,6 +291,23 @@ export const chatTranslationFixtures = {
                 id: validIds.chatId3,
                 language: "en",
                 description: [], // Should be string
+            },
+        },
+    },
+    edgeCases: {
+        // Add edge cases for translation fixtures
+        minimalFields: {
+            create: {
+                id: validIds.chatId3,
+                language: "en",
+            },
+        },
+        maxLengthFields: {
+            create: {
+                id: validIds.chatId3,
+                language: "en",
+                name: testValues.longString(50),
+                description: testValues.longString(2048),
             },
         },
     },

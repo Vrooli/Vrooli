@@ -1,5 +1,6 @@
-import { BookmarkFor } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import { BookmarkFor, type BookmarkCreateInput, type BookmarkUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { bookmarkValidation } from "../../../validation/models/bookmark.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -15,7 +16,7 @@ const validIds = {
 };
 
 // Shared bookmark test fixtures
-export const bookmarkFixtures: ModelTestFixtures = {
+export const bookmarkFixtures: ModelTestFixtures<BookmarkCreateInput, BookmarkUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -142,15 +143,16 @@ export const bookmarkFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: BookmarkCreateInput): BookmarkCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: BookmarkUpdateInput): BookmarkUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const bookmarkTestDataFactory = new TestDataFactory(bookmarkFixtures, customizers);
+export const bookmarkTestDataFactory = new TypedTestDataFactory(bookmarkFixtures, bookmarkValidation, customizers);
+export const typedBookmarkFixtures = createTypedFixtures(bookmarkFixtures, bookmarkValidation);

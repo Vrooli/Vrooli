@@ -13,7 +13,192 @@ The error fixtures are organized into six categories:
 5. **Business Errors** - Business logic violations, limits, conflicts
 6. **System Errors** - Infrastructure and service failures
 
-## Usage
+## Current Architecture
+
+### Strengths
+- **Comprehensive Coverage**: All major error categories are represented
+- **Type Safety**: Full TypeScript support with proper interfaces
+- **Factory Functions**: Each category provides factories for custom error creation
+- **Realistic Scenarios**: Errors mirror actual production issues
+- **UI-Ready**: Network errors include display properties for user-facing messages
+
+### Areas for Improvement
+- **No Unified Factory Pattern**: Each category has its own structure
+- **Limited Recovery Testing**: Recovery flows could be more comprehensive
+- **Missing Error Composition**: No standard way to build complex error scenarios
+- **Inconsistent Testing Helpers**: Each category handles testing differently
+- **No Round-Trip Integration**: Not fully integrated with the round-trip testing framework
+
+## Ideal Architecture
+
+### Unified Error Factory Pattern
+
+To create a consistent experience across all error types, we should implement a unified factory pattern:
+
+```typescript
+// Type-safe error factory pattern
+interface ErrorFixtureFactory<TError> {
+  // Standard variants
+  standard: TError              // Most common error scenario
+  withDetails: TError           // Error with detailed information
+  variants: {                   // Common error variations
+    [key: string]: TError
+  }
+  
+  // Factory methods
+  create: (overrides?: Partial<TError>) => TError
+  createWithContext: (context: ErrorContext) => TError
+  
+  // Testing helpers
+  isRetryable: (error: TError) => boolean
+  getDisplayMessage: (error: TError) => string
+  getStatusCode: (error: TError) => number
+  
+  // Simulation helpers
+  simulateRecovery: (error: TError) => TError | null
+  escalate: (error: TError) => TError
+}
+
+// Error context for rich error scenarios
+interface ErrorContext {
+  user?: { id: string; role: string }
+  operation?: string
+  resource?: { type: string; id: string }
+  environment?: 'development' | 'staging' | 'production'
+  timestamp?: Date
+  attempt?: number
+  maxAttempts?: number
+}
+```
+
+### Enhanced Error Categories
+
+Each error category should support:
+
+1. **Error Chaining**: Build errors that reference their cause
+2. **Recovery Strategies**: Define how errors should be handled
+3. **User Impact**: Classify severity from user perspective
+4. **Telemetry Integration**: Include tracking information
+
+Example enhanced API error:
+
+```typescript
+interface EnhancedApiError extends ApiError {
+  // Existing properties
+  status: number
+  code: string
+  message: string
+  details?: any
+  
+  // Enhanced properties
+  cause?: Error                    // Original error that led to this
+  userImpact: 'blocking' | 'degraded' | 'none'
+  recovery: {
+    strategy: 'retry' | 'fallback' | 'fail'
+    attempts?: number
+    delay?: number
+    fallbackAction?: string
+  }
+  telemetry?: {
+    traceId: string
+    spanId: string
+    tags: Record<string, string>
+  }
+}
+```
+
+### Error Composition
+
+Support building complex error scenarios:
+
+```typescript
+// Compose errors for complex scenarios
+const errorComposer = {
+  // Chain errors together
+  chain: (primary: Error, ...causes: Error[]) => ComposedError,
+  
+  // Create multi-stage failure scenarios
+  cascade: (errors: Error[], options: CascadeOptions) => ErrorSequence,
+  
+  // Build context-aware errors
+  withContext: (error: Error, context: ErrorContext) => ContextualError,
+  
+  // Create time-based error scenarios
+  withTiming: (error: Error, timing: TimingOptions) => TimedError
+}
+
+// Example usage
+const complexError = errorComposer.chain(
+  apiErrorFixtures.serverError.standard,
+  systemErrorFixtures.database.connectionLost,
+  networkErrorFixtures.timeout.server
+);
+```
+
+### Recovery Testing Framework
+
+Enable comprehensive testing of error recovery flows:
+
+```typescript
+interface RecoveryScenario<TError> {
+  error: TError
+  recoverySteps: RecoveryStep[]
+  expectedOutcome: 'success' | 'partial' | 'failure'
+  fallbackBehavior?: string
+}
+
+interface RecoveryStep {
+  action: 'retry' | 'backoff' | 'circuit-break' | 'fallback'
+  delay?: number
+  condition?: (error: Error, attempt: number) => boolean
+  transform?: (error: Error) => Error
+}
+
+// Example recovery scenario
+const rateLimitRecovery: RecoveryScenario<ApiError> = {
+  error: apiErrorFixtures.rateLimit.standard,
+  recoverySteps: [
+    { action: 'backoff', delay: 1000 },
+    { action: 'retry', condition: (e, attempt) => attempt < 3 },
+    { action: 'circuit-break', condition: (e, attempt) => attempt >= 3 }
+  ],
+  expectedOutcome: 'success',
+  fallbackBehavior: 'queue-for-later'
+}
+```
+
+## Integration with Round-Trip Testing
+
+Error fixtures should seamlessly integrate with round-trip testing for comprehensive failure scenario testing:
+
+```typescript
+// Round-trip test with error scenarios
+describe('User Creation Error Handling', () => {
+  it('should handle validation errors correctly', async () => {
+    // Setup
+    const invalidUser = {
+      ...userFixtures.minimal.create,
+      email: 'invalid-email'  // Trigger validation error
+    };
+    
+    // Execute through all layers
+    const { ui, api, db } = await roundTripTest({
+      operation: 'user.create',
+      input: invalidUser,
+      expectedError: validationErrorFixtures.formErrors.registration
+    });
+    
+    // Verify error handling at each layer
+    expect(ui.error).toMatchObject({
+      fields: { email: 'Please enter a valid email address' }
+    });
+    expect(api.response.status).toBe(400);
+    expect(db.transaction).toHaveBeenRolledBack();
+  });
+});
+```
+
+## Usage Examples
 
 ### Basic Import
 
@@ -51,13 +236,15 @@ const customError = apiErrorFixtures.factories.createValidationError({
 ### Network Error Examples
 
 ```typescript
-// Handle timeout
+// Handle timeout with retry
 try {
     await fetchData();
 } catch (error) {
     const timeoutError = networkErrorFixtures.timeout.client;
     showError(timeoutError.display.title, timeoutError.display.message);
+    
     if (timeoutError.display.retry) {
+        await delay(timeoutError.display.retryDelay || 5000);
         retryOperation();
     }
 }
@@ -67,6 +254,13 @@ const offlineError = networkErrorFixtures.networkOffline;
 if (!navigator.onLine) {
     showOfflineMessage(offlineError.display);
 }
+
+// Progressive retry with backoff
+const retryableError = networkErrorFixtures.factories.createRetryableError(
+    "Service temporarily unavailable",
+    3,  // max retries
+    1   // current attempt
+);
 ```
 
 ### Validation Error Examples
@@ -94,11 +288,17 @@ emailErrors.fields.emails.forEach((error, index) => {
 ### Auth Error Examples
 
 ```typescript
-// Handle login failures
+// Handle login failures with actions
 const loginError = authErrorFixtures.login.accountLocked;
 if (error.code === loginError.code) {
     showLockoutMessage(loginError.details.lockoutDuration);
-    redirectTo(loginError.action.url);
+    
+    // Provide action to user
+    if (loginError.action) {
+        showActionButton(loginError.action.label, () => {
+            navigate(loginError.action.url);
+        });
+    }
 }
 
 // Check permissions
@@ -106,12 +306,19 @@ const permissionError = authErrorFixtures.permissions.insufficientRole;
 if (!hasRole(permissionError.details.requiredRole)) {
     showPermissionDenied(permissionError.message);
 }
+
+// Handle session expiration
+const sessionError = authErrorFixtures.session.expired;
+if (isSessionExpired(error)) {
+    await clearLocalAuth();
+    redirectToLogin(sessionError.action?.url);
+}
 ```
 
 ### Business Error Examples
 
 ```typescript
-// Resource limits
+// Resource limits with upgrade prompts
 const creditError = businessErrorFixtures.limits.creditLimit;
 if (credits < creditError.details.required) {
     showUpgradePrompt(creditError.userAction);
@@ -122,58 +329,45 @@ const workflowError = businessErrorFixtures.workflow.prerequisiteNotMet;
 if (workflowError.details.missingSteps.length > 0) {
     redirectToOnboarding(workflowError.details.missingSteps);
 }
+
+// Handle conflicts
+const conflictError = businessErrorFixtures.conflicts.versionConflict;
+if (error.type === 'conflict') {
+    const resolution = await showConflictResolver(
+        conflictError.details.yourVersion,
+        conflictError.details.currentVersion
+    );
+    if (resolution === 'merge') {
+        await mergeChanges();
+    }
+}
 ```
 
 ### System Error Examples
 
 ```typescript
-// Database errors
+// Database errors with automatic recovery
 const dbError = systemErrorFixtures.database.connectionLost;
 if (dbError.recovery.automatic) {
-    waitForRecovery(dbError.recovery.estimatedRecovery);
+    showTemporaryError("Connection lost. Reconnecting...");
+    await waitForRecovery(dbError.recovery.estimatedRecovery);
 } else {
     showMaintenanceMode();
 }
 
-// Service failures
+// Service failures with fallback
 const serviceError = systemErrorFixtures.externalService.aiServiceDown;
 if (serviceError.recovery.fallback) {
-    useAlternativeService(serviceError.recovery.fallback);
+    console.warn(`AI service down, using fallback: ${serviceError.recovery.fallback}`);
+    await useAlternativeService(serviceError.recovery.fallback);
 }
-```
 
-## Factory Functions
-
-Each fixture category provides factory functions for creating custom errors:
-
-```typescript
-// API errors
-const customApiError = apiErrorFixtures.factories.createApiError(
-    418, "TEAPOT", "I'm a teapot", { brewing: true }
-);
-
-// Validation errors
-const fieldError = validationErrorFixtures.factories.createFieldError(
-    "username", "Username already taken"
-);
-
-// Network errors
-const timeoutError = networkErrorFixtures.factories.createTimeoutError(5000);
-
-// Auth errors
-const permissionError = authErrorFixtures.factories.createPermissionError(
-    "projects", "write", "read"
-);
-
-// Business errors
-const limitError = businessErrorFixtures.factories.createLimitError(
-    "storage", 5.2, 5.0, "/billing/storage"
-);
-
-// System errors
-const criticalError = systemErrorFixtures.factories.createCriticalError(
-    "PaymentService", "Payment processing unavailable", "use_backup_gateway"
-);
+// Critical errors requiring intervention
+const criticalError = systemErrorFixtures.infrastructure.diskFull;
+if (criticalError.severity === 'critical') {
+    await notifyOps(criticalError);
+    showEmergencyMessage("System maintenance required");
+}
 ```
 
 ## Testing Patterns
@@ -191,6 +385,15 @@ it("should display validation errors", () => {
     expect(screen.getByText("Invalid email format")).toBeInTheDocument();
     expect(screen.getByText("Password must be at least 8 characters")).toBeInTheDocument();
 });
+
+it("should show retry button for network errors", () => {
+    const error = networkErrorFixtures.timeout.client;
+    render(<ErrorDisplay error={error} />);
+    
+    const retryButton = screen.getByText("Retry");
+    expect(retryButton).toBeInTheDocument();
+    expect(retryButton).toBeEnabled();
+});
 ```
 
 ### API Mocking with MSW
@@ -200,12 +403,35 @@ import { rest } from "msw";
 import { apiErrorFixtures } from "@vrooli/shared/__test/fixtures/errors";
 
 const handlers = [
+    // Simulate authentication failure
     rest.post("/api/login", (req, res, ctx) => {
         return res(
             ctx.status(401),
             ctx.json(apiErrorFixtures.unauthorized.standard)
         );
     }),
+    
+    // Simulate rate limiting
+    rest.get("/api/users", (req, res, ctx) => {
+        return res(
+            ctx.status(429),
+            ctx.json(apiErrorFixtures.rateLimit.burst),
+            ctx.set('Retry-After', '5')
+        );
+    }),
+    
+    // Simulate server error with retry
+    rest.post("/api/projects", (req, res, ctx) => {
+        const attempt = parseInt(req.headers.get('X-Retry-Attempt') || '0');
+        if (attempt < 2) {
+            return res(
+                ctx.status(500),
+                ctx.json(apiErrorFixtures.serverError.standard)
+            );
+        }
+        // Success on third attempt
+        return res(ctx.json({ success: true }));
+    })
 ];
 ```
 
@@ -224,26 +450,137 @@ it("should handle network errors gracefully", () => {
     );
     
     expect(screen.getByText(error.display.title)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+});
+
+it("should escalate critical errors", () => {
+    const error = systemErrorFixtures.infrastructure.memoryExhausted;
+    
+    render(
+        <ErrorBoundary>
+            <ComponentThatThrows error={error} />
+        </ErrorBoundary>
+    );
+    
+    expect(mockTelemetry.captureException).toHaveBeenCalledWith(
+        expect.objectContaining({
+            severity: 'critical',
+            component: 'System'
+        })
+    );
+});
+```
+
+### Recovery Flow Testing
+
+```typescript
+it("should retry with exponential backoff", async () => {
+    let attempts = 0;
+    const mockFetch = vi.fn().mockImplementation(() => {
+        attempts++;
+        if (attempts < 3) {
+            throw networkErrorFixtures.timeout.client.error;
+        }
+        return { success: true };
+    });
+    
+    const result = await retryWithBackoff(mockFetch, {
+        maxAttempts: 3,
+        baseDelay: 100
+    });
+    
+    expect(attempts).toBe(3);
+    expect(result.success).toBe(true);
+    
+    // Verify backoff delays
+    expect(mockFetch).toHaveBeenNthCalledWith(1);
+    expect(mockFetch).toHaveBeenNthCalledWith(2); // After 100ms
+    expect(mockFetch).toHaveBeenNthCalledWith(3); // After 200ms
 });
 ```
 
 ## Best Practices
 
-1. **Use appropriate variants**: Choose minimal fixtures for simple tests, detailed fixtures for comprehensive testing
-2. **Leverage factory functions**: Create custom errors for specific test scenarios
-3. **Test error recovery**: Use recovery information to test retry logic and fallbacks
-4. **Mock consistently**: Use the same error fixtures in both unit and integration tests
-5. **Handle all error types**: Test network, validation, auth, business, and system errors
+1. **Choose Appropriate Variants**: 
+   - Use `minimal` fixtures for unit tests
+   - Use `withDetails` fixtures for integration tests
+   - Use `variants` for specific scenarios
+
+2. **Leverage Factory Functions**: 
+   - Create custom errors for unique test scenarios
+   - Use factories for dynamic error generation
+   - Maintain consistency with factory patterns
+
+3. **Test Error Recovery**: 
+   - Always test retry logic with retryable errors
+   - Verify fallback behaviors for critical errors
+   - Test user-facing error messages and actions
+
+4. **Mock Consistently**: 
+   - Use the same error fixtures across all test types
+   - Ensure MSW handlers return fixture errors
+   - Match production error responses exactly
+
+5. **Handle All Error Types**: 
+   - Test happy path and all error scenarios
+   - Verify error propagation through layers
+   - Ensure graceful degradation for critical errors
+
+6. **User Experience Focus**:
+   - Always include user-friendly messages
+   - Provide actionable next steps
+   - Test accessibility of error states
 
 ## Adding New Error Fixtures
 
 To add new error scenarios:
 
-1. Identify the appropriate category (api, validation, network, auth, business, system)
-2. Add the new fixture following existing patterns
-3. Include both minimal and detailed variants where applicable
-4. Add factory functions for dynamic error creation
-5. Update this documentation with usage examples
+1. **Identify the Category**: Choose from api, validation, network, auth, business, or system
+2. **Follow Existing Patterns**: Match the structure of existing fixtures in that category
+3. **Include Variants**: Provide minimal, standard, and detailed versions
+4. **Add Factory Functions**: Enable dynamic error creation
+5. **Consider Recovery**: Include recovery information where applicable
+6. **Update Documentation**: Add usage examples to this README
+
+Example of adding a new error:
+
+```typescript
+// In apiErrors.ts
+export const apiErrorFixtures = {
+    // ... existing errors ...
+    
+    // New error type
+    paymentRequired: {
+        standard: {
+            status: 402,
+            code: "PAYMENT_REQUIRED",
+            message: "Payment is required to access this resource",
+        } satisfies ApiError,
+        
+        withDetails: {
+            status: 402,
+            code: "PAYMENT_REQUIRED",
+            message: "Please upgrade your plan to continue",
+            details: {
+                requiredPlan: "pro",
+                currentPlan: "free",
+                upgradeUrl: "/billing/upgrade"
+            }
+        } satisfies ApiError,
+        
+        quotaExceeded: {
+            status: 402,
+            code: "QUOTA_EXCEEDED",
+            message: "Monthly quota exceeded",
+            details: {
+                quota: 1000,
+                used: 1000,
+                resetDate: new Date(Date.now() + 2592000000).toISOString()
+            }
+        } satisfies ApiError,
+    }
+};
+```
 
 ## Error Properties Reference
 
@@ -253,11 +590,23 @@ To add new error scenarios:
 - `message`: User-friendly message
 - `details`: Additional error details
 - `retryAfter`: Seconds until retry (rate limiting)
+- `limit`: Rate limit maximum
+- `remaining`: Rate limit remaining
+- `reset`: Rate limit reset time
 
 ### Network Errors
 - `error`: JavaScript Error object
-- `display`: UI display properties (title, message, icon, retry)
-- `metadata`: Additional context (url, duration, attempts)
+- `display`: UI display properties
+  - `title`: Error title for UI
+  - `message`: Detailed user message
+  - `icon`: Material icon name
+  - `retry`: Whether to show retry option
+  - `retryDelay`: Milliseconds before retry
+- `metadata`: Additional context
+  - `url`: Request URL
+  - `method`: HTTP method
+  - `duration`: Request duration
+  - `attempt`: Retry attempt number
 
 ### Validation Errors
 - `fields`: Field-specific error messages
@@ -267,14 +616,31 @@ To add new error scenarios:
 - `code`: Auth error code
 - `message`: Error message
 - `details`: Context-specific details
+  - `reason`: Detailed reason
+  - `requiredRole`: Required user role
+  - `requiredPermission`: Required permission
+  - `expiresAt`: Expiration time
+  - `remainingAttempts`: Login attempts left
+  - `lockoutDuration`: Lockout time in seconds
 - `action`: Suggested user action
+  - `type`: Action type
+  - `label`: Button label
+  - `url`: Navigation URL
 
 ### Business Errors
 - `code`: Business error code
 - `message`: Error message
 - `type`: Error category (limit, conflict, state, workflow, constraint, policy)
 - `details`: Business-specific context
+  - `current`: Current value
+  - `limit`: Maximum allowed
+  - `required`: Required value
+  - `conflictWith`: Conflicting resource
+  - `suggestion`: Suggested resolution
 - `userAction`: Suggested resolution
+  - `label`: Action label
+  - `action`: Action identifier
+  - `url`: Navigation URL
 
 ### System Errors
 - `code`: System error code
@@ -282,4 +648,40 @@ To add new error scenarios:
 - `severity`: Error severity (critical, error, warning)
 - `component`: Affected system component
 - `details`: Technical details
-- `recovery`: Recovery options (automatic, retryable, fallback)
+  - `service`: Service name
+  - `operation`: Failed operation
+  - `errorCode`: Internal error code
+  - `stackTrace`: Stack trace (dev only)
+  - `metadata`: Additional metadata
+- `recovery`: Recovery options
+  - `automatic`: Can recover automatically
+  - `retryable`: Can be retried
+  - `estimatedRecovery`: Recovery time estimate
+  - `fallback`: Fallback strategy
+
+## Future Enhancements
+
+### Short Term
+1. **Unified Factory Pattern**: Implement consistent factory interface across all error types
+2. **Error Composition**: Add support for chaining and cascading errors
+3. **Recovery Scenarios**: Build comprehensive recovery testing framework
+4. **Telemetry Integration**: Add tracking and monitoring support
+
+### Medium Term
+1. **Error Simulation Service**: Create service for simulating complex error scenarios
+2. **Visual Error Explorer**: Build UI for browsing and testing error states
+3. **Auto-Recovery Patterns**: Implement standard recovery strategies
+4. **Error Analytics**: Track error patterns in tests for insights
+
+### Long Term
+1. **AI-Powered Error Generation**: Use AI to generate realistic error scenarios
+2. **Production Error Mirroring**: Import real production errors as fixtures
+3. **Cross-Service Error Propagation**: Test error handling across microservices
+4. **Chaos Engineering Integration**: Use fixtures in chaos testing scenarios
+
+## Related Documentation
+
+- [Fixtures Overview](/docs/testing/fixtures-overview.md) - General fixture documentation
+- [Round-Trip Testing](/docs/testing/round-trip-testing.md) - End-to-end testing with errors
+- [Error Handling Guide](/docs/architecture/error-handling.md) - Application error handling patterns
+- [API Documentation](/docs/api/errors.md) - API error response standards

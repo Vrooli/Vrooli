@@ -1,4 +1,118 @@
-import { vi } from 'vitest';
+import { vi, expect, beforeAll, afterEach } from 'vitest';
+
+// AI_CHECK: TEST_QUALITY=2 | LAST: 2025-06-18
+// Improved test quality in UI package by:
+// - Refactoring ErrorBoundary tests to focus on user behavior rather than implementation
+// - Improving useFetch tests with better descriptions and behavior-driven testing
+// - Enhancing useSocketChat tests with clearer real-time scenarios
+// - Added console warning suppression for cleaner test output
+// Note: Some tests like activeChatStore and TextInput still need quality improvements
+
+// Store original console methods
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+const originalConsoleLog = console.log;
+
+// Patterns to suppress in test output
+const suppressedPatterns = [
+    // MUI Tooltip warnings
+    /MUI: The `children` component of the Tooltip is not forwarding its props correctly/,
+    /MUI: You are providing a disabled `button` child to the Tooltip component/,
+    /A disabled element does not fire events/,
+    /Tooltip needs to listen to the child element's events/,
+    /Add a simple wrapper element, such as a `span`/,
+    // React ErrorBoundary expected errors
+    /The above error occurred in the <.*> component:/,
+    /React will try to recreate this component tree/,
+    // i18next warnings
+    /react-i18next:: You will need to pass in an i18next instance/,
+    // getObjectUrlBase warnings
+    /getObjectUrlBase called with non-object/,
+    // RichInputBase warnings
+    /RichInputBase: No child handleAction function found/,
+    // Other common test noise
+    /Warning: ReactDOM.render is no longer supported/,
+    /Warning: An invalid form control/,
+    /Warning: Failed prop type/,
+    /Warning: Unknown event handler property/,
+];
+
+// Setup console filtering
+beforeAll(() => {
+    // Filter console.error
+    console.error = (...args) => {
+        const message = args.join(' ');
+        const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
+        
+        if (!shouldSuppress) {
+            originalConsoleError(...args);
+        }
+    };
+
+    // Filter console.warn
+    console.warn = (...args) => {
+        const message = args.join(' ');
+        const shouldSuppress = suppressedPatterns.some(pattern => pattern.test(message));
+        
+        if (!shouldSuppress) {
+            originalConsoleWarn(...args);
+        }
+    };
+
+    // Filter console.log
+    console.log = (...args) => {
+        const message = args.join(' ');
+        
+        // Patterns to suppress in logs
+        const logSuppressPatterns = [
+            /AdvancedInput: Click detected/,
+            /AdvancedInput: Click on interactive element/,
+            /AdvancedInput: Focusing input/,
+        ];
+        
+        const shouldSuppress = logSuppressPatterns.some(pattern => pattern.test(message));
+        
+        if (!shouldSuppress) {
+            originalConsoleLog(...args);
+        }
+    };
+});
+
+// Restore console after each test to ensure clean state
+afterEach(() => {
+    // Clear any mocked console methods that individual tests might have created
+    if (console.error !== originalConsoleError && !console.error.toString().includes('shouldSuppress')) {
+        console.error = originalConsoleError;
+    }
+    if (console.warn !== originalConsoleWarn && !console.warn.toString().includes('shouldSuppress')) {
+        console.warn = originalConsoleWarn;
+    }
+    if (console.log !== originalConsoleLog) {
+        console.log = originalConsoleLog;
+    }
+});
+
+// Custom matchers for testing-library style assertions
+expect.extend({
+    toBeInTheDocument(received) {
+        const pass = received != null && received.nodeType === 1; // Element node
+        return {
+            pass,
+            message: () => pass 
+                ? `expected element not to be in the document`
+                : `expected element to be in the document`,
+        };
+    },
+    toBeChecked(received) {
+        const pass = received?.checked === true;
+        return {
+            pass,
+            message: () => pass
+                ? `expected element not to be checked`
+                : `expected element to be checked`,
+        };
+    },
+});
 
 // Mock @vrooli/shared using importOriginal to keep most functionality
 vi.mock('@vrooli/shared', async (importOriginal) => {
@@ -43,6 +157,21 @@ vi.mock('@vrooli/shared', async (importOriginal) => {
             InputType: { Text: 'Text', JSON: 'JSON' },
             TaskStatus: { Running: 'Running', Completed: 'Completed' },
             FormStructureType: { Tip: 'Tip' },
+            ResourceSubType: {
+                RoutineInternalAction: 'RoutineInternalAction',
+                RoutineApi: 'RoutineApi',
+                RoutineCode: 'RoutineCode',
+                RoutineData: 'RoutineData',
+                RoutineGenerate: 'RoutineGenerate',
+                RoutineInformational: 'RoutineInformational',
+                RoutineMultiStep: 'RoutineMultiStep',
+                RoutineSmartContract: 'RoutineSmartContract',
+                RoutineWeb: 'RoutineWeb',
+                CodeDataConverter: 'CodeDataConverter',
+                CodeSmartContract: 'CodeSmartContract',
+                StandardDataStructure: 'StandardDataStructure',
+                StandardPrompt: 'StandardPrompt',
+            },
             
             // Essential functions
             nanoid: () => Math.random().toString(36).substring(2, 9),

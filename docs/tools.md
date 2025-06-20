@@ -61,7 +61,7 @@ cd packages/shared && pnpm test-coverage
 ## File-level unit-integration tests:
 ```bash
 # Testing /packages/server/src/services/stripe.test.ts
-clear && pnpm build-tests && npx dotenv -e ../../.env-test -- mocha --file dist/__test/setup.js dist/services/stripe.test.js
+cd packages/server && npx vitest run src/services/stripe.test.ts
 ```
 
 ## Storybook:

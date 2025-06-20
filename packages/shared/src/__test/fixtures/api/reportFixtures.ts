@@ -1,4 +1,7 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ReportCreateInput, ReportUpdateInput } from "../../../api/types.js";
+import { ReportFor } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { reportValidation } from "../../../validation/models/report.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,11 +14,11 @@ const validIds = {
 };
 
 // Shared report test fixtures
-export const reportFixtures: ModelTestFixtures = {
+export const reportFixtures: ModelTestFixtures<ReportCreateInput, ReportUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            createdForType: "User",
+            createdForType: ReportFor.User,
             language: "en",
             reason: "Inappropriate content",
             createdForConnect: validIds.id2,
@@ -27,24 +30,17 @@ export const reportFixtures: ModelTestFixtures = {
     complete: {
         create: {
             id: validIds.id1,
-            createdForType: "Comment",
+            createdForType: ReportFor.Comment,
             details: "This comment contains spam and violates community guidelines. It includes inappropriate links and promotional content that is not relevant to the discussion.",
             language: "en",
             reason: "Spam and promotional content",
             createdForConnect: validIds.id3,
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 123,
-            unknownField3: true,
         },
         update: {
             id: validIds.id1,
             details: "Updated report details with additional information about the violation.",
             language: "es",
             reason: "Updated reason for the report",
-            // Add some extra fields that will be stripped
-            unknownField1: "should be stripped",
-            unknownField2: 456,
         },
     },
     invalid: {
@@ -61,7 +57,7 @@ export const reportFixtures: ModelTestFixtures = {
         invalidTypes: {
             create: {
                 id: 123, // Should be string
-                createdForType: "InvalidType", // Invalid enum value
+                createdForType: "InvalidType" as any, // Invalid enum value
                 details: 456, // Should be string
                 language: 789, // Should be string
                 reason: 101112, // Should be string
@@ -77,7 +73,7 @@ export const reportFixtures: ModelTestFixtures = {
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Test reason",
                 createdForConnect: validIds.id2,
@@ -89,7 +85,7 @@ export const reportFixtures: ModelTestFixtures = {
         invalidCreatedForType: {
             create: {
                 id: validIds.id1,
-                createdForType: "UnknownType", // Not a valid enum value
+                createdForType: "UnknownType" as any, // Not a valid enum value
                 language: "en",
                 reason: "Test reason",
                 createdForConnect: validIds.id2,
@@ -98,7 +94,7 @@ export const reportFixtures: ModelTestFixtures = {
         missingCreatedFor: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Test reason",
                 // Missing required createdForConnect
@@ -107,7 +103,7 @@ export const reportFixtures: ModelTestFixtures = {
         invalidCreatedForConnect: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Test reason",
                 createdForConnect: "invalid-connect-id",
@@ -116,7 +112,7 @@ export const reportFixtures: ModelTestFixtures = {
         invalidLanguage: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "xyz", // Invalid language code
                 reason: "Test reason",
                 createdForConnect: validIds.id2,
@@ -125,7 +121,7 @@ export const reportFixtures: ModelTestFixtures = {
         emptyReason: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "", // Empty reason (should fail)
                 createdForConnect: validIds.id2,
@@ -134,7 +130,7 @@ export const reportFixtures: ModelTestFixtures = {
         longReason: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "x".repeat(129), // Exceeds max length
                 createdForConnect: validIds.id2,
@@ -143,7 +139,7 @@ export const reportFixtures: ModelTestFixtures = {
         longDetails: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Test reason",
                 details: "x".repeat(8193), // Exceeds max length
@@ -155,7 +151,7 @@ export const reportFixtures: ModelTestFixtures = {
         withoutDetails: {
             create: {
                 id: validIds.id1,
-                createdForType: "Team",
+                createdForType: ReportFor.Team,
                 language: "en",
                 reason: "Policy violation",
                 createdForConnect: validIds.id4,
@@ -165,7 +161,7 @@ export const reportFixtures: ModelTestFixtures = {
         chatMessageReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "ChatMessage",
+                createdForType: ReportFor.ChatMessage,
                 language: "en",
                 reason: "Harassment",
                 details: "This message contains threats and harassment.",
@@ -175,7 +171,7 @@ export const reportFixtures: ModelTestFixtures = {
         commentReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "Comment",
+                createdForType: ReportFor.Comment,
                 language: "en",
                 reason: "Misinformation",
                 details: "Comment spreads false information.",
@@ -185,7 +181,7 @@ export const reportFixtures: ModelTestFixtures = {
         issueReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "Issue",
+                createdForType: ReportFor.Issue,
                 language: "en",
                 reason: "Duplicate issue",
                 details: "This issue is a duplicate of an existing one.",
@@ -195,7 +191,7 @@ export const reportFixtures: ModelTestFixtures = {
         resourceVersionReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "ResourceVersion",
+                createdForType: ReportFor.ResourceVersion,
                 language: "en",
                 reason: "Copyright violation",
                 details: "This resource version contains copyrighted material.",
@@ -205,7 +201,7 @@ export const reportFixtures: ModelTestFixtures = {
         tagReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "Tag",
+                createdForType: ReportFor.Tag,
                 language: "en",
                 reason: "Inappropriate tag",
                 details: "Tag contains offensive language.",
@@ -215,7 +211,7 @@ export const reportFixtures: ModelTestFixtures = {
         teamReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "Team",
+                createdForType: ReportFor.Team,
                 language: "en",
                 reason: "Fraudulent activity",
                 details: "Team is involved in fraudulent activities.",
@@ -225,7 +221,7 @@ export const reportFixtures: ModelTestFixtures = {
         userReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Spam account",
                 details: "User account is posting spam content.",
@@ -249,7 +245,7 @@ export const reportFixtures: ModelTestFixtures = {
         differentLanguages: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "es",
                 reason: "Contenido inapropiado",
                 details: "Este usuario está publicando contenido inapropiado.",
@@ -259,7 +255,7 @@ export const reportFixtures: ModelTestFixtures = {
         maxLengthReason: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "x".repeat(128), // Exactly max length
                 createdForConnect: validIds.id2,
@@ -268,7 +264,7 @@ export const reportFixtures: ModelTestFixtures = {
         minLengthReason: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "x", // Exactly min length (1)
                 createdForConnect: validIds.id2,
@@ -277,7 +273,7 @@ export const reportFixtures: ModelTestFixtures = {
         maxLengthDetails: {
             create: {
                 id: validIds.id1,
-                createdForType: "User",
+                createdForType: ReportFor.User,
                 language: "en",
                 reason: "Detailed violation",
                 details: "x".repeat(8192), // Exactly max length
@@ -287,7 +283,7 @@ export const reportFixtures: ModelTestFixtures = {
         differentIds: {
             create: {
                 id: validIds.id6,
-                createdForType: "Comment",
+                createdForType: ReportFor.Comment,
                 language: "en",
                 reason: "Different ID test",
                 createdForConnect: validIds.id5,
@@ -296,7 +292,7 @@ export const reportFixtures: ModelTestFixtures = {
         longDetailedReport: {
             create: {
                 id: validIds.id1,
-                createdForType: "ResourceVersion",
+                createdForType: ReportFor.ResourceVersion,
                 language: "en",
                 reason: "Multiple policy violations",
                 details: "This resource version violates multiple community guidelines including copyright infringement, inappropriate content, spam, and misinformation. The violations are severe and require immediate attention from the moderation team. Additional details include specific examples of the violations and evidence supporting the claims.",
@@ -308,19 +304,23 @@ export const reportFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<ReportCreateInput>): ReportCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
-        createdForType: base.createdForType || "User",
+        createdForType: base.createdForType || ReportFor.User,
         language: base.language || "en",
         reason: base.reason || "Test reason",
         createdForConnect: base.createdForConnect || validIds.id2,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<ReportUpdateInput>): ReportUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const reportTestDataFactory = new TestDataFactory(reportFixtures, customizers);
+export const reportTestDataFactory = new TypedTestDataFactory(reportFixtures, reportValidation, customizers);
+export const typedReportFixtures = createTypedFixtures(reportFixtures, reportValidation);
+
+// Legacy export for backward compatibility
+export const legacyReportTestDataFactory = new TestDataFactory(reportFixtures, customizers);

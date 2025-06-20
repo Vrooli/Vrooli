@@ -1,24 +1,252 @@
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for ChatInvite model - used for seeding test data
+ * These follow Prisma's shape for database operations
  */
 
-export class ChatInviteDbFactory {
+// Consistent IDs for testing
+export const chatInviteDbIds = {
+    invite1: generatePK(),
+    invite2: generatePK(),
+    invite3: generatePK(),
+    chat1: generatePK(),
+    chat2: generatePK(),
+    user1: generatePK(),
+    user2: generatePK(),
+    user3: generatePK(),
+};
+
+/**
+ * Enhanced test fixtures for ChatInvite model following standard structure
+ */
+export const chatInviteDbFixtures: DbTestFixtures<Prisma.ChatInviteCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        message: "You're invited to join this chat!",
+        chat: { connect: { id: chatInviteDbIds.chat1 } },
+        user: { connect: { id: chatInviteDbIds.user1 } },
+        status: "Pending",
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        message: "Welcome to our discussion! We'd love to have you join us in this conversation.",
+        chat: { connect: { id: chatInviteDbIds.chat1 } },
+        user: { connect: { id: chatInviteDbIds.user1 } },
+        status: "Accepted",
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required chat, user, and message
+            publicId: generatePublicId(),
+            status: "Pending",
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            publicId: 123, // Should be string
+            message: null, // Should be string
+            chat: "invalid-chat-reference", // Should be connect object
+            user: "invalid-user-reference", // Should be connect object
+            status: "InvalidStatus", // Not a valid status
+        },
+        emptyMessage: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "", // Empty message
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+    },
+    edgeCases: {
+        pendingInvite: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Pending invitation",
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+        acceptedInvite: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Accepted invitation",
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user2 } },
+            status: "Accepted",
+        },
+        declinedInvite: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Declined invitation",
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user3 } },
+            status: "Declined",
+        },
+        longMessage: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "This is a very long invitation message that goes into great detail about the chat, its purpose, the participants, the expected discussion topics, and all the reasons why the invitee should consider joining this particular conversation. ".repeat(5),
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+        shortMessage: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Hi!",
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+        specialCharactersMessage: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Welcome! 🚀 Join us for a great discussion 💬 with special chars: @#$%^&*()_+{}|:<>?[]\\/.,;'\"",
+            chat: { connect: { id: chatInviteDbIds.chat1 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+        multipleChatsInvite: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            message: "Invitation to second chat",
+            chat: { connect: { id: chatInviteDbIds.chat2 } },
+            user: { connect: { id: chatInviteDbIds.user1 } },
+            status: "Pending",
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating chat invite database fixtures
+ */
+export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.ChatInviteCreateInput> {
+    
+    /**
+     * Get the test fixtures for ChatInvite model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.ChatInviteCreateInput> {
+        return chatInviteDbFixtures;
+    }
+
+    /**
+     * Get ChatInvite-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: chatInviteDbIds.invite1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    message: "Duplicate invite",
+                    chat: { connect: { id: chatInviteDbIds.chat1 } },
+                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    status: "Pending",
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    message: "Foreign key violation",
+                    chat: { connect: { id: "non-existent-chat-id" } },
+                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    status: "Pending",
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: "", // Empty publicId
+                    message: "Check constraint violation",
+                    chat: { connect: { id: chatInviteDbIds.chat1 } },
+                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    status: "Pending",
+                },
+            },
+            validation: {
+                requiredFieldMissing: chatInviteDbFixtures.invalid.missingRequired,
+                invalidDataType: chatInviteDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: "a".repeat(500), // PublicId too long
+                    message: "a".repeat(10000), // Message too long
+                    chat: { connect: { id: chatInviteDbIds.chat1 } },
+                    user: { connect: { id: chatInviteDbIds.user1 } },
+                    status: "Pending",
+                },
+            },
+            businessLogic: {
+                duplicateInvite: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    message: "Duplicate chat invite",
+                    chat: { connect: { id: chatInviteDbIds.chat1 } },
+                    user: { connect: { id: chatInviteDbIds.user1 } }, // Same user/chat combo
+                    status: "Pending",
+                },
+                selfInvite: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    message: "Self invitation",
+                    chat: { connect: { id: chatInviteDbIds.chat1 } },
+                    user: { connect: { id: chatInviteDbIds.user1 } }, // User inviting themselves
+                    status: "Pending",
+                },
+            },
+        };
+    }
+
+    /**
+     * ChatInvite-specific validation
+     */
+    protected validateSpecific(data: Prisma.ChatInviteCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to ChatInvite
+        if (!data.chat) errors.push("ChatInvite chat is required");
+        if (!data.user) errors.push("ChatInvite user is required");
+        if (!data.message) errors.push("ChatInvite message is required");
+        if (!data.publicId) errors.push("ChatInvite publicId is required");
+
+        // Check message content
+        if (data.message && typeof data.message === 'string') {
+            if (data.message.length === 0) {
+                errors.push("Message cannot be empty");
+            }
+            if (data.message.length > 1000) {
+                warnings.push("Message is very long (>1000 chars)");
+            }
+            if (data.message.length < 5) {
+                warnings.push("Message is very short (<5 chars)");
+            }
+        }
+
+        // Check status
+        if (data.status && !['Pending', 'Accepted', 'Declined'].includes(data.status)) {
+            errors.push("Invalid status value");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
     static createMinimal(
         chatId: string,
         userId: string,
         overrides?: Partial<Prisma.ChatInviteCreateInput>
     ): Prisma.ChatInviteCreateInput {
-        return {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            message: "You're invited to join this chat!",
+        const factory = new ChatInviteDbFactory();
+        return factory.createMinimal({
             chat: { connect: { id: chatId } },
             user: { connect: { id: userId } },
+            message: "You're invited to join this chat!",
+            status: "Pending",
             ...overrides,
-        };
+        });
     }
 
     static createWithCustomMessage(
@@ -57,7 +285,7 @@ export class ChatInviteDbFactory {
 }
 
 /**
- * Helper to seed chat invites for testing
+ * Enhanced helper to seed multiple test chat invites with comprehensive options
  */
 export async function seedChatInvites(
     prisma: any,
@@ -67,8 +295,11 @@ export async function seedChatInvites(
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
     }
-) {
+): Promise<BulkSeedResult<any>> {
     const invites = [];
+    let pendingCount = 0;
+    let acceptedCount = 0;
+    let declinedCount = 0;
 
     for (let i = 0; i < options.userIds.length; i++) {
         const userId = options.userIds[i];
@@ -76,21 +307,36 @@ export async function seedChatInvites(
 
         if (options.status === "Accepted") {
             inviteData = ChatInviteDbFactory.createAccepted(options.chatId, userId);
+            acceptedCount++;
         } else if (options.status === "Declined") {
             inviteData = ChatInviteDbFactory.createDeclined(options.chatId, userId);
+            declinedCount++;
         } else if (options.withCustomMessages) {
             inviteData = ChatInviteDbFactory.createWithCustomMessage(
                 options.chatId,
                 userId,
                 `Custom invite message for user ${i + 1}`
             );
+            pendingCount++;
         } else {
             inviteData = ChatInviteDbFactory.createMinimal(options.chatId, userId);
+            pendingCount++;
         }
 
         const invite = await prisma.chatInvite.create({ data: inviteData });
         invites.push(invite);
     }
 
-    return invites;
+    return {
+        records: invites,
+        summary: {
+            total: invites.length,
+            withAuth: 0, // ChatInvites don't have auth
+            bots: 0, // ChatInvites don't have bots
+            teams: 0, // ChatInvites don't have teams
+            pending: pendingCount,
+            accepted: acceptedCount,
+            declined: declinedCount,
+        },
+    };
 }

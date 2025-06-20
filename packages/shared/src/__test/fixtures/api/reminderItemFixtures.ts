@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ReminderItemCreateInput, ReminderItemUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { reminderItemValidation } from "../../../validation/models/reminderItem.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -10,11 +12,12 @@ const validIds = {
 };
 
 // Shared reminder item test fixtures
-export const reminderItemFixtures: ModelTestFixtures = {
+export const reminderItemFixtures: ModelTestFixtures<ReminderItemCreateInput, ReminderItemUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
             name: "Complete task",
+            index: 0,
             reminderConnect: validIds.id2,
         },
         update: {
@@ -44,8 +47,8 @@ export const reminderItemFixtures: ModelTestFixtures = {
         missingRequired: {
             create: {
                 id: validIds.id1,
-                // Missing required name and reminderConnect
-                description: "Task without a name",
+                // Missing required name, index, and reminderConnect
+                description: "Task without required fields",
             },
             update: {
                 // Missing required id
@@ -83,6 +86,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Task without reminder connection",
+                index: 0,
                 // Missing required reminderConnect
             },
         },
@@ -90,6 +94,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "", // Too short (min 1 char)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -97,6 +102,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "A".repeat(51), // Too long (max 50 chars)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -105,6 +111,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Valid name",
                 description: "A".repeat(2049), // Too long (max 2048 chars)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -123,6 +130,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Task with empty description",
                 description: "",
+                index: 0,
                 reminderConnect: validIds.id2,
             },
             update: {
@@ -135,6 +143,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "   Trimmed task name   ", // Should be trimmed
                 description: "   Trimmed description   ", // Should be trimmed
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -142,6 +151,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "A", // Minimum valid name (1 char)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -149,6 +159,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "A".repeat(50), // Maximum valid name (50 chars)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -157,6 +168,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Valid task",
                 description: "A".repeat(2048), // Maximum valid description (2048 chars)
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -181,6 +193,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Overdue task",
                 dueDate: new Date("2020-01-01T00:00:00Z"),
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -189,6 +202,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Future task",
                 dueDate: new Date("2030-12-31T23:59:59Z"),
+                index: 0,
                 reminderConnect: validIds.id2,
             },
         },
@@ -196,6 +210,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Already completed task",
+                index: 0,
                 isComplete: true,
                 reminderConnect: validIds.id2,
             },
@@ -208,6 +223,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Incomplete task",
+                index: 0,
                 isComplete: false,
                 reminderConnect: validIds.id2,
             },
@@ -220,6 +236,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Task with boolean string",
+                index: 0,
                 isComplete: "true", // String to boolean
                 reminderConnect: validIds.id2,
             },
@@ -240,6 +257,7 @@ export const reminderItemFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Task for different reminder",
+                index: 0,
                 reminderConnect: validIds.id5,
             },
         },
@@ -248,17 +266,19 @@ export const reminderItemFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: ReminderItemCreateInput): ReminderItemCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
         name: base.name || "Default task name",
+        index: base.index ?? 0,
         reminderConnect: base.reminderConnect || validIds.id2,
     }),
-    update: (base: any) => ({
+    update: (base: ReminderItemUpdateInput): ReminderItemUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const reminderItemTestDataFactory = new TestDataFactory(reminderItemFixtures, customizers);
+export const reminderItemTestDataFactory = new TypedTestDataFactory(reminderItemFixtures, reminderItemValidation, customizers);
+export const typedReminderItemFixtures = createTypedFixtures(reminderItemFixtures, reminderItemValidation);

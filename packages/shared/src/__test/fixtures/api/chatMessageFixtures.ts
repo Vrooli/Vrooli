@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ChatMessageCreateInput, ChatMessageUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { chatMessageValidation } from "../../../validation/models/chatMessage.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -51,12 +53,16 @@ function createErrorResult(code = "ERROR_CODE", message = "Error message") {
 }
 
 // Shared chatMessage test fixtures
-export const chatMessageFixtures: ModelTestFixtures = {
+export const chatMessageFixtures: ModelTestFixtures<ChatMessageCreateInput, ChatMessageUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
             config: createValidConfig(),
             chatConnect: validIds.chatId1,
+            language: "en",
+            text: "Test message",
+            userConnect: validIds.userId1,
+            versionIndex: 0,
         },
         update: {
             id: validIds.id1,
@@ -80,13 +86,8 @@ export const chatMessageFixtures: ModelTestFixtures = {
             }),
             chatConnect: validIds.chatId2,
             userConnect: validIds.userId1,
-            translationsCreate: [
-                {
-                    id: validIds.id3,
-                    language: "en",
-                    text: "Hello, how are you?",
-                },
-            ],
+            language: "en",
+            text: "Hello, how are you?",
         },
         update: {
             id: validIds.id2,
@@ -94,12 +95,7 @@ export const chatMessageFixtures: ModelTestFixtures = {
                 role: "assistant",
                 turnId: 124,
             }),
-            translationsUpdate: [
-                {
-                    id: validIds.id3,
-                    text: "Updated message text",
-                },
-            ],
+            text: "Updated message text",
         },
     },
     invalid: {
@@ -213,6 +209,9 @@ export const chatMessageFixtures: ModelTestFixtures = {
                 versionIndex: 0,
                 config: createValidConfig(),
                 chatConnect: validIds.chatId1,
+                language: "en",
+                text: "Test message with zero version index",
+                userConnect: validIds.userId1,
             },
         },
         allRoles: [
@@ -243,7 +242,7 @@ export const chatMessageFixtures: ModelTestFixtures = {
                 config: createValidConfig({
                     toolCalls: [
                         createToolCall({
-                            result: createSuccessResult({ data: "complex output" }),
+                            result: createSuccessResult(JSON.stringify({ data: "complex output" })),
                         }),
                     ],
                 }),
@@ -328,12 +327,12 @@ export const chatMessageFixtures: ModelTestFixtures = {
                                     param3: { nested: "object" },
                                 }),
                             },
-                            result: createSuccessResult({
+                            result: createSuccessResult(JSON.stringify({
                                 complexOutput: {
                                     data: [1, 2, 3],
                                     status: "completed",
                                 },
-                            }),
+                            })),
                         }),
                         createToolCall({
                             id: validIds.toolCallId2,
@@ -353,15 +352,22 @@ export const chatMessageFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: ChatMessageCreateInput) => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: ChatMessageUpdateInput) => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const chatMessageTestDataFactory = new TestDataFactory(chatMessageFixtures, customizers);
+export const chatMessageTestDataFactory = new TypedTestDataFactory(chatMessageFixtures, chatMessageValidation, customizers);
+
+// Export typed fixtures with optional validation
+export const typedChatMessageFixtures = createTypedFixtures(chatMessageFixtures, chatMessageValidation);
+
+// Legacy export for backward compatibility - the factory already extends TestDataFactory
+// so this is just an alias to maintain existing code that uses TestDataFactory
+export const chatMessageTestDataFactoryLegacy = chatMessageTestDataFactory as TestDataFactory<ChatMessageCreateInput, ChatMessageUpdateInput>;

@@ -1,4 +1,7 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { PullRequestCreateInput, PullRequestUpdateInput, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput } from "../../../api/types.js";
+import { PullRequestToObjectType, PullRequestFromObjectType, PullRequestStatus } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { pullRequestValidation, pullRequestTranslationValidation } from "../../../validation/models/pullRequest.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,12 +14,13 @@ const validIds = {
 };
 
 // Shared pullRequest test fixtures
-export const pullRequestFixtures: ModelTestFixtures = {
+export const pullRequestFixtures: ModelTestFixtures<PullRequestCreateInput, PullRequestUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            toObjectType: "Resource",
+            toObjectType: PullRequestToObjectType.Resource,
             toConnect: validIds.id2,
+            fromObjectType: PullRequestFromObjectType.ResourceVersion,
             fromConnect: validIds.id3,
         },
         update: {
@@ -26,8 +30,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
     complete: {
         create: {
             id: validIds.id1,
-            toObjectType: "Resource",
+            toObjectType: PullRequestToObjectType.Resource,
             toConnect: validIds.id2,
+            fromObjectType: PullRequestFromObjectType.ResourceVersion,
             fromConnect: validIds.id3,
             translationsCreate: [
                 {
@@ -48,7 +53,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
         },
         update: {
             id: validIds.id1,
-            status: "Open",
+            status: PullRequestStatus.Open,
             translationsCreate: [
                 {
                     id: validIds.id6,
@@ -59,6 +64,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
             translationsUpdate: [
                 {
                     id: validIds.id4,
+                    language: "en",
                     text: "Updated pull request description with more details about the implementation.",
                 },
             ],
@@ -82,7 +88,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
             },
             update: {
                 // Missing required id
-                status: "Draft",
+                status: PullRequestStatus.Draft,
             },
         },
         invalidTypes: {
@@ -90,6 +96,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
                 id: 123, // Should be string
                 toObjectType: "InvalidType", // Invalid enum value
                 toConnect: 456, // Should be string
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: 789, // Should be string
                 translationsCreate: [
                     {
@@ -107,8 +114,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
             },
             update: {
@@ -120,46 +128,52 @@ export const pullRequestFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 toObjectType: "UnknownType", // Not a valid enum value
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
             },
         },
         missingTo: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 // Missing required toConnect
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
             },
         },
         missingFrom: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 // Missing required fromConnect
             },
         },
         invalidToConnect: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: "invalid-to-id",
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
             },
         },
         invalidFromConnect: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: "invalid-from-id",
             },
         },
         invalidTranslations: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -173,8 +187,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         longText: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -188,8 +203,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         emptyTextTranslation: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -205,8 +221,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         withoutTranslations: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 // No translations
             },
@@ -214,8 +231,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         withSingleTranslation: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -229,8 +247,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         withMultipleTranslations: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -254,31 +273,31 @@ export const pullRequestFixtures: ModelTestFixtures = {
         statusDraft: {
             update: {
                 id: validIds.id1,
-                status: "Draft",
+                status: PullRequestStatus.Draft,
             },
         },
         statusOpen: {
             update: {
                 id: validIds.id1,
-                status: "Open",
+                status: PullRequestStatus.Open,
             },
         },
         statusMerged: {
             update: {
                 id: validIds.id1,
-                status: "Merged",
+                status: PullRequestStatus.Merged,
             },
         },
         statusRejected: {
             update: {
                 id: validIds.id1,
-                status: "Rejected",
+                status: PullRequestStatus.Rejected,
             },
         },
         statusCanceled: {
             update: {
                 id: validIds.id1,
-                status: "Canceled",
+                status: PullRequestStatus.Canceled,
             },
         },
         updateOnlyId: {
@@ -290,7 +309,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
         updateWithTranslationOperations: {
             update: {
                 id: validIds.id1,
-                status: "Open",
+                status: PullRequestStatus.Open,
                 translationsCreate: [
                     {
                         id: validIds.id4,
@@ -301,6 +320,7 @@ export const pullRequestFixtures: ModelTestFixtures = {
                 translationsUpdate: [
                     {
                         id: validIds.id5,
+                        language: "en",
                         text: "Updated text for existing translation.",
                     },
                 ],
@@ -310,16 +330,18 @@ export const pullRequestFixtures: ModelTestFixtures = {
         differentIds: {
             create: {
                 id: validIds.id6,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id5,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id4,
             },
         },
         maxLengthText: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -333,8 +355,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         minLengthText: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -348,8 +371,9 @@ export const pullRequestFixtures: ModelTestFixtures = {
         longDescription: {
             create: {
                 id: validIds.id1,
-                toObjectType: "Resource",
+                toObjectType: PullRequestToObjectType.Resource,
                 toConnect: validIds.id2,
+                fromObjectType: PullRequestFromObjectType.ResourceVersion,
                 fromConnect: validIds.id3,
                 translationsCreate: [
                     {
@@ -363,20 +387,105 @@ export const pullRequestFixtures: ModelTestFixtures = {
     },
 };
 
+// Pull request translation fixtures
+export const pullRequestTranslationFixtures: ModelTestFixtures<PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput> = {
+    minimal: {
+        create: {
+            id: "400000000000000001",
+            language: "en",
+            text: "Minimal pull request description",
+        },
+        update: {
+            id: "400000000000000001",
+            language: "en",
+        },
+    },
+    complete: {
+        create: {
+            id: "400000000000000002", 
+            language: "en",
+            text: "A comprehensive pull request description with detailed information about the changes and implementation details",
+        },
+        update: {
+            id: "400000000000000002",
+            language: "en",
+            text: "Updated pull request description with new information",
+        },
+    },
+    invalid: {
+        missingRequired: {
+            create: {
+                // Missing language, id, and text
+            },
+            update: {
+                // Missing id and language
+                text: "Updated description without required fields",
+            },
+        },
+        invalidTypes: {
+            create: {
+                id: "400000000000000003",
+                language: 123, // Should be string
+                text: true, // Should be string
+            },
+            update: {
+                id: 456, // Should be string
+                language: "en",
+                text: [], // Should be string
+            },
+        },
+    },
+    edgeCases: {
+        emptyText: {
+            create: {
+                id: "400000000000000004",
+                language: "en",
+                text: "",
+            },
+        },
+        longText: {
+            create: {
+                id: "400000000000000005",
+                language: "en",
+                text: "x".repeat(32768), // Max length text
+            },
+        },
+        multipleLanguages: {
+            create: {
+                id: "400000000000000006",
+                language: "fr",
+                text: "Description française de la demande de tirage",
+            },
+        },
+        minimalText: {
+            create: {
+                id: "400000000000000007",
+                language: "en",
+                text: "x", // Minimum length (1 character)
+            },
+        },
+    },
+};
+
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: PullRequestCreateInput): PullRequestCreateInput => ({
         ...base,
-        id: base.id || validIds.id1,
-        toObjectType: base.toObjectType || "Resource",
-        toConnect: base.toConnect || validIds.id2,
-        fromConnect: base.fromConnect || validIds.id3,
+        id: base.id || testValues.snowflakeId(),
+        toObjectType: base.toObjectType || PullRequestToObjectType.Resource,
+        toConnect: base.toConnect || testValues.snowflakeId(),
+        fromObjectType: base.fromObjectType || PullRequestFromObjectType.ResourceVersion,
+        fromConnect: base.fromConnect || testValues.snowflakeId(),
     }),
-    update: (base: any) => ({
+    update: (base: PullRequestUpdateInput): PullRequestUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
-// Export a factory for creating test data programmatically
-export const pullRequestTestDataFactory = new TestDataFactory(pullRequestFixtures, customizers);
+// Export enhanced type-safe factories
+export const pullRequestTestDataFactory = new TypedTestDataFactory(pullRequestFixtures, pullRequestValidation, customizers);
+export const pullRequestTranslationTestDataFactory = new TestDataFactory(pullRequestTranslationFixtures);
+
+// Export type-safe fixtures with validation capabilities
+export const typedPullRequestFixtures = createTypedFixtures(pullRequestFixtures, pullRequestValidation);

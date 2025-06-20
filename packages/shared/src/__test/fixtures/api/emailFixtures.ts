@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { EmailCreateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { emailValidation } from "../../../validation/models/email.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -7,17 +9,14 @@ const validIds = {
     id3: "200000000000000003",
 };
 
-// Shared email test fixtures
-export const emailFixtures: ModelTestFixtures = {
+// Shared email test fixtures (Email has no update operation)
+export const emailFixtures: ModelTestFixtures<EmailCreateInput, never> = {
     minimal: {
         create: {
             id: validIds.id1,
             emailAddress: "test@example.com",
         },
-        update: {
-            // Email model doesn't support updates
-            id: validIds.id1,
-        },
+        update: null, // Email model doesn't support updates
     },
     complete: {
         create: {
@@ -34,18 +33,14 @@ export const emailFixtures: ModelTestFixtures = {
             create: {
                 // Missing both id and emailAddress
             },
-            update: {
-                // Not applicable - no update operation
-            },
+            update: null, // Not applicable - no update operation
         },
         invalidTypes: {
             create: {
                 id: 123, // Should be string
                 emailAddress: true, // Should be string
             },
-            update: {
-                // Not applicable
-            },
+            update: null, // Not applicable
         },
         invalidEmail: {
             create: {
@@ -108,15 +103,14 @@ export const emailFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<EmailCreateInput>): EmailCreateInput => ({
+        id: validIds.id1,
+        emailAddress: "default@example.com",
         ...base,
-        id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
-        ...base,
-        id: base.id || validIds.id1,
-    }),
+    update: (_base: any): never => null as never, // No update operation
 };
 
 // Export a factory for creating test data programmatically
-export const emailTestDataFactory = new TestDataFactory(emailFixtures, customizers);
+export const emailTestDataFactory = new TypedTestDataFactory(emailFixtures, emailValidation, customizers);
+export const typedEmailFixtures = createTypedFixtures(emailFixtures, emailValidation);

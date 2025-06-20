@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { PhoneCreateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { phoneValidation } from "../../../validation/models/phone.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -8,7 +10,9 @@ const validIds = {
 };
 
 // Shared phone test fixtures
-export const phoneFixtures: ModelTestFixtures = {
+// Phone model only supports create operations (no updates allowed)
+// Using empty object type for update since Phone doesn't support updates
+export const phoneFixtures: ModelTestFixtures<PhoneCreateInput, {}> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -114,15 +118,18 @@ export const phoneFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: PhoneCreateInput): PhoneCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: {}): {} => ({
         ...base,
-        id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
 export const phoneTestDataFactory = new TestDataFactory(phoneFixtures, customizers);
+
+// Export typed factory and fixtures for better type safety
+export const typedPhoneTestDataFactory = new TypedTestDataFactory(phoneFixtures, phoneValidation, customizers);
+export const typedPhoneFixtures = createTypedFixtures(phoneFixtures, phoneValidation);

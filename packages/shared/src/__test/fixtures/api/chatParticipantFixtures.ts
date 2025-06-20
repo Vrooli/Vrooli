@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ChatParticipantUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { chatParticipantValidation } from "../../../validation/models/chatParticpant.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -8,31 +10,29 @@ const validIds = {
 };
 
 // Shared chatParticipant test fixtures
-export const chatParticipantFixtures: ModelTestFixtures = {
+// Note: ChatParticipant only has update operations, no create
+export const chatParticipantFixtures: ModelTestFixtures<never, ChatParticipantUpdateInput> = {
     minimal: {
-        create: {}, // No create operation defined
+        create: {} as never, // No create operation defined
         update: {
             id: validIds.id1,
         },
     },
     complete: {
-        create: {}, // No create operation defined
+        create: {} as never, // No create operation defined
         update: {
             id: validIds.id2,
-            extraField1: "test1", // Will be stripped by omitFields
-            extraField2: "test2", // Will be stripped by omitFields  
-            extraField3: "test3", // Will be stripped by omitFields
         },
     },
     invalid: {
         missingRequired: {
-            create: {}, // No create operation defined
+            create: {} as never, // No create operation defined
             update: {
                 // Missing required id
             },
         },
         invalidTypes: {
-            create: {}, // No create operation defined
+            create: {} as never, // No create operation defined
             update: {
                 id: 123, // Should be string
             },
@@ -82,15 +82,15 @@ export const chatParticipantFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
-        ...base,
-        // No create operation
-    }),
-    update: (base: any) => ({
+    create: (base: never): never => base,
+    update: (base: ChatParticipantUpdateInput): ChatParticipantUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const chatParticipantTestDataFactory = new TestDataFactory(chatParticipantFixtures, customizers);
+export const chatParticipantTestDataFactory = new TypedTestDataFactory(chatParticipantFixtures, chatParticipantValidation, customizers);
+
+// Export typed fixtures with validation methods
+export const typedChatParticipantFixtures = createTypedFixtures(chatParticipantFixtures, chatParticipantValidation);

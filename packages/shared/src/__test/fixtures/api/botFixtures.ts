@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import type { BotCreateInput, BotUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { botValidation } from "../../../validation/models/bot.js";
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -9,12 +11,15 @@ const validIds = {
 };
 
 // Bot test fixtures
-export const botFixtures: ModelTestFixtures = {
+export const botFixtures: ModelTestFixtures<BotCreateInput, BotUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            botSettings: {},
+            botSettings: {
+                __version: "1.0",
+            },
             isBotDepictingPerson: false,
+            isPrivate: false,
             name: "Test Bot",
         },
         update: {
@@ -26,17 +31,19 @@ export const botFixtures: ModelTestFixtures = {
             id: validIds.id2,
             bannerImage: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
             botSettings: {
+                __version: "1.0",
                 model: "gpt-4",
-                temperature: 0.7,
                 maxTokens: 2048,
-                systemPrompt: "You are a helpful assistant.",
-                assistantId: "asst_123456789",
-                customConfig: {
-                    feature1: true,
-                    feature2: "enabled",
-                    nestedSettings: {
-                        option1: 42,
-                        option2: ["a", "b", "c"],
+                persona: {
+                    systemPrompt: "You are a helpful assistant.",
+                    assistantId: "asst_123456789",
+                    customConfig: {
+                        feature1: true,
+                        feature2: "enabled",
+                        nestedSettings: {
+                            option1: 42,
+                            option2: ["a", "b", "c"],
+                        },
                     },
                 },
             },
@@ -45,8 +52,7 @@ export const botFixtures: ModelTestFixtures = {
             isPrivate: false,
             name: "Complete Bot",
             profileImage: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAA...",
-            translations: {
-                create: [
+            translationsCreate: [
                     {
                         id: "200000000000000001",
                         language: "en",
@@ -57,36 +63,34 @@ export const botFixtures: ModelTestFixtures = {
                         language: "es",
                         bio: "Un asistente de IA sofisticado con capacidades avanzadas",
                     },
-                ],
-            },
+            ],
         },
         update: {
             id: validIds.id2,
             botSettings: {
+                __version: "1.0",
                 model: "claude-3",
-                temperature: 0.5,
                 maxTokens: 4096,
             },
             handle: "updatedbot",
             isBotDepictingPerson: false,
             isPrivate: true,
             name: "Updated Bot Name",
-            translations: {
-                update: [
-                    {
-                        id: "200000000000000001",
-                        bio: "Updated bot description",
-                    },
-                ],
-                create: [
-                    {
-                        id: "200000000000000003",
-                        language: "fr",
-                        bio: "Description du bot mise à jour",
-                    },
-                ],
-                delete: ["200000000000000002"],
-            },
+            translationsUpdate: [
+                {
+                    id: "200000000000000001",
+                    language: "en",
+                    bio: "Updated bot description",
+                },
+            ],
+            translationsCreate: [
+                {
+                    id: "200000000000000003",
+                    language: "fr",
+                    bio: "Description du bot mise à jour",
+                },
+            ],
+            translationsDelete: ["200000000000000002"],
         },
     },
     invalid: {
@@ -105,13 +109,13 @@ export const botFixtures: ModelTestFixtures = {
         invalidTypes: {
             create: {
                 id: 123, // Should be string
-                botSettings: "not-an-object", // Should be object
+                botSettings: "not-an-object" as any, // Should be object
                 isBotDepictingPerson: "yes", // Should be boolean
                 name: true, // Should be string
             },
             update: {
                 id: true, // Should be string
-                botSettings: [], // Should be object
+                botSettings: [] as any, // Should be object
                 isBotDepictingPerson: 1, // Should be boolean
                 isPrivate: "false", // Should be boolean
             },
@@ -119,7 +123,9 @@ export const botFixtures: ModelTestFixtures = {
         invalidHandle: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 handle: "a", // Too short (min 3 chars)
                 isBotDepictingPerson: false,
                 name: "Bot with Short Handle",
@@ -132,7 +138,9 @@ export const botFixtures: ModelTestFixtures = {
         invalidName: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 name: "", // Empty name
             },
@@ -144,7 +152,9 @@ export const botFixtures: ModelTestFixtures = {
         invalidImage: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 name: "Bot with Invalid Image",
                 profileImage: "P".repeat(257), // Too long (max 256 chars)
@@ -159,7 +169,9 @@ export const botFixtures: ModelTestFixtures = {
         minimalHandle: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 handle: "bot", // Minimum 3 chars
                 isBotDepictingPerson: false,
                 name: "B",
@@ -168,7 +180,9 @@ export const botFixtures: ModelTestFixtures = {
         maximalHandle: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 handle: "b".repeat(16), // Maximum 16 chars
                 isBotDepictingPerson: false,
                 name: "Bot with Max Handle",
@@ -177,7 +191,9 @@ export const botFixtures: ModelTestFixtures = {
         emptyBotSettings: {
             create: {
                 id: validIds.id1,
-                botSettings: {}, // Empty object is valid
+                botSettings: {
+                __version: "1.0",
+            }, // Empty object is valid
                 isBotDepictingPerson: false,
                 name: "Bot with Empty Settings",
             },
@@ -223,7 +239,9 @@ export const botFixtures: ModelTestFixtures = {
         publicBot: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 isPrivate: false,
                 name: "Public Bot",
@@ -232,7 +250,9 @@ export const botFixtures: ModelTestFixtures = {
         privateBot: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 isPrivate: true,
                 name: "Private Bot",
@@ -241,50 +261,50 @@ export const botFixtures: ModelTestFixtures = {
         withTranslations: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 name: "Multilingual Bot",
-                translations: {
-                    create: [
-                        {
-                            id: "200000000000000010",
-                            language: "en",
-                            bio: "English bio",
-                        },
-                        {
-                            id: "200000000000000011",
-                            language: "de",
-                            bio: "Deutsche Biografie",
-                        },
-                        {
-                            id: "200000000000000012",
-                            language: "ja",
-                            bio: "日本語の経歴",
-                        },
-                    ],
-                },
+                translationsCreate: [
+                    {
+                        id: "200000000000000010",
+                        language: "en",
+                        bio: "English bio",
+                    },
+                    {
+                        id: "200000000000000011",
+                        language: "de",
+                        bio: "Deutsche Biografie",
+                    },
+                    {
+                        id: "200000000000000012",
+                        language: "ja",
+                        bio: "日本語の経歴",
+                    },
+                ],
             },
         },
         longBio: {
             create: {
                 id: validIds.id1,
-                botSettings: {},
+                botSettings: {
+                __version: "1.0",
+            },
                 isBotDepictingPerson: false,
                 name: "Bot with Long Bio",
-                translations: {
-                    create: [{
-                        id: "200000000000000020",
-                        language: "en",
-                        bio: "B".repeat(2048), // Maximum allowed
-                    }],
-                },
+                translationsCreate: [{
+                    id: "200000000000000020",
+                    language: "en",
+                    bio: "B".repeat(2048), // Maximum allowed
+                }],
             },
         },
     },
 };
 
 // Bot translation fixtures
-export const botTranslationFixtures: ModelTestFixtures = {
+export const botTranslationFixtures: ModelTestFixtures<UserTranslationCreateInput, UserTranslationUpdateInput> = {
     minimal: {
         create: {
             id: "200000000000000001",
@@ -292,6 +312,7 @@ export const botTranslationFixtures: ModelTestFixtures = {
         },
         update: {
             id: "200000000000000001",
+            language: "en",
         },
     },
     complete: {
@@ -302,6 +323,7 @@ export const botTranslationFixtures: ModelTestFixtures = {
         },
         update: {
             id: "200000000000000002",
+            language: "en",
             bio: "Updated bio with new information about features and improvements",
         },
     },
@@ -339,23 +361,53 @@ export const botTranslationFixtures: ModelTestFixtures = {
             },
         },
     },
+    edgeCases: {
+        emptyBio: {
+            create: {
+                id: "200000000000000004",
+                language: "en",
+                bio: "",
+            },
+            update: {
+                id: "200000000000000004",
+                language: "en",
+                bio: "",
+            },
+        },
+        maxLengthBio: {
+            create: {
+                id: "200000000000000005",
+                language: "en",
+                bio: "B".repeat(2048),
+            },
+            update: {
+                id: "200000000000000005",
+                language: "en",
+                bio: "B".repeat(2048),
+            },
+        },
+    },
 };
 
 // Custom factory that always generates valid defaults
 const customizers = {
-    create: (base: any) => ({
+    create: (base: BotCreateInput): BotCreateInput => ({
         ...base,
         id: base.id || testValues.snowflakeId(),
-        botSettings: base.botSettings !== undefined ? base.botSettings : {},
+        botSettings: base.botSettings !== undefined ? base.botSettings : { __version: "1.0" },
         isBotDepictingPerson: base.isBotDepictingPerson !== undefined ? base.isBotDepictingPerson : false,
+        isPrivate: base.isPrivate !== undefined ? base.isPrivate : false,
         name: base.name || testValues.shortString("Bot"),
     }),
-    update: (base: any) => ({
+    update: (base: BotUpdateInput): BotUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export factories for creating test data programmatically
-export const botTestDataFactory = new TestDataFactory(botFixtures, customizers);
+export const botTestDataFactory = new TypedTestDataFactory(botFixtures, botValidation, customizers);
 export const botTranslationTestDataFactory = new TestDataFactory(botTranslationFixtures);
+
+// Export type-safe fixtures with validation capabilities
+export const typedBotFixtures = createTypedFixtures(botFixtures, botValidation);

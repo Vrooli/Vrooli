@@ -1,21 +1,284 @@
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for Issue model - used for seeding test data
+ * These follow Prisma's shape for database operations
  */
 
-export class IssueDbFactory {
+// Consistent IDs for testing
+export const issueDbIds = {
+    issue1: generatePK(),
+    issue2: generatePK(),
+    issue3: generatePK(),
+    user1: generatePK(),
+    user2: generatePK(),
+    project1: generatePK(),
+    routine1: generatePK(),
+    label1: generatePK(),
+    label2: generatePK(),
+};
+
+/**
+ * Enhanced test fixtures for Issue model following standard structure
+ */
+export const issueDbFixtures: DbTestFixtures<Prisma.IssueCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        createdBy: { connect: { id: issueDbIds.user1 } },
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        createdBy: { connect: { id: issueDbIds.user1 } },
+        closedBy: { connect: { id: issueDbIds.user2 } },
+        project: { connect: { id: issueDbIds.project1 } },
+        labels: {
+            connect: [
+                { id: issueDbIds.label1 },
+                { id: issueDbIds.label2 },
+            ],
+        },
+        translations: {
+            create: [
+                {
+                    id: generatePK(),
+                    language: "en",
+                    name: "Complete Issue Report",
+                    description: "This is a comprehensive issue report with detailed information about the problem, steps to reproduce, and expected behavior.",
+                },
+                {
+                    id: generatePK(),
+                    language: "es",
+                    name: "Reporte Completo de Problema",
+                    description: "Este es un reporte comprensivo de problema con información detallada sobre el problema, pasos para reproducir, y comportamiento esperado.",
+                },
+            ],
+        },
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required createdBy
+            publicId: generatePublicId(),
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            publicId: 123, // Should be string
+            createdBy: "invalid-user-reference", // Should be connect object
+            closedBy: "invalid-user-reference", // Should be connect object
+        },
+        noTargetObject: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            // No target object connected (business logic issue)
+        },
+        multipleTargets: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            project: { connect: { id: issueDbIds.project1 } },
+            routine: { connect: { id: issueDbIds.routine1 } },
+            // Multiple targets (business logic violation)
+        },
+    },
+    edgeCases: {
+        projectIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            project: { connect: { id: issueDbIds.project1 } },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Project Issue",
+                    description: "Issue specific to a project",
+                }],
+            },
+        },
+        routineIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            routine: { connect: { id: issueDbIds.routine1 } },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Routine Issue",
+                    description: "Issue specific to a routine",
+                }],
+            },
+        },
+        closedIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            closedBy: { connect: { id: issueDbIds.user2 } },
+            project: { connect: { id: issueDbIds.project1 } },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Closed Issue",
+                    description: "This issue has been resolved",
+                }],
+            },
+        },
+        labeledIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            project: { connect: { id: issueDbIds.project1 } },
+            labels: {
+                connect: [
+                    { id: issueDbIds.label1 },
+                    { id: issueDbIds.label2 },
+                ],
+            },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Labeled Issue",
+                    description: "Issue with multiple labels",
+                }],
+            },
+        },
+        multiLanguageIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            project: { connect: { id: issueDbIds.project1 } },
+            translations: {
+                create: [
+                    { id: generatePK(), language: "en", name: "Multi-language Issue", description: "English description" },
+                    { id: generatePK(), language: "es", name: "Problema Multi-idioma", description: "Descripción en español" },
+                    { id: generatePK(), language: "fr", name: "Problème Multi-langue", description: "Description française" },
+                ],
+            },
+        },
+        selfClosedIssue: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            createdBy: { connect: { id: issueDbIds.user1 } },
+            closedBy: { connect: { id: issueDbIds.user1 } }, // Same user created and closed
+            project: { connect: { id: issueDbIds.project1 } },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Self-closed Issue",
+                    description: "Issue closed by the same user who created it",
+                }],
+            },
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating issue database fixtures
+ */
+export class IssueDbFactory extends EnhancedDbFactory<Prisma.IssueCreateInput> {
+    
+    /**
+     * Get the test fixtures for Issue model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.IssueCreateInput> {
+        return issueDbFixtures;
+    }
+
+    /**
+     * Get Issue-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: issueDbIds.issue1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    createdBy: { connect: { id: issueDbIds.user1 } },
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    createdBy: { connect: { id: "non-existent-user-id" } },
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: "", // Empty publicId
+                    createdBy: { connect: { id: issueDbIds.user1 } },
+                },
+            },
+            validation: {
+                requiredFieldMissing: issueDbFixtures.invalid.missingRequired,
+                invalidDataType: issueDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: "a".repeat(500), // PublicId too long
+                    createdBy: { connect: { id: issueDbIds.user1 } },
+                },
+            },
+            businessLogic: {
+                noTargetObject: issueDbFixtures.invalid.noTargetObject,
+                multipleTargets: issueDbFixtures.invalid.multipleTargets,
+                invalidClosure: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    createdBy: { connect: { id: issueDbIds.user1 } },
+                    closedBy: { connect: { id: "non-existent-user-id" } }, // Invalid closer
+                    project: { connect: { id: issueDbIds.project1 } },
+                },
+            },
+        };
+    }
+
+    /**
+     * Issue-specific validation
+     */
+    protected validateSpecific(data: Prisma.IssueCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to Issue
+        if (!data.createdBy) errors.push("Issue createdBy is required");
+        if (!data.publicId) errors.push("Issue publicId is required");
+
+        // Check business logic - should have exactly one target object
+        const targetFields = ['api', 'code', 'note', 'project', 'routine', 'standard', 'team'];
+        const connectedTargets = targetFields.filter(field => data[field as keyof Prisma.IssueCreateInput]);
+        
+        if (connectedTargets.length === 0) {
+            warnings.push("Issue should reference a target object");
+        } else if (connectedTargets.length > 1) {
+            errors.push("Issue cannot reference multiple target objects");
+        }
+
+        // Check closure logic
+        if (data.closedBy && data.createdBy && 
+            typeof data.closedBy === 'object' && 'connect' in data.closedBy &&
+            typeof data.createdBy === 'object' && 'connect' in data.createdBy &&
+            data.closedBy.connect.id === data.createdBy.connect.id) {
+            warnings.push("Issue closed by the same user who created it");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
     static createMinimal(
         createdById: string,
         overrides?: Partial<Prisma.IssueCreateInput>
     ): Prisma.IssueCreateInput {
-        return {
-            id: generatePK(),
-            publicId: generatePublicId(),
+        const factory = new IssueDbFactory();
+        return factory.createMinimal({
             createdBy: { connect: { id: createdById } },
             ...overrides,
-        };
+        });
     }
 
     static createForObject(
@@ -76,7 +339,7 @@ export class IssueDbFactory {
 }
 
 /**
- * Helper to seed issues for testing
+ * Enhanced helper to seed multiple test issues with comprehensive options
  */
 export async function seedIssues(
     prisma: any,
@@ -87,9 +350,12 @@ export async function seedIssues(
         withTranslations?: boolean;
         withLabels?: string[];
     }
-) {
+): Promise<BulkSeedResult<any>> {
     const issues = [];
     const count = options.count || 1;
+    let withTranslationsCount = 0;
+    let withLabelsCount = 0;
+    let targetedCount = 0;
 
     for (let i = 0; i < count; i++) {
         let issueData: Prisma.IssueCreateInput;
@@ -117,6 +383,7 @@ export async function seedIssues(
                     }),
                 }
             );
+            targetedCount++;
         } else {
             issueData = options.withTranslations
                 ? IssueDbFactory.createWithTranslations(
@@ -143,6 +410,9 @@ export async function seedIssues(
                 });
         }
 
+        if (options.withTranslations) withTranslationsCount++;
+        if (options.withLabels && options.withLabels.length > 0) withLabelsCount++;
+
         const issue = await prisma.issue.create({
             data: issueData,
             include: { translations: true, labels: true },
@@ -150,5 +420,16 @@ export async function seedIssues(
         issues.push(issue);
     }
 
-    return issues;
+    return {
+        records: issues,
+        summary: {
+            total: issues.length,
+            withAuth: 0, // Issues don't have auth
+            bots: 0, // Issues don't have bots
+            teams: 0, // Issues don't have teams
+            withTranslations: withTranslationsCount,
+            withLabels: withLabelsCount,
+            targeted: targetedCount,
+        },
+    };
 }

@@ -1,4 +1,25 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { MemberInviteCreateInput, MemberInviteUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { memberInviteValidation } from "../../../validation/models/memberInvite.js";
+
+/**
+ * MemberInvite test fixtures with full TypeScript type safety.
+ * 
+ * Usage examples:
+ * 
+ * // Using typed fixtures directly:
+ * const minimalInvite = memberInviteFixtures.minimal.create;
+ * 
+ * // Using the factory to create test data:
+ * const invite = memberInviteTestDataFactory.createMinimal({
+ *     message: "Custom invitation message"
+ * });
+ * 
+ * // Using the factory with validation:
+ * const validatedInvite = await memberInviteTestDataFactory.createMinimalValidated({
+ *     message: "Validated invitation"
+ * });
+ */
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -12,7 +33,7 @@ const validIds = {
 };
 
 // Shared memberInvite test fixtures
-export const memberInviteFixtures: ModelTestFixtures = {
+export const memberInviteFixtures: ModelTestFixtures<MemberInviteCreateInput, MemberInviteUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -224,15 +245,23 @@ export const memberInviteFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<MemberInviteCreateInput>): MemberInviteCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
-    }),
-    update: (base: any) => ({
+        teamConnect: base.teamConnect || validIds.teamId1,
+        userConnect: base.userConnect || validIds.userId1,
+    } as MemberInviteCreateInput),
+    update: (base: Partial<MemberInviteUpdateInput>): MemberInviteUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
-    }),
+    } as MemberInviteUpdateInput),
 };
 
 // Export a factory for creating test data programmatically
-export const memberInviteTestDataFactory = new TestDataFactory(memberInviteFixtures, customizers);
+export const memberInviteTestDataFactory = new TypedTestDataFactory(memberInviteFixtures, memberInviteValidation, customizers);
+
+// Export typed fixtures with validation methods
+export const typedMemberInviteFixtures = createTypedFixtures(memberInviteFixtures, memberInviteValidation);
+
+// Maintain backward compatibility with the original TestDataFactory export if needed
+export const memberInviteTestDataFactoryLegacy = new TestDataFactory(memberInviteFixtures, customizers);

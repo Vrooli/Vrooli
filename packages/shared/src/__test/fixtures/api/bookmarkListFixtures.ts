@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import { BookmarkFor, type BookmarkListCreateInput, type BookmarkListUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { bookmarkListValidation } from "../../../validation/models/bookmarkList.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -13,7 +15,7 @@ const validIds = {
 };
 
 // Shared bookmarkList test fixtures
-export const bookmarkListFixtures: ModelTestFixtures = {
+export const bookmarkListFixtures: ModelTestFixtures<BookmarkListCreateInput, BookmarkListUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -30,7 +32,7 @@ export const bookmarkListFixtures: ModelTestFixtures = {
             bookmarksCreate: [
                 {
                     id: validIds.bookmarkId1,
-                    bookmarkFor: "Tag",
+                    bookmarkFor: BookmarkFor.Tag,
                     forConnect: validIds.forId1,
                 },
             ],
@@ -101,12 +103,12 @@ export const bookmarkListFixtures: ModelTestFixtures = {
                 bookmarksCreate: [
                     {
                         id: validIds.bookmarkId1,
-                        bookmarkFor: "Tag",
+                        bookmarkFor: BookmarkFor.Tag,
                         forConnect: validIds.forId1,
                     },
                     {
                         id: validIds.bookmarkId2,
-                        bookmarkFor: "Resource",
+                        bookmarkFor: BookmarkFor.Resource,
                         forConnect: validIds.forId2,
                     },
                 ],
@@ -120,7 +122,7 @@ export const bookmarkListFixtures: ModelTestFixtures = {
                 bookmarksCreate: [
                     {
                         id: validIds.bookmarkId2,
-                        bookmarkFor: "User",
+                        bookmarkFor: BookmarkFor.User,
                         forConnect: validIds.forId2,
                     },
                 ],
@@ -137,15 +139,16 @@ export const bookmarkListFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: BookmarkListCreateInput): BookmarkListCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: BookmarkListUpdateInput): BookmarkListUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const bookmarkListTestDataFactory = new TestDataFactory(bookmarkListFixtures, customizers);
+export const bookmarkListTestDataFactory = new TypedTestDataFactory(bookmarkListFixtures, bookmarkListValidation, customizers);
+export const typedBookmarkListFixtures = createTypedFixtures(bookmarkListFixtures, bookmarkListValidation);

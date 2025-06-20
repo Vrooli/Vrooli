@@ -1,21 +1,287 @@
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for Bookmark model - used for seeding test data
+ * These follow Prisma's shape for database operations
  */
 
-export class BookmarkDbFactory {
+// Consistent IDs for testing
+export const bookmarkDbIds = {
+    bookmark1: generatePK(),
+    bookmark2: generatePK(),
+    bookmark3: generatePK(),
+    bookmarkList1: generatePK(),
+    bookmarkList2: generatePK(),
+    user1: generatePK(),
+    user2: generatePK(),
+    project1: generatePK(),
+    routine1: generatePK(),
+};
+
+/**
+ * Enhanced test fixtures for Bookmark model following standard structure
+ */
+export const bookmarkDbFixtures: DbTestFixtures<Prisma.BookmarkCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        by: { connect: { id: bookmarkDbIds.user1 } },
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        by: { connect: { id: bookmarkDbIds.user1 } },
+        list: { connect: { id: bookmarkDbIds.bookmarkList1 } },
+        project: { connect: { id: bookmarkDbIds.project1 } },
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required by (user)
+            publicId: generatePublicId(),
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            publicId: 123, // Should be string
+            by: "invalid-user-reference", // Should be connect object
+            list: "invalid-list-reference", // Should be connect object
+        },
+        noBookmarkableObject: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            // No bookmarkable object connected
+        },
+        multipleObjects: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            project: { connect: { id: bookmarkDbIds.project1 } },
+            routine: { connect: { id: bookmarkDbIds.routine1 } },
+            // Multiple objects connected (business logic violation)
+        },
+    },
+    edgeCases: {
+        projectBookmark: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            project: { connect: { id: bookmarkDbIds.project1 } },
+        },
+        routineBookmark: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            routine: { connect: { id: bookmarkDbIds.routine1 } },
+        },
+        userBookmark: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            user: { connect: { id: bookmarkDbIds.user2 } },
+        },
+        inListBookmark: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            by: { connect: { id: bookmarkDbIds.user1 } },
+            list: { connect: { id: bookmarkDbIds.bookmarkList1 } },
+            project: { connect: { id: bookmarkDbIds.project1 } },
+        },
+    },
+};
+
+/**
+ * Enhanced test fixtures for BookmarkList model following standard structure
+ */
+export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        isPrivate: false,
+        createdBy: { connect: { id: bookmarkDbIds.user1 } },
+    },
+    complete: {
+        id: generatePK(),
+        publicId: generatePublicId(),
+        isPrivate: false,
+        createdBy: { connect: { id: bookmarkDbIds.user1 } },
+        translations: {
+            create: [
+                {
+                    id: generatePK(),
+                    language: "en",
+                    name: "My Bookmarks",
+                    description: "A collection of my favorite items",
+                },
+                {
+                    id: generatePK(),
+                    language: "es",
+                    name: "Mis Marcadores",
+                    description: "Una colección de mis elementos favoritos",
+                },
+            ],
+        },
+        bookmarks: {
+            create: [
+                {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    by: { connect: { id: bookmarkDbIds.user1 } },
+                    project: { connect: { id: bookmarkDbIds.project1 } },
+                },
+            ],
+        },
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required createdBy
+            publicId: generatePublicId(),
+            isPrivate: false,
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            publicId: 123, // Should be string
+            isPrivate: "yes", // Should be boolean
+            createdBy: "invalid-user-reference", // Should be connect object
+        },
+    },
+    edgeCases: {
+        privateList: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: true,
+            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+        },
+        emptyList: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+            translations: {
+                create: [{
+                    id: generatePK(),
+                    language: "en",
+                    name: "Empty List",
+                }],
+            },
+        },
+        multiLanguageList: {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            isPrivate: false,
+            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+            translations: {
+                create: [
+                    { id: generatePK(), language: "en", name: "English List" },
+                    { id: generatePK(), language: "es", name: "Lista Española" },
+                    { id: generatePK(), language: "fr", name: "Liste Française" },
+                    { id: generatePK(), language: "de", name: "Deutsche Liste" },
+                ],
+            },
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating bookmark database fixtures
+ */
+export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.BookmarkCreateInput> {
+    
+    /**
+     * Get the test fixtures for Bookmark model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.BookmarkCreateInput> {
+        return bookmarkDbFixtures;
+    }
+
+    /**
+     * Get Bookmark-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: bookmarkDbIds.bookmark1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    by: { connect: { id: bookmarkDbIds.user1 } },
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    by: { connect: { id: "non-existent-user-id" } },
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: "", // Empty publicId
+                    by: { connect: { id: bookmarkDbIds.user1 } },
+                },
+            },
+            validation: {
+                requiredFieldMissing: bookmarkDbFixtures.invalid.missingRequired,
+                invalidDataType: bookmarkDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: "a".repeat(500), // PublicId too long
+                    by: { connect: { id: bookmarkDbIds.user1 } },
+                },
+            },
+            businessLogic: {
+                multipleObjects: bookmarkDbFixtures.invalid.multipleObjects,
+                noBookmarkableObject: bookmarkDbFixtures.invalid.noBookmarkableObject,
+                selfBookmark: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    by: { connect: { id: bookmarkDbIds.user1 } },
+                    user: { connect: { id: bookmarkDbIds.user1 } }, // User bookmarking themselves
+                },
+            },
+        };
+    }
+
+    /**
+     * Bookmark-specific validation
+     */
+    protected validateSpecific(data: Prisma.BookmarkCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to Bookmark
+        if (!data.by) errors.push("Bookmark by (user) is required");
+        if (!data.publicId) errors.push("Bookmark publicId is required");
+
+        // Check business logic - must have exactly one bookmarkable object
+        const bookmarkableFields = ['api', 'code', 'comment', 'issue', 'note', 'post', 'project', 'prompt', 'question', 'quiz', 'routine', 'runProject', 'runRoutine', 'smartContract', 'standard', 'team', 'user'];
+        const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.BookmarkCreateInput]);
+        
+        if (connectedObjects.length === 0) {
+            errors.push("Bookmark must reference exactly one bookmarkable object");
+        } else if (connectedObjects.length > 1) {
+            errors.push("Bookmark cannot reference multiple objects");
+        }
+
+        // Check for self-bookmark
+        if (data.by && data.user && 
+            typeof data.by === 'object' && 'connect' in data.by &&
+            typeof data.user === 'object' && 'connect' in data.user &&
+            data.by.connect.id === data.user.connect.id) {
+            warnings.push("User is bookmarking themselves");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
     static createMinimal(
         byId: string,
         overrides?: Partial<Prisma.BookmarkCreateInput>
     ): Prisma.BookmarkCreateInput {
-        return {
-            id: generatePK(),
-            publicId: generatePublicId(),
+        const factory = new BookmarkDbFactory();
+        return factory.createMinimal({
             by: { connect: { id: byId } },
             ...overrides,
-        };
+        });
     }
 
     static createForObject(
@@ -68,20 +334,82 @@ export class BookmarkDbFactory {
 }
 
 /**
- * Database fixtures for BookmarkList model
+ * Enhanced factory for creating bookmark list database fixtures
  */
-export class BookmarkListDbFactory {
+export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkListCreateInput> {
+    
+    /**
+     * Get the test fixtures for BookmarkList model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.BookmarkListCreateInput> {
+        return bookmarkListDbFixtures;
+    }
+
+    /**
+     * Get BookmarkList-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: bookmarkDbIds.bookmarkList1, // Duplicate ID
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    isPrivate: false,
+                    createdBy: { connect: { id: "non-existent-user-id" } },
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    publicId: "", // Empty publicId
+                    isPrivate: false,
+                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                },
+            },
+            validation: {
+                requiredFieldMissing: bookmarkListDbFixtures.invalid.missingRequired,
+                invalidDataType: bookmarkListDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    publicId: "a".repeat(500), // PublicId too long
+                    isPrivate: false,
+                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                },
+            },
+            businessLogic: {},
+        };
+    }
+
+    /**
+     * BookmarkList-specific validation
+     */
+    protected validateSpecific(data: Prisma.BookmarkListCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to BookmarkList
+        if (!data.createdBy) errors.push("BookmarkList createdBy is required");
+        if (!data.publicId) errors.push("BookmarkList publicId is required");
+        if (data.isPrivate === undefined) errors.push("BookmarkList isPrivate is required");
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
     static createMinimal(
         createdById: string,
         overrides?: Partial<Prisma.BookmarkListCreateInput>
     ): Prisma.BookmarkListCreateInput {
-        return {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
+        const factory = new BookmarkListDbFactory();
+        return factory.createMinimal({
             createdBy: { connect: { id: createdById } },
+            isPrivate: false,
             ...overrides,
-        };
+        });
     }
 
     static createWithTranslations(
@@ -123,7 +451,7 @@ export class BookmarkListDbFactory {
 }
 
 /**
- * Helper to seed bookmarks for testing
+ * Enhanced helper to seed multiple test bookmarks with comprehensive options
  */
 export async function seedBookmarks(
     prisma: any,
@@ -133,8 +461,9 @@ export async function seedBookmarks(
         withList?: boolean;
         listName?: string;
     }
-) {
+): Promise<BulkSeedResult<any>> {
     const bookmarks = [];
+    let listCount = 0;
 
     if (options.withList) {
         // Create a bookmark list with all bookmarks
@@ -154,7 +483,18 @@ export async function seedBookmarks(
             ),
             include: { bookmarks: true },
         });
-        return { list, bookmarks: list.bookmarks };
+        listCount = 1;
+        return {
+            records: [list],
+            summary: {
+                total: 1,
+                withAuth: 0,
+                bots: 0,
+                teams: 0,
+                lists: listCount,
+                bookmarks: list.bookmarks.length,
+            },
+        };
     } else {
         // Create individual bookmarks
         for (const obj of options.objects) {
@@ -167,6 +507,16 @@ export async function seedBookmarks(
             });
             bookmarks.push(bookmark);
         }
-        return { bookmarks };
+        return {
+            records: bookmarks,
+            summary: {
+                total: bookmarks.length,
+                withAuth: 0,
+                bots: 0,
+                teams: 0,
+                lists: 0,
+                bookmarks: bookmarks.length,
+            },
+        };
     }
 }

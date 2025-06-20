@@ -125,7 +125,6 @@ describe("MyFeature", () => {
     
     afterAll(async () => {
         vi.restoreAllMocks();
-        await DbProvider.shutdown();
     });
     
     it("should behave correctly", async () => {
@@ -336,6 +335,10 @@ describe("MyFeature", () => {
 * Vitest only – no Jest/Mocha/Chai/Sinon.
 
 Following these steps ensures tests remain behaviour-focused and dependable while fitting seamlessly into the overnight maintenance pipeline.
+
+## Related Documentation
+
+* **[Fixtures and Data Flow](../../testing/fixtures-and-data-flow.md)**: Comprehensive guide to fixture management and round-trip testing across UI, API, and database layers. Essential for implementing robust test data strategies that ensure data integrity throughout your application stack.
 
 [1]: https://vitest.dev/guide/cli.html?utm_source=chatgpt.com "Command Line Interface | Guide | Vitest"
 [2]: https://vitest.dev/guide/filtering?utm_source=chatgpt.com "Test Filtering | Guide - Vitest"

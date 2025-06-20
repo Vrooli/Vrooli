@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import { ScheduleRecurrenceType, type ScheduleRecurrenceCreateInput, type ScheduleRecurrenceUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { scheduleRecurrenceValidation } from "../../../validation/models/scheduleRecurrence.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,12 +13,13 @@ const validIds = {
 };
 
 // Shared schedule recurrence test fixtures
-export const scheduleRecurrenceFixtures: ModelTestFixtures = {
+export const scheduleRecurrenceFixtures: ModelTestFixtures<ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
-            recurrenceType: "Daily",
+            recurrenceType: ScheduleRecurrenceType.Daily,
             interval: 1, // Every day
+            duration: 60, // 60 minutes
             scheduleConnect: validIds.id2,
         },
         update: {
@@ -26,7 +29,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
     complete: {
         create: {
             id: validIds.id1,
-            recurrenceType: "Weekly",
+            recurrenceType: ScheduleRecurrenceType.Weekly,
             interval: 2, // Every 2 weeks
             dayOfWeek: 3, // Wednesday (1-7, where 1 is Monday)
             dayOfMonth: null,
@@ -40,7 +43,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         },
         update: {
             id: validIds.id1,
-            recurrenceType: "Monthly",
+            recurrenceType: ScheduleRecurrenceType.Monthly,
             interval: 1, // Every month
             dayOfWeek: null,
             dayOfMonth: 15, // 15th of each month
@@ -55,20 +58,20 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         missingRequired: {
             create: {
                 id: validIds.id1,
-                // Missing required recurrenceType, interval, and scheduleConnect
+                // Missing required recurrenceType, interval, duration, and scheduleConnect
                 dayOfWeek: 3,
                 endDate: new Date("2025-12-31T23:59:59Z"),
             },
             update: {
                 // Missing required id
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
             },
         },
         invalidTypes: {
             create: {
                 id: 123, // Should be string
-                recurrenceType: "InvalidType", // Invalid enum value
+                recurrenceType: "InvalidType" as any, // Invalid enum value
                 interval: "one", // Should be number
                 dayOfWeek: "Monday", // Should be number
                 dayOfMonth: "first", // Should be number
@@ -89,7 +92,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 scheduleConnect: validIds.id2,
             },
@@ -100,7 +103,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidRecurrenceType: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Hourly", // Not a valid enum value
+                recurrenceType: "Hourly" as any, // Not a valid enum value
                 interval: 1,
                 scheduleConnect: validIds.id2,
             },
@@ -108,7 +111,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidInterval: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 0, // Must be >= 1
                 scheduleConnect: validIds.id2,
             },
@@ -120,7 +123,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidDayOfWeek: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 0, // Must be 1-7
                 scheduleConnect: validIds.id2,
@@ -133,7 +136,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidDayOfMonth: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Monthly",
+                recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 1,
                 dayOfMonth: 0, // Must be 1-31
                 scheduleConnect: validIds.id2,
@@ -146,7 +149,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         invalidDuration: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 duration: 0, // Must be >= 1
                 scheduleConnect: validIds.id2,
@@ -155,8 +158,9 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         missingScheduleConnect: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
+                duration: 60,
                 // Missing required scheduleConnect
             },
         },
@@ -165,104 +169,116 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         dailyRecurrence: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         weeklyMonday: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 1, // Monday
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         weeklyFriday: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 5, // Friday
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         weeklySunday: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 7, // Sunday
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         biweekly: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 2,
                 dayOfWeek: 3, // Wednesday
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         monthlyFirstDay: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Monthly",
+                recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 1,
                 dayOfMonth: 1, // First day of month
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         monthlyMidMonth: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Monthly",
+                recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 1,
                 dayOfMonth: 15, // Middle of month
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         monthlyLastDay: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Monthly",
+                recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 1,
                 dayOfMonth: 31, // Last possible day
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         quarterlyRecurrence: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Monthly",
+                recurrenceType: ScheduleRecurrenceType.Monthly,
                 interval: 3, // Every 3 months
                 dayOfMonth: 1,
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         yearlyRecurrence: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Yearly",
+                recurrenceType: ScheduleRecurrenceType.Yearly,
                 interval: 1,
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         biYearlyRecurrence: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Yearly",
+                recurrenceType: ScheduleRecurrenceType.Yearly,
                 interval: 2, // Every 2 years
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         withEndDate: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
+                duration: 60,
                 endDate: new Date("2025-12-31T23:59:59Z"),
                 scheduleConnect: validIds.id2,
             },
@@ -270,9 +286,10 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         withoutEndDate: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 2, // Tuesday
+                duration: 60,
                 // No end date - infinite recurrence
                 scheduleConnect: validIds.id2,
             },
@@ -280,7 +297,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         shortDuration: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 duration: 15, // 15 minutes
                 scheduleConnect: validIds.id2,
@@ -289,7 +306,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         longDuration: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 1,
                 dayOfWeek: 4, // Thursday
                 duration: 480, // 8 hours
@@ -299,23 +316,25 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         differentScheduleId: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
+                duration: 60,
                 scheduleConnect: validIds.id6, // Different schedule
             },
         },
         maxInterval: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Daily",
+                recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 365, // Every 365 days
+                duration: 60,
                 scheduleConnect: validIds.id2,
             },
         },
         complexWeeklyPattern: {
             create: {
                 id: validIds.id1,
-                recurrenceType: "Weekly",
+                recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval: 3, // Every 3 weeks
                 dayOfWeek: 6, // Saturday
                 duration: 120, // 2 hours
@@ -332,7 +351,7 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
         updateRecurrenceType: {
             update: {
                 id: validIds.id1,
-                recurrenceType: "Monthly", // Changing from whatever it was
+                recurrenceType: ScheduleRecurrenceType.Monthly, // Changing from whatever it was
                 dayOfMonth: 10,
             },
         },
@@ -353,18 +372,20 @@ export const scheduleRecurrenceFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<ScheduleRecurrenceCreateInput>): ScheduleRecurrenceCreateInput => ({
+        id: validIds.id1,
+        recurrenceType: ScheduleRecurrenceType.Daily,
+        interval: 1,
+        duration: 60,
+        scheduleConnect: validIds.id2,
         ...base,
-        id: base.id || validIds.id1,
-        recurrenceType: base.recurrenceType || "Daily",
-        interval: base.interval || 1,
-        scheduleConnect: base.scheduleConnect || validIds.id2,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<ScheduleRecurrenceUpdateInput>): ScheduleRecurrenceUpdateInput => ({
+        id: validIds.id1,
         ...base,
-        id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const scheduleRecurrenceTestDataFactory = new TestDataFactory(scheduleRecurrenceFixtures, customizers);
+export const scheduleRecurrenceTestDataFactory = new TypedTestDataFactory(scheduleRecurrenceFixtures, scheduleRecurrenceValidation, customizers);
+export const typedScheduleRecurrenceFixtures = createTypedFixtures(scheduleRecurrenceFixtures, scheduleRecurrenceValidation);

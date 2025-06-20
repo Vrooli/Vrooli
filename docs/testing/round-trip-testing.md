@@ -16,24 +16,40 @@ This document explains how to implement comprehensive round-trip tests that vali
 
 ## What is Round-Trip Testing?
 
-Round-trip testing validates that data maintains its integrity through a complete cycle:
+Round-trip testing validates that data maintains its integrity through a complete cycle using the Unified Fixture Architecture:
 
 ```mermaid
 graph LR
-    A[UI Form] --> B[Validation]
-    B --> C[Shape Transform]
-    C --> D[API Request]
-    D --> E[Server Processing]
+    A[UI Form] --> B[Shape Transform]
+    B --> C[API Input]
+    C --> D[Validation]
+    D --> E[Endpoint]
     E --> F[Database]
     F --> G[API Response]
-    G --> H[Shape Transform]
-    H --> I[UI Display]
+    G --> H[UI Display]
+    
+    A -.-> FA[FormFactory]
+    B -.-> FB[ShapeFactory]
+    C -.-> FC[APIFactory]
+    D -.-> FD[ValidationFactory]
+    E -.-> FE[EndpointFactory]
+    F -.-> FF[DatabaseFactory]
+    G -.-> FG[ResponseFactory]
+    H -.-> FH[UIFactory]
     
     style A fill:#f9f,stroke:#333,stroke-width:2px
-    style I fill:#f9f,stroke:#333,stroke-width:2px
+    style H fill:#f9f,stroke:#333,stroke-width:2px
+    style FA fill:#e1f5fe
+    style FB fill:#fff3e0
+    style FC fill:#f3e5f5
+    style FD fill:#fce4ec
+    style FE fill:#f1f8e9
+    style FF fill:#e8f5e8
+    style FG fill:#f3e5f5
+    style FH fill:#e1f5fe
 ```
 
-The data that starts in the UI should match what's displayed after the complete journey.
+The data that starts in the UI should match what's displayed after the complete journey, with each factory ensuring type safety and data integrity between layers.
 
 ## The Problem We're Solving
 
@@ -70,33 +86,142 @@ it("should handle complete bookmark flow", async () => {
 - Ensures data consistency
 - Builds confidence in the system
 
-## Round-Trip Testing with Real Functions
+## Round-Trip Testing with the Unified Architecture
 
-The key insight: **Use the actual application functions** instead of mocks to ensure tests reflect real behavior.
+The Unified Fixture Architecture provides a factory-based approach where each factory connects exactly two layers, ensuring type safety and real function usage throughout.
 
 ### Core Principles
 
-1. **Use Real Shape Functions**: Test actual transformation logic
-2. **Use Real Validation**: Ensure data meets requirements
-3. **Use Real Endpoints**: Validate API contracts
-4. **Use Real Database**: Via testcontainers for true integration
+1. **Factory Chain Pattern**: Each factory connects 2 adjacent layers
+2. **Type Safety**: No `any` types - full TypeScript support
+3. **Real Functions**: Use actual shape, validation, and endpoint functions
+4. **True Database Testing**: Via testcontainers for isolated database operations
+5. **Error Injection**: Each factory supports error scenario testing
 
-### Basic Round-Trip Pattern
+### The Factory Chain
 
 ```typescript
-import { 
-    shapeBookmark, 
-    bookmarkValidation, 
-    endpointsBookmark 
-} from "@vrooli/shared";
-import { useLazyFetch } from "../hooks/useFetch.js";
+// Complete factory chain for round-trip testing
+export interface RoundTripFactoryChain<TObject> {
+  // Layer-to-layer factories
+  formFactory: FormFactory<FormData, ShapeObject>
+  shapeFactory: ShapeFactory<ShapeObject, APIInput>
+  apiFactory: APIFactory<APIInput, ValidatedInput>
+  validationFactory: ValidationFactory<ValidatedInput, EndpointInput>
+  endpointFactory: EndpointFactory<EndpointInput, DatabaseInput>
+  databaseFactory: DatabaseFactory<DatabaseInput, DatabaseResult>
+  responseFactory: ResponseFactory<DatabaseResult, APIResponse>
+  uiFactory: UIFactory<APIResponse, UIState>
+  
+  // Orchestrator combines all factories
+  orchestrator: RoundTripOrchestrator<FormData, UIState>
+}
+```
 
-async function testBookmarkRoundTrip(formData: BookmarkFormData) {
-    // Step 1: Validate form data (as UI would)
-    const validation = await bookmarkValidation.create.validate(formData);
-    if (!validation.isValid) {
-        throw new Error(validation.errors);
-    }
+### Implementing Round-Trip Tests
+
+```typescript
+import { BookmarkRoundTripFactory } from "@/test/fixtures/round-trip-tests/bookmarkRoundTrip";
+import { DbProvider } from "@/test/fixtures/db";
+import { PostgreSQLContainer } from "@testcontainers/postgresql";
+
+describe("Bookmark Round-Trip Testing", () => {
+  let container: PostgreSQLContainer;
+  let roundTripFactory: BookmarkRoundTripFactory;
+  
+  beforeAll(async () => {
+    // Set up real database with testcontainers
+    container = await new PostgreSQLContainer()
+      .withDatabase("test_db")
+      .start();
+      
+    process.env.DATABASE_URL = container.getConnectionUri();
+    await DbProvider.initialize();
+    
+    // Initialize factory chain
+    roundTripFactory = new BookmarkRoundTripFactory({
+      database: DbProvider.get(),
+      useRealEndpoints: true,
+      validateAtEachStep: true
+    });
+  });
+  
+  afterAll(async () => {
+    await container.stop();
+  });
+  
+  it("should handle complete bookmark lifecycle", async () => {
+    // Start with form data (what user actually enters)
+    const formData = {
+      bookmarkFor: "Project",
+      forConnect: "project_123",
+      createNewList: true,
+      newListLabel: "My Projects"
+    };
+    
+    // Execute full round-trip through all layers
+    const result = await roundTripFactory.executeFullCycle(formData);
+    
+    // Verify success
+    expect(result.success).toBe(true);
+    expect(result.stages).toEqual({
+      form: "completed",
+      shape: "completed",
+      api: "completed",
+      validation: "completed",
+      endpoint: "completed",
+      database: "completed",
+      response: "completed",
+      ui: "completed"
+    });
+    
+    // Verify data integrity
+    expect(result.dataIntegrity).toBe(true);
+    expect(result.finalUIState.bookmark.to.id).toBe(formData.forConnect);
+    expect(result.finalUIState.list.label).toBe(formData.newListLabel);
+    
+    // Verify database state
+    expect(result.databaseRecord).toBeDefined();
+    expect(result.databaseRecord.id).toBeDefined();
+    expect(result.databaseRecord.list).toBeDefined();
+    
+    // Verify UI can display the result
+    expect(result.canDisplay).toBe(true);
+  });
+  
+  it("should handle validation errors gracefully", async () => {
+    const invalidFormData = {
+      bookmarkFor: null, // Invalid
+      forConnect: "project_123"
+    };
+    
+    const result = await roundTripFactory.testErrorRecovery({
+      stage: "validation",
+      formData: invalidFormData,
+      expectedError: "VALIDATION_ERROR"
+    });
+    
+    expect(result.errorHandled).toBe(true);
+    expect(result.failedAtStage).toBe("validation");
+    expect(result.userErrorMessage).toContain("bookmark type");
+  });
+  
+  it("should handle database errors with retry", async () => {
+    const formData = bookmarkFormData.minimal;
+    
+    // Inject database error
+    await roundTripFactory.injectError({
+      stage: "database",
+      error: new Error("Connection timeout"),
+      retryable: true
+    });
+    
+    const result = await roundTripFactory.executeFullCycle(formData);
+    
+    expect(result.retryAttempts).toBe(1);
+    expect(result.success).toBe(true); // Succeeded on retry
+  });
+});
     
     // Step 2: Transform for API (as UI would)
     const apiRequest = shapeBookmark.create({

@@ -11,6 +11,8 @@ This document provides guidelines and best practices for writing unit and integr
 -   **Focused:** Each test case should typically verify a single behavior or aspect of the code.
 -   **Independent:** Tests should not depend on each other or the order of execution.
 -   **Use Real Infrastructure:** Use testcontainers for PostgreSQL and Redis - never mock core infrastructure services.
+-   **Type-Safe:** Use the Unified Fixture Architecture - no `any` types in test code.
+-   **Use Real Functions:** Use actual shape functions, validation schemas, and endpoints - not mocks.
 
 ## 2. Import Guidelines
 
@@ -231,9 +233,78 @@ describe('User Service', () => {
 ### Test Data Best Practices
 
 -   Use Shape types from `@vrooli/shared` instead of creating custom interfaces
--   Leverage existing fixture functions for consistent test data
--   Create unique identifiers for test data to avoid conflicts
+-   Leverage the Unified Fixture Architecture for all test data
+-   Use type-safe factory chains for round-trip testing
 -   Clean up test data immediately after each test
+
+### Using the Unified Fixture Architecture
+
+The Unified Fixture Architecture provides type-safe, consistent test data across all layers:
+
+```typescript
+import { userFixtures, shapeUser, userValidation } from '@vrooli/shared';
+import { UserRoundTripFactory } from '@/test/fixtures/round-trip-tests/userRoundTrip';
+
+describe('User Management', () => {
+    // Use API fixtures for unit tests
+    it('should validate user input', async () => {
+        const userData = userFixtures.minimal.create;
+        const validation = await userValidation.create.validate(userData);
+        expect(validation.isValid).toBe(true);
+    });
+    
+    // Use round-trip factory for integration tests
+    it('should handle complete user lifecycle', async () => {
+        const factory = new UserRoundTripFactory();
+        const formData = {
+            email: 'test@example.com',
+            password: 'SecurePass123!',
+            name: 'Test User'
+        };
+        
+        const result = await factory.executeFullCycle(formData);
+        expect(result.success).toBe(true);
+        expect(result.dataIntegrity).toBe(true);
+    });
+    
+    // Use config fixtures for JSON fields
+    import { botConfigFixtures } from '@vrooli/shared/__test/fixtures/config';
+    
+    it('should create bot with config', async () => {
+        const bot = {
+            ...userFixtures.minimal.create,
+            botSettings: botConfigFixtures.complete
+        };
+        
+        const result = await createBot(bot);
+        expect(result.botSettings).toMatchObject(botConfigFixtures.complete);
+    });
+});
+```
+
+### Error Testing with Fixtures
+
+```typescript
+import { apiErrorFixtures, networkErrorFixtures } from '@vrooli/shared/__test/fixtures/errors';
+
+describe('Error Handling', () => {
+    it('should handle API errors gracefully', async () => {
+        const notFoundError = apiErrorFixtures.notFound.standard;
+        
+        const result = await handleError(notFoundError);
+        expect(result.userMessage).toContain('not found');
+        expect(result.retryable).toBe(false);
+    });
+    
+    it('should retry on network errors', async () => {
+        const timeoutError = networkErrorFixtures.timeout.client;
+        
+        const result = await handleNetworkError(timeoutError);
+        expect(result.retried).toBe(true);
+        expect(result.maxRetries).toBe(3);
+    });
+});
+```
 
 ## 8. Asynchronous Tests
 

@@ -1,5 +1,10 @@
-import { type ModelTestFixtures, TestDataFactory, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ApiKeyExternalCreateInput, ApiKeyExternalUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { apiKeyExternalValidation } from "../../../validation/models/apiKeyExternal.js";
 import { API_KEY_EXTERNAL_MAX_LENGTH, API_KEY_SERVICE_MAX_LENGTH, NAME_MAX_LENGTH } from "../../../validation/utils/validationConstants.js";
+
+// Extend create type to include id (required by validation but not API)
+type ApiKeyExternalCreateInputWithId = ApiKeyExternalCreateInput & { id: string };
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,7 +16,7 @@ const validIds = {
 };
 
 // Shared apiKeyExternal test fixtures
-export const apiKeyExternalFixtures: ModelTestFixtures = {
+export const apiKeyExternalFixtures: ModelTestFixtures<ApiKeyExternalCreateInputWithId, ApiKeyExternalUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -137,15 +142,19 @@ export const apiKeyExternalFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<ApiKeyExternalCreateInputWithId>): ApiKeyExternalCreateInputWithId => ({
+        id: validIds.id1,
+        key: "sk-default-key",
+        name: "Default API Key",
+        service: "OpenAI",
         ...base,
-        id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<ApiKeyExternalUpdateInput>): ApiKeyExternalUpdateInput => ({
+        id: validIds.id1,
         ...base,
-        id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const apiKeyExternalTestDataFactory = new TestDataFactory(apiKeyExternalFixtures, customizers);
+export const apiKeyExternalTestDataFactory = new TypedTestDataFactory(apiKeyExternalFixtures, apiKeyExternalValidation, customizers);
+export const typedApiKeyExternalFixtures = createTypedFixtures(apiKeyExternalFixtures, apiKeyExternalValidation);

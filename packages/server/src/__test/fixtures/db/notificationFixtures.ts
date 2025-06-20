@@ -1,35 +1,190 @@
-import { generatePK } from "@vrooli/shared";
+import { generatePK, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 
 /**
  * Database fixtures for Notification model - used for seeding test data
+ * These follow Prisma's shape for database operations
  */
 
-export class NotificationDbFactory {
-    static createMinimal(
-        userId: string,
-        category: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>
-    ): Prisma.NotificationCreateInput {
-        return {
-            id: generatePK(),
-            category,
-            user: { connect: { id: userId } },
+// Consistent IDs for testing
+export const notificationDbIds = {
+    notification1: generatePK(),
+    notification2: generatePK(),
+    notification3: generatePK(),
+    subscription1: generatePK(),
+    subscription2: generatePK(),
+    subscription3: generatePK(),
+};
+
+/**
+ * Enhanced test fixtures for Notification model following standard structure
+ */
+export const notificationDbFixtures: DbTestFixtures<Prisma.NotificationCreateInput> = {
+    minimal: {
+        id: generatePK(),
+        category: "Update",
+        user: { connect: { id: "user_placeholder_id" } },
+        isRead: false,
+    },
+    complete: {
+        id: generatePK(),
+        category: "TeamInvite",
+        user: { connect: { id: "user_placeholder_id" } },
+        isRead: false,
+        title: "Team Invitation",
+        description: "You have been invited to join the Development Team",
+        team: { connect: { id: "team_placeholder_id" } },
+        fromUser: { connect: { id: "inviter_user_id" } },
+        createdAt: new Date(),
+    },
+    invalid: {
+        missingRequired: {
+            // Missing required category and user
             isRead: false,
-            ...overrides,
+        },
+        invalidTypes: {
+            id: "not-a-valid-snowflake",
+            category: 123, // Should be string
+            isRead: "yes", // Should be boolean
+            title: 456, // Should be string
+            description: true, // Should be string
+        },
+        invalidUserConnection: {
+            id: generatePK(),
+            category: "Update",
+            user: { connect: { id: "non-existent-user-id" } },
+            isRead: false,
+        },
+        invalidObjectConnection: {
+            id: generatePK(),
+            category: "CommentReply",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: false,
+            comment: { connect: { id: "non-existent-comment-id" } },
+        },
+    },
+    edgeCases: {
+        oldNotification: {
+            id: generatePK(),
+            category: "Update",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: true,
+            title: "Old Notification",
+            description: "This notification was created a year ago",
+            createdAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+        },
+        longContentNotification: {
+            id: generatePK(),
+            category: "SystemAlert",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: false,
+            title: "System Maintenance Alert - Critical Updates Required",
+            description: "A".repeat(1000), // Very long description
+        },
+        multipleObjectNotification: {
+            id: generatePK(),
+            category: "ProjectUpdate",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: false,
+            title: "Project and Team Update",
+            description: "Multiple updates across different areas",
+            team: { connect: { id: "team_placeholder_id" } },
+            fromUser: { connect: { id: "sender_user_id" } },
+        },
+        systemNotification: {
+            id: generatePK(),
+            category: "SystemMaintenance",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: false,
+            title: "Scheduled Maintenance",
+            description: "System will be offline for maintenance from 2-4 AM UTC",
+            // No fromUser - system generated
+        },
+        reactionNotification: {
+            id: generatePK(),
+            category: "Reaction",
+            user: { connect: { id: "user_placeholder_id" } },
+            isRead: false,
+            title: "New Reaction",
+            description: "Someone liked your comment",
+            reaction: { connect: { id: "reaction_placeholder_id" } },
+            fromUser: { connect: { id: "reactor_user_id" } },
+        },
+    },
+};
+
+/**
+ * Enhanced factory for creating notification database fixtures
+ */
+export class NotificationDbFactory extends EnhancedDbFactory<Prisma.NotificationCreateInput> {
+    
+    /**
+     * Get the test fixtures for Notification model
+     */
+    protected getFixtures(): DbTestFixtures<Prisma.NotificationCreateInput> {
+        return notificationDbFixtures;
+    }
+
+    /**
+     * Get Notification-specific error scenarios
+     */
+    protected getErrorScenarios(): DbErrorScenarios {
+        return {
+            constraints: {
+                uniqueViolation: {
+                    id: notificationDbIds.notification1, // Duplicate ID
+                    category: "Update",
+                    user: { connect: { id: "user_placeholder_id" } },
+                    isRead: false,
+                },
+                foreignKeyViolation: {
+                    id: generatePK(),
+                    category: "Update",
+                    user: { connect: { id: "non-existent-user-id" } },
+                    isRead: false,
+                },
+                checkConstraintViolation: {
+                    id: generatePK(),
+                    category: "", // Empty category violates constraint
+                    user: { connect: { id: "user_placeholder_id" } },
+                    isRead: false,
+                },
+            },
+            validation: {
+                requiredFieldMissing: notificationDbFixtures.invalid.missingRequired,
+                invalidDataType: notificationDbFixtures.invalid.invalidTypes,
+                outOfRange: {
+                    id: generatePK(),
+                    category: "A".repeat(256), // Category too long
+                    user: { connect: { id: "user_placeholder_id" } },
+                    isRead: false,
+                },
+            },
+            businessLogic: {
+                notificationToSelf: {
+                    id: generatePK(),
+                    category: "TeamInvite",
+                    user: { connect: { id: "user_placeholder_id" } },
+                    fromUser: { connect: { id: "user_placeholder_id" } }, // Same user
+                    isRead: false,
+                },
+                orphanedObjectNotification: {
+                    id: generatePK(),
+                    category: "CommentReply",
+                    user: { connect: { id: "user_placeholder_id" } },
+                    isRead: false,
+                    comment: { connect: { id: "non-existent-comment-id" } },
+                },
+            },
         };
     }
 
-    static createWithObject(
-        userId: string,
-        category: string,
-        objectId: string,
-        objectType: string,
-        overrides?: Partial<Prisma.NotificationCreateInput>
-    ): Prisma.NotificationCreateInput {
-        const base = this.createMinimal(userId, category, overrides);
-        
-        // Add the appropriate connection based on object type
+    /**
+     * Add object association to a notification fixture
+     */
+    protected addObjectAssociation(data: Prisma.NotificationCreateInput, objectId: string, objectType: string): Prisma.NotificationCreateInput {
         const connections: Record<string, any> = {
             Comment: { comment: { connect: { id: objectId } } },
             Issue: { issue: { connect: { id: objectId } } },
@@ -42,9 +197,84 @@ export class NotificationDbFactory {
         };
 
         return {
-            ...base,
+            ...data,
             ...(connections[objectType] || {}),
         };
+    }
+
+    /**
+     * Notification-specific validation
+     */
+    protected validateSpecific(data: Prisma.NotificationCreateInput): { errors: string[]; warnings: string[] } {
+        const errors: string[] = [];
+        const warnings: string[] = [];
+
+        // Check required fields specific to Notification
+        if (!data.category) errors.push("Notification category is required");
+        if (!data.user) errors.push("Notification must be associated with a user");
+        if (data.isRead === undefined) errors.push("isRead flag is required");
+
+        // Check business logic
+        if (data.fromUser && data.user && 
+            typeof data.fromUser === 'object' && 'connect' in data.fromUser &&
+            typeof data.user === 'object' && 'connect' in data.user &&
+            data.fromUser.connect?.id === data.user.connect?.id) {
+            warnings.push("Notification sender and recipient are the same user");
+        }
+
+        // Check category-specific requirements
+        if (data.category?.includes("Team") && !data.team) {
+            warnings.push("Team-related notifications should reference a team");
+        }
+
+        if (data.category?.includes("Comment") && !data.comment) {
+            warnings.push("Comment-related notifications should reference a comment");
+        }
+
+        if (data.category?.includes("Reaction") && !data.reaction) {
+            warnings.push("Reaction notifications should reference a reaction");
+        }
+
+        // Check content length
+        if (data.title && data.title.length > 255) {
+            errors.push("Notification title is too long (max 255 characters)");
+        }
+
+        if (data.description && data.description.length > 2000) {
+            errors.push("Notification description is too long (max 2000 characters)");
+        }
+
+        return { errors, warnings };
+    }
+
+    // Static methods for backward compatibility
+    static createMinimal(
+        userId: string,
+        category: string,
+        overrides?: Partial<Prisma.NotificationCreateInput>
+    ): Prisma.NotificationCreateInput {
+        const factory = new NotificationDbFactory();
+        return factory.createMinimal({
+            category,
+            user: { connect: { id: userId } },
+            ...overrides,
+        });
+    }
+
+    static createWithObject(
+        userId: string,
+        category: string,
+        objectId: string,
+        objectType: string,
+        overrides?: Partial<Prisma.NotificationCreateInput>
+    ): Prisma.NotificationCreateInput {
+        const factory = new NotificationDbFactory();
+        let data = factory.createMinimal({
+            category,
+            user: { connect: { id: userId } },
+            ...overrides,
+        });
+        return factory.addObjectAssociation(data, objectId, objectType);
     }
 
     static createRead(
@@ -52,77 +282,20 @@ export class NotificationDbFactory {
         category: string,
         overrides?: Partial<Prisma.NotificationCreateInput>
     ): Prisma.NotificationCreateInput {
-        return this.createMinimal(userId, category, {
+        const factory = new NotificationDbFactory();
+        return factory.createMinimal({
+            category,
+            user: { connect: { id: userId } },
             isRead: true,
             ...overrides,
         });
     }
 }
 
-/**
- * Database fixtures for NotificationSubscription model
- */
-export class NotificationSubscriptionDbFactory {
-    static createMinimal(
-        userId: string,
-        category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
-    ): Prisma.NotificationSubscriptionCreateInput {
-        return {
-            id: generatePK(),
-            category,
-            user: { connect: { id: userId } },
-            isEnabled: true,
-            ...overrides,
-        };
-    }
-
-    static createWithObject(
-        userId: string,
-        objectId: string,
-        objectType: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
-    ): Prisma.NotificationSubscriptionCreateInput {
-        const base = this.createMinimal(userId, `${objectType}Updates`, overrides);
-        
-        // Add the appropriate connection based on object type
-        const connections: Record<string, any> = {
-            Api: { api: { connect: { id: objectId } } },
-            Comment: { comment: { connect: { id: objectId } } },
-            Issue: { issue: { connect: { id: objectId } } },
-            Meeting: { meeting: { connect: { id: objectId } } },
-            Note: { note: { connect: { id: objectId } } },
-            Project: { project: { connect: { id: objectId } } },
-            Question: { question: { connect: { id: objectId } } },
-            Quiz: { quiz: { connect: { id: objectId } } },
-            Report: { report: { connect: { id: objectId } } },
-            Routine: { routine: { connect: { id: objectId } } },
-            SmartContract: { smartContract: { connect: { id: objectId } } },
-            Standard: { standard: { connect: { id: objectId } } },
-            Team: { team: { connect: { id: objectId } } },
-            User: { user: { connect: { id: objectId } } },
-        };
-
-        return {
-            ...base,
-            ...(connections[objectType] || {}),
-        };
-    }
-
-    static createDisabled(
-        userId: string,
-        category: string,
-        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>
-    ): Prisma.NotificationSubscriptionCreateInput {
-        return this.createMinimal(userId, category, {
-            isEnabled: false,
-            ...overrides,
-        });
-    }
-}
+/**\n * Enhanced test fixtures for NotificationSubscription model\n */\nexport const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.NotificationSubscriptionCreateInput> = {\n    minimal: {\n        id: generatePK(),\n        category: \"Updates\",\n        user: { connect: { id: \"user_placeholder_id\" } },\n        isEnabled: true,\n    },\n    complete: {\n        id: generatePK(),\n        category: \"TeamUpdates\",\n        user: { connect: { id: \"user_placeholder_id\" } },\n        isEnabled: true,\n        team: { connect: { id: \"team_placeholder_id\" } },\n    },\n    invalid: {\n        missingRequired: {\n            // Missing required category and user\n            isEnabled: true,\n        },\n        invalidTypes: {\n            id: \"not-a-valid-snowflake\",\n            category: 123, // Should be string\n            isEnabled: \"yes\", // Should be boolean\n        },\n        invalidUserConnection: {\n            id: generatePK(),\n            category: \"Updates\",\n            user: { connect: { id: \"non-existent-user-id\" } },\n            isEnabled: true,\n        },\n    },\n    edgeCases: {\n        disabledSubscription: {\n            id: generatePK(),\n            category: \"Alerts\",\n            user: { connect: { id: \"user_placeholder_id\" } },\n            isEnabled: false,\n        },\n        projectSubscription: {\n            id: generatePK(),\n            category: \"ProjectUpdates\",\n            user: { connect: { id: \"user_placeholder_id\" } },\n            isEnabled: true,\n            project: { connect: { id: \"project_placeholder_id\" } },\n        },\n        routineSubscription: {\n            id: generatePK(),\n            category: \"RoutineUpdates\",\n            user: { connect: { id: \"user_placeholder_id\" } },\n            isEnabled: true,\n            routine: { connect: { id: \"routine_placeholder_id\" } },\n        },\n    },\n};\n\n/**\n * Enhanced factory for creating notification subscription database fixtures\n */\nexport class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.NotificationSubscriptionCreateInput> {\n    \n    /**\n     * Get the test fixtures for NotificationSubscription model\n     */\n    protected getFixtures(): DbTestFixtures<Prisma.NotificationSubscriptionCreateInput> {\n        return notificationSubscriptionDbFixtures;\n    }\n\n    /**\n     * Get NotificationSubscription-specific error scenarios\n     */\n    protected getErrorScenarios(): DbErrorScenarios {\n        return {\n            constraints: {\n                uniqueViolation: {\n                    id: notificationDbIds.subscription1, // Duplicate ID\n                    category: \"Updates\",\n                    user: { connect: { id: \"user_placeholder_id\" } },\n                    isEnabled: true,\n                },\n                foreignKeyViolation: {\n                    id: generatePK(),\n                    category: \"Updates\",\n                    user: { connect: { id: \"non-existent-user-id\" } },\n                    isEnabled: true,\n                },\n                checkConstraintViolation: {\n                    id: generatePK(),\n                    category: \"\", // Empty category violates constraint\n                    user: { connect: { id: \"user_placeholder_id\" } },\n                    isEnabled: true,\n                },\n            },\n            validation: {\n                requiredFieldMissing: notificationSubscriptionDbFixtures.invalid.missingRequired,\n                invalidDataType: notificationSubscriptionDbFixtures.invalid.invalidTypes,\n                outOfRange: {\n                    id: generatePK(),\n                    category: \"A\".repeat(256), // Category too long\n                    user: { connect: { id: \"user_placeholder_id\" } },\n                    isEnabled: true,\n                },\n            },\n            businessLogic: {\n                duplicateSubscription: {\n                    id: generatePK(),\n                    category: \"Updates\",\n                    user: { connect: { id: \"user_placeholder_id\" } },\n                    isEnabled: true,\n                    // Same user, same category - potential duplicate\n                },\n            },\n        };\n    }\n\n    /**\n     * Add object association to a subscription fixture\n     */\n    protected addObjectAssociation(data: Prisma.NotificationSubscriptionCreateInput, objectId: string, objectType: string): Prisma.NotificationSubscriptionCreateInput {\n        const connections: Record<string, any> = {\n            Api: { api: { connect: { id: objectId } } },\n            Comment: { comment: { connect: { id: objectId } } },\n            Issue: { issue: { connect: { id: objectId } } },\n            Meeting: { meeting: { connect: { id: objectId } } },\n            Note: { note: { connect: { id: objectId } } },\n            Project: { project: { connect: { id: objectId } } },\n            Question: { question: { connect: { id: objectId } } },\n            Quiz: { quiz: { connect: { id: objectId } } },\n            Report: { report: { connect: { id: objectId } } },\n            Routine: { routine: { connect: { id: objectId } } },\n            SmartContract: { smartContract: { connect: { id: objectId } } },\n            Standard: { standard: { connect: { id: objectId } } },\n            Team: { team: { connect: { id: objectId } } },\n            User: { user: { connect: { id: objectId } } },\n        };\n\n        return {\n            ...data,\n            ...(connections[objectType] || {}),\n        };\n    }\n\n    /**\n     * NotificationSubscription-specific validation\n     */\n    protected validateSpecific(data: Prisma.NotificationSubscriptionCreateInput): { errors: string[]; warnings: string[] } {\n        const errors: string[] = [];\n        const warnings: string[] = [];\n\n        // Check required fields specific to NotificationSubscription\n        if (!data.category) errors.push(\"Subscription category is required\");\n        if (!data.user) errors.push(\"Subscription must be associated with a user\");\n        if (data.isEnabled === undefined) errors.push(\"isEnabled flag is required\");\n\n        // Check business logic\n        if (!data.isEnabled) {\n            warnings.push(\"Subscription is disabled - user won't receive notifications\");\n        }\n\n        // Check category-specific requirements\n        if (data.category?.includes(\"Team\") && !data.team) {\n            warnings.push(\"Team-related subscriptions should reference a team\");\n        }\n\n        if (data.category?.includes(\"Project\") && !data.project) {\n            warnings.push(\"Project-related subscriptions should reference a project\");\n        }\n\n        return { errors, warnings };\n    }\n\n    // Static methods for backward compatibility\n    static createMinimal(\n        userId: string,\n        category: string,\n        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>\n    ): Prisma.NotificationSubscriptionCreateInput {\n        const factory = new NotificationSubscriptionDbFactory();\n        return factory.createMinimal({\n            category,\n            user: { connect: { id: userId } },\n            ...overrides,\n        });\n    }\n\n    static createWithObject(\n        userId: string,\n        objectId: string,\n        objectType: string,\n        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>\n    ): Prisma.NotificationSubscriptionCreateInput {\n        const factory = new NotificationSubscriptionDbFactory();\n        let data = factory.createMinimal({\n            category: `${objectType}Updates`,\n            user: { connect: { id: userId } },\n            ...overrides,\n        });\n        return factory.addObjectAssociation(data, objectId, objectType);\n    }\n\n    static createDisabled(\n        userId: string,\n        category: string,\n        overrides?: Partial<Prisma.NotificationSubscriptionCreateInput>\n    ): Prisma.NotificationSubscriptionCreateInput {\n        const factory = new NotificationSubscriptionDbFactory();\n        return factory.createMinimal({\n            category,\n            user: { connect: { id: userId } },\n            isEnabled: false,\n            ...overrides,\n        });\n    }\n}"}
 
 /**
- * Helper to seed notifications for testing
+ * Enhanced helper to seed multiple test notifications with comprehensive options
  */
 export async function seedNotifications(
     prisma: any,
@@ -133,11 +306,15 @@ export async function seedNotifications(
         withRead?: boolean;
         withSubscriptions?: boolean;
     }
-) {
+): Promise<BulkSeedResult<any>> {
+    const notificationFactory = new NotificationDbFactory();
+    const subscriptionFactory = new NotificationSubscriptionDbFactory();
     const notifications = [];
     const subscriptions = [];
     const count = options.count || 5;
     const categories = options.categories || ["Update", "Reminder", "Alert"];
+    let readCount = 0;
+    let subscriptionCount = 0;
 
     for (let i = 0; i < count; i++) {
         const category = categories[i % categories.length];
@@ -147,10 +324,23 @@ export async function seedNotifications(
             data: NotificationDbFactory.createMinimal(
                 options.userId,
                 category,
-                { isRead }
+                { 
+                    isRead,
+                    title: `${category} Notification ${i + 1}`,
+                    description: `Description for ${category.toLowerCase()} notification ${i + 1}`,
+                }
             ),
+            include: {
+                user: true,
+                fromUser: true,
+                team: true,
+                comment: true,
+                reaction: true,
+            },
         });
         notifications.push(notification);
+        
+        if (isRead) readCount++;
     }
 
     if (options.withSubscriptions) {
@@ -160,10 +350,25 @@ export async function seedNotifications(
                     options.userId,
                     category
                 ),
+                include: {
+                    user: true,
+                    team: true,
+                    project: true,
+                },
             });
             subscriptions.push(subscription);
+            subscriptionCount++;
         }
     }
 
-    return { notifications, subscriptions };
+    return {
+        records: { notifications, subscriptions },
+        summary: {
+            total: notifications.length + subscriptions.length,
+            notifications: notifications.length,
+            subscriptions: subscriptionCount,
+            read: readCount,
+            categories: categories.length,
+        },
+    };
 }

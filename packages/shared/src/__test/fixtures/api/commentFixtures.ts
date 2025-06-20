@@ -1,5 +1,7 @@
+import type { CommentCreateInput, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput } from "../../../api/types.js";
 import { CommentFor } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures, testValues } from "../../../validation/models/__test/validationTestUtils.js";
+import { commentValidation } from "../../../validation/models/comment.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -17,7 +19,7 @@ const validIds = {
 };
 
 // Shared comment test fixtures
-export const commentFixtures: ModelTestFixtures = {
+export const commentFixtures: ModelTestFixtures<CommentCreateInput, CommentUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -189,15 +191,16 @@ export const commentFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<CommentCreateInput>): Partial<CommentCreateInput> => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<CommentUpdateInput>): Partial<CommentUpdateInput> => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const commentTestDataFactory = new TestDataFactory(commentFixtures, customizers);
+export const commentTestDataFactory = new TypedTestDataFactory(commentFixtures, commentValidation, customizers);
+export const typedCommentFixtures = createTypedFixtures(commentFixtures, commentValidation);

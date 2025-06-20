@@ -1,14 +1,273 @@
 # Real-time Event Fixtures
 
-This directory contains comprehensive fixtures for testing real-time WebSocket events across the Vrooli platform.
+This directory contains comprehensive fixtures for testing real-time WebSocket events across the Vrooli platform. Event fixtures serve as the **real-time event simulation layer** in our unified testing pipeline, providing consistent and realistic event scenarios for testing live functionality across all application layers.
 
-## Overview
+## Current Architecture
 
-The event fixtures provide:
+### Overview
+
+The event fixtures currently provide:
 - Pre-configured event payloads for all socket event types
 - Event sequences for testing complex flows
 - Factory functions for creating custom events
-- Mock socket emitter utilities for testing
+- Type-safe event data using TypeScript interfaces from `@vrooli/shared`
+- Example test file demonstrating usage patterns
+
+### Coverage Analysis
+
+**Strong Coverage:**
+- ✅ **Socket Events**: Comprehensive connection lifecycle, room management, and error handling
+- ✅ **Chat Events**: Full message lifecycle, streaming, typing, participants, bot status, tool approval
+- ✅ **Swarm Events**: Complete AI multi-agent execution with state transitions and resource management
+- ✅ **System Events**: Infrastructure monitoring, deployments, performance, security
+
+**Good Coverage:**
+- ✓ **Notification Events**: Various notification types, API credits, sequences
+- ✓ **Collaboration Events**: Run tasks, decision requests, multi-user workflows
+
+**Areas for Enhancement:**
+- ⚠️ **Event Timing**: Limited support for realistic timing and delays
+- ⚠️ **State Synchronization**: No built-in state tracking across event sequences
+- ⚠️ **Error Recovery**: Limited error recovery and retry scenarios
+- ⚠️ **Cross-Event Correlation**: No correlation between different event types
+
+### Current Structure
+
+```
+events/
+├── index.ts                    # Central exports
+├── socketEvents.ts            # Base connection/room events
+├── chatEvents.ts              # Chat and messaging events
+├── swarmEvents.ts             # AI agent execution events
+├── notificationEvents.ts      # Notifications and alerts
+├── collaborationEvents.ts     # Multi-user collaboration
+├── systemEvents.ts            # Infrastructure events
+├── example.test.ts            # Usage examples
+└── README.md                  # This documentation
+```
+
+## Ideal Architecture
+
+### Vision
+
+Event fixtures should serve as the **comprehensive real-time event simulation layer** that:
+
+1. **Provides Realistic Event Flows**: Mirror production event patterns with accurate timing
+2. **Supports Complex Scenarios**: Enable testing of multi-user, multi-event workflows
+3. **Integrates with UI Testing**: Seamless integration with component and integration tests
+4. **Enables State Verification**: Track and verify state changes triggered by events
+5. **Simulates Network Conditions**: Test under various network scenarios
+
+### Proposed Enhanced Structure
+
+```typescript
+// Enhanced event fixture pattern
+interface EventFixtureFactory<TEvent> {
+  // Core event data
+  single: TEvent                          // Individual event
+  sequence: TEvent[]                      // Event sequence for flows
+  variants: {                             // Common event variations
+    [key: string]: TEvent | TEvent[]
+  }
+  
+  // Factory methods
+  create: (overrides?: Partial<TEvent>) => TEvent
+  createSequence: (pattern: EventPattern) => TEvent[]
+  createCorrelated: (correlationId: string, events: TEvent[]) => CorrelatedEvent[]
+  
+  // Timing and simulation
+  withTiming: (events: TEvent[], intervals: number[]) => TimedEvent[]
+  withDelay: (event: TEvent, delay: number) => TimedEvent
+  withJitter: (events: TEvent[], baseDelay: number, jitter: number) => TimedEvent[]
+  
+  // State management
+  withState: (event: TEvent, state: EventState) => StatefulEvent
+  trackStateChanges: (events: TEvent[]) => StateChangeLog
+  
+  // Testing helpers
+  validateEventOrder: (events: TEvent[]) => boolean
+  simulateEventFlow: (events: TEvent[], options?: SimulationOptions) => Promise<TestResult>
+  assertEventEffects: (event: TEvent, expectedEffects: EventEffect[]) => void
+}
+
+// Event simulation options
+interface SimulationOptions {
+  network?: 'fast' | 'slow' | 'flaky' | 'offline'
+  timing?: 'realtime' | 'fast' | 'instant'
+  errors?: ErrorSimulation[]
+  state?: InitialState
+}
+
+// Correlated events for complex flows
+interface CorrelatedEvent<T = any> {
+  correlationId: string
+  event: T
+  metadata: {
+    timestamp: number
+    sequence: number
+    causedBy?: string
+    causes?: string[]
+  }
+}
+```
+
+### Enhanced Event Categories
+
+#### 1. **Foundation Events**
+```typescript
+// Connection lifecycle with realistic scenarios
+export const connectionEvents = {
+  scenarios: {
+    stableConnection: [...],        // Normal connection flow
+    unstableNetwork: [...],         // Intermittent disconnects
+    reconnectionLoop: [...],        // Repeated reconnection attempts
+    authenticationFlow: [...],      // Auth -> connect -> join rooms
+    sessionRecovery: [...]          // Recover after disconnect
+  }
+}
+```
+
+#### 2. **Interactive Events**
+```typescript
+// Real-time user interactions
+export const interactionEvents = {
+  chat: {
+    conversations: {
+      simple: [...],               // Basic message exchange
+      multiParty: [...],           // Multiple participants
+      withMedia: [...],            // Messages with attachments
+      withReactions: [...],        // Emoji reactions and edits
+    },
+    aiInteractions: {
+      simpleQuery: [...],          // Question -> response
+      toolUsage: [...],            // Tool calling flow
+      multiStep: [...],            // Complex reasoning chains
+      withApproval: [...]          // Human-in-the-loop
+    }
+  },
+  collaboration: {
+    coEditing: [...],              // Multi-user editing
+    taskCoordination: [...],       // Task assignment/completion
+    decisionFlows: [...]           // Approval workflows
+  }
+}
+```
+
+#### 3. **System Events**
+```typescript
+// Infrastructure and monitoring
+export const monitoringEvents = {
+  performance: {
+    normal: [...],                 // Baseline metrics
+    degradation: [...],            // Gradual performance drop
+    spike: [...],                  // Sudden load increase
+    recovery: [...]                // Return to normal
+  },
+  incidents: {
+    minorOutage: [...],           // Service degradation
+    majorIncident: [...],         // Critical failure
+    cascadingFailure: [...]       // Multiple service failures
+  }
+}
+```
+
+### Integration Patterns
+
+#### UI Component Testing
+```typescript
+// Enhanced UI integration with event fixtures
+describe("ChatComponent", () => {
+  it("should handle realistic message flow", async () => {
+    const { socket, component } = renderWithSocket(<ChatComponent />);
+    
+    // Simulate realistic conversation
+    await socket.simulateSequence(chatEvents.scenarios.conversation, {
+      timing: 'realtime',
+      network: 'normal'
+    });
+    
+    // Verify UI state matches event sequence
+    expect(component.getMessages()).toHaveLength(5);
+    expect(component.getTypingUsers()).toHaveLength(0);
+  });
+});
+```
+
+#### Round-Trip Testing
+```typescript
+// Test complete data flow with events
+describe("Message Round-Trip", () => {
+  it("should handle message from creation to display", async () => {
+    const correlation = generateCorrelationId();
+    
+    // User sends message
+    await userAction.sendMessage("Hello");
+    
+    // Verify correlated events
+    const events = await collectCorrelatedEvents(correlation);
+    expect(events).toMatchSequence([
+      'typing.start',
+      'message.create',
+      'message.process',
+      'notification.sent',
+      'message.delivered'
+    ]);
+  });
+});
+```
+
+#### State Synchronization Testing
+```typescript
+// Test event-driven state updates
+describe("State Synchronization", () => {
+  it("should sync state across multiple clients", async () => {
+    const [client1, client2] = createTestClients(2);
+    
+    // Client 1 makes change
+    await client1.updateProject({ name: "New Name" });
+    
+    // Verify both clients receive update
+    await expectEventually(() => {
+      expect(client1.getState().project.name).toBe("New Name");
+      expect(client2.getState().project.name).toBe("New Name");
+    });
+  });
+});
+```
+
+### Network Simulation
+
+```typescript
+// Realistic network conditions
+export const networkSimulations = {
+  // Simulate various network conditions
+  conditions: {
+    fiber: { latency: 5, jitter: 1, loss: 0 },
+    cable: { latency: 20, jitter: 5, loss: 0.1 },
+    mobile4G: { latency: 50, jitter: 10, loss: 0.5 },
+    mobile3G: { latency: 200, jitter: 50, loss: 2 },
+    satellite: { latency: 600, jitter: 100, loss: 3 }
+  },
+  
+  // Apply to event sequences
+  applyConditions: (events: Event[], condition: NetworkCondition) => {
+    return events.map(event => ({
+      ...event,
+      delay: event.delay + condition.latency + randomJitter(condition.jitter),
+      dropped: Math.random() < condition.loss / 100
+    }));
+  }
+}
+```
+
+### Best Practices
+
+1. **Use Realistic Timing**: Events should have realistic delays between them
+2. **Test Error Scenarios**: Include network failures, timeouts, and retries
+3. **Correlate Events**: Track cause-and-effect relationships between events
+4. **Verify Side Effects**: Check that events trigger expected state changes
+5. **Test at Scale**: Simulate high-frequency events and multiple concurrent users
+6. **Document Scenarios**: Each event sequence should explain what it's testing
 
 ## Available Event Types
 
@@ -259,6 +518,197 @@ it("should update UI on socket events", () => {
 });
 ```
 
+## Implementation Roadmap
+
+### Phase 1: Enhanced Timing Support (Priority: High)
+- Add realistic delays to all event sequences
+- Implement jitter simulation for network variability
+- Create timing presets (instant, fast, realtime, slow)
+- Add timestamp tracking for event correlation
+
+### Phase 2: State Management (Priority: High)
+- Implement state tracking across event sequences
+- Add state verification helpers
+- Create state snapshots for testing
+- Enable state-driven event generation
+
+### Phase 3: Error Scenarios (Priority: Medium)
+- Expand error event coverage
+- Add retry and recovery sequences
+- Implement backoff strategies
+- Create failure injection utilities
+
+### Phase 4: Cross-Event Correlation (Priority: Medium)
+- Implement correlation ID system
+- Track event causality chains
+- Add cross-event validation
+- Create visualization tools for event flows
+
+### Phase 5: Network Simulation (Priority: Low)
+- Implement network condition presets
+- Add packet loss simulation
+- Create bandwidth throttling
+- Enable offline mode testing
+
+## Integration with Fixture Ecosystem
+
+### With API Fixtures
+```typescript
+// Combine event and API fixtures for complete scenarios
+const chatScenario = {
+  initial: apiFixtures.chatFixtures.complete.find,
+  events: chatEventFixtures.sequences.messageFlow,
+  expected: {
+    messages: 5,
+    participants: 2
+  }
+};
+```
+
+### With Config Fixtures
+```typescript
+// Use config fixtures to set up event contexts
+const swarmConfig = configFixtures.chatConfigFixtures.variants.aiAssistant;
+const swarmEvents = swarmEventFixtures.factories.createConfigUpdate(
+  "chat_123",
+  swarmConfig
+);
+```
+
+### With UI Testing
+```typescript
+// MockSocketEmitter integration
+import { MockSocketEmitter } from "@vrooli/ui/__test/fixtures/events";
+import { eventFixtures } from "@vrooli/shared/__test/fixtures";
+
+const socket = new MockSocketEmitter();
+await socket.emitSequence(eventFixtures.chat.sequences.botResponseFlow);
+```
+
+## Event Fixture Design Principles
+
+1. **Realism Over Simplicity**: Fixtures should mirror production event patterns
+2. **Composability**: Small events should combine into complex scenarios
+3. **Type Safety**: Full TypeScript support with proper event types
+4. **Testability**: Easy to assert on event effects and state changes
+5. **Documentation**: Each sequence should explain its purpose
+6. **Performance**: Efficient for both unit and integration tests
+
+## Testing Patterns
+
+### Unit Testing with Events
+```typescript
+// Test individual event handlers
+it("should update message count on new message", () => {
+  const handler = new MessageHandler();
+  handler.handle(chatEventFixtures.messages.textMessage.data);
+  expect(handler.getMessageCount()).toBe(1);
+});
+```
+
+### Integration Testing with Events
+```typescript
+// Test complete features with event flows
+it("should handle chat session", async () => {
+  const session = new ChatSession();
+  
+  // Simulate complete chat flow
+  for (const event of chatEventFixtures.sequences.messageFlow) {
+    await session.processEvent(event);
+  }
+  
+  expect(session.isActive()).toBe(true);
+  expect(session.getMessageCount()).toBe(3);
+});
+```
+
+### E2E Testing with Events
+```typescript
+// Test full user journeys
+it("should complete support chat", async () => {
+  const { app, socket } = await setupTestApp();
+  
+  // User initiates chat
+  await app.startChat();
+  
+  // Simulate support agent response
+  await socket.emitSequence([
+    chatEventFixtures.participants.userJoining,
+    chatEventFixtures.messages.textMessage,
+    chatEventFixtures.botStatus.thinking,
+    chatEventFixtures.responseStream.streamStart
+  ]);
+  
+  // Verify chat completion
+  expect(await app.getChatStatus()).toBe("active");
+});
+```
+
+## Common Event Testing Scenarios
+
+### WebSocket Reconnection
+```typescript
+// Test reconnection handling
+await socket.emitSequence([
+  socketEventFixtures.connection.connected,
+  { delay: 5000 },
+  socketEventFixtures.connection.disconnected,
+  { delay: 1000 },
+  socketEventFixtures.sequences.reconnectionFlow
+]);
+```
+
+### Multi-User Collaboration
+```typescript
+// Test concurrent user actions
+const [user1Events, user2Events] = createParallelEvents([
+  collaborationEventFixtures.runTask.taskInProgress,
+  collaborationEventFixtures.runTask.taskCompleted
+]);
+
+await socket.emitParallel([user1Events, user2Events]);
+```
+
+### AI Agent Coordination
+```typescript
+// Test swarm execution
+await socket.emitSequence([
+  swarmEventFixtures.sequences.basicLifecycle,
+  { parallel: [
+    swarmEventFixtures.team.subtaskLeaderUpdate,
+    swarmEventFixtures.resources.consumptionUpdate
+  ]},
+  swarmEventFixtures.state.completed
+]);
+```
+
+## Debugging Event Tests
+
+### Event History
+```typescript
+// Inspect what events were emitted
+console.log(socket.getEmitHistory());
+console.log(socket.getEmitsByEvent("messages"));
+```
+
+### Event Timing
+```typescript
+// Check event timing
+const history = socket.getTimedHistory();
+history.forEach(({ event, timestamp, delta }) => {
+  console.log(`${event} at ${timestamp}ms (Δ${delta}ms)`);
+});
+```
+
+### State Tracking
+```typescript
+// Track state changes
+const stateLog = socket.getStateChanges();
+stateLog.forEach(({ event, stateBefore, stateAfter }) => {
+  console.log(`${event} changed:`, diff(stateBefore, stateAfter));
+});
+```
+
 ## Contributing
 
 When adding new event types:
@@ -266,4 +716,16 @@ When adding new event types:
 2. Include minimal, complete, and scenario variants
 3. Add factory functions for dynamic creation
 4. Include event sequences for common flows
-5. Update this README with examples
+5. Add timing information for realistic simulation
+6. Document the business scenario being tested
+7. Update this README with examples
+8. Cross-reference in `/docs/testing/fixtures-overview.md`
+
+## Future Enhancements
+
+1. **Event Recording**: Capture production events for fixture generation
+2. **Visual Timeline**: D3.js visualization of event sequences
+3. **Performance Profiling**: Measure event processing performance
+4. **Chaos Testing**: Random event injection for resilience testing
+5. **Event Contracts**: Schema validation for event payloads
+6. **Multi-Region Simulation**: Test geo-distributed scenarios

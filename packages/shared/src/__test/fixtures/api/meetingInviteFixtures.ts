@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { MeetingInviteCreateInput, MeetingInviteUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { meetingInviteValidation } from "../../../validation/models/meetingInvite.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -10,7 +12,7 @@ const validIds = {
 };
 
 // Shared meeting invite test fixtures
-export const meetingInviteFixtures: ModelTestFixtures = {
+export const meetingInviteFixtures: ModelTestFixtures<MeetingInviteCreateInput, MeetingInviteUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -167,17 +169,20 @@ The Team`,
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<MeetingInviteCreateInput>): MeetingInviteCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
         meetingConnect: base.meetingConnect || validIds.id2,
         userConnect: base.userConnect || validIds.id3,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<MeetingInviteUpdateInput>): MeetingInviteUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const meetingInviteTestDataFactory = new TestDataFactory(meetingInviteFixtures, customizers);
+export const meetingInviteTestDataFactory = new TypedTestDataFactory(meetingInviteFixtures, meetingInviteValidation, customizers);
+
+// Export typed fixtures for direct use in tests
+export const typedMeetingInviteFixtures = createTypedFixtures(meetingInviteFixtures, meetingInviteValidation);

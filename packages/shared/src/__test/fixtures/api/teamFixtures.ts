@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { TeamCreateInput, TeamUpdateInput, TeamTranslationCreateInput, TeamTranslationUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { teamValidation } from "../../../validation/models/team.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -15,6 +17,7 @@ export const teamFixtures: ModelTestFixtures = {
     minimal: {
         create: {
             id: validIds.id1,
+            isPrivate: false,
             translationsCreate: [
                 {
                     id: validIds.id2,
@@ -151,6 +154,7 @@ export const teamFixtures: ModelTestFixtures = {
         invalidId: {
             create: {
                 id: "not-a-valid-snowflake",
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -167,6 +171,7 @@ export const teamFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 handle: "ab", // Too short (min 3)
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -180,6 +185,7 @@ export const teamFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 handle: "this_handle_is_way_too_long", // Too long (max 16)
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -193,6 +199,7 @@ export const teamFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 handle: "team-name!", // Invalid characters
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -205,6 +212,7 @@ export const teamFixtures: ModelTestFixtures = {
         invalidTranslations: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -217,6 +225,7 @@ export const teamFixtures: ModelTestFixtures = {
         missingTranslationName: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -239,7 +248,8 @@ export const teamFixtures: ModelTestFixtures = {
                         name: "Basic Team",
                     },
                 ],
-                // No optional fields
+                isPrivate: false,
+                // No other optional fields
             },
         },
         privateTeam: {
@@ -277,6 +287,7 @@ export const teamFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 bannerImage: "beautiful-banner.jpg",
                 profileImage: "team-logo.png",
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -289,6 +300,7 @@ export const teamFixtures: ModelTestFixtures = {
         multipleLanguages: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -314,6 +326,7 @@ export const teamFixtures: ModelTestFixtures = {
         withTags: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 tagsConnect: [validIds.id3, validIds.id4, validIds.id5],
                 tagsCreate: [
                     {
@@ -333,6 +346,7 @@ export const teamFixtures: ModelTestFixtures = {
         withMemberInvites: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 memberInvitesCreate: [
                     {
                         id: validIds.id3,
@@ -359,6 +373,7 @@ export const teamFixtures: ModelTestFixtures = {
         complexConfig: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 config: {
                     theme: "dark",
                     notifications: {
@@ -384,6 +399,7 @@ export const teamFixtures: ModelTestFixtures = {
         longBio: {
             create: {
                 id: validIds.id1,
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -398,6 +414,7 @@ export const teamFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 handle: "max_length_16ch", // Exactly 16 characters (max)
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -445,6 +462,7 @@ export const teamFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 handle: "unique_handle",
+                isPrivate: false,
                 translationsCreate: [
                     {
                         id: validIds.id2,
@@ -459,9 +477,10 @@ export const teamFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: any): TeamCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
+        isPrivate: base.isPrivate ?? false,
         translationsCreate: base.translationsCreate || [
             {
                 id: validIds.id2,
@@ -470,11 +489,12 @@ const customizers = {
             },
         ],
     }),
-    update: (base: any) => ({
+    update: (base: any): TeamUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const teamTestDataFactory = new TestDataFactory(teamFixtures, customizers);
+export const teamTestDataFactory = new TypedTestDataFactory(teamFixtures, teamValidation, customizers);
+export const typedTeamFixtures = createTypedFixtures(teamFixtures, teamValidation);

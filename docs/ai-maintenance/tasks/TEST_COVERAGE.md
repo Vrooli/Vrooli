@@ -137,6 +137,10 @@ Insert **after imports**:
 
 Increment only **TEST\_COVERAGE**; leave other counts intact. **Do not run Git**.
 
+## Related Documentation
+
+* **[Fixtures and Data Flow](../../testing/fixtures-and-data-flow.md)**: Comprehensive guide to fixture management and round-trip testing across UI, API, and database layers. Essential for ensuring test coverage accurately reflects real-world data integrity.
+
 ---
 
 ## After the Run

@@ -1,5 +1,6 @@
-import { SubscribableObject } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import { type NotificationSubscriptionCreateInput, type NotificationSubscriptionUpdateInput, SubscribableObject } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { notificationSubscriptionValidation } from "../../../validation/models/notificationSubscription.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -14,7 +15,7 @@ const validIds = {
 };
 
 // Shared notificationSubscription test fixtures
-export const notificationSubscriptionFixtures: ModelTestFixtures = {
+export const notificationSubscriptionFixtures: ModelTestFixtures<NotificationSubscriptionCreateInput, NotificationSubscriptionUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -31,10 +32,12 @@ export const notificationSubscriptionFixtures: ModelTestFixtures = {
             silent: true,
             objectType: SubscribableObject.Team,
             objectConnect: validIds.objectId2,
+            context: "Full subscription with context",
         },
         update: {
             id: validIds.id2,
             silent: false,
+            context: "Updated context",
         },
     },
     invalid: {
@@ -161,6 +164,18 @@ export const notificationSubscriptionFixtures: ModelTestFixtures = {
                 objectConnect: validIds.objectId1,
             },
         },
+        withContext: {
+            create: {
+                id: validIds.id3,
+                objectType: SubscribableObject.Meeting,
+                objectConnect: validIds.objectId3,
+                context: "Subscription context information",
+            },
+            update: {
+                id: validIds.id3,
+                context: null, // Test clearing context
+            },
+        },
         updateSilentOnly: {
             update: {
                 id: validIds.id1,
@@ -196,15 +211,21 @@ export const notificationSubscriptionFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: NotificationSubscriptionCreateInput) => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: NotificationSubscriptionUpdateInput) => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const notificationSubscriptionTestDataFactory = new TestDataFactory(notificationSubscriptionFixtures, customizers);
+export const notificationSubscriptionTestDataFactory = new TypedTestDataFactory(notificationSubscriptionFixtures, notificationSubscriptionValidation, customizers);
+
+// Export typed fixtures for direct use in tests
+export const typedNotificationSubscriptionFixtures = createTypedFixtures(notificationSubscriptionFixtures, notificationSubscriptionValidation);
+
+// Maintain backward compatibility with the old factory for existing tests
+export const notificationSubscriptionTestDataFactoryLegacy = new TestDataFactory(notificationSubscriptionFixtures, customizers);

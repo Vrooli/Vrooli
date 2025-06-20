@@ -1,5 +1,6 @@
-import { IssueFor } from "../../../api/types.js";
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import { IssueFor, type IssueCreateInput, type IssueUpdateInput, type IssueTranslationCreateInput, type IssueTranslationUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { issueValidation } from "../../../validation/models/issue.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -14,7 +15,7 @@ const validIds = {
 };
 
 // Shared issue test fixtures
-export const issueFixtures: ModelTestFixtures = {
+export const issueFixtures: ModelTestFixtures<IssueCreateInput, IssueUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -44,6 +45,7 @@ export const issueFixtures: ModelTestFixtures = {
             translationsUpdate: [
                 {
                     id: validIds.translationId1,
+                    language: "en",
                     name: "Updated bug title",
                     description: "Updated description",
                 },
@@ -208,6 +210,7 @@ export const issueFixtures: ModelTestFixtures = {
                 translationsUpdate: [
                     {
                         id: validIds.translationId2,
+                        language: "en",
                         name: "Updated translation",
                     },
                 ],
@@ -220,6 +223,7 @@ export const issueFixtures: ModelTestFixtures = {
                 translationsUpdate: [
                     {
                         id: validIds.translationId1,
+                        language: "en",
                         // name is optional in update
                         description: "Updated description only",
                     },
@@ -231,15 +235,24 @@ export const issueFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<IssueCreateInput>): IssueCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
-    }),
-    update: (base: any) => ({
+        issueFor: base.issueFor || IssueFor.Resource,
+        forConnect: base.forConnect || validIds.forId1,
+    } as IssueCreateInput),
+    update: (base: Partial<IssueUpdateInput>): IssueUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
-    }),
+    } as IssueUpdateInput),
 };
 
 // Export a factory for creating test data programmatically
-export const issueTestDataFactory = new TestDataFactory(issueFixtures, customizers);
+export const issueTestDataFactory = new TypedTestDataFactory(issueFixtures, issueValidation, customizers);
+
+// Export typed fixtures for direct use
+export const typedIssueFixtures = createTypedFixtures(issueFixtures, issueValidation);
+
+// For backward compatibility, also export a regular TestDataFactory if needed
+// Note: The TypedTestDataFactory extends TestDataFactory, so this should work the same
+export const issueTestDataFactoryLegacy = new TestDataFactory(issueFixtures, customizers);

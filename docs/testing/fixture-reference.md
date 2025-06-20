@@ -14,6 +14,7 @@ This document provides a complete reference for all available fixtures and their
 
 ## Quick Navigation
 
+- [Factory Chain Architecture](#factory-chain-architecture) - Unified fixture factory pattern
 - [API Fixtures](#api-fixtures) - Request/response fixtures for all object types
 - [Config Fixtures](#config-fixtures) - Configuration object fixtures
 - [Error Fixtures](#error-fixtures) - Error state fixtures for testing
@@ -21,8 +22,81 @@ This document provides a complete reference for all available fixtures and their
 - [Permission Fixtures](#permission-fixtures) - Auth and permission scenarios
 - [Database Fixtures](#database-fixtures) - Server-side test data creation
 - [UI Fixtures](#ui-fixtures) - Component and MSW fixtures
+- [Round-Trip Orchestrators](#round-trip-orchestrators) - Full cycle testing
 - [Utility Functions](#utility-functions) - Helper functions
 - [Type Definitions](#type-definitions) - TypeScript interfaces
+
+## Factory Chain Architecture
+
+The Unified Fixture Architecture uses a factory chain pattern where each factory connects exactly two layers:
+
+### Core Factory Interfaces
+
+```typescript
+// Base factory interface
+interface FixtureFactory<TInput, TOutput> {
+  transform: (input: TInput) => TOutput | Promise<TOutput>
+  validate?: (input: TInput) => ValidationResult
+  withError?: (error: Error) => TOutput
+}
+
+// Layer-specific factories
+interface FormFactory<TFormData, TShape> extends FixtureFactory<TFormData, TShape> {
+  simulateFormEvent: (event: FormEvent) => TFormData
+  validateForm: (data: TFormData) => FormValidationResult
+}
+
+interface ShapeFactory<TShape, TAPIInput> extends FixtureFactory<TShape, TAPIInput> {
+  useRealShapeFunction: boolean
+  shapeFunction: (shape: TShape) => TAPIInput
+}
+
+interface APIFactory<TAPIInput, TValidated> extends FixtureFactory<TAPIInput, TValidated> {
+  validationSchema: ValidationSchema
+  validateAsync: (input: TAPIInput) => Promise<ValidationResult>
+}
+
+interface EndpointFactory<TInput, TDBResult> extends FixtureFactory<TInput, TDBResult> {
+  endpoint: APIEndpoint
+  withAuth: (session: SessionData) => EndpointFactory<TInput, TDBResult>
+  withMockResponse: (response: TDBResult) => EndpointFactory<TInput, TDBResult>
+}
+
+interface DatabaseFactory<TInput, TResult> extends FixtureFactory<TInput, TResult> {
+  prismaClient: PrismaClient
+  withTransaction: boolean
+  cleanup: (ids: string[]) => Promise<void>
+}
+
+// Round-trip orchestrator
+interface RoundTripOrchestrator<TFormData, TUIState> {
+  executeFullCycle: (formData: TFormData) => Promise<RoundTripResult<TUIState>>
+  testCreateFlow: (formData: TFormData) => Promise<TestResult>
+  testUpdateFlow: (id: string, formData: Partial<TFormData>) => Promise<TestResult>
+  testDeleteFlow: (id: string) => Promise<TestResult>
+  verifyDataIntegrity: (original: TFormData, result: TUIState) => boolean
+  injectError: (config: ErrorInjectionConfig) => void
+}
+```
+
+### Usage Pattern
+
+```typescript
+// Import the complete factory chain for an object type
+import { BookmarkFactoryChain } from "@/test/fixtures/round-trip/bookmark";
+
+const factoryChain = new BookmarkFactoryChain({
+  useRealDatabase: true,
+  validateAtEachStep: true
+});
+
+// Test individual transformations
+const shape = await factoryChain.formFactory.transform(formData);
+const apiInput = await factoryChain.shapeFactory.transform(shape);
+
+// Or execute complete round-trip
+const result = await factoryChain.orchestrator.executeFullCycle(formData);
+```
 
 ## API Fixtures
 
@@ -462,6 +536,92 @@ export function renderWithProviders(ui: React.ReactElement, options = {}) {
         ...options,
     });
 }
+```
+
+## Round-Trip Orchestrators
+
+Located in `packages/ui/src/__test/fixtures/round-trip-tests/`
+
+Round-trip orchestrators coordinate the complete testing flow from UI form input through database persistence and back to UI display.
+
+### Available Orchestrators
+
+Each object type has its own orchestrator implementing the `RoundTripOrchestrator` interface:
+
+```typescript
+// Import specific orchestrator
+import { BookmarkRoundTripFactory } from "@/test/fixtures/round-trip-tests/bookmarkRoundTrip";
+import { UserRoundTripFactory } from "@/test/fixtures/round-trip-tests/userRoundTrip";
+import { TeamRoundTripFactory } from "@/test/fixtures/round-trip-tests/teamRoundTrip";
+
+// Initialize with configuration
+const bookmarkOrchestrator = new BookmarkRoundTripFactory({
+  useRealDatabase: true,
+  validateAtEachStep: true,
+  enableRetries: true
+});
+```
+
+### Orchestrator Methods
+
+```typescript
+interface RoundTripOrchestrator<TFormData, TUIState> {
+  // Complete lifecycle testing
+  executeFullCycle(formData: TFormData): Promise<RoundTripResult>
+  
+  // CRUD operations
+  testCreateFlow(formData: TFormData): Promise<TestResult>
+  testUpdateFlow(id: string, updates: Partial<TFormData>): Promise<TestResult>
+  testDeleteFlow(id: string): Promise<TestResult>
+  
+  // Data integrity
+  verifyDataIntegrity(original: TFormData, result: TUIState): boolean
+  
+  // Error testing
+  testErrorRecovery(scenario: ErrorScenario): Promise<TestResult>
+  injectError(config: ErrorInjectionConfig): void
+  
+  // Partial flow testing
+  testUpToStage(formData: TFormData, stage: TestStage): Promise<PartialResult>
+  testFromStage(data: any, stage: TestStage): Promise<PartialResult>
+}
+```
+
+### Example Usage
+
+```typescript
+describe("User Round-Trip Testing", () => {
+  const orchestrator = new UserRoundTripFactory();
+  
+  it("should handle complete user registration flow", async () => {
+    const formData = {
+      email: "test@example.com",
+      password: "SecurePass123!",
+      name: "Test User",
+      acceptTerms: true
+    };
+    
+    const result = await orchestrator.executeFullCycle(formData);
+    
+    expect(result.success).toBe(true);
+    expect(result.stages).toMatchObject({
+      form: "completed",
+      validation: "completed",
+      api: "completed",
+      database: "completed",
+      response: "completed",
+      ui: "completed"
+    });
+    
+    // Verify user can log in with created account
+    const loginResult = await orchestrator.testLoginFlow({
+      email: formData.email,
+      password: formData.password
+    });
+    
+    expect(loginResult.authenticated).toBe(true);
+  });
+});
 ```
 
 ## Utility Functions

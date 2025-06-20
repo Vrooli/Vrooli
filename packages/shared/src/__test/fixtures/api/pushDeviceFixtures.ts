@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { PushDeviceCreateInput, PushDeviceUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { pushDeviceValidation } from "../../../validation/models/pushDevice.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,7 +13,7 @@ const validIds = {
 };
 
 // Shared push device test fixtures
-export const pushDeviceFixtures: ModelTestFixtures = {
+export const pushDeviceFixtures: ModelTestFixtures<PushDeviceCreateInput, PushDeviceUpdateInput> = {
     minimal: {
         create: {
             endpoint: "https://fcm.googleapis.com/fcm/send/example-endpoint",
@@ -37,14 +39,14 @@ export const pushDeviceFixtures: ModelTestFixtures = {
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        },
+        } as any as PushDeviceCreateInput,
         update: {
             id: validIds.id1,
             name: "Updated Device Name",
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        },
+        } as any as PushDeviceUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -222,7 +224,7 @@ export const pushDeviceFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: PushDeviceCreateInput): PushDeviceCreateInput => ({
         ...base,
         endpoint: base.endpoint || "https://default-endpoint.com/path",
         keys: base.keys || {
@@ -230,11 +232,12 @@ const customizers = {
             auth: "DEFAULT-AUTH-KEY",
         },
     }),
-    update: (base: any) => ({
+    update: (base: PushDeviceUpdateInput): PushDeviceUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const pushDeviceTestDataFactory = new TestDataFactory(pushDeviceFixtures, customizers);
+export const pushDeviceTestDataFactory = new TypedTestDataFactory(pushDeviceFixtures, pushDeviceValidation, customizers);
+export const typedPushDeviceFixtures = createTypedFixtures(pushDeviceFixtures, pushDeviceValidation);

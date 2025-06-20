@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ReminderCreateInput, ReminderUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { reminderValidation } from "../../../validation/models/reminder.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -11,11 +13,12 @@ const validIds = {
 };
 
 // Shared reminder test fixtures
-export const reminderFixtures: ModelTestFixtures = {
+export const reminderFixtures: ModelTestFixtures<ReminderCreateInput, ReminderUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
             name: "Buy groceries",
+            index: 0,
         },
         update: {
             id: validIds.id1,
@@ -56,6 +59,7 @@ export const reminderFixtures: ModelTestFixtures = {
             reminderItemsCreate: [{
                 id: validIds.id5,
                 name: "New reminder item",
+                index: 2,
                 reminderConnect: validIds.id1,
             }],
             reminderItemsUpdate: [{
@@ -131,9 +135,10 @@ export const reminderFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Reminder with invalid item",
+                index: 0,
                 reminderItemsCreate: [{
                     id: validIds.id3,
-                    // Missing required name and reminderConnect
+                    // Missing required name, index, and reminderConnect
                     description: "Item without name",
                 }],
             },
@@ -142,6 +147,7 @@ export const reminderFixtures: ModelTestFixtures = {
             create: {
                 id: validIds.id1,
                 name: "Conflicting connections",
+                index: 0,
                 reminderListConnect: validIds.id2,
                 reminderListCreate: {
                     id: validIds.id3,
@@ -155,6 +161,7 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Reminder with empty description",
                 description: "",
+                index: 0,
             },
             update: {
                 id: validIds.id1,
@@ -166,18 +173,21 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "   Trimmed name   ", // Should be trimmed
                 description: "   Trimmed description   ", // Should be trimmed
+                index: 0,
             },
         },
         minimalName: {
             create: {
                 id: validIds.id1,
                 name: "ABC", // Minimum valid name (3 chars)
+                index: 0,
             },
         },
         maxLengthName: {
             create: {
                 id: validIds.id1,
                 name: "A".repeat(50), // Maximum valid name (50 chars)
+                index: 0,
             },
         },
         maxLengthDescription: {
@@ -185,6 +195,7 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Valid reminder",
                 description: "A".repeat(2048), // Maximum valid description (2048 chars)
+                index: 0,
             },
         },
         zeroIndex: {
@@ -206,6 +217,7 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Overdue reminder",
                 dueDate: new Date("2020-01-01T00:00:00Z"),
+                index: 0,
             },
         },
         futureDueDate: {
@@ -213,6 +225,7 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Future reminder",
                 dueDate: new Date("2030-12-31T23:59:59Z"),
+                index: 0,
             },
         },
         withReminderList: {
@@ -220,17 +233,20 @@ export const reminderFixtures: ModelTestFixtures = {
                 id: validIds.id1,
                 name: "Reminder in a list",
                 reminderListConnect: validIds.id2,
+                index: 0,
             },
         },
         createReminderList: {
             create: {
                 id: validIds.id1,
                 name: "Reminder creating a list",
+                index: 0,
                 reminderListCreate: {
                     id: validIds.id2,
                     remindersCreate: [{
                         id: validIds.id3,
                         name: "Another reminder in same list",
+                        index: 1,
                     }],
                 },
             },
@@ -274,16 +290,20 @@ export const reminderFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: ReminderCreateInput): ReminderCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
         name: base.name || "Default reminder name",
+        index: base.index !== undefined ? base.index : 0,
     }),
-    update: (base: any) => ({
+    update: (base: ReminderUpdateInput): ReminderUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
-// Export a factory for creating test data programmatically
-export const reminderTestDataFactory = new TestDataFactory(reminderFixtures, customizers);
+// Export enhanced type-safe factories
+export const reminderTestDataFactory = new TypedTestDataFactory(reminderFixtures, reminderValidation, customizers);
+
+// Export type-safe fixtures with validation capabilities
+export const typedReminderFixtures = createTypedFixtures(reminderFixtures, reminderValidation);

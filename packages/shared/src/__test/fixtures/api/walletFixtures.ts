@@ -1,5 +1,10 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { WalletUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { walletValidation } from "../../../validation/models/wallet.js";
 import { NAME_MAX_LENGTH } from "../../../validation/utils/validationConstants.js";
+
+// Wallet doesn't support create, so we use a placeholder type
+type WalletCreateInput = { id: string };
 
 // Valid Snowflake IDs for testing
 const validIds = {
@@ -9,7 +14,7 @@ const validIds = {
 };
 
 // Shared wallet test fixtures
-export const walletFixtures: ModelTestFixtures = {
+export const walletFixtures: ModelTestFixtures<WalletCreateInput, WalletUpdateInput> = {
     minimal: {
         create: {
             // Wallet doesn't support create
@@ -109,15 +114,16 @@ export const walletFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: WalletCreateInput): WalletCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: WalletUpdateInput): WalletUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const walletTestDataFactory = new TestDataFactory(walletFixtures, customizers);
+export const walletTestDataFactory = new TypedTestDataFactory(walletFixtures, walletValidation, customizers);
+export const typedWalletFixtures = createTypedFixtures(walletFixtures, walletValidation);

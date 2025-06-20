@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ReminderListCreateInput, ReminderListUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { reminderListValidation } from "../../../validation/models/reminderList.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -13,7 +15,7 @@ const validIds = {
 };
 
 // Shared reminder list test fixtures
-export const reminderListFixtures: ModelTestFixtures = {
+export const reminderListFixtures: ModelTestFixtures<ReminderListCreateInput, ReminderListUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -45,11 +47,13 @@ export const reminderListFixtures: ModelTestFixtures = {
                         {
                             id: validIds.id5,
                             name: "Subtask 1",
+                            index: 0,
                             reminderConnect: validIds.id4,
                         },
                         {
                             id: validIds.id6,
                             name: "Subtask 2",
+                            index: 1,
                             isComplete: true,
                             reminderConnect: validIds.id4,
                         },
@@ -61,12 +65,13 @@ export const reminderListFixtures: ModelTestFixtures = {
             unknownField1: "should be stripped",
             unknownField2: 123,
             unknownField3: true,
-        },
+        } as ReminderListCreateInput,
         update: {
             id: validIds.id1,
             remindersCreate: [{
                 id: validIds.id7,
                 name: "New reminder in update",
+                index: 0,
             }],
             remindersUpdate: [{
                 id: validIds.id2,
@@ -77,7 +82,7 @@ export const reminderListFixtures: ModelTestFixtures = {
             // Add some extra fields that will be stripped
             unknownField1: "should be stripped",
             unknownField2: 456,
-        },
+        } as ReminderListUpdateInput,
     },
     invalid: {
         missingRequired: {
@@ -86,6 +91,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                 remindersCreate: [{
                     id: validIds.id2,
                     name: "Reminder without list ID",
+                    index: 0,
                 }],
             },
             update: {
@@ -122,6 +128,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                     id: validIds.id2,
                     // Missing required name
                     description: "Reminder without name",
+                    index: 0,
                 }],
             },
             update: {
@@ -129,6 +136,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                 remindersCreate: [{
                     // Missing required id for reminder
                     name: "Reminder without ID",
+                    index: 0,
                 }],
             },
         },
@@ -156,6 +164,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                 remindersCreate: [{
                     id: validIds.id2,
                     name: "Only reminder in list",
+                    index: 0,
                 }],
             },
         },
@@ -176,10 +185,12 @@ export const reminderListFixtures: ModelTestFixtures = {
                     {
                         id: validIds.id2,
                         name: "New reminder 1",
+                        index: 0,
                     },
                     {
                         id: validIds.id3,
                         name: "New reminder 2",
+                        index: 1,
                     },
                 ],
                 remindersUpdate: [
@@ -202,6 +213,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                 remindersCreate: [{
                     id: validIds.id2,
                     name: "Reminder with many items",
+                    index: 0,
                     reminderItemsCreate: Array.from({ length: 5 }, (_, i) => ({
                         id: `98765432109876543${i}`,
                         name: `Task ${i + 1}`,
@@ -217,6 +229,7 @@ export const reminderListFixtures: ModelTestFixtures = {
                 remindersCreate: [{
                     id: validIds.id2,
                     name: "Reminder in same list",
+                    index: 0,
                     reminderListConnect: validIds.id1, // References the list being created
                 }],
             },
@@ -275,15 +288,21 @@ export const reminderListFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: ReminderListCreateInput): ReminderListCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: ReminderListUpdateInput): ReminderListUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const reminderListTestDataFactory = new TestDataFactory(reminderListFixtures, customizers);
+export const reminderListTestDataFactory = new TypedTestDataFactory(reminderListFixtures, reminderListValidation, customizers);
+
+// Export typed fixtures with optional validation methods
+export const typedReminderListFixtures = createTypedFixtures(reminderListFixtures, reminderListValidation);
+
+// Maintain backward compatibility - keep the old factory export
+export { reminderListTestDataFactory as reminderListFactory };

@@ -9,7 +9,7 @@ export default defineConfig({
             { find: "@vrooli/shared/utils", replacement: path.resolve(__dirname, "../shared/dist/utils") },
             { find: "@vrooli/shared/validation", replacement: path.resolve(__dirname, "../shared/dist/validation") },
             { find: "@vrooli/shared/validation/models", replacement: path.resolve(__dirname, "../shared/dist/validation/models") },
-            { find: "@vrooli/shared/validation/models/fixtures", replacement: path.resolve(__dirname, "../shared/dist/validation/models/__test/fixtures") },
+            { find: "@vrooli/shared/__test/fixtures", replacement: path.resolve(__dirname, "../shared/dist/__test/fixtures") },
             { find: "@vrooli/shared/validation/forms", replacement: path.resolve(__dirname, "../shared/dist/validation/forms") },
             { find: "@vrooli/shared/validation/utils", replacement: path.resolve(__dirname, "../shared/dist/validation/utils") },
             { find: "@vrooli/shared", replacement: path.resolve(__dirname, "../shared/dist") },

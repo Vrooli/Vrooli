@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { MemberUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { memberValidation } from "../../../validation/models/member.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -7,8 +9,8 @@ const validIds = {
     id3: "123456789012345680",
 };
 
-// Shared member test fixtures
-export const memberFixtures: ModelTestFixtures = {
+// Shared member test fixtures (Member has no create operation)
+export const memberFixtures: ModelTestFixtures<never, MemberUpdateInput> = {
     minimal: {
         create: null, // No create operation supported
         update: {
@@ -77,12 +79,13 @@ export const memberFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (_base: any) => null, // No create operation
-    update: (base: any) => ({
+    create: (_base: any): never => null as never, // No create operation
+    update: (base: Partial<MemberUpdateInput>): MemberUpdateInput => ({
+        id: validIds.id1,
         ...base,
-        id: base.id || validIds.id1,
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const memberTestDataFactory = new TestDataFactory(memberFixtures, customizers);
+export const memberTestDataFactory = new TypedTestDataFactory(memberFixtures, memberValidation, customizers);
+export const typedMemberFixtures = createTypedFixtures(memberFixtures, memberValidation);

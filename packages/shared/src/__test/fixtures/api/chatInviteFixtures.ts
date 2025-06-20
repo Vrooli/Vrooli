@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { ChatInviteCreateInput, ChatInviteUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TestDataFactory, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { chatInviteValidation } from "../../../validation/models/chatInvite.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -12,7 +14,7 @@ const validIds = {
 };
 
 // Shared chatInvite test fixtures
-export const chatInviteFixtures: ModelTestFixtures = {
+export const chatInviteFixtures: ModelTestFixtures<ChatInviteCreateInput, ChatInviteUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -136,15 +138,16 @@ export const chatInviteFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs
 const customizers = {
-    create: (base: any) => ({
+    create: (base: ChatInviteCreateInput): ChatInviteCreateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
-    update: (base: any) => ({
+    update: (base: ChatInviteUpdateInput): ChatInviteUpdateInput => ({
         ...base,
         id: base.id || validIds.id1,
     }),
 };
 
-// Export a factory for creating test data programmatically
-export const chatInviteTestDataFactory = new TestDataFactory(chatInviteFixtures, customizers);
+// Export factories for creating test data programmatically
+export const chatInviteTestDataFactory = new TypedTestDataFactory(chatInviteFixtures, chatInviteValidation, customizers);
+export const typedChatInviteFixtures = createTypedFixtures(chatInviteFixtures, chatInviteValidation);

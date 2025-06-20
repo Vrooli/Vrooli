@@ -1,4 +1,6 @@
-import { type ModelTestFixtures, TestDataFactory } from "../../../validation/models/__test/validationTestUtils.js";
+import type { RunIOCreateInput, RunIOUpdateInput } from "../../../api/types.js";
+import { type ModelTestFixtures, TypedTestDataFactory, createTypedFixtures } from "../../../validation/models/__test/validationTestUtils.js";
+import { runIOValidation } from "../../../validation/models/runIO.js";
 
 // Valid Snowflake IDs for testing (18-19 digit strings)
 const validIds = {
@@ -13,7 +15,7 @@ const validIds = {
 };
 
 // Shared runIO test fixtures
-export const runIOFixtures: ModelTestFixtures = {
+export const runIOFixtures: ModelTestFixtures<RunIOCreateInput, RunIOUpdateInput> = {
     minimal: {
         create: {
             id: validIds.id1,
@@ -342,20 +344,21 @@ export const runIOFixtures: ModelTestFixtures = {
 
 // Custom factory that always generates valid IDs and required fields
 const customizers = {
-    create: (base: any) => ({
+    create: (base: Partial<RunIOCreateInput>): RunIOCreateInput => ({
+        id: validIds.id1,
+        data: "default data",
+        nodeInputName: "defaultInput",
+        nodeName: "DefaultNode",
+        runConnect: validIds.id2,
         ...base,
-        id: base.id || validIds.id1,
-        data: base.data || "default data",
-        nodeInputName: base.nodeInputName || "defaultInput",
-        nodeName: base.nodeName || "DefaultNode",
-        runConnect: base.runConnect || validIds.id2,
     }),
-    update: (base: any) => ({
+    update: (base: Partial<RunIOUpdateInput>): RunIOUpdateInput => ({
+        id: validIds.id1,
+        data: "default updated data",
         ...base,
-        id: base.id || validIds.id1,
-        data: base.data || "default updated data",
     }),
 };
 
 // Export a factory for creating test data programmatically
-export const runIOTestDataFactory = new TestDataFactory(runIOFixtures, customizers);
+export const runIOTestDataFactory = new TypedTestDataFactory(runIOFixtures, runIOValidation, customizers);
+export const typedRunIOFixtures = createTypedFixtures(runIOFixtures, runIOValidation);
