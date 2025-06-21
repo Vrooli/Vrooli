@@ -18,6 +18,7 @@ import { MessageTree } from "../../hooks/messages.js";
 import { pagePaddingBottom } from "../../styles.js";
 import { type BranchMap } from "../../utils/localStorage.js";
 import { ChatBubbleTree, ChatBubble } from "./ChatBubbleTree.js";
+import { borderedContainerDecorator } from "../../__test/helpers/storybookDecorators.tsx";
 
 const bot1Id = generatePK().toString();
 const botMessage1Id = generatePK().toString();
@@ -353,20 +354,6 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
     };
 }
 
-const outerStyle = {
-    height: `calc(100vh - ${pagePaddingBottom})`,
-    maxWidth: "800px",
-    padding: "20px",
-    border: "1px solid #ccc",
-} as const;
-
-function Outer({ children }: { children: React.ReactNode }) {
-    return (
-        <Box sx={outerStyle}>
-            {children}
-        </Box>
-    );
-}
 
 /**
  * Storybook configuration for ChatBubbleTree
@@ -374,13 +361,7 @@ function Outer({ children }: { children: React.ReactNode }) {
 export default {
     title: "Components/Chat/ChatBubbleTree",
     component: ChatBubbleTree,
-    decorators: [
-        (Story) => (
-            <Outer>
-                <Story />
-            </Outer>
-        ),
-    ],
+    decorators: [borderedContainerDecorator(800)],
 };
 
 /**

@@ -1,6 +1,6 @@
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
+import { IconButton } from "../buttons/IconButton.js";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -122,7 +122,7 @@ const NavigationArrows = React.memo(function NavigationArrows({
             <Tooltip title="Previous">
                 <span>
                     <IconButton
-                        size="small"
+                        size="sm"
                         onClick={handlePrevious}
                         disabled={previousDisabled}
                     >
@@ -140,7 +140,7 @@ const NavigationArrows = React.memo(function NavigationArrows({
             <Tooltip title="Next">
                 <span>
                     <IconButton
-                        size="small"
+                        size="sm"
                         onClick={handleNext}
                         disabled={nextDisabled}
                     >
@@ -361,7 +361,7 @@ const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
             <IconButton
                 color="secondary"
                 onClick={handleRegenerateResponse}
-                size="small"
+                size="sm"
             >
                 <IconCommon
                     decorative
@@ -377,7 +377,7 @@ const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
                 {displayedReactions.map((reaction) => (
                     <Box key={reaction.emoji} display="flex" alignItems="center">
                         <IconButton
-                            size="small"
+                            size="sm"
                             disabled={isOwn}
                             onClick={() => onReactionAdd(reaction.emoji)}
                             style={reactionIconButtonStyle}
@@ -392,7 +392,7 @@ const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
                 {hiddenReactionsCount > 0 && (
                     <Tooltip title={showAllReactions ? t("Show fewer reactions") : t("Show all {{count}} reactions", { count: reactions.length })}>
                         <IconButton
-                            size="small"
+                            size="sm"
                             onClick={handleShowAllReactions}
                             style={reactionIconButtonStyle}
                         >
@@ -425,19 +425,19 @@ const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
                             )}
                             {/* Action Buttons for own messages */}
                             <Tooltip title={t("Copy")}>
-                                <IconButton size="small" onClick={handleCopy}>
+                                <IconButton size="sm" onClick={handleCopy}>
                                     <IconCommon decorative fill="background.textSecondary" name="Copy" />
                                 </IconButton>
                             </Tooltip>
                             {status === "sent" && (
                                 <>
                                     <Tooltip title={t("Edit")}>
-                                        <IconButton onClick={onEdit} size="small">
+                                        <IconButton onClick={onEdit} size="sm">
                                             <IconCommon decorative fill="background.textSecondary" name="Edit" />
                                         </IconButton>
                                     </Tooltip>
                                     <Tooltip title={t("Delete")}>
-                                        <IconButton onClick={onDelete} size="small">
+                                        <IconButton onClick={onDelete} size="sm">
                                             <IconCommon decorative fill="background.textSecondary" name="Delete" />
                                         </IconButton>
                                     </Tooltip>
@@ -448,20 +448,20 @@ const ChatBubbleReactions = React.memo(function ChatBubbleReactions({
                         <>
                             {/* Action Buttons first for other messages */}
                             <Tooltip title={t("Copy")}>
-                                <IconButton size="small" onClick={handleCopy}>
+                                <IconButton size="sm" onClick={handleCopy}>
                                     <IconCommon decorative fill="background.textSecondary" name="Copy" />
                                 </IconButton>
                             </Tooltip>
                             {(isBot && isBotOnlyChat) && (
                                 <Tooltip title={t("Retry")}>
-                                    <IconButton size="small" onClick={handleRegenerateResponse}>
+                                    <IconButton size="sm" onClick={handleRegenerateResponse}>
                                         <IconCommon decorative fill="background.textSecondary" name="Refresh" />
                                     </IconButton>
                                 </Tooltip>
                             )}
                             {isBot && (
                                 <Tooltip title={t("Reply")}>
-                                    <IconButton size="small" onClick={handleReply}>
+                                    <IconButton size="sm" onClick={handleReply}>
                                         <IconCommon decorative fill="background.textSecondary" name="Reply" />
                                     </IconButton>
                                 </Tooltip>
@@ -788,10 +788,16 @@ const ScrollToBottomIconButton = styled(IconButton)(({ theme }) => ({
     transform: "translateX(-50%)",
     width: "36px",
     height: "36px",
+    minWidth: "36px",
+    minHeight: "36px",
+    maxWidth: "36px",
+    maxHeight: "36px",
+    padding: "6px",
     opacity: 0.9,
     transition: "opacity 0.2s ease-in-out",
     zIndex: 10,
     boxShadow: theme.shadows[3],
+    overflow: "hidden",
     "&:hover": {
         opacity: 1,
         background: theme.palette.background.paper,
@@ -903,7 +909,7 @@ const ScrollToBottomButton = React.memo(function ScrollToBottomButton({
         <ScrollToBottomIconButton
             onClick={scrollToBottom}
             ref={buttonRef}
-            size="small"
+            size="sm"
             className={isNearBottom ? HIDE_SCROLL_BUTTON_CLASS : ""}
         >
             <IconCommon
@@ -1269,7 +1275,7 @@ export function ChatBubbleTree({
             {!isNearBottom && (
                 <ScrollToBottomIconButton
                     onClick={scrollToBottom}
-                    size="small"
+                    size="sm"
                 >
                     <IconCommon
                         decorative
