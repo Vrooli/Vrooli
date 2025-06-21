@@ -36,7 +36,7 @@ interface RoutineRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class RoutineDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Routine,
+    Prisma.RoutineCreateInput,
     Prisma.RoutineCreateInput,
     Prisma.RoutineInclude,
     Prisma.RoutineUpdateInput

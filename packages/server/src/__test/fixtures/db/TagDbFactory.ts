@@ -28,7 +28,7 @@ interface TagRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class TagDbFactory extends EnhancedDatabaseFactory<
-    Prisma.tag,
+    Prisma.tagCreateInput,
     Prisma.tagCreateInput,
     Prisma.tagInclude,
     Prisma.tagUpdateInput

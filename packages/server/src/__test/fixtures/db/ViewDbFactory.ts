@@ -27,7 +27,7 @@ interface ViewRelationConfig extends RelationConfig {
  * - Last viewed timestamp handling
  */
 export class ViewDbFactory extends EnhancedDatabaseFactory<
-    Prisma.view,
+    Prisma.viewCreateInput,
     Prisma.viewCreateInput,
     Prisma.viewInclude,
     Prisma.viewUpdateInput

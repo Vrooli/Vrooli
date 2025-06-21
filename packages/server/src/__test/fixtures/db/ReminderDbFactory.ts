@@ -31,7 +31,7 @@ interface ReminderListRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class ReminderDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reminder,
+    Prisma.reminderCreateInput,
     Prisma.reminderCreateInput,
     Prisma.reminderInclude,
     Prisma.reminderUpdateInput
@@ -547,7 +547,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
  * - Predefined test scenarios
  */
 export class ReminderListDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reminder_list,
+    Prisma.reminder_listCreateInput,
     Prisma.reminder_listCreateInput,
     Prisma.reminder_listInclude,
     Prisma.reminder_listUpdateInput

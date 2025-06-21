@@ -36,7 +36,7 @@ interface ProjectRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class ProjectDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Project,
+    Prisma.ProjectCreateInput,
     Prisma.ProjectCreateInput,
     Prisma.ProjectInclude,
     Prisma.ProjectUpdateInput

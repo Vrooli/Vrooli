@@ -1,9 +1,16 @@
-import { generatePK, nanoid } from "@vrooli/shared";
-import { type Prisma, type email } from "@prisma/client";
-import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import { generatePK, generatePublicId } from "./idHelpers.js";
+import { type Prisma, type PrismaClient } from "@prisma/client";
+import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
+    RelationConfig,
 } from "./types.js";
+
+interface EmailRelationConfig extends RelationConfig {
+    withUser?: boolean;
+    userId?: bigint;
+    verified?: boolean;
+}
 
 /**
  * Enhanced database fixture factory for Email model
@@ -17,10 +24,39 @@ import type {
  * - Case-insensitive email handling
  * - Predefined test scenarios
  */
-export class EmailDbFactory extends EnhancedDbFactory<
+export class EmailDbFactory extends EnhancedDatabaseFactory<
+    any, // Using any temporarily to avoid type issues
     Prisma.emailCreateInput,
+    Prisma.emailInclude,
     Prisma.emailUpdateInput
 > {
+    constructor(prisma: PrismaClient) {
+        super('email', prisma);
+    }
+
+    protected getPrismaDelegate() {
+        return this.prisma.email;
+    }
+
+    protected generateMinimalData(overrides?: Partial<Prisma.emailCreateInput>): Prisma.emailCreateInput {
+        return {
+            id: generatePK(),
+            emailAddress: `test_${generatePublicId()}@example.com`,
+            user: { connect: { id: generatePK() } },
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.emailCreateInput>): Prisma.emailCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            emailAddress: `complete_${generatePublicId()}@example.com`,
+            verifiedAt: new Date(),
+            verificationCode: `verify_${generatePublicId()}`,
+            lastVerificationCodeRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
+            ...overrides,
+        };
+    }
     /**
      * Get complete test fixtures for Email model
      */
@@ -28,23 +64,8 @@ export class EmailDbFactory extends EnhancedDbFactory<
         const userId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                emailAddress: `test_${nanoid()}@example.com`,
-                user: {
-                    connect: { id: userId }
-                },
-            },
-            complete: {
-                id: generatePK(),
-                emailAddress: `complete_${nanoid()}@example.com`,
-                verifiedAt: new Date(),
-                verificationCode: `verify_${nanoid()}`,
-                lastVerificationCodeRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
-                user: {
-                    connect: { id: userId }
-                },
-            },
+            minimal: this.generateMinimalData(),
+            complete: this.generateCompleteData(),
             invalid: {
                 missingRequired: {
                     // Missing id and emailAddress
@@ -115,7 +136,7 @@ export class EmailDbFactory extends EnhancedDbFactory<
 }
 
 // Export factory creator function
-export const createEmailDbFactory = () => new EmailDbFactory();
+export const createEmailDbFactory = (prisma: PrismaClient) => new EmailDbFactory(prisma);
 
 // Export the class for type usage
 export { EmailDbFactory as EmailDbFactoryClass };

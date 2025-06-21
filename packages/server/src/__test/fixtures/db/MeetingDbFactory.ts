@@ -34,7 +34,7 @@ interface MeetingRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class MeetingDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Meeting,
+    Prisma.MeetingCreateInput,
     Prisma.MeetingCreateInput,
     Prisma.MeetingInclude,
     Prisma.MeetingUpdateInput

@@ -25,7 +25,7 @@ interface ChatInviteRelationConfig extends RelationConfig {
  * - Constraint validation
  */
 export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
-    Prisma.chat_invite,
+    Prisma.chat_inviteCreateInput,
     Prisma.chat_inviteCreateInput,
     Prisma.chat_inviteInclude,
     Prisma.chat_inviteUpdateInput

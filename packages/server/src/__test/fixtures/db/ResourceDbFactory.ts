@@ -34,7 +34,7 @@ interface ResourceRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class ResourceDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Resource,
+    Prisma.ResourceCreateInput,
     Prisma.ResourceCreateInput,
     Prisma.ResourceInclude,
     Prisma.ResourceUpdateInput

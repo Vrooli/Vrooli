@@ -25,7 +25,7 @@ interface NotificationRelationConfig extends RelationConfig {
  * - Bulk notification operations
  */
 export class NotificationDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Notification,
+    Prisma.NotificationCreateInput,
     Prisma.NotificationCreateInput,
     Prisma.NotificationInclude,
     Prisma.NotificationUpdateInput

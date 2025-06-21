@@ -31,7 +31,7 @@ interface ChatRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class ChatDbFactory extends EnhancedDatabaseFactory<
-    Prisma.chat,
+    Prisma.chatCreateInput,
     Prisma.chatCreateInput,
     Prisma.chatInclude,
     Prisma.chatUpdateInput

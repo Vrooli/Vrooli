@@ -25,7 +25,7 @@ interface ScheduleRecurrenceRelationConfig extends RelationConfig {
  * - Business rule validation
  */
 export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory<
-    Prisma.schedule_recurrence,
+    Prisma.schedule_recurrenceCreateInput,
     Prisma.schedule_recurrenceCreateInput,
     Prisma.schedule_recurrenceInclude,
     Prisma.schedule_recurrenceUpdateInput

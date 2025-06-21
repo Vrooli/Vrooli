@@ -25,10 +25,10 @@ interface ChatParticipantRelationConfig extends RelationConfig {
  * - Constraint validation
  */
 export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
-    Prisma.ChatParticipant,
-    Prisma.ChatParticipantCreateInput,
-    Prisma.ChatParticipantInclude,
-    Prisma.ChatParticipantUpdateInput
+    Prisma.chat_participantsCreateInput,
+    Prisma.chat_participantsCreateInput,
+    Prisma.chat_participantsInclude,
+    Prisma.chat_participantsUpdateInput
 > {
     constructor(prisma: PrismaClient) {
         super('ChatParticipant', prisma);

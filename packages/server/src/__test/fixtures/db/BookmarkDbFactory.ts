@@ -30,7 +30,7 @@ interface BookmarkRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class BookmarkDbFactory extends EnhancedDatabaseFactory<
-    Prisma.bookmark,
+    Prisma.bookmarkCreateInput,
     Prisma.bookmarkCreateInput,
     Prisma.bookmarkInclude,
     Prisma.bookmarkUpdateInput

@@ -1,9 +1,16 @@
-import { generatePK } from "@vrooli/shared";
-import { type Prisma, type user_auth } from "@prisma/client";
-import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
+import { generatePK, generatePublicId } from "./idHelpers.js";
+import { type Prisma, type PrismaClient } from "@prisma/client";
+import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
+    RelationConfig,
 } from "./types.js";
+
+interface AuthRelationConfig extends RelationConfig {
+    withUser?: boolean;
+    userId?: bigint;
+    provider?: string;
+}
 
 /**
  * Enhanced database fixture factory for Auth (user_auth) model
@@ -17,10 +24,40 @@ import type {
  * - OAuth token handling
  * - Predefined test scenarios
  */
-export class AuthDbFactory extends EnhancedDbFactory<
+export class AuthDbFactory extends EnhancedDatabaseFactory<
+    any, // Using any temporarily to avoid type issues
     Prisma.user_authCreateInput,
+    Prisma.user_authInclude,
     Prisma.user_authUpdateInput
 > {
+    constructor(prisma: PrismaClient) {
+        super('user_auth', prisma);
+    }
+
+    protected getPrismaDelegate() {
+        return this.prisma.user_auth;
+    }
+
+    protected generateMinimalData(overrides?: Partial<Prisma.user_authCreateInput>): Prisma.user_authCreateInput {
+        return {
+            id: generatePK(),
+            provider: "Password",
+            hashed_password: "$2b$10$dummy.hashed.password.for.testing",
+            user: { connect: { id: generatePK() } },
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.user_authCreateInput>): Prisma.user_authCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            hashed_password: "$2b$10$complex.hashed.password.with.salt",
+            resetPasswordCode: `reset_${generatePublicId()}`,
+            lastResetPasswordRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
+            last_used_at: new Date(),
+            ...overrides,
+        };
+    }
     /**
      * Get complete test fixtures for Auth model
      */
@@ -28,25 +65,8 @@ export class AuthDbFactory extends EnhancedDbFactory<
         const userId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                provider: "Password",
-                hashed_password: "$2b$10$dummy.hashed.password.for.testing",
-                user: {
-                    connect: { id: userId }
-                },
-            },
-            complete: {
-                id: generatePK(),
-                provider: "Password",
-                hashed_password: "$2b$10$complex.hashed.password.with.salt",
-                resetPasswordCode: `reset_${Math.random().toString(36).substring(2, 34)}`,
-                lastResetPasswordRequestAttempt: new Date(Date.now() - 60000), // 1 minute ago
-                last_used_at: new Date(),
-                user: {
-                    connect: { id: userId }
-                },
-            },
+            minimal: this.generateMinimalData(),
+            complete: this.generateCompleteData(),
             invalid: {
                 missingRequired: {
                     // Missing id, provider, and user connection
@@ -122,7 +142,7 @@ export class AuthDbFactory extends EnhancedDbFactory<
 }
 
 // Export factory creator function
-export const createAuthDbFactory = () => new AuthDbFactory();
+export const createAuthDbFactory = (prisma: PrismaClient) => new AuthDbFactory(prisma);
 
 // Export the class for type usage
 export { AuthDbFactory as AuthDbFactoryClass };

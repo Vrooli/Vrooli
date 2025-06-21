@@ -24,7 +24,7 @@ interface RunIORelationConfig extends RelationConfig {
  * - Large data handling
  */
 export class RunIODbFactory extends EnhancedDatabaseFactory<
-    Prisma.run_io,
+    Prisma.run_ioCreateInput,
     Prisma.run_ioCreateInput,
     Prisma.run_ioInclude,
     Prisma.run_ioUpdateInput

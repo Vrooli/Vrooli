@@ -25,7 +25,7 @@ interface ReportResponseRelationConfig extends RelationConfig {
  * - Unique constraint handling (one response per user per report)
  */
 export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
-    Prisma.report_response,
+    Prisma.report_responseCreateInput,
     Prisma.report_responseCreateInput,
     Prisma.report_responseInclude,
     Prisma.report_responseUpdateInput

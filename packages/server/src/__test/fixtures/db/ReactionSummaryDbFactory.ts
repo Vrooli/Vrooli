@@ -26,7 +26,7 @@ interface ReactionSummaryRelationConfig extends RelationConfig {
  * - Edge case handling for counts
  */
 export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reaction_summary,
+    Prisma.reaction_summaryCreateInput,
     Prisma.reaction_summaryCreateInput,
     Prisma.reaction_summaryInclude,
     Prisma.reaction_summaryUpdateInput

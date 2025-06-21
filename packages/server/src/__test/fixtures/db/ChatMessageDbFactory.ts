@@ -30,10 +30,10 @@ interface ChatMessageRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
-    Prisma.ChatMessage,
-    Prisma.ChatMessageCreateInput,
-    Prisma.ChatMessageInclude,
-    Prisma.ChatMessageUpdateInput
+    Prisma.chat_messageCreateInput,
+    Prisma.chat_messageCreateInput,
+    Prisma.chat_messageInclude,
+    Prisma.chat_messageUpdateInput
 > {
     constructor(prisma: PrismaClient) {
         super('ChatMessage', prisma);

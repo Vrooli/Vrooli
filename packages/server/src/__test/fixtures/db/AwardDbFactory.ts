@@ -1,4 +1,4 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -25,7 +25,7 @@ interface AwardRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class AwardDbFactory extends EnhancedDatabaseFactory<
-    Prisma.award,
+    Prisma.awardCreateInput,
     Prisma.awardCreateInput,
     Prisma.awardInclude,
     Prisma.awardUpdateInput
@@ -38,6 +38,26 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
         return this.prisma.award;
     }
 
+    protected generateMinimalData(overrides?: Partial<Prisma.awardCreateInput>): Prisma.awardCreateInput {
+        return {
+            id: generatePK(),
+            category: "first_routine",
+            progress: 1,
+            user: { connect: { id: generatePK() } },
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.awardCreateInput>): Prisma.awardCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            category: "api_master",
+            progress: 25,
+            tier: 3,
+            ...overrides,
+        };
+    }
+
     /**
      * Get complete test fixtures for Award model
      */
@@ -45,23 +65,8 @@ export class AwardDbFactory extends EnhancedDatabaseFactory<
         const userId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                category: "first_routine",
-                progress: 0,
-                user: {
-                    connect: { id: userId }
-                },
-            },
-            complete: {
-                id: generatePK(),
-                category: "routine_master",
-                progress: 100,
-                tierCompletedAt: new Date(),
-                user: {
-                    connect: { id: userId }
-                },
-            },
+            minimal: this.generateMinimalData(),
+            complete: this.generateCompleteData(),
             invalid: {
                 missingRequired: {
                     // Missing id, category, and user

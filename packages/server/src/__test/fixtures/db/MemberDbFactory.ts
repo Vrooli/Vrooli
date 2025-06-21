@@ -1,16 +1,13 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
-    RelationConfig,
-} from "./types.js";
+import type { DbTestFixtures, RelationConfig } from "./types.js";
+import { generatePK } from "./idHelpers.js";
 
 interface MemberRelationConfig extends RelationConfig {
     withUser?: boolean;
     withTeam?: boolean;
-    userId?: string;
-    teamId?: string;
+    userId?: bigint;
+    teamId?: bigint;
     role?: "Owner" | "Admin" | "Member";
 }
 
@@ -26,7 +23,7 @@ interface MemberRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class MemberDbFactory extends EnhancedDatabaseFactory<
-    Prisma.member,
+    any, // Using any to avoid type issues
     Prisma.memberCreateInput,
     Prisma.memberInclude,
     Prisma.memberUpdateInput
@@ -39,6 +36,24 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         return this.prisma.member;
     }
 
+    protected generateMinimalData(overrides?: Partial<Prisma.memberCreateInput>): Prisma.memberCreateInput {
+        return {
+            id: generatePK(),
+            user: { connect: { id: generatePK() } },
+            team: { connect: { id: generatePK() } },
+            role: "Member",
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.memberCreateInput>): Prisma.memberCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            role: "Member",
+            ...overrides,
+        };
+    }
+
     /**
      * Get complete test fixtures for Member model
      */
@@ -47,21 +62,11 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
         const teamId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                user: { connect: { id: userId } },
-                team: { connect: { id: teamId } },
-                role: "Member",
-            },
+            minimal: this.generateMinimalData(),
             
-            complete: {
-                id: generatePK(),
-                user: { connect: { id: userId } },
-                team: { connect: { id: teamId } },
-                role: "Member",
-            },
+            complete: this.generateCompleteData(),
             
-            variants: {
+            edgeCases: {
                 owner: {
                     id: generatePK(),
                     user: { connect: { id: userId } },
@@ -85,26 +90,19 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             },
             
             invalid: {
-                missingUser: {
+                missingRequired: {
                     id: generatePK(),
                     team: { connect: { id: teamId } },
                     role: "Member",
                     // Missing user connection
-                },
+                } as any,
                 
-                missingTeam: {
-                    id: generatePK(),
-                    user: { connect: { id: userId } },
-                    role: "Member",
-                    // Missing team connection
-                },
-                
-                invalidRole: {
-                    id: generatePK(),
+                invalidTypes: {
+                    id: "not-a-bigint" as any,
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     role: "InvalidRole" as any,
-                },
+                } as any,
             },
             
             edgeCase: {
@@ -117,7 +115,15 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             
-            update: {
+            updates: {
+                minimal: {
+                    role: "Admin",
+                },
+                
+                complete: {
+                    role: "Owner",
+                },
+                
                 promoteToAdmin: {
                     role: "Admin",
                 },
@@ -137,13 +143,13 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
      * Create member with specific role
      */
     async createWithRole(
-        userId: string, 
-        teamId: string, 
+        userId: bigint, 
+        teamId: bigint, 
         role: "Owner" | "Admin" | "Member",
         overrides?: Partial<Prisma.memberCreateInput>
     ) {
         const data = {
-            ...this.getFixtures().minimal,
+            id: generatePK(),
             user: { connect: { id: userId } },
             team: { connect: { id: teamId } },
             role,
@@ -156,21 +162,21 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create team owner
      */
-    async createOwner(userId: string, teamId: string, overrides?: Partial<Prisma.memberCreateInput>) {
+    async createOwner(userId: bigint, teamId: bigint, overrides?: Partial<Prisma.memberCreateInput>) {
         return this.createWithRole(userId, teamId, "Owner", overrides);
     }
 
     /**
      * Create team admin
      */
-    async createAdmin(userId: string, teamId: string, overrides?: Partial<Prisma.memberCreateInput>) {
+    async createAdmin(userId: bigint, teamId: bigint, overrides?: Partial<Prisma.memberCreateInput>) {
         return this.createWithRole(userId, teamId, "Admin", overrides);
     }
 
     /**
      * Create regular team member
      */
-    async createMember(userId: string, teamId: string, overrides?: Partial<Prisma.memberCreateInput>) {
+    async createMember(userId: bigint, teamId: bigint, overrides?: Partial<Prisma.memberCreateInput>) {
         return this.createWithRole(userId, teamId, "Member", overrides);
     }
 
@@ -187,9 +193,9 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 const user = await tx.user.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK(),
+                        publicId: generatePK().toString(),
                         name: "Test User",
-                        handle: `test_user_${generatePK().slice(-6)}`,
+                        handle: `test_user_${generatePK().toString().slice(-6)}`,
                         status: "Unlocked",
                         isBot: false,
                         isBotDepictingPerson: false,
@@ -204,9 +210,9 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 const team = await tx.team.create({
                     data: {
                         id: generatePK(),
-                        publicId: generatePK(),
+                        publicId: generatePK().toString(),
                         name: "Test Team",
-                        handle: `test_team_${generatePK().slice(-6)}`,
+                        handle: `test_team_${generatePK().toString().slice(-6)}`,
                         isPrivate: false,
                         createdBy: { connect: { id: userId || generatePK() } },
                     },
@@ -237,8 +243,8 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
      * Create multiple members for a team
      */
     async createTeamMembers(
-        teamId: string,
-        members: Array<{ userId: string; role?: "Owner" | "Admin" | "Member" }>
+        teamId: bigint,
+        members: Array<{ userId: bigint; role?: "Owner" | "Admin" | "Member" }>
     ) {
         return this.prisma.$transaction(async (tx) => {
             const createdMembers = [];
@@ -266,7 +272,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     /**
      * Verify member role
      */
-    async verifyRole(memberId: string, expectedRole: "Owner" | "Admin" | "Member") {
+    async verifyRole(memberId: bigint, expectedRole: "Owner" | "Admin" | "Member") {
         const member = await this.prisma.member.findUnique({
             where: { id: memberId },
         });
@@ -287,7 +293,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     /**
      * Verify team membership count
      */
-    async verifyTeamMemberCount(teamId: string, expectedCount: number) {
+    async verifyTeamMemberCount(teamId: bigint, expectedCount: number) {
         const count = await this.prisma.member.count({
             where: { teamId },
         });

@@ -33,7 +33,7 @@ interface CommentRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class CommentDbFactory extends EnhancedDatabaseFactory<
-    Prisma.comment,
+    Prisma.commentCreateInput,
     Prisma.commentCreateInput,
     Prisma.commentInclude,
     Prisma.commentUpdateInput

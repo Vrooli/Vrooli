@@ -43,14 +43,11 @@ export { ViewDbFactory, createViewDbFactory } from "./ViewDbFactory.js";
 export { ReportDbFactory, createReportDbFactory } from "./ReportDbFactory.js";
 export { ReportResponseDbFactory, createReportResponseDbFactory } from "./ReportResponseDbFactory.js";
 
-// Billing and Credit Objects
+// Billing Objects
 export { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
 
 // Team Management Objects
 export { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
-
-// Version Control Objects
-export { PullRequestDbFactory, createPullRequestDbFactory } from "./PullRequestDbFactory.js";
 
 // Resource management factories
 export { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
@@ -153,11 +150,8 @@ import { RunDbFactory, createRunDbFactory } from "./RunDbFactory.js";
 import { RunIODbFactory, createRunIODbFactory } from "./RunIODbFactory.js";
 import { RunStepDbFactory, createRunStepDbFactory } from "./RunStepDbFactory.js";
 import { ReminderDbFactory, createReminderDbFactory, ReminderListDbFactory, createReminderListDbFactory } from "./ReminderDbFactory.js";
-
-// Import new factory classes
 import { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
 import { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
-import { PullRequestDbFactory, createPullRequestDbFactory } from "./PullRequestDbFactory.js";
 
 /**
  * Organized namespace exports for better developer experience
@@ -297,7 +291,6 @@ export const reminderListDb = {
     create: createReminderListDbFactory,
 };
 
-// New namespace exports
 export const creditAccountDb = {
     factory: CreditAccountDbFactory,
     create: createCreditAccountDbFactory,
@@ -306,11 +299,6 @@ export const creditAccountDb = {
 export const memberDb = {
     factory: MemberDbFactory,
     create: createMemberDbFactory,
-};
-
-export const pullRequestDb = {
-    factory: PullRequestDbFactory,
-    create: createPullRequestDbFactory,
 };
 
 /**
@@ -357,10 +345,8 @@ export const dbFixtureUtils = {
             runStep: RunStepDbFactory,
             reminder: ReminderDbFactory,
             reminderList: ReminderListDbFactory,
-            // New factories
             creditAccount: CreditAccountDbFactory,
             member: MemberDbFactory,
-            pullRequest: PullRequestDbFactory,
         };
     },
 

@@ -31,7 +31,7 @@ interface IssueRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class IssueDbFactory extends EnhancedDatabaseFactory<
-    Prisma.issue,
+    Prisma.issueCreateInput,
     Prisma.issueCreateInput,
     Prisma.issueInclude,
     Prisma.issueUpdateInput

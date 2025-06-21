@@ -1,383 +1,465 @@
-/* c8 ignore start */
 /**
- * Core types for the UI fixture factory system
+ * Core type definitions for the production-grade UI fixtures architecture.
  * 
- * This module defines type-safe interfaces for UI fixtures with ZERO any types.
- * It ensures proper integration between forms, API calls, and UI state management.
+ * This file provides type-safe interfaces that eliminate the use of `any` types
+ * and ensure proper integration with @vrooli/shared functions.
  */
 
+import type { 
+    Bookmark, 
+    BookmarkCreateInput, 
+    BookmarkUpdateInput, 
+    BookmarkFor,
+    BookmarkList,
+    BookmarkListCreateInput,
+    BookmarkListUpdateInput,
+    User 
+} from "@vrooli/shared";
 import type { UseFormReturn } from "react-hook-form";
 import type { RestHandler } from "msw";
 
+// ============================================
+// FORM DATA TYPES
+// ============================================
+
 /**
- * Result of form validation
+ * UI-specific form data for bookmark creation.
+ * Includes UI-only fields that don't exist in the API.
  */
-export interface FormValidationResult {
+export interface BookmarkFormData {
+    /** Type of object being bookmarked */
+    bookmarkFor: BookmarkFor;
+    /** ID of the object being bookmarked */
+    forConnect: string;
+    /** ID of existing list to add bookmark to */
+    listId?: string;
+    /** Whether to create a new list (UI-only field) */
+    createNewList?: boolean;
+    /** Label for new list (UI-only field) */
+    newListLabel?: string;
+    /** Whether the bookmark should be private (UI-only field) */
+    isPrivate?: boolean;
+}
+
+/**
+ * UI state for bookmark components
+ */
+export interface BookmarkUIState {
+    isLoading: boolean;
+    bookmark: Bookmark | null;
+    error: string | null;
+    isBookmarked: boolean;
+    availableLists: Array<{ id: string; label: string }>;
+    showListSelection: boolean;
+}
+
+// ============================================
+// FIXTURE FACTORY INTERFACES
+// ============================================
+
+/**
+ * Standard interface for all fixture factories.
+ * Ensures consistent API across all object types.
+ */
+export interface FixtureFactory<TFormData, TCreateInput, TUpdateInput, TObject> {
+    /** Object type identifier */
+    readonly objectType: string;
+    
+    /** Create form data for different test scenarios */
+    createFormData(scenario: string): TFormData;
+    
+    /** Transform form data to API create input using real shape functions */
+    transformToAPIInput(formData: TFormData): TCreateInput;
+    
+    /** Create API update input */
+    createUpdateInput(id: string, updates: Partial<TFormData>): TUpdateInput;
+    
+    /** Create mock API response */
+    createMockResponse(overrides?: Partial<TObject>): TObject;
+    
+    /** Validate form data using real validation functions */
+    validateFormData(formData: TFormData): Promise<ValidationResult>;
+    
+    /** Create MSW handlers for testing */
+    createMSWHandlers(): MSWHandlers;
+}
+
+/**
+ * Validation result with detailed error information
+ */
+export interface ValidationResult {
     isValid: boolean;
-    errors?: Record<string, string>;
-    touched?: Record<string, boolean>;
-}
-
-/**
- * Configuration for simulating form events
- */
-export interface FormEvent {
-    type: "change" | "blur" | "focus" | "submit";
-    field?: string;
-    value?: unknown;
-    timestamp?: number;
-}
-
-/**
- * Test result for round-trip testing
- */
-export interface TestResult {
-    success: boolean;
     errors?: string[];
-    warnings?: string[];
-    metadata?: Record<string, unknown>;
+    fieldErrors?: Record<string, string[]>;
 }
 
 /**
- * Round-trip test configuration
+ * MSW handlers for different scenarios
  */
-export interface RoundTripConfig<TFormData> {
+export interface MSWHandlers {
+    success: RestHandler[];
+    error: RestHandler[];
+    loading: RestHandler[];
+    networkError: RestHandler[];
+}
+
+// ============================================
+// INTEGRATION TEST INTERFACES
+// ============================================
+
+/**
+ * Configuration for integration tests
+ */
+export interface IntegrationTestConfig<TFormData> {
     formData: TFormData;
-    validateEachStep?: boolean;
-    simulateUserInteraction?: boolean;
-    networkDelay?: number;
+    shouldSucceed: boolean;
+    expectedErrors?: string[];
+    authContext?: AuthContext;
+    databasePreConditions?: DatabasePreCondition[];
 }
 
 /**
- * Result of a complete round-trip test
+ * Result of integration test execution
  */
-export interface RoundTripResult<TAPIResponse> {
+export interface IntegrationTestResult<TObject> {
     success: boolean;
     data?: {
-        formData: unknown;
-        apiInput: unknown;
-        apiResponse: TAPIResponse;
-        dbRecord: unknown;
-        fetchedData: TAPIResponse;
-        uiDisplay: unknown;
+        formData: any;
+        apiInput: any;
+        apiResponse: TObject;
+        databaseRecord: any;
+        fetchedData: TObject;
     };
     errors?: string[];
-    stages?: Record<string, "pending" | "completed" | "failed" | "skipped">;
-    dataIntegrity?: boolean;
-    canDisplay?: boolean;
+    duration: number;
 }
 
 /**
- * Data integrity report for round-trip verification
+ * Authentication context for tests
  */
-export interface DataIntegrityReport {
-    isValid: boolean;
-    mismatches: Array<{
-        field: string;
-        original: unknown;
-        result: unknown;
-        path: string;
-    }>;
-    warnings: string[];
+export interface AuthContext {
+    userId: string;
+    handle: string;
+    permissions: string[];
+    teamMemberships?: string[];
 }
 
 /**
- * UI loading state context
+ * Database pre-conditions for tests
  */
-export interface LoadingContext {
-    type: "initial" | "refresh" | "loadMore" | "submit";
+export interface DatabasePreCondition {
+    table: string;
+    data: Record<string, any>;
+    cleanup?: boolean;
+}
+
+// ============================================
+// SCENARIO ORCHESTRATOR INTERFACES
+// ============================================
+
+/**
+ * Configuration for multi-step scenario tests
+ */
+export interface ScenarioConfig {
+    name: string;
+    description: string;
+    steps: ScenarioStep[];
+    cleanup?: boolean;
+}
+
+/**
+ * Individual step in a scenario
+ */
+export interface ScenarioStep {
+    name: string;
+    action: "create" | "update" | "delete" | "verify" | "wait";
+    objectType: string;
+    data?: any;
+    assertions?: Assertion[];
+    dependencies?: string[];
+}
+
+/**
+ * Assertion for scenario steps
+ */
+export interface Assertion {
+    type: "exists" | "equals" | "contains" | "count" | "custom";
+    target: string;
+    expected: any;
     message?: string;
-    progress?: number;
 }
 
 /**
- * Application error type for UI testing
+ * Result of scenario execution
  */
-export interface AppError {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
-    retryable?: boolean;
+export interface ScenarioResult {
+    success: boolean;
+    stepResults: StepResult[];
+    duration: number;
+    error?: string;
+    data?: Record<string, any>;
 }
 
 /**
- * MSW handler configuration
+ * Result of individual scenario step
  */
-export interface HandlerConfig {
-    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-    path: string;
-    status?: number;
-    delay?: number;
-    response?: unknown;
-    error?: AppError;
+export interface StepResult {
+    stepName: string;
+    success: boolean;
+    duration: number;
+    data?: any;
+    error?: string;
+    assertions?: AssertionResult[];
 }
 
 /**
- * Delay configuration for network simulation
+ * Result of assertion execution
  */
-export interface DelayConfig {
-    min: number;
-    max: number;
-    jitter?: boolean;
+export interface AssertionResult {
+    assertion: string;
+    passed: boolean;
+    actual?: any;
+    expected?: any;
+    message?: string;
 }
 
-/**
- * Error scenario for testing
- */
-export interface ErrorScenario {
-    type: "validation" | "network" | "permission" | "server" | "timeout";
-    config: Record<string, unknown>;
-}
+// ============================================
+// UI STATE INTERFACES
+// ============================================
 
 /**
- * Render result with testing utilities
+ * Generic UI state fixture factory
  */
-export interface RenderResult {
-    // Standard testing library utilities
-    getByRole: (role: string, options?: Record<string, unknown>) => HTMLElement;
-    getByText: (text: string | RegExp) => HTMLElement;
-    getByLabelText: (text: string | RegExp) => HTMLElement;
-    queryByRole: (role: string, options?: Record<string, unknown>) => HTMLElement | null;
-    queryByText: (text: string | RegExp) => HTMLElement | null;
-    findByRole: (role: string, options?: Record<string, unknown>) => Promise<HTMLElement>;
-    findByText: (text: string | RegExp) => Promise<HTMLElement>;
-    
-    // User event utilities
-    user: {
-        click: (element: HTMLElement) => Promise<void>;
-        type: (element: HTMLElement, text: string) => Promise<void>;
-        clear: (element: HTMLElement) => Promise<void>;
-        selectOptions: (element: HTMLElement, values: string | string[]) => Promise<void>;
-        tab: () => Promise<void>;
-    };
-    
-    // Additional utilities
-    container: HTMLElement;
-    rerender: (ui: React.ReactElement) => void;
-    unmount: () => void;
-}
-
-/**
- * Form fixture factory interface
- * 
- * @template TFormData - The form data type as it appears in UI state
- * @template TFormState - The React Hook Form state type (optional)
- */
-export interface FormFixtureFactory<TFormData extends Record<string, unknown>, TFormState = unknown> {
-    // Create form data for different scenarios
-    createFormData(scenario: "minimal" | "complete" | "invalid" | string): TFormData;
-    
-    // Simulate form events (for React Hook Form integration)
-    simulateFormEvents(formData: TFormData): FormEvent[];
-    
-    // Validate using actual form validation
-    validateFormData(formData: TFormData): Promise<FormValidationResult>;
-    
-    // Transform to API input using real shape functions
-    transformToAPIInput(formData: TFormData): unknown;
-    
-    // Create form state for component testing
-    createFormState?(data: TFormData): UseFormReturn<TFormData>;
-}
-
-/**
- * Round-trip orchestrator interface
- * 
- * @template TFormData - The form data type
- * @template TAPIResponse - The API response type
- */
-export interface RoundTripOrchestrator<TFormData, TAPIResponse> {
-    // Execute complete cycle with real API calls
-    executeFullCycle(config: RoundTripConfig<TFormData>): Promise<RoundTripResult<TAPIResponse>>;
-    
-    // Test CRUD operations
-    testCreateFlow(formData: TFormData): Promise<TestResult>;
-    testUpdateFlow(id: string, formData: Partial<TFormData>): Promise<TestResult>;
-    testDeleteFlow(id: string): Promise<TestResult>;
-    
-    // Verify data integrity across layers
-    verifyDataIntegrity(original: TFormData, result: TAPIResponse): DataIntegrityReport;
-}
-
-/**
- * UI state fixture factory interface
- * 
- * @template TState - The UI state type
- */
-export interface UIStateFixtureFactory<TState> {
-    // Create different UI states
+export interface UIStateFactory<TState> {
     createLoadingState(context?: LoadingContext): TState;
     createErrorState(error: AppError): TState;
-    createSuccessState(data: unknown, message?: string): TState;
+    createSuccessState(data: any, message?: string): TState;
     createEmptyState(): TState;
-    
-    // State transitions
     transitionToLoading(currentState: TState): TState;
-    transitionToSuccess(currentState: TState, data: unknown): TState;
+    transitionToSuccess(currentState: TState, data: any): TState;
     transitionToError(currentState: TState, error: AppError): TState;
 }
 
 /**
- * MSW handler factory interface
+ * Loading context for UI states
  */
-export interface MSWHandlerFactory {
-    // Generate handlers for different scenarios
-    createSuccessHandlers(): RestHandler[];
-    createErrorHandlers(errorScenarios: ErrorScenario[]): RestHandler[];
-    createDelayHandlers(delays: DelayConfig): RestHandler[];
-    createNetworkErrorHandlers(): RestHandler[];
-    
-    // Dynamic handler creation
-    createCustomHandler(config: HandlerConfig): RestHandler;
+export interface LoadingContext {
+    operation: string;
+    progress?: number;
+    message?: string;
 }
 
 /**
- * Component test utilities interface
- * 
- * @template TProps - The component props type
+ * Application error interface
  */
-export interface ComponentTestUtils<TProps> {
-    // Render with all providers
-    renderWithProviders(component: React.ComponentType<TProps>, props: TProps): RenderResult;
-    
-    // Simulate user interactions
-    simulateFormSubmission(formData: unknown): Promise<void>;
-    simulateFieldChange(fieldName: string, value: unknown): Promise<void>;
-    
-    // Wait for async operations
-    waitForAPICall(endpoint: string): Promise<void>;
-    waitForStateUpdate(predicate: () => boolean): Promise<void>;
-}
-
-/**
- * Error scenario tester interface
- */
-export interface ErrorScenarioTester {
-    // Test various error conditions
-    testValidationErrors(invalidData: unknown[]): Promise<ValidationErrorReport>;
-    testAPIErrors(errorResponses: APIError[]): Promise<APIErrorReport>;
-    testNetworkErrors(scenarios: NetworkErrorScenario[]): Promise<NetworkErrorReport>;
-    testPermissionErrors(unauthorizedActions: Action[]): Promise<PermissionErrorReport>;
-}
-
-// Report types for error testing
-export interface ValidationErrorReport {
-    totalTests: number;
-    passed: number;
-    failed: number;
-    errors: Array<{ input: unknown; expectedError: string; actualError?: string }>;
-}
-
-export interface APIError {
-    status: number;
+export interface AppError {
     code: string;
     message: string;
+    details?: any;
+    recoverable?: boolean;
 }
 
-export interface APIErrorReport {
-    totalTests: number;
-    handled: number;
-    unhandled: number;
-    errors: Array<{ error: APIError; handled: boolean; userMessage?: string }>;
-}
+// ============================================
+// COMPONENT TEST INTERFACES
+// ============================================
 
-export interface NetworkErrorScenario {
-    type: "timeout" | "connectionRefused" | "networkOffline" | "dnsFailure";
-    config?: Record<string, unknown>;
-}
-
-export interface NetworkErrorReport {
-    totalTests: number;
-    recovered: number;
-    failed: number;
-    scenarios: Array<{ scenario: NetworkErrorScenario; result: "recovered" | "failed" }>;
-}
-
-export interface Action {
-    resource: string;
-    operation: string;
-    context?: Record<string, unknown>;
-}
-
-export interface PermissionErrorReport {
-    totalTests: number;
-    blocked: number;
-    allowed: number;
-    errors: Array<{ action: Action; result: "blocked" | "allowed"; message?: string }>;
+/**
+ * Component test utilities
+ */
+export interface ComponentTestUtils<TProps> {
+    /** Render component with all required providers */
+    renderWithProviders(props: TProps): ComponentRenderResult;
+    
+    /** Simulate form submission */
+    simulateFormSubmission(formData: any): Promise<void>;
+    
+    /** Simulate field changes */
+    simulateFieldChange(fieldName: string, value: any): Promise<void>;
+    
+    /** Wait for API calls to complete */
+    waitForAPICall(endpoint: string): Promise<void>;
+    
+    /** Wait for specific state updates */
+    waitForStateUpdate(predicate: () => boolean, timeout?: number): Promise<void>;
 }
 
 /**
- * Test API client interface for round-trip testing
+ * Component render result with enhanced utilities
  */
-export interface TestAPIClient {
-    get<T = unknown>(path: string, options?: RequestOptions): Promise<APIClientResponse<T>>;
-    post<T = unknown>(path: string, data: unknown, options?: RequestOptions): Promise<APIClientResponse<T>>;
-    put<T = unknown>(path: string, data: unknown, options?: RequestOptions): Promise<APIClientResponse<T>>;
-    delete<T = unknown>(path: string, options?: RequestOptions): Promise<APIClientResponse<T>>;
+export interface ComponentRenderResult {
+    container: HTMLElement;
+    rerender: (props: any) => void;
+    unmount: () => void;
+    
+    // Form-specific utilities
+    getFormValues: () => Record<string, any>;
+    setFormValues: (values: Record<string, any>) => Promise<void>;
+    submitForm: () => Promise<void>;
+    
+    // State utilities
+    getComponentState: () => any;
+    waitForState: (predicate: (state: any) => boolean) => Promise<void>;
+    
+    // Query utilities
+    queryByTestId: (testId: string) => HTMLElement | null;
+    getByTestId: (testId: string) => HTMLElement;
+    queryByRole: (role: string) => HTMLElement | null;
+    getByRole: (role: string) => HTMLElement;
 }
 
+// ============================================
+// FORM INTEGRATION INTERFACES
+// ============================================
+
+/**
+ * React Hook Form integration utilities
+ */
+export interface FormIntegration<TFormData> {
+    /** Create form instance with fixture data */
+    createFormInstance(data: TFormData): UseFormReturn<TFormData>;
+    
+    /** Simulate form validation */
+    validateForm(formInstance: UseFormReturn<TFormData>): Promise<ValidationResult>;
+    
+    /** Simulate form submission */
+    submitForm(formInstance: UseFormReturn<TFormData>): Promise<any>;
+    
+    /** Set form errors */
+    setFormErrors(formInstance: UseFormReturn<TFormData>, errors: Record<string, string>): void;
+    
+    /** Clear form */
+    clearForm(formInstance: UseFormReturn<TFormData>): void;
+}
+
+// ============================================
+// DATABASE INTEGRATION INTERFACES
+// ============================================
+
+/**
+ * Database verification utilities
+ */
+export interface DatabaseVerifier {
+    /** Verify record exists in database */
+    verifyRecordExists(table: string, id: string): Promise<boolean>;
+    
+    /** Verify record data matches expected */
+    verifyRecordData(table: string, id: string, expected: Record<string, any>): Promise<boolean>;
+    
+    /** Get record from database */
+    getRecord(table: string, id: string): Promise<any>;
+    
+    /** Count records matching criteria */
+    countRecords(table: string, criteria: Record<string, any>): Promise<number>;
+    
+    /** Clean up test data */
+    cleanup(tables: string[]): Promise<void>;
+}
+
+/**
+ * Test transaction manager
+ */
+export interface TestTransactionManager {
+    /** Start new transaction */
+    begin(): Promise<void>;
+    
+    /** Commit transaction */
+    commit(): Promise<void>;
+    
+    /** Rollback transaction */
+    rollback(): Promise<void>;
+    
+    /** Execute in transaction */
+    executeInTransaction<T>(fn: () => Promise<T>): Promise<T>;
+}
+
+// ============================================
+// API CLIENT INTERFACES
+// ============================================
+
+/**
+ * Test API client for integration tests
+ */
+export interface TestAPIClient {
+    /** Make GET request */
+    get<T>(endpoint: string, options?: RequestOptions): Promise<APIResponse<T>>;
+    
+    /** Make POST request */
+    post<T>(endpoint: string, data: any, options?: RequestOptions): Promise<APIResponse<T>>;
+    
+    /** Make PUT request */
+    put<T>(endpoint: string, data: any, options?: RequestOptions): Promise<APIResponse<T>>;
+    
+    /** Make DELETE request */
+    delete<T>(endpoint: string, options?: RequestOptions): Promise<APIResponse<T>>;
+    
+    /** Set authentication */
+    setAuth(token: string): void;
+    
+    /** Clear authentication */
+    clearAuth(): void;
+}
+
+/**
+ * API request options
+ */
 export interface RequestOptions {
     headers?: Record<string, string>;
     timeout?: number;
-    session?: unknown;
+    retries?: number;
 }
 
-export interface APIClientResponse<T = unknown> {
+/**
+ * API response wrapper
+ */
+export interface APIResponse<T> {
     data: T;
     status: number;
     headers: Record<string, string>;
+    duration: number;
 }
 
-/**
- * Database verifier interface for round-trip testing
- */
-export interface DatabaseVerifier {
-    verifyCreated<T = unknown>(table: string, id: string): Promise<T | null>;
-    verifyUpdated<T = unknown>(table: string, id: string, expectedData: Partial<T>): Promise<boolean>;
-    verifyDeleted(table: string, id: string): Promise<boolean>;
-    verifyRelationships(table: string, id: string, relations: Record<string, number | string[]>): Promise<boolean>;
-}
+// ============================================
+// EXPORT HELPER TYPES
+// ============================================
 
 /**
- * Complete UI fixture factory interface
- * 
- * @template TFormData - The form data type
- * @template TCreateInput - The API create input type
- * @template TUpdateInput - The API update input type
- * @template TAPIResponse - The API response type
- * @template TUIState - The UI state type
+ * All scenario types for type safety
  */
-export interface UIFixtureFactory<
-    TFormData extends Record<string, unknown>,
-    TCreateInput = unknown,
-    TUpdateInput = unknown,
-    TAPIResponse = unknown,
-    TUIState = unknown
-> {
-    readonly objectType: string;
+export type BookmarkScenario = 
+    | "minimal" 
+    | "complete" 
+    | "invalid" 
+    | "withNewList" 
+    | "withExistingList" 
+    | "forProject" 
+    | "forRoutine";
+
+/**
+ * UI state types
+ */
+export type UIStateType = 
+    | "loading" 
+    | "error" 
+    | "success" 
+    | "empty" 
+    | "withData";
+
+/**
+ * Test data generation utilities
+ */
+export interface TestDataGenerator {
+    /** Generate unique ID */
+    generateId(): string;
     
-    // Sub-factories
-    form: FormFixtureFactory<TFormData>;
-    roundTrip: RoundTripOrchestrator<TFormData, TAPIResponse>;
-    handlers: MSWHandlerFactory;
-    states: UIStateFixtureFactory<TUIState>;
-    componentUtils: ComponentTestUtils<any>;
+    /** Generate random string */
+    generateString(length?: number): string;
     
-    // Core methods
-    createFormData(scenario?: string): TFormData;
-    createAPIInput(formData: TFormData): TCreateInput;
-    createMockResponse(overrides?: Partial<TAPIResponse>): TAPIResponse;
-    setupMSW(scenario?: string): void;
+    /** Generate random email */
+    generateEmail(): string;
     
-    // Test flows
-    testCreateFlow(formData?: TFormData): Promise<TAPIResponse>;
-    testUpdateFlow(id: string, updates: Partial<TFormData>): Promise<TAPIResponse>;
-    testDeleteFlow(id: string): Promise<boolean>;
-    testRoundTrip(formData?: TFormData): Promise<{
-        success: boolean;
-        formData: TFormData;
-        apiResponse: TAPIResponse;
-        uiState: TUIState;
-    }>;
+    /** Generate random date */
+    generateDate(options?: { past?: boolean; future?: boolean; daysOffset?: number }): Date;
+    
+    /** Generate random number */
+    generateNumber(min?: number, max?: number): number;
 }
-/* c8 ignore stop */

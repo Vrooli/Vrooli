@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type PrismaClient } from "@prisma/client";
 import type { 
     DatabaseFixtureFactory as IDatabaseFixtureFactory,

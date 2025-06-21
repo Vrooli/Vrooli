@@ -26,7 +26,7 @@ interface ReactionRelationConfig extends RelationConfig {
  * - Reaction summary synchronization testing
  */
 export class ReactionDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reaction,
+    Prisma.reactionCreateInput,
     Prisma.reactionCreateInput,
     Prisma.reactionInclude,
     Prisma.reactionUpdateInput

@@ -1,4 +1,4 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
@@ -26,7 +26,7 @@ interface ApiKeyRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
-    Prisma.api_key,
+    Prisma.api_keyCreateInput,
     Prisma.api_keyCreateInput,
     Prisma.api_keyInclude,
     Prisma.api_keyUpdateInput
@@ -39,6 +39,28 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
         return this.prisma.api_key;
     }
 
+    protected generateMinimalData(overrides?: Partial<Prisma.api_keyCreateInput>): Prisma.api_keyCreateInput {
+        return {
+            id: generatePK(),
+            key: `api_key_${generatePublicId()}`,
+            name: "Test API Key",
+            user: { connect: { id: generatePK() } },
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.api_keyCreateInput>): Prisma.api_keyCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            creditsUsed: BigInt(1000),
+            limitHard: BigInt(10000000),
+            limitSoft: BigInt(8000000),
+            stopAtLimit: true,
+            permissions: { "read": true, "write": false },
+            ...overrides,
+        };
+    }
+
     /**
      * Get complete test fixtures for API Key model
      */
@@ -47,27 +69,8 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
         const teamId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                key: `api_key_${nanoid(32)}`,
-                name: "Test API Key",
-                user: {
-                    connect: { id: userId }
-                },
-            },
-            complete: {
-                id: generatePK(),
-                key: `api_key_complete_${nanoid(32)}`,
-                name: "Complete API Key",
-                creditsUsed: BigInt(1000),
-                limitHard: BigInt(10000000),
-                limitSoft: BigInt(8000000),
-                stopAtLimit: true,
-                permissions: { "read": true, "write": false },
-                user: {
-                    connect: { id: userId }
-                },
-            },
+            minimal: this.generateMinimalData(),
+            complete: this.generateCompleteData(),
             invalid: {
                 missingRequired: {
                     // Missing id, key, and name
@@ -93,7 +96,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
             edgeCases: {
                 teamApiKey: {
                     id: generatePK(),
-                    key: `team_api_key_${nanoid(32)}`,
+                    key: `team_api_key_${generatePublicId()}`,
                     name: "Team API Key",
                     limitHard: BigInt(50000000),
                     limitSoft: BigInt(40000000),
@@ -104,7 +107,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                 },
                 disabledKey: {
                     id: generatePK(),
-                    key: `disabled_key_${nanoid(32)}`,
+                    key: `disabled_key_${generatePublicId()}`,
                     name: "Disabled API Key",
                     disabledAt: new Date(),
                     user: {
@@ -113,7 +116,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                 },
                 limitReached: {
                     id: generatePK(),
-                    key: `limit_reached_${nanoid(32)}`,
+                    key: `limit_reached_${generatePublicId()}`,
                     name: "Limit Reached Key",
                     creditsUsed: BigInt(10000),
                     limitHard: BigInt(10000),
@@ -125,7 +128,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                 },
                 noLimits: {
                     id: generatePK(),
-                    key: `unlimited_${nanoid(32)}`,
+                    key: `unlimited_${generatePublicId()}`,
                     name: "Unlimited Key",
                     limitHard: BigInt(999999999999),
                     limitSoft: null,

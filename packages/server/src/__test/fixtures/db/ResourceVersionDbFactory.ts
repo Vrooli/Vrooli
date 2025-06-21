@@ -32,7 +32,7 @@ interface ResourceVersionRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
-    Prisma.ResourceVersion,
+    Prisma.ResourceVersionCreateInput,
     Prisma.ResourceVersionCreateInput,
     Prisma.ResourceVersionInclude,
     Prisma.ResourceVersionUpdateInput

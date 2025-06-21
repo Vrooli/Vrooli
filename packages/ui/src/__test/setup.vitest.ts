@@ -1,4 +1,4 @@
-import { vi, expect, beforeAll, afterEach } from 'vitest';
+import { vi, expect, beforeAll, afterEach, afterAll } from 'vitest';
 
 // AI_CHECK: TEST_QUALITY=2 | LAST: 2025-06-18
 // Improved test quality in UI package by:
@@ -92,27 +92,7 @@ afterEach(() => {
     }
 });
 
-// Custom matchers for testing-library style assertions
-expect.extend({
-    toBeInTheDocument(received) {
-        const pass = received != null && received.nodeType === 1; // Element node
-        return {
-            pass,
-            message: () => pass 
-                ? `expected element not to be in the document`
-                : `expected element to be in the document`,
-        };
-    },
-    toBeChecked(received) {
-        const pass = received?.checked === true;
-        return {
-            pass,
-            message: () => pass
-                ? `expected element not to be checked`
-                : `expected element to be checked`,
-        };
-    },
-});
+// Vitest has built-in DOM assertions - no custom matchers needed
 
 // Mock @vrooli/shared using importOriginal to keep most functionality
 vi.mock('@vrooli/shared', async (importOriginal) => {
@@ -263,3 +243,145 @@ global.ResizeObserver = vi.fn(() => ({
     unobserve: vi.fn(), 
     disconnect: vi.fn(),
 }));
+
+// Database setup for integration tests (only initialized if needed)
+let prisma: any;
+let DbProvider: any;
+
+// Lazy load database utilities only when tests need them
+export const getTestDatabaseClient = () => {
+    if (!prisma) {
+        console.warn('Database client not initialized. Only available for integration tests.');
+    }
+    return prisma;
+};
+
+export const createTestTransaction = async (callback: (tx: any) => Promise<void>) => {
+    if (!prisma) {
+        throw new Error("Database client not available. This function only works in integration tests.");
+    }
+    
+    return await prisma.$transaction(async (tx: any) => {
+        await callback(tx);
+        // Transaction will be automatically rolled back after test
+        throw new Error("ROLLBACK"); // Force rollback for test isolation
+    }).catch((error: any) => {
+        if (error.message === "ROLLBACK") {
+            // Expected rollback for test isolation
+            return;
+        }
+        throw error;
+    });
+};
+
+export const createTestAPIClient = (baseUrl?: string) => {
+    const url = baseUrl || process.env.VITE_SERVER_URL || 'http://localhost:5329';
+    
+    return {
+        async get(endpoint: string, options?: RequestInit) {
+            const response = await fetch(`${url}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options?.headers,
+                },
+                ...options,
+            });
+            return {
+                data: await response.json(),
+                status: response.status,
+                ok: response.ok,
+            };
+        },
+        
+        async post(endpoint: string, data: any, options?: RequestInit) {
+            const response = await fetch(`${url}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options?.headers,
+                },
+                body: JSON.stringify(data),
+                ...options,
+            });
+            return {
+                data: await response.json(),
+                status: response.status,
+                ok: response.ok,
+            };
+        },
+        
+        async put(endpoint: string, data: any, options?: RequestInit) {
+            const response = await fetch(`${url}${endpoint}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options?.headers,
+                },
+                body: JSON.stringify(data),
+                ...options,
+            });
+            return {
+                data: await response.json(),
+                status: response.status,
+                ok: response.ok,
+            };
+        },
+        
+        async delete(endpoint: string, options?: RequestInit) {
+            const response = await fetch(`${url}${endpoint}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options?.headers,
+                },
+                ...options,
+            });
+            return {
+                data: response.status === 204 ? null : await response.json(),
+                status: response.status,
+                ok: response.ok,
+            };
+        },
+    };
+};
+
+// Only initialize database if this is an integration test
+const isIntegrationTest = process.env.DB_URL && process.env.REDIS_URL;
+
+if (isIntegrationTest) {
+    beforeAll(async () => {
+        console.log("=== Database available for integration tests ===");
+        
+        try {
+            // Initialize database client for test verification
+            const serverModule = await import("@vrooli/server");
+            if (serverModule.prisma) {
+                prisma = serverModule.prisma;
+                console.log("✓ Prisma client available");
+            }
+            
+            if (serverModule.DbProvider) {
+                DbProvider = serverModule.DbProvider;
+                await DbProvider.init();
+                console.log("✓ DbProvider initialized");
+            }
+        } catch (error) {
+            console.warn("Database initialization skipped:", error);
+        }
+    }, 300000); // 5 minute timeout
+    
+    afterAll(async () => {
+        try {
+            if (DbProvider && DbProvider.reset) {
+                await DbProvider.reset();
+            }
+            
+            if (prisma && prisma.$disconnect) {
+                await prisma.$disconnect();
+            }
+        } catch (error) {
+            console.error("Database cleanup error:", error);
+        }
+    });
+}

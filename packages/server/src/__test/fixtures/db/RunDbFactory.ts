@@ -32,7 +32,7 @@ interface RunRelationConfig extends RelationConfig {
  * - Execution metrics tracking
  */
 export class RunDbFactory extends EnhancedDatabaseFactory<
-    Prisma.run,
+    Prisma.runCreateInput,
     Prisma.runCreateInput,
     Prisma.runInclude,
     Prisma.runUpdateInput

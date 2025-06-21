@@ -30,7 +30,7 @@ interface ScheduleRelationConfig extends RelationConfig {
  * - Temporal validation
  */
 export class ScheduleDbFactory extends EnhancedDatabaseFactory<
-    Prisma.schedule,
+    Prisma.scheduleCreateInput,
     Prisma.scheduleCreateInput,
     Prisma.scheduleInclude,
     Prisma.scheduleUpdateInput

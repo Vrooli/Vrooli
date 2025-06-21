@@ -30,7 +30,7 @@ interface UserRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class UserDbFactory extends EnhancedDatabaseFactory<
-    Prisma.User,
+    Prisma.UserCreateInput,
     Prisma.UserCreateInput,
     Prisma.UserInclude,
     Prisma.UserUpdateInput

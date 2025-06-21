@@ -32,7 +32,7 @@ interface ReportRelationConfig extends RelationConfig {
  * - Report resolution testing
  */
 export class ReportDbFactory extends EnhancedDatabaseFactory<
-    Prisma.report,
+    Prisma.reportCreateInput,
     Prisma.reportCreateInput,
     Prisma.reportInclude,
     Prisma.reportUpdateInput

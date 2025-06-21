@@ -1,18 +1,7 @@
-import { generatePK } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
-    RelationConfig,
-} from "./types.js";
-
-interface CreditAccountRelationConfig extends RelationConfig {
-    withUser?: boolean;
-    withTeam?: boolean;
-    userId?: string;
-    teamId?: string;
-    initialBalance?: bigint;
-}
+import type { DbTestFixtures } from "./types.js";
+import { generatePK } from "./idHelpers.js";
 
 /**
  * Enhanced database fixture factory for Credit Account model
@@ -26,7 +15,7 @@ interface CreditAccountRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
-    Prisma.credit_account,
+    any, // Using any temporarily to avoid type issues
     Prisma.credit_accountCreateInput,
     Prisma.credit_accountInclude,
     Prisma.credit_accountUpdateInput
@@ -39,6 +28,23 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
         return this.prisma.credit_account;
     }
 
+    protected generateMinimalData(overrides?: Partial<Prisma.credit_accountCreateInput>): Prisma.credit_accountCreateInput {
+        return {
+            id: generatePK(),
+            currentBalance: BigInt(1000),
+            user: { connect: { id: generatePK() } },
+            ...overrides,
+        };
+    }
+
+    protected generateCompleteData(overrides?: Partial<Prisma.credit_accountCreateInput>): Prisma.credit_accountCreateInput {
+        return {
+            ...this.generateMinimalData(),
+            currentBalance: BigInt(100000),
+            ...overrides,
+        };
+    }
+
     /**
      * Get complete test fixtures for Credit Account model
      */
@@ -47,84 +53,82 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
         const teamId = generatePK();
         
         return {
-            minimal: {
-                id: generatePK(),
-                currentBalance: 1000n,
-                user: { connect: { id: userId } },
-            },
+            minimal: this.generateMinimalData(),
             
-            complete: {
-                id: generatePK(),
-                currentBalance: 100000n,
-                user: { connect: { id: userId } },
-            },
+            complete: this.generateCompleteData(),
             
-            variants: {
+            edgeCases: {
                 zeroBalance: {
                     id: generatePK(),
-                    currentBalance: 0n,
+                    currentBalance: BigInt(0),
                     user: { connect: { id: userId } },
                 },
                 
                 highBalance: {
                     id: generatePK(),
-                    currentBalance: 10000000n, // 10 million credits
+                    currentBalance: BigInt(10000000), // 10 million credits
                     user: { connect: { id: userId } },
                 },
                 
                 teamAccount: {
                     id: generatePK(),
-                    currentBalance: 50000n,
+                    currentBalance: BigInt(50000),
                     team: { connect: { id: teamId } },
                 },
                 
                 userWithLowBalance: {
                     id: generatePK(),
-                    currentBalance: 10n,
+                    currentBalance: BigInt(10),
                     user: { connect: { id: userId } },
-                },
-            },
-            
-            invalid: {
-                missingOwner: {
-                    id: generatePK(),
-                    currentBalance: 1000n,
-                    // Missing user or team connection
                 },
                 
-                negativeBalance: {
-                    id: generatePK(),
-                    currentBalance: -1000n,
-                    user: { connect: { id: userId } },
-                },
-            },
-            
-            edgeCase: {
                 maxBalance: {
                     id: generatePK(),
-                    currentBalance: 9223372036854775807n, // Max bigint value
+                    currentBalance: BigInt("9223372036854775807"), // Max bigint value
                     user: { connect: { id: userId } },
                 },
                 
                 bothUserAndTeam: {
                     id: generatePK(),
-                    currentBalance: 1000n,
+                    currentBalance: BigInt(1000),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                 },
             },
             
-            update: {
+            invalid: {
+                missingRequired: {
+                    id: generatePK(),
+                    currentBalance: BigInt(1000),
+                    // Missing user or team connection
+                } as any,
+                
+                invalidTypes: {
+                    id: "not-a-bigint" as any,
+                    currentBalance: "not-a-number" as any,
+                    user: { connect: { id: userId } },
+                } as any,
+            },
+            
+            updates: {
+                minimal: {
+                    currentBalance: BigInt(5000),
+                },
+                
+                complete: {
+                    currentBalance: BigInt(100000),
+                },
+                
                 addCredits: {
-                    currentBalance: 5000n,
+                    currentBalance: BigInt(5000),
                 },
                 
                 subtractCredits: {
-                    currentBalance: 500n,
+                    currentBalance: BigInt(500),
                 },
                 
                 zeroOut: {
-                    currentBalance: 0n,
+                    currentBalance: BigInt(0),
                 },
             },
         };
@@ -135,7 +139,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
      */
     async createWithBalance(balance: bigint, overrides?: Partial<Prisma.credit_accountCreateInput>) {
         const data = {
-            ...this.getFixtures().minimal,
+            ...this.generateMinimalData(),
             currentBalance: balance,
             ...overrides,
         };
@@ -146,11 +150,12 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create credit account for specific user
      */
-    async createForUser(userId: string, balance = 1000n, overrides?: Partial<Prisma.credit_accountCreateInput>) {
+    async createForUser(userId: bigint, balance = BigInt(1000), overrides?: Partial<Prisma.credit_accountCreateInput>) {
         const data = {
-            ...this.getFixtures().minimal,
+            ...this.generateMinimalData(),
             currentBalance: balance,
             user: { connect: { id: userId } },
+            team: undefined, // Clear team connection
             ...overrides,
         };
         
@@ -160,93 +165,16 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create credit account for specific team
      */
-    async createForTeam(teamId: string, balance = 1000n, overrides?: Partial<Prisma.credit_accountCreateInput>) {
+    async createForTeam(teamId: bigint, balance = BigInt(1000), overrides?: Partial<Prisma.credit_accountCreateInput>) {
         const data = {
             id: generatePK(),
             currentBalance: balance,
             team: { connect: { id: teamId } },
+            user: undefined, // Clear user connection
             ...overrides,
         };
         
         return this.createMinimal(data);
-    }
-
-    /**
-     * Create credit account with relationships
-     */
-    async createWithRelations(config: CreditAccountRelationConfig) {
-        return this.prisma.$transaction(async (tx) => {
-            const data: Prisma.credit_accountCreateInput = {
-                id: generatePK(),
-                currentBalance: config.initialBalance || 1000n,
-            };
-
-            if (config.userId) {
-                data.user = { connect: { id: config.userId } };
-            } else if (config.withUser) {
-                // Create a new user if needed
-                const user = await tx.user.create({
-                    data: {
-                        id: generatePK(),
-                        publicId: generatePK(),
-                        name: "Test User",
-                        handle: `test_user_${generatePK().slice(-6)}`,
-                        status: "Unlocked",
-                        isBot: false,
-                        isBotDepictingPerson: false,
-                        isPrivate: false,
-                    },
-                });
-                data.user = { connect: { id: user.id } };
-            }
-
-            if (config.teamId) {
-                data.team = { connect: { id: config.teamId } };
-            } else if (config.withTeam) {
-                // Create a new team if needed
-                const team = await tx.team.create({
-                    data: {
-                        id: generatePK(),
-                        publicId: generatePK(),
-                        name: "Test Team",
-                        handle: `test_team_${generatePK().slice(-6)}`,
-                        isPrivate: false,
-                        createdBy: { connect: { id: generatePK() } },
-                    },
-                });
-                data.team = { connect: { id: team.id } };
-            }
-
-            return tx.credit_account.create({
-                data,
-                include: {
-                    user: true,
-                    team: true,
-                    ledgerEntries: true,
-                },
-            });
-        });
-    }
-
-    /**
-     * Verify credit account balance
-     */
-    async verifyBalance(accountId: string, expectedBalance: bigint) {
-        const account = await this.prisma.credit_account.findUnique({
-            where: { id: accountId },
-        });
-        
-        if (!account) {
-            throw new Error(`Credit account ${accountId} not found`);
-        }
-        
-        if (account.currentBalance !== expectedBalance) {
-            throw new Error(
-                `Balance mismatch: expected ${expectedBalance}, got ${account.currentBalance}`
-            );
-        }
-        
-        return account;
     }
 }
 

@@ -26,7 +26,7 @@ interface RunStepRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class RunStepDbFactory extends EnhancedDatabaseFactory<
-    Prisma.run_step,
+    Prisma.run_stepCreateInput,
     Prisma.run_stepCreateInput,
     Prisma.run_stepInclude,
     Prisma.run_stepUpdateInput

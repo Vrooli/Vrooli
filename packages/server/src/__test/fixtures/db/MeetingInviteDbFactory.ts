@@ -25,7 +25,7 @@ interface MeetingInviteRelationConfig extends RelationConfig {
  * - Constraint validation
  */
 export class MeetingInviteDbFactory extends EnhancedDatabaseFactory<
-    Prisma.MeetingInvite,
+    Prisma.MeetingInviteCreateInput,
     Prisma.MeetingInviteCreateInput,
     Prisma.MeetingInviteInclude,
     Prisma.MeetingInviteUpdateInput

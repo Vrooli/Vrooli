@@ -28,7 +28,7 @@ interface TeamRelationConfig extends RelationConfig {
  * - Privacy and access control testing
  */
 export class TeamDbFactory extends EnhancedDatabaseFactory<
-    Prisma.Team,
+    Prisma.TeamCreateInput,
     Prisma.TeamCreateInput,
     Prisma.TeamInclude,
     Prisma.TeamUpdateInput

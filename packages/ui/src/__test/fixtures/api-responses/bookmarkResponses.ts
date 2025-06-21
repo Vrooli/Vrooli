@@ -1,234 +1,665 @@
-import { type Bookmark, type BookmarkList, BookmarkFor, type User, type Resource } from "@vrooli/shared";
-
 /**
- * API response fixtures for bookmarks
- * These represent what components receive from API calls
+ * Bookmark API Response Fixtures
+ * 
+ * This file provides comprehensive API response fixtures for bookmark endpoints.
+ * It includes success responses, error responses, and MSW handlers for testing.
  */
 
-/**
- * Mock user data for bookmark relationships
- */
-const mockUser: User = {
-    __typename: "User",
-    id: "user_123456789012345678",
-    handle: "testuser",
-    name: "Test User",
-    isBot: false,
-    isBotDepictingPerson: false,
-    isPrivate: false,
-    status: "Unlocked",
-    bannerImage: null,
-    profileImage: null,
-    theme: "light",
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-    // Add minimal required User fields
-    awardedCount: 0,
-    bookmarksCount: 0,
-    commentsCount: 0,
-    issuesCount: 0,
-    postsCount: 0,
-    projectsCount: 0,
-    pullRequestsCount: 0,
-    questionsCount: 0,
-    quizzesCount: 0,
-    reportsReceivedCount: 0,
-    routinesCount: 0,
-    standardsCount: 0,
-    teamsCount: 0,
-    translations: [],
-    you: {
-        __typename: "UserYou",
-        canDelete: false,
-        canReport: true,
-        canUpdate: false,
-        isBookmarked: false,
-        isReported: false,
-        reaction: null,
-    },
-};
+import { rest, type RestHandler } from 'msw';
+import type { 
+    Bookmark, 
+    BookmarkCreateInput, 
+    BookmarkUpdateInput,
+    BookmarkList,
+    BookmarkFor 
+} from '@vrooli/shared';
+import { 
+    bookmarkValidation,
+    BookmarkFor as BookmarkForEnum 
+} from '@vrooli/shared';
 
 /**
- * Mock resource data for bookmark target
+ * Standard API response wrapper
  */
-const mockResource: Resource = {
-    __typename: "Resource",
-    id: "resource_123456789012345678",
-    index: 0,
-    link: "https://example.com/resource",
-    usedFor: "Api",
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-    you: {
-        __typename: "ResourceYou", 
-        canDelete: false,
-        canUpdate: false,
-    },
-};
+export interface APIResponse<T> {
+    data: T;
+    meta: {
+        timestamp: string;
+        requestId: string;
+        version: string;
+        links?: {
+            self?: string;
+            related?: Record<string, string>;
+        };
+    };
+}
 
 /**
- * Mock bookmark list for organization
+ * API error response structure
  */
-const mockBookmarkList: BookmarkList = {
-    __typename: "BookmarkList",
-    id: "list_123456789012345678",
-    label: "My Resources",
-    bookmarks: [],
-    bookmarksCount: 1,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-};
-
-/**
- * Minimal bookmark API response
- */
-export const minimalBookmarkResponse: Bookmark = {
-    __typename: "Bookmark",
-    id: "bookmark_123456789012345678",
-    by: mockUser,
-    to: mockResource,
-    list: mockBookmarkList,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
-};
-
-/**
- * Complete bookmark API response with all fields
- */
-export const completeBookmarkResponse: Bookmark = {
-    __typename: "Bookmark",
-    id: "bookmark_987654321098765432",
-    by: {
-        ...mockUser,
-        id: "user_987654321098765432",
-        handle: "poweruser",
-        name: "Power User",
-        profileImage: "https://example.com/profile.jpg",
-        you: {
-            __typename: "UserYou",
-            canDelete: false,
-            canReport: false, // Can't report yourself
-            canUpdate: true,  // Can update own profile
-            isBookmarked: false,
-            isReported: false,
-            reaction: null,
-        },
-    },
-    to: {
-        ...mockUser,
-        id: "user_111222333444555666", // Bookmarking another user
-        handle: "bookmarkeduser",
-        name: "Bookmarked User",
-        you: {
-            __typename: "UserYou",
-            canDelete: false,
-            canReport: true,
-            canUpdate: false,
-            isBookmarked: true, // This is the bookmark we're looking at
-            isReported: false,
-            reaction: "like",
-        },
-    },
-    list: {
-        ...mockBookmarkList,
-        id: "list_987654321098765432",
-        label: "Favorite Users",
-        bookmarksCount: 3,
-    },
-    createdAt: "2024-01-01T12:00:00Z",
-    updatedAt: "2024-01-01T12:30:00Z",
-};
-
-/**
- * Bookmark responses for each BookmarkFor type
- */
-export const bookmarkResponseVariants: Record<BookmarkFor, Bookmark> = {
-    [BookmarkFor.Comment]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_comment_123456789012345678",
-        to: {
-            __typename: "Comment",
-            id: "comment_123456789012345678",
-            createdAt: "2024-01-01T00:00:00Z",
-            updatedAt: "2024-01-01T00:00:00Z",
-            // Add minimal Comment fields - you may need to adjust based on actual Comment type
-        } as any, // Type assertion for now since Comment structure may vary
-    },
-    [BookmarkFor.Issue]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_issue_123456789012345678",
-        to: {
-            __typename: "Issue",
-            id: "issue_123456789012345678",
-            createdAt: "2024-01-01T00:00:00Z",
-            updatedAt: "2024-01-01T00:00:00Z",
-            // Add minimal Issue fields
-        } as any,
-    },
-    [BookmarkFor.Resource]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_resource_123456789012345678",
-        to: mockResource,
-    },
-    [BookmarkFor.Tag]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_tag_123456789012345678",
-        to: {
-            __typename: "Tag",
-            id: "tag_123456789012345678",
-            tag: "artificial-intelligence",
-            // Add minimal Tag fields
-        } as any,
-    },
-    [BookmarkFor.Team]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_team_123456789012345678",
-        to: {
-            __typename: "Team",
-            id: "team_123456789012345678",
-            handle: "awesome-team",
-            name: "Awesome Team",
-            isPrivate: false,
-            createdAt: "2024-01-01T00:00:00Z",
-            updatedAt: "2024-01-01T00:00:00Z",
-            // Add minimal Team fields
-        } as any,
-    },
-    [BookmarkFor.User]: {
-        ...minimalBookmarkResponse,
-        id: "bookmark_user_123456789012345678",
-        to: mockUser,
-    },
-};
-
-/**
- * Bookmark list with multiple bookmarks for testing lists
- */
-export const bookmarkListWithBookmarksResponse: BookmarkList = {
-    __typename: "BookmarkList",
-    id: "list_111222333444555666",
-    label: "My Favorite Resources",
-    bookmarks: [
-        bookmarkResponseVariants[BookmarkFor.Resource],
-        bookmarkResponseVariants[BookmarkFor.User],
-        bookmarkResponseVariants[BookmarkFor.Team],
-    ],
-    bookmarksCount: 3,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T15:00:00Z",
-};
-
-/**
- * Loading and error states for UI testing
- */
-export const bookmarkUIStates = {
-    loading: null,
+export interface APIErrorResponse {
     error: {
-        code: "BOOKMARK_NOT_FOUND",
-        message: "The requested bookmark could not be found",
+        code: string;
+        message: string;
+        details?: Record<string, any>;
+        timestamp: string;
+        requestId: string;
+        path: string;
+    };
+}
+
+/**
+ * Paginated response structure
+ */
+export interface PaginatedAPIResponse<T> extends APIResponse<T[]> {
+    pagination: {
+        page: number;
+        pageSize: number;
+        totalCount: number;
+        totalPages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+    };
+}
+
+/**
+ * Bookmark API response factory
+ */
+export class BookmarkResponseFactory {
+    private readonly baseUrl: string;
+    
+    constructor(baseUrl: string = process.env.VITE_SERVER_URL || 'http://localhost:5329') {
+        this.baseUrl = baseUrl;
+    }
+    
+    /**
+     * Generate unique request ID
+     */
+    private generateRequestId(): string {
+        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    /**
+     * Generate unique resource ID
+     */
+    private generateId(): string {
+        return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    
+    /**
+     * Create successful bookmark response
+     */
+    createSuccessResponse(bookmark: Bookmark): APIResponse<Bookmark> {
+        return {
+            data: bookmark,
+            meta: {
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                version: '1.0',
+                links: {
+                    self: `${this.baseUrl}/api/bookmark/${bookmark.id}`,
+                    related: {
+                        list: `${this.baseUrl}/api/bookmark-list/${bookmark.list.id}`,
+                        target: `${this.baseUrl}/api/${bookmark.to.__typename.toLowerCase()}/${bookmark.to.id}`,
+                        user: `${this.baseUrl}/api/user/${bookmark.by.id}`
+                    }
+                }
+            }
+        };
+    }
+    
+    /**
+     * Create bookmark list response
+     */
+    createBookmarkListResponse(bookmarks: Bookmark[], pagination?: {
+        page: number;
+        pageSize: number;
+        totalCount: number;
+    }): PaginatedAPIResponse<Bookmark> {
+        const paginationData = pagination || {
+            page: 1,
+            pageSize: bookmarks.length,
+            totalCount: bookmarks.length
+        };
+        
+        return {
+            data: bookmarks,
+            meta: {
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                version: '1.0',
+                links: {
+                    self: `${this.baseUrl}/api/bookmark?page=${paginationData.page}&limit=${paginationData.pageSize}`
+                }
+            },
+            pagination: {
+                ...paginationData,
+                totalPages: Math.ceil(paginationData.totalCount / paginationData.pageSize),
+                hasNextPage: paginationData.page * paginationData.pageSize < paginationData.totalCount,
+                hasPreviousPage: paginationData.page > 1
+            }
+        };
+    }
+    
+    /**
+     * Create validation error response
+     */
+    createValidationErrorResponse(fieldErrors: Record<string, string>): APIErrorResponse {
+        return {
+            error: {
+                code: 'VALIDATION_ERROR',
+                message: 'The request contains invalid data',
+                details: {
+                    fieldErrors,
+                    invalidFields: Object.keys(fieldErrors)
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: '/api/bookmark'
+            }
+        };
+    }
+    
+    /**
+     * Create not found error response
+     */
+    createNotFoundErrorResponse(bookmarkId: string): APIErrorResponse {
+        return {
+            error: {
+                code: 'BOOKMARK_NOT_FOUND',
+                message: `Bookmark with ID '${bookmarkId}' was not found`,
+                details: {
+                    bookmarkId,
+                    searchCriteria: { id: bookmarkId }
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: `/api/bookmark/${bookmarkId}`
+            }
+        };
+    }
+    
+    /**
+     * Create permission error response
+     */
+    createPermissionErrorResponse(operation: string): APIErrorResponse {
+        return {
+            error: {
+                code: 'PERMISSION_DENIED',
+                message: `You do not have permission to ${operation} this bookmark`,
+                details: {
+                    operation,
+                    requiredPermissions: ['bookmark:write'],
+                    userPermissions: ['bookmark:read']
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: '/api/bookmark'
+            }
+        };
+    }
+    
+    /**
+     * Create network error response
+     */
+    createNetworkErrorResponse(): APIErrorResponse {
+        return {
+            error: {
+                code: 'NETWORK_ERROR',
+                message: 'Network request failed',
+                details: {
+                    reason: 'Connection timeout',
+                    retryable: true,
+                    retryAfter: 5000
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: '/api/bookmark'
+            }
+        };
+    }
+    
+    /**
+     * Create server error response
+     */
+    createServerErrorResponse(): APIErrorResponse {
+        return {
+            error: {
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'An unexpected server error occurred',
+                details: {
+                    errorId: `ERR_${Date.now()}`,
+                    reportable: true,
+                    retryable: true
+                },
+                timestamp: new Date().toISOString(),
+                requestId: this.generateRequestId(),
+                path: '/api/bookmark'
+            }
+        };
+    }
+    
+    /**
+     * Create mock bookmark data
+     */
+    createMockBookmark(overrides?: Partial<Bookmark>): Bookmark {
+        const now = new Date().toISOString();
+        const id = this.generateId();
+        
+        const defaultBookmark: Bookmark = {
+            __typename: "Bookmark",
+            id,
+            createdAt: now,
+            updatedAt: now,
+            by: {
+                __typename: "User",
+                id: `user_${id}`,
+                handle: "testuser",
+                name: "Test User",
+                createdAt: now,
+                updatedAt: now,
+                isBot: false,
+                isPrivate: false,
+                profileImage: null,
+                bannerImage: null,
+                premium: false,
+                premiumExpiration: null,
+                roles: [],
+                wallets: [],
+                translations: [],
+                translationsCount: 0,
+                you: {
+                    __typename: "UserYou",
+                    isBlocked: false,
+                    isBlockedByYou: false,
+                    canDelete: false,
+                    canReport: false,
+                    canUpdate: false,
+                    isBookmarked: false,
+                    isReacted: false,
+                    reactionSummary: {
+                        __typename: "ReactionSummary",
+                        emotion: null,
+                        count: 0
+                    }
+                }
+            },
+            to: {
+                __typename: "Resource",
+                id: `resource_${id}`,
+                createdAt: now,
+                updatedAt: now,
+                isInternal: false,
+                isPrivate: false,
+                usedBy: [],
+                usedByCount: 0,
+                versions: [],
+                versionsCount: 0,
+                you: {
+                    __typename: "ResourceYou",
+                    canDelete: false,
+                    canUpdate: false,
+                    canReport: false,
+                    isBookmarked: true,
+                    isReacted: false,
+                    reaction: null
+                }
+            },
+            list: {
+                __typename: "BookmarkList",
+                id: `list_${id}`,
+                label: "My Bookmarks",
+                createdAt: now,
+                updatedAt: now,
+                bookmarks: [],
+                bookmarksCount: 1,
+                you: {
+                    __typename: "BookmarkListYou",
+                    canDelete: true,
+                    canUpdate: true
+                }
+            }
+        };
+        
+        return {
+            ...defaultBookmark,
+            ...overrides
+        };
+    }
+    
+    /**
+     * Create bookmark from API input
+     */
+    createBookmarkFromInput(input: BookmarkCreateInput): Bookmark {
+        const bookmark = this.createMockBookmark();
+        
+        // Update bookmark based on input
+        bookmark.to.__typename = input.bookmarkFor;
+        bookmark.to.id = input.forConnect;
+        
+        if (input.listCreate) {
+            bookmark.list.id = input.listCreate.id;
+            bookmark.list.label = input.listCreate.label;
+        } else if (input.listConnect) {
+            bookmark.list.id = input.listConnect;
+        }
+        
+        return bookmark;
+    }
+    
+    /**
+     * Create multiple bookmarks for different object types
+     */
+    createBookmarksForAllTypes(): Bookmark[] {
+        return Object.values(BookmarkForEnum).map(bookmarkFor => 
+            this.createMockBookmark({
+                to: {
+                    ...this.createMockBookmark().to,
+                    __typename: bookmarkFor,
+                    id: `${bookmarkFor.toLowerCase()}_${this.generateId()}`
+                }
+            })
+        );
+    }
+    
+    /**
+     * Validate bookmark create input
+     */
+    async validateCreateInput(input: BookmarkCreateInput): Promise<{
+        valid: boolean;
+        errors?: Record<string, string>;
+    }> {
+        try {
+            await bookmarkValidation.create.validate(input);
+            return { valid: true };
+        } catch (error: any) {
+            const fieldErrors: Record<string, string> = {};
+            
+            if (error.inner) {
+                error.inner.forEach((err: any) => {
+                    if (err.path) {
+                        fieldErrors[err.path] = err.message;
+                    }
+                });
+            } else if (error.message) {
+                fieldErrors.general = error.message;
+            }
+            
+            return {
+                valid: false,
+                errors: fieldErrors
+            };
+        }
+    }
+}
+
+/**
+ * MSW handlers factory for bookmark endpoints
+ */
+export class BookmarkMSWHandlers {
+    private responseFactory: BookmarkResponseFactory;
+    
+    constructor(baseUrl?: string) {
+        this.responseFactory = new BookmarkResponseFactory(baseUrl);
+    }
+    
+    /**
+     * Create success handlers for all bookmark endpoints
+     */
+    createSuccessHandlers(): RestHandler[] {
+        return [
+            // Create bookmark
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, async (req, res, ctx) => {
+                const body = await req.json() as BookmarkCreateInput;
+                
+                // Validate input
+                const validation = await this.responseFactory.validateCreateInput(body);
+                if (!validation.valid) {
+                    return res(
+                        ctx.status(400),
+                        ctx.json(this.responseFactory.createValidationErrorResponse(validation.errors || {}))
+                    );
+                }
+                
+                // Create bookmark
+                const bookmark = this.responseFactory.createBookmarkFromInput(body);
+                const response = this.responseFactory.createSuccessResponse(bookmark);
+                
+                return res(
+                    ctx.status(201),
+                    ctx.json(response)
+                );
+            }),
+            
+            // Get bookmark by ID
+            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+                const { id } = req.params;
+                
+                const bookmark = this.responseFactory.createMockBookmark({ id: id as string });
+                const response = this.responseFactory.createSuccessResponse(bookmark);
+                
+                return res(
+                    ctx.status(200),
+                    ctx.json(response)
+                );
+            }),
+            
+            // Update bookmark
+            rest.put(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, async (req, res, ctx) => {
+                const { id } = req.params;
+                const body = await req.json() as BookmarkUpdateInput;
+                
+                const bookmark = this.responseFactory.createMockBookmark({ 
+                    id: id as string,
+                    updatedAt: new Date().toISOString()
+                });
+                
+                const response = this.responseFactory.createSuccessResponse(bookmark);
+                
+                return res(
+                    ctx.status(200),
+                    ctx.json(response)
+                );
+            }),
+            
+            // Delete bookmark
+            rest.delete(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+                return res(ctx.status(204));
+            }),
+            
+            // List bookmarks
+            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+                const url = new URL(req.url);
+                const page = parseInt(url.searchParams.get('page') || '1');
+                const limit = parseInt(url.searchParams.get('limit') || '10');
+                const bookmarkFor = url.searchParams.get('bookmarkFor') as BookmarkFor;
+                
+                let bookmarks = this.responseFactory.createBookmarksForAllTypes();
+                
+                // Filter by bookmark type if specified
+                if (bookmarkFor) {
+                    bookmarks = bookmarks.filter(b => b.to.__typename === bookmarkFor);
+                }
+                
+                // Paginate
+                const startIndex = (page - 1) * limit;
+                const paginatedBookmarks = bookmarks.slice(startIndex, startIndex + limit);
+                
+                const response = this.responseFactory.createBookmarkListResponse(
+                    paginatedBookmarks,
+                    {
+                        page,
+                        pageSize: limit,
+                        totalCount: bookmarks.length
+                    }
+                );
+                
+                return res(
+                    ctx.status(200),
+                    ctx.json(response)
+                );
+            })
+        ];
+    }
+    
+    /**
+     * Create error handlers for testing error scenarios
+     */
+    createErrorHandlers(): RestHandler[] {
+        return [
+            // Validation error
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+                return res(
+                    ctx.status(400),
+                    ctx.json(this.responseFactory.createValidationErrorResponse({
+                        forConnect: 'Target object ID is required',
+                        bookmarkFor: 'Bookmark type must be specified'
+                    }))
+                );
+            }),
+            
+            // Not found error
+            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+                const { id } = req.params;
+                return res(
+                    ctx.status(404),
+                    ctx.json(this.responseFactory.createNotFoundErrorResponse(id as string))
+                );
+            }),
+            
+            // Permission error
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+                return res(
+                    ctx.status(403),
+                    ctx.json(this.responseFactory.createPermissionErrorResponse('create'))
+                );
+            }),
+            
+            // Server error
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+                return res(
+                    ctx.status(500),
+                    ctx.json(this.responseFactory.createServerErrorResponse())
+                );
+            })
+        ];
+    }
+    
+    /**
+     * Create loading simulation handlers
+     */
+    createLoadingHandlers(delay: number = 2000): RestHandler[] {
+        return [
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, async (req, res, ctx) => {
+                const body = await req.json() as BookmarkCreateInput;
+                const bookmark = this.responseFactory.createBookmarkFromInput(body);
+                const response = this.responseFactory.createSuccessResponse(bookmark);
+                
+                return res(
+                    ctx.delay(delay),
+                    ctx.status(201),
+                    ctx.json(response)
+                );
+            })
+        ];
+    }
+    
+    /**
+     * Create network error handlers
+     */
+    createNetworkErrorHandlers(): RestHandler[] {
+        return [
+            rest.post(`${this.responseFactory['baseUrl']}/api/bookmark`, (req, res, ctx) => {
+                return res.networkError('Network connection failed');
+            }),
+            
+            rest.get(`${this.responseFactory['baseUrl']}/api/bookmark/:id`, (req, res, ctx) => {
+                return res.networkError('Connection timeout');
+            })
+        ];
+    }
+    
+    /**
+     * Create custom handler with specific configuration
+     */
+    createCustomHandler(config: {
+        endpoint: string;
+        method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+        status: number;
+        response: any;
+        delay?: number;
+    }): RestHandler {
+        const { endpoint, method, status, response, delay } = config;
+        const fullEndpoint = `${this.responseFactory['baseUrl']}${endpoint}`;
+        
+        return rest[method.toLowerCase() as keyof typeof rest](fullEndpoint, (req, res, ctx) => {
+            const responseCtx = [ctx.status(status), ctx.json(response)];
+            
+            if (delay) {
+                responseCtx.unshift(ctx.delay(delay));
+            }
+            
+            return res(...responseCtx);
+        });
+    }
+}
+
+/**
+ * Pre-configured response scenarios
+ */
+export const bookmarkResponseScenarios = {
+    // Success scenarios
+    createSuccess: (bookmark?: Bookmark) => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createSuccessResponse(
+            bookmark || factory.createMockBookmark()
+        );
     },
-    empty: {
-        bookmarks: [],
-        bookmarksCount: 0,
+    
+    listSuccess: (bookmarks?: Bookmark[]) => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createBookmarkListResponse(
+            bookmarks || factory.createBookmarksForAllTypes()
+        );
     },
+    
+    // Error scenarios
+    validationError: (fieldErrors?: Record<string, string>) => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createValidationErrorResponse(
+            fieldErrors || {
+                forConnect: 'Target object is required',
+                bookmarkFor: 'Bookmark type must be specified'
+            }
+        );
+    },
+    
+    notFoundError: (bookmarkId?: string) => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createNotFoundErrorResponse(
+            bookmarkId || 'non-existent-id'
+        );
+    },
+    
+    permissionError: (operation?: string) => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createPermissionErrorResponse(
+            operation || 'create'
+        );
+    },
+    
+    serverError: () => {
+        const factory = new BookmarkResponseFactory();
+        return factory.createServerErrorResponse();
+    },
+    
+    // MSW handlers
+    successHandlers: () => new BookmarkMSWHandlers().createSuccessHandlers(),
+    errorHandlers: () => new BookmarkMSWHandlers().createErrorHandlers(),
+    loadingHandlers: (delay?: number) => new BookmarkMSWHandlers().createLoadingHandlers(delay),
+    networkErrorHandlers: () => new BookmarkMSWHandlers().createNetworkErrorHandlers()
 };
+
+// Export factory instances for easy use
+export const bookmarkResponseFactory = new BookmarkResponseFactory();
+export const bookmarkMSWHandlers = new BookmarkMSWHandlers();

@@ -25,7 +25,7 @@ interface BookmarkListRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
-    Prisma.bookmark_list,
+    Prisma.bookmark_listCreateInput,
     Prisma.bookmark_listCreateInput,
     Prisma.bookmark_listInclude,
     Prisma.bookmark_listUpdateInput
