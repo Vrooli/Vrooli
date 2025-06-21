@@ -32,7 +32,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
     Prisma.api_keyUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('api_key', prisma);
+        super("api_key", prisma);
     }
 
     protected getPrismaDelegate() {
@@ -75,7 +75,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                 missingRequired: {
                     // Missing id, key, and name
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 invalidTypes: {
@@ -89,7 +89,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                     key: "existing_api_key", // Assumes this exists
                     name: "Duplicate Key",
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },
@@ -102,7 +102,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                     limitSoft: BigInt(40000000),
                     permissions: { "admin": true },
                     team: {
-                        connect: { id: teamId }
+                        connect: { id: teamId },
                     },
                 },
                 disabledKey: {
@@ -111,7 +111,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                     name: "Disabled API Key",
                     disabledAt: new Date(),
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 limitReached: {
@@ -123,7 +123,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                     limitSoft: BigInt(8000),
                     stopAtLimit: true,
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
                 noLimits: {
@@ -135,7 +135,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
                     stopAtLimit: false,
                     permissions: { "unlimited": true },
                     user: {
-                        connect: { id: userId }
+                        connect: { id: userId },
                     },
                 },
             },

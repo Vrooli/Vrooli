@@ -1,5 +1,5 @@
-import { type BookmarkFor, BookmarkSortBy, MaxObjects, type ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { type BookmarkFor, BookmarkSortBy, MaxObjects, type ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@vrooli/shared";
 import { findFirstRel } from "../../builders/findFirstRel.js";
 import { onlyValidIds } from "../../builders/onlyValid.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
@@ -7,7 +7,7 @@ import { type PrismaDelegate } from "../../builders/types.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { DbProvider } from "../../db/provider.js";
 import { Trigger } from "../../events/trigger.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { BookmarkFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
 import { type BookmarkListModelInfo, type BookmarkListModelLogic, type BookmarkModelLogic } from "./types.js";

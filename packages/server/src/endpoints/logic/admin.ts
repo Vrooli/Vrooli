@@ -1,11 +1,9 @@
-import { AccountStatus, CreditEntryType, type User, uuid } from "@vrooli/shared";
+import { AccountStatus, type User } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { ModelMap } from "../../models/base/index.js";
-import { type ApiEndpoint } from "../../types.js";
-import { isOwnerAdminCheck } from "../../utils/adminCheck.js";
 import { CacheService } from "../../redisConn.js";
+import { type ApiEndpoint } from "../../types.js";
 
 // Admin-specific input types
 export interface AdminUserListInput {
@@ -46,7 +44,7 @@ export interface AdminSiteStatsOutput {
         totalCreditsDonatedAllTime: string;
         activeDonorsThisMonth: number;
         averageDonationPercentage: number;
-        lastRolloverJobStatus: 'success' | 'partial' | 'failed' | 'never_run';
+        lastRolloverJobStatus: "success" | "partial" | "failed" | "never_run";
         lastRolloverJobTime: string | null;
         nextScheduledRollover: string;
         donationsByMonth: Array<{
@@ -110,23 +108,23 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(currentUserId);
+        const isAdmin = false; //TODO there is a function somewhere for this - NOT isOwnerAdminCheck
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
 
         const prisma = DbProvider.get();
         const redis = CacheService.get().redis;
-        
+
         // Calculate current month for credit queries
         const currentMonth = new Date().toISOString().substring(0, 7);
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        
+
         // Calculate statistics with optimized queries
         const [
             userStats,
-            routineStats, 
+            routineStats,
             totalApiKeys,
             totalCreditsInCirculation,
             creditDonationStats,
@@ -135,10 +133,10 @@ export const admin: EndpointsAdmin = {
             lastJobStatus,
         ] = await Promise.all([
             // Combined user statistics in single query
-            prisma.$queryRaw<Array<{ 
-                total_users: string, 
-                active_users: string, 
-                new_users_today: string 
+            prisma.$queryRaw<Array<{
+                total_users: string,
+                active_users: string,
+                new_users_today: string
             }>>`
                 SELECT 
                     COUNT(*)::text as total_users,
@@ -146,42 +144,42 @@ export const admin: EndpointsAdmin = {
                     COUNT(CASE WHEN "createdAt" >= ${new Date(new Date().setHours(0, 0, 0, 0))} THEN 1 END)::text as new_users_today
                 FROM "user"
             `,
-            
+
             // Combined routine statistics
-            prisma.$queryRaw<Array<{ 
-                total_routines: string, 
-                active_routines: string 
+            prisma.$queryRaw<Array<{
+                total_routines: string,
+                active_routines: string
             }>>`
                 SELECT 
                     COUNT(*)::text as total_routines,
                     COUNT(*)::text as active_routines
                 FROM run
             `,
-            
+
             // Total API keys
             prisma.api_key.count({
                 where: { disabledAt: null },
             }),
-            
+
             // Total credits in circulation
             prisma.credit_account.aggregate({
-                _sum: { currentBalance: true }
+                _sum: { currentBalance: true },
             }),
-            
+
             // Combined credit donation statistics
-            prisma.$queryRaw<Array<{ 
-                donated_this_month: string, 
+            prisma.$queryRaw<Array<{
+                donated_this_month: string,
                 donated_all_time: string,
                 donors_this_month: string
             }>>`
                 SELECT 
-                    ABS(SUM(CASE WHEN "createdAt" >= ${new Date(currentMonth + '-01')} THEN amount ELSE 0 END))::text as donated_this_month,
+                    ABS(SUM(CASE WHEN "createdAt" >= ${new Date(currentMonth + "-01")} THEN amount ELSE 0 END))::text as donated_this_month,
                     ABS(SUM(amount))::text as donated_all_time,
-                    COUNT(DISTINCT CASE WHEN "createdAt" >= ${new Date(currentMonth + '-01')} THEN "accountId" END)::text as donors_this_month
+                    COUNT(DISTINCT CASE WHEN "createdAt" >= ${new Date(currentMonth + "-01")} THEN "accountId" END)::text as donors_this_month
                 FROM credit_ledger_entry
                 WHERE type = 'DonationGiven'
             `,
-            
+
             // Average donation percentage from user settings
             prisma.$queryRaw<Array<{ avg: number }>>`
                 SELECT AVG((("creditSettings"->'donation')::jsonb->>'percentage')::numeric) as avg
@@ -190,7 +188,7 @@ export const admin: EndpointsAdmin = {
                 AND "creditSettings"::jsonb->'donation' IS NOT NULL
                 AND ("creditSettings"::jsonb->'donation'->>'enabled')::boolean = true
             `,
-            
+
             // Get donation history by month
             prisma.$queryRaw<Array<{ month: Date, total: string, donors: string }>>`
                 SELECT 
@@ -203,11 +201,11 @@ export const admin: EndpointsAdmin = {
                 GROUP BY DATE_TRUNC('month', "createdAt")
                 ORDER BY month DESC
             `,
-            
+
             // Job status from Redis
-            redis?.get('job:creditRollover:lastRun') ?? null,
+            redis?.get("job:creditRollover:lastRun") ?? null,
         ]);
-        
+
         // Extract values from combined queries
         const totalUsers = parseInt(userStats[0].total_users, 10);
         const activeUsers = parseInt(userStats[0].active_users, 10);
@@ -215,18 +213,18 @@ export const admin: EndpointsAdmin = {
         const totalRoutines = parseInt(routineStats[0].total_routines, 10);
         const activeRoutines = parseInt(routineStats[0].active_routines, 10);
         const activeDonorsThisMonth = parseInt(creditDonationStats[0].donors_this_month, 10);
-        
+
         // API calls are placeholders
         const totalApiCalls = 0;
         const apiCallsToday = 0;
 
         // Parse job status from Redis
-        let jobStatus: 'success' | 'partial' | 'failed' | 'never_run' = 'never_run';
+        let jobStatus: "success" | "partial" | "failed" | "never_run" = "never_run";
         let jobTime: string | null = null;
         if (lastJobStatus) {
             try {
                 const jobData = JSON.parse(lastJobStatus);
-                if (jobData && typeof jobData === 'object') {
+                if (jobData && typeof jobData === "object") {
                     // Use the status field directly from creditRollover job
                     if (jobData.status) {
                         jobStatus = jobData.status;
@@ -266,7 +264,7 @@ export const admin: EndpointsAdmin = {
                 totalCreditsInCirculation: totalCreditsInCirculation._sum.currentBalance?.toString() || "0",
                 totalCreditsDonatedThisMonth: creditDonationStats[0].donated_this_month || "0",
                 totalCreditsDonatedAllTime: creditDonationStats[0].donated_all_time || "0",
-                activeDonorsThisMonth: activeDonorsThisMonth,
+                activeDonorsThisMonth,
                 averageDonationPercentage: Number(avgDonationPercentage[0]?.avg) || 0,
                 lastRolloverJobStatus: jobStatus,
                 lastRolloverJobTime: jobTime,
@@ -291,7 +289,7 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(currentUserId);
+        const isAdmin = await asdfasdf(currentUserId); //TODO
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -308,14 +306,14 @@ export const admin: EndpointsAdmin = {
 
         // Build where clause
         const where: any = {};
-        
+
         if (searchTerm) {
             where.OR = [
                 { name: { contains: searchTerm, mode: "insensitive" } },
                 { emails: { some: { emailAddress: { contains: searchTerm, mode: "insensitive" } } } },
             ];
         }
-        
+
         if (status) {
             where.status = status;
         }
@@ -371,7 +369,7 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(currentUserId);
+        const isAdmin = await asdfasdf(currentUserId); //TODO
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -428,7 +426,7 @@ export const admin: EndpointsAdmin = {
             throw new CustomError("0191", "Unauthorized", { message: "Authentication required" });
         }
 
-        const isAdmin = await isOwnerAdminCheck(currentUserId);
+        const isAdmin = await asdfasdf(currentUserId); //TODO
         if (!isAdmin) {
             throw new CustomError("0192", "Forbidden", { message: "Admin privileges required" });
         }
@@ -463,7 +461,7 @@ export const admin: EndpointsAdmin = {
 
         // TODO: Send password reset email
         // This would integrate with the existing email service
-        
+
         // Log admin action
         logger.info("Admin password reset", {
             adminId: currentUserId,

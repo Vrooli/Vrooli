@@ -1,5 +1,4 @@
-import { type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { bookmarkListTestDataFactory } from "@vrooli/shared";
+import { bookmarkListTestDataFactory, type BookmarkListCreateInput, type BookmarkListSearchInput, type BookmarkListUpdateInput, type FindByIdInput } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookmarkListDbFactory } from "../../__test/fixtures/db/bookmarkFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
@@ -31,24 +30,23 @@ describe("EndpointsBookmarkList", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Seed bookmark lists using database fixtures
-        listUser1 = await DbProvider.get().bookmarkList.create({
+        listUser1 = await DbProvider.get().bookmark_list.create({
             data: BookmarkListDbFactory.createWithTranslations(
                 testUsers[0].id,
-                [{ language: "en", name: "List One" }]
+                [{ language: "en", name: "List One" }],
             ),
         });
-        listUser2 = await DbProvider.get().bookmarkList.create({
+        listUser2 = await DbProvider.get().bookmark_list.create({
             data: BookmarkListDbFactory.createWithTranslations(
                 testUsers[1].id,
-                [{ language: "en", name: "List Two" }]
+                [{ language: "en", name: "List Two" }],
             ),
         });
     });
@@ -67,7 +65,7 @@ describe("EndpointsBookmarkList", () => {
             it("returns own bookmark list", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: listUser1.id };
                 const result = await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -80,7 +78,7 @@ describe("EndpointsBookmarkList", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: listUser2.id }; // Try to access listUser2
 
@@ -103,7 +101,7 @@ describe("EndpointsBookmarkList", () => {
             it("does not return another user's list", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
                 const input: FindByIdInput = { id: listUser2.id };
 
@@ -118,7 +116,7 @@ describe("EndpointsBookmarkList", () => {
         it("returns only own lists for authenticated user", async () => {
             const { req, res } = await mockAuthenticatedSession({
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: BookmarkListSearchInput = { take: 10 };
             const expectedIds = [
@@ -135,7 +133,7 @@ describe("EndpointsBookmarkList", () => {
             const apiToken = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(apiToken, permissions, {
                 ...loggedInUserNoPremiumData(),
-                id: testUsers[0].id
+                id: testUsers[0].id,
             });
             const input: BookmarkListSearchInput = { take: 10 };
 
@@ -159,7 +157,7 @@ describe("EndpointsBookmarkList", () => {
             it("creates a bookmark list for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use validation fixtures for API input
@@ -183,7 +181,7 @@ describe("EndpointsBookmarkList", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 // Use validation fixtures for API input
@@ -221,7 +219,7 @@ describe("EndpointsBookmarkList", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: BookmarkListCreateInput = bookmarkListTestDataFactory.createMinimal({
@@ -243,7 +241,7 @@ describe("EndpointsBookmarkList", () => {
             it("updates own bookmark list", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: BookmarkListUpdateInput = {
@@ -265,7 +263,7 @@ describe("EndpointsBookmarkList", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: BookmarkListUpdateInput = {
@@ -285,7 +283,7 @@ describe("EndpointsBookmarkList", () => {
             it("cannot update another user's list", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id
+                    id: testUsers[0].id,
                 });
 
                 const input: BookmarkListUpdateInput = {

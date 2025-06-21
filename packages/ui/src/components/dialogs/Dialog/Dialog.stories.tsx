@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useIsMobile, useWindowDimensions } from "../../../hooks/useIsMobile.js";
 import { Button } from "../../buttons/Button.js";
 import { Dialog, DialogActions, DialogContent } from "./Dialog.js";
+import { centeredDecorator } from "../../../__test/helpers/storybookDecorators.tsx";
 
 const meta: Meta<typeof Dialog> = {
     title: "Components/Dialogs/Dialog",
@@ -19,20 +20,7 @@ const meta: Meta<typeof Dialog> = {
         },
     },
     tags: ["autodocs"],
-    decorators: [
-        (Story) => (
-            <div style={{
-                minHeight: "100vh",
-                backgroundColor: "transparent",
-                padding: "20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-            }}>
-                <Story />
-            </div>
-        ),
-    ],
+    decorators: [centeredDecorator],
 };
 
 export default meta;
@@ -105,7 +93,7 @@ export const Sizes: Story = {
                     backgroundColor: isMobile ? "#e3f2fd" : "#f3e5f5",
                     borderRadius: "8px",
                     border: `2px solid ${isMobile ? "#2196f3" : "#9c27b0"}`,
-                    textAlign: "center"
+                    textAlign: "center",
                 }}>
                     <Typography variant="body1" style={{ fontWeight: "bold", marginBottom: "4px" }}>
                         📱 Current Viewport: {windowSize.width}×{windowSize.height}px {isMobile ? "(Mobile)" : "(Desktop)"}
@@ -125,7 +113,7 @@ export const Sizes: Story = {
                     padding: "16px",
                     backgroundColor: "#f5f5f5",
                     borderRadius: "8px",
-                    border: "1px solid #ddd"
+                    border: "1px solid #ddd",
                 }}>
                     <Typography variant="body2" style={{ marginBottom: "12px", fontWeight: "bold" }}>
                         📝 Content Amount (especially useful for testing mobile "full" size):
@@ -664,7 +652,7 @@ export const AnchoredDialog: Story = {
                 scrollContainerRef.current.scrollTo({
                     left: (scrollContainerRef.current.scrollWidth - containerRect.width) / 2,
                     top: (scrollContainerRef.current.scrollHeight - containerRect.height) / 2,
-                    behavior: "auto"
+                    behavior: "auto",
                 });
             }
         }, []);
@@ -679,14 +667,14 @@ export const AnchoredDialog: Story = {
                     right: 0,
                     bottom: 0,
                     overflow: "auto",
-                    backgroundColor: "var(--background-default)"
+                    backgroundColor: "var(--background-default)",
                 }}
             >
                 <div style={{ 
                     minHeight: "300vh", 
                     width: "150vw", 
                     padding: "40px",
-                    position: "relative"
+                    position: "relative",
                 }}>
                 <div style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
                     <Typography variant="h4" style={{ marginBottom: "20px", textAlign: "center" }}>
@@ -704,7 +692,7 @@ export const AnchoredDialog: Story = {
                     flexDirection: "column", 
                     alignItems: "center", 
                     gap: "40px",
-                    padding: "40px"
+                    padding: "40px",
                 }}>
                     <Typography variant="h5">🔝 Top Section</Typography>
                     <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
@@ -726,7 +714,7 @@ export const AnchoredDialog: Story = {
                     display: "flex",
                     flexDirection: "column",
                     gap: "20px",
-                    alignItems: "center"
+                    alignItems: "center",
                 }}>
                     <Typography variant="h6">⬅️ Left Edge</Typography>
                     <Button variant="outline" onClick={handleOpen}>Left Top</Button>
@@ -743,7 +731,7 @@ export const AnchoredDialog: Story = {
                     display: "flex",
                     flexDirection: "column",
                     gap: "20px",
-                    alignItems: "center"
+                    alignItems: "center",
                 }}>
                     <Typography variant="h6">➡️ Right Edge</Typography>
                     <Button variant="space" onClick={handleOpen}>Right Top</Button>
@@ -767,7 +755,7 @@ export const AnchoredDialog: Story = {
                         backgroundColor: "var(--background-paper)",
                         borderRadius: "20px",
                         border: "3px solid #2196f3",
-                        boxShadow: "0 0 30px rgba(33, 150, 243, 0.3)"
+                        boxShadow: "0 0 30px rgba(33, 150, 243, 0.3)",
                     }}
                 >
                     <Typography variant="h4" style={{ textAlign: "center" }}>
@@ -818,7 +806,7 @@ export const AnchoredDialog: Story = {
                     flexDirection: "column",
                     alignItems: "center",
                     gap: "20px",
-                    padding: "40px"
+                    padding: "40px",
                 }}>
                     <Typography variant="h5">🔻 Bottom Section</Typography>
                     <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>

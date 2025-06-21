@@ -153,15 +153,17 @@ describe("EndpointsAward", () => {
 
                 const input: AwardSearchInput = {
                     updatedTimeFrame: {
-                        // Invalid date objects that will cause errors
+                        // Invalid date objects - NaN dates should not cause errors,
+                        // they just won't match any records
                         after: new Date("invalid-date"),
                         before: new Date("invalid-date"),
                     },
                 };
 
-                await expect(async () => {
-                    await award.findMany({ input }, { req, res }, award_findMany);
-                }).rejects.toThrow();
+                // This shouldn't throw an error, it should just return empty results
+                const result = await award.findMany({ input }, { req, res }, award_findMany);
+                expect(result).toBeDefined();
+                expect(result.edges).toEqual([]);
             });
         });
     });

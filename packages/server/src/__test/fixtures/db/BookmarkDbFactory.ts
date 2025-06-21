@@ -36,7 +36,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
     Prisma.bookmarkUpdateInput
 > {
     constructor(prisma: PrismaClient) {
-        super('bookmark', prisma);
+        super("bookmark", prisma);
         this.initializeScenarios();
     }
 
@@ -53,26 +53,26 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
                 id: BigInt(generatePK()),
                 // At least one relation must be present for a valid bookmark
                 user: {
-                    connect: { id: BigInt(generatePK()) }
+                    connect: { id: BigInt(generatePK()) },
                 },
             },
             complete: {
                 id: BigInt(generatePK()),
                 list: {
-                    connect: { id: BigInt(generatePK()) }
+                    connect: { id: BigInt(generatePK()) },
                 },
                 resource: {
-                    connect: { id: BigInt(generatePK()) }
+                    connect: { id: BigInt(generatePK()) },
                 },
                 user: {
-                    connect: { id: BigInt(generatePK()) }
+                    connect: { id: BigInt(generatePK()) },
                 },
             },
             invalid: {
                 missingRequired: {
                     // Missing id
                     user: {
-                        connect: { id: BigInt(generatePK()) }
+                        connect: { id: BigInt(generatePK()) },
                     },
                 },
                 invalidTypes: {
@@ -143,7 +143,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
         return {
             id: BigInt(generatePK()),
             user: {
-                connect: { id: BigInt(generatePK()) }
+                connect: { id: BigInt(generatePK()) },
             },
             ...overrides,
         };
@@ -274,7 +274,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple bookmarks for testing collections
      */
-    async createBookmarkCollection(userId: string, listId: string, count: number = 5): Promise<Prisma.bookmark[]> {
+    async createBookmarkCollection(userId: string, listId: string, count = 5): Promise<Prisma.bookmark[]> {
         const bookmarks: Prisma.bookmark[] = [];
         
         for (let i = 0; i < count; i++) {
@@ -304,49 +304,49 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.bookmarkCreateInput,
         config: BookmarkRelationConfig,
-        tx: any
+        tx: any,
     ): Promise<Prisma.bookmarkCreateInput> {
-        let data = { ...baseData };
+        const data = { ...baseData };
 
         // Handle list relationship
         if (config.withList) {
-            const listId = typeof config.withList === 'string' ? config.withList : generatePK().toString();
+            const listId = typeof config.withList === "string" ? config.withList : generatePK().toString();
             data.list = { connect: { id: BigInt(listId) } };
         }
 
         // Handle resource relationship
         if (config.withResource) {
-            const resourceId = typeof config.withResource === 'string' ? config.withResource : generatePK().toString();
+            const resourceId = typeof config.withResource === "string" ? config.withResource : generatePK().toString();
             data.resource = { connect: { id: BigInt(resourceId) } };
         }
 
         // Handle comment relationship
         if (config.withComment) {
-            const commentId = typeof config.withComment === 'string' ? config.withComment : generatePK().toString();
+            const commentId = typeof config.withComment === "string" ? config.withComment : generatePK().toString();
             data.comment = { connect: { id: BigInt(commentId) } };
         }
 
         // Handle issue relationship
         if (config.withIssue) {
-            const issueId = typeof config.withIssue === 'string' ? config.withIssue : generatePK().toString();
+            const issueId = typeof config.withIssue === "string" ? config.withIssue : generatePK().toString();
             data.issue = { connect: { id: BigInt(issueId) } };
         }
 
         // Handle tag relationship
         if (config.withTag) {
-            const tagId = typeof config.withTag === 'string' ? config.withTag : generatePK().toString();
+            const tagId = typeof config.withTag === "string" ? config.withTag : generatePK().toString();
             data.tag = { connect: { id: BigInt(tagId) } };
         }
 
         // Handle team relationship
         if (config.withTeam) {
-            const teamId = typeof config.withTeam === 'string' ? config.withTeam : generatePK().toString();
+            const teamId = typeof config.withTeam === "string" ? config.withTeam : generatePK().toString();
             data.team = { connect: { id: BigInt(teamId) } };
         }
 
         // Handle user relationship
         if (config.withUser) {
-            const userId = typeof config.withUser === 'string' ? config.withUser : generatePK().toString();
+            const userId = typeof config.withUser === "string" ? config.withUser : generatePK().toString();
             data.user = { connect: { id: BigInt(userId) } };
         }
 
@@ -366,16 +366,16 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
         ].filter(Boolean);
         
         if (targets.length > 1) {
-            violations.push('Bookmark can only have one target');
+            violations.push("Bookmark can only have one target");
         }
         
         if (targets.length === 0 && !record.userId) {
-            violations.push('Bookmark must have at least one target or user');
+            violations.push("Bookmark must have at least one target or user");
         }
 
         // Check that bookmark belongs to a user or a list
         if (!record.userId && !record.listId) {
-            violations.push('Bookmark must belong to a user or a list');
+            violations.push("Bookmark must belong to a user or a list");
         }
 
         // Check for duplicate bookmarks
@@ -393,7 +393,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
             });
             
             if (existingBookmark) {
-                violations.push('User already has this bookmark');
+                violations.push("User already has this bookmark");
             }
         }
 
@@ -416,7 +416,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
         record: Prisma.bookmark,
         remainingDepth: number,
         tx: any,
-        includeOnly?: string[]
+        includeOnly?: string[],
     ): Promise<void> {
         // Bookmarks don't have child records to cascade delete
         // The bookmark itself will be deleted by the parent deleteRelatedRecords
@@ -425,26 +425,26 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
     /**
      * Check if a user has bookmarked a specific item
      */
-    async hasUserBookmarked(userId: string, targetId: string, targetType: 'resource' | 'comment' | 'issue' | 'tag' | 'team' | 'user'): Promise<boolean> {
+    async hasUserBookmarked(userId: string, targetId: string, targetType: "resource" | "comment" | "issue" | "tag" | "team" | "user"): Promise<boolean> {
         const whereClause: any = { userId: BigInt(userId) };
         
         switch (targetType) {
-            case 'resource':
+            case "resource":
                 whereClause.resourceId = BigInt(targetId);
                 break;
-            case 'comment':
+            case "comment":
                 whereClause.commentId = BigInt(targetId);
                 break;
-            case 'issue':
+            case "issue":
                 whereClause.issueId = BigInt(targetId);
                 break;
-            case 'tag':
+            case "tag":
                 whereClause.tagId = BigInt(targetId);
                 break;
-            case 'team':
+            case "team":
                 whereClause.teamId = BigInt(targetId);
                 break;
-            case 'user':
+            case "user":
                 // Note: This assumes there's a bookmarked user field
                 break;
         }
@@ -459,7 +459,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get all bookmarks for a user
      */
-    async getUserBookmarks(userId: string, includeList: boolean = false): Promise<Prisma.bookmark[]> {
+    async getUserBookmarks(userId: string, includeList = false): Promise<Prisma.bookmark[]> {
         return await this.prisma.bookmark.findMany({
             where: { userId: BigInt(userId) },
             include: {
@@ -471,7 +471,7 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
                 team: true,
                 user: true,
             },
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 
@@ -482,14 +482,14 @@ export class BookmarkDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.bookmark.findMany({
             where: { listId: BigInt(listId) },
             include: this.getDefaultInclude(),
-            orderBy: { createdAt: 'desc' },
+            orderBy: { createdAt: "desc" },
         });
     }
 }
 
 // Export factory creator function
 export const createBookmarkDbFactory = (prisma: PrismaClient) => 
-    BookmarkDbFactory.getInstance('bookmark', prisma);
+    BookmarkDbFactory.getInstance("bookmark", prisma);
 
 // Export the class for type usage
 export { BookmarkDbFactory as BookmarkDbFactoryClass };

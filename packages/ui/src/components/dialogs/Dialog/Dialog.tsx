@@ -314,21 +314,21 @@ function useHighlightElement(anchorEl: HTMLElement | null, highlightAnchor: bool
 
 // Arrow helper functions
 function getArrowStyles(placement: "top" | "bottom" | "left" | "right", variant: DialogVariant): React.CSSProperties {
-    const isDarkMode = document.documentElement.classList.contains('dark') || 
-                      window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDarkMode = document.documentElement.classList.contains("dark") || 
+                      window.matchMedia("(prefers-color-scheme: dark)").matches;
     
-    let arrowColor = '#ffffff'; // white for light mode
+    let arrowColor = "#ffffff"; // white for light mode
     if (isDarkMode) {
-        arrowColor = '#1f2937'; // dark gray for dark mode
+        arrowColor = "#1f2937"; // dark gray for dark mode
     }
     if (variant === "space" || variant === "neon") {
-        arrowColor = '#000000'; // black for special variants
+        arrowColor = "#000000"; // black for special variants
     }
     
     const baseStyle: React.CSSProperties = {
         width: 0,
         height: 0,
-        position: 'absolute',
+        position: "absolute",
     };
     
     switch (placement) {
@@ -336,37 +336,37 @@ function getArrowStyles(placement: "top" | "bottom" | "left" | "right", variant:
             // Dialog is below anchor, arrow points up toward anchor
             return {
                 ...baseStyle,
-                borderLeft: '12px solid transparent',
-                borderRight: '12px solid transparent',
+                borderLeft: "12px solid transparent",
+                borderRight: "12px solid transparent",
                 borderBottom: `12px solid ${arrowColor}`,
-                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))',
+                filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))",
             };
         case "top":
             // Dialog is above anchor, arrow points down toward anchor
             return {
                 ...baseStyle,
-                borderLeft: '12px solid transparent',
-                borderRight: '12px solid transparent',
+                borderLeft: "12px solid transparent",
+                borderRight: "12px solid transparent",
                 borderTop: `12px solid ${arrowColor}`,
-                filter: 'drop-shadow(0 -1px 2px rgba(0, 0, 0, 0.1))',
+                filter: "drop-shadow(0 -1px 2px rgba(0, 0, 0, 0.1))",
             };
         case "right":
             // Dialog is to the right of anchor, arrow points left toward anchor
             return {
                 ...baseStyle,
-                borderTop: '12px solid transparent',
-                borderBottom: '12px solid transparent',
+                borderTop: "12px solid transparent",
+                borderBottom: "12px solid transparent",
                 borderRight: `12px solid ${arrowColor}`,
-                filter: 'drop-shadow(-1px 0 2px rgba(0, 0, 0, 0.1))',
+                filter: "drop-shadow(-1px 0 2px rgba(0, 0, 0, 0.1))",
             };
         case "left":
             // Dialog is to the left of anchor, arrow points right toward anchor
             return {
                 ...baseStyle,
-                borderTop: '12px solid transparent',
-                borderBottom: '12px solid transparent',
+                borderTop: "12px solid transparent",
+                borderBottom: "12px solid transparent",
                 borderLeft: `12px solid ${arrowColor}`,
-                filter: 'drop-shadow(1px 0 2px rgba(0, 0, 0, 0.1))',
+                filter: "drop-shadow(1px 0 2px rgba(0, 0, 0, 0.1))",
             };
         default:
             return baseStyle;
@@ -458,6 +458,15 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
         function handleMouseDown(e: globalThis.MouseEvent) {
             if (!position) return;
             
+            // Check if the click target or any parent has data-no-drag attribute
+            let target = e.target as HTMLElement;
+            while (target && target !== titleElement) {
+                if (target.getAttribute("data-no-drag") === "true") {
+                    return; // Don't initiate drag
+                }
+                target = target.parentElement as HTMLElement;
+            }
+            
             dragStateRef.current.isDragging = true;
             dragStateRef.current.dragOffset = {
                 x: e.clientX - position.x,
@@ -468,8 +477,8 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
             e.preventDefault();
             
             // Add cursor styles for better UX
-            document.body.style.cursor = 'move';
-            document.body.style.userSelect = 'none';
+            document.body.style.cursor = "move";
+            document.body.style.userSelect = "none";
         }
 
         function handleMouseMove(e: globalThis.MouseEvent) {
@@ -503,8 +512,8 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
             setIsDragging(false);
             
             // Restore cursor
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
             
             // Update React state with final position
             const newX = e.clientX - dragStateRef.current.dragOffset.x;
@@ -530,8 +539,8 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
             document.removeEventListener("mouseup", handleMouseUp);
             
             // Cleanup cursor styles
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
         };
     }, [draggable, titleRef, dialogRef, position, isOpen]);
 
@@ -544,8 +553,8 @@ function useDragDialog(dialogRef: React.RefObject<HTMLDivElement>, titleRef: Rea
             dragStateRef.current.isDragging = false;
             
             // Cleanup styles
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
         }
     }, [isOpen]);
 
@@ -557,7 +566,7 @@ function useSwipeToClose(
     isEnabled: boolean,
     dialogRef: React.RefObject<HTMLDivElement>,
     titleRef: React.RefObject<HTMLDivElement>,
-    onClose: () => void
+    onClose: () => void,
 ) {
     useEffect(() => {
         if (!isEnabled || !dialogRef.current || !titleRef.current) return;
@@ -579,7 +588,7 @@ function useSwipeToClose(
             initialTransform = 0;
             
             // Add transition disable class
-            dialog.style.transition = 'none';
+            dialog.style.transition = "none";
         };
 
         const handleTouchMove = (e: TouchEvent) => {
@@ -606,33 +615,33 @@ function useSwipeToClose(
             const deltaY = currentY - startY;
             
             // Restore transition
-            dialog.style.transition = '';
+            dialog.style.transition = "";
             
             // If swiped down more than 100px, close the dialog
             if (deltaY > 100) {
                 onClose();
             } else {
                 // Snap back to original position
-                dialog.style.transform = '';
-                dialog.style.opacity = '';
+                dialog.style.transform = "";
+                dialog.style.opacity = "";
             }
         };
 
         // Add event listeners to the title bar only
-        titleBar.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+        titleBar.addEventListener("touchstart", handleTouchStart, { passive: false });
+        document.addEventListener("touchmove", handleTouchMove, { passive: false });
+        document.addEventListener("touchend", handleTouchEnd, { passive: true });
 
         return () => {
-            titleBar.removeEventListener('touchstart', handleTouchStart);
-            document.removeEventListener('touchmove', handleTouchMove);
-            document.removeEventListener('touchend', handleTouchEnd);
+            titleBar.removeEventListener("touchstart", handleTouchStart);
+            document.removeEventListener("touchmove", handleTouchMove);
+            document.removeEventListener("touchend", handleTouchEnd);
             
             // Clean up styles
             if (dialog) {
-                dialog.style.transform = '';
-                dialog.style.opacity = '';
-                dialog.style.transition = '';
+                dialog.style.transform = "";
+                dialog.style.opacity = "";
+                dialog.style.transition = "";
             }
         };
     }, [isEnabled, dialogRef, titleRef, onClose]);
@@ -811,21 +820,21 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
 
         // Prevent body scroll when dialog is open (only when background is blurred)
         useEffect(() => {
-            // Only prevent scroll when background blur is enabled AND no anchor
-            if (isOpen && enableBackgroundBlur && !anchorEl) {
+            // Only prevent scroll when background blur is enabled AND not anchored AND not draggable
+            if (isOpen && enableBackgroundBlur && !anchorEl && !draggable) {
                 const originalOverflow = document.body.style.overflow;
                 document.body.style.overflow = "hidden";
                 return () => {
                     document.body.style.overflow = originalOverflow;
                 };
             }
-        }, [isOpen, enableBackgroundBlur, anchorEl]);
+        }, [isOpen, enableBackgroundBlur, anchorEl, draggable]);
 
         // Don't render if not open
         if (!isOpen) return null;
 
         // Build classes
-        const overlayClasses = buildOverlayClasses(enableBackgroundBlur && !anchorEl, overlayClassName);
+        const overlayClasses = buildOverlayClasses(enableBackgroundBlur && !anchorEl && !draggable, overlayClassName);
         const overlayPositionClasses = (draggable && !anchorEl) || anchorEl || (size === "full" && isMobile) ? 
             "tw-items-start tw-justify-start" : // Don't center when draggable, anchored, or mobile full screen
             buildDialogClasses({
@@ -856,14 +865,14 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     <div 
                         className="tw-pointer-events-none"
                         style={{
-                            position: 'fixed',
+                            position: "fixed",
                             // Calculate arrow position based on dialog position and placement
                             // Remember: placement describes where dialog is relative to anchor
-                            left: anchorPosition.placement === 'right' ? finalPosition.x - 12 :  // Dialog is right of anchor, arrow on left edge
-                                  anchorPosition.placement === 'left' ? finalPosition.x + (dialogRef.current?.offsetWidth || 400) :  // Dialog is left of anchor, arrow on right edge
+                            left: anchorPosition.placement === "right" ? finalPosition.x - 12 :  // Dialog is right of anchor, arrow on left edge
+                                  anchorPosition.placement === "left" ? finalPosition.x + (dialogRef.current?.offsetWidth || 400) :  // Dialog is left of anchor, arrow on right edge
                                   finalPosition.x + (dialogRef.current?.offsetWidth || 400) / 2 - 6,  // Top/bottom: center horizontally
-                            top: anchorPosition.placement === 'bottom' ? finalPosition.y - 12 :  // Dialog is below anchor, arrow on top edge
-                                 anchorPosition.placement === 'top' ? finalPosition.y + (dialogRef.current?.offsetHeight || 300) :  // Dialog is above anchor, arrow on bottom edge
+                            top: anchorPosition.placement === "bottom" ? finalPosition.y - 12 :  // Dialog is below anchor, arrow on top edge
+                                 anchorPosition.placement === "top" ? finalPosition.y + (dialogRef.current?.offsetHeight || 300) :  // Dialog is above anchor, arrow on bottom edge
                                  finalPosition.y + (dialogRef.current?.offsetHeight || 300) / 2 - 6,  // Left/right: center vertically
                             zIndex: 9999,
                             ...getArrowStyles(anchorPosition.placement, variant),
@@ -900,8 +909,8 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                     
                     <div className={cn(
                         contentClasses, 
-                        anchorEl && "tw-max-h-[min(80vh,600px)] tw-overflow-hidden tw-flex tw-flex-col",
-                        size === "full" && isMobile && "tw-flex tw-flex-col"
+                        (anchorEl || draggable) && "tw-max-h-[min(80vh,600px)] tw-overflow-hidden tw-flex tw-flex-col",
+                        size === "full" && isMobile && "tw-flex tw-flex-col",
                     )}>
 
                         {/* Header with title and close button */}
@@ -949,7 +958,7 @@ export const Dialog = forwardRef<HTMLDivElement, DialogProps>(
                         {/* Dialog content - ensure it's above effects */}
                         <div className={cn(
                             "tw-relative tw-z-10 tw-flex-1 tw-min-h-0",
-                            anchorEl && "tw-overflow-y-auto"
+                            (anchorEl || draggable) && "tw-overflow-y-auto",
                         )}>
                             {children}
                         </div>

@@ -1,7 +1,7 @@
 import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, type TranslationKeyAward, awardNames } from "@vrooli/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { AwardFormat } from "../formats.js";
 import { SuppFields } from "../suppFields.js";
 import { type AwardModelLogic } from "./types.js";

@@ -41,26 +41,21 @@ describe("EndpointsChatInvite", () => {
         try {
             const prisma = DbProvider.get();
             if (prisma) {
-                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true
+                testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
             }
         } catch (error) {
             // If database is not initialized, skip cleanup
         }
-    });
 
         // Seed chats using database fixtures
         chat1 = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[0].id,
+            userIds: [testUsers[0].id],
             isPrivate: false,
-            openToAnyoneWithInvite: true,
-            participantIds: [testUsers[0].id],
         });
 
         chat2 = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[1].id,
+            userIds: [testUsers[1].id],
             isPrivate: true,
-            openToAnyoneWithInvite: false,
-            participantIds: [testUsers[1].id],
         });
 
         // Seed chat invites using database fixtures

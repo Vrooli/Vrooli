@@ -213,9 +213,10 @@ export function getDialogWrapperClasses(size: DialogSize, draggable?: boolean, i
     return cn(
         DIALOG_STYLES.dialog.base,
         // Don't apply size classes for mobile full screen - use custom styles instead
-        !isMobileFullScreen && (anchored ? ANCHORED_DIALOG_SIZES[size] : DIALOG_SIZES[size]),
+        // Apply anchored sizes for both anchored and draggable dialogs
+        !isMobileFullScreen && (anchored || draggable ? ANCHORED_DIALOG_SIZES[size] : DIALOG_SIZES[size]),
         size !== "full" && !draggable && !anchored && !isMobileFullScreen && "tw-my-8 tw-max-h-[calc(100vh-4rem)]", // Ensure dialog fits in viewport with margin
-        draggable && !isMobileFullScreen && "tw-max-h-[calc(100vh-2rem)] tw-dialog-draggable", // Smaller margin for draggable dialogs + performance class
+        draggable && !isMobileFullScreen && "tw-dialog-draggable", // Performance class for draggable dialogs
         anchored && "tw-dialog-draggable tw-dialog-anchored", // Apply fade-in transition and anchored styles
         isDragging && "tw-dialog-dragging", // Performance class for dragging state
         // Mobile full screen specific styles

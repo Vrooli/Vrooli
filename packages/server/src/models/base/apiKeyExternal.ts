@@ -2,7 +2,7 @@ import { apiKeyExternalValidation, generatePK, MaxObjects } from "@vrooli/shared
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
-import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { defaultPermissions } from "../../validators/permissions.js";
 import { ApiKeyExternalFormat } from "../formats.js";
 import { type ApiKeyExternalModelLogic } from "./types.js";
 
