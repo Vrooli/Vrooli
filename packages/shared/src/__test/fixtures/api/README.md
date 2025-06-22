@@ -2,6 +2,89 @@
 
 This directory contains API fixtures that serve as the **validation and transformation layer** in our unified testing system. API fixtures bridge the gap between form inputs (UI layer) and database operations (persistence layer), ensuring type safety and consistency across the entire data pipeline.
 
+## 🚀 Simplified Validation Testing (January 2025)
+
+Our validation tests now use a streamlined approach that eliminates redundancy while maintaining comprehensive coverage:
+
+### Automatic Test Helpers
+- **`runComprehensiveValidationTests()`** - For models with create & update methods
+- **`runStandardValidationTests()`** - For models with only update methods (e.g., wallet)
+- **`runFixtureIntegrityTests()`** - Validates all fixtures against their schemas
+
+### What Gets Tested Automatically
+✅ **Standard Validation** (8 core tests):
+- Required field validation
+- Field type validation  
+- Default value application
+- String trimming behavior
+- Boolean/number coercion
+- Empty object handling
+- Null/undefined handling
+- Field omission behavior
+
+✅ **Fixture Integrity**:
+- All fixtures validate against their schemas
+- Factory methods generate valid data
+- Edge cases are properly structured
+
+### Legitimate Business Logic Tests
+Only add custom tests for:
+- **Cross-field validation** (e.g., endTime > startTime)
+- **Field immutability** (fields that can't be updated)
+- **Business constraints** (e.g., unique names, max items)
+- **Domain-specific rules** (e.g., cron expressions, email formats)
+
+### Results: 82% Code Reduction
+- **Before**: 5,502 lines of redundant validation tests
+- **After**: 990 lines of focused business logic tests
+- **Coverage**: Same or better with automatic testing
+
+### Example: Simple Validation Test
+```typescript
+import { describe } from "vitest";
+import { userFixtures, userTestDataFactory } from "../../__test/fixtures/api/userFixtures.js";
+import { runComprehensiveValidationTests } from "./__test/validationTestUtils.js";
+import { userValidation } from "./user.js";
+
+describe("userValidation", () => {
+    // This runs 8 standard tests + fixture integrity tests automatically!
+    runComprehensiveValidationTests(
+        userValidation,
+        userFixtures,
+        userTestDataFactory,
+        "user",
+    );
+    
+    // Only add business logic tests if needed
+    // (Most models don't need any additional tests)
+});
+```
+
+### Example: With Business Logic
+```typescript
+describe("scheduleValidation", () => {
+    runComprehensiveValidationTests(
+        scheduleValidation,
+        scheduleFixtures,
+        scheduleTestDataFactory,
+        "schedule",
+    );
+
+    describe("business logic validation", () => {
+        it("should validate startTime is before endTime", async () => {
+            // Cross-field validation test
+            const createSchema = scheduleValidation.create(defaultParams);
+            const data = {
+                ...scheduleFixtures.minimal.create,
+                startTime: "2024-01-02T00:00:00Z",
+                endTime: "2024-01-01T00:00:00Z", // Before start time
+            };
+            await expect(testValidation(createSchema, data)).rejects.toThrow();
+        });
+    });
+});
+```
+
 ## 🏗️ Two-Tier Architecture
 
 Our API fixtures use a sophisticated two-tier system designed for different testing needs:

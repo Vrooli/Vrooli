@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import '../src/tailwind.css'; // Import Tailwind CSS for Storybook
 import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
-import { API_URL, baseSession } from '../src/__test/storybookConsts.js';
+import { API_URL, baseSession, loggedOutSession, multipleUsersSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from '../src/__test/storybookConsts.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
 import { Celebration } from '../src/components/Celebration/Celebration.js';
 import { DebugComponent } from '../src/components/Debug/index.js';
@@ -32,6 +32,15 @@ import { PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
 // Initialize MSW
 initialize({
     onUnhandledRequest: "bypass",
+    quiet: true, // Suppress warnings about unhandled requests
+    serviceWorker: {
+        options: {
+            // Prevent MSW from intercepting socket.io requests
+            findWorker: (scriptURL, mockServiceWorkerURL) => {
+                return !scriptURL.includes('socket.io');
+            }
+        }
+    }
 });
 
 // Mock profile for settings and other views
@@ -113,6 +122,15 @@ const fontSizeMapping = {
     large: 20,
 };
 
+const sessionTypeMapping = {
+    loggedOut: loggedOutSession,
+    signedInBasic: signedInNoPremiumNoCreditsSession,
+    signedInWithCredits: signedInNoPremiumWithCreditsSession,
+    signedInPremium: signedInPremiumNoCreditsSession,
+    signedInPremiumWithCredits: signedInPremiumWithCreditsSession,
+    multipleUsers: multipleUsersSession,
+};
+
 const preview: Preview = {
     loaders: [mswLoader],
     parameters: {
@@ -125,6 +143,30 @@ const preview: Preview = {
         msw: {
             // Put global request overrides here, such as requests made by the side menus
             handlers: [
+                // Block all Stripe analytics/tracking requests
+                http.post('https://r.stripe.com/*', () => {
+                    return new Response(null, { status: 204 });
+                }),
+                http.get('https://r.stripe.com/*', () => {
+                    return new Response(null, { status: 204 });
+                }),
+                http.post('https://m.stripe.com/*', () => {
+                    return new Response(null, { status: 204 });
+                }),
+                http.get('https://m.stripe.com/*', () => {
+                    return new Response(null, { status: 204 });
+                }),
+                // Block Stripe v3 script
+                http.get('https://js.stripe.com/v3/*', () => {
+                    return new Response('', { status: 200, headers: { 'Content-Type': 'application/javascript' } });
+                }),
+                // Bypass socket.io requests to prevent connection errors
+                http.get('*/socket.io/*', () => {
+                    return new Response(null, { status: 404 });
+                }),
+                http.post('*/socket.io/*', () => {
+                    return new Response(null, { status: 404 });
+                }),
                 // api keys
                 http.post(`${API_URL}/v2/apikeys`, async ({ request }) => {
                     const input = await request.json();
@@ -188,8 +230,9 @@ const preview: Preview = {
             description: 'Switch between available themes',
             defaultValue: DEFAULT_THEME,
             toolbar: {
-                icon: 'circlehollow',
+                icon: 'paintbrush',
                 items: Object.keys(themes),
+                dynamicTitle: true,
             },
         },
         isLeftHanded: {
@@ -197,8 +240,12 @@ const preview: Preview = {
             description: 'Switch between left and right handed mode',
             defaultValue: "Right-handed (default)",
             toolbar: {
-                icon: 'circlehollow',
-                items: ["Right-handed (default)", "Left-handed"],
+                icon: 'accessibility',
+                items: [
+                    { value: "Right-handed (default)", title: 'Right-handed', icon: 'arrowrightalt' },
+                    { value: "Left-handed", title: 'Left-handed', icon: 'arrowleftalt' },
+                ],
+                dynamicTitle: true,
             },
         },
         fontSize: {
@@ -206,20 +253,48 @@ const preview: Preview = {
             description: 'Switch between font sizes',
             defaultValue: 'medium',
             toolbar: {
-                icon: 'circlehollow',
-                items: ['small', 'medium', 'large'],
+                icon: 'grow',
+                items: [
+                    { value: 'small', title: 'Small Text', icon: 'subtract' },
+                    { value: 'medium', title: 'Medium Text', icon: 'paragraph' },
+                    { value: 'large', title: 'Large Text', icon: 'add' },
+                ],
+                dynamicTitle: true,
+            },
+        },
+        sessionType: {
+            name: 'Session Type',
+            description: 'Switch between different user session states',
+            defaultValue: 'loggedOut',
+            toolbar: {
+                icon: 'user',
+                items: [
+                    { value: 'loggedOut', title: 'Logged Out', icon: 'useralt' },
+                    { value: 'signedInBasic', title: 'Basic User', icon: 'user' },
+                    { value: 'signedInWithCredits', title: 'User with Credits', icon: 'credit' },
+                    { value: 'signedInPremium', title: 'Premium User', icon: 'star' },
+                    { value: 'signedInPremiumWithCredits', title: 'Premium with Credits', icon: 'starhollow' },
+                    { value: 'multipleUsers', title: 'Multiple Users', icon: 'users' },
+                ],
+                dynamicTitle: true,
             },
         },
     },
     decorators: [
         (Story, context) => {
             const themeMode = context.globals.themeMode || DEFAULT_THEME;
+            const sessionType = context.globals.sessionType || 'loggedOut';
+            const globalSession = sessionTypeMapping[sessionType] || loggedOutSession;
             const sessionOverrides = context.parameters.session || {};
+            
+            // If there's a session override in parameters, use it; otherwise use global
+            const baseSessionToUse = Object.keys(sessionOverrides).length > 0 ? sessionOverrides : globalSession;
+            
             const finalSession = {
                 ...baseSession,
-                ...sessionOverrides,
-                users: sessionOverrides.users
-                    ? sessionOverrides.users.map(user => ({ ...user, theme: themeMode }))
+                ...baseSessionToUse,
+                users: baseSessionToUse.users
+                    ? baseSessionToUse.users.map(user => ({ ...user, theme: themeMode }))
                     : baseSession.users.map(user => ({ ...user, theme: themeMode })),
             };
             const theme = createTheme({

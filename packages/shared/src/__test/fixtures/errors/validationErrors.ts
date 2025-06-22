@@ -8,7 +8,7 @@
 import {
     BaseErrorFactory,
     type EnhancedValidationError,
-    type ErrorContext
+    type ErrorContext,
 } from "./types.js";
 
 export interface ValidationError {

@@ -7,7 +7,7 @@ import {
     type CorrelatedEvent,
     type EventSequenceItem,
     type NetworkCondition,
-    type TimedEvent
+    type TimedEvent,
 } from "./types.js";
 
 /**

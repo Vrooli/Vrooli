@@ -114,28 +114,19 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
         },
         invalidTypes: {
             create: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - status should be valid RunStatus enum
                 status: "InvalidStatus",
-                // @ts-expect-error Testing invalid type - name should be string
                 name: 123,
-                // @ts-expect-error Testing invalid type - completedComplexity should be number
                 completedComplexity: "not a number",
                 contextSwitches: -5, // Negative values might be caught at runtime
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "not a boolean",
                 timeElapsed: -100, // Negative values might be caught at runtime
-                // @ts-expect-error Testing invalid type - resourceVersionConnect should be string
                 resourceVersionConnect: 123,
             } as unknown as RunCreateInput,
             update: {
-                // @ts-expect-error Testing invalid type - id should be string
                 id: 123,
-                // @ts-expect-error Testing invalid type - completedComplexity should be number
                 completedComplexity: "not a number",
                 contextSwitches: -5, // Negative values might be caught at runtime
-                // @ts-expect-error Testing invalid type - isPrivate should be boolean
                 isPrivate: "not a boolean",
                 timeElapsed: -100, // Negative values might be caught at runtime
             } as unknown as RunUpdateInput,
@@ -155,7 +146,6 @@ export const runFixtures: ModelTestFixtures<RunCreateInput, RunUpdateInput> = {
         invalidStatus: {
             create: {
                 id: validIds.runId3,
-                // @ts-expect-error Testing invalid enum value
                 status: "NotAValidStatus",
                 name: "Test Run",
                 isPrivate: false,

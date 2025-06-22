@@ -13,7 +13,7 @@ import type {
     FactoryCustomizers, 
     PermissionConfig, 
     RelationshipConfig, 
-    ValidationResult 
+    ValidationResult, 
 } from "./types.js";
 
 /**
@@ -35,7 +35,7 @@ export class BaseAPIFixtureFactory<
     
     constructor(
         config: APIFixtureFactoryConfig<TCreateInput, TUpdateInput, TFindResult>,
-        customizers?: FactoryCustomizers<TCreateInput, TUpdateInput>
+        customizers?: FactoryCustomizers<TCreateInput, TUpdateInput>,
     ) {
         this.config = config;
         this.customizers = customizers;
@@ -99,7 +99,7 @@ export class BaseAPIFixtureFactory<
         } catch (error) {
             return {
                 isValid: false,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     };
@@ -115,7 +115,7 @@ export class BaseAPIFixtureFactory<
         } catch (error) {
             return {
                 isValid: false,
-                errors: [error instanceof Error ? error.message : String(error)]
+                errors: [error instanceof Error ? error.message : String(error)],
             };
         }
     };
@@ -143,7 +143,7 @@ export class BaseAPIFixtureFactory<
         // Subclasses can override for more sophisticated relationship handling
         return { 
             ...base, 
-            ...relations 
+            ...relations, 
         } as TFindResult;
     };
     
@@ -152,7 +152,7 @@ export class BaseAPIFixtureFactory<
         // Subclasses can override for object-specific permission handling
         return {
             ...base,
-            __permissions: permissions
+            __permissions: permissions,
         } as TFindResult;
     };
     
@@ -228,12 +228,12 @@ export class EnhancedAPIFixtureFactory<
     // Test utilities
     generateUnique = {
         create: () => this.generateUniqueCreate(),
-        update: (id: string) => this.generateUniqueUpdate(id)
+        update: (id: string) => this.generateUniqueUpdate(id),
     };
     
     testValidation = {
         expectValid: this.expectValid,
-        expectInvalid: this.expectInvalid
+        expectInvalid: this.expectInvalid,
     };
     
     // Round-trip testing support (optional - requires implementation by subclasses)

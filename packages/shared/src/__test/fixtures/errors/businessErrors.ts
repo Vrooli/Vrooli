@@ -12,7 +12,7 @@
 
 import type {
     EnhancedBusinessError,
-    ErrorContext
+    ErrorContext,
 } from "./types.js";
 import { BaseErrorFactory } from "./types.js";
 

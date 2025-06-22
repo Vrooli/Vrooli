@@ -20,7 +20,6 @@ const config: StorybookConfig = {
                 "docs": false
             }
         },
-        getAbsolutePath('@storybook/addon-onboarding'),
         getAbsolutePath('@chromatic-com/storybook'),
         getAbsolutePath('@storybook/addon-interactions'),
         getAbsolutePath('@storybook/addon-a11y'),
@@ -34,6 +33,18 @@ const config: StorybookConfig = {
     },
     "typescript": {
         "configFile": "../tsconfig.stories.json"
+    },
+    viteFinal: async (config) => {
+        // Mock Stripe to prevent network errors in Storybook
+        config.resolve = config.resolve || {};
+        config.resolve.alias = {
+            ...config.resolve.alias,
+            '@stripe/stripe-js': join(__dirname, './mocks/stripe.ts'),
+            'socket.io-client': join(__dirname, './mocks/socket.ts'),
+            // Use built shared package for Storybook to avoid JSON import issues
+            '@vrooli/shared': join(__dirname, '../../shared/dist'),
+        };
+        return config;
     },
 };
 export default config;

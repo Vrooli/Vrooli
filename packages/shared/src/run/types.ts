@@ -3,7 +3,7 @@ import { type ResourceType, type ResourceVersion, type RunStatus, type RunStepSt
 import { type PassableLogger } from "../consts/commonTypes.js";
 import { type LlmModel } from "../shape/configs/bot.js";
 import { type ScheduleShape } from "../shape/models/models.js";
-import { BotStyle, BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "./enums.js";
+import { BotStyle, type BranchStatus, type InputGenerationStrategy, type PathSelectionStrategy, type SubroutineExecutionStrategy } from "./enums.js";
 
 // Re-export enums for backward compatibility
 export { BotStyle, BranchStatus, InputGenerationStrategy, PathSelectionStrategy, SubroutineExecutionStrategy } from "./enums.js";

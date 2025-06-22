@@ -7,7 +7,7 @@
 
 import type {
     EnhancedNetworkError,
-    ErrorContext
+    ErrorContext,
 } from "./types.js";
 import { BaseErrorFactory } from "./types.js";
 

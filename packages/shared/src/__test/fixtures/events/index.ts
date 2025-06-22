@@ -31,19 +31,19 @@ export { systemEventFixtures } from "./systemEvents.js";
 // Factory instances for advanced usage
 export {
     connectionFactory,
-    errorFactory, reconnectionFactory, roomFactory
+    errorFactory, reconnectionFactory, roomFactory,
 } from "./socketEvents.js";
 
 // Comprehensive sequences
 export {
     allSequences, businessWorkflowSequences,
-    comprehensiveScenarios, errorRecoverySequences, performanceTestSequences, SequenceOrchestrator, systemReliabilitySequences, userJourneySequences
+    comprehensiveScenarios, errorRecoverySequences, performanceTestSequences, SequenceOrchestrator, systemReliabilitySequences, userJourneySequences,
 } from "./comprehensiveSequences.js";
 
 // Utility functions
 export {
     applyNetworkDelay, collectEvents, createEventAssertions, delay, EventCorrelator, generateCorrelationId, networkPresets, sequenceToTimedEvents, shouldDropPacket, StateDiffer, TimingAnalyzer,
-    waitForEvent
+    waitForEvent,
 } from "./eventUtils.js";
 
 // Main fixture collection for easy access

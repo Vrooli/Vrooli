@@ -10,7 +10,7 @@
 import {
     BaseErrorFactory,
     type EnhancedApiError,
-    type ErrorContext
+    type ErrorContext,
 } from "./types.js";
 
 // Legacy interface for backwards compatibility

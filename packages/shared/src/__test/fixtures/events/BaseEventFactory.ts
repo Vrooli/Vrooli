@@ -14,7 +14,7 @@ import {
     type StateChangeLog,
     type StatefulEvent,
     type TestResult,
-    type TimedEvent
+    type TimedEvent,
 } from "./types.js";
 
 export abstract class BaseEventFactory<TEvent extends BaseEvent, TData = unknown>

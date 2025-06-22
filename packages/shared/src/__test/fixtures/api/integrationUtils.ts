@@ -30,7 +30,7 @@ export class YupValidationAdapter<TInput> {
             const validatedData = await this.schema.validate(input);
             return {
                 isValid: true,
-                data: validatedData
+                data: validatedData,
             };
         } catch (error: any) {
             const errors: string[] = [];
@@ -47,7 +47,7 @@ export class YupValidationAdapter<TInput> {
             
             return {
                 isValid: false,
-                errors
+                errors,
             };
         }
     }
@@ -62,7 +62,7 @@ export function createValidationAdapters<TCreateInput, TUpdateInput>(validation:
 }) {
     return {
         create: validation.create ? new YupValidationAdapter(validation.create) : undefined,
-        update: validation.update ? new YupValidationAdapter(validation.update) : undefined
+        update: validation.update ? new YupValidationAdapter(validation.update) : undefined,
     };
 }
 
@@ -78,20 +78,20 @@ export class ShapeIntegration<TShape extends object, TCreateInput, TUpdateInput>
      * Transform shape data to create input
      */
     transformToCreateInput(shapeData: TShape): TCreateInput {
-        if ('create' in this.shapeModel && typeof this.shapeModel.create === 'function') {
+        if ("create" in this.shapeModel && typeof this.shapeModel.create === "function") {
             return this.shapeModel.create(shapeData);
         }
-        throw new Error('Shape model does not have a create method');
+        throw new Error("Shape model does not have a create method");
     }
     
     /**
      * Transform shape data to update input
      */
     transformToUpdateInput(original: TShape, updates: Partial<TShape>): TUpdateInput {
-        if ('update' in this.shapeModel && typeof this.shapeModel.update === 'function') {
+        if ("update" in this.shapeModel && typeof this.shapeModel.update === "function") {
             return this.shapeModel.update(original, updates);
         }
-        throw new Error('Shape model does not have an update method');
+        throw new Error("Shape model does not have an update method");
     }
     
     /**
@@ -122,7 +122,7 @@ export class FullIntegration<TShape extends object, TCreateInput, TUpdateInput> 
             create?: YupValidationSchema<TCreateInput>;
             update?: YupValidationSchema<TUpdateInput>;
         },
-        shapeModel: ShapeModel<TShape, TCreateInput, TUpdateInput>
+        shapeModel: ShapeModel<TShape, TCreateInput, TUpdateInput>,
     ) {
         this.validation = createValidationAdapters(validationSchemas);
         this.shape = new ShapeIntegration(shapeModel);
@@ -175,18 +175,18 @@ export function createIntegratedFactoryConfig<TShape extends object, TCreateInpu
             permissionScenarios?: Record<string, TCreateInput | TUpdateInput>;
         };
     },
-    integration: FullIntegration<TShape, TCreateInput, TUpdateInput>
+    integration: FullIntegration<TShape, TCreateInput, TUpdateInput>,
 ) {
     return {
         ...fixtures,
         validationSchema: {
             create: integration.validation.create,
-            update: integration.validation.update
+            update: integration.validation.update,
         },
         shapeTransforms: {
             toAPI: integration.shape.createAPITransformer(),
-            fromDB: undefined // Will be added when needed
-        }
+            fromDB: undefined, // Will be added when needed
+        },
     };
 }
 
@@ -197,7 +197,7 @@ export function createIntegratedFixtureFactory<TShape, TCreateInput, TUpdateInpu
     factoryClass: new (...args: any[]) => any,
     fixtures: Parameters<typeof createIntegratedFactoryConfig<TShape, TCreateInput, TUpdateInput, TFindResult>>[0],
     integration: FullIntegration<TShape, TCreateInput, TUpdateInput>,
-    customizers?: any
+    customizers?: any,
 ) {
     const config = createIntegratedFactoryConfig(fixtures, integration);
     return new factoryClass(config, customizers);

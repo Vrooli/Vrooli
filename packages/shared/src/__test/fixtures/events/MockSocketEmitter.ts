@@ -15,7 +15,7 @@ import {
 import {
     type CorrelatedEvent,
     type EventSequenceItem,
-    type NetworkCondition
+    type NetworkCondition,
 } from "./types.js";
 
 export interface EmitHistoryItem {

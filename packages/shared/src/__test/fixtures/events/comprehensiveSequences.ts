@@ -25,7 +25,7 @@ import { systemEventFixtures } from "./systemEvents.js";
 import {
     type EventSequenceItem,
     type SimulationOptions,
-    type TimedEvent
+    type TimedEvent,
 } from "./types.js";
 
 /**
@@ -156,7 +156,7 @@ export const userJourneySequences = {
             parallel: [
                 { event: "runTask", data: { status: "in_progress", assignee: "user_1" } },
                 { event: "runTask", data: { status: "in_progress", assignee: "user_2" } },
-            ]
+            ],
         },
         { delay: 2000 },
 
@@ -179,7 +179,7 @@ export const userJourneySequences = {
             parallel: [
                 { event: "runTask", data: { status: "completed", assignee: "user_1" } },
                 { event: "runTask", data: { status: "completed", assignee: "user_2" } },
-            ]
+            ],
         },
         { delay: 200 },
 
@@ -291,7 +291,7 @@ export const systemReliabilitySequences = {
             parallel: [
                 { event: "error", data: { code: "SECURITY_LOCKDOWN", message: "Service temporarily unavailable" } },
                 { event: "disconnect", data: { reason: "security" } },
-            ]
+            ],
         },
         { delay: 30000 }, // 30 second lockdown
 
@@ -353,7 +353,7 @@ export const performanceTestSequences = {
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_1", state: "STARTING" } },
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_2", state: "STARTING" } },
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_3", state: "STARTING" } },
-            ]
+            ],
         },
         { delay: 1000 },
 
@@ -363,7 +363,7 @@ export const performanceTestSequences = {
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_1", state: "RUNNING" } },
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_2", state: "RUNNING" } },
                 { event: "swarmStateUpdate", data: { swarmId: "swarm_3", state: "RUNNING" } },
-            ]
+            ],
         },
         { delay: 500 },
 
@@ -423,7 +423,7 @@ export const errorRecoverySequences = {
             parallel: [
                 { event: "disconnect", data: { reason: "server_error" } },
                 { event: "error", data: { code: "SERVICE_UNAVAILABLE" } },
-            ]
+            ],
         },
         { delay: 5000 },
 

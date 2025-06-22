@@ -14,7 +14,6 @@ import type { BookmarkCreateInput, BookmarkUpdateInput, Bookmark } from "../../.
 import { BookmarkFor } from "../../../../api/types.js";
 import { generatePK } from "../../../../id/snowflake.js";
 import { shapeBookmark, type BookmarkShape } from "../../../../shape/models/models.js";
-import { bookmarkValidation } from "../../../../validation/models/bookmark.js";
 import { BaseAPIFixtureFactory } from "../BaseAPIFixtureFactory.js";
 // import { FullIntegration, createIntegratedFactoryConfig } from "../integrationUtils.js";
 import type { APIFixtureFactory, FactoryCustomizers } from "../types.js";
@@ -301,15 +300,15 @@ export class BookmarkAPIFixtureFactory extends BaseAPIFixtureFactory<
     withRelationships = (base: Bookmark, relations: Record<string, unknown>): Bookmark => {
         const result = { ...base };
         
-        if (relations.list && typeof relations.list === 'object') {
+        if (relations.list && typeof relations.list === "object") {
             result.list = relations.list as any;
         }
         
-        if (relations.by && typeof relations.by === 'object') {
+        if (relations.by && typeof relations.by === "object") {
             result.by = relations.by as any;
         }
         
-        if (relations.to && typeof relations.to === 'object') {
+        if (relations.to && typeof relations.to === "object") {
             result.to = relations.to as any;
         }
         

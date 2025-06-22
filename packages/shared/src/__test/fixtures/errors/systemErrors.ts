@@ -9,7 +9,7 @@ import {
     type EnhancedSystemError,
     type ErrorContext,
     type RecoveryStrategy,
-    BaseErrorFactory
+    BaseErrorFactory,
 } from "./types.js";
 
 // Legacy interface for backward compatibility

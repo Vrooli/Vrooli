@@ -1377,6 +1377,6 @@ export const chatEventFixtures = {
 
 // Export factory types for external use
 export type {
-    BotStatusEventFactory, MessageEventFactory, ModelReasoningEventFactory, ParticipantEventFactory, ResponseStreamEventFactory, ToolApprovalEventFactory, TypingEventFactory
+    BotStatusEventFactory, MessageEventFactory, ModelReasoningEventFactory, ParticipantEventFactory, ResponseStreamEventFactory, ToolApprovalEventFactory, TypingEventFactory,
 };
 

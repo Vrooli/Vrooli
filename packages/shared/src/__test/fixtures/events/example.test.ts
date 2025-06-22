@@ -22,7 +22,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             simulateNetwork: false,
             autoAcknowledge: true,
             stateTracking: true,
-            correlationTracking: true
+            correlationTracking: true,
         });
     });
 
@@ -43,7 +43,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             socket.emitWithAck(
                 "joinChatRoom",
                 socketEventFixtures.room.joinChatSuccess.data,
-                callback
+                callback,
             );
 
             await new Promise(resolve => setTimeout(resolve, 150));
@@ -65,7 +65,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             // Create custom connection event
             const customConnection = connectionFactory.create({
                 socketId: "custom_socket_456",
-                transport: "polling"
+                transport: "polling",
             });
 
             const handler = vi.fn();
@@ -75,8 +75,8 @@ describe("Enhanced Event Fixtures Examples", () => {
             expect(handler).toHaveBeenCalledWith(
                 expect.objectContaining({
                     socketId: "custom_socket_456",
-                    transport: "polling"
-                })
+                    transport: "polling",
+                }),
             );
         });
 
@@ -88,7 +88,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             const chatJoin = roomFactory.create({
                 roomType: "chat",
                 roomId: "custom_chat_789",
-                userId: "user_456"
+                userId: "user_456",
             });
 
             socket.emit(chatJoin.event, chatJoin.data);
@@ -97,8 +97,8 @@ describe("Enhanced Event Fixtures Examples", () => {
                 expect.objectContaining({
                     roomType: "chat",
                     roomId: "custom_chat_789",
-                    userId: "user_456"
-                })
+                    userId: "user_456",
+                }),
             );
         });
 
@@ -121,7 +121,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             const correlatedEvents = connectionFactory.createCorrelated(correlationId, [
                 connectionFactory.single,
                 roomFactory.variants.joinUserSuccess as any,
-                roomFactory.variants.joinChatSuccess as any
+                roomFactory.variants.joinChatSuccess as any,
             ]);
 
             expect(correlatedEvents).toHaveLength(3);
@@ -168,7 +168,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             await socket.emitParallel([
                 { event: "messages", data: { added: [{ id: "msg_1", content: "Message 1" }] } },
                 { event: "messages", data: { added: [{ id: "msg_2", content: "Message 2" }] } },
-                { event: "messages", data: { added: [{ id: "msg_3", content: "Message 3" }] } }
+                { event: "messages", data: { added: [{ id: "msg_3", content: "Message 3" }] } },
             ]);
 
             expect(messageHandler).toHaveBeenCalledTimes(3);
@@ -275,7 +275,7 @@ describe("Enhanced Event Fixtures Examples", () => {
             // Create correlated events
             const events = connectionFactory.createCorrelated(correlationId, [
                 connectionFactory.single,
-                roomFactory.variants.joinUserSuccess as any
+                roomFactory.variants.joinUserSuccess as any,
             ]);
 
             // Track events
@@ -319,7 +319,7 @@ describe("Enhanced Event Fixtures Examples", () => {
     describe("Sequence Orchestration", () => {
         it("should orchestrate complex scenarios", async () => {
             const orchestrator = new SequenceOrchestrator({
-                simulation: { timing: "fast", network: "fast" }
+                simulation: { timing: "fast", network: "fast" },
             });
 
             const result = await orchestrator.executeSequence([
@@ -327,7 +327,7 @@ describe("Enhanced Event Fixtures Examples", () => {
                 { delay: 100 },
                 { event: "joinChatRoom", data: { chatId: "test" } },
                 { delay: 200 },
-                { event: "messages", data: { content: "Hello" } }
+                { event: "messages", data: { content: "Hello" } },
             ]);
 
             expect(result.success).toBe(true);
@@ -343,13 +343,13 @@ describe("Enhanced Event Fixtures Examples", () => {
                 { 
                     name: "connection", 
                     sequence: [{ event: "connect", data: {} }], 
-                    delay: 1000 
+                    delay: 1000, 
                 },
                 { 
                     name: "chat", 
                     sequence: [{ event: "joinChatRoom", data: { chatId: "test" } }], 
-                    delay: 500 
-                }
+                    delay: 500, 
+                },
             ]);
 
             expect(combined).toHaveLength(4); // connect + delay + joinChatRoom + delay
@@ -365,13 +365,13 @@ describe("Enhanced Event Fixtures Examples", () => {
                 { 
                     name: "user1", 
                     sequence: [{ event: "joinChat", data: { userId: "user_1" } }],
-                    userContext: "user_1"
+                    userContext: "user_1",
                 },
                 { 
                     name: "user2", 
                     sequence: [{ event: "joinChat", data: { userId: "user_2" } }],
-                    userContext: "user_2"
-                }
+                    userContext: "user_2",
+                },
             ]);
 
             expect(parallel[0].parallel).toHaveLength(2);
@@ -492,7 +492,7 @@ describe("Enhanced Event Fixtures Examples", () => {
 
         it("should timeout when waiting for events that don't arrive", async () => {
             await expect(
-                waitForEvent(socket, "never-emitted-event", 100)
+                waitForEvent(socket, "never-emitted-event", 100),
             ).rejects.toThrow("Timeout waiting for event: never-emitted-event");
         });
     });
@@ -505,14 +505,14 @@ describe("Enhanced Event Fixtures Examples", () => {
                 "connect", "disconnect", "joinChatRoom", "leaveChatRoom",
                 "messages", "responseStream", "botStatusUpdate", "typing",
                 "participants", "notification", "runTask", "swarmStateUpdate",
-                "systemStatus", "error"
+                "systemStatus", "error",
             ];
             
             eventTypes.forEach(eventType => {
                 socket.on(eventType, (data) => allEvents.push({ 
                     type: eventType, 
                     data, 
-                    timestamp: Date.now() 
+                    timestamp: Date.now(), 
                 }));
             });
 
