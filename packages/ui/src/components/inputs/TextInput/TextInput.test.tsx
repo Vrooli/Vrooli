@@ -117,6 +117,6 @@ describe("TranslatedTextInput", () => {
             const formValues = JSON.parse(screen.getByTestId("form-values").textContent || "{}");
             const updatedTranslation = formValues.translations?.find(t => t.language === language);
             expect(updatedTranslation?.testName).toBe(expectedValue);
-        }
+        },
     );
 });
