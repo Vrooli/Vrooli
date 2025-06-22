@@ -1,5 +1,5 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for ApiKeyExternal model - used for seeding test data
@@ -44,7 +44,7 @@ export const teamApiKeyExternalDb: Prisma.api_key_externalCreateInput = {
     id: apiKeyExternalDbIds.stripe1,
     name: "Team Stripe API Key",
     service: "stripe",
-    key: "sk_test_4eC39HqLyjWDarjtT1zdp7dc",
+    key: "sk_test_fake_stripe_key_for_testing_12345",
     team: { connect: { id: generatePK() } },
 };
 
@@ -80,7 +80,7 @@ export class ApiKeyExternalDbFactory {
     static createForUser(
         userId: string,
         service: string,
-        overrides?: Partial<Prisma.api_key_externalCreateInput>
+        overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
         return {
             id: generatePK(),
@@ -98,7 +98,7 @@ export class ApiKeyExternalDbFactory {
     static createForTeam(
         teamId: string,
         service: string,
-        overrides?: Partial<Prisma.api_key_externalCreateInput>
+        overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
         return {
             id: generatePK(),
@@ -115,7 +115,7 @@ export class ApiKeyExternalDbFactory {
      */
     static createDisabled(
         service: string,
-        overrides?: Partial<Prisma.api_key_externalCreateInput>
+        overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
         return {
             id: generatePK(),
@@ -133,7 +133,7 @@ export class ApiKeyExternalDbFactory {
     static createWithResource(
         resourceId: string,
         service: string,
-        overrides?: Partial<Prisma.api_key_externalCreateInput>
+        overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
         return {
             id: generatePK(),
@@ -150,7 +150,7 @@ export class ApiKeyExternalDbFactory {
      */
     static createCommonServices(
         ownerId: string,
-        ownerType: "user" | "team" = "user"
+        ownerType: "user" | "team" = "user",
     ): Prisma.api_key_externalCreateInput[] {
         const services = [
             { service: "openai", name: "OpenAI API Key", prefix: "sk-" },
@@ -165,7 +165,7 @@ export class ApiKeyExternalDbFactory {
             name,
             service,
             key: `${prefix}test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            ...(ownerType === "user" 
+            ...(ownerType === "user"
                 ? { user: { connect: { id: ownerId } } }
                 : { team: { connect: { id: ownerId } } }
             ),
@@ -184,7 +184,7 @@ export async function seedApiKeysExternal(
         services?: string[];
         count?: number;
         includeDisabled?: boolean;
-    }
+    },
 ) {
     const apiKeys = [];
     const servicesToCreate = options.services || ["openai", "github"];
@@ -197,7 +197,7 @@ export async function seedApiKeysExternal(
                 data: ApiKeyExternalDbFactory.createForUser(
                     options.userId,
                     servicesToCreate[i],
-                    { name: `User ${servicesToCreate[i]} Key ${i + 1}` }
+                    { name: `User ${servicesToCreate[i]} Key ${i + 1}` },
                 ),
             });
             apiKeys.push(apiKey);
@@ -211,7 +211,7 @@ export async function seedApiKeysExternal(
                 data: ApiKeyExternalDbFactory.createForTeam(
                     options.teamId,
                     servicesToCreate[i],
-                    { name: `Team ${servicesToCreate[i]} Key ${i + 1}` }
+                    { name: `Team ${servicesToCreate[i]} Key ${i + 1}` },
                 ),
             });
             apiKeys.push(apiKey);
@@ -223,7 +223,7 @@ export async function seedApiKeysExternal(
         const disabledKey = await prisma.api_key_external.create({
             data: ApiKeyExternalDbFactory.createDisabled(
                 servicesToCreate[0],
-                options.userId ? { user: { connect: { id: options.userId } } } : undefined
+                options.userId ? { user: { connect: { id: options.userId } } } : undefined,
             ),
         });
         apiKeys.push(disabledKey);
@@ -237,7 +237,7 @@ export async function seedApiKeysExternal(
  */
 export async function cleanupApiKeysExternal(
     prisma: any,
-    apiKeyIds: string[]
+    apiKeyIds: string[],
 ) {
     await prisma.api_key_external.deleteMany({
         where: { id: { in: apiKeyIds } },
