@@ -26,9 +26,9 @@ describe("RunProgressConfig", () => {
 
             expect(config.__version).toBe("1.0");
             expect(config.branches).toHaveLength(2);
-            expect(config.branches[0].id).toBe("branch_1");
+            expect(config.branches[0].branchId).toBe("branch_1");
             expect(config.config.botConfig?.model).toBe("gpt-4");
-            expect(config.config.decisionConfig.inputGeneration).toBe(InputGenerationStrategy.ManualPrompt);
+            expect(config.config.decisionConfig.inputGeneration).toBe(InputGenerationStrategy.Manual);
             expect(config.config.testMode).toBe(true);
             expect(config.decisions).toHaveLength(1);
             expect(config.metrics.creditsSpent).toBe("1000");
@@ -65,7 +65,7 @@ describe("RunProgressConfig", () => {
             const config = RunProgressConfig.parse(runData, mockLogger);
 
             expect(config.__version).toBe("1.0");
-            expect(config.config.decisionConfig.inputGeneration).toBe(InputGenerationStrategy.ManualPrompt);
+            expect(config.config.decisionConfig.inputGeneration).toBe(InputGenerationStrategy.Manual);
             expect(config.metrics.creditsSpent).toBe("0");
         });
 
@@ -266,10 +266,10 @@ describe("RunProgressConfig", () => {
             const config = new RunProgressConfig(data);
 
             expect(config.decisions).toHaveLength(2);
-            expect(config.decisions[0].status).toBe("Resolved");
-            expect(config.decisions[1].status).toBe("Resolved");
-            expect(config.decisions[0].type).toBe("PathSelection");
-            expect(config.decisions[1].type).toBe("InputGeneration");
+            expect(config.decisions[0].__type).toBe("Resolved");
+            expect(config.decisions[1].__type).toBe("Resolved");
+            expect(config.decisions[0].decisionType).toBe("chooseOne");
+            expect(config.decisions[1].decisionType).toBe("chooseOne");
         });
 
         it("should handle nested subcontexts", () => {
@@ -280,22 +280,22 @@ describe("RunProgressConfig", () => {
             expect(config.subcontexts["sub_process_1"]).toBeDefined();
             expect(config.subcontexts["sub_validate_1"]).toBeDefined();
             expect(config.subcontexts["sub_transform_1"]).toBeDefined();
-            expect(config.subcontexts["sub_process_1"].outputs.result).toBe("processed");
-            expect(config.subcontexts["sub_validate_1"].outputs.valid).toBe(true);
-            expect(config.subcontexts["sub_transform_1"].outputs.transformed).toEqual({ key: "value" });
+            expect(config.subcontexts["sub_process_1"].allOutputsMap.result).toBe("processed");
+            expect(config.subcontexts["sub_validate_1"].allOutputsMap.valid).toBe(true);
+            expect(config.subcontexts["sub_transform_1"].allOutputsMap.transformed).toEqual({ key: "value" });
         });
 
         it("should handle different failure handling strategies", () => {
             const testConfigs = [
                 runConfigFixtures.minimal, // Stop, Fail, Fail
-                runConfigFixtures.complete, // Continue, Prompt, Retry
-                runConfigFixtures.variants.autoExecutionConfig, // Continue, Fail, Retry
+                runConfigFixtures.complete, // Continue, Wait, Continue
+                runConfigFixtures.variants.autoExecutionConfig, // Continue, Fail, Fail
             ];
 
             const expectedStrategies = [
                 { onBranchFailure: "Stop", onGatewayForkFailure: "Fail", onNormalNodeFailure: "Fail" },
-                { onBranchFailure: "Continue", onGatewayForkFailure: "Prompt", onNormalNodeFailure: "Retry" },
-                { onBranchFailure: "Continue", onGatewayForkFailure: "Fail", onNormalNodeFailure: "Retry" },
+                { onBranchFailure: "Continue", onGatewayForkFailure: "Wait", onNormalNodeFailure: "Continue" },
+                { onBranchFailure: "Continue", onGatewayForkFailure: "Fail", onNormalNodeFailure: "Fail" },
             ];
 
             for (let i = 0; i < testConfigs.length; i++) {

@@ -243,7 +243,7 @@ export function getAvailableModelValues(availableModels: AvailableModel[]): LlmS
  */
 export function storageModelToAvailableModel(
     modelValue: LlmServiceModel, 
-    availableModels: AvailableModel[]
+    availableModels: AvailableModel[],
 ): AvailableModel | null {
     return availableModels.find(model => model.value === modelValue) || null;
 }
@@ -253,7 +253,7 @@ export function storageModelToAvailableModel(
  */
 export function validateStoredModelPreference(
     storedModel: LlmServiceModel | null,
-    availableModels: AvailableModel[]
+    availableModels: AvailableModel[],
 ): AvailableModel | null {
     if (!storedModel) return null;
     return storageModelToAvailableModel(storedModel, availableModels);
@@ -295,7 +295,7 @@ export function getPreferredAvailableModel(availableModels: AvailableModel[]): A
     if (fallbackModelValue) {
         const fallbackModel = storageModelToAvailableModel(
             fallbackModelValue as LlmServiceModel, 
-            availableModels
+            availableModels,
         );
         if (fallbackModel) return fallbackModel;
     }

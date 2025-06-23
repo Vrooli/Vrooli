@@ -3,19 +3,29 @@ import { ProjectVersionConfig, type ProjectVersionConfigObject } from "./project
 import { type ResourceVersion } from "../../api/types.js";
 import { ResourceUsedFor } from "./base.js";
 import { projectConfigFixtures } from "../../__test/fixtures/config/projectConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 describe("ProjectVersionConfig", () => {
-    let mockLogger: any;
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        ProjectVersionConfig,
+        projectConfigFixtures,
+        "project",
+    );
 
-    beforeEach(() => {
-        mockLogger = {
-            trace: vi.fn(),
-            debug: vi.fn(),
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-        };
-    });
+    // Project-specific business logic tests
+    describe("project-specific functionality", () => {
+        let mockLogger: any;
+
+        beforeEach(() => {
+            mockLogger = {
+                trace: vi.fn(),
+                debug: vi.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                error: vi.fn(),
+            };
+        });
 
     describe("constructor", () => {
         it("should create ProjectVersionConfig with complete data", () => {
@@ -340,5 +350,6 @@ describe("ProjectVersionConfig", () => {
             expect(exported2).toEqual(originalConfig);
             expect(exported2.resources[0].translations).toHaveLength(5);
         });
+    });
     });
 });

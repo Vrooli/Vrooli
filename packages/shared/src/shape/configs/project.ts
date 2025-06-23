@@ -15,7 +15,7 @@ export type ProjectVersionConfigObject = BaseConfigObject
 export class ProjectVersionConfig extends BaseConfig<ProjectVersionConfigObject> {
 
     constructor({ config }: { config: ProjectVersionConfigObject }) {
-        super(config);
+        super({ config });
     }
 
     static parse(
@@ -26,9 +26,9 @@ export class ProjectVersionConfig extends BaseConfig<ProjectVersionConfigObject>
         return super.parseBase<ProjectVersionConfigObject, ProjectVersionConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 // Add fallback properties as needed
-                return new ProjectVersionConfig({ config: cfg });
+                return new ProjectVersionConfig({ config });
             },
         );
     }

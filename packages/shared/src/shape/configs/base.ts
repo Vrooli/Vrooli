@@ -54,9 +54,9 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
     __version: string;
     resources: ConfigResource[];
 
-    constructor(data: T) {
-        this.__version = data.__version ?? LATEST_CONFIG_VERSION;
-        this.resources = data.resources ?? [];
+    constructor({ config }: { config: T }) {
+        this.__version = config.__version ?? LATEST_CONFIG_VERSION;
+        this.resources = config.resources ?? [];
     }
 
     /**
@@ -65,14 +65,14 @@ export class BaseConfig<T extends BaseConfigObject = BaseConfigObject> {
     protected static parseBase<T extends BaseConfigObject, C>(
         data: T | null | undefined,
         _logger: PassableLogger,
-        factory: (config: T) => C,
+        factory: (params: { config: T }) => C,
     ): C {
         const full = {
             __version: data?.__version ?? LATEST_CONFIG_VERSION,
             resources: data?.resources ?? [],
             ...data,
         } as T;
-        return factory(full);
+        return factory({ config: full });
     }
 
     /**

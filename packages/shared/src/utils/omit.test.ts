@@ -63,9 +63,9 @@ describe("omit", () => {
                 __proto__: "dangerous", 
                 constructor: "also dangerous",
                 prototype: "still dangerous",
-                safe: "this is ok" 
+                safe: "this is ok", 
             },
-            other: "value"
+            other: "value",
         };
         
         // Attempting to omit nested unsafe keys should be ignored safely
@@ -78,9 +78,9 @@ describe("omit", () => {
             nested: { 
                 __proto__: "dangerous", 
                 constructor: "also dangerous",
-                prototype: "still dangerous"
+                prototype: "still dangerous",
             },
-            other: "value"
+            other: "value",
         });
     });
 
@@ -90,19 +90,19 @@ describe("omit", () => {
             undefinedValue: undefined, 
             nested: { 
                 alsoNull: null, 
-                normalValue: "test" 
-            } 
+                normalValue: "test", 
+            }, 
         };
         
         expect(omit(obj, ["nullValue"])).toEqual({ 
             undefinedValue: undefined, 
-            nested: { alsoNull: null, normalValue: "test" } 
+            nested: { alsoNull: null, normalValue: "test" }, 
         });
         
         expect(omit(obj, ["nested.alsoNull"])).toEqual({ 
             nullValue: null, 
             undefinedValue: undefined, 
-            nested: { normalValue: "test" } 
+            nested: { normalValue: "test" }, 
         });
     });
 
@@ -110,7 +110,7 @@ describe("omit", () => {
         const obj = { 
             str: "hello", 
             num: 42, 
-            nested: { value: "test" } 
+            nested: { value: "test" }, 
         };
         
         // Trying to omit subkeys of primitive values should be safe
@@ -126,18 +126,18 @@ describe("omit", () => {
             array: [1, 2, 3], 
             nested: { 
                 arr: ["a", "b"], 
-                other: "value" 
-            } 
+                other: "value", 
+            }, 
         };
         
         // Should be able to omit array properties
         expect(omit(obj, ["array"])).toEqual({ 
-            nested: { arr: ["a", "b"], other: "value" } 
+            nested: { arr: ["a", "b"], other: "value" }, 
         });
         
         expect(omit(obj, ["nested.arr"])).toEqual({ 
             array: [1, 2, 3], 
-            nested: { other: "value" } 
+            nested: { other: "value" }, 
         });
     });
 
@@ -145,21 +145,21 @@ describe("omit", () => {
         const obj = { 
             level1: { 
                 level2a: { 
-                    level3: "remove me" 
+                    level3: "remove me", 
                 },
                 level2b: { 
-                    keep: "this value" 
-                }
+                    keep: "this value", 
+                },
             },
-            otherTop: "keep this too"
+            otherTop: "keep this too",
         };
         
         // Removing the only key in level2a should remove level2a entirely
         expect(omit(obj, ["level1.level2a.level3"])).toEqual({ 
             level1: { 
-                level2b: { keep: "this value" } 
+                level2b: { keep: "this value" }, 
             },
-            otherTop: "keep this too"
+            otherTop: "keep this too",
         });
         
         // But level1 should remain because level2b still has content

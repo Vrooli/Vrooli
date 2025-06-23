@@ -3,21 +3,31 @@ import { ChatConfig, type ChatConfigObject, type SwarmSubTask, type SwarmResourc
 import { API_CREDITS_MULTIPLIER } from "../../consts/api.js";
 import { DAYS_1_MS, MINUTES_10_MS, MINUTES_1_MS, SECONDS_1_MS } from "../../consts/numbers.js";
 import { chatConfigFixtures } from "../../__test/fixtures/config/chatConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 describe("ChatConfig", () => {
-    let mockLogger: any;
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        ChatConfig,
+        chatConfigFixtures,
+        "chat",
+    );
 
-    beforeEach(() => {
-        mockLogger = {
-            trace: vi.fn(),
-            debug: vi.fn(),
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-        };
-    });
+    // Chat-specific business logic tests
+    describe("chat-specific functionality", () => {
+        let mockLogger: any;
 
-    describe("constructor", () => {
+        beforeEach(() => {
+            mockLogger = {
+                trace: vi.fn(),
+                debug: vi.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                error: vi.fn(),
+            };
+        });
+
+        describe("constructor", () => {
         it("should create ChatConfig with complete data", () => {
             const config: ChatConfigObject = {
                 __version: "1.0",
@@ -107,7 +117,7 @@ describe("ChatConfig", () => {
             expect(chatConfig.pendingToolCalls).toHaveLength(1);
         });
 
-        it("should create ChatConfig with minimal data and defaults", () => {
+        it("should create ChatConfig with minimal data and apply defaults", () => {
             const config = chatConfigFixtures.minimal;
 
             const chatConfig = new ChatConfig({ config });
@@ -121,8 +131,9 @@ describe("ChatConfig", () => {
             expect(chatConfig.records).toEqual([]);
             expect(chatConfig.eventSubscriptions).toEqual({});
             expect(chatConfig.stats.totalToolCalls).toBe(0);
-            expect(chatConfig.limits).toBeUndefined();
-            expect(chatConfig.scheduling).toBeUndefined();
+            // ChatConfig automatically applies defaults to limits and scheduling
+            expect(chatConfig.limits).toBeDefined();
+            expect(chatConfig.scheduling).toBeDefined();
             expect(chatConfig.pendingToolCalls).toEqual([]);
         });
     });
@@ -859,5 +870,6 @@ describe("ChatConfig", () => {
             expect(chatConfig.stats.totalCredits).toBe("0");
             expect(chatConfig.stats.lastProcessingCycleEndedAt).toBeNull();
         });
+    });
     });
 });

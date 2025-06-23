@@ -5,12 +5,70 @@ import { standardConfigFixtures } from "../../__test/fixtures/config/standardCon
 import { StandardVersionConfig, type StandardVersionConfigObject } from "./standard.js";
 
 describe("StandardVersionConfig", () => {
-    const mockLogger = {
-        log: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-    };
+    // Basic fixture integrity tests
+    describe("fixture integrity", () => {
+        it("should create valid configs from all fixtures", () => {
+            // Test minimal fixture
+            const minimalConfig = new StandardVersionConfig({
+                config: standardConfigFixtures.minimal,
+                resourceSubType: ResourceSubType.StandardDataStructure,
+            });
+            expect(minimalConfig).toBeDefined();
+            expect(minimalConfig.__version).toBeDefined();
+            
+            // Test complete fixture
+            const completeConfig = new StandardVersionConfig({
+                config: standardConfigFixtures.complete,
+                resourceSubType: ResourceSubType.StandardPrompt,
+            });
+            expect(completeConfig).toBeDefined();
+            expect(completeConfig.__version).toBeDefined();
+            
+            // Test all variants
+            Object.entries(standardConfigFixtures.variants).forEach(([variantName, variantData]) => {
+                const variantConfig = new StandardVersionConfig({
+                    config: variantData,
+                    resourceSubType: ResourceSubType.StandardDataStructure,
+                });
+                expect(variantConfig).toBeDefined();
+                expect(variantConfig.__version).toBeDefined();
+            });
+        });
+
+        it("should maintain round-trip consistency for all fixtures", () => {
+            const allFixtures = [
+                { name: "minimal", data: standardConfigFixtures.minimal },
+                { name: "complete", data: standardConfigFixtures.complete },
+                { name: "withDefaults", data: standardConfigFixtures.withDefaults },
+                ...Object.entries(standardConfigFixtures.variants).map(([name, data]) => ({ name: `variant:${name}`, data })),
+            ];
+
+            allFixtures.forEach(({ name, data }) => {
+                const config1 = new StandardVersionConfig({
+                    config: data,
+                    resourceSubType: ResourceSubType.StandardDataStructure,
+                });
+                const exported1 = config1.export();
+                
+                const config2 = new StandardVersionConfig({
+                    config: exported1,
+                    resourceSubType: ResourceSubType.StandardDataStructure,
+                });
+                const exported2 = config2.export();
+                
+                expect(exported1).toEqual(exported2);
+            });
+        });
+    });
+
+    // Standard-specific business logic tests
+    describe("standard-specific functionality", () => {
+        const mockLogger = {
+            log: vi.fn(),
+            info: vi.fn(),
+            warn: vi.fn(),
+            error: vi.fn(),
+        };
 
     describe("constructor", () => {
         it("should create config with provided values", () => {
@@ -63,7 +121,7 @@ describe("StandardVersionConfig", () => {
                     config: {
                         ...standardConfigFixtures.variants.minimalValidation,
                         resources: [],
-                        schema: '{"type": "string"}',
+                        schema: "{\"type\": \"string\"}",
                     },
                     resourceSubType: ResourceSubType.StandardPrompt,
                 };
@@ -71,7 +129,7 @@ describe("StandardVersionConfig", () => {
                 const config = StandardVersionConfig.parse(version, mockLogger);
 
                 expect(config.validation?.strictMode).toBe(false);
-                expect(config.schema).toBe('{"type": "string"}');
+                expect(config.schema).toBe("{\"type\": \"string\"}");
                 expect(config.resourceSubType).toBe(ResourceSubType.StandardPrompt);
             });
 
@@ -125,7 +183,7 @@ describe("StandardVersionConfig", () => {
                 format: {
                     defaultFormat: "yaml",
                 },
-                schema: '{"type": "array"}',
+                schema: "{\"type\": \"array\"}",
             };
 
             const config = new StandardVersionConfig({
@@ -319,7 +377,7 @@ describe("StandardVersionConfig", () => {
         });
 
         it("should handle other schema languages", () => {
-            const xmlSchema = '<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"></xs:schema>';
+            const xmlSchema = "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"></xs:schema>";
 
             const config = new StandardVersionConfig({
                 config: {
@@ -464,7 +522,7 @@ describe("StandardVersionConfig", () => {
                 resourceSubType: ResourceSubType.StandardDataStructure,
             });
 
-            const schema = '{"type": "array", "items": {"type": "string"}}';
+            const schema = "{\"type\": \"array\", \"items\": {\"type\": \"string\"}}";
 
             config.setSchema(schema);
             expect(config.schema).toBe(schema);
@@ -520,13 +578,13 @@ describe("StandardVersionConfig", () => {
 
             config.setValidation({ strictMode: false });
             config.setFormat({ defaultFormat: "yaml" });
-            config.setSchema('{"type": "number"}');
+            config.setSchema("{\"type\": \"number\"}");
             config.setSchemaLanguage("json-schema");
 
             const exported = config.export();
             expect(exported.validation?.strictMode).toBe(false);
             expect(exported.format?.defaultFormat).toBe("yaml");
-            expect(exported.schema).toBe('{"type": "number"}');
+            expect(exported.schema).toBe("{\"type\": \"number\"}");
             expect(exported.schemaLanguage).toBe("json-schema");
         });
     });
@@ -554,7 +612,7 @@ describe("StandardVersionConfig", () => {
                     compliesWith: ["Regulation X"],
                     certifications: [],
                 },
-                schema: '{"type": "object"}',
+                schema: "{\"type\": \"object\"}",
                 schemaLanguage: "json-schema",
                 props: { custom: "value" },
             };
@@ -568,7 +626,7 @@ describe("StandardVersionConfig", () => {
             expect(config.format?.defaultFormat).toBe("json");
             expect(config.compatibility?.compatibleWith).toContain("Standard A");
             expect(config.compliance?.compliesWith).toContain("Regulation X");
-            expect(config.schema).toBe('{"type": "object"}');
+            expect(config.schema).toBe("{\"type\": \"object\"}");
             expect(config.schemaLanguage).toBe("json-schema");
             expect(config.props?.custom).toBe("value");
             expect(config.resourceSubType).toBe(ResourceSubType.StandardPrompt);
@@ -579,7 +637,7 @@ describe("StandardVersionConfig", () => {
                 __version: "1.0",
                 resources: [],
                 validation: { strictMode: true },
-                schema: '{"type": "string"}',
+                schema: "{\"type\": \"string\"}",
                 schemaLanguage: "json-schema",
             };
 
@@ -595,5 +653,6 @@ describe("StandardVersionConfig", () => {
             expect(exported.schema).toBe(originalConfig.schema);
             expect(exported.schemaLanguage).toBe(standardConfigFixtures.complete.schemaLanguage);
         });
+    });
     });
 });

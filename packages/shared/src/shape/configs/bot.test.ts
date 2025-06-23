@@ -130,7 +130,7 @@ describe("BotConfig", () => {
 
     it("parses a complete botSettings object correctly", () => {
         // This is similar to the first test but re-confirms with a full object.
-        const fullBotSettings = botConfigFixtures.variants.gpt4Assistant;
+        const fullBotSettings = botConfigFixtures.complete;
         const userData: Pick<User, "botSettings"> = {
             botSettings: fullBotSettings,
         };

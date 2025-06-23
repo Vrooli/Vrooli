@@ -1129,7 +1129,7 @@ describe("RoutineVersionConfig", () => {
                     graph: {
                         __version: "1.0",
                         __type: "BPMN-2.0",
-                        graph: '{"nodes": []}',
+                        graph: "{\"nodes\": []}",
                     },
                 },
                 resourceSubType: ResourceSubType.RoutineVersion,
@@ -1386,7 +1386,7 @@ describe("GraphBpmnConfig", () => {
                 __type: "BPMN-2.0",
                 schema: {
                     __format: "xml",
-                    data: '<bpmn:definitions></bpmn:definitions>',
+                    data: "<bpmn:definitions></bpmn:definitions>",
                     activityMap: {
                         activityA: {
                             subroutineId: "sub123",
@@ -1404,7 +1404,7 @@ describe("GraphBpmnConfig", () => {
             expect(config.__version).toBe("1.0");
             expect(config.__type).toBe("BPMN-2.0");
             expect(config.schema.__format).toBe("xml");
-            expect(config.schema.data).toBe('<bpmn:definitions></bpmn:definitions>');
+            expect(config.schema.data).toBe("<bpmn:definitions></bpmn:definitions>");
             expect(config.schema.activityMap.activityA.subroutineId).toBe("sub123");
         });
     });
@@ -1416,7 +1416,7 @@ describe("GraphBpmnConfig", () => {
                 __type: "BPMN-2.0" as const,
                 schema: {
                     __format: "xml" as const,
-                    data: '<bpmn:process id="Process_1"></bpmn:process>',
+                    data: "<bpmn:process id=\"Process_1\"></bpmn:process>",
                     activityMap: {},
                     rootContext: {
                         inputMap: {},
@@ -1429,7 +1429,7 @@ describe("GraphBpmnConfig", () => {
 
             expect(config).toBeInstanceOf(GraphBpmnConfig);
             expect(config.__type).toBe("BPMN-2.0");
-            expect(config.schema.data).toBe('<bpmn:process id="Process_1"></bpmn:process>');
+            expect(config.schema.data).toBe("<bpmn:process id=\"Process_1\"></bpmn:process>");
         });
     });
 
@@ -1440,7 +1440,7 @@ describe("GraphBpmnConfig", () => {
                 __type: "BPMN-2.0",
                 schema: {
                     __format: "xml",
-                    data: '<bpmn:definitions id="definitions"></bpmn:definitions>',
+                    data: "<bpmn:definitions id=\"definitions\"></bpmn:definitions>",
                     activityMap: {
                         taskA: {
                             subroutineId: "routine123",
@@ -1460,7 +1460,7 @@ describe("GraphBpmnConfig", () => {
             expect(exported.__version).toBe("1.0");
             expect(exported.__type).toBe("BPMN-2.0");
             expect(exported.schema.__format).toBe("xml");
-            expect(exported.schema.data).toBe('<bpmn:definitions id="definitions"></bpmn:definitions>');
+            expect(exported.schema.data).toBe("<bpmn:definitions id=\"definitions\"></bpmn:definitions>");
             expect(exported.schema.activityMap.taskA.subroutineId).toBe("routine123");
         });
     });

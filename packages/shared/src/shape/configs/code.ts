@@ -179,7 +179,7 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
     codeLanguage: ResourceVersion["codeLanguage"];
 
     constructor({ config, codeLanguage }: { config: CodeVersionConfigObject, codeLanguage: ResourceVersion["codeLanguage"] }) {
-        super(config);
+        super({ config });
         this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.inputConfig = config.inputConfig ?? CodeVersionConfig.defaultInputConfig();
         this.outputConfig = config.outputConfig ?? CodeVersionConfig.defaultOutputConfig();
@@ -217,18 +217,18 @@ export class CodeVersionConfig extends BaseConfig<CodeVersionConfigObject> {
         return super.parseBase<CodeVersionConfigObject, CodeVersionConfig>(
             parsedConfigObject,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 const finalConfig: CodeVersionConfigObject = {
-                    ...cfg,
+                    ...config,
                     inputConfig: (opts?.useFallbacks ?? true)
-                        ? (cfg.inputConfig ?? CodeVersionConfig.defaultInputConfig())
-                        : cfg.inputConfig,
+                        ? (config.inputConfig ?? CodeVersionConfig.defaultInputConfig())
+                        : config.inputConfig,
                     outputConfig: (opts?.useFallbacks ?? true)
-                        ? (cfg.outputConfig ?? CodeVersionConfig.defaultOutputConfig())
-                        : cfg.outputConfig,
+                        ? (config.outputConfig ?? CodeVersionConfig.defaultOutputConfig())
+                        : config.outputConfig,
                     testCases: (opts?.useFallbacks ?? true)
-                        ? (cfg.testCases ?? CodeVersionConfig.defaultTestCases())
-                        : cfg.testCases,
+                        ? (config.testCases ?? CodeVersionConfig.defaultTestCases())
+                        : config.testCases,
                 };
 
                 if (typeof finalConfig.content !== "string") {

@@ -96,7 +96,7 @@ describe("setDotNotationValue", () => {
 
     it("should handle numeric keys on non-array objects", () => {
         const obj: Record<string, any> = {
-            data: { someField: "value" }
+            data: { someField: "value" },
         };
         // Set a numeric key on a non-array object
         setDotNotationValue(obj, "data[0]", "newValue");
@@ -112,7 +112,7 @@ describe("setDotNotationValue", () => {
 
     it("should throw error when trying to access properties on non-objects", () => {
         const obj: Record<string, any> = {
-            foo: "stringValue"
+            foo: "stringValue",
         };
         // Try to set a property on a string value (should throw)
         expect(() => setDotNotationValue(obj, "foo.bar", "value")).toThrow("Expected object for property access");
@@ -120,7 +120,7 @@ describe("setDotNotationValue", () => {
 
     it("should throw error when using numeric key on non-object", () => {
         const obj: Record<string, any> = {
-            foo: 42
+            foo: 42,
         };
         // Try to use numeric key on a number (should throw)
         expect(() => setDotNotationValue(obj, "foo[0]", "value")).toThrow("Expected object for property access");
@@ -387,7 +387,7 @@ describe("mergeDeep", () => {
         expect(result3.sourceValue).toBe(20);
         expect(result3.defaultValue).toBe(10);
         // Circular structure in defaults should be handled properly
-        expect(result3.circular).to.be.an('object');
+        expect(result3.circular).to.be.an("object");
         
         // Test merging two objects with circular references
         const circular1: any = { value: 1 };
@@ -420,19 +420,19 @@ describe("mergeDeep", () => {
 
 
     it("should only merge enumerable properties", () => {
-        const source = Object.defineProperty({}, 'hidden', {
-            value: 'secret',
-            enumerable: false
+        const source = Object.defineProperty({}, "hidden", {
+            value: "secret",
+            enumerable: false,
         });
-        source.visible = 'public';
+        source.visible = "public";
         
-        const defaults = { visible: 'fallback', other: 'default' };
+        const defaults = { visible: "fallback", other: "default" };
         const result = mergeDeep(source, defaults);
         
         // Should preserve enumerable properties from source
-        expect(result.visible).toBe('public');
+        expect(result.visible).toBe("public");
         // Should include properties from defaults that aren't in source
-        expect(result.other).toBe('default');
+        expect(result.other).toBe("default");
         // Non-enumerable properties should not be copied during merge
         expect((result as any).hidden).toBeUndefined();
     });

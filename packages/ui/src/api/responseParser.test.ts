@@ -1,5 +1,5 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-19
 import i18next from "i18next";
-// import { PubSub } from "../utils/pubsub.js"; TODO pubsub mock not working. Likely due to being a singleton class
 import { type ServerResponse } from "@vrooli/shared";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ServerResponseParser } from "./responseParser.js";
@@ -9,13 +9,6 @@ vi.mock("i18next", () => ({
         t: vi.fn((key) => key),
     },
 }));
-// vi.mock("../utils/pubsub", () => ({
-//     PubSub: {
-//         get: vi.fn().mockReturnValue({
-//             publish: vi.fn(),
-//         }),
-//     },
-// }));
 
 describe("ServerResponseParser", () => {
     describe("errorToCode", () => {
@@ -90,27 +83,44 @@ describe("ServerResponseParser", () => {
         });
     });
 
-    // describe("displayServerErrors", () => {
-    //     let pubsub;
-    //     before(async () => {
-    //         const module = await import("../utils/pubsub");
-    //         console.log("got module", module.PubSub.get());
-    //         pubsub = module.PubSub.get();
-    //     });
+    describe("displayErrors", () => {
+        beforeEach(() => { 
+            vi.clearAllMocks(); 
+            vi.unmock("../utils/pubsub.js");
+        });
 
-    //     beforeEach(() => { vi.clearAllMocks(); });
+        it("displays each error as a snack message", async () => {
+            const { PubSub } = await import("../utils/pubsub.js");
+            const publishSpy = vi.spyOn(PubSub.get(), "publish");
+            
+            const errors = [{ message: "Error1" }, { message: "Error2" }];
+            ServerResponseParser.displayErrors(errors);
+            
+            expect(publishSpy).toHaveBeenCalledWith("snack", expect.objectContaining({
+                message: "Error1",
+                severity: "Error",
+            }));
+            expect(publishSpy).toHaveBeenCalledWith("snack", expect.objectContaining({
+                message: "Error2",
+                severity: "Error",
+            }));
+            expect(publishSpy).toHaveBeenCalledTimes(2);
+        });
 
+        it("does not display anything if there are no errors", async () => {
+            const { PubSub } = await import("../utils/pubsub.js");
+            const publishSpy = vi.spyOn(PubSub.get(), "publish");
+            
+            ServerResponseParser.displayErrors();
+            expect(publishSpy).not.toHaveBeenCalled();
+        });
 
-    //     it("should display each error as a snack message", async () => {
-    //         const errors = [{ message: "Error1" }, { message: "Error2" }];
-    //         displayServerErrors(errors);
-    //         expect(pubsub.publish).toHaveBeenCalledWith("snack", expect.anything());
-    //         expect(pubsub.publish).toHaveBeenCalledTimes(2);
-    //     });
-
-    //     it("should not display anything if there are no errors", async () => {
-    //         displayServerErrors();
-    //         expect(pubsub.publish).not.toHaveBeenCalled();
-    //     });
-    // });
+        it("does not display anything if errors array is empty", async () => {
+            const { PubSub } = await import("../utils/pubsub.js");
+            const publishSpy = vi.spyOn(PubSub.get(), "publish");
+            
+            ServerResponseParser.displayErrors([]);
+            expect(publishSpy).not.toHaveBeenCalled();
+        });
+    });
 });

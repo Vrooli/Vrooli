@@ -581,7 +581,7 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
     resourceSubType?: ResourceSubType;
 
     constructor({ config, resourceSubType }: { config: RoutineVersionConfigObject, resourceSubType?: ResourceSubType }) {
-        super(config);
+        super({ config });
         this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.callDataAction = config.callDataAction ? new CallDataActionConfig(config.callDataAction) : undefined;
         this.callDataApi = config.callDataApi ? new CallDataApiConfig(config.callDataApi) : undefined;
@@ -603,24 +603,24 @@ export class RoutineVersionConfig extends BaseConfig<RoutineVersionConfigObject>
         return super.parseBase<RoutineVersionConfigObject, RoutineVersionConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 if (opts?.useFallbacks ?? true) {
-                    cfg.callDataAction ??= defaultConfigCallDataAction();
-                    cfg.callDataApi ??= defaultConfigCallDataApi();
-                    cfg.callDataCode ??= defaultConfigCallDataCode();
-                    cfg.callDataGenerate ??= defaultConfigCallDataGenerate();
-                    cfg.callDataSmartContract ??= defaultConfigCallDataSmartContract();
-                    cfg.callDataWeb ??= defaultConfigCallDataWeb();
+                    config.callDataAction ??= defaultConfigCallDataAction();
+                    config.callDataApi ??= defaultConfigCallDataApi();
+                    config.callDataCode ??= defaultConfigCallDataCode();
+                    config.callDataGenerate ??= defaultConfigCallDataGenerate();
+                    config.callDataSmartContract ??= defaultConfigCallDataSmartContract();
+                    config.callDataWeb ??= defaultConfigCallDataWeb();
                     if (version.resourceSubType) {
-                        cfg.formInput ??= defaultConfigFormInputMap[version.resourceSubType]();
-                        cfg.formOutput ??= defaultConfigFormOutputMap[version.resourceSubType]();
+                        config.formInput ??= defaultConfigFormInputMap[version.resourceSubType]();
+                        config.formOutput ??= defaultConfigFormOutputMap[version.resourceSubType]();
                     } else {
-                        cfg.formInput ??= defaultSchemaInput();
-                        cfg.formOutput ??= defaultSchemaOutput();
+                        config.formInput ??= defaultSchemaInput();
+                        config.formOutput ??= defaultSchemaOutput();
                         logger.info("RoutineVersionConfig.parse: resourceSubType is undefined. Falling back to default formInput/formOutput.");
                     }
                 }
-                return new RoutineVersionConfig({ config: cfg, resourceSubType: version.resourceSubType });
+                return new RoutineVersionConfig({ config, resourceSubType: version.resourceSubType });
             },
         );
     }

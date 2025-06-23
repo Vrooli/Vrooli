@@ -11,13 +11,13 @@ describe("Execution Types Functions", () => {
                 swarmId: "swarm-456", 
                 userId: "user-789",
                 timestamp: new Date(),
-                correlationId: "corr-abc"
+                correlationId: "corr-abc",
             };
             
             const allocation = {
                 compute: { cpuCores: 2 },
                 memory: { maxHeapMb: 512 },
-                timeoutMs: 30000
+                timeoutMs: 30000,
             };
             
             const input = { message: "test input" };
@@ -29,7 +29,7 @@ describe("Execution Types Functions", () => {
                 context,
                 input,
                 allocation,
-                options
+                options,
             });
         });
 
@@ -39,13 +39,13 @@ describe("Execution Types Functions", () => {
                 swarmId: "swarm-456",
                 userId: "user-789", 
                 timestamp: new Date(),
-                correlationId: "corr-abc"
+                correlationId: "corr-abc",
             };
             
             const allocation = {
                 compute: { cpuCores: 1 },
                 memory: { maxHeapMb: 256 },
-                timeoutMs: 15000
+                timeoutMs: 15000,
             };
             
             const input = "simple string input";
@@ -56,7 +56,7 @@ describe("Execution Types Functions", () => {
                 context,
                 input,
                 allocation,
-                options: undefined
+                options: undefined,
             });
         });
 
@@ -66,13 +66,13 @@ describe("Execution Types Functions", () => {
                 swarmId: "swarm-456",
                 userId: "user-789",
                 timestamp: new Date(),
-                correlationId: "corr-abc"
+                correlationId: "corr-abc",
             };
             
             const allocation = {
                 compute: { cpuCores: 1 },
                 memory: { maxHeapMb: 256 },
-                timeoutMs: 15000
+                timeoutMs: 15000,
             };
             
             // Test with number input
@@ -98,10 +98,10 @@ describe("Execution Types Functions", () => {
                 source: {
                     tier: "tier1.swarm",
                     component: "coordination",
-                    instanceId: "inst-456"
+                    instanceId: "inst-456",
                 },
                 correlationId: "corr-789",
-                data: { message: "test" }
+                data: { message: "test" },
             };
             
             expect(isExecutionEvent(validEvent)).toBe(true);
@@ -111,7 +111,7 @@ describe("Execution Types Functions", () => {
             const minimalEvent = {
                 id: "event-123",
                 type: "simple.event",
-                timestamp: new Date()
+                timestamp: new Date(),
             };
             
             expect(isExecutionEvent(minimalEvent)).toBe(true);
@@ -120,7 +120,7 @@ describe("Execution Types Functions", () => {
         it("should return false for objects without type field", () => {
             const invalidEvent = {
                 id: "event-123",
-                timestamp: new Date()
+                timestamp: new Date(),
             };
             
             expect(isExecutionEvent(invalidEvent)).toBe(false);
@@ -130,7 +130,7 @@ describe("Execution Types Functions", () => {
             const invalidEvent = {
                 id: "event-123",
                 type: 123,
-                timestamp: new Date()
+                timestamp: new Date(),
             };
             
             expect(isExecutionEvent(invalidEvent)).toBe(false);
@@ -160,12 +160,12 @@ describe("Execution Types Functions", () => {
                 source: {
                     tier: "tier2",
                     component: "orchestrator", 
-                    instanceId: "inst-789"
+                    instanceId: "inst-789",
                 },
                 correlationId: "corr-123",
                 causationId: "cause-456",
                 data: { key: "value" },
-                metadata: { extra: "info" }
+                metadata: { extra: "info" },
             };
             
             expect(isExecutionEvent(eventWithOptionals)).toBe(true);

@@ -4,6 +4,7 @@ import { CodeLanguage } from "../../consts/index.js";
 import { CodeVersionConfig, type CodeVersionConfigObject, type JsonSchema } from "./code.js";
 import { LATEST_CONFIG_VERSION } from "./utils.js";
 import { codeConfigFixtures } from "../../__test/fixtures/config/codeConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 // Type for constructing the argument to CodeVersionConfig.parse
 type VersionInputForParse = Pick<ResourceVersion, "codeLanguage" | "config">;
@@ -11,22 +12,31 @@ type VersionInputForParse = Pick<ResourceVersion, "codeLanguage" | "config">;
 const DEFAULT_TEST_CONTENT = "function main() { return 'test'; }";
 
 describe("CodeVersionConfig", () => {
-    let consoleErrorSpy: any;
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        CodeVersionConfig,
+        codeConfigFixtures,
+        "code",
+    );
 
-    beforeAll(async () => {
-        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    });
+    // Code-specific business logic tests
+    describe("code-specific functionality", () => {
+        let consoleErrorSpy: any;
 
-    beforeEach(() => {
-        consoleErrorSpy.mockClear();
-    });
+        beforeAll(async () => {
+            consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        });
 
-    afterAll(() => {
-        consoleErrorSpy.mockRestore();
-    });
+        beforeEach(() => {
+            consoleErrorSpy.mockClear();
+        });
 
-    describe("deserialization", () => {
-        it("correctly falls back to defaults on invalid data (e.g. non-JSON string)", () => {
+        afterAll(() => {
+            consoleErrorSpy.mockRestore();
+        });
+
+        describe("deserialization", () => {
+            it("correctly falls back to defaults on invalid data (e.g. non-JSON string)", () => {
             const versionWithInvalidConfig: VersionInputForParse = {
                 codeLanguage: CodeLanguage.Javascript,
                 config: "not a valid json string" as any,
@@ -607,6 +617,7 @@ describe("CodeVersionConfig", () => {
                 },
             ]);
             expect(consoleErrorSpy).not.toHaveBeenCalled();
+            });
         });
     });
 });

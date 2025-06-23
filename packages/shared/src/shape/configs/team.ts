@@ -62,7 +62,7 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
     structure?: TeamConfigObject["structure"];
 
     constructor({ config }: { config: TeamConfigObject }) {
-        super(config);
+        super({ config });
         this.structure = config.structure;
     }
 
@@ -74,11 +74,11 @@ export class TeamConfig extends BaseConfig<TeamConfigObject> {
         return super.parseBase<TeamConfigObject, TeamConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 if (opts?.useFallbacks ?? true) {
-                    cfg.structure ??= defaultStructure();
+                    config.structure ??= defaultStructure();
                 }
-                return new TeamConfig({ config: cfg });
+                return new TeamConfig({ config });
             },
         );
     }

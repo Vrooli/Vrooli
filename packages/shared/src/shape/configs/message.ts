@@ -95,7 +95,7 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
     /* ---------------------------------------------------------------------- */
 
     constructor({ config }: { config: MessageConfigObject }) {
-        super(config);
+        super({ config });
         this.contextHints = config.contextHints;
         this.eventTopic = config.eventTopic;
         this.respondingBots = config.respondingBots;
@@ -118,16 +118,16 @@ export class MessageConfig extends BaseConfig<MessageConfigObject> {
         return super.parseBase<MessageConfigObject, MessageConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 if (opts?.useFallbacks ?? true) {
-                    cfg.contextHints ??= [];
-                    cfg.respondingBots ??= [];
-                    cfg.role ??= "user";
-                    cfg.turnId ??= null;
-                    cfg.toolCalls ??= [];
-                    cfg.runs ??= [];
+                    config.contextHints ??= [];
+                    config.respondingBots ??= [];
+                    config.role ??= "user";
+                    config.turnId ??= null;
+                    config.toolCalls ??= [];
+                    config.runs ??= [];
                 }
-                return new MessageConfig({ config: cfg });
+                return new MessageConfig({ config });
             },
         );
     }

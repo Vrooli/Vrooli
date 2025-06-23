@@ -3,6 +3,8 @@ import { OpenAIModel, type AIServicesInfo } from "@vrooli/shared";
 import { getPreferredModel, getPreferredAvailableModel, storageModelToAvailableModel, availableModelToStorageModel, type AvailableModel } from "./ai.js";
 import { useModelPreferencesStore } from "../stores/modelPreferencesStore.js";
 
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-06-18
+
 // Constants from ai.ts - we can't import them directly due to module boundaries
 const AI_SERVICE_CACHE_KEY = "AI_SERVICE_CACHE";
 
@@ -32,13 +34,13 @@ const mockAvailableModels: AvailableModel[] = [
     {
         name: "GPT_4o_Mini_Name",
         description: "GPT_4o_Mini_Description_Short", 
-        value: OpenAIModel.Gpt4o_Mini
+        value: OpenAIModel.Gpt4o_Mini,
     },
     {
         name: "GPT_4o_Name",
         description: "GPT_4o_Description_Short",
-        value: OpenAIModel.Gpt4o
-    }
+        value: OpenAIModel.Gpt4o,
+    },
 ];
 
 describe("model conversion utilities", () => {

@@ -243,12 +243,12 @@ describe("isEqual", () => {
         
         Object.defineProperty(obj1, "hidden", {
             value: "secret",
-            enumerable: false
+            enumerable: false,
         });
         
         Object.defineProperty(obj2, "hidden", {
             value: "different",
-            enumerable: false
+            enumerable: false,
         });
         
         // Only enumerable properties should affect equality

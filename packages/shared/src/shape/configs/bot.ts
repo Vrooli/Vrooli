@@ -49,7 +49,7 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
     persona: BotConfigObject["persona"];
 
     constructor({ botSettings }: { botSettings: BotConfigObject }) {
-        super(botSettings);
+        super({ config: botSettings });
         this.model = botSettings.model;
         this.maxTokens = botSettings.maxTokens;
         this.persona = botSettings.persona;
@@ -64,15 +64,15 @@ export class BotConfig extends BaseConfig<BotConfigObject> {
         return super.parseBase<BotConfigObject, BotConfig>(
             botSettings,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 if (opts?.useFallbacks ?? true) {
                     // If persona exists, merge it with defaults, otherwise use defaults
-                    cfg.persona = { ...DEFAULT_PERSONA, ...(cfg.persona ?? {}) };
-                } else if (cfg.persona === undefined) {
+                    config.persona = { ...DEFAULT_PERSONA, ...(config.persona ?? {}) };
+                } else if (config.persona === undefined) {
                     // If fallbacks are off and persona is undefined, ensure it's not null
-                    cfg.persona = undefined;
+                    config.persona = undefined;
                 }
-                return new BotConfig({ botSettings: cfg });
+                return new BotConfig({ botSettings: config });
             },
         );
     }

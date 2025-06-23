@@ -2,21 +2,32 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TeamConfig, type TeamConfigObject } from "./team.js";
 import { type Team } from "../../api/types.js";
 import { ResourceUsedFor } from "./base.js";
+import { teamConfigFixtures } from "../../__test/fixtures/config/teamConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 describe("TeamConfig", () => {
-    let mockLogger: any;
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        TeamConfig,
+        teamConfigFixtures,
+        "team",
+    );
 
-    beforeEach(() => {
-        mockLogger = {
-            trace: vi.fn(),
-            debug: vi.fn(),
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-        };
-    });
+    // Team-specific business logic tests
+    describe("team-specific functionality", () => {
+        let mockLogger: any;
 
-    describe("constructor", () => {
+        beforeEach(() => {
+            mockLogger = {
+                trace: vi.fn(),
+                debug: vi.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                error: vi.fn(),
+            };
+        });
+
+        describe("constructor", () => {
         it("should create TeamConfig with complete data", () => {
             const config: TeamConfigObject = {
                 __version: "1.0",
@@ -543,5 +554,6 @@ describe("TeamConfig", () => {
             expect(teamConfig.getResourcesByType(ResourceUsedFor.Scheduling)).toHaveLength(1);
             expect(teamConfig.getResourcesByType(ResourceUsedFor.Donation)).toHaveLength(1);
         });
+    });
     });
 });

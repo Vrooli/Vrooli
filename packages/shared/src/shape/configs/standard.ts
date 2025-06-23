@@ -76,7 +76,7 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
     resourceSubType: ResourceSubType;
 
     constructor({ config, resourceSubType }: { config: StandardVersionConfigObject, resourceSubType: ResourceSubType }) {
-        super(config);
+        super({ config });
         this.__version = config.__version ?? LATEST_CONFIG_VERSION;
         this.validation = config.validation;
         this.format = config.format;
@@ -98,9 +98,9 @@ export class StandardVersionConfig extends BaseConfig<StandardVersionConfigObjec
         return super.parseBase<StandardVersionConfigObject, StandardVersionConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 // Add fallback properties as needed
-                return new StandardVersionConfig({ config: cfg, resourceSubType: version.resourceSubType ?? ResourceSubType.StandardDataStructure });
+                return new StandardVersionConfig({ config, resourceSubType: version.resourceSubType ?? ResourceSubType.StandardDataStructure });
             },
         );
     }

@@ -1,5 +1,6 @@
 import { DEFAULT_LANGUAGE, exists, type ServerError, type ServerErrorTranslated, type ServerErrorUntranslated, type ServerResponse, type TranslationKeyError } from "@vrooli/shared";
 import i18next from "i18next";
+import { ClientError } from "./ClientError.js";
 import { PubSub } from "../utils/pubsub.js";
 
 const DEFAULT_ERROR_CODE = "ErrorUnknown";
@@ -79,9 +80,72 @@ export class ServerResponseParser {
     }
 
     /**
+     * Convert ServerError to ClientError for consistent error handling.
+     * This bridges server and client error handling through the VrooliError interface.
+     */
+    static serverErrorToClientError(serverError: ServerError): ClientError {
+        return ClientError.fromServerError(serverError);
+    }
+
+    /**
+     * Validate that errors are compatible with parser.
+     * Ensures errors can be properly processed by the response parser.
+     */
+    static validateErrorCompatibility(errors: ServerError[]): boolean {
+        return errors.every(error => {
+            try {
+                const clientError = this.serverErrorToClientError(error);
+                return clientError.isCompatibleWithParser();
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Enhanced error processing with VrooliError interface support.
+     * Processes server errors into structured client errors with messages and codes.
+     */
+    static processErrors(response: ServerResponse, languages: string[]): {
+        clientErrors: ClientError[];
+        messages: string[];
+        codes: TranslationKeyError[];
+    } {
+        if (!response.errors) {
+            return { clientErrors: [], messages: [], codes: [] };
+        }
+
+        const clientErrors = response.errors.map(error => this.serverErrorToClientError(error));
+        const messages = response.errors.map(error => this.errorToMessage({ errors: [error] }, languages));
+        const codes = response.errors.map(error => {
+            if (this.isTranslatedError(error)) return error.code;
+            return DEFAULT_ERROR_CODE;
+        });
+
+        return { clientErrors, messages, codes };
+    }
+
+    /**
+     * Enhanced displayErrors with severity support and VrooliError integration.
+     * Displays errors as snack messages with appropriate severity levels.
+     */
+    static displayErrorsEnhanced(errors?: ServerResponse["errors"], languages: string[] = [DEFAULT_LANGUAGE]) {
+        if (!errors) return;
+        
+        const { clientErrors, messages } = this.processErrors({ errors }, languages);
+        
+        clientErrors.forEach((clientError, index) => {
+            const message = messages[index];
+            const severity = clientError.getSeverity();
+            PubSub.get().publish("snack", { message, severity });
+        });
+    }
+
+    /**
      * Displays errors from a server response as snack messages.
      * Uses `errorToMessage` to convert either a translated code or an untranslated message.
      * @param errors The errors to display
+     * @deprecated Use displayErrorsEnhanced for better error handling
      */
     static displayErrors(errors?: ServerResponse["errors"]) {
         if (!errors) return;

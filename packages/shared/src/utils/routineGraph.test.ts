@@ -137,12 +137,12 @@ describe("routineGraph utility functions", () => {
                         </bpmn:process>
                     </bpmn:definitions>`,
                     activityMap: {},
-                    rootContext: { inputMap: {}, outputMap: {} }
-                }
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
             };
             const mockManagerConfig = {
                 namespace: { uri: "http://bpmn.io/schema/bpmn", prefix: "bpmn" },
-                useNamespace: true
+                useNamespace: true,
             };
 
             try {
@@ -166,7 +166,7 @@ describe("routineGraph utility functions", () => {
 
         beforeEach(() => {
             const bpmnModdle = {
-                create: (tag: string, data: any) => ({ ...data, $type: tag })
+                create: (tag: string, data: any) => ({ ...data, $type: tag }),
             } as any;
             eventManager = new EventManager(bpmnModdle);
         });
@@ -204,7 +204,7 @@ describe("routineGraph utility functions", () => {
         it("should create boundary event with default interrupting behavior", () => {
             const event = eventManager.createBoundaryEvent({ 
                 id: "boundary1", 
-                attachedToRef: "task1" 
+                attachedToRef: "task1", 
             }, true);
             expect(event).toBeDefined();
             expect(event.id).toBe("bpmn_boundary1");
@@ -215,7 +215,7 @@ describe("routineGraph utility functions", () => {
             const event = eventManager.createBoundaryEvent({ 
                 id: "boundary1", 
                 isInterrupting: false,
-                attachedToRef: "task1" 
+                attachedToRef: "task1", 
             }, true);
             expect(event).toBeDefined();
             expect(event.cancelActivity).toBe(false);
@@ -227,7 +227,7 @@ describe("routineGraph utility functions", () => {
 
         beforeEach(() => {
             const bpmnModdle = {
-                create: (tag: string, data: any) => ({ ...data, $type: tag })
+                create: (tag: string, data: any) => ({ ...data, $type: tag }),
             } as any;
             activityManager = new ActivityManager(bpmnModdle);
         });
@@ -282,36 +282,36 @@ describe("routineGraph utility functions", () => {
                         </bpmn:process>
                     </bpmn:definitions>`,
                     activityMap: {},
-                    rootContext: { inputMap: {}, outputMap: {} }
-                }
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
             };
             const mockManagerConfig = {
                 namespace: { uri: "http://bpmn.io/schema/bpmn", prefix: "bpmn" },
-                useNamespace: true
+                useNamespace: true,
             };
 
             try {
                 const manager = new BpmnManager(mockGraphConfig, mockManagerConfig);
                 
                 // Test that managers have expected methods
-                expect(typeof manager.gatewayManager.createExclusiveGateway).toBe('function');
-                expect(typeof manager.gatewayManager.createParallelGateway).toBe('function');
-                expect(typeof manager.gatewayManager.createInclusiveGateway).toBe('function');
-                expect(typeof manager.gatewayManager.createEventBasedGateway).toBe('function');
+                expect(typeof manager.gatewayManager.createExclusiveGateway).toBe("function");
+                expect(typeof manager.gatewayManager.createParallelGateway).toBe("function");
+                expect(typeof manager.gatewayManager.createInclusiveGateway).toBe("function");
+                expect(typeof manager.gatewayManager.createEventBasedGateway).toBe("function");
                 
-                expect(typeof manager.sequenceFlowManager.createExpression).toBe('function');
-                expect(typeof manager.sequenceFlowManager.createSequenceFlow).toBe('function');
+                expect(typeof manager.sequenceFlowManager.createExpression).toBe("function");
+                expect(typeof manager.sequenceFlowManager.createSequenceFlow).toBe("function");
                 
-                expect(typeof manager.activityManager.createTask).toBe('function');
-                expect(typeof manager.activityManager.createUserTask).toBe('function');
-                expect(typeof manager.activityManager.createServiceTask).toBe('function');
-                expect(typeof manager.activityManager.createCallActivity).toBe('function');
+                expect(typeof manager.activityManager.createTask).toBe("function");
+                expect(typeof manager.activityManager.createUserTask).toBe("function");
+                expect(typeof manager.activityManager.createServiceTask).toBe("function");
+                expect(typeof manager.activityManager.createCallActivity).toBe("function");
                 
-                expect(typeof manager.eventManager.createStartEvent).toBe('function');
-                expect(typeof manager.eventManager.createEndEvent).toBe('function');
-                expect(typeof manager.eventManager.createIntermediateCatchEvent).toBe('function');
-                expect(typeof manager.eventManager.createIntermediateThrowEvent).toBe('function');
-                expect(typeof manager.eventManager.createBoundaryEvent).toBe('function');
+                expect(typeof manager.eventManager.createStartEvent).toBe("function");
+                expect(typeof manager.eventManager.createEndEvent).toBe("function");
+                expect(typeof manager.eventManager.createIntermediateCatchEvent).toBe("function");
+                expect(typeof manager.eventManager.createIntermediateThrowEvent).toBe("function");
+                expect(typeof manager.eventManager.createBoundaryEvent).toBe("function");
             } catch (error) {
                 // If BPMN moddle fails due to missing schema, just test the interface
                 expect(true).toBe(true);
@@ -324,7 +324,7 @@ describe("routineGraph utility functions", () => {
 
         beforeEach(() => {
             const bpmnModdle = {
-                create: (tag: string, data: any) => ({ ...data, $type: tag })
+                create: (tag: string, data: any) => ({ ...data, $type: tag }),
             } as any;
             // Create GatewayManager directly
             gatewayManager = new GatewayManager(bpmnModdle);
@@ -375,7 +375,7 @@ describe("routineGraph utility functions", () => {
 
         beforeEach(() => {
             const bpmnModdle = {
-                create: (tag: string, data: any) => ({ ...data, $type: tag })
+                create: (tag: string, data: any) => ({ ...data, $type: tag }),
             } as any;
             sequenceFlowManager = new SequenceFlowManager(bpmnModdle);
         });
@@ -391,7 +391,7 @@ describe("routineGraph utility functions", () => {
             const flow = sequenceFlowManager.createSequenceFlow({
                 id: "flow1",
                 sourceRef: "start1",
-                targetRef: "task1"
+                targetRef: "task1",
             }, true);
             expect(flow).toBeDefined();
             expect(flow.id).toBe("bpmn_flow1");
@@ -404,7 +404,7 @@ describe("routineGraph utility functions", () => {
                 id: "flow2",
                 sourceRef: "gateway1",
                 targetRef: "task2",
-                conditionExpression: "x > 5"
+                conditionExpression: "x > 5",
             }, true);
             expect(flow).toBeDefined();
             expect(flow.id).toBe("bpmn_flow2");
@@ -416,7 +416,7 @@ describe("routineGraph utility functions", () => {
             const flow = sequenceFlowManager.createSequenceFlow({
                 id: "flow1",
                 sourceRef: "start1",
-                targetRef: "task1"
+                targetRef: "task1",
             }, false);
             expect(flow.id).toBe("flow1");
         });
@@ -427,7 +427,7 @@ describe("routineGraph utility functions", () => {
                 id: "complexFlow",
                 sourceRef: "gateway1",
                 targetRef: "task1",
-                conditionExpression: complexCondition
+                conditionExpression: complexCondition,
             }, true);
             expect(flow.conditionExpression.body).toBe(complexCondition);
         });
@@ -449,8 +449,8 @@ describe("routineGraph utility functions", () => {
                     </bpmn:process>
                 </bpmn:definitions>`,
                 activityMap: { Task_1: { nodeType: "action", data: { actionType: "task" } } },
-                rootContext: { inputMap: { input1: "string" }, outputMap: { output1: "string" } }
-            }
+                rootContext: { inputMap: { input1: "string" }, outputMap: { output1: "string" } },
+            },
         };
 
         it("should initialize BPMN manager and call initialize method", () => {
@@ -511,8 +511,8 @@ describe("routineGraph utility functions", () => {
                             </bpmn:process>
                         </bpmn:definitions>`,
                         activityMap: {},
-                        rootContext: { inputMap: {}, outputMap: {} }
-                    }
+                        rootContext: { inputMap: {}, outputMap: {} },
+                    },
                 };
                 const manager = new BpmnManager(validConfig);
                 expect(manager).toBeDefined();
@@ -531,26 +531,26 @@ describe("routineGraph utility functions", () => {
                             nodeType: "action", 
                             data: { 
                                 actionType: "complexTask",
-                                parameters: { param1: "value1", param2: "value2" }
-                            } 
+                                parameters: { param1: "value1", param2: "value2" },
+                            }, 
                         },
                         Task_2: { 
                             nodeType: "subroutine", 
-                            data: { routineVersion: { id: "routine123" } }
-                        }
+                            data: { routineVersion: { id: "routine123" } },
+                        },
                     },
                     rootContext: { 
                         inputMap: { 
                             input1: "string", 
                             input2: "number",
-                            complexInput: { type: "object", properties: { nested: "string" } }
+                            complexInput: { type: "object", properties: { nested: "string" } },
                         }, 
                         outputMap: { 
                             output1: "string",
-                            output2: "boolean"
-                        } 
-                    }
-                }
+                            output2: "boolean",
+                        }, 
+                    },
+                },
             };
 
             try {
@@ -567,7 +567,7 @@ describe("routineGraph utility functions", () => {
         it("should handle edge cases in namespace usage", () => {
             const customConfig = {
                 namespace: { uri: "http://custom.namespace", prefix: "custom" },
-                useNamespace: false
+                useNamespace: false,
             };
 
             try {
@@ -626,7 +626,7 @@ describe("routineGraph utility functions", () => {
                 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
                     <bpmn:process id="Process_1">
                         ${Array.from({ length: 1000 }, (_, i) => 
-                            `<bpmn:task id="Task_${i}" name="Task ${i}"/>`
+                            `<bpmn:task id="Task_${i}" name="Task ${i}"/>`,
                         ).join("")}
                     </bpmn:process>
                 </bpmn:definitions>`;
@@ -635,8 +635,8 @@ describe("routineGraph utility functions", () => {
                 schema: {
                     data: largeXml,
                     activityMap: {},
-                    rootContext: { inputMap: {}, outputMap: {} }
-                }
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
             };
 
             try {
@@ -662,8 +662,8 @@ describe("routineGraph utility functions", () => {
                         </bpmn:process>
                     </bpmn:definitions>`,
                     activityMap: {},
-                    rootContext: { inputMap: {}, outputMap: {} }
-                }
+                    rootContext: { inputMap: {}, outputMap: {} },
+                },
             };
 
             try {
@@ -672,7 +672,7 @@ describe("routineGraph utility functions", () => {
                     new Promise(resolve => {
                         const manager = new BpmnManager(config);
                         resolve(manager.export());
-                    })
+                    }),
                 );
 
                 const results = await Promise.all(promises);
@@ -695,9 +695,9 @@ describe("routineGraph utility functions", () => {
                     <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
                         <bpmn:process id="Process_1" isExecutable="true">
                         </bpmn:process>
-                    </bpmn:definitions>`
+                    </bpmn:definitions>`,
                     // Note: activityMap and rootContext are intentionally missing
-                }
+                },
             };
 
             try {
@@ -733,12 +733,12 @@ describe("routineGraph utility functions", () => {
                 const mockManager = {
                     definitions: null,
                     bpmnModdle: null,
-                    export: async function(pretty = true) {
+                    async export(pretty = true) {
                         if (!this.definitions) {
                             throw new Error("No BPMN definitions are loaded/initialized.");
                         }
                         return {};
-                    }
+                    },
                 };
                 
                 await expect(mockManager.export()).rejects.toThrow("No BPMN definitions are loaded/initialized.");
@@ -755,8 +755,8 @@ describe("routineGraph utility functions", () => {
                         </bpmn:process>
                     </bpmn:definitions>`,
                     activityMap: { test: "activity" },
-                    rootContext: { inputMap: { test: "input" }, outputMap: { test: "output" } }
-                }
+                    rootContext: { inputMap: { test: "input" }, outputMap: { test: "output" } },
+                },
             };
 
             try {

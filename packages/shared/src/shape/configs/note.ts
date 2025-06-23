@@ -15,7 +15,7 @@ export type NoteVersionConfigObject = BaseConfigObject
 export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
 
     constructor({ config }: { config: NoteVersionConfigObject }) {
-        super(config);
+        super({ config });
     }
 
     static parse(
@@ -26,9 +26,9 @@ export class NoteVersionConfig extends BaseConfig<NoteVersionConfigObject> {
         return super.parseBase<NoteVersionConfigObject, NoteVersionConfig>(
             version.config,
             logger,
-            (cfg) => {
+            ({ config }) => {
                 // Add fallback properties as needed
-                return new NoteVersionConfig({ config: cfg });
+                return new NoteVersionConfig({ config });
             },
         );
     }

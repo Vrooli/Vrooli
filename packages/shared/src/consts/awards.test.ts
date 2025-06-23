@@ -42,7 +42,7 @@ describe("awards constants", () => {
             // AccountAnniversary and AccountNew are special cases
             const expectedKeys = allCategories.filter(cat =>
                 cat !== "AccountAnniversary" &&
-                cat !== "AccountNew"
+                cat !== "AccountNew",
             );
 
             expect(variantKeys.sort()).toEqual(expectedKeys.sort());

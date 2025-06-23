@@ -131,12 +131,12 @@ describe("parseSearchParams", () => {
         expect(parseSearchParams()).toEqual({ string: "value", number: 123, boolean: true, null: null });
     });
 
-    it("returns an empty object for invalid format", () => {
+    it("returns parameters as strings for invalid JSON format", () => {
         // Mock console.error
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
 
         setWindowSearch("?invalid");
-        expect(parseSearchParams()).toEqual({});
+        expect(parseSearchParams()).toEqual({ invalid: "" });
 
         // Restore the spy
         consoleErrorSpy.mockRestore();
@@ -650,15 +650,15 @@ describe("error handling", () => {
         consoleErrorSpy.mockRestore();
     });
 
-    it("should handle parseSearchParams JSON parsing errors", () => {
+    it("should handle parseSearchParams JSON parsing errors by falling back to strings", () => {
         setupDOM();
 
         // Set invalid JSON in search params
         window.history.replaceState({}, "", "?invalid=notjson");
 
         const result = parseSearchParams();
-        // When JSON parsing fails, the parameter is ignored
-        expect(result).toEqual({});
+        // When JSON parsing fails, the parameter falls back to string value
+        expect(result).toEqual({ invalid: "notjson" });
 
         teardownDOM();
     });
@@ -672,17 +672,17 @@ describe("error handling", () => {
         // Temporarily change NODE_ENV to trigger console.error
         process.env.NODE_ENV = "production";
 
-        // Set invalid JSON in search params
-        window.history.replaceState({}, "", "?invalid=notjson");
+        // Set parameter with invalid URI encoding that will cause decodeURIComponent to fail
+        window.history.replaceState({}, "", "?invalid%ZZ=test");
 
         const result = parseSearchParams();
 
         // Should log error when not in test environment
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-            expect.stringContaining("Error decoding parameter \"invalid\""),
+            expect.stringContaining("Error decoding parameter \"invalid%ZZ\""),
         );
 
-        // When JSON parsing fails, the parameter is ignored
+        // When URI decoding fails, the parameter is ignored
         expect(result).toEqual({});
 
         // Restore environment and mocks
@@ -692,6 +692,10 @@ describe("error handling", () => {
     });
 
     it("should warn for invalid objects in getObjectUrlBase", () => {
+        // In test environment, warnings are suppressed, so we need to temporarily change NODE_ENV
+        const originalEnv = process.env.NODE_ENV;
+        process.env.NODE_ENV = "development";
+        
         const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {
             // Mock implementation
         });
@@ -700,5 +704,6 @@ describe("error handling", () => {
         expect(consoleWarnSpy).toHaveBeenCalled();
 
         consoleWarnSpy.mockRestore();
+        process.env.NODE_ENV = originalEnv;
     });
 });

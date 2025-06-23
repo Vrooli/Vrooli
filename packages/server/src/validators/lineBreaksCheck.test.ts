@@ -9,7 +9,7 @@ describe("lineBreaksCheck", () => {
         it("should pass for valid input with no line breaks", () => {
             const input = {
                 title: "Single line title",
-                description: "Single line description"
+                description: "Single line description",
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -18,7 +18,7 @@ describe("lineBreaksCheck", () => {
         it("should pass for valid input with allowed line breaks", () => {
             const input = {
                 title: "Line 1\nLine 2",
-                description: "Line 1\nLine 2\nLine 3"
+                description: "Line 1\nLine 2\nLine 3",
             };
             
             // Default k=2, so up to 3 lines (2 line breaks) should be allowed
@@ -27,7 +27,7 @@ describe("lineBreaksCheck", () => {
 
         it("should throw error when exceeding default line break limit", () => {
             const input = {
-                title: "Line 1\nLine 2\nLine 3\nLine 4" // 3 line breaks, exceeds default k=2
+                title: "Line 1\nLine 2\nLine 3\nLine 4", // 3 line breaks, exceeds default k=2
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError)).toThrow(CustomError);
@@ -35,7 +35,7 @@ describe("lineBreaksCheck", () => {
 
         it("should throw error when exceeding custom line break limit", () => {
             const input = {
-                description: "Line 1\nLine 2" // 1 line break, should exceed k=0
+                description: "Line 1\nLine 2", // 1 line break, should exceed k=0
             };
             
             expect(() => lineBreaksCheck(input, ["description"], mockError, 0)).toThrow(CustomError);
@@ -43,7 +43,7 @@ describe("lineBreaksCheck", () => {
 
         it("should handle custom k parameter correctly", () => {
             const input = {
-                content: "Line 1\nLine 2\nLine 3\nLine 4\nLine 5" // 4 line breaks
+                content: "Line 1\nLine 2\nLine 3\nLine 4\nLine 5", // 4 line breaks
             };
             
             // k=4 should allow up to 5 lines (4 line breaks)
@@ -57,7 +57,7 @@ describe("lineBreaksCheck", () => {
             const input = {
                 title: "Line 1\nLine 2",
                 description: "Line 1\nLine 2\nLine 3",
-                notes: "Single line"
+                notes: "Single line",
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description", "notes"], mockError)).not.toThrow();
@@ -66,7 +66,7 @@ describe("lineBreaksCheck", () => {
         it("should throw error if any field exceeds limit", () => {
             const input = {
                 title: "Line 1\nLine 2", // Valid
-                description: "Line 1\nLine 2\nLine 3\nLine 4" // Invalid - 3 line breaks exceeds k=2
+                description: "Line 1\nLine 2\nLine 3\nLine 4", // Invalid - 3 line breaks exceeds k=2
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).toThrow(CustomError);
@@ -74,7 +74,7 @@ describe("lineBreaksCheck", () => {
 
         it("should handle missing fields gracefully", () => {
             const input = {
-                title: "Existing field"
+                title: "Existing field",
             };
             
             // Should not throw when checking for non-existent fields
@@ -85,7 +85,7 @@ describe("lineBreaksCheck", () => {
             const input = {
                 title: null,
                 description: undefined,
-                content: "Valid content"
+                content: "Valid content",
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description", "content"], mockError)).not.toThrow();
@@ -94,7 +94,7 @@ describe("lineBreaksCheck", () => {
         it("should handle empty strings", () => {
             const input = {
                 title: "",
-                description: "Normal content"
+                description: "Normal content",
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -106,8 +106,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 translationsCreate: [
                     { title: "Line 1\nLine 2", description: "Single line" },
-                    { title: "Another title", description: "Line 1\nLine 2\nLine 3" }
-                ]
+                    { title: "Another title", description: "Line 1\nLine 2\nLine 3" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -116,8 +116,8 @@ describe("lineBreaksCheck", () => {
         it("should throw error for invalid translationsCreate", () => {
             const input = {
                 translationsCreate: [
-                    { title: "Line 1\nLine 2\nLine 3\nLine 4" } // 3 line breaks, exceeds k=2
-                ]
+                    { title: "Line 1\nLine 2\nLine 3\nLine 4" }, // 3 line breaks, exceeds k=2
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError)).toThrow(CustomError);
@@ -127,8 +127,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 translationsUpdate: [
                     { title: "Line 1\nLine 2", description: "Single line" },
-                    { title: "Another title", description: "Line 1\nLine 2\nLine 3" }
-                ]
+                    { title: "Another title", description: "Line 1\nLine 2\nLine 3" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -138,8 +138,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 translationsUpdate: [
                     { title: "Valid title" },
-                    { description: "Line 1\nLine 2\nLine 3\nLine 4" } // 3 line breaks, exceeds k=2
-                ]
+                    { description: "Line 1\nLine 2\nLine 3\nLine 4" }, // 3 line breaks, exceeds k=2
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).toThrow(CustomError);
@@ -148,11 +148,11 @@ describe("lineBreaksCheck", () => {
         it("should handle both translationsCreate and translationsUpdate", () => {
             const input = {
                 translationsCreate: [
-                    { title: "Line 1\nLine 2" }
+                    { title: "Line 1\nLine 2" },
                 ],
                 translationsUpdate: [
-                    { description: "Line 1\nLine 2\nLine 3" }
-                ]
+                    { description: "Line 1\nLine 2\nLine 3" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -161,8 +161,8 @@ describe("lineBreaksCheck", () => {
         it("should validate translations with custom k parameter", () => {
             const input = {
                 translationsCreate: [
-                    { content: "Line 1\nLine 2" } // 1 line break
-                ]
+                    { content: "Line 1\nLine 2" }, // 1 line break
+                ],
             };
             
             // k=1 should allow 1 line break
@@ -176,8 +176,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 translationsCreate: [
                     { title: "Has title" },
-                    { description: "Has description" }
-                ]
+                    { description: "Has description" },
+                ],
             };
             
             // Should not throw when checking for fields that don't exist in some translations
@@ -187,7 +187,7 @@ describe("lineBreaksCheck", () => {
         it("should handle empty translations arrays", () => {
             const input = {
                 translationsCreate: [],
-                translationsUpdate: []
+                translationsUpdate: [],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -197,8 +197,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 translationsCreate: [
                     { title: null, description: undefined },
-                    { title: "Valid title" }
-                ]
+                    { title: "Valid title" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -210,11 +210,11 @@ describe("lineBreaksCheck", () => {
             const input = {
                 title: "Main title\nLine 2",
                 translationsCreate: [
-                    { title: "Translation 1\nLine 2" }
+                    { title: "Translation 1\nLine 2" },
                 ],
                 translationsUpdate: [
-                    { title: "Translation 2\nLine 2\nLine 3" }
-                ]
+                    { title: "Translation 2\nLine 2\nLine 3" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError)).not.toThrow();
@@ -224,8 +224,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 title: "Line 1\nLine 2\nLine 3\nLine 4", // Invalid - 3 line breaks
                 translationsCreate: [
-                    { title: "Valid translation" }
-                ]
+                    { title: "Valid translation" },
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError)).toThrow(CustomError);
@@ -235,8 +235,8 @@ describe("lineBreaksCheck", () => {
             const input = {
                 title: "Valid main title",
                 translationsCreate: [
-                    { title: "Line 1\nLine 2\nLine 3\nLine 4" } // Invalid - 3 line breaks
-                ]
+                    { title: "Line 1\nLine 2\nLine 3\nLine 4" }, // Invalid - 3 line breaks
+                ],
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError)).toThrow(CustomError);
@@ -246,7 +246,7 @@ describe("lineBreaksCheck", () => {
     describe("edge cases", () => {
         it("should handle objects without any relevant fields", () => {
             const input = {
-                someOtherField: "irrelevant"
+                someOtherField: "irrelevant",
             };
             
             expect(() => lineBreaksCheck(input, ["title", "description"], mockError)).not.toThrow();
@@ -255,7 +255,7 @@ describe("lineBreaksCheck", () => {
         it("should handle extremely long content with valid line breaks", () => {
             const longContent = "A".repeat(1000) + "\n" + "B".repeat(1000) + "\n" + "C".repeat(1000);
             const input = {
-                content: longContent
+                content: longContent,
             };
             
             expect(() => lineBreaksCheck(input, ["content"], mockError)).not.toThrow();
@@ -264,7 +264,7 @@ describe("lineBreaksCheck", () => {
         it("should handle different line break styles", () => {
             const input = {
                 content1: "Line 1\nLine 2\nLine 3", // Unix style \n
-                content2: "Line 1\r\nLine 2\r\nLine 3" // Windows style \r\n (treated as single line breaks)
+                content2: "Line 1\r\nLine 2\r\nLine 3", // Windows style \r\n (treated as single line breaks)
             };
             
             expect(() => lineBreaksCheck(input, ["content1", "content2"], mockError)).not.toThrow();
@@ -272,13 +272,13 @@ describe("lineBreaksCheck", () => {
 
         it("should handle zero k parameter", () => {
             const input = {
-                title: "Single line only"
+                title: "Single line only",
             };
             
             expect(() => lineBreaksCheck(input, ["title"], mockError, 0)).not.toThrow();
             
             const inputWithBreak = {
-                title: "Line 1\nLine 2"
+                title: "Line 1\nLine 2",
             };
             
             expect(() => lineBreaksCheck(inputWithBreak, ["title"], mockError, 0)).toThrow(CustomError);
@@ -286,7 +286,7 @@ describe("lineBreaksCheck", () => {
 
         it("should validate that CustomError is thrown with correct error message", () => {
             const input = {
-                title: "Line 1\nLine 2\nLine 3\nLine 4" // Too many line breaks
+                title: "Line 1\nLine 2\nLine 3\nLine 4", // Too many line breaks
             };
             
             try {
@@ -302,8 +302,8 @@ describe("lineBreaksCheck", () => {
         it("should validate that CustomError is thrown with correct error message for translations", () => {
             const input = {
                 translationsCreate: [
-                    { title: "Line 1\nLine 2\nLine 3\nLine 4" } // Too many line breaks
-                ]
+                    { title: "Line 1\nLine 2\nLine 3\nLine 4" }, // Too many line breaks
+                ],
             };
             
             try {

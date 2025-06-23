@@ -4,7 +4,7 @@ import {
     getOAuthCallbackRoute, 
     AUTH_ROUTE_PREFIX, 
     OAUTH_ROUTE_CALLBACK,
-    OAUTH_PROVIDERS 
+    OAUTH_PROVIDERS, 
 } from "./api.js";
 
 describe("OAuth Route Functions", () => {

@@ -18,12 +18,12 @@ describe("CreditConfig", () => {
 
             expect(config.__version).toBe("1.0");
             expect(config.rollover.enabled).toBe(true);
-            expect(config.rollover.maxMonthsToKeep).toBe(3);
+            expect(config.rollover.maxMonthsToKeep).toBe(6);
             expect(config.rollover.lastProcessedMonth).toBe("2024-01");
             expect(config.donation.enabled).toBe(true);
             expect(config.donation.percentage).toBe(15);
-            expect(config.donation.minThreshold).toBe(500);
-            expect(config.donation.recipientType).toBe("community");
+            expect(config.donation.minThreshold).toBe(5000);
+            expect(config.donation.recipientType).toBe("platform");
             expect(config.donation.lastProcessedMonth).toBe("2024-01");
         });
 

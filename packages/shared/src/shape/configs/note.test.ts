@@ -3,19 +3,29 @@ import { NoteVersionConfig, type NoteVersionConfigObject } from "./note.js";
 import { type ResourceVersion } from "../../api/types.js";
 import { ResourceUsedFor } from "./base.js";
 import { noteConfigFixtures } from "../../__test/fixtures/config/noteConfigFixtures.js";
+import { runComprehensiveConfigTests } from "./__test/configTestUtils.js";
 
 describe("NoteVersionConfig", () => {
-    let mockLogger: any;
+    // Standardized config tests using fixtures
+    runComprehensiveConfigTests(
+        NoteVersionConfig,
+        noteConfigFixtures,
+        "note",
+    );
 
-    beforeEach(() => {
-        mockLogger = {
-            trace: vi.fn(),
-            debug: vi.fn(),
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-        };
-    });
+    // Note-specific business logic tests
+    describe("note-specific functionality", () => {
+        let mockLogger: any;
+
+        beforeEach(() => {
+            mockLogger = {
+                trace: vi.fn(),
+                debug: vi.fn(),
+                info: vi.fn(),
+                warn: vi.fn(),
+                error: vi.fn(),
+            };
+        });
 
     describe("constructor", () => {
         it("should create NoteVersionConfig with complete data", () => {
@@ -281,5 +291,6 @@ describe("NoteVersionConfig", () => {
             // Should be identical
             expect(reExported).toEqual(originalConfig);
         });
+    });
     });
 });

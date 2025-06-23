@@ -16,7 +16,9 @@
  * - docs/architecture/execution/ for architecture documentation
  */
 
-// Core utilities and types
+// Core utilities and types (NEW IMPLEMENTATION)
+export * from "./executionValidationUtils.js";
+export * from "./executionFactories.js";
 export * from "./executionTestUtils.js";
 export * from "./types.js";
 
@@ -38,32 +40,49 @@ export * from "./integration-scenarios/index.js";
 // Shared utilities
 export * from "./testIdGenerator.js";
 
-// Re-export key utilities for convenience
+// Re-export key utilities for convenience (NEW IMPLEMENTATION)
 export { 
     runComprehensiveExecutionTests,
-    runTier1ValidationTests,
-    runTier2ValidationTests,
-    runTier3ValidationTests,
-    runCrossTierIntegrationTests,
-    validateEmergentCapabilities,
-    validateEventPatterns,
-    validateEvolutionPath,
-    validateCrossTierIntegration,
-    ExecutionFixtureFactory,
-} from "./executionTestUtils.js";
+    validateConfigAgainstSchema,
+    validateEmergence,
+    validateIntegration,
+    validateEvolutionPathways,
+    validateEventFlow,
+    combineValidationResults,
+    createMinimalEmergence,
+    createMinimalIntegration,
+} from "./executionValidationUtils.js";
 
-// Re-export key types for convenience  
+// Re-export factories for convenience
+export {
+    SwarmFixtureFactory,
+    RoutineFixtureFactory,
+    ExecutionContextFixtureFactory,
+    executionFixtureFactories,
+    getExecutionFixtureFactory,
+    createExecutionFixture,
+    validateExecutionFixture,
+} from "./executionFactories.js";
+
+// Re-export key types for convenience (NEW IMPLEMENTATION)
 export type {
     ExecutionFixture,
-    ExecutionValidationResult,
-    ExecutionTestFixtures,
-    ExecutionValidationOptions,
-    EmergenceDefinition,
-    IntegrationDefinition,
-    ValidationDefinition,
     SwarmFixture,
     RoutineFixture,
     ExecutionContextFixture,
+    EmergenceDefinition,
+    IntegrationDefinition,
+    ValidationResult,
+    ConfigType,
+    ExecutionFixtureFactory,
+} from "./executionValidationUtils.js";
+
+// Legacy types from original implementation
+export type {
+    ExecutionValidationResult,
+    ExecutionTestFixtures,
+    ExecutionValidationOptions,
+    ValidationDefinition,
     IntegrationScenario,
     ExecutionTier,
     ExecutionStrategy,

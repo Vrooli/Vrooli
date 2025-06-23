@@ -149,7 +149,7 @@ describe("LRUCache", () => {
         cache.set("largeObj", largeObj);
         expect(cache.get("largeObj")).toBeUndefined();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining("Skipping cache set for key largeObj")
+            expect.stringContaining("Skipping cache set for key largeObj"),
         );
     });
 
@@ -163,7 +163,7 @@ describe("LRUCache", () => {
         cache.set("circular", circularObj);
         expect(cache.get("circular")).toEqual(circularObj);
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining("Error calculating size for cache value")
+            expect.stringContaining("Error calculating size for cache value"),
         );
     });
 
@@ -225,7 +225,7 @@ describe("LRUCache", () => {
         expect(entries).toEqual([
             ["first", 1],
             ["second", 2], 
-            ["third", 3]
+            ["third", 3],
         ]);
     });
 
@@ -267,7 +267,7 @@ describe("LRUCache", () => {
             limit: 3, 
             cleanupCooldownMs: 500,
             maxExpiredEntries: 50,
-            defaultTTLMs: 100
+            defaultTTLMs: 100,
         });
         
         // Add some entries that will expire
@@ -319,7 +319,7 @@ describe("LRUCache", () => {
         const ttlCache = new LRUCache<string, number>({ 
             limit: 10, 
             defaultTTLMs: 100,
-            maxExpiredEntries: 2 // Force frequent cleanup
+            maxExpiredEntries: 2, // Force frequent cleanup
         });
         
         // Add entries with different expiration times
@@ -342,7 +342,7 @@ describe("LRUCache", () => {
         const cache = new LRUCache<string, string>({ 
             limit: 3, 
             maxSizeBytes: 20,
-            defaultTTLMs: 100
+            defaultTTLMs: 100,
         });
         
         cache.set("small1", "abc", 100);     // 3 bytes, explicit TTL
@@ -420,7 +420,7 @@ describe("LRUCache", () => {
         it("should handle memory pressure with large objects", () => {
             const cache = new LRUCache<string, any>({ 
                 limit: 100, 
-                maxSizeBytes: 50000 // 50KB limit
+                maxSizeBytes: 50000, // 50KB limit
             });
             
             // Add large objects that approach the size limit
@@ -495,7 +495,7 @@ describe("LRUCache", () => {
             const cache = new LRUCache<string, string>({ 
                 limit: 100, 
                 defaultTTLMs: 1000,
-                maxExpiredEntries: 5 // Trigger cleanup frequently
+                maxExpiredEntries: 5, // Trigger cleanup frequently
             });
             
             // Add items with different TTL values
@@ -536,7 +536,7 @@ describe("LRUCache", () => {
                 limit: 20,
                 defaultTTLMs: 100,
                 maxExpiredEntries: 3,
-                cleanupCooldownMs: 50
+                cleanupCooldownMs: 50,
             });
             
             // Add items in waves with different expiration times
@@ -574,7 +574,7 @@ describe("LRUCache", () => {
             const cache = new LRUCache<string, string>({ 
                 limit: 100,
                 defaultTTLMs: 50,
-                maxExpiredEntries: 1 // Force very frequent cleanup
+                maxExpiredEntries: 1, // Force very frequent cleanup
             });
             
             // Fill cache with short-lived items

@@ -16,7 +16,7 @@ export function isEqual(obj1: unknown, obj2: unknown): boolean {
     if (obj1 == null || obj2 == null) return false;
     
     // Handle NaN special case (NaN should equal NaN in deep equality)
-    if (typeof obj1 === 'number' && typeof obj2 === 'number' && isNaN(obj1) && isNaN(obj2)) {
+    if (typeof obj1 === "number" && typeof obj2 === "number" && isNaN(obj1) && isNaN(obj2)) {
         return true;
     }
     
@@ -34,7 +34,7 @@ export function isEqual(obj1: unknown, obj2: unknown): boolean {
     }
     
     // Handle Functions
-    if (typeof obj1 === 'function' && typeof obj2 === 'function') {
+    if (typeof obj1 === "function" && typeof obj2 === "function") {
         // Functions are only equal if they're the same reference
         return false; // We already checked === above
     }
