@@ -16,6 +16,10 @@
  * - docs/architecture/execution/ for architecture documentation
  */
 
+// Core utilities and types
+export * from "./executionTestUtils.js";
+export * from "./types.js";
+
 // Tier 1: Coordination Intelligence
 export * from "./tier1-coordination/index.js";
 
@@ -33,6 +37,37 @@ export * from "./integration-scenarios/index.js";
 
 // Shared utilities
 export * from "./testIdGenerator.js";
+
+// Re-export key utilities for convenience
+export { 
+    runComprehensiveExecutionTests,
+    runTier1ValidationTests,
+    runTier2ValidationTests,
+    runTier3ValidationTests,
+    runCrossTierIntegrationTests,
+    validateEmergentCapabilities,
+    validateEventPatterns,
+    validateEvolutionPath,
+    validateCrossTierIntegration,
+    ExecutionFixtureFactory,
+} from "./executionTestUtils.js";
+
+// Re-export key types for convenience  
+export type {
+    ExecutionFixture,
+    ExecutionValidationResult,
+    ExecutionTestFixtures,
+    ExecutionValidationOptions,
+    EmergenceDefinition,
+    IntegrationDefinition,
+    ValidationDefinition,
+    SwarmFixture,
+    RoutineFixture,
+    ExecutionContextFixture,
+    IntegrationScenario,
+    ExecutionTier,
+    ExecutionStrategy,
+} from "./types.js";
 
 /**
  * Quick Access to Key Fixtures

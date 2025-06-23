@@ -2,7 +2,7 @@ import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { DatabaseFixtureFactory } from "../DatabaseFixtureFactory.js";
 import type { RelationConfig } from "../DatabaseFixtureFactory.js";
-import { projectConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { projectConfigFixtures } from "@vrooli/shared/test-fixtures";
 
 interface ProjectVersionRelationConfig extends RelationConfig {
     project?: { projectId: string };

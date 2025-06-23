@@ -16,7 +16,7 @@ import {
     createUserDbFactory,
     createTeamDbFactory,
 } from "./index.js";
-import { routineConfigFixtures } from "@vrooli/shared/__test/fixtures/config";
+import { routineConfigFixtures } from "@vrooli/shared/test-fixtures";
 import { ResourceType } from "@vrooli/shared";
 
 describe("Core Business Objects Part 2 - Database Fixture Factories", () => {
